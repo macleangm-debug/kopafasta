@@ -1088,7 +1088,7 @@ class ApplyController extends Controller
             $message = $dummyGateway
                 ? __('borrower.apply.application_fee.dummy_paid')
                 : (($feeState['status'] ?? '') === 'processing'
-                    ? __('borrower.payment_waiting.prompt')
+                    ? __('borrower.payment_waiting.waiting')
                     : __('borrower.apply.application_fee.paid'));
 
             if ($request->expectsJson()) {
@@ -1218,16 +1218,32 @@ class ApplyController extends Controller
                 $product,
                 $paymentReference,
                 $request->boolean('use_wallet'),
+                $data['payment_phone'] ?? $customer->phone,
             );
             $drafts->saveValuationFee($customer, $product->id, $feeState);
             $request->session()->forget('valuation_fee_payment_ref');
 
             $message = $dummyGateway
                 ? __('borrower.apply.valuation_fee.dummy_paid')
-                : __('borrower.apply.valuation_fee.paid');
+                : (($feeState['status'] ?? '') === 'processing'
+                    ? __('borrower.payment_waiting.waiting')
+                    : __('borrower.apply.valuation_fee.paid'));
 
             if ($request->expectsJson()) {
-                return response()->json(['ok' => true, 'fee' => $feeState, 'message' => $message, 'dummy' => $dummyGateway]);
+                return response()->json([
+                    'ok' => true,
+                    'fee' => $feeState,
+                    'message' => $message,
+                    'dummy' => $dummyGateway,
+                    'wait_url' => $feeState['wait_url'] ?? null,
+                    'processing' => ($feeState['status'] ?? '') === 'processing',
+                ]);
+            }
+
+            if (($feeState['status'] ?? '') === 'processing' && ! empty($feeState['payment_id'])) {
+                return redirect()
+                    ->route('site.borrower.payments.show', $feeState['payment_id'])
+                    ->with('status', $message);
             }
 
             return back()->with('status', $message);

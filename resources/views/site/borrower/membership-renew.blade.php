@@ -9,6 +9,16 @@
         $promoCode = old('promo_code', request('promo_code'));
         $promoValid = (bool) ($feeQuote['promo_valid'] ?? false);
         $promoAttempted = $isFirstTime && filled($promoCode);
+        $codeKind = $feeQuote['code_kind'] ?? ($promoValid ? 'promo' : ($promoAttempted ? 'invalid' : null));
+        $promoFeedbackTitle = match ($codeKind) {
+            'affiliate' => __('borrower.membership.affiliate_ok_title'),
+            'promo' => __('borrower.membership.promo_ok_title'),
+            default => __('borrower.membership.promo_bad_title'),
+        };
+        $promoFeedbackMessage = match ($codeKind) {
+            'affiliate', 'promo' => '',
+            default => __('borrower.membership.promo_invalid'),
+        };
     @endphp
 
     @if ($errors->any())
@@ -70,19 +80,44 @@
 
         <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-5">
             @if ($promoAllows)
-                @if ($promoAttempted)
+                @if ($promoAttempted && ! $promoValid)
                     <div
                         x-data
                         x-init="
-                            window.dispatchEvent(new CustomEvent('open-feedback-default', {
-                                detail: {
-                                    tone: @js($promoValid ? 'success' : 'error'),
-                                    title: @js($promoValid ? __('borrower.membership.promo_ok_title') : __('borrower.membership.promo_bad_title')),
-                                    message: @js($promoValid
-                                        ? __('borrower.membership.promo_applied', ['code' => strtoupper((string) $promoCode)])
-                                        : __('borrower.membership.promo_invalid')),
+                            const detail = {
+                                tone: 'error',
+                                title: @js($promoFeedbackTitle),
+                                message: @js($promoFeedbackMessage),
+                            };
+                            const fire = () => {
+                                if (typeof window.showBorrowerFeedback === 'function') {
+                                    window.showBorrowerFeedback(detail);
+                                } else {
+                                    window.dispatchEvent(new CustomEvent('open-feedback-default', { detail }));
                                 }
-                            }));
+                            };
+                            setTimeout(fire, 50);
+                        "
+                        class="hidden"
+                        aria-hidden="true"
+                    ></div>
+                @elseif ($promoAttempted && $promoValid)
+                    <div
+                        x-data
+                        x-init="
+                            const detail = {
+                                tone: 'success',
+                                title: @js($promoFeedbackTitle),
+                                message: '',
+                            };
+                            const fire = () => {
+                                if (typeof window.showBorrowerFeedback === 'function') {
+                                    window.showBorrowerFeedback(detail);
+                                } else {
+                                    window.dispatchEvent(new CustomEvent('open-feedback-default', { detail }));
+                                }
+                            };
+                            setTimeout(fire, 50);
                         "
                         class="hidden"
                         aria-hidden="true"
@@ -91,9 +126,10 @@
                 <form method="GET" action="{{ route('site.membership.renew') }}" class="space-y-3"
                       x-data="{ applying: false }" @submit="applying = true">
                     <label class="block text-sm font-semibold text-gray-900">{{ __('borrower.membership.promo_inline_label') }}</label>
+                    <p class="text-xs text-gray-500">{{ __('borrower.membership.promo_or_reward_hint') }}</p>
                     <div class="flex gap-2">
-                        <input type="text" name="promo_code" value="{{ $promoValid ? $promoCode : '' }}" maxlength="40"
-                               class="flex-1 rounded-xl border-gray-200 text-sm font-mono uppercase"
+                        <input type="text" name="promo_code" value="{{ $promoCode }}" maxlength="40"
+                               class="flex-1 rounded-xl border-gray-200 text-sm font-mono uppercase @error('promo_code') border-rose-400 @enderror"
                                placeholder="{{ __('borrower.membership.promo_code_placeholder') }}"
                                autocomplete="off">
                         <button type="submit" class="shrink-0 rounded-xl bg-brand-gold text-brand font-bold text-sm px-4 py-2.5 disabled:opacity-60"
@@ -118,7 +154,7 @@
                         <input type="checkbox" name="use_wallet" value="1" @checked(old('use_wallet')) class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
                         <span>
                             {{ __('borrower.membership.use_wallet_label', [
-                                'balance' => $config['currency'].' '.format_number($referralWallet->balance),
+                                'balance' => number_format(wallet_balance_as_points($referralWallet->balance)),
                                 'percent' => rtrim(rtrim(format_number($referralSettings['wallet_max_fee_percent'], 2), '0'), '.'),
                             ]) }}
                         </span>
@@ -136,6 +172,7 @@
                     :bank-accounts="$bankAccounts ?? []"
                     :bank-reference="$paymentReference"
                     :mobile-input-value="old('payment_phone', $customer->phone ?? '')"
+                    :country-code="$customer->country_code ?? 'TZ'"
                 />
                 @error('payment_phone')
                     <p class="text-sm text-rose-700 -mt-2">{{ $message }}</p>

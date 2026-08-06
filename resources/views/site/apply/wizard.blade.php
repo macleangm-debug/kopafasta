@@ -116,6 +116,8 @@
                   marketplaceUrl: @js($marketplaceUrl ?? route('site.borrower.marketplace')),
                   profileUrl: @js(route('site.borrower.profile')),
                   profileAssetsUrl: @js(route('site.borrower.profile', ['section' => 'assets'])),
+                  membershipRenewUrl: @js(route('site.membership.renew')),
+                  hasActiveMembership: @js($customer->isMembershipActive() || $customer->isMembershipInGrace()),
                   canApply: @js((bool) ($applyRequirements['can_apply'] ?? false)),
                   openProfileGateOnLoad: @js((bool) (session('show_profile_gate') || request()->boolean('profile_gate'))),
                   openProfileReadyOnLoad: @js((bool) session('profile_ready_to_submit')),
@@ -450,6 +452,43 @@
                             <a :href="profileGateActionUrl() || profileUrl || '#'"
                                class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
                                 {{ __('borrower.loan_profile.complete_profile') }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Membership required before starting application --}}
+            <div x-show="showMembershipGateModal"
+                 x-cloak
+                 class="fixed inset-0 z-[90] flex items-center justify-center p-4"
+                 role="dialog"
+                 aria-modal="true"
+                 @keydown.escape.window="showMembershipGateModal = false">
+                <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="showMembershipGateModal = false"></div>
+                <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15">
+                    <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
+                        <div class="flex items-start gap-3">
+                            <span class="mt-0.5 size-11 rounded-2xl grid place-items-center ring-1 shrink-0 bg-brand-gold/25 text-brand-gold ring-brand-gold/40">
+                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.membership.banner_eyebrow') }}</p>
+                                <h3 class="text-lg font-bold mt-1">{{ __('borrower.membership.apply_gate_title') }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 py-5">
+                        <p class="text-sm text-gray-600 leading-relaxed">{{ __('borrower.membership.apply_gate_body') }}</p>
+                        <div class="mt-5 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+                            <button type="button"
+                                    @click="showMembershipGateModal = false"
+                                    class="inline-flex justify-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.membership.apply_gate_dismiss') }}
+                            </button>
+                            <a :href="membershipPayUrl()"
+                               class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
+                                {{ __('borrower.membership.apply_gate_pay') }}
                             </a>
                         </div>
                     </div>

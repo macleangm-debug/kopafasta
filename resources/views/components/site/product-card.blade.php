@@ -25,7 +25,7 @@
         <h3 class="text-xl font-extrabold text-brand leading-tight tracking-tight group-hover:text-brand-light transition-colors">
             {{ $productName }}
         </h3>
-        <p class="mt-2 text-sm text-gray-600 line-clamp-2 leading-relaxed flex-1">{{ $theme['label'] ?? $product->description }}</p>
+        <p class="mt-2 text-sm text-gray-600 line-clamp-2 leading-relaxed flex-1">{{ loan_product_card_description($product) }}</p>
 
         <div class="mt-4 space-y-2 text-xs">
             <div class="flex justify-between gap-2 py-2 border-b border-gray-100/80">

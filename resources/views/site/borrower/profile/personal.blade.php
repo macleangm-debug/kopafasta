@@ -345,7 +345,13 @@
                                 <input type="hidden" name="return" value="{{ $returnUrl }}">
                             @endif
                             <div class="grid sm:grid-cols-2 gap-4">
-                                <x-site.phone-input name="phone" :label="__('borrower.profile.fields.phone')" :value="old('phone', $customer->phone)" :input-class="$editable" />
+                                <x-site.phone-input
+                                    name="phone"
+                                    :label="__('borrower.profile.fields.phone')"
+                                    :value="old('phone', $customer->phone)"
+                                    :locked-country="$customer->country_code ?? 'TZ'"
+                                    :input-class="$editable"
+                                />
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }}</label>
                                     <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">

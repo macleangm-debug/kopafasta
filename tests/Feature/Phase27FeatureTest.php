@@ -76,9 +76,33 @@ class Phase27FeatureTest extends TestCase
         $this->actingAs($customer->user)
             ->get(route('site.membership.renew'))
             ->assertOk()
-            ->assertSee(__('borrower.membership.promo_code_label'), false)
+            ->assertSee(__('borrower.membership.promo_inline_label'), false)
             ->assertSee(__('borrower.membership.payment_reference_label'), false)
-            ->assertSee(__('borrower.membership.mobile_money'), false);
+            ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
+            ->assertDontSee(__('borrower.payments_page.create.mobile_allowed'), false);
+    }
+
+    public function test_membership_renew_shows_invalid_promo_feedback(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        app(PinService::class)->setPin($user, '1234');
+
+        Customer::create([
+            'user_id'         => $user->id,
+            'customer_number' => 'CU-P27-P-'.random_int(100, 999),
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Promo',
+            'last_name'       => 'Borrower',
+            'phone'           => '2557123465'.random_int(10, 99),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.membership.renew', ['promo_code' => 'PROMO2026']))
+            ->assertOk()
+            ->assertSee(__('borrower.membership.promo_bad_title'), false)
+            ->assertSee(__('borrower.membership.promo_invalid'), false)
+            ->assertSee('PROMO2026', false);
     }
 
     public function test_face_verification_uses_wide_content_layout(): void

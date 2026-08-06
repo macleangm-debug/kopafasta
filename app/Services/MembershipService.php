@@ -30,8 +30,8 @@ class MembershipService
         $group = Setting::group('membership');
         return [
             'duration_days'     => (int) ($group['duration_days']     ?? 365),
-            'registration_fee'  => (float) ($group['registration_fee'] ?? $group['renewal_fee'] ?? 20000),
-            'renewal_fee'       => (float) ($group['renewal_fee']     ?? 20000),
+            'registration_fee'  => (float) ($group['registration_fee'] ?? $group['renewal_fee'] ?? 2000),
+            'renewal_fee'       => (float) ($group['renewal_fee']     ?? 2000),
             'grace_period_days' => (int) ($group['grace_period_days'] ?? 14),
             'max_expiry_years'  => (int) ($group['max_expiry_years']  ?? 1),
             'currency'          => (string) ($group['currency']       ?? 'TZS'),
@@ -78,9 +78,9 @@ class MembershipService
                 'channel'                   => $channel ?? ($paymentReference ? 'system' : null),
                 'actor_user_id'             => $actorUserId,
             ]);
-$this->notify($customer, 'membership_issued');
 
-            
+            $this->notify($customer, 'membership_issued');
+
             return $customer->refresh();
         });
     }
@@ -389,16 +389,20 @@ $this->notify($customer, 'membership_issued');
             $notifier->notifyCustomer($customer, $templateCode, $vars);
 
             if ($templateCode === 'membership_issued') {
+                $params = ['member_no' => $customer->member_no ?? ''];
                 $notifier->notifyInApp(
                     $customer,
-                    __('borrower.membership.notification_body', [
-                        'member_no' => $customer->member_no ?? '',
-                    ]),
+                    __('borrower.membership.notification_body', $params),
                     'membership',
                     'membership_issued',
                     __('borrower.membership.notification_title'),
                     route('site.borrower.loan-products'),
                     __('borrower.membership.notification_cta'),
+                    [
+                        'title_key' => 'borrower.membership.notification_title',
+                        'body_key' => 'borrower.membership.notification_body',
+                        'params' => $params,
+                    ],
                 );
             }
         } catch (\Throwable $e) {

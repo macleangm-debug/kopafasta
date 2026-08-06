@@ -88,21 +88,45 @@ class CustomerPayment extends Model
 
     public function typeLabel(): string
     {
+        $key = "borrower.payment_types.{$this->payment_type}";
+        $translated = __($key);
+        if ($translated !== $key) {
+            return $translated;
+        }
+
         return config("payment_types.types.{$this->payment_type}.label", ucfirst(str_replace('_', ' ', $this->payment_type)));
     }
 
     public function methodLabel(): string
     {
+        $key = "borrower.payment_methods.{$this->payment_method}";
+        $translated = __($key);
+        if ($translated !== $key) {
+            return $translated;
+        }
+
         return config("payment_types.methods.{$this->payment_method}.label", ucfirst(str_replace('_', ' ', $this->payment_method)));
     }
 
     public function methodShortLabel(): string
     {
+        $key = "borrower.payment_methods.{$this->payment_method}_short";
+        $translated = __($key);
+        if ($translated !== $key) {
+            return $translated;
+        }
+
         return config("payment_types.methods.{$this->payment_method}.short", $this->methodLabel());
     }
 
     public function statusLabel(): string
     {
+        $key = "borrower.payment_statuses.{$this->status}";
+        $translated = __($key);
+        if ($translated !== $key) {
+            return $translated;
+        }
+
         return config("payment_types.statuses.{$this->status}", ucfirst(str_replace('_', ' ', $this->status)));
     }
 

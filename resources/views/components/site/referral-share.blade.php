@@ -6,30 +6,26 @@
     $encodedLink = rawurlencode($link);
 @endphp
 
-<div x-data="referralShare(@js($link), @js($shareText))">
+<div x-data="referralShare(@js($link), @js($shareText))" class="w-full">
     <div class="flex flex-wrap gap-2">
         <button type="button" @click="copyLink()"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-gray-900 text-white hover:bg-gray-800">
+                class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white text-brand ring-1 ring-white/30 hover:bg-brand-gold hover:text-brand hover:ring-brand-gold transition">
             {{ __('borrower.referrals.share_copy') }}
         </button>
         <a href="https://wa.me/?text={{ $encodedText }}" target="_blank" rel="noopener"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700">
+           class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-brand-gold text-brand hover:brightness-95 transition">
             {{ __('borrower.referrals.share_whatsapp') }}
         </a>
         <a href="sms:?body={{ $encodedText }}"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-sky-600 text-white hover:bg-sky-700">
+           class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white/15 text-white ring-1 ring-white/25 hover:bg-white/25 transition">
             {{ __('borrower.referrals.share_sms') }}
         </a>
-        <a href="https://www.facebook.com/sharer/sharer.php?u={{ $encodedLink }}" target="_blank" rel="noopener"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700">
-            {{ __('borrower.referrals.share_facebook') }}
-        </a>
         <button type="button" @click="nativeShare()"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-amber-500 text-gray-900 hover:bg-amber-400">
+                class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white/15 text-white ring-1 ring-white/25 hover:bg-white/25 transition">
             {{ __('borrower.referrals.share_native') }}
         </button>
     </div>
-    <p x-show="copied" x-cloak x-transition class="mt-3 text-sm font-medium text-emerald-700">{{ __('borrower.referrals.share_copied') }}</p>
+    <p x-show="copied" x-cloak x-transition class="mt-2 text-xs font-medium text-brand-gold">{{ __('borrower.referrals.share_copied') }}</p>
 </div>
 
 @once

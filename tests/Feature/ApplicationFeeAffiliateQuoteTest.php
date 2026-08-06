@@ -56,6 +56,8 @@ class ApplicationFeeAffiliateQuoteTest extends TestCase
             'category'                       => 'affiliate',
             'status'                         => 'active',
             'affiliate_code'                 => 'AFFFEE'.random_int(10, 99),
+            'affiliate_kyc_status'           => 'verified',
+            'affiliate_lifecycle_status'     => 'active',
             'application_discount_percent'   => 10,
             'registration_discount_percent'  => 10,
         ], $overrides));
@@ -115,5 +117,30 @@ class ApplicationFeeAffiliateQuoteTest extends TestCase
 
         $this->assertSame('NOTACODE', $promo2);
         $this->assertNull($affiliate2);
+    }
+
+    public function test_payment_gate_marks_invalid_and_affiliate_codes_for_registration_fee(): void
+    {
+        $customer = $this->makeCustomer([
+            'membership_issued_at'  => null,
+            'membership_expires_at' => null,
+        ]);
+        $this->makeAffiliate([
+            'affiliate_code'                => 'AFFREG25',
+            'registration_discount_percent' => 25,
+        ]);
+
+        $gate = app(\App\Services\PaymentGateService::class);
+
+        $invalid = $gate->quote($customer, 2000, 'registration_fee', false, 'PROMO2026');
+        $this->assertFalse($invalid['promo_valid']);
+        $this->assertSame('invalid', $invalid['code_kind']);
+        $this->assertSame(2000.0, (float) $invalid['cash_due']);
+
+        $ok = $gate->quote($customer->fresh(), 2000, 'registration_fee', false, 'AFFREG25');
+        $this->assertTrue($ok['promo_valid']);
+        $this->assertSame('affiliate', $ok['code_kind']);
+        $this->assertSame(500.0, (float) $ok['affiliate_discount']);
+        $this->assertSame(1500.0, (float) $ok['cash_due']);
     }
 }

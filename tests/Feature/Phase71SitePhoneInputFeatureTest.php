@@ -22,8 +22,9 @@ class Phase71SitePhoneInputFeatureTest extends TestCase
     {
         $this->get(route('site.register.borrower'))
             ->assertOk()
-            ->assertSee('Select your country', false)
-            ->assertSee('Enter your mobile number without the leading zero', false);
+            ->assertSee(__('borrower.register.country'), false)
+            ->assertSee(__('borrower.register.mobile'), false)
+            ->assertSee(__('borrower.register.mobile_hint'), false);
     }
 
     public function test_vendor_registration_page_renders_phone_prefix_input(): void

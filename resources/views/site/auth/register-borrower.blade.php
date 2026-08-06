@@ -6,8 +6,8 @@
     $initialStep = $isInviteRegistration && ! empty($prefill['local_phone']) ? 2 : (int) old('step', 1);
 @endphp
 {{-- Professional 3-step borrower registration wizard --}}
-<x-site.layout :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : brand_title(__('borrower.register.title')))">
-    <section class="min-h-[calc(100dvh-4rem)] md:min-h-[calc(100dvh-6.5rem)] grid lg:grid-cols-2 premium-gradient">
+<x-site.layout :auth="true" :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : brand_title(__('borrower.register.title')))">
+    <section class="min-h-full grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
             <a href="{{ route('site.home') }}" class="relative"><x-site.brand-mark variant="light" /></a>

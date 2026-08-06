@@ -22,8 +22,8 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Renewal</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <x-admin.input name="registration_fee" label="Membership fee (first-time)" type="number" step="0.01" :value="$values['registration_fee'] ?? ($values['renewal_fee'] ?? 20000)" required />
-                <x-admin.input name="renewal_fee"       label="Renewal fee" type="number" step="0.01" :value="$values['renewal_fee'] ?? 20000" required />
+                <x-admin.input name="registration_fee" label="Membership fee (first-time)" type="number" step="0.01" :value="$values['registration_fee'] ?? ($values['renewal_fee'] ?? 2000)" required />
+                <x-admin.input name="renewal_fee"       label="Renewal fee" type="number" step="0.01" :value="$values['renewal_fee'] ?? 2000)" required />
                 <x-admin.input name="currency"          label="Currency (ISO 4217)" :value="$values['currency'] ?? 'TZS'" required />
                 <x-admin.input name="grace_period_days" label="Grace period (days)" type="number" :value="$values['grace_period_days'] ?? 14" required />
             </div>

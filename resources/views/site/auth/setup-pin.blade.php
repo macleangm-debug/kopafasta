@@ -1,6 +1,6 @@
 {{-- Public auth shell (not inside borrower dashboard) --}}
-<x-site.layout :title="brand_title('Create your PIN')">
-    <section class="min-h-[calc(100dvh-4rem)] md:min-h-[calc(100dvh-6.5rem)] grid lg:grid-cols-2 premium-gradient">
+<x-site.layout :auth="true" :title="brand_title('Create your PIN')">
+    <section class="min-h-full grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
             <a href="{{ route('site.home') }}" class="relative"><x-site.brand-mark variant="light" /></a>

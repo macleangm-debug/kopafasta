@@ -81,15 +81,10 @@ class MessagingCatalog
     {
         return match ($code) {
             'pin_reset_otp', 'partner_activation' => 'registration',
-            'membership_issued', 'membership_expiry_30', 'membership_expiry_14',
-            'membership_expiry_7', 'membership_expiry_1', 'membership_renewed' => 'membership',
-            'application_document_request', 'application_approved', 'application_rejected',
-            'group_member_replacement_requested', 'group_member_review_feedback',
-            'group_application_review_feedback' => 'application',
-            'agreement_otp', 'agreement_signed', 'loan_disbursed',
-            'group_contract_sign_required', 'group_contract_member_signed',
-            'group_contract_member_declined', 'group_member_consent_required' => 'borrowing',
-            'repayment_due_soon', 'repayment_due_today', 'payment_received', 'loan_closed' => 'repayment',
+            'membership_issued', 'membership_renewed', 'membership_expiry_30', 'membership_expiry_14',
+            'membership_expiry_7', 'membership_expiry_1', 'referral_points_earned' => 'membership',
+            'repayment_due_soon', 'repayment_due_today', 'payment_received', 'loan_closed',
+            'bank_payment_pending', 'bank_payment_verified' => 'repayment',
             'repayment_overdue', 'penalty_accrued', 'loan_arrears' => 'late_payment',
             'marketplace_viewing_scheduled' => 'marketplace',
             'staff_restructure_request', 'staff_top_up_request' => 'staff',
@@ -268,7 +263,25 @@ class MessagingCatalog
                 'critical' => false,
                 'default_channels' => ['sms', 'in_app'],
                 'default_enabled' => true,
-                'description' => 'Receipt after repayment — amount paid and remaining balance.',
+                'description' => 'Receipt after repayment — amount paid, remaining balance, and next installment.',
+            ],
+            [
+                'code' => 'bank_payment_pending',
+                'name' => 'Bank payment pending verification',
+                'group' => 'servicing',
+                'critical' => false,
+                'default_channels' => ['sms', 'in_app'],
+                'default_enabled' => true,
+                'description' => 'Borrower submitted a bank transfer — awaiting finance verification.',
+            ],
+            [
+                'code' => 'bank_payment_verified',
+                'name' => 'Bank payment verified',
+                'group' => 'servicing',
+                'critical' => false,
+                'default_channels' => ['sms', 'in_app'],
+                'default_enabled' => true,
+                'description' => 'Finance verified a bank transfer payment.',
             ],
             [
                 'code' => 'loan_closed',
@@ -310,6 +323,15 @@ class MessagingCatalog
             ],
 
             // Membership
+            [
+                'code' => 'referral_points_earned',
+                'name' => 'Referral points earned',
+                'group' => 'membership',
+                'critical' => false,
+                'default_channels' => ['sms', 'in_app'],
+                'default_enabled' => true,
+                'description' => 'Referrer earns fixed points when an invited member pays membership.',
+            ],
             [
                 'code' => 'membership_issued',
                 'name' => 'Membership issued',

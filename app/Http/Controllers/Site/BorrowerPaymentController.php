@@ -8,9 +8,9 @@ use App\Models\BorrowerRefund;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Loan;
-use App\Services\BorrowerPaymentLedgerService;
 use App\Services\CustomerPaymentService;
 use App\Services\PaymentAccountService;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,82 +25,94 @@ class BorrowerPaymentController extends Controller
         return Customer::where('user_id', Auth::id())->firstOrFail();
     }
 
-    public function index(BorrowerPaymentLedgerService $ledger): View
+    public function index(): RedirectResponse
     {
+        // Fee history stays in admin. Open repay from an active loan (or loan list).
         $customer = $this->customer();
-        $entries = $ledger->entriesFor($customer);
-
-        $loans = Loan::where('customer_id', $customer->id)
+        $loan = Loan::query()
+            ->where('customer_id', $customer->id)
             ->whereIn('status', ['active', 'disbursed', 'arrears'])
-            ->with(['product', 'repaymentSchedules'])
-            ->get();
+            ->orderByDesc('id')
+            ->first();
 
-        $servicing = app(\App\Services\ActiveLoanServicingService::class);
-        $loanSnapshots = $loans
-            ->map(fn (Loan $loan) => array_merge($servicing->forLoan($loan), ['loan' => $loan]))
-            ->sortBy(function (array $snap) {
-                $due = $snap['next_due_date'] ?? null;
-
-                return $due ? $due->timestamp : PHP_INT_MAX;
-            })
-            ->values();
-
-        $focusLoan = $loanSnapshots->first(
-            fn (array $snap) => ($snap['in_arrears'] ?? false) || ($snap['next_due_amount'] ?? null) !== null
-        ) ?? $loanSnapshots->first();
-
-        return view('site.borrower.payments.index', compact('customer', 'entries', 'loans', 'loanSnapshots', 'focusLoan'));
-    }
-
-    public function showRefund(BorrowerRefund $borrowerRefund): View
-    {
-        $customer = $this->customer();
-        abort_unless((int) $borrowerRefund->customer_id === (int) $customer->id, 403);
-
-        return view('site.borrower.payments.refund-show', [
-            'customer' => $customer,
-            'refund'   => $borrowerRefund->load('loan'),
-        ]);
-    }
-
-    public function create(Request $request): View
-    {
-        $customer = $this->customer();
-        $loans = Loan::where('customer_id', $customer->id)
-            ->whereIn('status', ['active', 'disbursed', 'arrears'])
-            ->with(['product', 'repaymentSchedules'])
-            ->get();
-
-        $loanId = $request->query('loan_id', $request->query('loan'));
-        $selectedLoan = $loanId ? $loans->firstWhere('id', (int) $loanId) : $loans->first();
-
-        $suggestedAmount = null;
-        if ($selectedLoan) {
-            $snap = app(\App\Services\ActiveLoanServicingService::class)->forLoan($selectedLoan);
-            $suggestedAmount = $snap['in_arrears']
-                ? (float) ($snap['amount_in_arrears'] ?: $snap['next_due_amount'])
-                : ($snap['next_due_amount'] ?? null);
+        if ($loan) {
+            return redirect()->route('site.borrower.payments.create', ['loan' => $loan->id]);
         }
 
-        return view('site.borrower.payments.create', compact('customer', 'loans', 'selectedLoan', 'suggestedAmount'));
+        return redirect()->route('site.borrower.loans');
     }
 
-    public function store(Request $request, CustomerPaymentService $payments, PaymentAccountService $accounts): RedirectResponse
+    public function create(Request $request): View|RedirectResponse
+    {
+        $customer = $this->customer();
+        $loans = Loan::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['active', 'disbursed', 'arrears'])
+            ->with(['product', 'repaymentSchedules'])
+            ->get();
+
+        if ($loans->isEmpty()) {
+            return redirect()->route('site.borrower.loans')
+                ->with('error', __('borrower.payments_page.create.no_loans_desc'));
+        }
+
+        $loanId = $request->query('loan_id', $request->query('loan'));
+        $selectedLoan = $loanId
+            ? $loans->firstWhere('id', (int) $loanId)
+            : $loans->first();
+
+        if (! $selectedLoan) {
+            $selectedLoan = $loans->first();
+        }
+
+        $suggestedAmount = null;
+        $servicing = app(\App\Services\ActiveLoanServicingService::class)->forLoan($selectedLoan);
+        if ($servicing['in_arrears'] ?? false) {
+            $suggestedAmount = (float) ($servicing['amount_in_arrears'] ?: $servicing['next_due_amount'] ?? 0);
+        } else {
+            $suggestedAmount = isset($servicing['next_due_amount']) ? (float) $servicing['next_due_amount'] : null;
+        }
+
+        $paymentReference = $request->session()->get('repayment_payment_ref');
+        if (! filled($paymentReference)) {
+            $paymentReference = app(CustomerPaymentService::class)->generateReference();
+            $request->session()->put('repayment_payment_ref', $paymentReference);
+        }
+
+        return view('site.borrower.payments.create', compact(
+            'customer',
+            'loans',
+            'selectedLoan',
+            'suggestedAmount',
+            'servicing',
+            'paymentReference',
+        ));
+    }
+
+    public function store(Request $request, CustomerPaymentService $payments): RedirectResponse
     {
         $customer = $this->customer();
         $dummyGateway = payment_gateway_is_dummy();
 
         $data = $request->validate([
-            'loan_id'        => ['required', 'exists:loans,id'],
-            'payment_method' => ['required', 'in:bank_transfer,mobile_money'],
-            'amount'         => ['required', 'numeric', 'min:100'],
-            'mobile_number'  => [$dummyGateway ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
-            'payment_date'   => ['nullable', 'date'],
-            'proof'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'loan_id'             => ['required', 'exists:loans,id'],
+            'payment_method'      => ['required', 'in:bank_transfer,mobile_money'],
+            'amount'              => ['required', 'numeric', 'min:100'],
+            'mobile_number'       => [$dummyGateway ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
+            'mobile_number_local' => ['nullable', 'string', 'max:20'],
+            'payment_date'        => ['nullable', 'date'],
+            'proof'               => [
+                $request->input('payment_method') === 'bank_transfer' ? 'required' : 'nullable',
+                'file',
+                'mimes:jpg,jpeg,png,pdf',
+                'max:5120',
+            ],
         ]);
 
-        if ($data['payment_method'] === 'mobile_money' && ! empty($data['mobile_number'])) {
-            if (! CustomerPaymentService::validateMobileNumber($data['mobile_number'])) {
+        $mobileNumber = PhoneNumber::fromRequest($request, 'mobile_number', $customer->country_code ?? null);
+
+        if ($data['payment_method'] === 'mobile_money' && filled($mobileNumber)) {
+            if (! CustomerPaymentService::validateMobileNumber($mobileNumber)) {
                 return back()->withInput()->withErrors([
                     'mobile_number' => 'Enter your number with country code, without a leading zero (e.g. 255712345678).',
                 ]);
@@ -126,16 +138,20 @@ class BorrowerPaymentController extends Controller
             'paid_at'   => now(),
         ]);
 
+        $paymentReference = $request->session()->pull('repayment_payment_ref')
+            ?? $payments->generateReference();
+
         $payment = $payments->create([
             'customer'       => $customer,
             'payment_type'   => 'loan_repayment',
             'payment_method' => $data['payment_method'],
             'amount'         => $data['amount'],
             'loan'           => $loan,
-            'mobile_number'  => $data['mobile_number'] ?? null,
+            'mobile_number'  => $mobileNumber,
             'payment_date'   => $data['payment_date'] ?? null,
             'proof'          => $request->file('proof'),
             'source'         => $repayment,
+            'reference'      => $paymentReference,
             'auto_verify'    => $dummyGateway && $data['payment_method'] === 'mobile_money',
         ]);
 
@@ -158,6 +174,17 @@ class BorrowerPaymentController extends Controller
             ->when($payment->isVerified(), fn ($r) => $r->with(\App\Support\Celebration::SESSION_KEY, ['payment']));
     }
 
+    public function showRefund(BorrowerRefund $borrowerRefund): View
+    {
+        $customer = $this->customer();
+        abort_unless((int) $borrowerRefund->customer_id === (int) $customer->id, 403);
+
+        return view('site.borrower.payments.refund-show', [
+            'customer' => $customer,
+            'refund'   => $borrowerRefund->load('loan'),
+        ]);
+    }
+
     public function status(CustomerPayment $payment, CustomerPaymentService $payments): \Illuminate\Http\JsonResponse
     {
         $customer = $this->customer();
@@ -177,8 +204,10 @@ class BorrowerPaymentController extends Controller
         };
 
         $redirect = null;
+        $celebration = null;
         if ($state === 'paid') {
             $redirect = $payments->successRedirectUrl($payment);
+            $celebration = $payments->celebrationCopy($payment);
         }
 
         return response()->json([
@@ -186,8 +215,9 @@ class BorrowerPaymentController extends Controller
             'state' => $state,
             'status' => $payment->status,
             'reference' => $payment->reference,
+            'title' => $celebration['title'] ?? null,
             'message' => match ($state) {
-                'paid' => __('borrower.payment_waiting.paid'),
+                'paid' => $celebration['message'] ?? __('borrower.payment_waiting.paid'),
                 'failed' => __('borrower.payment_waiting.failed'),
                 'waiting' => $payment->mobile_number
                     ? __('borrower.payment_waiting.waiting_phone', ['phone' => $payment->mobile_number])

@@ -26,7 +26,6 @@
             ['key' => 'engagement',    'label' => __('borrower.nav.engagement'),    'route' => 'site.borrower.engagement',    'icon' => 'users'],
             ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
             ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
-            ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
             ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
             ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
             ['key' => 'settings',      'label' => __('borrower.nav.settings'),      'route' => 'site.borrower.settings',      'icon' => 'settings'],
@@ -127,7 +126,7 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
                         <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
                     </button>
-                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50">
+                    <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50">
                         <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white/80">
                             <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
                             <a href="{{ route('site.borrower.notifications') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
@@ -199,12 +198,54 @@
             </a>
             <div class="flex items-center gap-0.5 shrink-0">
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                <a href="{{ route('site.borrower.notifications') }}" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
-                    @if ($unreadNotifications > 0)
-                        <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
-                    @endif
-                </a>
+                <div class="relative" x-data="notificationBell()" x-init="load()">
+                    <button type="button" @click="toggle()" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
+                        <span x-show="unread > 0" x-cloak class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
+                    </button>
+                    <template x-teleport="body">
+                        <div x-show="sheetOpen" x-cloak class="fixed inset-0 z-[10060] lg:hidden" role="dialog" aria-modal="true">
+                            <div class="absolute inset-0 bg-black/40" @click="sheetOpen = false"></div>
+                            <div class="absolute inset-x-0 bottom-0 max-h-[min(85vh,640px)] flex flex-col rounded-t-2xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)]"
+                                 @click.stop
+                                 x-transition:enter="transition ease-out duration-300"
+                                 x-transition:enter-start="translate-y-full"
+                                 x-transition:enter-end="translate-y-0"
+                                 x-transition:leave="transition ease-in duration-200"
+                                 x-transition:leave-start="translate-y-0"
+                                 x-transition:leave-end="translate-y-full">
+                                <div class="flex justify-center pt-3 pb-1 shrink-0">
+                                    <div class="w-10 h-1 rounded-full bg-gray-300"></div>
+                                </div>
+                                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+                                    <h2 class="text-base font-bold text-gray-900">{{ __('borrower.layout.notifications') }}</h2>
+                                    <div class="flex items-center gap-3">
+                                        <a href="{{ route('site.borrower.notifications') }}" @click="sheetOpen = false" class="text-xs font-semibold text-brand">{{ __('borrower.layout.view_all') }}</a>
+                                        <button type="button" @click="sheetOpen = false" class="p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Close">
+                                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex-1 overflow-y-auto overscroll-contain">
+                                    <template x-if="items.length === 0">
+                                        <p class="px-5 py-10 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
+                                    </template>
+                                    <template x-for="item in items" :key="item.id">
+                                        <div class="px-5 py-3 border-b border-gray-50" :class="!item.read ? 'bg-brand-muted/40' : ''">
+                                            <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category_label || item.category"></p>
+                                            <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
+                                            <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
+                                            <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
+                                            <template x-if="item.action_url">
+                                                <a :href="item.action_url" @click="sheetOpen = false" class="inline-flex mt-2 text-xs font-semibold text-brand" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
                 <div class="relative" x-data="{ profileOpen: false }">
                     <button type="button" @click="profileOpen = !profileOpen" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('borrower.layout.my_profile') }}">
                         <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">
@@ -230,7 +271,7 @@
         </header>
 
         {{-- Mobile drawer --}}
-        <div x-show="open" x-cloak class="fixed inset-0 z-40 lg:hidden">
+        <div x-show="open" x-cloak class="fixed inset-0 z-[10055] lg:hidden">
             <div class="absolute inset-0 bg-black/40" @click="open = false"></div>
             <div class="absolute inset-y-0 left-0 w-72 bg-brand text-white shadow-xl flex flex-col">
                 <div class="flex items-center justify-between px-5 h-14 border-b border-white/15">
@@ -365,7 +406,7 @@ document.addEventListener('alpine:init', () => {
     };
 
     Alpine.data('notificationBell', () => ({
-        open: false,
+        sheetOpen: false,
         unread: {{ $unreadNotifications }},
         items: [],
         async load() {
@@ -381,8 +422,8 @@ document.addEventListener('alpine:init', () => {
             } catch (e) {}
         },
         async toggle() {
-            const willOpen = !this.open;
-            this.open = willOpen;
+            const willOpen = !this.sheetOpen;
+            this.sheetOpen = willOpen;
             if (!willOpen) return;
             await this.load();
             if (this.unread <= 0) return;

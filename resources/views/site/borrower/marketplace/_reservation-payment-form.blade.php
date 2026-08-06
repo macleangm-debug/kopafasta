@@ -73,10 +73,16 @@
                 @endif
             </div>
         @endif
-        <label class="block mt-3">
-            <span class="text-xs font-medium text-gray-600">{{ __('borrower.membership.mobile_number') }}</span>
-            <input type="text" name="mobile_number" value="{{ old('mobile_number') }}" class="mt-1 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm" placeholder="255712345678">
-        </label>
+        <div class="mt-3">
+            <x-site.phone-input
+                name="mobile_number"
+                :label="__('borrower.payments_page.create.mobile_number_label')"
+                :value="old('mobile_number', auth()->user()?->customer?->phone ?? '')"
+                :locked-country="auth()->user()?->customer?->country_code ?? 'TZ'"
+                :show-errors="true"
+                input-class="flex-1 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm"
+            />
+        </div>
     </div>
 
     <div x-show="channel === 'bank_transfer'" x-cloak class="space-y-3">

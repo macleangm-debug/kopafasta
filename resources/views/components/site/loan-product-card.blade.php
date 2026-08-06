@@ -23,67 +23,71 @@
         'inactive'    => ['label' => __('borrower.dashboard.product_inactive'), 'class' => 'bg-gray-100 text-gray-600 ring-gray-200'],
         default       => ['label' => __('borrower.dashboard.product_active'), 'class' => 'bg-emerald-100 text-emerald-800 ring-emerald-200'],
     };
+    $description = loan_product_card_description($product);
+    $assetRate = rtrim(rtrim(format_number((float) config('asset_lending.default_monthly_rate', 0.12) * 100, 1), '0'), '.');
 @endphp
 
-<div class="snap-start shrink-0 w-[min(85vw,320px)] glass-card overflow-hidden flex flex-col hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] transition-shadow {{ ! $isAvailable ? 'opacity-90' : '' }}">
-    <div class="relative">
+<article class="snap-start shrink-0 w-[min(85vw,300px)] self-stretch glass-card overflow-hidden flex flex-col hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] transition-shadow {{ ! $isAvailable ? 'opacity-90' : '' }}">
+    <div class="relative shrink-0">
         <x-site.product-illustration :code="$product->code" :image-path="$product->image_path" size="sm" class="!rounded-none !size-auto w-full !aspect-[16/9] !max-w-none" />
         <div class="absolute top-3 left-3">
             <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 {{ $statusBadge['class'] }}">
                 {{ $statusBadge['label'] }}
             </span>
         </div>
-        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-4 pt-10">
-            <p class="text-[10px] font-mono font-semibold uppercase tracking-widest text-white/70">{{ $product->code }}</p>
-            <h3 class="text-lg font-extrabold text-white leading-tight">{{ $productName }}</h3>
+        <div class="absolute top-3 right-3">
+            <span class="inline-flex text-[10px] font-mono font-semibold uppercase tracking-widest rounded-full px-2 py-1 bg-white/90 text-brand/70 ring-1 ring-white/80">
+                {{ $product->code }}
+            </span>
         </div>
     </div>
-    <button type="button" @click="open = open === {{ $product->id }} ? null : {{ $product->id }}"
-            class="text-left p-5 flex-1 hover:bg-brand-muted/20 transition">
-        <p class="text-sm text-gray-600 line-clamp-2">
-            @if ($isMarketplace)
-                {{ __('borrower.marketplace.subtitle') }}
-            @else
-                {{ $theme['label'] ?? ($product->description ?: __('borrower.dashboard.browse_products')) }}
-            @endif
+
+    <div class="p-4 flex flex-col flex-1 min-h-0">
+        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2 min-h-[2.5rem]" title="{{ $productName }}">
+            {{ $productName }}
+        </h3>
+        <p class="mt-1.5 text-xs text-gray-600 line-clamp-2 leading-relaxed min-h-[2.25rem]">
+            {{ $description }}
         </p>
-        @unless ($isMarketplace)
-            <dl class="mt-4 space-y-2 text-sm">
-                <div>
-                    <dt class="text-xs text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt>
-                    <dd class="font-semibold text-gray-900 tabular-nums">{{ $rateLabel }}</dd>
-                </div>
-                <div class="flex justify-between gap-2">
-                    <div>
-                        <dt class="text-xs text-gray-500">{{ __('site.products.amount') }}</dt>
-                        <dd class="font-semibold text-gray-900 tabular-nums text-xs">{{ format_money($product->min_amount, false, 0) }} – {{ format_money($product->max_amount, false, 0) }}</dd>
-                    </div>
-                    <div class="text-right">
-                        <dt class="text-xs text-gray-500">{{ __('site.products.tenure') }}</dt>
-                        <dd class="font-semibold text-gray-900 tabular-nums">{{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}</dd>
-                    </div>
-                </div>
-            </dl>
-        @else
-            @php
-                $assetRate = rtrim(rtrim(format_number((float) config('asset_lending.default_monthly_rate', 0.12) * 100, 1), '0'), '.');
-            @endphp
-            <dl class="mt-4 space-y-2 text-sm">
-                <div>
-                    <dt class="text-xs text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt>
-                    <dd class="font-semibold text-gray-900 tabular-nums">{{ __('borrower.marketplace.from_rate', ['rate' => $assetRate]) }}</dd>
-                </div>
-            </dl>
-        @endunless
-    </button>
-    <div x-show="open === {{ $product->id }}" x-transition x-cloak class="border-t border-gray-100/80 px-5 pb-5 pt-4 bg-white/50">
-        @if ($isAvailable)
-            <a href="{{ $ctaUrl }}"
-               class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-bold px-5 py-3 rounded-xl text-sm transition shadow-sm">
-                {{ $ctaLabel }} →
-            </a>
-        @else
-            <p class="text-center text-sm text-gray-500 py-2">{{ __('borrower.dashboard.product_unavailable_hint') }}</p>
-        @endif
+
+        <dl class="mt-3 space-y-1.5 text-xs flex-1">
+            <div class="flex justify-between gap-2 py-1.5 border-b border-gray-100/80">
+                <dt class="text-gray-500 shrink-0">{{ __('borrower.apply.details.monthly_rate') }}</dt>
+                <dd class="font-semibold text-gray-900 tabular-nums text-right">
+                    @if ($isMarketplace)
+                        {{ __('borrower.marketplace.from_rate', ['rate' => $assetRate]) }}
+                    @else
+                        {{ $rateLabel }}
+                    @endif
+                </dd>
+            </div>
+            <div class="flex justify-between gap-2 py-1.5 border-b border-gray-100/80">
+                <dt class="text-gray-500 shrink-0">{{ __('site.products.amount') }}</dt>
+                <dd class="font-semibold text-gray-900 tabular-nums text-right truncate" title="{{ format_money($product->min_amount, false, 0) }} – {{ format_money($product->max_amount, false, 0) }}">
+                    @if ($isMarketplace)
+                        {{ format_money($product->min_amount ?: $product->max_amount, false, 0) }}+
+                    @else
+                        {{ format_money($product->min_amount, false, 0) }} – {{ format_money($product->max_amount, false, 0) }}
+                    @endif
+                </dd>
+            </div>
+            <div class="flex justify-between gap-2 py-1.5">
+                <dt class="text-gray-500 shrink-0">{{ __('site.products.tenure') }}</dt>
+                <dd class="font-semibold text-gray-900 tabular-nums text-right">
+                    {{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}
+                </dd>
+            </div>
+        </dl>
+
+        <div class="mt-3 pt-1">
+            @if ($isAvailable)
+                <a href="{{ $ctaUrl }}"
+                   class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-bold px-4 py-2.5 rounded-xl text-sm transition shadow-sm">
+                    {{ $ctaLabel }} →
+                </a>
+            @else
+                <p class="text-center text-xs text-gray-500 py-2">{{ __('borrower.dashboard.product_unavailable_hint') }}</p>
+            @endif
+        </div>
     </div>
-</div>
+</article>

@@ -71,6 +71,7 @@ class NotificationCtaService
             'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
             'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
             'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
+            'membership_issued', 'membership_renewed' => __('borrower.membership.notification_cta'),
             'document_request', 'document_requests', 'application_document_request' => __('borrower.dashboard.document_requests_cta'),
             'profile_revision_requested' => __('borrower.notifications.profile_revision_cta'),
             default => __('borrower.notifications.view_application'),

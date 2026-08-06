@@ -94,11 +94,41 @@ class NotificationTemplateSeeder extends Seeder
                 'locales' => [
                     'en' => [
                         'subject' => 'Payment received',
-                        'body' => "Hi {{ name }}, we received {{ amount }} for loan {{ loan_number }}. Remaining balance: {{ balance }}. Thank you. — {$brand}",
+                        'body' => "Hi {{ name }}, we received {{ amount }} for loan {{ loan_number }}. Remaining: {{ balance }}. Next: {{ next_amount }} due {{ next_due_date }}. — {$brand}",
                     ],
                     'sw' => [
                         'subject' => 'Malipo yamepokelewa',
-                        'body' => "Habari {{ name }}, tumepokea {{ amount }} kwa mkopo {{ loan_number }}. Salio lililobaki: {{ balance }}. Asante. — {$brand}",
+                        'body' => "Habari {{ name }}, tumepokea {{ amount }} kwa mkopo {{ loan_number }}. Salio: {{ balance }}. Ijayo: {{ next_amount }} tarehe {{ next_due_date }}. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'bank_payment_pending',
+                'name' => 'Bank payment pending verification',
+                'channel' => 'sms',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Bank payment received',
+                        'body' => "Hi {{ name }}, we received your bank payment {{ reference }} for {{ payment_type }} ({{ amount }}). We will verify and confirm shortly. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Malipo ya benki yamepokelewa',
+                        'body' => "Habari {{ name }}, tumepokea malipo yako ya benki {{ reference }} kwa {{ payment_type }} ({{ amount }}). Tutathibitisha hivi karibuni. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'bank_payment_verified',
+                'name' => 'Bank payment verified',
+                'channel' => 'sms',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Bank payment verified',
+                        'body' => "Hi {{ name }}, your bank payment {{ reference }} for {{ payment_type }} ({{ amount }}) has been verified. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Malipo ya benki yamethibitishwa',
+                        'body' => "Habari {{ name }}, malipo yako ya benki {{ reference }} kwa {{ payment_type }} ({{ amount }}) yamethibitishwa. — {$brand}",
                     ],
                 ],
             ],
@@ -219,6 +249,21 @@ class NotificationTemplateSeeder extends Seeder
                     'sw' => [
                         'subject' => 'Mkopo umetolewa',
                         'body' => "Habari {{ name }}, mkopo wako {{ loan_number }} wa {{ amount }} umetolewa. Malipo ya kwanza yanadaiwa {{ due_date }}. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'referral_points_earned',
+                'name' => 'Referral points earned',
+                'channel' => 'sms',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Referral points earned',
+                        'body' => "Hi {{ name }}, you earned {{ points }} referral points because {{ invitee_name }} paid membership. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Umepata pointi za rufaa',
+                        'body' => "Habari {{ name }}, umepata pointi {{ points }} za rufaa kwa sababu {{ invitee_name }} amelipa ada ya uanachama. — {$brand}",
                     ],
                 ],
             ],

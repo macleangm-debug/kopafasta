@@ -23,7 +23,13 @@
             </div>
 
             <div class="mt-3">
-                <x-site.phone-input name="phone" :label="__('borrower.profile.fields.phone')" :value="old('phone')" :required="true" />
+                <x-site.phone-input
+                    name="phone"
+                    :label="__('borrower.profile.fields.phone')"
+                    :value="old('phone')"
+                    :locked-country="auth()->user()?->customer?->country_code ?? 'TZ'"
+                    :required="true"
+                />
             </div>
 
             <label class="block text-xs text-gray-600 mb-1 mt-3">{{ __('borrower.guarantors_page.email_optional') }}</label>

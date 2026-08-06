@@ -44,7 +44,10 @@
             'sections' => implode(', ', array_slice($remainingSections, 0, 3)),
         ]);
     }
-    $useModal = $shouldCelebrate && filled($message);
+    $useModal = $shouldCelebrate
+        && filled($message)
+        && ! in_array('membership', $reasons, true)
+        && ! in_array('payment', $reasons, true);
     $confettiCount = $isPointsProgress ? 56 : 160;
     $okLabel = match (true) {
         in_array('profile_complete', $reasons, true) => __('borrower.celebration.cta_apply'),

@@ -102,7 +102,7 @@
         </div>
         @if(isset($products) && $products->isNotEmpty())
             <div class="relative -mx-4 lg:mx-0" x-data="{ open: null }">
-                <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2">
+                <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 items-stretch">
                     @foreach($products as $p)
                         <x-site.loan-product-card :product="$p" />
                     @endforeach

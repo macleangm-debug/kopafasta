@@ -10,6 +10,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\Repayment;
 use App\Models\Setting;
+use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -58,22 +59,51 @@ class CustomerPaymentService
             $type = $data['payment_type'];
             $amount = round((float) $data['amount'], 2);
 
+            if (filled($data['mobile_number'] ?? null)) {
+                $data['mobile_number'] = PhoneNumber::normalizeForCountry(
+                    (string) $data['mobile_number'],
+                    $customer->country_code ?? null,
+                );
+            }
+
             $resolved = $this->accounts->resolve($type, $method, $product);
             $reference = $data['reference'] ?? $this->generateReference();
             $autoVerify = (bool) ($data['auto_verify'] ?? false);
             $isBank = $method === 'bank_transfer';
             $payIn = app(PayInService::class);
-            $usePayIn = $method === 'mobile_money'
-                && $payIn->isLiveCollectionEnabled()
-                && filled($data['mobile_number'] ?? null);
+            $liveGateway = ! payment_gateway_is_dummy();
+            $usePayIn = false;
+
+            if ($method === 'mobile_money') {
+                if ($liveGateway) {
+                    // Live mode: never accept mobile money without the assigned aggregator.
+                    if (! $payIn->isLiveCollectionEnabled()) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'payment_method' => [__('borrower.payments.aggregator_required')],
+                        ]);
+                    }
+                    if (! filled($data['mobile_number'] ?? null)) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'mobile_number' => [__('borrower.payments.mobile_number_required')],
+                        ]);
+                    }
+                    $usePayIn = true;
+                    $autoVerify = false;
+                } elseif ($payIn->isLiveCollectionEnabled() && filled($data['mobile_number'] ?? null)) {
+                    // Dummy gateway can still push to sandbox PayIn when configured.
+                    $usePayIn = true;
+                    $autoVerify = false;
+                }
+            }
 
             if ($usePayIn) {
                 $autoVerify = false;
             }
 
+            // Never mark live mobile-money as paid/verified without aggregator confirmation.
             $status = $autoVerify
                 ? 'verified'
-                : ($usePayIn ? 'processing' : ($isBank ? 'pending_verification' : 'paid'));
+                : ($usePayIn ? 'processing' : ($isBank ? 'pending_verification' : ($liveGateway && $method === 'mobile_money' ? 'processing' : 'paid')));
 
             $proofPath = null;
             $proofName = null;
@@ -105,7 +135,7 @@ class CustomerPaymentService
                 'payment_instructions'    => $instructions,
                 'proof_path'              => $proofPath,
                 'proof_original_name'     => $proofName,
-                'paid_at'                 => $autoVerify || (! $isBank && ! $usePayIn) ? now() : null,
+                'paid_at'                 => $autoVerify || (! $isBank && ! $usePayIn && ! $liveGateway) ? now() : null,
                 'payment_date'            => $data['payment_date'] ?? ($isBank ? now()->toDateString() : null),
                 'source_type'             => isset($data['source']) ? $data['source']::class : null,
                 'source_id'               => ($data['source'] ?? null)?->getKey(),
@@ -123,23 +153,44 @@ class CustomerPaymentService
                     $data['operator'] ?? null,
                 );
 
+                $remoteStatus = strtolower((string) ($collection['status'] ?? ''));
+                $meta = [
+                    'initiated_at' => now()->toIso8601String(),
+                    'operator' => $collection['operator'],
+                    'message' => $collection['message'],
+                    'phone' => $payIn->normalizePhone((string) $data['mobile_number']),
+                    'raw' => $collection['raw'],
+                ];
+
+                if (in_array($remoteStatus, ['failed', 'cancelled', 'canceled', 'expired', 'rejected'], true)) {
+                    $payment->update([
+                        'status' => 'rejected',
+                        'provider' => 'payin',
+                        'provider_ref' => $collection['request_ref'],
+                        'provider_meta' => $meta,
+                        'verification_notes' => trim(($payment->verification_notes ?? '')."\nPayIn collection status: {$remoteStatus}"),
+                        'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$collection['message']),
+                    ]);
+
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'payment_phone' => [$collection['message'] ?: __('borrower.payments.aggregator_rejected')],
+                    ]);
+                }
+
                 $payment->update([
                     'provider' => 'payin',
                     'provider_ref' => $collection['request_ref'],
-                    'provider_meta' => [
-                        'initiated_at' => now()->toIso8601String(),
-                        'operator' => $collection['operator'],
-                        'message' => $collection['message'],
-                        'raw' => $collection['raw'],
-                    ],
+                    'provider_meta' => $meta,
                     'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$collection['message']),
                 ]);
 
                 return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
             }
 
-            if ($autoVerify || ! $isBank) {
+            if ($autoVerify || (! $isBank && ! $liveGateway)) {
                 $this->finalizePayment($payment);
+            } elseif ($isBank) {
+                $this->notifyBankStatus($payment->fresh(['customer']), 'bank_payment_pending');
             }
 
             return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
@@ -195,9 +246,77 @@ class CustomerPaymentService
         return match ($payment->payment_type) {
             'registration_fee' => route('site.borrower.dashboard'),
             'application_fee', 'valuation_fee' => route('site.borrower.apply'),
-            'loan_repayment' => route('site.borrower.payments.show', $payment),
+            'loan_repayment' => $payment->loan_id
+                ? route('site.borrower.loans.show', $payment->loan_id)
+                : route('site.borrower.loans'),
             default => $fallback ?: route('site.borrower.payments.show', $payment),
         };
+    }
+
+    /**
+     * Success celebration copy for the waiting / confirmation UI — keyed by payment type.
+     *
+     * @return array{title: string, message: string}
+     */
+    public function celebrationCopy(CustomerPayment $payment): array
+    {
+        return match ($payment->payment_type) {
+            'registration_fee' => [
+                'title' => __('borrower.celebration.membership_title'),
+                'message' => __('borrower.celebration.membership'),
+            ],
+            'application_fee', 'asset_reservation_fee', 'valuation_fee' => [
+                'title' => __('borrower.celebration.application_fee_title'),
+                'message' => __('borrower.celebration.application_fee'),
+            ],
+            'post_approval_fee' => [
+                'title' => __('borrower.celebration.post_approval_fee_title'),
+                'message' => __('borrower.celebration.post_approval_fee'),
+            ],
+            'loan_repayment' => $this->repaymentCelebrationCopy($payment),
+            'asset_deposit' => [
+                'title' => __('borrower.celebration.deposit_title'),
+                'message' => __('borrower.celebration.deposit'),
+            ],
+            'penalty_payment' => [
+                'title' => __('borrower.celebration.penalty_title'),
+                'message' => __('borrower.celebration.penalty'),
+            ],
+            default => [
+                'title' => __('borrower.celebration.payment_title'),
+                'message' => __('borrower.celebration.payment'),
+            ],
+        };
+    }
+
+    /** @return array{title: string, message: string} */
+    private function repaymentCelebrationCopy(CustomerPayment $payment): array
+    {
+        $loan = $payment->loan_id
+            ? ($payment->relationLoaded('loan') ? $payment->loan : $payment->loan()->first())
+            : null;
+        $remaining = $loan ? (float) ($loan->outstanding_balance ?? 0) : null;
+
+        if ($remaining !== null && $remaining <= 0.009) {
+            return [
+                'title' => __('borrower.celebration.repayment_cleared_title'),
+                'message' => __('borrower.celebration.repayment_cleared'),
+            ];
+        }
+
+        if ($remaining !== null) {
+            return [
+                'title' => __('borrower.celebration.repayment_title'),
+                'message' => __('borrower.celebration.repayment', [
+                    'remaining' => format_money($remaining),
+                ]),
+            ];
+        }
+
+        return [
+            'title' => __('borrower.celebration.repayment_title'),
+            'message' => __('borrower.celebration.payment'),
+        ];
     }
 
     public function uploadProof(CustomerPayment $payment, UploadedFile $file): CustomerPayment
@@ -236,7 +355,12 @@ class CustomerPaymentService
 
             $this->finalizePayment($payment->fresh());
 
-            return $payment->fresh(['customer', 'journalEntry']);
+            $verified = $payment->fresh(['customer']);
+            if ($verified->payment_method === 'bank_transfer' && $verified->payment_type !== 'loan_repayment') {
+                $this->notifyBankStatus($verified, 'bank_payment_verified');
+            }
+
+            return $verified->load(['customer', 'journalEntry']);
         });
     }
 
@@ -423,6 +547,31 @@ class CustomerPaymentService
         $entry = app(RepaymentPostingService::class)->post($repayment->fresh());
         if ($entry) {
             $payment->update(['journal_entry_id' => $entry->id]);
+        }
+    }
+
+    protected function notifyBankStatus(CustomerPayment $payment, string $templateCode): void
+    {
+        $customer = $payment->customer;
+        if (! $customer) {
+            return;
+        }
+
+        $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Customer';
+
+        try {
+            app(NotificationService::class)->notifyCustomer($customer, $templateCode, [
+                'name' => $name,
+                'reference' => $payment->reference,
+                'payment_type' => $payment->typeLabel(),
+                'amount' => format_money((float) $payment->amount),
+                '_fallback_subject' => $templateCode === 'bank_payment_verified' ? 'Bank payment verified' : 'Bank payment received',
+                '_fallback_body' => $templateCode === 'bank_payment_verified'
+                    ? "Hi {$name}, your bank payment {$payment->reference} for {$payment->typeLabel()} (".format_money((float) $payment->amount).') has been verified. — '.brand_name()
+                    : "Hi {$name}, we received your bank payment {$payment->reference} for {$payment->typeLabel()} (".format_money((float) $payment->amount).'). We will verify shortly. — '.brand_name(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 

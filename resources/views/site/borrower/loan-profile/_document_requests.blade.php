@@ -39,10 +39,10 @@
              }
          }">
         {{-- Tab rail (same idea as apply review pages) --}}
-        <nav class="mb-3 rounded-2xl bg-white/95 ring-1 ring-brand/10 px-3 py-3 shadow-sm"
+        <nav class="mb-3 rounded-2xl bg-white/95 ring-1 ring-brand/10 px-2 py-3 shadow-sm"
              aria-label="{{ __('borrower.loan_profile.documents_tabs_nav') }}">
-            <ol class="flex items-center gap-0">
-                <li class="flex items-center min-w-0 flex-1">
+            <ol class="grid grid-cols-2 gap-2 items-stretch">
+                <li class="min-w-0">
                     <button type="button"
                             @click="setTab('requested')"
                             class="group flex flex-col items-center gap-1.5 w-full focus:outline-none">
@@ -52,7 +52,7 @@
                                   : 'bg-white text-gray-400 ring-gray-200 group-hover:ring-brand/40 group-hover:text-brand'">
                             <span x-text="'{{ $openDocCount }}'"></span>
                         </span>
-                        <span class="text-[10px] uppercase tracking-widest font-semibold transition"
+                        <span class="text-[10px] uppercase tracking-widest font-semibold transition text-center"
                               :class="tab === 'requested' ? 'text-brand' : 'text-gray-400'">
                             {{ __('borrower.loan_profile.documents_tab_requested') }}
                             @if ($openDocCount > 0)
@@ -60,14 +60,11 @@
                             @endif
                         </span>
                     </button>
-                    <div class="mx-2 sm:mx-3 h-px flex-1 min-w-[1.25rem] transition"
-                         :class="tab === 'submitted' ? 'bg-emerald-400' : 'bg-gray-200'"
-                         aria-hidden="true"></div>
                 </li>
-                <li class="flex items-center min-w-0 shrink-0">
+                <li class="min-w-0">
                     <button type="button"
                             @click="setTab('submitted')"
-                            class="group flex flex-col items-center gap-1.5 focus:outline-none">
+                            class="group flex flex-col items-center gap-1.5 w-full focus:outline-none">
                         <span class="size-8 rounded-full grid place-items-center text-xs font-bold transition ring-2"
                               :class="tab === 'submitted'
                                   ? 'bg-brand text-white ring-brand shadow-sm'
@@ -80,7 +77,7 @@
                                 {{ $submittedCount }}
                             @endif
                         </span>
-                        <span class="text-[10px] uppercase tracking-widest font-semibold transition"
+                        <span class="text-[10px] uppercase tracking-widest font-semibold transition text-center"
                               :class="tab === 'submitted' ? 'text-brand' : 'text-gray-400'">
                             {{ __('borrower.loan_profile.documents_tab_submitted') }}
                             @if ($submittedCount > 0)
@@ -96,7 +93,7 @@
         <div x-show="tab === 'requested'" x-cloak class="glass-card overflow-hidden ring-1 ring-amber-200/80">
             <button type="button"
                     @click="requestedOpen = !requestedOpen"
-                    class="w-full text-left px-5 py-4 border-b border-amber-100 bg-amber-50/80 flex items-start justify-between gap-3">
+                    class="w-full text-left px-4 sm:px-5 py-4 border-b border-amber-100 bg-amber-50/80 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div class="min-w-0">
                     <h2 class="font-semibold text-amber-950">{{ __('borrower.loan_profile.documents_collapsed') }}</h2>
                     <p class="text-xs text-amber-900/80 mt-0.5">
@@ -107,7 +104,7 @@
                         @endif
                     </p>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
+                <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0 w-full sm:w-auto">
                     @if ($headerDueAt && $openDocCount > 0)
                         <x-site.deadline-badge
                             :days-left="$headerDaysLeft"
@@ -116,9 +113,10 @@
                             :label="$headerDueExpired ? __('borrower.loan_profile.document_deadline_expired') : null"
                             :urgent="$headerDaysLeft !== null && $headerDaysLeft <= 2"
                             :expired="$headerDueExpired"
+                            class="flex-1 sm:flex-none"
                         />
                     @endif
-                    <svg class="size-5 text-amber-800 transition" :class="requestedOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
+                    <svg class="size-5 text-amber-800 transition shrink-0" :class="requestedOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
                 </div>
             </button>
 

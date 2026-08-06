@@ -14,6 +14,7 @@
     'showMobile' => true,
     'showBank' => true,
     'mobileInputValue' => null,
+    'countryCode' => null,
 ])
 
 @php
@@ -21,6 +22,9 @@
     $defaultMethod = $defaultMethod ?? (old($methodField) ?: $mobileValue);
     $bankOnlyMessage = __('borrower.payments_page.create.bank_only', ['threshold' => format_money($threshold)]);
     $mobileInputValue = $mobileInputValue ?? old($mobileField);
+    $countryCode = $countryCode
+        ? strtoupper((string) $countryCode)
+        : strtoupper((string) (auth()->user()?->customer?->country_code ?? 'TZ'));
 @endphp
 
 <div x-data="{
@@ -29,7 +33,23 @@
     threshold: {{ (int) $threshold }},
     get mobileAllowed() { return !this.threshold || this.amount <= this.threshold; },
 }"
-     x-init="if (!mobileAllowed && method === @js($mobileValue)) { method = @js($bankValue); }"
+     x-init="
+        if (!mobileAllowed && method === @js($mobileValue)) { method = @js($bankValue); }
+        const form = $el.closest('form');
+        const amountInput = form?.querySelector('input[name=amount]');
+        if (amountInput) {
+            const syncAmount = () => {
+                const next = Number(amountInput.value || 0);
+                if (!Number.isNaN(next)) {
+                    amount = next;
+                    if (!mobileAllowed && method === @js($mobileValue)) { method = @js($bankValue); }
+                }
+            };
+            amountInput.addEventListener('input', syncAmount);
+            amountInput.addEventListener('change', syncAmount);
+            syncAmount();
+        }
+     "
      class="space-y-4">
     <div>
         <label class="block text-xs font-medium text-gray-600 mb-2">{{ __('borrower.payments_page.create.method_label') }}</label>
@@ -51,8 +71,8 @@
                 </label>
             @endif
         </div>
-        <p class="text-xs mt-2" :class="mobileAllowed ? 'text-emerald-700' : 'text-amber-700'"
-           x-text="mobileAllowed ? @js(__('borrower.payments_page.create.mobile_allowed')) : @js($bankOnlyMessage)"></p>
+        <p x-show="!mobileAllowed" x-cloak class="text-xs mt-2 text-amber-700"
+           x-text="@js($bankOnlyMessage)"></p>
     </div>
 
     <div x-show="method === @js($mobileValue)" x-cloak class="space-y-3">
@@ -65,13 +85,15 @@
                 @endif
             </div>
         @endif
-        <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payments_page.create.mobile_number_label') }}</label>
-            <input type="text" name="{{ $mobileField }}" value="{{ $mobileInputValue }}" placeholder="255712345678"
-                   @if($formId) form="{{ $formId }}" @endif
-                   class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-            <p class="text-xs text-gray-500 mt-2">{{ __('borrower.membership.mobile_ussd_hint') }}</p>
-        </div>
+        <x-site.phone-input
+            :name="$mobileField"
+            :label="__('borrower.payments_page.create.mobile_number_label')"
+            :value="$mobileInputValue"
+            :locked-country="$countryCode"
+            :form="$formId"
+            :show-errors="false"
+            input-class="flex-1 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand"
+        />
     </div>
 
     <div x-show="method === @js($bankValue)" x-cloak class="space-y-3">
@@ -109,7 +131,7 @@
         @if (empty($bankDetails) && empty($bankAccounts))
             <p class="text-xs text-gray-500">{{ __('borrower.membership.bank_hint') }}</p>
         @endif
-    </div>
 
-    {{ $slot }}
+        {{ $slot }}
+    </div>
 </div>

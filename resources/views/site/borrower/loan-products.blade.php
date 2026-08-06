@@ -55,11 +55,7 @@
             <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-5 lg:gap-6">
                 @foreach ($products as $product)
                     @php
-                        $theme = loan_product_theme($product->code);
-                        $isMarketplace = is_marketplace_loan_product($product->code);
-                        $cardDescription = $isMarketplace
-                            ? __('borrower.marketplace.subtitle')
-                            : ($product->description ?: ($theme['label'] ?? __('borrower.dashboard.browse_products')));
+                        $cardDescription = loan_product_card_description($product);
                         $cardSearch = strtolower($product->code.' '.$product->localizedName().' '.$cardDescription);
                         $cardCategory = (string) ($product->category ?: 'general');
                     @endphp

@@ -1,6 +1,7 @@
 @props([
     'title' => null,
     'description' => null,
+    'auth' => false,
 ])
 @php
     $title = $title ?? brand_title(brand('tagline'));
@@ -10,12 +11,13 @@
     $siteCountry = $siteCountry ?? 'TZ';
     $siteCountries = $siteCountries ?? [];
     $currentCountry = collect($siteCountries)->firstWhere('code', $siteCountry) ?? ['code' => 'TZ', 'name' => 'Tanzania', 'emoji' => '🇹🇿'];
+    $auth = (bool) $auth;
 @endphp
 <!DOCTYPE html>
-<html lang="{{ $siteLocale }}" class="h-full scroll-smooth">
+<html lang="{{ $siteLocale }}" class="h-full scroll-smooth {{ $auth ? 'overflow-hidden' : '' }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="app-currency" content="{{ currency_code() }}">
     <meta name="description" content="{{ $description }}">
@@ -23,7 +25,11 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="min-h-full bg-white text-gray-900 antialiased flex flex-col">
+<body @class([
+    'bg-white text-gray-900 antialiased flex flex-col',
+    'h-[100svh] max-h-[100svh] overflow-hidden' => $auth,
+    'min-h-full' => ! $auth,
+])>
 
     <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100">
         <div class="hidden md:block border-b border-gray-100 bg-[#faf8f5]">
@@ -124,67 +130,69 @@
         </div>
     @endif
 
-    <main class="flex-1">{{ $slot }}</main>
+    <main @class(['flex-1', 'min-h-0 overflow-y-auto overscroll-y-contain' => $auth])>{{ $slot }}</main>
 
-    <footer class="bg-brand text-gray-300 mt-20">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-6">
-            <div class="lg:col-span-2">
-                <x-site.brand-mark variant="light" size="md" :showSubtitle="true" />
-                <p class="text-sm text-gray-400 max-w-xs mt-3">{{ brand('tagline') }}. {{ __('site.footer.tagline') }}</p>
+    @unless ($auth)
+        <footer class="bg-brand text-gray-300 mt-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-6">
+                <div class="lg:col-span-2">
+                    <x-site.brand-mark variant="light" size="md" :showSubtitle="true" />
+                    <p class="text-sm text-gray-400 max-w-xs mt-3">{{ brand('tagline') }}. {{ __('site.footer.tagline') }}</p>
+                </div>
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.nav.products') }}</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="{{ route('site.products') }}" class="hover:text-brand-gold transition">{{ __('site.nav.all_products') }}</a></li>
+                        <li><a href="{{ route('site.marketplace') }}" class="hover:text-brand-gold transition">{{ __('site.nav.marketplace') }}</a></li>
+                        @foreach ($navProducts->take(4) as $navProduct)
+                            <li><a href="{{ route('site.product', $navProduct->code) }}" class="hover:text-brand-gold transition">{{ $navProduct->localizedName() }}</a></li>
+                        @endforeach
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.invest') }}</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="{{ route('site.invest') }}" class="hover:text-brand-gold transition">{{ __('site.footer.individual_investor') }}</a></li>
+                        <li><a href="{{ route('site.capital-partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.capital_partner') }}</a></li>
+                        <li><a href="{{ route('site.register.investor') }}" class="hover:text-brand-gold transition">{{ __('site.footer.open_account') }}</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.partners') }}</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="{{ route('site.partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.service_partners') }}</a></li>
+                        <li><a href="{{ route('site.partners.apply', 'debt_collector') }}" class="hover:text-brand-gold transition">{{ __('site.footer.enroll_partner') }}</a></li>
+                        <li><a href="{{ route('site.affiliate') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_affiliate') }}</a></li>
+                        <li><a href="{{ route('site.affiliate.verify.index') }}" class="hover:text-brand-gold transition">{{ __('site.footer.verify_affiliate') }}</a></li>
+                        <li><a href="{{ route('site.login.partner') }}" class="hover:text-brand-gold transition">{{ __('site.auth.partner_portal') }}</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.company') }}</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="{{ route('site.about') }}" class="hover:text-brand-gold transition">{{ __('site.footer.about') }}</a></li>
+                        <li><a href="{{ route('site.how-it-works') }}" class="hover:text-brand-gold transition">{{ __('site.how_it_works.title') }}</a></li>
+                        <li><a href="{{ route('site.faq') }}" class="hover:text-brand-gold transition">{{ __('site.footer.faq') }}</a></li>
+                        <li><a href="{{ route('site.support') }}" class="hover:text-brand-gold transition">{{ __('site.footer.support') }}</a></li>
+                        <li><a href="{{ route('site.feedback') }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>
+                        <li><a href="mailto:{{ brand('support_email') }}" class="hover:text-brand-gold transition">{{ __('site.nav.contact') }}</a></li>
+                    </ul>
+                </div>
             </div>
-            <div>
-                <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.nav.products') }}</h4>
-                <ul class="space-y-2 text-sm">
-                    <li><a href="{{ route('site.products') }}" class="hover:text-brand-gold transition">{{ __('site.nav.all_products') }}</a></li>
-                    <li><a href="{{ route('site.marketplace') }}" class="hover:text-brand-gold transition">{{ __('site.nav.marketplace') }}</a></li>
-                    @foreach ($navProducts->take(4) as $navProduct)
-                        <li><a href="{{ route('site.product', $navProduct->code) }}" class="hover:text-brand-gold transition">{{ $navProduct->localizedName() }}</a></li>
-                    @endforeach
-                </ul>
+            <div class="border-t border-white/10 py-5 text-xs text-gray-500">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span>&copy; {{ date('Y') }} {{ brand('legal_name') }}.</span>
+                    <span class="flex items-center gap-4">
+                        <a href="{{ route('site.legal.terms') }}" class="hover:text-brand-gold transition">{{ __('site.footer.terms') }}</a>
+                        <a href="{{ route('site.legal.privacy') }}" class="hover:text-brand-gold transition">{{ __('site.footer.privacy') }}</a>
+                        <a href="{{ route('site.legal') }}" class="hover:text-brand-gold transition">Legal</a>
+                    </span>
+                </div>
             </div>
-            <div>
-                <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.invest') }}</h4>
-                <ul class="space-y-2 text-sm">
-                    <li><a href="{{ route('site.invest') }}" class="hover:text-brand-gold transition">{{ __('site.footer.individual_investor') }}</a></li>
-                    <li><a href="{{ route('site.capital-partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.capital_partner') }}</a></li>
-                    <li><a href="{{ route('site.register.investor') }}" class="hover:text-brand-gold transition">{{ __('site.footer.open_account') }}</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.partners') }}</h4>
-                <ul class="space-y-2 text-sm">
-                    <li><a href="{{ route('site.partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.service_partners') }}</a></li>
-                    <li><a href="{{ route('site.partners.apply', 'debt_collector') }}" class="hover:text-brand-gold transition">{{ __('site.footer.enroll_partner') }}</a></li>
-                    <li><a href="{{ route('site.affiliate') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_affiliate') }}</a></li>
-                    <li><a href="{{ route('site.affiliate.verify.index') }}" class="hover:text-brand-gold transition">{{ __('site.footer.verify_affiliate') }}</a></li>
-                    <li><a href="{{ route('site.login.partner') }}" class="hover:text-brand-gold transition">{{ __('site.auth.partner_portal') }}</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.company') }}</h4>
-                <ul class="space-y-2 text-sm">
-                    <li><a href="{{ route('site.about') }}" class="hover:text-brand-gold transition">{{ __('site.footer.about') }}</a></li>
-                    <li><a href="{{ route('site.how-it-works') }}" class="hover:text-brand-gold transition">{{ __('site.how_it_works.title') }}</a></li>
-                    <li><a href="{{ route('site.faq') }}" class="hover:text-brand-gold transition">{{ __('site.footer.faq') }}</a></li>
-                    <li><a href="{{ route('site.support') }}" class="hover:text-brand-gold transition">{{ __('site.footer.support') }}</a></li>
-                    <li><a href="{{ route('site.feedback') }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>
-                    <li><a href="mailto:{{ brand('support_email') }}" class="hover:text-brand-gold transition">{{ __('site.nav.contact') }}</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="border-t border-white/10 py-5 text-xs text-gray-500">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <span>&copy; {{ date('Y') }} {{ brand('legal_name') }}.</span>
-                <span class="flex items-center gap-4">
-                    <a href="{{ route('site.legal.terms') }}" class="hover:text-brand-gold transition">{{ __('site.footer.terms') }}</a>
-                    <a href="{{ route('site.legal.privacy') }}" class="hover:text-brand-gold transition">{{ __('site.footer.privacy') }}</a>
-                    <a href="{{ route('site.legal') }}" class="hover:text-brand-gold transition">Legal</a>
-                </span>
-            </div>
-        </div>
-    </footer>
+        </footer>
 
-    <x-site.chatbot-widget />
+        <x-site.chatbot-widget />
+    @endunless
     <x-site.confirm-modal name="default" />
     <x-site.feedback-modal name="default" />
     @stack('scripts')

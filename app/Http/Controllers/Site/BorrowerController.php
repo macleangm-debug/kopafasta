@@ -2906,6 +2906,12 @@ class BorrowerController extends Controller
                     ->with('status', __('borrower.post_approval_fees.waived'));
             }
 
+            if (in_array($payment->status, ['processing', 'pending_verification'], true)) {
+                return redirect()
+                    ->route('site.borrower.payments.show', $payment)
+                    ->with('status', __('borrower.payment_waiting.waiting'));
+            }
+
             return redirect()
                 ->route('site.borrower.application.disbursement-details', $application)
                 ->with('status', payment_gateway_is_dummy()

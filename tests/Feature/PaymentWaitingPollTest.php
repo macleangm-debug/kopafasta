@@ -127,6 +127,39 @@ class PaymentWaitingPollTest extends TestCase
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
             ->assertSee(__('borrower.payment_waiting.title'), false)
-            ->assertSee('255711111111');
+            ->assertSee(__('borrower.payment_waiting.for'), false)
+            ->assertSee(__('borrower.payment_types.registration_fee'), false)
+            ->assertSee('255711111111')
+            ->assertDontSee(__('borrower.payment_waiting.prompt'), false)
+            ->assertDontSee(__('borrower.payment_waiting.step_ussd'), false)
+            ->assertSee(__('borrower.payment_waiting.wait_estimate'), false)
+            ->assertSee(__('borrower.payment_waiting.no_prompt'), false)
+            ->assertSee(__('borrower.payment_waiting.help_title'), false)
+            ->assertSee(__('borrower.payment_waiting.try_again'), false);
+    }
+
+    public function test_waiting_page_shows_swahili_type_label_in_sw_locale(): void
+    {
+        app()->setLocale('sw');
+        [$user, $customer] = $this->borrower();
+
+        $payment = CustomerPayment::create([
+            'reference' => 'PAY-WAIT4',
+            'customer_id' => $customer->id,
+            'payment_type' => 'registration_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 5000,
+            'currency' => 'TZS',
+            'status' => 'processing',
+            'provider' => 'payin',
+            'provider_ref' => 'PAYREF888',
+            'mobile_number' => '255711111111',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee('Ada ya Uanachama', false)
+            ->assertDontSee('Membership Fee', false);
     }
 }

@@ -34,8 +34,11 @@ class PaymentGateService
         ?string $promoCode = null,
         ?string $affiliateCode = null,
     ): array {
-        if (filled($affiliateCode) && ! app(ReferralService::class)->referrer($customer) && blank($customer->affiliate_vendor_id)) {
-            app(AffiliateService::class)->attachAffiliate($customer, $affiliateCode);
+        [$resolvedPromo, $resolvedAffiliate] = app(ApplicationFeePaymentService::class)
+            ->resolvePromoOrAffiliate($promoCode, $affiliateCode);
+
+        if (filled($resolvedAffiliate) && ! app(ReferralService::class)->referrer($customer) && blank($customer->affiliate_vendor_id)) {
+            app(AffiliateService::class)->attachAffiliate($customer, $resolvedAffiliate);
             $customer->refresh();
         }
         $referrals = app(ReferralService::class);
@@ -50,6 +53,7 @@ class PaymentGateService
         $hasAffiliate = false;
         $promoValid = false;
         $appliedPromo = null;
+        $codeKind = null; // promo | affiliate | invalid
 
         $afterPartner = round($baseAmount, 2);
 
@@ -64,19 +68,36 @@ class PaymentGateService
             $afterPartner = (float) $affiliateQuote['after_discount'];
             $commission = (float) $affiliateQuote['commission'];
             $hasAffiliate = (bool) $affiliateQuote['has_affiliate'];
+            if (filled($resolvedAffiliate) && $hasAffiliate) {
+                $promoValid = true;
+                $appliedPromo = strtoupper(trim((string) $resolvedAffiliate));
+                $codeKind = 'affiliate';
+            }
         }
 
-        if (filled($promoCode) && ! $useWallet) {
-            $promo = $promotions->applyPromoCode($promoCode, $feeType, $afterPartner);
+        if (filled($resolvedPromo) && ! $useWallet) {
+            $promo = $promotions->applyPromoCode($resolvedPromo, $feeType, $afterPartner);
             if ($promo['valid']) {
                 $promoValid = true;
-                $appliedPromo = strtoupper(trim($promoCode));
+                $appliedPromo = strtoupper(trim($resolvedPromo));
+                $codeKind = 'promo';
                 $promoDiscount += (float) $promo['promotion_discount'];
                 $afterPartner = (float) $promo['after_discount'];
             } else {
-                $appliedPromo = strtoupper(trim($promoCode));
+                $appliedPromo = strtoupper(trim($resolvedPromo));
                 $promoValid = false;
+                $codeKind = 'invalid';
             }
+        } elseif (filled($promoCode) && blank($resolvedPromo) && blank($resolvedAffiliate)) {
+            // Raw code entered but matched neither promo nor affiliate.
+            $appliedPromo = strtoupper(trim((string) $promoCode));
+            $promoValid = false;
+            $codeKind = 'invalid';
+        } elseif (filled($resolvedAffiliate) && ! $promoValid) {
+            // Affiliate code provided but could not attach / no discount yet.
+            $appliedPromo = strtoupper(trim((string) $resolvedAffiliate));
+            $promoValid = $hasAffiliate;
+            $codeKind = $hasAffiliate ? 'affiliate' : 'invalid';
         }
         // Promo / campaign discounts apply only when a code is entered — no silent auto-discount.
 
@@ -94,7 +115,7 @@ class PaymentGateService
         $walletQuote = $referrals->quoteFee($customer, $afterPartner, $useWallet, $feeType, applyDiscount: false);
 
         return $this->formatQuote([
-            'base'                => round($baseAmount, 2),
+            'base'                  => round($baseAmount, 2),
             'referral_discount'     => $referralDiscount,
             'affiliate_discount'    => $affiliateDiscount,
             'promo_discount'        => $promoDiscount,
@@ -110,6 +131,7 @@ class PaymentGateService
             'has_affiliate'         => $hasAffiliate,
             'promo_code'            => $appliedPromo,
             'promo_valid'           => $promoValid,
+            'code_kind'             => $codeKind,
             'referrer'              => $hasReferrer ? $referrals->referrer($customer) : null,
         ], $feeType);
     }

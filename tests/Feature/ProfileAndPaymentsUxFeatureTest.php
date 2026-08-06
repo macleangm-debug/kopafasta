@@ -208,16 +208,12 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
             ->get(route('site.borrower.payments.create', ['loan' => $loan->id]))
             ->assertOk()
             ->assertSee('from-brand', false)
-            ->assertSee('peer-checked:ring-brand', false)
-            ->assertSee('value="'.$loan->id.'"', false)
-            ->assertSee('selected', false);
+            ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
+            ->assertSee('value="'.$loan->id.'"', false);
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.payments'))
-            ->assertOk()
-            ->assertSee('from-brand', false)
-            ->assertSee(__('borrower.payments_page.make_repayment'), false)
-            ->assertSee(__('borrower.payments_page.history_title'), false);
+            ->assertRedirect(route('site.borrower.payments.create', ['loan' => $loan->id]));
     }
 
     public function test_residence_profile_save_persists_officer_and_address(): void

@@ -115,6 +115,7 @@ export function applyWizard(config) {
                 furthestStep: 0,
                 showProfileGateModal: false,
                 showProfileReadyModal: false,
+                showMembershipGateModal: false,
                 openProfileGateOnLoad: !!(config.openProfileGateOnLoad),
                 openProfileReadyOnLoad: !!(config.openProfileReadyOnLoad),
                 isResume: !! config.isResume,
@@ -126,6 +127,8 @@ export function applyWizard(config) {
                 marketplaceOnlyCodes: config.marketplaceOnlyCodes || [],
                 marketplaceUrl: config.marketplaceUrl || '',
                 profileUrl: config.profileUrl || '',
+                membershipRenewUrl: config.membershipRenewUrl || '',
+                hasActiveMembership: !! config.hasActiveMembership,
                 canApply: !! config.canApply,
                 firstActionUrl: config.firstActionUrl || null,
                 verifiedLegalName: config.verifiedLegalName || '',
@@ -1702,11 +1705,32 @@ export function applyWizard(config) {
                     return this._readinessPromise;
                 },
 
+                membershipIsActive() {
+                    const check = Array.isArray(this.readiness?.requirements)
+                        ? this.readiness.requirements.find((r) => r.key === 'membership')
+                        : null;
+                    if (check && typeof check.complete === 'boolean') {
+                        return check.complete;
+                    }
+                    return !!this.hasActiveMembership;
+                },
+
+                membershipPayUrl() {
+                    const check = Array.isArray(this.readiness?.requirements)
+                        ? this.readiness.requirements.find((r) => r.key === 'membership')
+                        : null;
+                    return check?.action_url || this.membershipRenewUrl || '/borrower/membership/renew';
+                },
+
                 async startApplication() {
                     if (! this.current) return;
                     const productId = this.current.id;
                     if (! this.readiness || this.readiness?.product?.id !== productId) {
                         await this.loadReadiness(productId);
+                    }
+                    if (! this.membershipIsActive()) {
+                        this.showMembershipGateModal = true;
+                        return;
                     }
                     if (! this.steps.length) {
                         this.selectProduct(this.current, true);

@@ -13,6 +13,7 @@ use App\Services\AssetReservationPaymentService;
 use App\Services\AssetReservationService;
 use App\Services\CustomerPaymentService;
 use App\Services\PaymentAccountService;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -206,14 +207,17 @@ class AssetMarketplaceController extends Controller
             'step'           => ['required', 'in:reservation_fee,deposit'],
             'payment_method' => ['required', 'in:bank_transfer,mobile_money'],
             'mobile_number'  => [payment_gateway_is_dummy() ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
+            'mobile_number_local' => ['nullable', 'string', 'max:20'],
             'payment_date'   => ['nullable', 'date'],
             'proof'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'use_wallet'     => ['nullable', 'boolean'],
             'promo_code'     => ['nullable', 'string', 'max:40'],
         ]);
 
-        if ($data['payment_method'] === 'mobile_money' && ! empty($data['mobile_number'])) {
-            if (! CustomerPaymentService::validateMobileNumber($data['mobile_number'])) {
+        $mobileNumber = PhoneNumber::fromRequest($request, 'mobile_number', $customer->country_code ?? null);
+
+        if ($data['payment_method'] === 'mobile_money' && filled($mobileNumber)) {
+            if (! CustomerPaymentService::validateMobileNumber($mobileNumber)) {
                 return back()->withInput()->withErrors([
                     'mobile_number' => 'Enter your number with country code, without a leading zero (e.g. 255712345678).',
                 ]);
@@ -223,7 +227,7 @@ class AssetMarketplaceController extends Controller
         try {
             $payment = $payments->submit($customer, $reservation, $data['step'], [
                 'payment_method' => $data['payment_method'],
-                'mobile_number'  => $data['mobile_number'] ?? null,
+                'mobile_number'  => $mobileNumber,
                 'payment_date'   => $data['payment_date'] ?? null,
                 'proof'          => $request->file('proof'),
                 'reference'      => $payments->paymentReference($reservation, $data['step']),

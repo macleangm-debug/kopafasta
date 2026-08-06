@@ -111,16 +111,23 @@ class ApplicationFeePaymentService
         }
 
         $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
+        $dummyGateway = $this->usesDummyGateway();
         $phone = $mobileNumber ?: $customer->phone;
 
-        if ($payInLive && ! filled($phone)) {
+        if (! $dummyGateway && ! $payInLive) {
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'mobile_number' => ['Enter the mobile money number that will confirm the payment.'],
+                'payment_method' => [__('borrower.payments.aggregator_required')],
             ]);
         }
 
-        // Don't settle wallet/promo until PayIn confirms — only settle when not awaiting USSD.
-        if (! $payInLive) {
+        if ($payInLive && ! filled($phone)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'mobile_number' => [__('borrower.payments.mobile_number_required')],
+            ]);
+        }
+
+        // Don't settle wallet/promo until PayIn confirms — only settle in dummy (instant) mode.
+        if ($dummyGateway && ! $payInLive) {
             app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
         }
 
@@ -132,7 +139,7 @@ class ApplicationFeePaymentService
             'loan_product'   => $product,
             'reference'      => $paymentReference,
             'mobile_number'  => $phone,
-            'auto_verify'    => ! $payInLive,
+            'auto_verify'    => $dummyGateway && ! $payInLive,
         ]);
 
         $pending = in_array($payment->status, ['processing', 'pending_verification'], true);

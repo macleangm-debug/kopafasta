@@ -80,7 +80,18 @@ class ApplicationConversionFeePaymentService
             return ['payment' => null, 'quote' => $quote];
         }
 
-        $this->settleDiscounts($customer, $application, $quote, $useWallet);
+        $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
+        $dummyGateway = $this->usesDummyGateway();
+
+        if (! $dummyGateway && ! $payInLive) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_method' => [__('borrower.payments.aggregator_required')],
+            ]);
+        }
+
+        if ($dummyGateway && ! $payInLive) {
+            $this->settleDiscounts($customer, $application, $quote, $useWallet);
+        }
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
@@ -90,7 +101,8 @@ class ApplicationConversionFeePaymentService
             'loan_product'   => $application->alternativeProduct,
             'reference'      => $paymentReference,
             'source'         => $application,
-            'auto_verify'    => true,
+            'mobile_number'  => $customer->phone,
+            'auto_verify'    => $dummyGateway && ! $payInLive,
         ]);
 
         return ['payment' => $payment, 'quote' => $quote];

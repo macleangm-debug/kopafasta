@@ -12,6 +12,8 @@
     'bankDetails' => [],
     'showMobile' => true,
     'showBank' => true,
+    'countryCode' => null,
+    'mobileInputValue' => null,
 ])
 
 <div class="space-y-5">
@@ -35,6 +37,8 @@
         :bank-details="$bankDetails"
         :show-mobile="$showMobile"
         :show-bank="$showBank"
+        :country-code="$countryCode"
+        :mobile-input-value="$mobileInputValue"
     />
 
     {{ $slot }}

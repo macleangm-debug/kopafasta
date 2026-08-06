@@ -9,6 +9,7 @@ use App\Services\GuarantorOnboardingService;
 use App\Services\MembershipService;
 use App\Services\PaymentAccountService;
 use App\Services\ReferralService;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -46,8 +47,17 @@ class MembershipController extends Controller
         $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
         $useWallet = (bool) old('use_wallet', false);
         $promoCode = old('promo_code', $request->query('promo_code'));
+        [$resolvedPromo, $resolvedAffiliate] = app(\App\Services\ApplicationFeePaymentService::class)
+            ->resolvePromoOrAffiliate($promoCode);
         $feeQuote = $isFirstTime
-            ? app(\App\Services\PaymentGateService::class)->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode)
+            ? app(\App\Services\PaymentGateService::class)->quote(
+                $customer,
+                (float) $baseFee,
+                'registration_fee',
+                $useWallet,
+                $resolvedPromo,
+                $resolvedAffiliate
+            )
             : null;
         $referralWallet = $referrals->wallet($customer);
         $referralSettings = $referrals->settings();
@@ -76,6 +86,7 @@ class MembershipController extends Controller
         $data = $request->validate([
             'channel'       => ['required', 'in:mobile_money,bank'],
             'payment_phone' => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'payment_phone_local' => ['nullable', 'string', 'max:20'],
             'use_wallet'    => ['nullable', 'boolean'],
             'promo_code'    => ['nullable', 'string', 'max:40'],
         ]);
@@ -92,8 +103,10 @@ class MembershipController extends Controller
         $useWallet = $isFirstTime && $request->boolean('use_wallet');
         $promoCode = $data['promo_code'] ?? null;
         $gate = app(\App\Services\PaymentGateService::class);
+        [$resolvedPromo, $resolvedAffiliate] = app(\App\Services\ApplicationFeePaymentService::class)
+            ->resolvePromoOrAffiliate($promoCode);
         $cashDue = $isFirstTime
-            ? (int) ($gate->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode)['cash_due'] ?? $baseFee)
+            ? (int) ($gate->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $resolvedPromo, $resolvedAffiliate)['cash_due'] ?? $baseFee)
             : (int) $baseFee;
 
         if ($data['channel'] === 'mobile_money' && ! payment_channels_for_amount($cashDue)['mobile_money_allowed']) {
@@ -110,11 +123,19 @@ class MembershipController extends Controller
         $paymentBreakdown = null;
 
         if ($isFirstTime) {
-            $quote = $gate->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode);
+            $quote = $gate->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $resolvedPromo, $resolvedAffiliate);
             $paymentBreakdown = $quote;
         }
 
         if ($data['channel'] === 'mobile_money') {
+            $paymentPhone = PhoneNumber::fromRequest($request, 'payment_phone', $customer->country_code ?? null);
+
+            if (! filled($paymentPhone)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'payment_phone' => [__('borrower.payments_page.create.mobile_number_hint')],
+                ]);
+            }
+
             try {
                 $payment = app(\App\Services\CustomerPaymentService::class)->create([
                     'customer'       => $customer,
@@ -122,8 +143,8 @@ class MembershipController extends Controller
                     'payment_method' => 'mobile_money',
                     'amount'         => $paymentBreakdown['cash_due'] ?? $paymentBreakdown['after_discount'] ?? $baseFee,
                     'reference'      => $paymentReference,
-                    'mobile_number'  => $data['payment_phone'] ?? null,
-                    'auto_verify'    => payment_gateway_is_dummy(),
+                    'mobile_number'  => $paymentPhone,
+                    'auto_verify'    => payment_gateway_is_dummy() && ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(),
                 ]);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 return back()->withInput()->withErrors($e->errors())->with('feedback', [
@@ -177,8 +198,7 @@ class MembershipController extends Controller
 
             if ($payment->status === 'processing') {
                 return redirect()
-                    ->route('site.borrower.payments.show', $payment)
-                    ->with('status', __('borrower.payment_waiting.prompt'));
+                    ->route('site.borrower.payments.show', $payment);
             }
 
             // Dummy / already-verified payments activate membership in CustomerPaymentService::finalizePayment.

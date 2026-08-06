@@ -74,4 +74,56 @@ class PhoneNumber
 
         return $prefixDigits.ltrim($localDigits, '0');
     }
+
+    /**
+     * Resolve a phone from a request field, preferring the visible *_local digits
+     * (avoids browser autofill overwriting the hidden full MSISDN).
+     */
+    public static function fromRequest(\Illuminate\Http\Request $request, string $field, ?string $countryCode = null): ?string
+    {
+        $local = $request->input($field.'_local');
+        $full = $request->input($field);
+        $raw = filled($local) ? (string) $local : (filled($full) ? (string) $full : null);
+
+        return self::normalizeForCountry($raw, $countryCode);
+    }
+
+    /**
+     * Force a phone onto the given country's prefix (for post-registration locked prefix).
+     * Strips a known country prefix / leading zeros from the input, then re-applies the locked country prefix.
+     */
+    public static function normalizeForCountry(?string $phone, ?string $countryCode): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
+        if ($digits === '') {
+            return null;
+        }
+
+        $country = app(CountrySettingsService::class)->forCode($countryCode);
+        $prefixDigits = preg_replace('/\D+/', '', $country['phone_prefix'] ?? '') ?? '';
+
+        $countries = app(CountrySettingsService::class)->forRegistration();
+        usort($countries, fn (array $a, array $b) => strlen(preg_replace('/\D+/', '', $b['prefix']) ?? '') <=> strlen(preg_replace('/\D+/', '', $a['prefix']) ?? ''));
+
+        // Strip every leading known country prefix (handles autofill / paste of full MSISDNs).
+        $changed = true;
+        while ($changed) {
+            $changed = false;
+            foreach ($countries as $candidate) {
+                $candidatePrefix = preg_replace('/\D+/', '', $candidate['prefix'] ?? '') ?? '';
+                if ($candidatePrefix !== '' && str_starts_with($digits, $candidatePrefix) && strlen($digits) > strlen($candidatePrefix) + 5) {
+                    $digits = substr($digits, strlen($candidatePrefix));
+                    $changed = true;
+                    break;
+                }
+            }
+        }
+
+        $local = ltrim($digits, '0');
+        if ($local === '') {
+            return null;
+        }
+
+        return $prefixDigits.$local;
+    }
 }

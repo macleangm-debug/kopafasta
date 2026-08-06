@@ -1060,7 +1060,8 @@ class SettingsController extends Controller
         $data = $request->validate([
             'code_prefix'            => ['required', 'string', 'max:10'],
             'discount_percent'       => ['required', 'numeric', 'min:0', 'max:100'],
-            'commission_percent'     => ['required', 'numeric', 'min:0', 'max:100'],
+            'referrer_points'        => ['required', 'integer', 'min:0', 'max:100000'],
+            'commission_percent'     => ['nullable', 'numeric', 'min:0', 'max:100'],
             'wallet_max_fee_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'attribution_days'       => ['required', 'integer', 'min:1', 'max:365'],
             'message_share_template' => ['nullable', 'string', 'max:2000'],
@@ -1068,6 +1069,10 @@ class SettingsController extends Controller
             'message_share_en'       => ['nullable', 'string', 'max:2000'],
             'message_share_sw'       => ['nullable', 'string', 'max:2000'],
         ]);
+
+        if (! isset($data['commission_percent'])) {
+            $data['commission_percent'] = Setting::get('referrals.commission_percent', config('referrals.commission_percent'));
+        }
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["referrals.$k" => $v])->all());
 

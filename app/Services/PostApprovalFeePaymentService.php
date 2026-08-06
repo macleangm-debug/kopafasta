@@ -130,14 +130,32 @@ class PostApprovalFeePaymentService
             return ['payment' => $existing, 'quote' => $quote];
         }
 
-        app(PaymentGateService::class)->settle(
-            $customer,
-            $quote,
-            'post_approval_fee',
-            LoanApplication::class,
-            (int) $application->id,
-            $useWallet,
-        );
+        $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
+        $dummyGateway = $this->usesDummyGateway();
+
+        if (! $dummyGateway && ! $payInLive) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_method' => [__('borrower.payments.aggregator_required')],
+            ]);
+        }
+
+        if ($payInLive && ! filled($mobileNumber ?: $customer->phone)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'mobile_number' => [__('borrower.payments.mobile_number_required')],
+            ]);
+        }
+
+        // Settle discounts only when payment will be instant (dummy); live waits for aggregator.
+        if ($dummyGateway && ! $payInLive) {
+            app(PaymentGateService::class)->settle(
+                $customer,
+                $quote,
+                'post_approval_fee',
+                LoanApplication::class,
+                (int) $application->id,
+                $useWallet,
+            );
+        }
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
@@ -147,8 +165,8 @@ class PostApprovalFeePaymentService
             'loan_product'   => $application->product,
             'reference'      => $paymentReference,
             'source'         => $application,
-            'mobile_number'  => $mobileNumber,
-            'auto_verify'    => true,
+            'mobile_number'  => $mobileNumber ?: $customer->phone,
+            'auto_verify'    => $dummyGateway && ! $payInLive,
         ]);
 
         return ['payment' => $payment, 'quote' => $quote];

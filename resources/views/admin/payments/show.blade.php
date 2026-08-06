@@ -104,6 +104,43 @@
                     <p class="text-sm text-gray-500">No proof uploaded yet.</p>
                 @endif
             </div>
+
+            @if (! empty($fundDestinations))
+                <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
+                    <h2 class="text-sm font-semibold text-gray-900 mb-1">Where funds go</h2>
+                    <p class="text-xs text-gray-500 mb-4">Allocation after verification — microfinance, capital partners, suppliers, affiliates.</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
+                                    <th class="py-2 pr-3">Party</th>
+                                    <th class="py-2 pr-3">Role</th>
+                                    <th class="py-2 pr-3 text-right">Amount</th>
+                                    <th class="py-2 pr-3">Status</th>
+                                    <th class="py-2">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @foreach ($fundDestinations as $row)
+                                    <tr>
+                                        <td class="py-2.5 pr-3 font-medium text-gray-900">
+                                            @if (! empty($row['url']))
+                                                <a href="{{ $row['url'] }}" class="text-brand hover:underline">{{ $row['party'] }}</a>
+                                            @else
+                                                {{ $row['party'] }}
+                                            @endif
+                                        </td>
+                                        <td class="py-2.5 pr-3 text-gray-600">{{ str_replace('_', ' ', $row['role']) }}</td>
+                                        <td class="py-2.5 pr-3 text-right tabular-nums font-semibold">{{ format_money($row['amount']) }}</td>
+                                        <td class="py-2.5 pr-3 text-gray-600">{{ $row['status'] }}</td>
+                                        <td class="py-2.5 text-gray-500 text-xs">{{ $row['detail'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         </div>
 
         @if ($payment->isPending())

@@ -64,7 +64,7 @@ class Phase35FeatureTest extends TestCase
             ->assertOk()
             ->assertSee('max-w-7xl', false)
             ->assertDontSee('max-w-2xl mx-auto', false)
-            ->assertSee(__('borrower.membership.promo_code_label'), false);
+            ->assertSee(__('borrower.membership.promo_inline_label'), false);
     }
 
     public function test_marketplace_reserve_page_uses_wide_layout(): void
@@ -97,8 +97,7 @@ class Phase35FeatureTest extends TestCase
         $this->actingAs($customer->user)
             ->get(route('site.borrower.marketplace.reserve', $asset->id))
             ->assertOk()
-            ->assertSee('max-w-7xl', false)
-            ->assertDontSee('max-w-2xl', false)
+            ->assertSee('max-w-3xl mx-auto', false)
             ->assertSee(__('borrower.marketplace.next_action'), false);
     }
 

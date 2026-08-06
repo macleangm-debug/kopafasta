@@ -41,7 +41,8 @@ class ReferralServiceTest extends TestCase
         $this->assertSame(9000.0, $quote['after_discount']);
         $this->assertSame(4500.0, $quote['wallet_applied']);
         $this->assertSame(4500.0, $quote['cash_due']);
-        $this->assertSame(1000.0, $quote['commission']);
+        $this->assertSame(50, $quote['referrer_points']);
+        $this->assertSame(50.0, $quote['commission']);
     }
 
     public function test_settle_fee_credits_referrer_and_debits_wallet(): void
@@ -54,6 +55,6 @@ class ReferralServiceTest extends TestCase
         $service->settleFee($referred, 10000, true, 'registration_fee');
 
         $this->assertSame(0.0, (float) $service->wallet($referred)->fresh()->balance);
-        $this->assertSame(1000.0, (float) $service->wallet($referrer)->fresh()->balance);
+        $this->assertSame(50.0, (float) $service->wallet($referrer)->fresh()->balance);
     }
 }

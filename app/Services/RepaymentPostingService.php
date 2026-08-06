@@ -158,6 +158,16 @@ class RepaymentPostingService
         $amount = format_money((float) $repayment->amount);
         $balance = format_money((float) $loan->outstanding_balance);
 
+        $nextSchedule = RepaymentSchedule::query()
+            ->where('loan_id', $loan->id)
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->orderBy('installment_no')
+            ->first();
+        $nextDue = $nextSchedule?->due_date?->format('d M Y') ?? '—';
+        $nextAmount = $nextSchedule
+            ? format_money(max(0, (float) $nextSchedule->total_due - (float) $nextSchedule->amount_paid))
+            : '—';
+
         $notifier = app(NotificationService::class);
 
         if ($loan->status === 'closed' || (float) $loan->outstanding_balance <= 0) {
@@ -178,7 +188,11 @@ class RepaymentPostingService
             'loan_number' => $loan->loan_number,
             'amount' => $amount,
             'balance' => $balance,
-            '_fallback_body' => "Hi {$name}, we received {$amount} for loan {$loan->loan_number}. Remaining balance: {$balance}. — ".brand_name(),
+            'next_due_date' => $nextDue,
+            'next_amount' => $nextAmount,
+            '_fallback_body' => "Hi {$name}, we received {$amount} for loan {$loan->loan_number}. Remaining balance: {$balance}."
+                .($nextDue !== '—' ? " Next installment: {$nextAmount} due {$nextDue}." : '')
+                .' — '.brand_name(),
             '_fallback_subject' => 'Payment received',
         ]);
     }

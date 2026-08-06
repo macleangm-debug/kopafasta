@@ -229,6 +229,7 @@
                                 name="lga_officer_phone"
                                 :label="__('borrower.profile.lga_officer_phone')"
                                 :value="old('lga_officer_phone', $customer->lga_officer_phone)"
+                                :locked-country="$customer->country_code ?? 'TZ'"
                                 variant="rounded"
                                 :required="true"
                             />

@@ -65,7 +65,23 @@ class PayInWebhookController extends Controller
             'updated_at' => now()->toIso8601String(),
         ]);
 
-        if (in_array($event, ['payin.completed', 'payout.completed'], true) || $status === 'completed') {
+        $statusNorm = strtolower(trim($status));
+        // Trust payload status over event name — PayIn has sent payin.completed with status=failed.
+        $isFailed = in_array($statusNorm, ['failed', 'cancelled', 'canceled', 'expired', 'rejected'], true);
+        $isSucceeded = in_array($statusNorm, ['completed', 'success', 'paid'], true)
+            || ($statusNorm === '' && in_array($event, ['payin.completed', 'payout.completed'], true));
+
+        if ($isFailed) {
+            if ($payment->isPending() || $payment->status === 'processing') {
+                $payment->update([
+                    'status' => 'rejected',
+                    'provider_meta' => $meta,
+                    'verification_notes' => trim(($payment->verification_notes ?? '')."\nPayIn {$statusNorm}: {$event}"),
+                ]);
+            } else {
+                $payment->update(['provider_meta' => $meta]);
+            }
+        } elseif ($isSucceeded) {
             if ($payment->isPending() || $payment->status === 'processing') {
                 $payment->update(['provider_meta' => $meta]);
                 $payments->verify($payment->fresh(), null, 'PayIn webhook: '.$event);
@@ -88,12 +104,6 @@ class PayInWebhookController extends Controller
             } else {
                 $payment->update(['provider_meta' => $meta]);
             }
-        } elseif (in_array($status, ['failed', 'cancelled', 'expired'], true)) {
-            $payment->update([
-                'status' => 'rejected',
-                'provider_meta' => $meta,
-                'verification_notes' => trim(($payment->verification_notes ?? '')."\nPayIn {$status}: {$event}"),
-            ]);
         } else {
             $payment->update(['provider_meta' => $meta]);
         }

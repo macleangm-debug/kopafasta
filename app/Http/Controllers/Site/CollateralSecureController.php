@@ -129,8 +129,7 @@ class CollateralSecureController extends Controller
 
             if ($payment->status === 'processing') {
                 return redirect()
-                    ->route('site.borrower.payments.show', $payment)
-                    ->with('status', __('borrower.payment_waiting.prompt'));
+                    ->route('site.borrower.payments.show', $payment);
             }
         }
 

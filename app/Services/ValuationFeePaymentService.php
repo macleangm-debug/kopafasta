@@ -60,13 +60,14 @@ class ValuationFeePaymentService
     }
 
     /**
-     * @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null}
+     * @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null, payment_id?: int, wait_url?: string|null}
      */
     public function processMobileMoney(
         Customer $customer,
         LoanProduct $product,
         string $paymentReference,
         bool $useWallet = false,
+        ?string $mobileNumber = null,
     ): array {
         $quote = $this->quote($customer);
         $amount = (int) $quote['after_discount'];
@@ -81,22 +82,41 @@ class ValuationFeePaymentService
             ];
         }
 
-        $referrals = app(ReferralService::class);
-        if ($referrals->referrer($customer)) {
-            $referrals->settleFee($customer, (float) $quote['base'], $useWallet, 'valuation_fee');
-        } else {
-            if ($useWallet && $referrals->canUseWalletFor('valuation_fee')) {
-                $walletQuote = $referrals->quoteFee($customer, $quote['after_discount'], true, 'valuation_fee', applyDiscount: false);
-                if ($walletQuote['wallet_applied'] > 0) {
-                    $referrals->debit($customer, $walletQuote['wallet_applied'], 'Applied to valuation fee');
-                }
-            }
+        $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
+        $dummyGateway = $this->usesDummyGateway();
+        $phone = $mobileNumber ?: $customer->phone;
 
-            app(AffiliateService::class)->accrueCommission(
-                $customer,
-                (float) $quote['base'],
-                'valuation_fee',
-            );
+        if (! $dummyGateway && ! $payInLive) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_method' => [__('borrower.payments.aggregator_required')],
+            ]);
+        }
+
+        if ($payInLive && ! filled($phone)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'mobile_number' => [__('borrower.payments.mobile_number_required')],
+            ]);
+        }
+
+        // Settle discounts only in dummy instant mode — live waits for aggregator confirmation.
+        if ($dummyGateway && ! $payInLive) {
+            $referrals = app(ReferralService::class);
+            if ($referrals->referrer($customer)) {
+                $referrals->settleFee($customer, (float) $quote['base'], $useWallet, 'valuation_fee');
+            } else {
+                if ($useWallet && $referrals->canUseWalletFor('valuation_fee')) {
+                    $walletQuote = $referrals->quoteFee($customer, $quote['after_discount'], true, 'valuation_fee', applyDiscount: false);
+                    if ($walletQuote['wallet_applied'] > 0) {
+                        $referrals->debit($customer, $walletQuote['wallet_applied'], 'Applied to valuation fee');
+                    }
+                }
+
+                app(AffiliateService::class)->accrueCommission(
+                    $customer,
+                    (float) $quote['base'],
+                    'valuation_fee',
+                );
+            }
         }
 
         $payment = app(CustomerPaymentService::class)->create([
@@ -106,15 +126,20 @@ class ValuationFeePaymentService
             'amount'         => $amount,
             'loan_product'   => $product,
             'reference'      => $paymentReference,
-            'auto_verify'    => true,
+            'mobile_number'  => $phone,
+            'auto_verify'    => $dummyGateway && ! $payInLive,
         ]);
 
+        $pending = in_array($payment->status, ['processing', 'pending_verification'], true);
+
         return [
-            'status'    => 'paid',
-            'reference' => $payment->reference,
-            'channel'   => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
-            'amount'    => $amount,
-            'paid_at'   => now()->toIso8601String(),
+            'status'     => $pending ? 'processing' : 'paid',
+            'reference'  => $payment->reference,
+            'payment_id' => $payment->id,
+            'channel'    => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
+            'amount'     => $amount,
+            'paid_at'    => $pending ? null : now()->toIso8601String(),
+            'wait_url'   => $pending ? route('site.borrower.payments.show', $payment) : null,
         ];
     }
 

@@ -87,6 +87,10 @@ class NotificationLog extends Model
                 'title' => 'borrower.rewards.points_earned_title',
                 'body'  => 'borrower.rewards.points_earned_body',
             ],
+            'membership_issued' => [
+                'title' => 'borrower.membership.notification_title',
+                'body'  => 'borrower.membership.notification_body',
+            ],
         ];
         $template = (string) ($this->template ?? '');
         if (isset($templateMap[$template])) {
@@ -94,6 +98,13 @@ class NotificationLog extends Model
             if ($template === 'loyalty_points_earned' && ! isset($params['points'])) {
                 if (preg_match('/\b(\d[\d,]*)\b/', (string) $this->message, $m)) {
                     $params['points'] = $m[1];
+                }
+            }
+            if ($template === 'membership_issued' && ! isset($params['member_no'])) {
+                if (preg_match('/\(([A-Z0-9\-]+)\)/', (string) $this->message, $m)) {
+                    $params['member_no'] = $m[1];
+                } else {
+                    $params['member_no'] = '';
                 }
             }
             $title = (string) __($templateMap[$template]['title'], $params);

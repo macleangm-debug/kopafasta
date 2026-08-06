@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 class ReferralService
 {
-    /** @return array{code_prefix: string, discount_percent: float, commission_percent: float, wallet_max_fee_percent: float, attribution_days: int, message_share_template: string, message_invite_sms: string, message_share_en: string, message_share_sw: string} */
+    /** @return array{code_prefix: string, discount_percent: float, referrer_points: int, commission_percent: float, wallet_max_fee_percent: float, attribution_days: int, message_share_template: string, message_invite_sms: string, message_share_en: string, message_share_sw: string} */
     public function settings(): array
     {
         $group = Setting::group('referrals');
@@ -21,6 +21,7 @@ class ReferralService
         return [
             'code_prefix'            => (string) ($group['code_prefix'] ?? config('referrals.code_prefix', 'KPF')),
             'discount_percent'       => (float) ($group['discount_percent'] ?? config('referrals.discount_percent', 10)),
+            'referrer_points'        => (int) ($group['referrer_points'] ?? config('referrals.referrer_points', 50)),
             'commission_percent'     => (float) ($group['commission_percent'] ?? config('referrals.commission_percent', 10)),
             'wallet_max_fee_percent' => (float) ($group['wallet_max_fee_percent'] ?? config('referrals.wallet_max_fee_percent', 50)),
             'attribution_days'       => (int) ($group['attribution_days'] ?? config('referrals.attribution_days', 30)),
@@ -44,7 +45,7 @@ class ReferralService
         if ($template === '') {
             $template = trim((string) config('referrals.messages.share_en'))
                 ?: trim((string) config('referrals.messages.share_template'))
-                ?: 'Join {brand} with my referral code {referral_code}. Register here: {referral_link}';
+                ?: 'Join {brand} with my invite link and get {discount_percent}% off membership: {referral_link}';
         }
 
         $replacements = [
@@ -53,7 +54,8 @@ class ReferralService
             '{referral_code}'     => $this->ensureCode($customer),
             '{referral_link}'     => $this->referralLink($customer),
             '{Referral Link}'     => $this->referralLink($customer),
-            '{discount_percent}'  => format_number($settings['discount_percent'], 0),
+            '{discount_percent}'  => rtrim(rtrim(format_number($settings['discount_percent'], 2), '0'), '.'),
+            '{referrer_points}'   => (string) (int) $settings['referrer_points'],
         ];
 
         return str_replace(array_keys($replacements), array_values($replacements), $template);
@@ -282,9 +284,17 @@ class ReferralService
             $afterDiscount = $promotion['after_discount'];
         }
 
-        $commission = ($applyDiscount && $referrer && $baseAmount > 0)
-            ? round($baseAmount * ($settings['commission_percent'] / 100), 2)
-            : 0.0;
+        $commission = 0.0;
+        $referrerPoints = 0;
+        if ($applyDiscount && $referrer && $baseAmount > 0 && $feeType === 'registration_fee') {
+            $referrerPoints = max(0, (int) $settings['referrer_points']);
+            $commission = $referrerPoints > 0
+                ? referral_points_to_wallet_amount($referrerPoints)
+                : round($baseAmount * ($settings['commission_percent'] / 100), 2);
+            if ($referrerPoints <= 0 && $commission > 0) {
+                $referrerPoints = wallet_balance_as_points($commission);
+            }
+        }
 
         $walletApplied = 0.0;
         if ($useWallet && $this->canUseWalletFor($feeType) && $afterDiscount > 0) {
@@ -294,15 +304,16 @@ class ReferralService
         }
 
         return [
-            'base'           => round($baseAmount, 2),
-            'discount'       => $discount,
-            'after_discount' => $afterDiscount,
-            'wallet_usable'  => $this->maxWalletUsable($afterDiscount),
-            'wallet_applied' => $walletApplied,
-            'cash_due'       => max(0, round($afterDiscount - $walletApplied, 2)),
-            'commission'     => $commission,
-            'has_referrer'   => (bool) $referrer,
-            'referrer'       => $referrer,
+            'base'            => round($baseAmount, 2),
+            'discount'        => $discount,
+            'after_discount'  => $afterDiscount,
+            'wallet_usable'   => $this->maxWalletUsable($afterDiscount),
+            'wallet_applied'  => $walletApplied,
+            'cash_due'        => max(0, round($afterDiscount - $walletApplied, 2)),
+            'commission'      => $commission,
+            'referrer_points' => $referrerPoints,
+            'has_referrer'    => (bool) $referrer,
+            'referrer'        => $referrer,
         ];
     }
 
@@ -334,17 +345,43 @@ class ReferralService
             }
 
             if ($quote['commission'] > 0 && $quote['referrer']) {
+                $points = (int) ($quote['referrer_points'] ?? wallet_balance_as_points((float) $quote['commission']));
                 $this->credit(
                     $quote['referrer'],
                     $quote['commission'],
-                    'Commission on '.str_replace('_', ' ', $feeType),
+                    $points > 0
+                        ? "Referral reward: {$points} points (membership paid)"
+                        : 'Commission on '.str_replace('_', ' ', $feeType),
                     $refType,
                     $refId
                 );
+                $this->notifyReferrerPoints($quote['referrer'], $payer, $points);
             }
 
             return $quote;
         });
+    }
+
+    protected function notifyReferrerPoints(Customer $referrer, Customer $invitee, int $points): void
+    {
+        if ($points <= 0) {
+            return;
+        }
+
+        $name = trim(($referrer->first_name ?? '').' '.($referrer->last_name ?? '')) ?: 'Member';
+        $inviteeName = trim(($invitee->first_name ?? '').' '.($invitee->last_name ?? '')) ?: 'a new member';
+
+        try {
+            app(NotificationService::class)->notifyCustomer($referrer, 'referral_points_earned', [
+                'name' => $name,
+                'points' => number_format($points),
+                'invitee_name' => $inviteeName,
+                '_fallback_subject' => 'Referral points earned',
+                '_fallback_body' => "Hi {$name}, you earned {$points} referral points because {$inviteeName} paid membership. — ".brand_name(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function attachReferrer(Customer $customer, ?string $referralCode): void

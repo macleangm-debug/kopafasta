@@ -7,16 +7,16 @@
     />
 
     <div x-data="{ tab: @js($tab) }">
-        <nav class="flex gap-2 mb-6 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-1">
+        <nav class="mb-6 grid grid-cols-4 gap-1.5 p-1 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
             @foreach ([
-                'overview' => __('borrower.engagement.tabs.overview'),
-                'referrals' => __('borrower.engagement.tabs.referrals'),
-                'rewards' => __('borrower.engagement.tabs.rewards'),
-                'streak' => __('borrower.engagement.tabs.streak'),
+                'overview' => __('borrower.engagement.tabs_short.overview'),
+                'referrals' => __('borrower.engagement.tabs_short.referrals'),
+                'rewards' => __('borrower.engagement.tabs_short.rewards'),
+                'streak' => __('borrower.engagement.tabs_short.streak'),
             ] as $key => $label)
-                <button type="button" @click="tab = @js($key)"
-                        class="snap-start shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition"
-                        :class="tab === @js($key) ? 'bg-brand text-white shadow-sm' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-brand-muted/40'">
+                <button type="button" @click="tab = @js($key)" role="tab"
+                        class="min-w-0 px-2 py-2.5 rounded-xl text-[11px] sm:text-sm font-bold tracking-tight transition text-center"
+                        :class="tab === @js($key) ? 'bg-brand text-white shadow-sm' : 'text-brand/70 hover:bg-white hover:text-brand'">
                     {{ $label }}
                 </button>
             @endforeach

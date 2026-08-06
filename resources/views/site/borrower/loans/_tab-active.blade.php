@@ -111,7 +111,7 @@
                 <div class="flex items-center gap-2 flex-wrap">
                     <a href="{{ route('site.borrower.loans.show', $loan) }}" class="bg-white ring-1 ring-gray-200/80 hover:bg-brand-muted/30 text-gray-800 text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.view_loan') }}</a>
                     <a href="{{ route('site.borrower.schedule', $loan->id) }}" class="bg-brand hover:bg-brand-light text-white text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.view_schedule') }}</a>
-                    <a href="{{ route('site.borrower.payments') }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.make_payment') }}</a>
+                    <a href="{{ route('site.borrower.payments.create', ['loan' => $loan->id]) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.make_payment') }}</a>
                     @if ($canRestructure)
                         <a href="{{ route('site.borrower.loans.restructure', $loan) }}" class="bg-white ring-1 ring-gray-200/80 hover:bg-brand-muted/30 text-gray-800 text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loan_actions.restructure') }}</a>
                     @endif

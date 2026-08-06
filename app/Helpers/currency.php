@@ -82,12 +82,34 @@ if (! function_exists('income_range_select_options')) {
 }
 
 if (! function_exists('loan_product_theme')) {
-    /** @return array{icon: string, theme: string, label?: string} */
+    /** @return array{icon: string, theme: string, label?: string, label_sw?: string, illustration?: string} */
     function loan_product_theme(?string $code): array
     {
         $themes = config('loan_product_themes', []);
         $code = strtoupper((string) $code);
 
         return $themes[$code] ?? $themes['default'] ?? ['icon' => '💼', 'theme' => 'slate'];
+    }
+}
+
+if (! function_exists('loan_product_card_description')) {
+    function loan_product_card_description(object $product): string
+    {
+        if (function_exists('is_marketplace_loan_product') && is_marketplace_loan_product($product->code ?? null)) {
+            return (string) __('borrower.marketplace.subtitle');
+        }
+
+        $theme = loan_product_theme($product->code ?? null);
+        $locale = app()->getLocale();
+        $themeLabel = $locale === 'sw'
+            ? ($theme['label_sw'] ?? $theme['label'] ?? null)
+            : ($theme['label'] ?? $theme['label_sw'] ?? null);
+
+        // Prefer short theme labels for uniform cards; fall back to product description.
+        $text = filled($themeLabel)
+            ? (string) $themeLabel
+            : (string) ($product->description ?? __('borrower.dashboard.browse_products'));
+
+        return \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/', ' ', $text) ?? ''), 90, '…');
     }
 }

@@ -9,38 +9,52 @@
 
 @if (filled($label) || $daysLeft !== null || filled($date))
     @php
-        $urgent = (bool) $urgent || ($daysLeft !== null && (int) $daysLeft <= 2 && ! $expired);
-        $expired = (bool) $expired || ($daysLeft !== null && (int) $daysLeft < 0);
-        $showCountdown = $daysLeft !== null && ! $expired;
+        $days = $daysLeft !== null ? (int) $daysLeft : null;
+        $expired = (bool) $expired || ($days !== null && $days < 0);
+        $dueToday = ! $expired && $days === 0;
+        $urgent = (bool) $urgent || ($days !== null && $days <= 2 && ! $expired);
         $purpose = $purpose ?: null;
         $byLine = filled($date)
             ? __('borrower.loan_profile.deadline_by', ['date' => $date])
             : null;
+        $unit = $days === 1
+            ? __('borrower.loan_profile.deadline_days_unit_one')
+            : __('borrower.loan_profile.deadline_days_unit');
     @endphp
     <div {{ $attributes->class([
-        'inline-flex items-center gap-3 rounded-2xl px-4 py-3.5 ring-2 shadow-sm max-w-full',
-        'mt-3' => ! $attributes->has('class'),
+        'inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 ring-1 shadow-sm max-w-full',
         'bg-red-50 ring-red-300 text-red-900' => $urgent || $expired,
         'bg-brand-gold/25 ring-brand-gold/60 text-brand' => ! $urgent && ! $expired,
     ]) }}>
-        <span class="text-2xl leading-none shrink-0" aria-hidden="true">⏱</span>
-        @if ($showCountdown)
-            <div class="min-w-0">
-                <p class="text-2xl sm:text-3xl font-black tabular-nums leading-none tracking-tight">
-                    {{ max(0, (int) $daysLeft) }}
-                    <span class="text-sm sm:text-base font-bold tracking-normal">{{ __('borrower.loan_profile.deadline_days_unit') }}</span>
-                </p>
+        <span class="text-lg leading-none shrink-0" aria-hidden="true">⏱</span>
+        <div class="min-w-0">
+            @if ($expired)
+                <p class="text-sm font-bold leading-snug">{{ $label ?: __('borrower.loan_profile.document_deadline_expired') }}</p>
+                @if (filled($byLine))
+                    <p class="text-[11px] font-semibold mt-0.5 opacity-80">{{ $byLine }}</p>
+                @endif
+            @elseif ($dueToday)
+                <p class="text-sm font-black leading-none tracking-tight">{{ __('borrower.loan_profile.document_deadline_due_today') }}</p>
                 @if (filled($purpose))
-                    <p class="text-sm font-bold mt-1.5 leading-snug">{{ $purpose }}</p>
+                    <p class="text-xs font-bold mt-1 leading-snug">{{ $purpose }}</p>
                 @endif
                 @if (filled($byLine))
-                    <p class="text-xs font-semibold mt-0.5 opacity-80">{{ $byLine }}</p>
-                @elseif (filled($label) && ! filled($purpose))
-                    <p class="text-xs sm:text-sm font-semibold mt-1.5 opacity-90">{{ $label }}</p>
+                    <p class="text-[11px] font-semibold mt-0.5 opacity-80">{{ $byLine }}</p>
                 @endif
-            </div>
-        @else
-            <p class="text-sm sm:text-base font-bold leading-snug">{{ $label ?? $purpose ?? $byLine }}</p>
-        @endif
+            @elseif ($days !== null)
+                <p class="text-xl font-black tabular-nums leading-none tracking-tight">
+                    {{ $days }}
+                    <span class="text-xs font-bold tracking-normal">{{ $unit }}</span>
+                </p>
+                @if (filled($purpose))
+                    <p class="text-xs font-bold mt-1 leading-snug">{{ $purpose }}</p>
+                @endif
+                @if (filled($byLine))
+                    <p class="text-[11px] font-semibold mt-0.5 opacity-80">{{ $byLine }}</p>
+                @endif
+            @else
+                <p class="text-sm font-bold leading-snug">{{ $label ?? $purpose ?? $byLine }}</p>
+            @endif
+        </div>
     </div>
 @endif

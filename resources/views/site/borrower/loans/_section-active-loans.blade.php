@@ -45,7 +45,7 @@
                     <div class="flex items-center gap-2 flex-wrap">
                         <a href="{{ route('site.borrower.schedule', $loan->id) }}" class="text-xs font-semibold text-amber-700 hover:underline">{{ __('borrower.loans_page.view_schedule') }}</a>
                         <span class="text-gray-300">·</span>
-                        <a href="{{ route('site.borrower.payments') }}" class="text-xs font-semibold text-gray-700 hover:underline">{{ __('borrower.loans_page.make_payment') }}</a>
+                        <a href="{{ route('site.borrower.payments.create', ['loan' => $loan->id]) }}" class="text-xs font-semibold text-gray-700 hover:underline">{{ __('borrower.loans_page.make_payment') }}</a>
                     </div>
                 </div>
             @endforeach

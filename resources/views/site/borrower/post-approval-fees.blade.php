@@ -97,6 +97,7 @@
                     ])->all()"
                     :bank-reference="$paymentReference"
                     :mobile-input-value="old('mobile_number', $customer->phone)"
+                    :country-code="$customer->country_code ?? 'TZ'"
                 >
                     <div x-show="method === 'bank'" x-cloak class="space-y-3">
                         <x-site.date-input
