@@ -3123,6 +3123,7 @@ return [
         'bank_unavailable' => 'Bank transfer is not available for this payment right now.',
         'cannot_retry' => 'This payment can no longer be started. Open it again from your loan profile.',
         'operator_title' => 'Could not detect the mobile operator',
+        'operator_error' => 'Could not detect the mobile network for this number. Check the number or try another.',
         'operator_help' => 'Change the payment number, try again, or pay by bank if available.',
     ],
 

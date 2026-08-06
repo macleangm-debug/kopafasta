@@ -23,6 +23,62 @@ class CustomerPaymentService
         private LedgerService $ledger,
     ) {}
 
+    /**
+     * Fee types that may accept promo / affiliate / referral discounts at initiate.
+     *
+     * @return list<string>
+     */
+    public static function discountablePaymentTypes(): array
+    {
+        return [
+            'registration_fee',
+            'application_fee',
+            'post_approval_fee',
+            'valuation_fee',
+            'asset_reservation_fee',
+        ];
+    }
+
+    public static function supportsCodeDiscounts(string $paymentType): bool
+    {
+        return in_array($paymentType, self::discountablePaymentTypes(), true);
+    }
+
+    /**
+     * Map provider / PayIn English messages to the active locale.
+     */
+    public static function localizeProviderMessage(?string $message): string
+    {
+        $raw = trim((string) $message);
+        if ($raw === '') {
+            return __('borrower.payments.aggregator_rejected');
+        }
+
+        $hay = mb_strtolower($raw);
+        if (str_contains($hay, 'detect operator')
+            || str_contains($hay, 'operator from phone')
+            || str_contains($hay, 'kutambua mtandao')) {
+            return __('borrower.payment_waiting.operator_error');
+        }
+
+        if (str_contains($hay, 'not configured')
+            || str_contains($hay, 'aggregator must be')
+            || str_contains($hay, 'add api keys')) {
+            return __('borrower.payments.aggregator_required');
+        }
+
+        if (str_contains($hay, 'mobile number') && str_contains($hay, 'required')) {
+            return __('borrower.payments.mobile_number_required');
+        }
+
+        // Avoid showing raw English API copy when the borrower locale is not English.
+        if (app()->getLocale() !== 'en' && preg_match('/[A-Za-z]{6,}/', $raw)) {
+            return __('borrower.payments.aggregator_rejected');
+        }
+
+        return $raw;
+    }
+
     public function generateReference(): string
     {
         do {
@@ -248,7 +304,7 @@ class CustomerPaymentService
             $message = collect($e->errors())->flatten()->first()
                 ?: __('borrower.payments.aggregator_rejected');
             $meta['awaiting_collection'] = true;
-            $meta['last_collect_error'] = $message;
+            $meta['last_collect_error'] = self::localizeProviderMessage($message);
             $meta['last_collect_error_at'] = now()->toIso8601String();
             $payment->update([
                 'status' => 'awaiting_payment',
@@ -257,7 +313,9 @@ class CustomerPaymentService
                 'provider_meta' => $meta,
             ]);
 
-            throw $e;
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_phone' => [$meta['last_collect_error']],
+            ]);
         }
 
         $remoteStatus = strtolower((string) ($collection['status'] ?? ''));
@@ -272,7 +330,9 @@ class CustomerPaymentService
         unset($meta['last_collect_error'], $meta['last_collect_error_at']);
 
         if (in_array($remoteStatus, ['failed', 'cancelled', 'canceled', 'expired', 'rejected'], true)) {
-            $message = $collection['message'] ?: __('borrower.payments.aggregator_rejected');
+            $message = self::localizeProviderMessage(
+                $collection['message'] ?: __('borrower.payments.aggregator_rejected')
+            );
             $meta['awaiting_collection'] = true;
             $meta['last_collect_error'] = $message;
             $meta['last_collect_error_at'] = now()->toIso8601String();

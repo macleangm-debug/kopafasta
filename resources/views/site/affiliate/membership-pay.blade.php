@@ -15,7 +15,7 @@
             :currency="$cfg['currency'] ?? 'TZS'"
             :amount="$cfg['fee_amount'] ?? 50000"
             :reference="$paymentReference"
-            :show-promo="true"
+            payment-type="registration_fee"
             promo-field-name="promo_code"
             :promo-value="old('promo_code', request('promo_code'))"
         />

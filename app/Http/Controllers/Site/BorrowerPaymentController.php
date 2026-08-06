@@ -211,14 +211,15 @@ class BorrowerPaymentController extends Controller
         try {
             $payment = $payments->initiateCollection($payment, $mobileNumber);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            $message = collect($e->errors())->flatten()->first()
-                ?: __('borrower.payments.aggregator_rejected');
+            $message = CustomerPaymentService::localizeProviderMessage(
+                collect($e->errors())->flatten()->first()
+            );
 
             return redirect()
                 ->route('site.borrower.payments.show', $payment)
                 ->with('collect_error', $message)
                 ->with('show_collect_failed', true)
-                ->withErrors($e->errors());
+                ->withErrors(['payment_phone' => $message]);
         }
 
         return redirect()->route('site.borrower.payments.show', $payment);

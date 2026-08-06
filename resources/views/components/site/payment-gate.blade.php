@@ -7,7 +7,8 @@
     'reference' => null,
     'promoFieldName' => 'promo_code',
     'promoValue' => null,
-    'showPromo' => true,
+    'showPromo' => null,
+    'paymentType' => null,
     'formId' => null,
     'applyUrl' => null,
 ])
@@ -15,6 +16,11 @@
 @php
     $formId = $formId ?? 'payment-gate-form';
     $applyUrl = $applyUrl ?? url()->current();
+    if ($showPromo === null) {
+        $showPromo = $paymentType
+            ? \App\Services\CustomerPaymentService::supportsCodeDiscounts((string) $paymentType)
+            : true;
+    }
 @endphp
 
 <div class="rounded-2xl bg-gradient-to-br from-brand to-brand-light text-white p-6 shadow-lg mb-6 ring-1 ring-brand/20">

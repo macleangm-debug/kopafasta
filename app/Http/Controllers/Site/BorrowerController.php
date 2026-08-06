@@ -2906,10 +2906,12 @@ class BorrowerController extends Controller
                     ->with('status', __('borrower.post_approval_fees.waived'));
             }
 
-            if (in_array($payment->status, ['processing', 'pending_verification'], true)) {
+            if (in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true)) {
                 return redirect()
                     ->route('site.borrower.payments.show', $payment)
-                    ->with('status', __('borrower.payment_waiting.waiting'));
+                    ->with('status', $payment->status === 'awaiting_payment'
+                        ? __('borrower.payment_waiting.ready')
+                        : __('borrower.payment_waiting.waiting'));
             }
 
             return redirect()

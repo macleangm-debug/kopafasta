@@ -2924,6 +2924,7 @@ return [
     'bank_unavailable' => 'Malipo ya benki hayapatikani kwa malipo haya sasa.',
     'cannot_retry' => 'Malipo haya hayawezi kuanzishwa tena. Fungua tena kutoka wasifu wa mkopo.',
     'operator_title' => 'Imeshindwa kutambua mtandao wa simu',
+    'operator_error' => 'Imeshindwa kutambua mtandao wa nambari hii. Angalia nambari au jaribu nyingine.',
     'operator_help' => 'Badilisha nambari ya malipo, jaribu tena, au lipa kwa benki ikiwa inapatikana.',
 ],
 
