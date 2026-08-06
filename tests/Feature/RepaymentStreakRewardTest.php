@@ -67,7 +67,9 @@ class RepaymentStreakRewardTest extends TestCase
             ->get(route('site.borrower.engagement'))
             ->assertOk()
             ->assertSee('KPF-HUB001', false)
-            ->assertSee(__('borrower.engagement.tabs.overview'), false);
+            ->assertSee(__('borrower.engagement.tabs_short.overview'), false)
+            ->assertSee(__('borrower.referrals.rewards_title'), false)
+            ->assertSee(__('borrower.rewards.balance'), false);
     }
 
     public function test_legacy_referrals_route_redirects_to_engagement_tab(): void
