@@ -14,6 +14,7 @@ use App\Services\LoanApplicationReviewService;
 use App\Services\LoanApplicationWorkflowService;
 use App\Services\LoanOriginationService;
 use App\Services\ReferenceNumberService;
+use App\Services\ScreeningChecklistService;
 use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -334,6 +335,25 @@ class LoanApplicationController extends ResourceController
         }
 
         return back()->with('status', 'Collateral request sent to the borrower loan profile.');
+    }
+
+    public function saveScreeningChecklist(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        try {
+            app(ScreeningChecklistService::class)->save(
+                $loan_application,
+                $request->user(),
+                $request->input('items', []),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()
+            ->with('status', 'Screening checklist saved.')
+            ->withFragment('tab-screening-checklist');
     }
 
     public function requestGuarantorChange(

@@ -24,6 +24,7 @@
     $borrowerTabs = [
         ['affordability', 'Affordability'],
         ['crb', 'CRB'],
+        ['checklist', 'Checklist'],
         ['personal', 'Personal'],
         ['face', 'Face'],
         ['residence', 'Residence'],
@@ -149,12 +150,22 @@
                    'bg-transparent text-gray-600 hover:bg-brand-muted/50' => $defaultTab !== $key,
                ])>
                 {{ $label }}
-                @if ($person === 'borrower' && in_array($key, ['documents', 'collateral'], true) && $openDocRequestCount > 0 && $key === 'documents')
+                @if ($person === 'borrower' && in_array($key, ['documents', 'collateral', 'checklist'], true) && $key === 'documents' && $openDocRequestCount > 0)
                     <span @class([
                         'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
                         'bg-white/20 text-white' => $defaultTab === $key,
                         'bg-amber-100 text-amber-900' => $defaultTab !== $key,
                     ])>{{ $openDocRequestCount }}</span>
+                @endif
+                @if ($person === 'borrower' && $key === 'checklist')
+                    @php $cl = $review['screening_checklist'] ?? null; @endphp
+                    @if ($cl && ($cl['total'] ?? 0) > 0)
+                        <span @class([
+                            'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
+                            'bg-white/20 text-white' => $defaultTab === $key,
+                            'bg-brand-muted text-brand' => $defaultTab !== $key,
+                        ])>{{ (int) ($cl['checked'] ?? 0) }}/{{ (int) $cl['total'] }}</span>
+                    @endif
                 @endif
             </a>
         @endforeach
@@ -185,6 +196,8 @@
             @endif
         @elseif ($defaultTab === 'crb')
             @include('admin.loan-applications.review._subject_crb', ['review' => $subjectReview])
+        @elseif ($defaultTab === 'checklist' && $person === 'borrower')
+            @include('admin.loan-applications.review._screening_checklist', ['review' => $review])
         @elseif ($defaultTab === 'personal')
             <div class="space-y-5">
                 @include('admin.loan-applications.review._profile_personal', ['review' => $subjectReview])

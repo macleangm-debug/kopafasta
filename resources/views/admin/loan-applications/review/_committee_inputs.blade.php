@@ -120,6 +120,17 @@
                     <p class="text-2xl font-bold mt-1">Pending</p>
                     <p class="text-sm text-white/80 mt-3">No screening recommendation submitted yet.</p>
                 @endif
+                @php $cl = $review['screening_checklist'] ?? null; @endphp
+                @if ($cl && ($cl['total'] ?? 0) > 0)
+                    <p class="mt-4 text-xs text-white/85">
+                        Checklist {{ (int) ($cl['checked'] ?? 0) }}/{{ (int) $cl['total'] }}
+                        ({{ (int) ($cl['percent'] ?? 0) }}%)
+                    </p>
+                    <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'tab' => 'checklist', 'person' => 'borrower']) }}#borrower-file"
+                       class="mt-2 inline-flex text-[11px] font-semibold underline underline-offset-2 text-white/90 hover:text-white">
+                        View what was done
+                    </a>
+                @endif
             </div>
         </div>
     </div>

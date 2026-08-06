@@ -171,6 +171,7 @@ class LoanApplicationReviewService
                 'recommended_by' => $application->recommendedByUser,
                 'recommended_at' => $application->recommended_at,
             ],
+            'screening_checklist' => app(ScreeningChecklistService::class)->viewModel($application),
             'risk'               => $risk,
             'guarantor_suggestion' => $guarantorSuggestion,
             'face_photos'        => $facePhotos,
