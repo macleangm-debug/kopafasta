@@ -227,12 +227,19 @@ class BorrowerPaymentController extends Controller
         $mobileNumber = PhoneNumber::fromRequest($request, 'mobile_number', $customer->country_code ?? null)
             ?: ($data['mobile_number'] ?? null);
 
+        if ($method === 'mobile_money' && ! filled($mobileNumber)) {
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->withErrors(['mobile_number' => __('borrower.payments.mobile_number_required')]);
+        }
+
         try {
             $payment = $payments->initiateCollection($payment, $mobileNumber);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            $message = CustomerPaymentService::localizeProviderMessage(
-                collect($e->errors())->flatten()->first()
-            );
+            $raw = collect($e->errors())->flatten()->first();
+            $attempted = $payment->fresh()->mobile_number
+                ?: data_get($payment->fresh()->provider_meta, 'attempted_phone');
+            $message = CustomerPaymentService::localizeProviderMessage($raw, $attempted);
 
             return redirect()
                 ->route('site.borrower.payments.show', $payment)

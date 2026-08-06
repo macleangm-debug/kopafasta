@@ -88,6 +88,8 @@ class PayInService
             $message = $this->formatErrorMessage($body, $e->getMessage());
             \Illuminate\Support\Facades\Log::warning('PayIn collection failed', [
                 'status' => $e->response?->status(),
+                'phone' => $phone,
+                'reference' => $reference,
                 'message' => $message,
                 'body' => $body,
             ]);
@@ -105,6 +107,8 @@ class PayInService
                 'PayIn did not accept this collection request.'
             );
             \Illuminate\Support\Facades\Log::warning('PayIn collection rejected', [
+                'phone' => $phone,
+                'reference' => $reference,
                 'message' => $message,
                 'body' => is_array($response) ? $response : [],
             ]);

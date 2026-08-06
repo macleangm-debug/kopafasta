@@ -17,7 +17,8 @@
         ? __('borrower.payment_waiting.waiting_phone', ['phone' => $payment->mobile_number])
         : __('borrower.payment_waiting.waiting');
     $failedMessage = \App\Services\CustomerPaymentService::localizeProviderMessage(
-        $errorMessage ?: __('borrower.payment_waiting.failed')
+        $errorMessage ?: __('borrower.payment_waiting.failed'),
+        $payment->mobile_number
     );
     $paidTitle = $celebration['title'];
     $paidMessage = $celebration['message'];

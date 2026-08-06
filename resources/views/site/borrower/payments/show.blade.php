@@ -4,8 +4,12 @@
         $isPayInWaiting = $payment->isPayInWaiting();
         $isReadyToPay = $payment->awaitsCollection();
         $showCollectFailed = (bool) session('show_collect_failed');
+        $attemptedPhone = data_get($payment->provider_meta, 'attempted_phone')
+            ?: data_get($payment->provider_meta, 'phone')
+            ?: $payment->mobile_number;
         $collectError = \App\Services\CustomerPaymentService::localizeProviderMessage(
-            session('collect_error') ?: data_get($payment->provider_meta, 'last_collect_error')
+            session('collect_error') ?: data_get($payment->provider_meta, 'last_collect_error'),
+            $attemptedPhone
         );
         $canSwitchToBank = $canSwitchToBank ?? false;
         $bankAccounts = $bankAccounts ?? [];

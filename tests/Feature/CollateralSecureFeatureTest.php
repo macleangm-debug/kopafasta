@@ -305,11 +305,17 @@ class CollateralSecureFeatureTest extends TestCase
         $this->actingAs($user)
             ->post(route('site.borrower.payments.pay', $payment), [
                 'payment_method' => 'mobile_money',
+                'mobile_number' => $borrower->phone,
+                'mobile_number_local' => preg_replace('/^\+?255/', '', (string) $borrower->phone),
             ])
             ->assertRedirect(route('site.borrower.payments.show', $payment));
 
         $this->assertSame('processing', $payment->fresh()->status);
         $this->assertSame('payin', $payment->fresh()->provider);
+        $this->assertSame(
+            preg_replace('/\D+/', '', (string) $borrower->phone),
+            preg_replace('/\D+/', '', (string) $payment->fresh()->mobile_number)
+        );
     }
 
     public function test_insure_it_resumes_pending_payment_gate(): void

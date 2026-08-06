@@ -3124,6 +3124,7 @@ return [
         'cannot_retry' => 'This payment can no longer be started. Open it again from your loan profile.',
         'operator_title' => 'Could not detect the mobile operator',
         'operator_error' => 'Could not detect the mobile network for this number. Check the number or try another.',
+        'operator_error_phone' => 'Could not detect the mobile network for :phone. Check the number or try another.',
         'operator_help' => 'Change the payment number, try again, or pay by bank if available.',
     ],
 
@@ -3160,6 +3161,7 @@ return [
     'payments' => [
         'aggregator_required' => 'Mobile money is not available right now. The payment aggregator must be configured before payments can be accepted.',
         'aggregator_rejected' => 'The payment provider did not accept this collection. Try again or use another number.',
+        'aggregator_rejected_phone' => 'The payment provider did not accept this collection for :phone. Try again or use another number.',
         'mobile_number_required' => 'Enter the mobile money number that will confirm the payment.',
     ],
 

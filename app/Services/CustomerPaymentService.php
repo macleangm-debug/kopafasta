@@ -47,18 +47,24 @@ class CustomerPaymentService
     /**
      * Map provider / PayIn English messages to the active locale.
      */
-    public static function localizeProviderMessage(?string $message): string
+    public static function localizeProviderMessage(?string $message, ?string $phone = null): string
     {
         $raw = trim((string) $message);
+        $phone = filled($phone) ? preg_replace('/\D+/', '', (string) $phone) : null;
+
         if ($raw === '') {
-            return __('borrower.payments.aggregator_rejected');
+            return filled($phone)
+                ? __('borrower.payments.aggregator_rejected_phone', ['phone' => $phone])
+                : __('borrower.payments.aggregator_rejected');
         }
 
         $hay = mb_strtolower($raw);
         if (str_contains($hay, 'detect operator')
             || str_contains($hay, 'operator from phone')
             || str_contains($hay, 'kutambua mtandao')) {
-            return __('borrower.payment_waiting.operator_error');
+            return filled($phone)
+                ? __('borrower.payment_waiting.operator_error_phone', ['phone' => $phone])
+                : __('borrower.payment_waiting.operator_error');
         }
 
         if (str_contains($hay, 'not configured')
@@ -73,7 +79,13 @@ class CustomerPaymentService
 
         // Avoid showing raw English API copy when the borrower locale is not English.
         if (app()->getLocale() !== 'en' && preg_match('/[A-Za-z]{6,}/', $raw)) {
-            return __('borrower.payments.aggregator_rejected');
+            return filled($phone)
+                ? __('borrower.payments.aggregator_rejected_phone', ['phone' => $phone])
+                : __('borrower.payments.aggregator_rejected');
+        }
+
+        if (filled($phone) && ! str_contains($raw, $phone)) {
+            return trim($raw.' ('.$phone.')');
         }
 
         return $raw;
@@ -263,7 +275,7 @@ class CustomerPaymentService
             ]);
         }
 
-        $phone = filled($mobileNumber) ? $mobileNumber : $payment->mobile_number;
+        $phone = filled($mobileNumber) ? $mobileNumber : null;
         if (filled($phone)) {
             $phone = PhoneNumber::normalizeForCountry(
                 (string) $phone,
@@ -284,37 +296,46 @@ class CustomerPaymentService
             ]);
         }
 
-        if ($payment->mobile_number !== $phone) {
-            $payment->update(['mobile_number' => $phone]);
-        }
-
+        // Persist and send only the number entered on the gate (not a stale account/meta value).
+        $pspPhone = $payIn->normalizePhone((string) $phone);
         $meta = (array) ($payment->provider_meta ?? []);
         $description = $meta['description'] ?? null;
-        $operator = $operator ?? ($meta['operator'] ?? null);
+        unset($meta['operator'], $meta['last_collect_error'], $meta['last_collect_error_at']);
+        $meta['phone'] = $pspPhone;
+        $meta['attempted_phone'] = $pspPhone;
+        $payment->update([
+            'mobile_number' => $pspPhone,
+            'provider_meta' => $meta,
+        ]);
 
         try {
+            // Never reuse a previous operator — PayIn detects from this MSISDN.
             $collection = $payIn->collect(
-                (string) $phone,
+                $pspPhone,
                 (float) $payment->amount,
                 (string) $payment->reference,
                 $this->payInDescription($payment->payment_type, (string) $payment->reference, is_string($description) ? $description : null),
-                is_string($operator) ? $operator : null,
+                null,
             );
         } catch (\Illuminate\Validation\ValidationException $e) {
             $message = collect($e->errors())->flatten()->first()
                 ?: __('borrower.payments.aggregator_rejected');
+            $localized = self::localizeProviderMessage($message, $pspPhone);
             $meta['awaiting_collection'] = true;
-            $meta['last_collect_error'] = self::localizeProviderMessage($message);
+            $meta['phone'] = $pspPhone;
+            $meta['attempted_phone'] = $pspPhone;
+            $meta['last_collect_error'] = $localized;
             $meta['last_collect_error_at'] = now()->toIso8601String();
             $payment->update([
                 'status' => 'awaiting_payment',
+                'mobile_number' => $pspPhone,
                 'provider' => null,
                 'provider_ref' => null,
                 'provider_meta' => $meta,
             ]);
 
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'payment_phone' => [$meta['last_collect_error']],
+                'payment_phone' => [$localized],
             ]);
         }
 
@@ -324,20 +345,23 @@ class CustomerPaymentService
             'initiated_at' => now()->toIso8601String(),
             'operator' => $collection['operator'],
             'message' => $collection['message'],
-            'phone' => $payIn->normalizePhone((string) $phone),
+            'phone' => $pspPhone,
+            'attempted_phone' => $pspPhone,
             'raw' => $collection['raw'],
         ]);
         unset($meta['last_collect_error'], $meta['last_collect_error_at']);
 
         if (in_array($remoteStatus, ['failed', 'cancelled', 'canceled', 'expired', 'rejected'], true)) {
             $message = self::localizeProviderMessage(
-                $collection['message'] ?: __('borrower.payments.aggregator_rejected')
+                $collection['message'] ?: __('borrower.payments.aggregator_rejected'),
+                $pspPhone,
             );
             $meta['awaiting_collection'] = true;
             $meta['last_collect_error'] = $message;
             $meta['last_collect_error_at'] = now()->toIso8601String();
             $payment->update([
                 'status' => 'awaiting_payment',
+                'mobile_number' => $pspPhone,
                 'provider' => 'payin',
                 'provider_ref' => $collection['request_ref'],
                 'provider_meta' => $meta,

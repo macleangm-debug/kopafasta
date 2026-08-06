@@ -2923,10 +2923,11 @@ return [
     'switched_to_bank' => 'Imebadilishwa kuwa malipo ya benki. Tumia rejea hapa chini unapolipa.',
     'bank_unavailable' => 'Malipo ya benki hayapatikani kwa malipo haya sasa.',
     'cannot_retry' => 'Malipo haya hayawezi kuanzishwa tena. Fungua tena kutoka wasifu wa mkopo.',
-    'operator_title' => 'Imeshindwa kutambua mtandao wa simu',
-    'operator_error' => 'Imeshindwa kutambua mtandao wa nambari hii. Angalia nambari au jaribu nyingine.',
-    'operator_help' => 'Badilisha nambari ya malipo, jaribu tena, au lipa kwa benki ikiwa inapatikana.',
-],
+        'operator_title' => 'Imeshindwa kutambua mtandao wa simu',
+        'operator_error' => 'Imeshindwa kutambua mtandao wa nambari hii. Angalia nambari au jaribu nyingine.',
+        'operator_error_phone' => 'Imeshindwa kutambua mtandao wa :phone. Angalia nambari au jaribu nyingine.',
+        'operator_help' => 'Badilisha nambari ya malipo, jaribu tena, au lipa kwa benki ikiwa inapatikana.',
+    ],
 
 'payment_types' => [
     'registration_fee' => 'Ada ya Uanachama',
@@ -2961,6 +2962,7 @@ return [
 'payments' => [
     'aggregator_required' => 'Malipo kwa simu hayapatikani sasa. Mtoa huduma wa malipo lazima awe umewekwa kabla ya kukubali malipo.',
     'aggregator_rejected' => 'Mtoa huduma hakukubali ombi hili la malipo. Jaribu tena au tumia nambari nyingine.',
+    'aggregator_rejected_phone' => 'Mtoa huduma hakukubali ombi hili la malipo kwa :phone. Jaribu tena au tumia nambari nyingine.',
     'mobile_number_required' => 'Weka nambari ya pesa kwa simu itakayothibitisha malipo.',
 ],
 
