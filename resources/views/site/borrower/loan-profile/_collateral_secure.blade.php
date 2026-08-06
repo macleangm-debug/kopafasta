@@ -59,8 +59,18 @@
                             @if (! empty($selected['registration_number']))
                                 <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-0.5 truncate">{{ __('borrower.profile.collateral_fields.registration_number') }}: {{ $selected['registration_number'] }}</p>
                             @endif
+                            @if (! empty($selected['insurance_type']))
+                                <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-0.5 truncate">
+                                    {{ __('borrower.profile.collateral_fields.insurance_type') }}:
+                                    {{ $selected['insurance_type'] === 'comprehensive'
+                                        ? __('borrower.profile.insurance_comprehensive')
+                                        : __('borrower.profile.insurance_third_party') }}
+                                </p>
+                            @endif
                             @if ($isGuarantorSource)
                                 <p class="text-[11px] font-bold text-brand mt-1">{{ __('borrower.collateral_secure.from_guarantor') }}</p>
+                            @else
+                                <p class="text-[11px] font-bold text-emerald-800 mt-1">{{ __('borrower.collateral_secure.from_borrower') }}</p>
                             @endif
                         </div>
                     </div>

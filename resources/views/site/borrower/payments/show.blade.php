@@ -1,7 +1,8 @@
 <x-site.borrower-layout :title="brand_title($payment->reference)" active="payments">
 
     @php
-        $isPayInWaiting = $payment->status === 'processing' && $payment->provider === 'payin';
+        $isPayInWaiting = $payment->status === 'processing'
+            && ($payment->provider === 'payin' || $payment->payment_type === 'insurance_premium');
     @endphp
 
     <div class="mb-5 max-w-xl mx-auto">

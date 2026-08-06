@@ -239,8 +239,8 @@
                                 <label class="block text-xs text-gray-500 mb-1">Insurance type</label>
                                 <select name="insurance_type" class="w-full rounded-lg border-gray-300 text-sm" required>
                                     <option value="" disabled selected>Select cover type</option>
-                                    <option value="comprehensive">Comprehensive</option>
-                                    <option value="third_party">Third Party</option>
+                                    <option value="comprehensive">Comprehensive (Bima kamili)</option>
+                                    <option value="third_party">Third Party (Bima ya wahusika wengine)</option>
                                 </select>
                                 <p class="mt-1 text-[11px] text-gray-500">Must match the actual policy — mismatch can reject the loan for falsified documentation.</p>
                             </div>

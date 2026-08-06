@@ -89,10 +89,29 @@ class CustomerPaymentService
                     }
                     $usePayIn = true;
                     $autoVerify = false;
-                } elseif ($payIn->isLiveCollectionEnabled() && filled($data['mobile_number'] ?? null)) {
-                    // Dummy gateway can still push to sandbox PayIn when configured.
+                } elseif ($payIn->isConfigured() && filled($data['mobile_number'] ?? null)) {
+                    // Dummy / sandbox: still push through PayIn so the borrower sees the payment gate.
+                    // Insurance premiums always require aggregator confirmation before the partner case opens.
                     $usePayIn = true;
                     $autoVerify = false;
+                }
+            }
+
+            // Collateral insurance must never skip the aggregator payment gate.
+            if ($type === 'insurance_premium') {
+                $autoVerify = false;
+                if ($method === 'mobile_money' && ! $usePayIn) {
+                    if (! filled($data['mobile_number'] ?? null)) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'mobile_number' => [__('borrower.payments.mobile_number_required')],
+                        ]);
+                    }
+                    if (! $payIn->isConfigured()) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'payment_method' => [__('borrower.payments.aggregator_required')],
+                        ]);
+                    }
+                    $usePayIn = true;
                 }
             }
 
@@ -184,6 +203,11 @@ class CustomerPaymentService
                     'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$collection['message']),
                 ]);
 
+                return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
+            }
+
+            // Never instant-finalize insurance — partner case opens only after verified payment.
+            if ($type === 'insurance_premium') {
                 return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
             }
 

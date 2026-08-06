@@ -41,30 +41,8 @@
             'warning' => 'bg-amber-500',
             'info' => 'bg-sky-500',
         ];
+        $anomalyCounts = collect($anomalies)->countBy(fn ($a) => $a['severity'] ?? 'info');
     @endphp
-    @if (! empty($anomalies))
-        <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-            <div class="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Decision guidance</p>
-                    <h3 class="text-sm font-bold text-gray-900 mt-0.5">{{ count($anomalies) }} flag{{ count($anomalies) === 1 ? '' : 's' }} to review first</h3>
-                </div>
-                <p class="text-[11px] text-gray-500">System checks inspired by typical credit desk checklists — not a hard decline.</p>
-            </div>
-            <ul class="divide-y divide-gray-100">
-                @foreach ($anomalies as $anomaly)
-                    <li class="px-5 py-3 flex gap-3 {{ $anomalyTone[$anomaly['severity']] ?? 'bg-gray-50' }}">
-                        <span class="mt-1.5 size-2 rounded-full shrink-0 {{ $anomalyDot[$anomaly['severity']] ?? 'bg-gray-400' }}"></span>
-                        <div class="min-w-0">
-                            <p class="text-sm font-semibold">{{ $anomaly['title'] }}</p>
-                            <p class="text-xs mt-0.5 opacity-80">{{ $anomaly['detail'] }}</p>
-                        </div>
-                        <span class="ml-auto shrink-0 text-[10px] uppercase tracking-wider font-semibold opacity-70">{{ $anomaly['severity'] }}</span>
-                    </li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
 
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -316,6 +294,50 @@
             </div>
         </div>
     </div>
+
+    @if (! empty($anomalies))
+        <details class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden group">
+            <summary class="cursor-pointer list-none px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Decision guidance</p>
+                    <p class="text-sm font-bold text-gray-900 mt-0.5">
+                        {{ count($anomalies) }} flag{{ count($anomalies) === 1 ? '' : 's' }} under the cards
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    @if (($anomalyCounts['critical'] ?? 0) > 0)
+                        <span class="rounded-full bg-rose-100 text-rose-900 ring-1 ring-rose-200 px-2.5 py-1 text-[11px] font-bold">
+                            {{ $anomalyCounts['critical'] }} critical
+                        </span>
+                    @endif
+                    @if (($anomalyCounts['warning'] ?? 0) > 0)
+                        <span class="rounded-full bg-amber-100 text-amber-950 ring-1 ring-amber-200 px-2.5 py-1 text-[11px] font-bold">
+                            {{ $anomalyCounts['warning'] }} warning
+                        </span>
+                    @endif
+                    @if (($anomalyCounts['info'] ?? 0) > 0)
+                        <span class="rounded-full bg-sky-100 text-sky-950 ring-1 ring-sky-200 px-2.5 py-1 text-[11px] font-bold">
+                            {{ $anomalyCounts['info'] }} info
+                        </span>
+                    @endif
+                    <span class="text-[11px] text-gray-500 group-open:hidden">Tap to expand</span>
+                    <span class="text-[11px] text-gray-500 hidden group-open:inline">Tap to collapse</span>
+                </div>
+            </summary>
+            <ul class="divide-y divide-gray-100 border-t border-gray-100 max-h-72 overflow-y-auto">
+                @foreach ($anomalies as $anomaly)
+                    <li class="px-5 py-2.5 flex gap-3 {{ $anomalyTone[$anomaly['severity']] ?? 'bg-gray-50' }}">
+                        <span class="mt-1.5 size-2 rounded-full shrink-0 {{ $anomalyDot[$anomaly['severity']] ?? 'bg-gray-400' }}"></span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-semibold">{{ $anomaly['title'] }}</p>
+                            <p class="text-xs mt-0.5 opacity-80">{{ $anomaly['detail'] }}</p>
+                        </div>
+                        <span class="ml-auto shrink-0 text-[10px] uppercase tracking-wider font-semibold opacity-70">{{ $anomaly['severity'] }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        </details>
+    @endif
 
     {{-- Clear jump to screening / committee decision (same pattern both stages) --}}
     @if ($isScreeningStage || $isCommitteeStage)

@@ -233,7 +233,7 @@ class CollateralSecureController extends Controller
         abort_unless($quote['premium'] > 0, 422);
 
         $phone = $customer->phone;
-        abort_unless(filled($phone) || ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(), 422);
+        abort_unless(filled($phone), 422, __('borrower.payments.mobile_number_required'));
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer' => $customer,
@@ -243,7 +243,7 @@ class CollateralSecureController extends Controller
             'reference' => 'INS-'.strtoupper(uniqid()),
             'source' => $application,
             'mobile_number' => $phone,
-            'auto_verify' => ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(),
+            'auto_verify' => false,
             'description' => 'Collateral insurance premium',
         ]);
 
@@ -267,24 +267,11 @@ class CollateralSecureController extends Controller
             'markup_percent' => $quote['markup_percent'],
             'payment_id' => $payment->id,
             'payment_reference' => $payment->reference,
-            'status' => $payment->isVerified() ? 'paid' : 'payment_pending',
+            'status' => 'payment_pending',
         ]);
 
-        if ($payment->status === 'processing') {
-            return redirect()->route('site.borrower.payments.show', $payment);
-        }
-
-        if ($payment->isVerified()) {
-            $insurance->fulfillPremiumPayment($payment->fresh());
-        }
-
-        return redirect($returnUrl)
-            ->with('collateral_secure_flash', [
-                'title' => __('borrower.collateral_secure.insurance_paid_title'),
-                'message' => __('borrower.collateral_secure.insurance_paid_body_partner'),
-                'confirm' => __('borrower.feedback.ok'),
-                'tone' => 'success',
-            ]);
+        // Always open the aggregator payment gate. Partner case opens only after payment is verified.
+        return redirect()->route('site.borrower.payments.show', $payment);
     }
 
     public function guarantorRespond(Request $request, CustomerGuarantor $customerGuarantor, CollateralSecureService $service): RedirectResponse
