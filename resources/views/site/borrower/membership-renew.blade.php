@@ -19,6 +19,9 @@
             'affiliate', 'promo' => '',
             default => __('borrower.membership.promo_invalid'),
         };
+        $hidden = ($promoAllows && $promoValid && filled($promoCode))
+            ? ['promo_code' => $promoCode]
+            : [];
     @endphp
 
     @if ($errors->any())
@@ -43,113 +46,112 @@
             </p>
         </div>
 
-        <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-brand via-brand to-brand-light text-white shadow-lg shadow-brand/20">
-            <div class="px-6 py-7">
-                <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ $isFirstTime ? __('borrower.membership.membership_fee') : __('borrower.membership.renewal_fee') }}</p>
-                <div class="mt-3 flex flex-wrap items-end gap-3">
-                    @if ($hasDiscount)
-                        <p class="text-lg text-white/60 line-through tabular-nums">{{ $config['currency'] }} {{ format_number($baseAmount) }}</p>
-                    @endif
-                    <p class="text-4xl font-extrabold tabular-nums tracking-tight">{{ $config['currency'] }} {{ format_number($cashDue) }}</p>
-                    @if ($hasDiscount)
-                        <span class="mb-1.5 inline-flex rounded-full bg-brand-gold/20 text-brand-gold text-[10px] font-bold uppercase tracking-wide px-2.5 py-1">
-                            {{ __('borrower.membership.you_save', ['amount' => $config['currency'].' '.format_number($baseAmount - $cashDue)]) }}
-                        </span>
-                    @endif
-                </div>
-                <p class="mt-4 text-xs text-white/70">{{ __('borrower.membership.payment_reference_label') }}</p>
-                <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1.5 rounded-lg">{{ $paymentReference }}</p>
-            </div>
+        <x-site.psp-payment-gate
+            :label="$isFirstTime ? __('borrower.membership.membership_fee') : __('borrower.membership.renewal_fee')"
+            :amount="$cashDue"
+            :currency="$config['currency']"
+            :reference="$paymentReference"
+            :form-action="route('site.membership.renew.post')"
+            method-field="channel"
+            mobile-field="payment_phone"
+            mobile-value="mobile_money"
+            bank-value="bank"
+            :default-method="old('channel', 'mobile_money')"
+            :bank-accounts="$bankAccounts ?? []"
+            :mobile-details="[]"
+            :mobile-input-value="old('payment_phone', $customer->phone ?? '')"
+            :country-code="$customer->country_code ?? 'TZ'"
+            :show-promo="false"
+            :show-bank="true"
+            :show-mobile="true"
+            :hidden="$hidden"
+        >
             @if ($hasDiscount)
-                <div class="px-6 py-4 bg-white/5 border-t border-white/10 text-sm space-y-1.5">
-                    <div class="flex justify-between gap-3 text-white/80">
-                        <span>{{ __('borrower.membership.membership_fee') }}</span>
-                        <span class="tabular-nums">{{ $config['currency'] }} {{ format_number($baseAmount) }}</span>
+                <x-slot:amountFooter>
+                    <div class="px-6 py-4 bg-white/5 border-t border-white/10 text-sm space-y-1.5">
+                        <div class="flex justify-between gap-3 text-white/80">
+                            <span>{{ __('borrower.membership.membership_fee') }}</span>
+                            <span class="tabular-nums">{{ $config['currency'] }} {{ format_number($baseAmount) }}</span>
+                        </div>
+                        <div class="flex justify-between gap-3 text-brand-gold">
+                            <span>{{ __('borrower.membership.promo_discount_label') }}</span>
+                            <span class="tabular-nums">− {{ $config['currency'] }} {{ format_number($baseAmount - $cashDue) }}</span>
+                        </div>
+                        <div class="flex justify-between gap-3 font-semibold text-white pt-1 border-t border-white/10">
+                            <span>{{ __('borrower.membership.amount_due') }}</span>
+                            <span class="tabular-nums">{{ $config['currency'] }} {{ format_number($cashDue) }}</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between gap-3 text-brand-gold">
-                        <span>{{ __('borrower.membership.promo_discount_label') }}</span>
-                        <span class="tabular-nums">− {{ $config['currency'] }} {{ format_number($baseAmount - $cashDue) }}</span>
-                    </div>
-                    <div class="flex justify-between gap-3 font-semibold text-white pt-1 border-t border-white/10">
-                        <span>{{ __('borrower.membership.amount_due') }}</span>
-                        <span class="tabular-nums">{{ $config['currency'] }} {{ format_number($cashDue) }}</span>
-                    </div>
-                </div>
+                </x-slot:amountFooter>
             @endif
-        </div>
 
-        <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-5">
             @if ($promoAllows)
-                @if ($promoAttempted && ! $promoValid)
-                    <div
-                        x-data
-                        x-init="
-                            const detail = {
-                                tone: 'error',
-                                title: @js($promoFeedbackTitle),
-                                message: @js($promoFeedbackMessage),
-                            };
-                            const fire = () => {
-                                if (typeof window.showBorrowerFeedback === 'function') {
-                                    window.showBorrowerFeedback(detail);
-                                } else {
-                                    window.dispatchEvent(new CustomEvent('open-feedback-default', { detail }));
-                                }
-                            };
-                            setTimeout(fire, 50);
-                        "
-                        class="hidden"
-                        aria-hidden="true"
-                    ></div>
-                @elseif ($promoAttempted && $promoValid)
-                    <div
-                        x-data
-                        x-init="
-                            const detail = {
-                                tone: 'success',
-                                title: @js($promoFeedbackTitle),
-                                message: '',
-                            };
-                            const fire = () => {
-                                if (typeof window.showBorrowerFeedback === 'function') {
-                                    window.showBorrowerFeedback(detail);
-                                } else {
-                                    window.dispatchEvent(new CustomEvent('open-feedback-default', { detail }));
-                                }
-                            };
-                            setTimeout(fire, 50);
-                        "
-                        class="hidden"
-                        aria-hidden="true"
-                    ></div>
-                @endif
-                <form method="GET" action="{{ route('site.membership.renew') }}" class="space-y-3"
-                      x-data="{ applying: false }" @submit="applying = true">
-                    <label class="block text-sm font-semibold text-gray-900">{{ __('borrower.membership.promo_inline_label') }}</label>
-                    <p class="text-xs text-gray-500">{{ __('borrower.membership.promo_or_reward_hint') }}</p>
-                    <div class="flex gap-2">
-                        <input type="text" name="promo_code" value="{{ $promoCode }}" maxlength="40"
-                               class="flex-1 rounded-xl border-gray-200 text-sm font-mono uppercase @error('promo_code') border-rose-400 @enderror"
-                               placeholder="{{ __('borrower.membership.promo_code_placeholder') }}"
-                               autocomplete="off">
-                        <button type="submit" class="shrink-0 rounded-xl bg-brand-gold text-brand font-bold text-sm px-4 py-2.5 disabled:opacity-60"
-                                :disabled="applying">
-                            <span x-show="!applying">{{ __('borrower.membership.apply_promo') }}</span>
-                            <span x-cloak x-show="applying">{{ __('borrower.membership.applying_promo') }}</span>
-                        </button>
-                    </div>
-                </form>
-                <div class="border-t border-gray-100"></div>
+                <x-slot:promo>
+                    @if ($promoAttempted && ! $promoValid)
+                        <div
+                            x-data
+                            x-init="
+                                const detail = {
+                                    tone: 'error',
+                                    title: @js($promoFeedbackTitle),
+                                    message: @js($promoFeedbackMessage),
+                                };
+                                const fire = () => {
+                                    if (typeof window.showBorrowerFeedback === 'function') {
+                                        window.showBorrowerFeedback(detail);
+                                    } else {
+                                        window.dispatchEvent(new CustomEvent('open-feedback-default', { detail }));
+                                    }
+                                };
+                                setTimeout(fire, 50);
+                            "
+                            class="hidden"
+                            aria-hidden="true"
+                        ></div>
+                    @elseif ($promoAttempted && $promoValid)
+                        <div
+                            x-data
+                            x-init="
+                                const detail = {
+                                    tone: 'success',
+                                    title: @js($promoFeedbackTitle),
+                                    message: '',
+                                };
+                                const fire = () => {
+                                    if (typeof window.showBorrowerFeedback === 'function') {
+                                        window.showBorrowerFeedback(detail);
+                                    } else {
+                                        window.dispatchEvent(new CustomEvent('open-feedback-default', { detail }));
+                                    }
+                                };
+                                setTimeout(fire, 50);
+                            "
+                            class="hidden"
+                            aria-hidden="true"
+                        ></div>
+                    @endif
+                    <form method="GET" action="{{ route('site.membership.renew') }}" class="space-y-3"
+                          x-data="{ applying: false }" @submit="applying = true">
+                        <label class="block text-sm font-semibold text-gray-900">{{ __('borrower.membership.promo_inline_label') }}</label>
+                        <p class="text-xs text-gray-500">{{ __('borrower.membership.promo_or_reward_hint') }}</p>
+                        <div class="flex gap-2">
+                            <input type="text" name="promo_code" value="{{ $promoCode }}" maxlength="40"
+                                   class="flex-1 rounded-xl border-gray-200 text-sm font-mono uppercase @error('promo_code') border-rose-400 @enderror"
+                                   placeholder="{{ __('borrower.membership.promo_code_placeholder') }}"
+                                   autocomplete="off">
+                            <button type="submit" class="shrink-0 rounded-xl bg-brand-gold text-brand font-bold text-sm px-4 py-2.5 disabled:opacity-60"
+                                    :disabled="applying">
+                                <span x-show="!applying">{{ __('borrower.membership.apply_promo') }}</span>
+                                <span x-cloak x-show="applying">{{ __('borrower.membership.applying_promo') }}</span>
+                            </button>
+                        </div>
+                    </form>
+                    <div class="border-t border-gray-100"></div>
+                </x-slot:promo>
             @endif
 
-            <form method="POST" action="{{ route('site.membership.renew.post') }}" class="space-y-5"
-                  x-data="{ paying: false }" @submit="paying = true">
-                @csrf
-                @if ($promoAllows && $promoValid && filled($promoCode))
-                    <input type="hidden" name="promo_code" value="{{ $promoCode }}">
-                @endif
-
-                @if ($isFirstTime && $feeQuote && ($referralWallet->balance ?? 0) > 0)
+            @if ($isFirstTime && $feeQuote && ($referralWallet->balance ?? 0) > 0)
+                <x-slot:beforeMethods>
                     <label class="flex items-start gap-3 cursor-pointer rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm text-gray-700">
                         <input type="checkbox" name="use_wallet" value="1" @checked(old('use_wallet')) class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
                         <span>
@@ -159,34 +161,17 @@
                             ]) }}
                         </span>
                     </label>
-                @endif
+                </x-slot:beforeMethods>
+            @endif
 
-                <x-site.payment-method-picker
-                    :amount="$cashDue"
-                    method-field="channel"
-                    mobile-field="payment_phone"
-                    mobile-value="mobile_money"
-                    bank-value="bank"
-                    :default-method="old('channel', 'mobile_money')"
-                    :mobile-details="[]"
-                    :bank-accounts="$bankAccounts ?? []"
-                    :bank-reference="$paymentReference"
-                    :mobile-input-value="old('payment_phone', $customer->phone ?? '')"
-                    :country-code="$customer->country_code ?? 'TZ'"
-                />
+            <x-slot:afterMethods>
                 @error('payment_phone')
                     <p class="text-sm text-rose-700 -mt-2">{{ $message }}</p>
                 @enderror
                 @error('channel')
                     <p class="text-sm text-rose-700 -mt-2">{{ $message }}</p>
                 @enderror
-
-                <button type="submit" :disabled="paying"
-                        class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3.5 rounded-xl text-sm shadow-sm disabled:opacity-70">
-                    <span x-show="!paying">{{ __('borrower.membership.pay_now') }}</span>
-                    <span x-cloak x-show="paying">{{ __('borrower.membership.paying') }}</span>
-                </button>
-            </form>
-        </div>
+            </x-slot:afterMethods>
+        </x-site.psp-payment-gate>
     </div>
 </x-site.borrower-layout>

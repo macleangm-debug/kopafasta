@@ -51,7 +51,7 @@
     @elseif ($isReadyToPay)
         <x-site.payment-gate-ready
             :payment="$payment"
-            :bank-accounts="$canSwitchToBank ? $bankAccounts : []"
+            :bank-accounts="$bankAccounts"
             :mobile-details="$mobileDetails"
             :show-promo="$showPromo && $supportsDiscounts"
         />

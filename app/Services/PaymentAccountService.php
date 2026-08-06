@@ -101,6 +101,38 @@ class PaymentAccountService
     }
 
     /**
+     * Prefer a mapped bank for the payment type; otherwise any active mapped/default bank.
+     * Keeps Mobile Money | Bank Transfer available on every PSP gate.
+     */
+    public function resolveBankAccount(string $paymentType, ?LoanProduct $product = null): ?BankAccount
+    {
+        $resolved = $this->resolve($paymentType, 'bank_transfer', $product);
+
+        return $resolved['bank_account'] ?? $this->fallbackBankAccount();
+    }
+
+    public function fallbackBankAccount(): ?BankAccount
+    {
+        $mapped = PaymentAccountMapping::query()
+            ->where('payment_method', 'bank_transfer')
+            ->where('is_active', true)
+            ->whereNotNull('bank_account_id')
+            ->with('bankAccount')
+            ->get()
+            ->pluck('bankAccount')
+            ->first(fn ($account) => $account && $account->is_active);
+
+        if ($mapped instanceof BankAccount) {
+            return $mapped;
+        }
+
+        return BankAccount::query()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
      * Bank transfer details for borrower-facing screens (membership, application fee, etc.).
      *
      * @return list<array{bank: string, account_name: string, account_number: string, branch: ?string, reference: string, instructions: ?string}>
@@ -108,15 +140,16 @@ class PaymentAccountService
     public function bankAccountsForDisplay(string $paymentType, string $reference, ?LoanProduct $product = null): array
     {
         $resolved = $this->resolve($paymentType, 'bank_transfer', $product);
+        $account = $resolved['bank_account'] ?? $this->fallbackBankAccount();
 
-        if ($resolved['bank_account']) {
-            $details = $this->bankTransferDetails($resolved['bank_account'], $reference);
+        if ($account) {
+            $details = $this->bankTransferDetails($account, $reference);
 
             return [[
                 'bank'           => $details['bank_name'],
                 'account_name'   => $details['account_name'],
                 'account_number' => $details['account_number'],
-                'branch'         => $resolved['bank_account']->branch,
+                'branch'         => $account->branch,
                 'reference'      => $details['reference'],
                 'instructions'   => $resolved['instructions'] ?? $details['instructions'],
             ]];

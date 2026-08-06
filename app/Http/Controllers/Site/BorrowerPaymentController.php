@@ -363,7 +363,7 @@ class BorrowerPaymentController extends Controller
             $product = $payment->loanProduct
                 ?? ($payment->loan_id ? $payment->loan?->product : null);
             $bankAccounts = $accounts->bankAccountsForDisplay($payment->payment_type, $payment->reference, $product);
-            $canSwitchToBank = collect($bankAccounts)->contains(fn ($row) => filled($row['account_number'] ?? null) && ($row['account_number'] ?? '') !== '—');
+            $canSwitchToBank = (bool) $accounts->resolveBankAccount($payment->payment_type, $product);
             if (! $payment->mobileMoneyAccount) {
                 $resolvedMobile = $accounts->resolve($payment->payment_type, 'mobile_money', $product);
                 $mobileDetails = $accounts->mobileMoneyDetails($resolvedMobile['mobile_money_account'] ?? null, $payment->reference);

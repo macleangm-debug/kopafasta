@@ -374,15 +374,16 @@ class CustomerPaymentService
             ? \App\Models\LoanProduct::query()->find($payment->loan_product_id)
             : ($payment->loan_id ? $payment->loan?->product : null);
         $resolved = $this->accounts->resolve($payment->payment_type, 'bank_transfer', $product);
-        abort_unless($resolved['bank_account'], 422, __('borrower.payment_waiting.bank_unavailable'));
+        $bankAccount = $resolved['bank_account'] ?? $this->accounts->fallbackBankAccount();
+        abort_unless($bankAccount, 422, __('borrower.payment_waiting.bank_unavailable'));
 
-        $details = $this->accounts->bankTransferDetails($resolved['bank_account'], $payment->reference);
+        $details = $this->accounts->bankTransferDetails($bankAccount, $payment->reference);
         $instructions = trim(($resolved['instructions'] ?? '')."\n".'Use reference: '.$payment->reference);
 
         $payment->update([
             'payment_method' => 'bank_transfer',
             'status' => 'pending_verification',
-            'bank_account_id' => $resolved['bank_account']->id,
+            'bank_account_id' => $bankAccount->id,
             'mobile_money_account_id' => null,
             'provider' => null,
             'provider_ref' => null,
