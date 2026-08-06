@@ -3370,6 +3370,8 @@ return [
         'pay_premium' => 'Pay insurance premium',
         'insurance_or_manual' => 'Or update an existing policy on your collateral, then continue.',
         'insurance_purchase_pending' => 'Premium paid — waiting for cover on this asset',
+        'insurance_payment_pending' => 'Complete payment to start insurance cover',
+        'continue_payment' => 'Continue payment',
         'insurance_purchase_summary' => 'Insured value :value · Premium :premium',
         'insurance_paid_title' => 'Insurance payment received',
         'insurance_paid_body_partner' => 'Payment received. Our insurance partner will issue cover within 1–2 days. When they add expiry, this asset updates automatically.',

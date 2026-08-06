@@ -170,24 +170,53 @@ class CollateralSecureController extends Controller
     {
         $customer = $this->customer();
         $state = $service->state($application);
-        abort_unless(($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_INSURANCE, 422);
+        if (($state['status'] ?? '') !== CollateralSecureService::STATUS_AWAITING_INSURANCE) {
+            return back()->with('error', __('borrower.collateral_secure.saved'));
+        }
 
         $asset = CustomerAsset::query()->findOrFail((int) ($state['customer_asset_id'] ?? 0));
         abort_unless((int) $asset->customer_id === (int) $customer->id, 403);
+
+        // Resume an in-flight premium payment instead of creating a duplicate.
+        $existingPaymentId = (int) data_get($state, 'insurance_purchase.payment_id', 0);
+        if ($existingPaymentId > 0 && data_get($state, 'insurance_purchase.status') === 'payment_pending') {
+            $existing = \App\Models\CustomerPayment::query()
+                ->whereKey($existingPaymentId)
+                ->where('customer_id', $customer->id)
+                ->where('payment_type', 'insurance_premium')
+                ->first();
+            if ($existing && ! $existing->isVerified()) {
+                return redirect()->route('site.borrower.payments.show', $existing);
+            }
+        }
 
         $data = $request->validate([
             'insured_value' => ['required'],
         ]);
         $insuredValue = \App\Support\MoneyFormat::toInteger($data['insured_value']);
-        abort_unless($insuredValue >= 100000, 422, __('borrower.collateral_secure.insurance_value_required'));
+        if ($insuredValue < 100000) {
+            return back()
+                ->withInput()
+                ->with('error', __('borrower.collateral_secure.insurance_value_required'));
+        }
 
-        return $this->startInsurancePremiumPayment(
-            $customer,
-            $application,
-            $asset,
-            $insuredValue,
-            route('site.borrower.application', $application),
-        );
+        try {
+            return $this->startInsurancePremiumPayment(
+                $customer,
+                $application,
+                $asset,
+                $insuredValue,
+                route('site.borrower.application', $application),
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withInput()->withErrors($e->errors());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()
+                ->withInput()
+                ->with('error', $e->getMessage() ?: __('borrower.payments.aggregator_required'));
+        }
     }
 
     public function guarantorBuyInsurance(Request $request, CustomerGuarantor $customerGuarantor, CollateralSecureService $service): RedirectResponse
@@ -200,25 +229,53 @@ class CollateralSecureController extends Controller
         abort_unless($application, 404);
 
         $state = $service->state($application);
-        abort_unless(($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_INSURANCE, 422);
+        if (($state['status'] ?? '') !== CollateralSecureService::STATUS_AWAITING_INSURANCE) {
+            return back()->with('error', __('borrower.collateral_secure.saved'));
+        }
         abort_unless(($state['source'] ?? '') === 'guarantor', 403);
 
         $asset = CustomerAsset::query()->findOrFail((int) ($state['customer_asset_id'] ?? 0));
         abort_unless((int) $asset->customer_id === (int) $customer->id, 403);
 
+        $existingPaymentId = (int) data_get($state, 'insurance_purchase.payment_id', 0);
+        if ($existingPaymentId > 0 && data_get($state, 'insurance_purchase.status') === 'payment_pending') {
+            $existing = \App\Models\CustomerPayment::query()
+                ->whereKey($existingPaymentId)
+                ->where('customer_id', $customer->id)
+                ->where('payment_type', 'insurance_premium')
+                ->first();
+            if ($existing && ! $existing->isVerified()) {
+                return redirect()->route('site.borrower.payments.show', $existing);
+            }
+        }
+
         $data = $request->validate([
             'insured_value' => ['required'],
         ]);
         $insuredValue = \App\Support\MoneyFormat::toInteger($data['insured_value']);
-        abort_unless($insuredValue >= 100000, 422, __('borrower.collateral_secure.insurance_value_required'));
+        if ($insuredValue < 100000) {
+            return back()
+                ->withInput()
+                ->with('error', __('borrower.collateral_secure.insurance_value_required'));
+        }
 
-        return $this->startInsurancePremiumPayment(
-            $customer,
-            $application,
-            $asset,
-            $insuredValue,
-            route('site.borrower.guaranteed.show', $customerGuarantor),
-        );
+        try {
+            return $this->startInsurancePremiumPayment(
+                $customer,
+                $application,
+                $asset,
+                $insuredValue,
+                route('site.borrower.guaranteed.show', $customerGuarantor),
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withInput()->withErrors($e->errors());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()
+                ->withInput()
+                ->with('error', $e->getMessage() ?: __('borrower.payments.aggregator_required'));
+        }
     }
 
     private function startInsurancePremiumPayment(
@@ -230,10 +287,14 @@ class CollateralSecureController extends Controller
     ): RedirectResponse {
         $insurance = app(\App\Services\CollateralInsurancePartnerService::class);
         $quote = $insurance->quote($insuredValue);
-        abort_unless($quote['premium'] > 0, 422);
+        if ($quote['premium'] <= 0) {
+            return back()->with('error', __('borrower.collateral_secure.insurance_value_required'));
+        }
 
         $phone = $customer->phone;
-        abort_unless(filled($phone), 422, __('borrower.payments.mobile_number_required'));
+        if (! filled($phone)) {
+            return back()->with('error', __('borrower.payments.mobile_number_required'));
+        }
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer' => $customer,

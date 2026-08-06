@@ -64,7 +64,10 @@ class CollateralSecureFeatureTest extends TestCase
         ]);
 
         $borrower = Customer::create([
-            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'user_id' => User::factory()->create([
+                'role' => 'borrower',
+                'pin_hash' => bcrypt('1234'),
+            ])->id,
             'customer_number' => 'CU-CSB-'.random_int(100, 999),
             'type' => 'individual',
             'status' => 'active',
@@ -75,7 +78,10 @@ class CollateralSecureFeatureTest extends TestCase
         ]);
 
         $guarantorCustomer = Customer::create([
-            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'user_id' => User::factory()->create([
+                'role' => 'borrower',
+                'pin_hash' => bcrypt('1234'),
+            ])->id,
             'customer_number' => 'CU-CSG-'.random_int(100, 999),
             'type' => 'individual',
             'status' => 'active',
@@ -236,5 +242,119 @@ class CollateralSecureFeatureTest extends TestCase
         $state = $service->expireIfNeeded($app->fresh());
         $this->assertSame(CollateralSecureService::STATUS_REJECTED, $state['status'] ?? null);
         $this->assertSame('rejected', $app->fresh()->status);
+    }
+
+    public function test_insure_it_redirects_to_payment_gate(): void
+    {
+        $admin = $this->staff();
+        [$app, $borrower] = $this->applicationWithGuarantor($admin);
+        $service = app(CollateralSecureService::class);
+
+        $asset = CustomerAsset::create([
+            'customer_id' => $borrower->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Vitz Insure',
+            'registration_number' => 'T999INS',
+            'is_active' => true,
+            'metadata' => ['details' => []],
+        ]);
+
+        $service->request($app, $admin);
+        $service->borrowerHasCollateral($app->fresh(), $borrower, true);
+        $service->linkAsset($app->fresh(), $borrower, $asset);
+        $service->markFeePaid($app->fresh());
+
+        $this->assertSame(
+            CollateralSecureService::STATUS_AWAITING_INSURANCE,
+            data_get($app->fresh()->screening_payload, 'collateral_secure.status')
+        );
+
+        $payIn = \Mockery::mock(\App\Services\PayInService::class)->makePartial();
+        $payIn->shouldReceive('isConfigured')->andReturn(true);
+        $payIn->shouldReceive('isLiveCollectionEnabled')->andReturn(true);
+        $payIn->shouldReceive('normalizePhone')->andReturnUsing(fn ($p) => (string) $p);
+        $payIn->shouldReceive('collect')->once()->andReturn([
+            'ok' => true,
+            'request_ref' => 'PAYREF-INS-1',
+            'status' => 'processing',
+            'operator' => 'mpesa',
+            'message' => 'Confirm on phone',
+            'raw' => [],
+        ]);
+        $this->app->instance(\App\Services\PayInService::class, $payIn);
+
+        $user = $borrower->user;
+        $response = $this->actingAs($user)
+            ->from(route('site.borrower.application', $app))
+            ->post(route('site.borrower.collateral-secure.buy-insurance', $app), [
+                'insured_value' => '1,000,000',
+            ]);
+
+        $payment = \App\Models\CustomerPayment::query()
+            ->where('customer_id', $borrower->id)
+            ->where('payment_type', 'insurance_premium')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($payment);
+        $response->assertRedirect(route('site.borrower.payments.show', $payment));
+        $this->assertSame('processing', $payment->status);
+        $this->assertSame('payment_pending', data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.status'));
+        $this->assertSame($payment->id, (int) data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.payment_id'));
+    }
+
+    public function test_insure_it_resumes_pending_payment_gate(): void
+    {
+        $admin = $this->staff();
+        [$app, $borrower] = $this->applicationWithGuarantor($admin);
+        $service = app(CollateralSecureService::class);
+
+        $asset = CustomerAsset::create([
+            'customer_id' => $borrower->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Vitz Resume',
+            'registration_number' => 'T888INS',
+            'is_active' => true,
+            'metadata' => ['details' => []],
+        ]);
+
+        $service->request($app, $admin);
+        $service->borrowerHasCollateral($app->fresh(), $borrower, true);
+        $service->linkAsset($app->fresh(), $borrower, $asset);
+        $service->markFeePaid($app->fresh());
+
+        $payment = \App\Models\CustomerPayment::create([
+            'reference' => 'INS-RESUME-1',
+            'customer_id' => $borrower->id,
+            'payment_type' => 'insurance_premium',
+            'payment_method' => 'mobile_money',
+            'amount' => 35000,
+            'currency' => 'TZS',
+            'status' => 'processing',
+            'provider' => 'payin',
+            'provider_ref' => 'PAYREF-RESUME',
+            'mobile_number' => $borrower->phone,
+        ]);
+
+        $service->recordInsurancePurchase($app->fresh(), [
+            'insured_value' => 1_000_000,
+            'premium' => 35000,
+            'rate_percent' => 3.5,
+            'markup_percent' => 0,
+            'payment_id' => $payment->id,
+            'payment_reference' => $payment->reference,
+            'status' => 'payment_pending',
+        ]);
+
+        $response = $this->actingAs($borrower->user)
+            ->post(route('site.borrower.collateral-secure.buy-insurance', $app), [
+                'insured_value' => '1,000,000',
+            ]);
+
+        $response->assertRedirect(route('site.borrower.payments.show', $payment));
+        $this->assertSame(1, \App\Models\CustomerPayment::query()
+            ->where('customer_id', $borrower->id)
+            ->where('payment_type', 'insurance_premium')
+            ->count());
     }
 }

@@ -3417,6 +3417,8 @@ return [
     'pay_premium' => 'Lipa ada ya bima',
     'insurance_or_manual' => 'Au sasisha sera iliyopo kwenye dhamana, kisha endelea.',
     'insurance_purchase_pending' => 'Ada imelipwa — inasubiri bima kwenye dhamana hii',
+    'insurance_payment_pending' => 'Kamilisha malipo ili bima ianze',
+    'continue_payment' => 'Endelea na malipo',
     'insurance_purchase_summary' => 'Thamani :value · Ada :premium',
     'insurance_paid_title' => 'Malipo ya bima yamepokelewa',
     'insurance_paid_body_partner' => 'Malipo yamepokelewa. Mshirika wetu wa bima atatoa bima ndani ya siku 1–2. Watakapoongeza tarehe, wasifu wa dhamana unasasishwa otomatiki.',
