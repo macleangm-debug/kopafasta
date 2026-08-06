@@ -117,72 +117,153 @@
             </div>
         @endif
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
-                    <tr>
-                        <th class="px-4 py-3">{{ __('admin.group_review.col_member') }}</th>
-                        <th class="px-4 py-3">{{ __('admin.group_review.col_id_phone') }}</th>
-                        <th class="px-4 py-3">{{ __('admin.group_review.col_amount') }}</th>
-                        <th class="px-4 py-3">{{ __('admin.group_review.col_kyc') }}</th>
-                        <th class="px-4 py-3">{{ __('admin.group_review.col_crb') }}</th>
-                        <th class="px-4 py-3">{{ __('admin.group_review.col_exposure') }}</th>
-                        <th class="px-4 py-3">{{ __('admin.group_review.col_review') }}</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    @foreach ($groupReview['members'] as $member)
+        <div class="px-5 py-4 border-b border-gray-100 space-y-4">
+            @php
+                $members = collect($groupReview['members'] ?? []);
+                $statusCounts = [
+                    'pending' => $members->where('underwriting_status', 'pending')->count(),
+                    'approved' => $members->where('underwriting_status', 'approved')->count(),
+                    'flagged' => $members->where('underwriting_status', 'flagged')->count(),
+                    'rejected' => $members->where('underwriting_status', 'rejected')->count(),
+                    'replacement_requested' => $members->where('underwriting_status', 'replacement_requested')->count(),
+                ];
+                $selectedMemberId = (int) request('m', 0);
+                $selectedMember = $members->first(fn ($row) => (int) ($row['id'] ?? 0) === $selectedMemberId)
+                    ?? $members->first(fn ($row) => ($row['underwriting_status'] ?? 'pending') !== 'approved')
+                    ?? $members->first();
+                $memberUrl = function (int $memberId) use ($record) {
+                    return route('admin.loan-applications.show', [
+                        'loan_application' => $record,
+                        'person' => 'borrower',
+                        'tab' => 'group',
+                        'm' => $memberId,
+                    ]).'#borrower-file';
+                };
+            @endphp
+
+            <div class="flex flex-wrap gap-2 text-xs">
+                <span class="rounded-full bg-amber-50 text-amber-900 ring-1 ring-amber-200 px-2.5 py-1 font-semibold">
+                    {{ __('admin.group_review.underwriting_status.pending') }} {{ $statusCounts['pending'] }}
+                </span>
+                <span class="rounded-full bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200 px-2.5 py-1 font-semibold">
+                    {{ __('admin.group_review.underwriting_status.approved') }} {{ $statusCounts['approved'] }}
+                </span>
+                <span class="rounded-full bg-sky-50 text-sky-900 ring-1 ring-sky-200 px-2.5 py-1 font-semibold">
+                    {{ __('admin.group_review.underwriting_status.flagged') }} {{ $statusCounts['flagged'] }}
+                </span>
+                <span class="rounded-full bg-rose-50 text-rose-900 ring-1 ring-rose-200 px-2.5 py-1 font-semibold">
+                    {{ __('admin.group_review.underwriting_status.rejected') }} {{ $statusCounts['rejected'] }}
+                </span>
+                @if ($statusCounts['replacement_requested'] > 0)
+                    <span class="rounded-full bg-orange-50 text-orange-900 ring-1 ring-orange-200 px-2.5 py-1 font-semibold">
+                        {{ __('admin.group_review.underwriting_status.replacement_requested') }} {{ $statusCounts['replacement_requested'] }}
+                    </span>
+                @endif
+            </div>
+
+            <p class="text-xs text-gray-500">{{ __('admin.group_review.roster_hint') }}</p>
+
+            <div class="overflow-x-auto rounded-xl ring-1 ring-gray-200">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                         <tr>
-                            <td class="px-4 py-3 align-top">
-                                <p class="font-medium">{{ $member['name'] }}</p>
-                                <p class="text-xs text-gray-500 capitalize">{{ $member['role'] }}</p>
-                                <p class="text-xs mt-1 {{ $member['eligible'] ? 'text-emerald-700' : 'text-amber-700' }}">{{ $member['status_label'] }}</p>
-                            </td>
-                            <td class="px-4 py-3 text-xs align-top">
-                                <p>{{ $member['customer_number'] ?? '—' }}</p>
-                                <p class="text-gray-500">{{ $member['phone'] ?? '—' }}</p>
-                                <p class="text-gray-500">{{ $member['national_id'] ?? '—' }}</p>
-                            </td>
-                            <td class="px-4 py-3 align-top">{{ format_money($member['requested_amount']) }}</td>
-                            <td class="px-4 py-3 align-top">
-                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium {{ $member['kyc_complete'] ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
-                                    {{ $member['kyc_complete'] ? __('admin.group_review.kyc_complete') : __('admin.group_review.kyc_incomplete') }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-xs align-top">
-                                <p>{{ $member['crb_score'] ?? '—' }}</p>
-                                <p class="text-gray-500">{{ $member['crb_status'] ?? __('admin.group_review.crb_not_checked') }}</p>
-                            </td>
-                            <td class="px-4 py-3 align-top">{{ format_money($member['existing_exposure']) }}</td>
-                            <td class="px-4 py-3 align-top min-w-[16rem]">
-                                <form method="POST" action="{{ route('admin.loan-applications.review-group-member', [$record, $member['id']]) }}" class="space-y-2">
-                                    @csrf
-                                    <select name="underwriting_status" class="w-full rounded-lg border-gray-200 text-xs">
-                                        @foreach ($groupReview['statuses'] as $status)
-                                            <option value="{{ $status }}" @selected(($member['underwriting_status'] ?? 'pending') === $status)>
-                                                {{ __('admin.group_review.underwriting_status.'.$status) }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <textarea name="underwriting_notes" rows="2" class="w-full rounded-lg border-gray-200 text-xs" placeholder="{{ __('admin.group_review.internal_notes_placeholder') }}">{{ $member['underwriting_notes'] ?? '' }}</textarea>
-                                    <textarea name="leader_feedback" rows="2" class="w-full rounded-lg border-gray-200 text-xs" placeholder="{{ __('admin.group_review.leader_notes_placeholder') }}">{{ $member['leader_feedback'] ?? '' }}</textarea>
-                                    <button type="submit" class="text-xs font-semibold text-gray-900 underline">{{ __('admin.group_review.save_member_review') }}</button>
-                                </form>
-                                @if ($member['can_request_replacement'] ?? false)
-                                    <form method="POST" action="{{ route('admin.loan-applications.request-group-member-replacement', [$record, $member['id']]) }}" class="mt-2 space-y-2">
-                                        @csrf
-                                        <textarea name="reason" rows="2" class="w-full rounded-lg border-amber-200 text-xs" placeholder="{{ __('admin.group_review.replacement_reason_placeholder') }}"></textarea>
-                                        <button type="submit" class="inline-flex text-xs font-semibold text-amber-800 underline" onclick="return confirm(@js(__('admin.group_review.replacement_confirm')))">
-                                            {{ __('admin.group_review.request_replacement') }}
-                                        </button>
-                                    </form>
-                                @endif
-                            </td>
+                            <th class="px-3 py-2">{{ __('admin.group_review.col_member') }}</th>
+                            <th class="px-3 py-2">{{ __('admin.group_review.col_kyc') }}</th>
+                            <th class="px-3 py-2">{{ __('admin.group_review.col_crb') }}</th>
+                            <th class="px-3 py-2">{{ __('admin.group_review.col_status') }}</th>
+                            <th class="px-3 py-2"></th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($members as $member)
+                            @php $isSelected = $selectedMember && (int) $selectedMember['id'] === (int) $member['id']; @endphp
+                            <tr @class(['bg-brand-muted/30' => $isSelected])>
+                                <td class="px-3 py-2.5">
+                                    <p class="font-medium text-gray-900">{{ $member['name'] }}</p>
+                                    <p class="text-[11px] text-gray-500 capitalize">{{ $member['role'] }} · {{ format_money($member['requested_amount']) }}</p>
+                                </td>
+                                <td class="px-3 py-2.5">
+                                    <span class="inline-flex px-2 py-0.5 rounded text-[11px] font-medium {{ $member['kyc_complete'] ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                        {{ $member['kyc_complete'] ? __('admin.group_review.kyc_complete') : __('admin.group_review.kyc_incomplete') }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2.5 text-xs">
+                                    <p>{{ $member['crb_score'] ?? '—' }}</p>
+                                    <p class="text-gray-500">{{ $member['crb_status'] ?? __('admin.group_review.crb_not_checked') }}</p>
+                                </td>
+                                <td class="px-3 py-2.5 text-xs font-semibold capitalize">
+                                    {{ __('admin.group_review.underwriting_status.'.($member['underwriting_status'] ?? 'pending')) }}
+                                </td>
+                                <td class="px-3 py-2.5 text-right">
+                                    <a href="{{ $memberUrl((int) $member['id']) }}"
+                                       class="text-xs font-semibold text-brand hover:underline">
+                                        {{ $isSelected ? __('admin.group_review.reviewing') : __('admin.group_review.open_member') }}
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            @if ($selectedMember)
+                <div class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 sm:p-5 space-y-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('admin.group_review.selected_member') }}</p>
+                            <h4 class="text-base font-bold text-gray-900 mt-0.5">{{ $selectedMember['name'] }}</h4>
+                            <p class="text-xs text-gray-500 mt-0.5 capitalize">
+                                {{ $selectedMember['role'] }}
+                                · {{ $selectedMember['customer_number'] ?? '—' }}
+                                · {{ $selectedMember['phone'] ?? '—' }}
+                            </p>
+                        </div>
+                        <div class="text-right text-xs text-gray-600 space-y-1">
+                            <p>{{ __('admin.group_review.col_amount') }}: <span class="font-semibold text-gray-900">{{ format_money($selectedMember['requested_amount']) }}</span></p>
+                            <p>{{ __('admin.group_review.col_exposure') }}: <span class="font-semibold text-gray-900">{{ format_money($selectedMember['existing_exposure']) }}</span></p>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ route('admin.loan-applications.review-group-member', [$record, $selectedMember['id']]) }}" class="grid sm:grid-cols-2 gap-3">
+                        @csrf
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">{{ __('admin.group_review.col_review') }}</label>
+                            <select name="underwriting_status" class="w-full rounded-xl border-gray-200 text-sm">
+                                @foreach ($groupReview['statuses'] as $status)
+                                    <option value="{{ $status }}" @selected(($selectedMember['underwriting_status'] ?? 'pending') === $status)>
+                                        {{ __('admin.group_review.underwriting_status.'.$status) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">{{ __('admin.group_review.internal_notes_placeholder') }}</label>
+                            <textarea name="underwriting_notes" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('admin.group_review.internal_notes_placeholder') }}">{{ $selectedMember['underwriting_notes'] ?? '' }}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">{{ __('admin.group_review.leader_notes_placeholder') }}</label>
+                            <textarea name="leader_feedback" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('admin.group_review.leader_notes_placeholder') }}">{{ $selectedMember['leader_feedback'] ?? '' }}</textarea>
+                        </div>
+                        <div class="sm:col-span-2 flex flex-wrap gap-2">
+                            <button type="submit" class="inline-flex bg-brand text-white font-semibold px-4 py-2 rounded-xl text-sm hover:bg-brand-light">
+                                {{ __('admin.group_review.save_member_review') }}
+                            </button>
+                        </div>
+                    </form>
+
+                    @if ($selectedMember['can_request_replacement'] ?? false)
+                        <form method="POST" action="{{ route('admin.loan-applications.request-group-member-replacement', [$record, $selectedMember['id']]) }}" class="space-y-2 border-t border-gray-100 pt-4">
+                            @csrf
+                            <textarea name="reason" rows="2" class="w-full rounded-xl border-amber-200 text-sm" placeholder="{{ __('admin.group_review.replacement_reason_placeholder') }}"></textarea>
+                            <button type="submit" class="inline-flex text-sm font-semibold text-amber-800 underline" onclick="return confirm(@js(__('admin.group_review.replacement_confirm')))">
+                                {{ __('admin.group_review.request_replacement') }}
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            @endif
         </div>
+
         <div class="px-5 py-4 border-t border-gray-100">
             <p class="text-xs text-gray-500">{{ __('admin.group_review.automated_only_hint') }}</p>
         </div>

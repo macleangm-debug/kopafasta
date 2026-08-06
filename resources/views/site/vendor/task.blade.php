@@ -238,17 +238,24 @@
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">Insurance type</label>
                                 <select name="insurance_type" class="w-full rounded-lg border-gray-300 text-sm" required>
+                                    <option value="" disabled selected>Select cover type</option>
                                     <option value="comprehensive">Comprehensive</option>
-                                    <option value="third_party">Third-party</option>
+                                    <option value="third_party">Third Party</option>
                                 </select>
+                                <p class="mt-1 text-[11px] text-gray-500">Must match the actual policy — mismatch can reject the loan for falsified documentation.</p>
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">Policy number</label>
                                 <input name="insurance_policy_number" class="w-full rounded-lg border-gray-300 text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">Expiry date</label>
-                                <input name="insurance_expires_at" type="date" required class="w-full rounded-lg border-gray-300 text-sm">
+                                <x-site.date-input
+                                    name="insurance_expires_at"
+                                    label="Expiry / cover deadline"
+                                    :required="true"
+                                    :min="now()->format('Y-m-d')"
+                                    :max="now()->addYears(15)->format('Y-m-d')"
+                                />
                             </div>
                         @endif
                         @if (str_contains($task->task_type, 'gps'))

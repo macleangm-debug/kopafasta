@@ -205,21 +205,6 @@
                                 {{ __('borrower.collateral_secure.insure_asset') }}
                             </button>
                         </form>
-                        <div class="flex flex-wrap gap-2">
-                            <a href="{{ $secure['owner_assets_url'] }}"
-                               class="inline-flex font-bold px-5 py-2.5 rounded-xl text-sm bg-white ring-1 ring-gray-200 text-gray-900 hover:bg-gray-50">
-                                {{ __('borrower.collateral_secure.update_insurance') }}
-                            </a>
-                            @if ($selected)
-                                <form method="POST" action="{{ route('site.borrower.collateral-secure.link', $application) }}">
-                                    @csrf
-                                    <input type="hidden" name="customer_asset_id" value="{{ $selected['id'] }}">
-                                    <button type="submit" class="inline-flex font-bold px-5 py-2.5 rounded-xl text-sm bg-brand text-white hover:bg-brand-light">
-                                        {{ __('borrower.collateral_secure.check_again') }}
-                                    </button>
-                                </form>
-                            @endif
-                        </div>
                     </div>
                 @endif
             @elseif ($status === 'awaiting_fee')

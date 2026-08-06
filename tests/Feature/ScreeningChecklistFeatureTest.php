@@ -84,7 +84,7 @@ class ScreeningChecklistFeatureTest extends TestCase
 
         $this->assertStringContainsString('Verification checklist', $html);
         $this->assertStringContainsString('Compare NIDA number to date of birth', $html);
-        $this->assertStringContainsString('Map customer name to CRB report', $html);
+        $this->assertStringContainsString('Map name to CRB report', $html);
         $this->assertStringContainsString('Check with Local Government Officer', $html);
         $this->assertStringContainsString('Check with guarantor', $html);
         $this->assertStringContainsString('Check insurance cover and expiry deadline', $html);
@@ -99,6 +99,7 @@ class ScreeningChecklistFeatureTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
                 'items' => [
                     'identity' => ['nida_vs_dob' => '1'],
                     'contacts' => ['call_guarantor' => '1'],
@@ -107,13 +108,15 @@ class ScreeningChecklistFeatureTest extends TestCase
             ->assertRedirect();
 
         $app->refresh();
-        $items = data_get($app->screening_payload, 'screening_checklist.items', []);
+        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items')
+            ?? data_get($app->screening_payload, 'screening_checklist.items', []);
         $this->assertTrue((bool) ($items['identity.nida_vs_dob']['checked'] ?? false));
         $this->assertTrue((bool) ($items['contacts.call_guarantor']['checked'] ?? false));
         $this->assertSame($admin->id, (int) ($items['identity.nida_vs_dob']['by'] ?? 0));
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
                 'items' => [
                     'identity' => ['nida_vs_dob' => '1'],
                 ],
@@ -121,7 +124,8 @@ class ScreeningChecklistFeatureTest extends TestCase
             ->assertRedirect();
 
         $app->refresh();
-        $items = data_get($app->screening_payload, 'screening_checklist.items', []);
+        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items')
+            ?? data_get($app->screening_payload, 'screening_checklist.items', []);
         $this->assertTrue((bool) ($items['identity.nida_vs_dob']['checked'] ?? false));
         $this->assertArrayNotHasKey('contacts.call_guarantor', $items);
     }
@@ -171,5 +175,31 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertFalse($vm['can_edit']);
         $this->assertNotEmpty($vm['groups']);
         $this->assertGreaterThan(0, $vm['total']);
+    }
+
+    public function test_guarantor_checklist_is_stored_separately(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'guarantor',
+                'g' => 42,
+                'items' => [
+                    'identity' => ['nida_vs_dob' => '1'],
+                    'guarantor_wrap' => ['capacity_confirmed' => '1'],
+                ],
+            ])
+            ->assertRedirect();
+
+        $app->refresh();
+        $gItems = data_get($app->screening_payload, 'screening_checklist.by_subject.guarantor:42.items', []);
+        $this->assertTrue((bool) ($gItems['identity.nida_vs_dob']['checked'] ?? false));
+        $this->assertTrue((bool) ($gItems['guarantor_wrap.capacity_confirmed']['checked'] ?? false));
+        $this->assertArrayNotHasKey('contacts.call_guarantor', $gItems);
+
+        $borrowerVm = app(ScreeningChecklistService::class)->viewModel($app, $admin, 'borrower');
+        $this->assertSame(0, $borrowerVm['checked']);
     }
 }

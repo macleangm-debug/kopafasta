@@ -1,27 +1,29 @@
 @php
-    $checklist = $review['screening_checklist'] ?? [
-        'groups' => [],
-        'checked' => 0,
-        'total' => 0,
-        'percent' => 0,
-        'can_edit' => false,
-    ];
+    $checklistPerson = $checklistPerson ?? 'borrower';
+    $checklistGuarantorLinkId = $checklistGuarantorLinkId ?? null;
+    $checklist = app(\App\Services\ScreeningChecklistService::class)->viewModel(
+        $record,
+        auth()->user(),
+        $checklistPerson,
+        $checklistGuarantorLinkId ?: null,
+    );
     $canEdit = (bool) ($checklist['can_edit'] ?? false);
     $percent = (int) ($checklist['percent'] ?? 0);
     $checked = (int) ($checklist['checked'] ?? 0);
     $total = (int) ($checklist['total'] ?? 0);
+    $subjectLabel = $checklistPerson === 'guarantor' ? 'Guarantor' : 'Borrower';
 @endphp
 
 <div id="tab-screening-checklist" class="space-y-5">
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-            <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Screening desk</p>
+            <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Screening desk · {{ $subjectLabel }}</p>
             <h4 class="text-base font-bold text-gray-900 mt-0.5">Verification checklist</h4>
             <p class="text-xs text-gray-500 mt-0.5">
                 @if ($canEdit)
-                    Tick each check you complete. This unifies screening work — committee can only review progress.
+                    Tick checks for this {{ strtolower($subjectLabel) }} file. Committee can only review progress.
                 @else
-                    Read-only view of what the screening team has completed.
+                    Read-only view of what the screening team has completed for this {{ strtolower($subjectLabel) }}.
                 @endif
             </p>
         </div>
@@ -39,6 +41,10 @@
     @if ($canEdit)
         <form method="POST" action="{{ route('admin.loan-applications.screening-checklist', $record) }}" class="space-y-5">
             @csrf
+            <input type="hidden" name="person" value="{{ $checklistPerson }}">
+            @if ($checklistPerson === 'guarantor' && $checklistGuarantorLinkId)
+                <input type="hidden" name="g" value="{{ $checklistGuarantorLinkId }}">
+            @endif
             @foreach ($checklist['groups'] ?? [] as $group)
                 <section class="rounded-2xl ring-1 ring-gray-100 bg-white overflow-hidden">
                     <div class="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/40 to-white">
@@ -52,13 +58,13 @@
                             <li class="px-4 py-3 flex items-start gap-3">
                                 <input
                                     type="checkbox"
-                                    id="checklist-{{ str_replace('.', '-', $item['key']) }}"
+                                    id="checklist-{{ str_replace(['.', ':'], '-', $item['key']) }}"
                                     name="items[{{ $itemGroup }}][{{ $itemKey }}]"
                                     value="1"
                                     @checked($item['checked'])
                                     class="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
                                 >
-                                <label for="checklist-{{ str_replace('.', '-', $item['key']) }}" class="flex-1 cursor-pointer">
+                                <label for="checklist-{{ str_replace(['.', ':'], '-', $item['key']) }}" class="flex-1 cursor-pointer">
                                     <span class="text-sm font-medium text-gray-900">{{ $item['label'] }}</span>
                                     @if ($item['checked'] && (! empty($item['by_name']) || ! empty($item['at'])))
                                         <span class="block text-[11px] text-gray-500 mt-0.5">
@@ -99,11 +105,7 @@
                                     'bg-emerald-50 text-emerald-800 ring-emerald-200' => $item['checked'],
                                     'bg-gray-50 text-gray-400 ring-gray-200' => ! $item['checked'],
                                 ])>
-                                    @if ($item['checked'])
-                                        ✓
-                                    @else
-                                        —
-                                    @endif
+                                    {{ $item['checked'] ? '✓' : '—' }}
                                 </span>
                                 <div class="flex-1">
                                     <p @class([

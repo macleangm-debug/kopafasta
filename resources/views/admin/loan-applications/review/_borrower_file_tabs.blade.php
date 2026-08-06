@@ -38,6 +38,7 @@
     $guarantorTabs = [
         ['affordability', 'Affordability'],
         ['crb', 'CRB'],
+        ['checklist', 'Checklist'],
         ['personal', 'Personal'],
         ['face', 'Face'],
         ['residence', 'Residence'],
@@ -157,9 +158,18 @@
                         'bg-amber-100 text-amber-900' => $defaultTab !== $key,
                     ])>{{ $openDocRequestCount }}</span>
                 @endif
-                @if ($person === 'borrower' && $key === 'checklist')
-                    @php $cl = $review['screening_checklist'] ?? null; @endphp
-                    @if ($cl && ($cl['total'] ?? 0) > 0)
+                @if ($key === 'checklist')
+                    @php
+                        $clPerson = $person;
+                        $clG = $person === 'guarantor' ? (int) ($selectedGuarantor['link_id'] ?? 0) : null;
+                        $cl = app(\App\Services\ScreeningChecklistService::class)->viewModel(
+                            $record,
+                            auth()->user(),
+                            $clPerson,
+                            $clG ?: null,
+                        );
+                    @endphp
+                    @if (($cl['total'] ?? 0) > 0)
                         <span @class([
                             'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
                             'bg-white/20 text-white' => $defaultTab === $key,
@@ -196,8 +206,12 @@
             @endif
         @elseif ($defaultTab === 'crb')
             @include('admin.loan-applications.review._subject_crb', ['review' => $subjectReview])
-        @elseif ($defaultTab === 'checklist' && $person === 'borrower')
-            @include('admin.loan-applications.review._screening_checklist', ['review' => $review])
+        @elseif ($defaultTab === 'checklist')
+            @include('admin.loan-applications.review._screening_checklist', [
+                'review' => $review,
+                'checklistPerson' => $person,
+                'checklistGuarantorLinkId' => $person === 'guarantor' ? (int) ($selectedGuarantor['link_id'] ?? 0) : null,
+            ])
         @elseif ($defaultTab === 'personal')
             <div class="space-y-5">
                 @include('admin.loan-applications.review._profile_personal', ['review' => $subjectReview])

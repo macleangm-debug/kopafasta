@@ -120,7 +120,12 @@
                     <p class="text-2xl font-bold mt-1">Pending</p>
                     <p class="text-sm text-white/80 mt-3">No screening recommendation submitted yet.</p>
                 @endif
-                @php $cl = $review['screening_checklist'] ?? null; @endphp
+                @php
+                    $cl = $review['screening_checklist'] ?? null;
+                    if ((! $cl || ($cl['total'] ?? 0) < 1) && isset($record)) {
+                        $cl = app(\App\Services\ScreeningChecklistService::class)->viewModel($record, auth()->user(), 'borrower');
+                    }
+                @endphp
                 @if ($cl && ($cl['total'] ?? 0) > 0)
                     <p class="mt-4 text-xs text-white/85">
                         Checklist {{ (int) ($cl['checked'] ?? 0) }}/{{ (int) $cl['total'] }}

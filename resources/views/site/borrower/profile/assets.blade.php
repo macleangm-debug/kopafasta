@@ -106,9 +106,11 @@
                                 <div class="mb-3">
                                     <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.collateral_fields.insurance_type') }} <span class="text-red-500">*</span></label>
                                     <select name="details[insurance_type]" required class="kf-field">
-                                        <option value="comprehensive" @selected(old('details.insurance_type', 'comprehensive') === 'comprehensive')>{{ __('borrower.profile.insurance_comprehensive') }}</option>
+                                        <option value="" @selected(! old('details.insurance_type')) disabled>{{ __('borrower.profile.insurance_type_placeholder') }}</option>
+                                        <option value="comprehensive" @selected(old('details.insurance_type') === 'comprehensive')>{{ __('borrower.profile.insurance_comprehensive') }}</option>
                                         <option value="third_party" @selected(old('details.insurance_type') === 'third_party')>{{ __('borrower.profile.insurance_third_party') }}</option>
                                     </select>
+                                    <p class="mt-1 text-xs text-gray-500">{{ __('borrower.profile.insurance_type_help') }}</p>
                                 </div>
                                 <div class="grid sm:grid-cols-2 gap-3">
                                     <div>
@@ -400,6 +402,15 @@
                                         </div>
                                     @endforeach
                                     @if ($asset->asset_type === 'vehicle')
+                                        <div class="sm:col-span-2">
+                                            <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_type') }} <span class="text-red-500">*</span></label>
+                                            <select name="details[insurance_type]" required class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                                <option value="" disabled @selected(! old('details.insurance_type', $asset->detail('insurance_type')))>{{ __('borrower.profile.insurance_type_placeholder') }}</option>
+                                                <option value="comprehensive" @selected(old('details.insurance_type', $asset->detail('insurance_type')) === 'comprehensive')>{{ __('borrower.profile.insurance_comprehensive') }}</option>
+                                                <option value="third_party" @selected(old('details.insurance_type', $asset->detail('insurance_type')) === 'third_party')>{{ __('borrower.profile.insurance_third_party') }}</option>
+                                            </select>
+                                            <p class="mt-1 text-[11px] text-gray-500">{{ __('borrower.profile.insurance_type_help') }}</p>
+                                        </div>
                                         <div>
                                             <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
                                             <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number', $asset->detail('insurance_policy_number')) }}" required maxlength="150"
@@ -411,6 +422,8 @@
                                                 :label="__('borrower.profile.collateral_fields.insurance_expires_at')"
                                                 :value="old('details.insurance_expires_at', $asset->detail('insurance_expires_at'))"
                                                 :required="true"
+                                                :min="now()->format('Y-m-d')"
+                                                :max="now()->addYears(15)->format('Y-m-d')"
                                                 input-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-base"
                                             />
                                         </div>

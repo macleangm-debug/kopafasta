@@ -8,16 +8,41 @@ use Illuminate\Support\Facades\DB;
 
 class ScreeningChecklistService
 {
-    /** @return array<string, array{label: string, items: array<string, string>}> */
-    public function catalog(): array
+    /** @return array<string, array{label: string, items: array<string, string>, subjects?: list<string>}> */
+    public function catalog(?string $subjectKind = null): array
     {
         $catalog = config('screening_checklist', []);
+        if (! is_array($catalog)) {
+            return [];
+        }
 
-        return is_array($catalog) ? $catalog : [];
+        if ($subjectKind === null) {
+            return $catalog;
+        }
+
+        $kind = str_starts_with($subjectKind, 'guarantor:') ? 'guarantor' : 'borrower';
+
+        return collect($catalog)
+            ->filter(function (array $group) use ($kind) {
+                $subjects = $group['subjects'] ?? ['borrower', 'guarantor'];
+
+                return in_array($kind, $subjects, true);
+            })
+            ->all();
+    }
+
+    public function subjectKey(string $person = 'borrower', ?int $guarantorLinkId = null): string
+    {
+        if ($person === 'guarantor' && $guarantorLinkId) {
+            return 'guarantor:'.$guarantorLinkId;
+        }
+
+        return 'borrower';
     }
 
     /**
      * @return array{
+     *   subject: string,
      *   groups: list<array{key: string, label: string, items: list<array{key: string, label: string, checked: bool, at: ?string, by: ?int, by_name: ?string}>}>,
      *   checked: int,
      *   total: int,
@@ -27,9 +52,14 @@ class ScreeningChecklistService
      *   updated_by: ?int
      * }
      */
-    public function viewModel(LoanApplication $application, ?User $actor = null): array
-    {
-        $state = $this->state($application);
+    public function viewModel(
+        LoanApplication $application,
+        ?User $actor = null,
+        string $person = 'borrower',
+        ?int $guarantorLinkId = null,
+    ): array {
+        $subject = $this->subjectKey($person, $guarantorLinkId);
+        $state = $this->state($application, $subject);
         $checkedMap = (array) ($state['items'] ?? []);
         $userIds = collect($checkedMap)
             ->pluck('by')
@@ -45,7 +75,7 @@ class ScreeningChecklistService
         $checked = 0;
         $total = 0;
 
-        foreach ($this->catalog() as $groupKey => $group) {
+        foreach ($this->catalog($subject) as $groupKey => $group) {
             $items = [];
             foreach ((array) ($group['items'] ?? []) as $itemKey => $label) {
                 $fullKey = $groupKey.'.'.$itemKey;
@@ -78,6 +108,7 @@ class ScreeningChecklistService
         $actor = $actor ?? auth()->user();
 
         return [
+            'subject' => $subject,
             'groups' => $groups,
             'checked' => $checked,
             'total' => $total,
@@ -89,36 +120,71 @@ class ScreeningChecklistService
     }
 
     /** @return array<string, mixed> */
-    public function state(LoanApplication $application): array
+    public function state(LoanApplication $application, string $subject = 'borrower'): array
     {
         $payload = (array) ($application->screening_payload ?? []);
-        $state = $payload['screening_checklist'] ?? null;
+        $root = $payload['screening_checklist'] ?? null;
+        if (! is_array($root)) {
+            return ['items' => []];
+        }
 
-        return is_array($state) ? $state : ['items' => []];
+        $bySubject = $root['by_subject'] ?? null;
+        if (is_array($bySubject) && isset($bySubject[$subject]) && is_array($bySubject[$subject])) {
+            return $bySubject[$subject];
+        }
+
+        // Legacy single checklist → borrower only
+        if ($subject === 'borrower' && isset($root['items']) && is_array($root['items'])) {
+            return [
+                'items' => $root['items'],
+                'updated_at' => $root['updated_at'] ?? null,
+                'updated_by' => $root['updated_by'] ?? null,
+            ];
+        }
+
+        return ['items' => []];
     }
 
     /**
-     * @param  array<string, mixed>  $checks  nested group=>item=>checked or flat "group.item"=>checked
+     * @param  array<string, mixed>  $checks
      */
-    public function save(LoanApplication $application, User $actor, array $checks): array
-    {
+    public function save(
+        LoanApplication $application,
+        User $actor,
+        array $checks,
+        string $person = 'borrower',
+        ?int $guarantorLinkId = null,
+    ): array {
         if (! $actor->hasPermission('applications.review')) {
             abort(403);
         }
 
-        $checks = $this->flattenChecks($checks);
+        $subject = $this->subjectKey($person, $guarantorLinkId);
+        $checks = $this->flattenChecks($checks, $subject);
 
         $validKeys = [];
-        foreach ($this->catalog() as $groupKey => $group) {
+        foreach ($this->catalog($subject) as $groupKey => $group) {
             foreach (array_keys((array) ($group['items'] ?? [])) as $itemKey) {
                 $validKeys[] = $groupKey.'.'.$itemKey;
             }
         }
 
-        return DB::transaction(function () use ($application, $actor, $checks, $validKeys) {
+        return DB::transaction(function () use ($application, $actor, $checks, $validKeys, $subject, $person, $guarantorLinkId) {
             $application->refresh();
             $payload = (array) ($application->screening_payload ?? []);
-            $existing = (array) (($payload['screening_checklist']['items'] ?? []) ?: []);
+            $root = (array) ($payload['screening_checklist'] ?? []);
+            $bySubject = (array) ($root['by_subject'] ?? []);
+
+            // Preserve legacy borrower items into by_subject on first multi-subject save
+            if (! isset($bySubject['borrower']) && isset($root['items']) && is_array($root['items'])) {
+                $bySubject['borrower'] = [
+                    'items' => $root['items'],
+                    'updated_at' => $root['updated_at'] ?? null,
+                    'updated_by' => $root['updated_by'] ?? null,
+                ];
+            }
+
+            $existing = (array) (($bySubject[$subject]['items'] ?? []) ?: []);
             $items = $existing;
 
             foreach ($validKeys as $key) {
@@ -137,34 +203,38 @@ class ScreeningChecklistService
                         'at' => now()->toIso8601String(),
                         'by' => $actor->id,
                     ];
-                } elseif (! $wantChecked && $wasChecked) {
+                } elseif (! $wantChecked) {
                     unset($items[$key]);
                 } elseif ($wantChecked && $wasChecked) {
                     $items[$key] = $prev + ['checked' => true];
-                } else {
-                    unset($items[$key]);
                 }
             }
 
-            $payload['screening_checklist'] = [
+            $bySubject[$subject] = [
                 'items' => $items,
                 'updated_at' => now()->toIso8601String(),
                 'updated_by' => $actor->id,
             ];
 
+            $payload['screening_checklist'] = [
+                'by_subject' => $bySubject,
+                // Keep borrower mirror for older readers / committee progress
+                'items' => (array) ($bySubject['borrower']['items'] ?? []),
+                'updated_at' => $bySubject['borrower']['updated_at'] ?? now()->toIso8601String(),
+                'updated_by' => $bySubject['borrower']['updated_by'] ?? $actor->id,
+            ];
+
             $application->update(['screening_payload' => $payload]);
 
-            return $this->viewModel($application->fresh(), $actor);
+            return $this->viewModel($application->fresh(), $actor, $person, $guarantorLinkId);
         });
     }
 
     /**
-     * Accept nested form items[group][item]=1 or flat group.item / group_item keys.
-     *
      * @param  array<string, mixed>  $checks
      * @return array<string, mixed>
      */
-    private function flattenChecks(array $checks): array
+    private function flattenChecks(array $checks, string $subject): array
     {
         $flat = [];
 
@@ -182,8 +252,7 @@ class ScreeningChecklistService
                 continue;
             }
 
-            // PHP converts dots in form names to underscores — map back to catalog keys.
-            foreach ($this->catalog() as $groupKey => $group) {
+            foreach ($this->catalog($subject) as $groupKey => $group) {
                 foreach (array_keys((array) ($group['items'] ?? [])) as $itemKey) {
                     $full = $groupKey.'.'.$itemKey;
                     if ($key === $groupKey.'_'.$itemKey || $key === str_replace('.', '_', $full)) {

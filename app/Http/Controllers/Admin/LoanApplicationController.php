@@ -341,19 +341,33 @@ class LoanApplicationController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
+        $person = $request->input('person', 'borrower') === 'guarantor' ? 'guarantor' : 'borrower';
+        $guarantorLinkId = $person === 'guarantor' ? (int) $request->input('g') : null;
+        if ($person === 'guarantor' && $guarantorLinkId < 1) {
+            return back()->with('error', 'Select a guarantor before saving their checklist.');
+        }
+
         try {
             app(ScreeningChecklistService::class)->save(
                 $loan_application,
                 $request->user(),
                 $request->input('items', []),
+                $person,
+                $guarantorLinkId ?: null,
             );
         } catch (\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return back()
+        return redirect()
+            ->route('admin.loan-applications.show', array_filter([
+                'loan_application' => $loan_application,
+                'tab' => 'checklist',
+                'person' => $person,
+                'g' => $guarantorLinkId ?: null,
+            ]))
             ->with('status', 'Screening checklist saved.')
-            ->withFragment('tab-screening-checklist');
+            ->withFragment('borrower-file');
     }
 
     public function requestGuarantorChange(
@@ -671,7 +685,15 @@ class LoanApplicationController extends ResourceController
             auth()->user(),
         );
 
-        return back()->with('status', 'Group member review saved.')->withFragment('review-group');
+        return redirect()
+            ->route('admin.loan-applications.show', [
+                'loan_application' => $loan_application,
+                'person' => 'borrower',
+                'tab' => 'group',
+                'm' => $loan_group_member->id,
+            ])
+            ->with('status', 'Group member review saved.')
+            ->withFragment('borrower-file');
     }
 
     public function updateGroupLeaderFeedback(
