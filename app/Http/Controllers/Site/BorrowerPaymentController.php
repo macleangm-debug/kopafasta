@@ -171,7 +171,17 @@ class BorrowerPaymentController extends Controller
 
         return redirect()->route('site.borrower.payments.show', $payment)
             ->with('status', $message)
-            ->when($payment->isVerified(), fn ($r) => $r->with(\App\Support\Celebration::SESSION_KEY, ['payment']));
+            ->when($payment->isVerified(), function ($r) {
+                $existing = session(\App\Support\Celebration::SESSION_KEY, []);
+                if (! is_array($existing)) {
+                    $existing = [];
+                }
+
+                return $r->with(
+                    \App\Support\Celebration::SESSION_KEY,
+                    array_values(array_unique(array_merge($existing, ['payment'])))
+                );
+            });
     }
 
     public function showRefund(BorrowerRefund $borrowerRefund): View

@@ -2,6 +2,7 @@
     $current = (int) ($progress['current'] ?? 0);
     $target = max(1, (int) ($progress['target'] ?? 5));
     $pct = min(100, (int) round(($current / $target) * 100));
+    $referralPoints = wallet_balance_as_points($referralWallet->balance ?? 0);
 @endphp
 
 <div class="space-y-4">
@@ -18,9 +19,19 @@
                         </p>
                     </div>
                     <div class="rounded-2xl bg-white/10 ring-1 ring-white/20 px-4 py-3 text-right shrink-0">
-                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.referrals.level') }}</p>
-                        <p class="text-lg font-bold text-white mt-0.5">{{ $level['label'] ?? 'Bronze' }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.referrals.current_wallet') }}</p>
+                        <p class="text-3xl font-black tabular-nums text-brand-gold leading-none mt-1">{{ number_format($referralPoints) }}</p>
+                        <p class="text-[11px] text-white/70 mt-1">{{ __('borrower.referrals.available_withdraw') }}</p>
                     </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3 text-sm">
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-white/10 ring-1 ring-white/15 px-3 py-1 font-semibold">
+                        {{ __('borrower.referrals.level') }}: {{ $level['label'] ?? 'Bronze' }}
+                    </span>
+                    @if ($yourRank)
+                        <span class="text-brand-gold font-bold text-xs">{{ __('borrower.referrals.your_rank', ['rank' => $yourRank]) }}</span>
+                    @endif
                 </div>
 
                 <div>
@@ -49,43 +60,6 @@
                 <p class="text-[11px] text-white/60">{{ __('borrower.referrals.complete_note') }}</p>
             </div>
         </div>
-    </div>
-
-    <div class="grid gap-4 sm:grid-cols-2">
-        <section class="glass-card p-5 ring-1 ring-brand/10 bg-gradient-to-br from-brand-muted/50 to-white">
-            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.current_wallet') }}</p>
-            <p class="mt-2 text-3xl sm:text-4xl font-black text-brand tabular-nums leading-none">
-                {{ number_format(wallet_balance_as_points($referralWallet->balance ?? 0)) }}
-            </p>
-            <p class="text-sm text-gray-600 mt-2">{{ __('borrower.referrals.available_withdraw') }}</p>
-            @if ($yourRank)
-                <p class="mt-3 text-xs font-bold text-brand">{{ __('borrower.referrals.your_rank', ['rank' => $yourRank]) }}</p>
-            @endif
-            <a href="{{ route('site.borrower.profile', ['section' => 'membership']) }}"
-               class="mt-5 inline-flex w-full justify-center font-bold px-4 py-2.5 rounded-xl text-sm bg-brand text-white hover:bg-brand-light">
-                {{ __('borrower.referrals.view_membership') }}
-            </a>
-        </section>
-
-        @if (($level['benefits'] ?? []) !== [])
-            <section class="glass-card p-5 ring-1 ring-brand/10">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('borrower.referrals.level_benefits', ['level' => $level['label'] ?? '']) }}</h2>
-                <ul class="mt-3 space-y-2 text-sm text-gray-700">
-                    @foreach ($level['benefits'] as $benefit)
-                        <li class="flex items-start gap-2">
-                            <span class="mt-0.5 size-5 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center text-[10px] font-bold shrink-0">✓</span>
-                            <span>{{ is_array($benefit) ? ($benefit['label'] ?? '') : $benefit }}</span>
-                        </li>
-                    @endforeach
-                </ul>
-            </section>
-        @else
-            <section class="glass-card p-5 ring-1 ring-brand/10 flex flex-col justify-center">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.progress') }}</p>
-                <p class="mt-2 text-2xl font-black text-brand tabular-nums">{{ $pct }}%</p>
-                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.referrals.progress_count', ['current' => $current, 'target' => $target]) }}</p>
-            </section>
-        @endif
     </div>
 
     @if ($rewardHistory->isNotEmpty())

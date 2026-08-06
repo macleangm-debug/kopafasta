@@ -11,7 +11,12 @@ class Celebration
     /** @param list<string> $reasons */
     public static function flash(array $reasons): void
     {
-        session()->flash(self::SESSION_KEY, array_values(array_unique($reasons)));
+        $existing = session()->get(self::SESSION_KEY, []);
+        if (! is_array($existing)) {
+            $existing = [];
+        }
+
+        session()->flash(self::SESSION_KEY, array_values(array_unique(array_merge($existing, $reasons))));
     }
 
     public static function flashOne(string $reason): void
@@ -21,7 +26,12 @@ class Celebration
 
     public static function with(RedirectResponse $response, string $reason): RedirectResponse
     {
-        return $response->with(self::SESSION_KEY, [$reason]);
+        $existing = session()->get(self::SESSION_KEY, []);
+        if (! is_array($existing)) {
+            $existing = [];
+        }
+
+        return $response->with(self::SESSION_KEY, array_values(array_unique(array_merge($existing, [$reason]))));
     }
 
     /** @return list<string> */

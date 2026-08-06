@@ -297,6 +297,11 @@ class CustomerPaymentService
             : null;
         $remaining = $loan ? (float) ($loan->outstanding_balance ?? 0) : null;
 
+        $streakCopy = $this->onTimeStreakCelebrationCopy($loan?->customer);
+        if ($streakCopy) {
+            return $streakCopy;
+        }
+
         if ($remaining !== null && $remaining <= 0.009) {
             return [
                 'title' => __('borrower.celebration.repayment_cleared_title'),
@@ -316,6 +321,43 @@ class CustomerPaymentService
         return [
             'title' => __('borrower.celebration.repayment_title'),
             'message' => __('borrower.celebration.payment'),
+        ];
+    }
+
+    /** @return array{title: string, message: string}|null */
+    private function onTimeStreakCelebrationCopy(?\App\Models\Customer $customer): ?array
+    {
+        if (! $customer) {
+            return null;
+        }
+
+        $status = app(RepaymentStreakRewardService::class)->status($customer);
+        if (! ($status['enabled'] ?? true)) {
+            return null;
+        }
+
+        $count = (int) ($status['count'] ?? 0);
+        if ($count <= 0) {
+            return null;
+        }
+
+        $next = collect($status['milestones'] ?? [])->first(fn ($m) => ! ($m['reached'] ?? false));
+        if (! $next) {
+            return [
+                'title' => __('borrower.celebration.repayment_on_time_title'),
+                'message' => __('borrower.celebration.repayment_on_time_done', ['count' => $count]),
+            ];
+        }
+
+        $remaining = max(0, (int) $next['count'] - $count);
+
+        return [
+            'title' => __('borrower.celebration.repayment_on_time_title'),
+            'message' => __('borrower.celebration.repayment_on_time', [
+                'count' => $count,
+                'remaining' => $remaining,
+                'points' => number_format((int) ($next['points'] ?? 0)),
+            ]),
         ];
     }
 

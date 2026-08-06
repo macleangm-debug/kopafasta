@@ -1,3 +1,23 @@
+@php
+    $groupedCatalog = collect($catalog)->groupBy(function (array $option) {
+        $type = $option['benefit_type'] ?? '';
+        $fee = $option['fee_type'] ?? null;
+        if ($type === 'rate_discount') {
+            return 'interest';
+        }
+        if (in_array($type, ['percent_discount', 'fixed_discount'], true)) {
+            return 'fees';
+        }
+
+        return 'perks';
+    });
+    $groupLabels = [
+        'fees' => __('borrower.rewards.group_fees'),
+        'interest' => __('borrower.rewards.group_interest'),
+        'perks' => __('borrower.rewards.group_perks'),
+    ];
+@endphp
+
 <div class="space-y-4">
     <div class="glass-card overflow-hidden ring-1 ring-brand/10">
         <div class="relative bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-8 py-6 text-white">
@@ -50,52 +70,60 @@
             <h2 class="text-sm sm:text-base font-bold text-gray-900">{{ __('borrower.rewards.redeem_title') }}</h2>
             <p class="text-xs sm:text-sm text-gray-600 mt-1">{{ __('borrower.rewards.redeem_subtitle') }}</p>
         </div>
-        <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            @foreach ($catalog as $option)
-                @php
-                    $cost = (int) ($option['points'] ?? 0);
-                    $unlocked = $pointsBalance >= $cost;
-                    $shortfall = max(0, $cost - $pointsBalance);
-                    $checkoutReward = in_array($option['benefit_type'] ?? '', ['rate_discount', 'percent_discount'], true)
-                        && in_array($option['fee_type'] ?? null, [null, 'application_fee'], true);
-                @endphp
-                <form method="POST" action="{{ route('site.borrower.engagement.redeem') }}"
-                      class="relative overflow-hidden rounded-2xl ring-1 p-4 flex flex-col h-full transition {{ $unlocked ? 'bg-white ring-brand/20 shadow-sm' : 'bg-gray-50/80 ring-gray-200' }}">
-                    @csrf
-                    <input type="hidden" name="option_key" value="{{ $option['key'] }}">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="font-bold text-gray-900 leading-snug">{{ $option['label'] }}</p>
-                            @if ($option['description'])
-                                <p class="text-xs sm:text-sm text-gray-600 mt-1.5 line-clamp-2">{{ $option['description'] }}</p>
-                            @endif
-                        </div>
-                        <span @class([
-                            'shrink-0 size-10 rounded-xl grid place-items-center text-sm font-black',
-                            'bg-brand text-white' => $unlocked,
-                            'bg-gray-200 text-gray-500' => ! $unlocked,
-                        ]) aria-hidden="true">
-                            {{ $unlocked ? '★' : '○' }}
-                        </span>
+        <div class="p-4 sm:p-5 space-y-6">
+            @foreach (['fees', 'interest', 'perks'] as $groupKey)
+                @continue(! $groupedCatalog->has($groupKey) || $groupedCatalog[$groupKey]->isEmpty())
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold mb-3">{{ $groupLabels[$groupKey] }}</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        @foreach ($groupedCatalog[$groupKey] as $option)
+                            @php
+                                $cost = (int) ($option['points'] ?? 0);
+                                $unlocked = $pointsBalance >= $cost;
+                                $shortfall = max(0, $cost - $pointsBalance);
+                                $checkoutReward = in_array($option['benefit_type'] ?? '', ['rate_discount', 'percent_discount'], true)
+                                    && in_array($option['fee_type'] ?? null, [null, 'application_fee'], true);
+                            @endphp
+                            <form method="POST" action="{{ route('site.borrower.engagement.redeem') }}"
+                                  class="relative overflow-hidden rounded-2xl ring-1 p-4 flex flex-col h-full transition {{ $unlocked ? 'bg-white ring-brand/20 shadow-sm' : 'bg-gray-50/80 ring-gray-200' }}">
+                                @csrf
+                                <input type="hidden" name="option_key" value="{{ $option['key'] }}">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-gray-900 leading-snug">{{ $option['label'] }}</p>
+                                        @if ($option['description'])
+                                            <p class="text-xs sm:text-sm text-gray-600 mt-1.5 line-clamp-2">{{ $option['description'] }}</p>
+                                        @endif
+                                    </div>
+                                    <span @class([
+                                        'shrink-0 size-10 rounded-xl grid place-items-center text-sm font-black',
+                                        'bg-brand text-white' => $unlocked,
+                                        'bg-gray-200 text-gray-500' => ! $unlocked,
+                                    ]) aria-hidden="true">
+                                        {{ $unlocked ? '★' : '○' }}
+                                    </span>
+                                </div>
+                                @if ($checkoutReward)
+                                    <p class="mt-3 text-[10px] uppercase tracking-widest font-bold {{ $unlocked ? 'text-brand' : 'text-gray-400' }}">
+                                        {{ __('borrower.rewards.applies_at_checkout') }}
+                                    </p>
+                                @endif
+                                <div class="mt-auto pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-t border-gray-100">
+                                    <p class="text-xs uppercase tracking-widest text-brand font-bold tabular-nums">{{ __('borrower.rewards.cost', ['points' => number_format($cost)]) }}</p>
+                                    <button type="submit"
+                                            @disabled(! $unlocked)
+                                            class="w-full sm:w-auto shrink-0 text-center text-sm font-bold px-4 py-2.5 rounded-xl {{ $unlocked ? 'bg-brand-gold hover:brightness-95 text-brand' : 'bg-gray-200 text-gray-500 cursor-not-allowed' }}">
+                                        @if ($unlocked)
+                                            {{ __('borrower.rewards.redeem_button') }}
+                                        @else
+                                            {{ __('borrower.rewards.locked_button', ['points' => number_format($shortfall)]) }}
+                                        @endif
+                                    </button>
+                                </div>
+                            </form>
+                        @endforeach
                     </div>
-                    @if ($checkoutReward)
-                        <p class="mt-3 text-[10px] uppercase tracking-widest font-bold {{ $unlocked ? 'text-brand' : 'text-gray-400' }}">
-                            {{ __('borrower.rewards.applies_at_checkout') }}
-                        </p>
-                    @endif
-                    <div class="mt-auto pt-4 flex flex-col xs:flex-row items-stretch sm:items-center justify-between gap-2.5 border-t border-gray-100">
-                        <p class="text-xs uppercase tracking-widest text-brand font-bold tabular-nums">{{ __('borrower.rewards.cost', ['points' => number_format($cost)]) }}</p>
-                        <button type="submit"
-                                @disabled(! $unlocked)
-                                class="w-full sm:w-auto shrink-0 text-center text-sm font-bold px-4 py-2.5 rounded-xl {{ $unlocked ? 'bg-brand-gold hover:brightness-95 text-brand' : 'bg-gray-200 text-gray-500 cursor-not-allowed' }}">
-                            @if ($unlocked)
-                                {{ __('borrower.rewards.redeem_button') }}
-                            @else
-                                {{ __('borrower.rewards.locked_button', ['points' => number_format($shortfall)]) }}
-                            @endif
-                        </button>
-                    </div>
-                </form>
+                </div>
             @endforeach
         </div>
     </section>

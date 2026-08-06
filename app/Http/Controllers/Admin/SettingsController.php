@@ -892,6 +892,7 @@ class SettingsController extends Controller
             'collateral_secure_decision_days'        => ['required', 'integer', 'min:1', 'max:30'],
             'insurance_expiry_buffer_months'         => ['required', 'integer', 'min:0', 'max:24'],
             'insurance_renewal_decision_days'        => ['required', 'integer', 'min:1', 'max:30'],
+            'collateral_secure_grace_days'           => ['required', 'integer', 'min:0', 'max:14'],
             'collateral_insurance_rate_percent'      => ['required', 'numeric', 'min:0', 'max:100'],
             'collateral_insurance_markup_percent'    => ['required', 'numeric', 'min:0', 'max:100'],
         ]);

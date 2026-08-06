@@ -71,6 +71,12 @@ class CollateralSecureService
         return max(1, (int) app(UnderwritingSettingsService::class)->get('insurance_renewal_decision_days', 5));
     }
 
+    /** Extra days after the decision window before the application is closed. */
+    public function graceDays(): int
+    {
+        return max(0, (int) app(UnderwritingSettingsService::class)->get('collateral_secure_grace_days', 3));
+    }
+
     public function assetBackedFeeProduct(): ?LoanProduct
     {
         return LoanProduct::query()
@@ -340,12 +346,50 @@ class CollateralSecureService
             return $state;
         }
 
-        $due = $state['due_at'] ?? $state['guarantor_due_at'] ?? $state['insurance_due_at'] ?? null;
-        if (! $due || now()->lt(\Carbon\Carbon::parse($due))) {
+        $hardExpireAt = $this->hardExpireAt($state);
+        if (! $hardExpireAt || now()->lt($hardExpireAt)) {
             return $state;
         }
 
         return $this->rejectForNoCollateral($application, $state, 'Collateral decision window expired.');
+    }
+
+    /**
+     * Active deadline for the current step (insurance uses insurance_due_at).
+     */
+    public function effectiveDueAt(array $state): ?\Carbon\Carbon
+    {
+        $status = $state['status'] ?? '';
+
+        if ($status === self::STATUS_AWAITING_INSURANCE && ! empty($state['insurance_due_at'])) {
+            return \Carbon\Carbon::parse($state['insurance_due_at']);
+        }
+
+        if ($status === self::STATUS_AWAITING_GUARANTOR && ! empty($state['guarantor_due_at'])) {
+            return \Carbon\Carbon::parse($state['guarantor_due_at']);
+        }
+
+        if (! empty($state['due_at'])) {
+            return \Carbon\Carbon::parse($state['due_at']);
+        }
+
+        if (! empty($state['guarantor_due_at'])) {
+            return \Carbon\Carbon::parse($state['guarantor_due_at']);
+        }
+
+        if (! empty($state['insurance_due_at'])) {
+            return \Carbon\Carbon::parse($state['insurance_due_at']);
+        }
+
+        return null;
+    }
+
+    /** Decision due date plus grace — after this the loan is closed. */
+    public function hardExpireAt(array $state): ?\Carbon\Carbon
+    {
+        $due = $this->effectiveDueAt($state);
+
+        return $due?->copy()->addDays($this->graceDays());
     }
 
     /**
@@ -434,9 +478,14 @@ class CollateralSecureService
         }
 
         $daysLeft = null;
-        if (! empty($state['due_at'])) {
-            $due = \Carbon\Carbon::parse($state['due_at']);
-            $daysLeft = $due->isPast() ? 0 : (int) now()->startOfDay()->diffInDays($due->copy()->startOfDay());
+        $inGrace = false;
+        $due = $this->effectiveDueAt($state);
+        $hardExpire = $this->hardExpireAt($state);
+        if ($hardExpire) {
+            $daysLeft = $hardExpire->isPast()
+                ? 0
+                : (int) now()->startOfDay()->diffInDays($hardExpire->copy()->startOfDay());
+            $inGrace = $due && $due->isPast() && ! $hardExpire->isPast();
         }
 
         $selected = null;
@@ -457,6 +506,8 @@ class CollateralSecureService
             'state' => $state,
             'status' => $state['status'] ?? null,
             'days_left' => $daysLeft,
+            'in_grace' => $inGrace,
+            'grace_days' => $this->graceDays(),
             'fee_quote' => $this->feeQuote($application),
             'add_collateral_url' => route('site.borrower.profile', ['section' => 'assets', 'add' => 1]),
             'owner_assets_url' => route('site.borrower.profile', [
@@ -565,7 +616,10 @@ class CollateralSecureService
 
         if (! ($insurance['ok'] ?? false)) {
             $state['status'] = self::STATUS_AWAITING_INSURANCE;
-            $state['insurance_due_at'] = now()->addDays($this->insuranceRenewalDays())->toIso8601String();
+            $insuranceDue = now()->addDays($this->insuranceRenewalDays())->toIso8601String();
+            $state['insurance_due_at'] = $insuranceDue;
+            // Keep days_left / expiry aligned with the insurance window.
+            $state['due_at'] = $insuranceDue;
             $this->saveState($application, $state);
 
             return $state;

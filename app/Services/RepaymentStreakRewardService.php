@@ -42,6 +42,9 @@ class RepaymentStreakRewardService
         }
 
         $count = $this->engagement->repaymentStreak($customer)['count'] ?? 0;
+        $milestonePointsAwarded = 0;
+        $milestoneCount = 0;
+
         foreach ($this->config()['milestones'] ?? [] as $milestone) {
             $target = (int) ($milestone['count'] ?? 0);
             $points = (int) ($milestone['points'] ?? $milestone['percent'] ?? 0);
@@ -50,7 +53,7 @@ class RepaymentStreakRewardService
                 continue;
             }
 
-            $this->loyalty->earnCustom(
+            $awarded = $this->loyalty->earnCustom(
                 $customer,
                 $points,
                 'repayment_streak_'.$target,
@@ -58,6 +61,34 @@ class RepaymentStreakRewardService
                 'repayment_streak',
                 $target,
             );
+
+            if ($awarded > 0) {
+                $milestonePointsAwarded = $awarded;
+                $milestoneCount = $target;
+            }
+        }
+
+        $this->flashEncouragement($customer->fresh(), $count, $milestoneCount, $milestonePointsAwarded);
+    }
+
+    private function flashEncouragement(Customer $customer, int $count, int $milestoneCount, int $milestonePoints): void
+    {
+        $status = $this->status($customer);
+        $next = collect($status['milestones'] ?? [])->first(fn ($m) => ! ($m['reached'] ?? false));
+
+        session()->flash('celebration_streak', [
+            'count' => $count,
+            'remaining' => $next ? max(0, (int) $next['count'] - $count) : 0,
+            'next_points' => (int) ($next['points'] ?? 0),
+            'next_count' => (int) ($next['count'] ?? 0),
+            'milestone_count' => $milestoneCount,
+            'milestone_points' => $milestonePoints,
+        ]);
+
+        if ($milestonePoints > 0) {
+            \App\Support\Celebration::flashOne('streak_milestone');
+        } else {
+            \App\Support\Celebration::flashOne('repayment_on_time');
         }
     }
 

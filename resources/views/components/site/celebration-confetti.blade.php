@@ -5,10 +5,34 @@
     $pointsEarned = (int) session('celebration_points', 0);
     $remainingSections = session('celebration_remaining', []);
     $remainingSections = is_array($remainingSections) ? array_values($remainingSections) : [];
+    $streakPayload = session('celebration_streak', []);
+    $streakPayload = is_array($streakPayload) ? $streakPayload : [];
     $isPointsProgress = in_array('points_earned', $reasons, true)
         && ! in_array('profile_complete', $reasons, true)
         && $pointsEarned > 0;
+    $isStreakMilestone = in_array('streak_milestone', $reasons, true);
+    $isRepaymentOnTime = in_array('repayment_on_time', $reasons, true);
+    // Streak payload survives even if celebrate reasons were overwritten by payment flash.
+    if ($streakPayload !== [] && ! $isStreakMilestone && ! $isRepaymentOnTime) {
+        if ((int) ($streakPayload['milestone_points'] ?? 0) > 0) {
+            $isStreakMilestone = true;
+        } else {
+            $isRepaymentOnTime = true;
+        }
+    }
     $message = match (true) {
+        $isStreakMilestone => __('borrower.celebration.streak_milestone', [
+            'count' => (int) ($streakPayload['milestone_count'] ?? $streakPayload['count'] ?? 0),
+            'points' => number_format((int) ($streakPayload['milestone_points'] ?? 0)),
+        ]),
+        $isRepaymentOnTime && empty($streakPayload['next_count']) => __('borrower.celebration.repayment_on_time_done', [
+            'count' => (int) ($streakPayload['count'] ?? 0),
+        ]),
+        $isRepaymentOnTime => __('borrower.celebration.repayment_on_time', [
+            'count' => (int) ($streakPayload['count'] ?? 0),
+            'remaining' => (int) ($streakPayload['remaining'] ?? 0),
+            'points' => number_format((int) ($streakPayload['next_points'] ?? 0)),
+        ]),
         in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete'),
         in_array('loan_submitted', $reasons, true) => __('borrower.celebration.loan_submitted'),
         in_array('registration', $reasons, true) => __('borrower.celebration.registration'),
@@ -25,6 +49,8 @@
         default => null,
     };
     $modalTitle = match (true) {
+        $isStreakMilestone => __('borrower.celebration.streak_milestone_title'),
+        $isRepaymentOnTime => __('borrower.celebration.repayment_on_time_title'),
         in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete_title'),
         $isPointsProgress => __('borrower.celebration.points_earned_title', ['points' => number_format($pointsEarned)]),
         in_array('loan_submitted', $reasons, true) => __('borrower.apply.success.submitted_title'),
@@ -36,7 +62,7 @@
         default => __('borrower.celebration.default_title'),
     };
     $statusFlash = session('status');
-    $modalMessage = (is_string($statusFlash) && $statusFlash !== '' && ! $isPointsProgress)
+    $modalMessage = (is_string($statusFlash) && $statusFlash !== '' && ! $isPointsProgress && ! $isRepaymentOnTime && ! $isStreakMilestone)
         ? $statusFlash
         : ($message ?? __('borrower.celebration.payment'));
     if ($isPointsProgress && $remainingSections !== []) {
@@ -44,12 +70,19 @@
             'sections' => implode(', ', array_slice($remainingSections, 0, 3)),
         ]);
     }
+    $forceStreakModal = $isRepaymentOnTime || $isStreakMilestone;
     $useModal = $shouldCelebrate
         && filled($message)
-        && ! in_array('membership', $reasons, true)
-        && ! in_array('payment', $reasons, true);
-    $confettiCount = $isPointsProgress ? 56 : 160;
+        && (
+            $forceStreakModal
+            || (
+                ! in_array('membership', $reasons, true)
+                && ! in_array('payment', $reasons, true)
+            )
+        );
+    $confettiCount = ($isPointsProgress || $isRepaymentOnTime) ? 56 : 160;
     $okLabel = match (true) {
+        $forceStreakModal => __('borrower.celebration.cta_streak'),
         in_array('profile_complete', $reasons, true) => __('borrower.celebration.cta_apply'),
         in_array('reward_redeemed', $reasons, true) => __('borrower.celebration.cta_rewards'),
         $isPointsProgress => __('borrower.celebration.cta_keep_going'),

@@ -212,4 +212,29 @@ class CollateralSecureFeatureTest extends TestCase
         $afterFee = $service->markFeePaid($app->fresh());
         $this->assertSame(CollateralSecureService::STATUS_AWAITING_INSURANCE, $afterFee['status']);
     }
+
+    public function test_expire_waits_for_grace_days_after_due(): void
+    {
+        $admin = $this->staff();
+        [$app, $borrower] = $this->applicationWithGuarantor($admin);
+        $service = app(CollateralSecureService::class);
+
+        $service->request($app, $admin);
+        $payload = $app->fresh()->screening_payload;
+        $payload['collateral_secure']['due_at'] = now()->subDay()->toIso8601String();
+        $app->update(['screening_payload' => $payload]);
+
+        // Still within default 3-day grace — should stay open.
+        $state = $service->expireIfNeeded($app->fresh());
+        $this->assertSame(CollateralSecureService::STATUS_AWAITING_BORROWER, $state['status'] ?? null);
+        $this->assertNotSame('rejected', $app->fresh()->status);
+
+        $payload = $app->fresh()->screening_payload;
+        $payload['collateral_secure']['due_at'] = now()->subDays(4)->toIso8601String();
+        $app->update(['screening_payload' => $payload]);
+
+        $state = $service->expireIfNeeded($app->fresh());
+        $this->assertSame(CollateralSecureService::STATUS_REJECTED, $state['status'] ?? null);
+        $this->assertSame('rejected', $app->fresh()->status);
+    }
 }

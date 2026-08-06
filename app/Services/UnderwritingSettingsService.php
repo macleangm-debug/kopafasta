@@ -112,6 +112,11 @@ class UnderwritingSettingsService
         return max(1, (int) $this->get('insurance_renewal_decision_days', 5));
     }
 
+    public function collateralSecureGraceDays(): int
+    {
+        return max(0, (int) $this->get('collateral_secure_grace_days', 3));
+    }
+
     public function collateralInsuranceRatePercent(): float
     {
         return max(0, (float) $this->get('collateral_insurance_rate_percent', 3.5));

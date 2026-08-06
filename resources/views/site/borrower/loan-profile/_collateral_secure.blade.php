@@ -24,8 +24,16 @@
                 <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why') }}</p>
             </div>
             @if ($open && $daysLeft !== null)
-                <span class="inline-flex text-xs font-bold rounded-full px-3 py-1.5 bg-brand-gold/90 text-brand shadow-sm shrink-0">
-                    {{ __('borrower.collateral_secure.days_left', ['days' => $daysLeft]) }}
+                <span @class([
+                    'inline-flex text-xs font-bold rounded-full px-3 py-1.5 shadow-sm shrink-0',
+                    'bg-amber-100 text-amber-900' => ! empty($secure['in_grace']),
+                    'bg-brand-gold/90 text-brand' => empty($secure['in_grace']),
+                ])>
+                    @if (! empty($secure['in_grace']))
+                        {{ __('borrower.collateral_secure.grace_days_left', ['days' => $daysLeft]) }}
+                    @else
+                        {{ __('borrower.collateral_secure.days_left', ['days' => $daysLeft]) }}
+                    @endif
                 </span>
             @elseif ($status === 'secured')
                 <span class="inline-flex text-xs font-bold rounded-full px-3 py-1.5 bg-emerald-100 text-emerald-900 shrink-0">
@@ -142,29 +150,16 @@
                     </div>
                 @elseif ($isGuarantorSource && ! $isOwner)
                     <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 space-y-3">
-                        <div>
-                            <p class="text-sm font-extrabold text-brand">{{ __('borrower.collateral_secure.insurance_waiting_guarantor') }}</p>
-                            @if (! empty($insurance['expiry']))
-                                <p class="text-xs text-gray-600 mt-1 tabular-nums">
-                                    {{ __('borrower.collateral_secure.insurance_expires') }}: {{ $insurance['expiry'] }}
-                                </p>
-                            @endif
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            @if ($selected)
-                                <form method="POST" action="{{ route('site.borrower.collateral-secure.link', $application) }}">
-                                    @csrf
-                                    <input type="hidden" name="customer_asset_id" value="{{ $selected['id'] }}">
-                                    <button type="submit" class="inline-flex font-extrabold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
-                                        {{ __('borrower.collateral_secure.check_again') }}
-                                    </button>
-                                </form>
-                            @endif
-                            <a href="{{ route('site.borrower.guarantors') }}"
-                               class="inline-flex font-bold px-5 py-2.5 rounded-xl text-sm bg-white ring-1 ring-brand/20 text-brand hover:bg-brand-muted/50">
-                                {{ __('borrower.collateral_secure.view_guarantor_cta') }}
-                            </a>
-                        </div>
+                        <p class="text-sm font-extrabold text-brand">{{ __('borrower.collateral_secure.insurance_waiting_guarantor') }}</p>
+                        @if ($selected)
+                            <form method="POST" action="{{ route('site.borrower.collateral-secure.link', $application) }}">
+                                @csrf
+                                <input type="hidden" name="customer_asset_id" value="{{ $selected['id'] }}">
+                                <button type="submit" class="inline-flex font-extrabold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                                    {{ __('borrower.collateral_secure.check_again') }}
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 @elseif ($isOwner)
                     <div class="space-y-4">
@@ -185,6 +180,7 @@
                             <p class="text-sm font-bold text-gray-800">
                                 {{ __('borrower.collateral_secure.premium_label') }}:
                                 <span class="text-brand text-lg tabular-nums" x-text="new Intl.NumberFormat().format(premium())"></span>
+                                <span class="text-xs font-semibold text-gray-500">({{ rtrim(rtrim(number_format($ratePct, 2), '0'), '.') }}%)</span>
                             </p>
                             <button type="submit" class="inline-flex font-extrabold px-6 py-3 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
                                 {{ __('borrower.collateral_secure.pay_premium') }}
@@ -200,7 +196,7 @@
                                     @csrf
                                     <input type="hidden" name="customer_asset_id" value="{{ $selected['id'] }}">
                                     <button type="submit" class="inline-flex font-bold px-5 py-2.5 rounded-xl text-sm bg-brand text-white hover:bg-brand-light">
-                                        {{ __('borrower.collateral_secure.recheck_insurance') }}
+                                        {{ __('borrower.collateral_secure.check_again') }}
                                     </button>
                                 </form>
                             @endif
