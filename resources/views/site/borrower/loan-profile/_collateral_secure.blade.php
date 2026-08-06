@@ -148,23 +148,7 @@
                     $isOwner = (int) auth()->user()?->customer?->id === (int) ($secure['owner_customer_id'] ?? 0);
                 @endphp
 
-                @if ($purchase && ($purchase['status'] ?? '') === 'payment_pending')
-                    <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 space-y-2">
-                        <p class="text-sm font-extrabold text-amber-950">{{ __('borrower.collateral_secure.insurance_payment_pending') }}</p>
-                        <p class="text-sm font-semibold text-amber-900">
-                            {{ __('borrower.collateral_secure.insurance_purchase_summary', [
-                                'value' => format_money($purchase['insured_value'] ?? 0),
-                                'premium' => format_money($purchase['premium'] ?? 0),
-                            ]) }}
-                        </p>
-                        @if (! empty($purchase['payment_id']))
-                            <a href="{{ route('site.borrower.payments.show', $purchase['payment_id']) }}"
-                               class="inline-flex font-extrabold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
-                                {{ __('borrower.collateral_secure.continue_payment') }}
-                            </a>
-                        @endif
-                    </div>
-                @elseif ($purchase)
+                @if ($purchase && ($purchase['status'] ?? '') !== 'payment_pending')
                     <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 space-y-1">
                         <p class="text-sm font-extrabold text-emerald-950">{{ __('borrower.collateral_secure.insurance_purchase_pending') }}</p>
                         <p class="text-sm font-semibold text-emerald-900">
@@ -199,10 +183,14 @@
                         };
                         $markupPct = (float) ($quoteDefaults['markup_percent'] ?? 0);
                         $effectiveRate = $ratePct * (1 + ($markupPct / 100));
+                        $formValue = (int) ($purchase['insured_value'] ?? 0);
+                        if ($formValue <= 0) {
+                            $formValue = $suggested > 0 ? $suggested : 1000000;
+                        }
                     @endphp
                     <div class="space-y-4"
                          x-data="{
-                             raw: '{{ number_format($suggested > 0 ? $suggested : 1000000) }}',
+                             raw: '{{ number_format($formValue) }}',
                              rate: {{ $effectiveRate }},
                              value() {
                                  const n = Number(String(this.raw || '').replace(/[^\d]/g, ''));

@@ -184,26 +184,16 @@
                             </p>
                             <p class="text-xs text-emerald-800 mt-1">{{ __('borrower.collateral_secure.insure_asset_eta') }}</p>
                         </div>
-                    @elseif ($csPurchase && ($csPurchase['status'] ?? '') === 'payment_pending')
-                        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 space-y-2">
-                            <p class="text-sm font-extrabold text-amber-950">{{ __('borrower.collateral_secure.insurance_payment_pending') }}</p>
-                            <p class="text-sm text-amber-900">
-                                {{ __('borrower.collateral_secure.insurance_purchase_summary', [
-                                    'value' => format_money($csPurchase['insured_value'] ?? 0),
-                                    'premium' => format_money($csPurchase['premium'] ?? 0),
-                                ]) }}
-                            </p>
-                            @if (! empty($csPurchase['payment_id']))
-                                <a href="{{ route('site.borrower.payments.show', $csPurchase['payment_id']) }}"
-                                   class="inline-flex font-extrabold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
-                                    {{ __('borrower.collateral_secure.continue_payment') }}
-                                </a>
-                            @endif
-                        </div>
                     @else
+                        @php
+                            $formValue = (int) ($csPurchase['insured_value'] ?? 0);
+                            if ($formValue <= 0) {
+                                $formValue = $csSuggested > 0 ? $csSuggested : 1000000;
+                            }
+                        @endphp
                         <div class="space-y-4"
                              x-data="{
-                                 raw: '{{ number_format($csSuggested > 0 ? $csSuggested : 1000000) }}',
+                                 raw: '{{ number_format($formValue) }}',
                                  rate: {{ $effectiveRate }},
                                  value() {
                                      const n = Number(String(this.raw || '').replace(/[^\d]/g, ''));
