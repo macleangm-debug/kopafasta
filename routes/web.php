@@ -371,7 +371,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/vendor-portal', fn () => redirect()->route('site.partner.dashboard'));
             Route::get('/partner-portal', fn () => redirect()->route('site.partner.dashboard'));
 
-            Route::prefix('partner/supplier')->name('partner.supplier.')->group(function () {
+            Route::prefix('partner/supplier')->name('partner.supplier.')->middleware('supplier.portal')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
                 Route::get('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'assets'])->name('assets');
                 Route::get('/assets/create', [\App\Http\Controllers\Site\SupplierController::class, 'createAsset'])->name('assets.create');
@@ -430,7 +430,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         });
         Route::redirect('/partner/affiliate-portal', '/partner/affiliate');
 
-        Route::prefix('supplier')->name('supplier.')->middleware('partner.pin')->group(function () {
+        Route::prefix('supplier')->name('supplier.')->middleware(['partner.pin', 'supplier.portal'])->group(function () {
             Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
             Route::get('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'assets'])->name('assets');
             Route::get('/assets/create', [\App\Http\Controllers\Site\SupplierController::class, 'createAsset'])->name('assets.create');

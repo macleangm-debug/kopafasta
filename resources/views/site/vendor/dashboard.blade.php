@@ -1,13 +1,16 @@
-<x-site.vendor-layout title="Partner dashboard" active="dashboard">
+<x-site.vendor-layout :title="__('site.partner_portal.dashboard_title')" active="dashboard">
     @php
         $catLabels = [
-            'gps_installer'      => 'GPS Installer',
-            'insurance'          => 'Insurance Provider',
-            'valuer'             => 'Valuer',
-            'towing'             => 'Towing',
-            'yard'               => 'Yard',
-            'auctioneer'         => 'Auctioneer',
-            'affiliate'          => 'Affiliate Partner',
+            'gps_installer' => __('site.partner_portal.category_gps'),
+            'insurance' => __('site.partner_portal.category_insurance'),
+            'valuer' => __('site.partner_portal.category_valuer'),
+            'towing' => __('site.partner_portal.category_towing'),
+            'yard' => __('site.partner_portal.category_yard'),
+            'auctioneer' => __('site.partner_portal.category_auctioneer'),
+            'debt_collector' => __('site.partner_portal.category_debt_collector'),
+            'call_center' => __('site.partner_portal.category_call_center'),
+            'legal_partner' => __('site.partner_portal.category_legal'),
+            'affiliate' => __('site.partner_portal.category_affiliate'),
         ];
         $isValuer = ($vendor->category ?? null) === 'valuer' || $vendor->isValuer();
         $isInsurance = $vendor->isInsurance();
@@ -19,15 +22,32 @@
             $isInsurance => __('site.partner_portal.cta_cover_jobs'),
             $isValuer => __('site.partner_portal.cta_valuation_jobs'),
             $isGps => __('site.partner_portal.cta_gps_jobs'),
-            $isRecoveryFocused => 'Open recovery cases',
-            default => 'View tasks',
+            $isRecoveryFocused => __('site.partner_portal.cta_recovery'),
+            default => __('site.partner_portal.cta_tasks'),
         };
         $heroBlurb = match (true) {
             $isInsurance => __('site.partner_portal.hero_insurance'),
-            $isValuer => 'Accept inspection jobs, submit valuation evidence, and track payments from one place.',
+            $isValuer => __('site.partner_portal.hero_valuer'),
             $isGps => __('site.partner_portal.hero_gps'),
-            default => null,
+            $isRecoveryFocused => __('site.partner_portal.hero_recovery'),
+            default => __('site.partner_portal.hero_default'),
         };
+        $activeStatCards = [];
+        if ((int) ($stats['assigned'] ?? 0) > 0) {
+            $activeStatCards[] = [__('site.partner_portal.stat_assigned'), $stats['assigned'], 'text-amber-700', 'bg-amber-50 ring-amber-100'];
+        }
+        if ((int) ($stats['in_progress'] ?? 0) > 0) {
+            $activeStatCards[] = [__('site.partner_portal.stat_in_progress'), $stats['in_progress'], 'text-brand', 'bg-brand-muted/50 ring-brand/10'];
+        }
+        if ((int) ($stats['completed_mo'] ?? 0) > 0) {
+            $activeStatCards[] = [__('site.partner_portal.stat_completed_mo'), $stats['completed_mo'], 'text-emerald-700', 'bg-emerald-50 ring-emerald-100'];
+        }
+        if ((float) ($stats['payments_pend'] ?? 0) > 0) {
+            $activeStatCards[] = [__('site.partner_portal.stat_pending_pay'), $fmt($stats['payments_pend']), 'text-orange-700', 'bg-orange-50 ring-orange-100'];
+        }
+        if ((float) ($stats['earnings'] ?? 0) > 0) {
+            $activeStatCards[] = [__('site.partner_portal.stat_earnings'), $fmt($stats['earnings']), 'text-sky-700', 'bg-sky-50 ring-sky-100'];
+        }
     @endphp
 
     @if ($vendor->category === 'affiliate' && $affiliateStats)
@@ -100,11 +120,9 @@
                 <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">
                     {{ $catLabels[$vendor->category] ?? ucfirst(str_replace('_', ' ', (string) $vendor->category)) }}
                 </p>
-                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">Hi, {{ $vendor->name }}</h1>
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">{{ __('site.partner_portal.hi_name', ['name' => $vendor->name]) }}</h1>
                 <p class="text-sm text-white/70 mt-2 font-mono">{{ $vendor->vendor_number }}</p>
-                @if ($heroBlurb)
-                    <p class="text-sm text-white/80 mt-3 max-w-lg">{{ $heroBlurb }}</p>
-                @endif
+                <p class="text-sm text-white/80 mt-3 max-w-lg">{{ $heroBlurb }}</p>
             </div>
             <a href="{{ route($primaryCtaRoute) }}"
                class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shrink-0 shadow-md">
@@ -114,20 +132,16 @@
         </div>
     </section>
 
-    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        @foreach ([
-            ['Assigned',        $stats['assigned'],            'text-amber-700', 'bg-amber-50 ring-amber-100'],
-            ['In Progress',     $stats['in_progress'],         'text-brand', 'bg-brand-muted/50 ring-brand/10'],
-            ['Done this month', $stats['completed_mo'],        'text-emerald-700', 'bg-emerald-50 ring-emerald-100'],
-            ['Pending Pay',     $fmt($stats['payments_pend']), 'text-orange-700', 'bg-orange-50 ring-orange-100'],
-            ['Total Earnings',  $fmt($stats['earnings']),      'text-sky-700', 'bg-sky-50 ring-sky-100'],
-        ] as [$label, $value, $color, $tile])
-            <div class="rounded-2xl ring-1 {{ $tile }} p-4">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
-                <p class="text-xl font-extrabold {{ $color }} mt-1 tabular-nums">{{ $value }}</p>
-            </div>
-        @endforeach
-    </div>
+    @if (count($activeStatCards) > 0)
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+            @foreach ($activeStatCards as [$label, $value, $color, $tile])
+                <div class="rounded-2xl ring-1 {{ $tile }} p-4">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
+                    <p class="text-xl font-extrabold {{ $color }} mt-1 tabular-nums">{{ $value }}</p>
+                </div>
+            @endforeach
+        </div>
+    @endif
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 glass-card rounded-2xl ring-1 ring-brand/10 p-5">
@@ -135,18 +149,18 @@
                 <h2 class="font-bold">
                     @if ($isInsurance)
                         {{ __('site.partner_portal.upcoming_cover_jobs') }}
-                    @elseif ($isValuer)
-                        Upcoming jobs
+                    @elseif ($isValuer || $isGps)
+                        {{ __('site.partner_portal.upcoming_jobs') }}
                     @else
-                        Upcoming tasks
+                        {{ __('site.partner_portal.upcoming_tasks') }}
                     @endif
                 </h2>
-                <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline font-semibold">All</a>
+                <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline font-semibold">{{ __('site.partner_portal.all') }}</a>
             </div>
             @if ($upcoming->isEmpty())
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-8 text-center">
-                    <p class="text-sm text-gray-600 font-medium">No assigned or in-progress work right now.</p>
-                    <p class="text-xs text-gray-500 mt-1">New jobs will appear here when allocated.</p>
+                    <p class="text-sm text-gray-700 font-semibold">{{ __('site.partner_portal.no_assigned_tasks') }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ __('site.partner_portal.no_assigned_tasks_hint') }}</p>
                 </div>
             @else
                 <div class="divide-y divide-gray-100">
@@ -159,7 +173,7 @@
                         <a href="{{ route('site.partner.task', $t) }}" class="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg">
                             <div class="min-w-0">
                                 <p class="font-semibold text-sm truncate">{{ ucfirst(str_replace('_',' ', $t->task_type)) }} · {{ $t->customer_name ?: '—' }}</p>
-                                <p class="text-xs text-gray-500 truncate">{{ $t->location ?: '—' }} · Due {{ $t->due_at ? $t->due_at->format('d M H:i') : 'flexible' }}</p>
+                                <p class="text-xs text-gray-500 truncate">{{ $t->location ?: '—' }} · {{ __('site.partner_portal.due') }} {{ $t->due_at ? $t->due_at->format('d M H:i') : __('site.partner_portal.flexible') }}</p>
                             </div>
                             <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge }} shrink-0 ml-3">{{ str_replace('_',' ', $t->status) }}</span>
                         </a>
@@ -171,16 +185,16 @@
         <div class="space-y-6">
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <div class="flex items-center justify-between mb-3">
-                    <h2 class="font-bold">Notifications</h2>
-                    <a href="{{ route('site.partner.notifications') }}" class="text-sm text-brand hover:underline font-semibold">All</a>
+                    <h2 class="font-bold">{{ __('site.partner_portal.notifications') }}</h2>
+                    <a href="{{ route('site.partner.notifications') }}" class="text-sm text-brand hover:underline font-semibold">{{ __('site.partner_portal.all') }}</a>
                 </div>
                 @if ($notifications->isEmpty())
-                    <p class="text-sm text-gray-500">No notifications yet.</p>
+                    <p class="text-sm text-gray-500">{{ __('site.partner_portal.no_notifications') }}</p>
                 @else
                     <ul class="space-y-3">
                         @foreach ($notifications as $n)
                             <li class="text-sm">
-                                <p class="text-gray-900">{{ $n->message ?? $n->subject ?? 'Notification' }}</p>
+                                <p class="text-gray-900">{{ $n->message ?? $n->subject ?? __('site.partner_portal.notifications') }}</p>
                                 <p class="text-xs text-gray-500">{{ $n->created_at?->diffForHumans() }}</p>
                             </li>
                         @endforeach
@@ -189,13 +203,13 @@
             </div>
 
             <div class="rounded-2xl bg-gradient-to-br from-brand-muted to-white ring-1 ring-brand/15 p-5">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Account</p>
-                <h3 class="font-bold text-gray-900 mt-1">Profile & documents</h3>
-                <p class="text-xs text-gray-600 mt-1">Keep identity docs and payout details current.</p>
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_portal.account') }}</p>
+                <h3 class="font-bold text-gray-900 mt-1">{{ __('site.partner_portal.profile_documents') }}</h3>
+                <p class="text-xs text-gray-600 mt-1">{{ __('site.partner_portal.profile_documents_hint') }}</p>
                 <div class="mt-4 flex flex-wrap gap-3 text-sm">
-                    <a href="{{ route('site.partner.profile') }}" class="font-semibold text-brand hover:underline">Open profile →</a>
-                    <a href="{{ route('site.partner.documents') }}" class="font-semibold text-brand hover:underline">Documents →</a>
-                    <a href="{{ route('site.partner.settings') }}" class="font-semibold text-brand hover:underline">Settings →</a>
+                    <a href="{{ route('site.partner.profile') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_profile') }}</a>
+                    <a href="{{ route('site.partner.documents') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_documents') }}</a>
+                    <a href="{{ route('site.partner.settings') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_settings') }}</a>
                 </div>
             </div>
         </div>

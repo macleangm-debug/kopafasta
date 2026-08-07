@@ -1,26 +1,26 @@
-<x-site.supplier-layout title="Settlements" active="settlements">
+<x-site.supplier-layout :title="__('site.supplier_portal.nav_settlements')" active="settlements">
     <x-site.borrower-page-header
-        eyebrow="Supplier"
-        title="Settlement status"
-        subtitle="Track pending, approved, and paid partner payouts. Weekly batches are created every Friday."
+        :eyebrow="__('site.supplier_portal.settlements_eyebrow')"
+        :title="__('site.supplier_portal.settlements_title')"
+        :subtitle="__('site.supplier_portal.settlements_subtitle')"
     />
 
     @if ($payments->isEmpty())
         <x-site.empty-state
             icon="💳"
-            title="No settlements yet"
-            description="Settlement records will appear here after partner payments are created."
+            :title="__('site.supplier_portal.settlements_empty_title')"
+            :description="__('site.supplier_portal.settlements_empty_desc')"
         />
     @else
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
             <table class="min-w-full text-sm">
                 <thead class="bg-brand-muted/30 text-left text-xs uppercase tracking-widest text-brand">
                     <tr>
-                        <th class="px-4 py-3 font-semibold">Invoice</th>
-                        <th class="px-4 py-3 font-semibold">Amount</th>
-                        <th class="px-4 py-3 font-semibold">Status</th>
-                        <th class="px-4 py-3 font-semibold">Batch</th>
-                        <th class="px-4 py-3 font-semibold">Paid at</th>
+                        <th class="px-4 py-3 font-semibold">{{ __('site.supplier_portal.settlements_col_invoice') }}</th>
+                        <th class="px-4 py-3 font-semibold">{{ __('site.supplier_portal.settlements_col_amount') }}</th>
+                        <th class="px-4 py-3 font-semibold">{{ __('site.supplier_portal.settlements_col_status') }}</th>
+                        <th class="px-4 py-3 font-semibold">{{ __('site.supplier_portal.settlements_col_batch') }}</th>
+                        <th class="px-4 py-3 font-semibold">{{ __('site.supplier_portal.settlements_col_paid') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">

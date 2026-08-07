@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'membership.active' => EnsureActiveMembership::class,
             'borrower.pin' => \App\Http\Middleware\EnsureBorrowerPin::class,
             'partner.pin' => \App\Http\Middleware\EnsurePartnerPin::class,
+            'supplier.portal' => \App\Http\Middleware\EnsureSupplierPortal::class,
             'role' => EnsureUserRole::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
             'staff' => \App\Http\Middleware\EnsureStaffUser::class,

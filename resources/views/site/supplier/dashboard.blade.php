@@ -1,51 +1,77 @@
-<x-site.supplier-layout title="Supplier dashboard" active="dashboard">
-    <section class="mb-6 rounded-2xl bg-gradient-to-br from-brand to-brand-light text-white ring-1 ring-brand/30 p-5 sm:p-6 relative overflow-hidden">
-        <div class="relative max-w-xl space-y-3">
-            <p class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">{{ $vendor->name }}</p>
-            <p class="text-sm font-mono text-white/75">{{ $vendor->vendor_number ?? $vendor->partner_number ?? 'PTR' }}</p>
-            <p class="text-sm text-white/90">Manage assets, reservations, and settlements from one place.</p>
-            <div class="flex flex-wrap gap-2 pt-1">
+<x-site.supplier-layout :title="__('site.supplier_portal.dashboard_title')" active="dashboard">
+    @php
+        $hasAssignedRequests = (int) ($stats['requests'] ?? 0) > 0;
+        $hasPendingPay = (float) ($stats['pending_pay'] ?? 0) > 0;
+        $statCards = [];
+        if ((int) ($stats['assets'] ?? 0) > 0) {
+            $statCards[] = [__('site.supplier_portal.stat_assets'), $stats['assets'], route('site.supplier.assets'), 'text-brand'];
+        }
+        if ((int) ($stats['reservations'] ?? 0) > 0) {
+            $statCards[] = [__('site.supplier_portal.stat_reservations'), $stats['reservations'], route('site.supplier.reservations'), 'text-brand'];
+        }
+        if ($hasAssignedRequests) {
+            $statCards[] = [__('site.supplier_portal.stat_requests'), $stats['requests'], route('site.supplier.requests'), 'text-amber-600'];
+        }
+        if ($hasPendingPay) {
+            $statCards[] = [__('site.supplier_portal.stat_pending_pay'), 'TZS '.format_number($stats['pending_pay']), route('site.supplier.settlements'), 'text-brand'];
+        }
+    @endphp
+
+    <section class="relative overflow-hidden rounded-3xl bg-brand text-white mb-6 shadow-lg">
+        <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
+        <div class="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.supplier_portal.title') }}</p>
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">{{ $vendor->name }}</h1>
+                <p class="text-sm text-white/70 mt-2 font-mono">{{ $vendor->vendor_number ?? $vendor->partner_number ?? 'PTR' }}</p>
+                <p class="text-sm text-white/80 mt-3 max-w-lg">{{ __('site.supplier_portal.hero_blurb') }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
                 <a href="{{ route('site.supplier.assets.create') }}"
-                   class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
-                    Upload asset
+                   class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shadow-md text-sm">
+                    {{ __('site.supplier_portal.cta_upload') }}
                 </a>
                 <a href="{{ route('site.supplier.reservations') }}"
-                   class="inline-flex bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                    Reservations
+                   class="inline-flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-5 py-3 text-sm">
+                    {{ __('site.supplier_portal.cta_reservations') }}
                 </a>
                 <a href="{{ route('site.supplier.settlements') }}"
-                   class="inline-flex bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                    Settlements
+                   class="inline-flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-5 py-3 text-sm">
+                    {{ __('site.supplier_portal.cta_settlements') }}
                 </a>
             </div>
         </div>
     </section>
 
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <a href="{{ route('site.supplier.assets') }}" class="glass-card rounded-2xl ring-1 ring-brand/15 p-5 hover:ring-brand/30 transition">
-            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Assets</p>
-            <p class="text-3xl font-extrabold text-brand tabular-nums mt-1">{{ $stats['assets'] }}</p>
-        </a>
-        <a href="{{ route('site.supplier.reservations') }}" class="glass-card rounded-2xl ring-1 ring-brand/15 p-5 hover:ring-brand/30 transition">
-            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Active reservations</p>
-            <p class="text-3xl font-extrabold text-brand tabular-nums mt-1">{{ $stats['reservations'] }}</p>
-        </a>
-        <a href="{{ route('site.supplier.requests') }}" class="glass-card rounded-2xl ring-1 ring-brand/15 p-5 hover:ring-brand/30 transition">
-            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Assigned requests</p>
-            <p class="text-3xl font-extrabold text-amber-600 tabular-nums mt-1">{{ $stats['requests'] }}</p>
-        </a>
-        <a href="{{ route('site.supplier.settlements') }}" class="glass-card rounded-2xl ring-1 ring-brand/15 p-5 hover:ring-brand/30 transition">
-            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Pending payouts</p>
-            <p class="text-2xl font-extrabold text-brand tabular-nums mt-1">TZS {{ format_number($stats['pending_pay']) }}</p>
-        </a>
-    </div>
+    @if (count($statCards) > 0)
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            @foreach ($statCards as [$label, $value, $url, $color])
+                <a href="{{ $url }}" class="glass-card rounded-2xl ring-1 ring-brand/15 p-5 hover:ring-brand/30 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
+                    <p class="text-3xl font-extrabold {{ $color }} tabular-nums mt-1">{{ $value }}</p>
+                </a>
+            @endforeach
+        </div>
+    @endif
+
+    @if (! $hasAssignedRequests)
+        <div class="mb-6 rounded-2xl bg-gray-50 ring-1 ring-gray-100 px-4 py-6 text-center">
+            <p class="text-sm text-gray-700 font-semibold">{{ __('site.supplier_portal.no_assigned_tasks') }}</p>
+        </div>
+    @endif
+
+    @if (! $hasPendingPay && count($statCards) > 0)
+        <div class="mb-6 rounded-2xl bg-gray-50 ring-1 ring-gray-100 px-4 py-4 text-center">
+            <p class="text-sm text-gray-600">{{ __('site.supplier_portal.no_pending_payouts') }}</p>
+        </div>
+    @endif
 
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         @foreach ([
-            ['Upload asset', route('site.supplier.assets.create'), 'Add stock to the marketplace'],
-            ['Expected payouts', route('site.supplier.applications'), 'See amounts tied to your assets'],
-            ['Asset requests', route('site.supplier.requests'), 'Admin-assigned borrower requests'],
-            ['Profile', route('site.supplier.profile'), 'Update contact details'],
+            [__('site.supplier_portal.quick_upload'), route('site.supplier.assets.create'), __('site.supplier_portal.quick_upload_hint')],
+            [__('site.supplier_portal.quick_payouts'), route('site.supplier.applications'), __('site.supplier_portal.quick_payouts_hint')],
+            [__('site.supplier_portal.quick_requests'), route('site.supplier.requests'), __('site.supplier_portal.quick_requests_hint')],
+            [__('site.supplier_portal.quick_profile'), route('site.supplier.profile'), __('site.supplier_portal.quick_profile_hint')],
         ] as [$label, $url, $hint])
             <a href="{{ $url }}" class="rounded-2xl bg-white ring-1 ring-gray-200 hover:ring-brand/30 px-4 py-4 transition">
                 <p class="font-semibold text-sm text-gray-900">{{ $label }}</p>

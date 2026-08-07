@@ -21,10 +21,11 @@ class PartnerPremiumShellFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.partner.dashboard'))
             ->assertOk()
-            ->assertSee('Collections portal', false)
-            ->assertSee('Recovery cases', false)
-            ->assertSee('Commission wallet', false)
-            ->assertSee('bg-brand', false)
+            ->assertSee(__('site.partner_portal.shell_debt_collector'), false)
+            ->assertSee(__('site.partner_portal.nav_recovery'), false)
+            ->assertSee(__('site.partner_portal.nav_commission'), false)
+            ->assertSee('rounded-3xl bg-brand', false)
+            ->assertSee(__('site.partner_portal.no_assigned_tasks'), false)
             ->assertSee('bg-[#faf8f5]', false);
     }
 
@@ -37,9 +38,9 @@ class PartnerPremiumShellFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.partner.dashboard'))
             ->assertOk()
-            ->assertSee('Valuer portal', false)
-            ->assertSee('Jobs', false)
-            ->assertDontSee('Recovery cases', false);
+            ->assertSee(__('site.partner_portal.shell_valuer'), false)
+            ->assertSee(__('site.partner_portal.nav_valuation_jobs'), false)
+            ->assertDontSee(__('site.partner_portal.nav_recovery'), false);
     }
 
     public function test_affiliate_and_supplier_use_shared_shell(): void
@@ -56,8 +57,36 @@ class PartnerPremiumShellFeatureTest extends TestCase
         $this->actingAs($supplier)
             ->get(route('site.supplier.dashboard'))
             ->assertOk()
-            ->assertSee('Supplier portal', false)
-            ->assertSee('Assets', false);
+            ->assertSee(__('site.supplier_portal.title'), false)
+            ->assertSee(__('site.supplier_portal.nav_assets'), false)
+            ->assertSee(__('site.supplier_portal.no_assigned_tasks'), false)
+            ->assertSee('rounded-3xl bg-brand', false);
+    }
+
+    public function test_partner_dashboard_swahili_translates_cards(): void
+    {
+        $this->seed(PartnerDemoAccountsSeeder::class);
+        $user = User::query()->where('email', 'valuer@kopafasta.local')->firstOrFail();
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'sw'])
+            ->get(route('site.partner.dashboard'))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.no_assigned_tasks', [], 'sw'), false)
+            ->assertSee(__('site.partner_portal.shell_valuer', [], 'sw'), false)
+            ->assertDontSee('Manage assigned work', false);
+    }
+
+    public function test_empty_payments_hide_table_headers(): void
+    {
+        $this->seed(PartnerDemoAccountsSeeder::class);
+        $user = User::query()->where('email', 'valuer@kopafasta.local')->firstOrFail();
+
+        $this->actingAs($user)
+            ->get(route('site.partner.payments'))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.payments_empty_title'), false)
+            ->assertDontSee('<thead', false);
     }
 
     public function test_footer_includes_service_partners_link(): void

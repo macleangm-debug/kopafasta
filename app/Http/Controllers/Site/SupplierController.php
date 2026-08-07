@@ -31,7 +31,7 @@ class SupplierController extends Controller
             throw new HttpResponseException(
                 redirect()
                     ->to(app(PartnerPortalRedirectService::class)->homeUrl(Auth::user()))
-                    ->with('warning', 'That area is for asset suppliers. Opening your partner portal instead.')
+                    ->with('warning', __('site.partner_portal.redirect_from_supplier'))
             );
         }
 

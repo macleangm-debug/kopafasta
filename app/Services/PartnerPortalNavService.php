@@ -148,17 +148,17 @@ class PartnerPortalNavService
     {
         return match ($vendor?->category) {
             'affiliate' => __('site.affiliate_portal.title'),
-            'debt_collector' => 'Collections portal',
-            'call_center' => 'Call center portal',
-            'legal_partner' => 'Legal partner portal',
-            'auctioneer' => 'Auction portal',
-            'valuer' => 'Valuer portal',
-            'gps_installer' => 'GPS partner portal',
-            'insurance' => 'Insurance portal',
-            'yard' => 'Yard portal',
-            'towing' => 'Towing portal',
-            'supplier' => 'Supplier portal',
-            default => 'Partner portal',
+            'debt_collector' => __('site.partner_portal.shell_debt_collector'),
+            'call_center' => __('site.partner_portal.shell_call_center'),
+            'legal_partner' => __('site.partner_portal.shell_legal'),
+            'auctioneer' => __('site.partner_portal.shell_auctioneer'),
+            'valuer' => __('site.partner_portal.shell_valuer'),
+            'gps_installer' => __('site.partner_portal.shell_gps'),
+            'insurance' => __('site.partner_portal.shell_insurance'),
+            'yard' => __('site.partner_portal.shell_yard'),
+            'towing' => __('site.partner_portal.shell_towing'),
+            'supplier' => __('site.supplier_portal.title'),
+            default => __('site.partner_portal.shell_default'),
         };
     }
 
