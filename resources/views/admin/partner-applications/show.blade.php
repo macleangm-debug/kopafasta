@@ -144,6 +144,18 @@
                             <dt class="text-xs text-gray-500">Partner category</dt>
                             <dd class="font-medium mt-0.5">{{ $applicant['category_label'] }}</dd>
                         </div>
+                        @if (($applicant['category'] ?? null) === 'debt_collector')
+                            <div class="sm:col-span-2">
+                                <dt class="text-xs text-gray-500">Service capabilities</dt>
+                                <dd class="mt-1 flex flex-wrap gap-2">
+                                    @foreach ($applicant['requested_roles'] ?? ['debt_collector'] as $role)
+                                        <span class="inline-flex items-center rounded-full bg-brand-muted px-2.5 py-1 text-xs font-semibold text-brand ring-1 ring-brand/15">
+                                            {{ $role === 'auctioneer' ? 'Auctioning' : 'Repossession' }}
+                                        </span>
+                                    @endforeach
+                                </dd>
+                            </div>
+                        @endif
                         <div>
                             <dt class="text-xs text-gray-500">Primary region</dt>
                             <dd class="mt-0.5">{{ $applicant['region'] ?: '—' }}</dd>

@@ -30,7 +30,15 @@
             <a href="{{ route('site.partners.apply.tracking') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_apply.track_title') }}</a>
         </p>
 
-        <form method="POST" action="{{ route('site.affiliate.apply.post') }}" enctype="multipart/form-data" class="glass-card p-6 sm:p-8 space-y-5">
+        <form method="POST" action="{{ route('site.affiliate.apply.post') }}" enctype="multipart/form-data" class="glass-card p-6 sm:p-8 space-y-5"
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js(__('site.affiliate_apply.confirm_title')),
+                  message: applicant === 'company'
+                      ? @js(__('site.affiliate_apply.confirm_message_company'))
+                      : @js(__('site.affiliate_apply.confirm_message_individual')),
+                  confirmLabel: @js(__('site.affiliate_apply.confirm_button')),
+                  tone: 'confirm',
+              })">
             @csrf
 
             <div class="flex gap-1 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-1 text-sm">
@@ -60,26 +68,24 @@
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.full_name') }}</label>
                     <input name="full_name" value="{{ old('full_name') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 </div>
-                <div class="grid sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.email') }}</label>
-                        <input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                    </div>
-                    <div>
-                        <x-site.phone-input name="phone" :label="__('site.affiliate_apply.phone')" :value="old('phone')" :required="true"
-                            select-class="w-28 shrink-0 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand"
-                            input-class="flex-1 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand" />
-                    </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.email') }}</label>
+                    <input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                </div>
+                <div class="min-w-0">
+                    <x-site.phone-input name="phone" :label="__('site.affiliate_apply.phone')" :value="old('phone')" :required="true"
+                        select-class="w-[6.75rem] shrink-0 rounded-lg border-gray-300 ring-1 ring-gray-200 px-2.5 py-2.5 text-sm focus:border-brand focus:ring-brand"
+                        input-class="flex-1 min-w-0 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand" />
                 </div>
                 <div class="grid sm:grid-cols-2 gap-4">
-                    <div>
+                    <div class="min-w-0">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.business_name') }}</label>
-                        <input name="business_name" value="{{ old('business_name') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                        <input name="business_name" value="{{ old('business_name') }}" class="w-full min-w-0 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
                                :required="applicant === 'company'">
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.region') }}</label>
-                        <select name="region" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        <select name="region" class="w-full min-w-0 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                             <option value="">{{ __('site.affiliate_apply.select_region') }}</option>
                             @foreach ($regions as $region)
                                 <option value="{{ $region }}" @selected(old('region') === $region)>{{ $region }}</option>

@@ -32,7 +32,11 @@ class PartnerPortalNavService
         }
 
         // Collection-focused partners: lead with recovery tools; hide job calendar noise
-        if ($showRecovery && in_array($vendor?->category, ['debt_collector', 'call_center', 'legal_partner', 'auctioneer'], true)) {
+        $recoveryFocused = $showRecovery && (
+            in_array($vendor?->category, ['debt_collector', 'call_center', 'legal_partner', 'auctioneer', 'gps_installer'], true)
+            || array_intersect($vendor?->partnerRoles() ?? [], ['debt_collector', 'call_center', 'legal_partner', 'auctioneer', 'gps_installer']) !== []
+        );
+        if ($recoveryFocused) {
             $priority = ['dashboard', 'recovery', 'recovery_wallet', 'tasks', 'payments', 'notifications', 'profile', 'support'];
             usort($nav, function (array $a, array $b) use ($priority) {
                 $ai = array_search($a['key'], $priority, true);
@@ -42,7 +46,8 @@ class PartnerPortalNavService
 
                 return $ai <=> $bi;
             });
-            if (in_array($vendor?->category, ['debt_collector', 'call_center', 'legal_partner'], true)) {
+            if (in_array($vendor?->category, ['debt_collector', 'call_center', 'legal_partner'], true)
+                || array_intersect($vendor?->partnerRoles() ?? [], ['debt_collector', 'call_center', 'legal_partner']) !== []) {
                 $nav = array_values(array_filter(
                     $nav,
                     fn (array $item) => $item['key'] !== 'calendar'

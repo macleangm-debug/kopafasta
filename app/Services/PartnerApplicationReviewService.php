@@ -61,6 +61,10 @@ class PartnerApplicationReviewService
                 'applicant_category' => $application->applicant_category,
                 'category'           => $category,
                 'category_label'     => $this->enrollment->categoryLabel($category),
+                'requested_roles'    => $this->enrollment->normalizeRequestedRoles(
+                    $category,
+                    is_array($application->requested_roles) ? $application->requested_roles : []
+                ),
                 'region'             => $application->region,
                 'coverage_regions'   => $application->coverage_regions ?: [],
                 'message'            => $application->message,

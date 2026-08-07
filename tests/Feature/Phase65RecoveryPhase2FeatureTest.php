@@ -549,4 +549,55 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $this->assertSame('GPS Install Co', $contact['name']);
         $this->assertSame('255712346130', $contact['phone']);
     }
+
+    public function test_auction_hold_keeps_same_partner_when_collector_also_auctions(): void
+    {
+        Setting::set('recovery.auction_hold_days', 1);
+
+        $fixture = $this->loanFixture(true, 'CONT');
+        $partner = Vendor::create([
+            'vendor_number' => 'PTR-P65-BOTH',
+            'name' => 'Repo And Auction Co',
+            'category' => 'debt_collector',
+            'roles' => ['debt_collector', 'auctioneer'],
+            'status' => 'active',
+            'phone' => '255712346140',
+        ]);
+        $otherAuctioneer = Vendor::create([
+            'vendor_number' => 'PTR-P65-AUC',
+            'name' => 'Other Auction House',
+            'category' => 'auctioneer',
+            'roles' => ['auctioneer'],
+            'status' => 'active',
+            'phone' => '255712346141',
+        ]);
+
+        RecoveryAssignment::create([
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'debt_collector',
+            'status' => RecoveryAssignment::STATUS_COMPLETED,
+            'original_outstanding' => 400_000,
+            'commission_percent' => 10,
+            'commission_earned' => 40_000,
+            'sla_due_at' => now()->subDay(),
+            'assigned_at' => now()->subDays(3),
+            'completed_at' => now()->subDay(),
+            'outcome' => 'repossessed',
+        ]);
+
+        $fixture['arrearCase']->update([
+            'repossessed_at' => now()->subDays(2),
+            'auction_eligible_at' => now()->subHour(),
+            'auction_status' => AuctionHoldService::STATUS_PENDING,
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $assignment = app(AuctionHoldService::class)->assignAuctioneer($fixture['arrearCase']->fresh(), $admin);
+
+        $this->assertNotNull($assignment);
+        $this->assertSame($partner->id, $assignment->partner_id);
+        $this->assertSame('auctioneer', $assignment->partner_type);
+        $this->assertNotSame($otherAuctioneer->id, $assignment->partner_id);
+    }
 }

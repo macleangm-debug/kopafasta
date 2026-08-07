@@ -10,6 +10,10 @@
             'affiliate'          => 'Affiliate Partner',
         ];
         $isValuer = ($vendor->category ?? null) === 'valuer';
+        $isRecoveryFocused = in_array($vendor->category ?? null, ['debt_collector', 'call_center', 'legal_partner', 'auctioneer', 'gps_installer'], true)
+            || array_intersect($vendor->partnerRoles(), ['debt_collector', 'call_center', 'legal_partner', 'auctioneer', 'gps_installer']) !== [];
+        $primaryCtaRoute = $isRecoveryFocused ? 'site.partner.recovery-cases' : 'site.partner.tasks';
+        $primaryCtaLabel = $isValuer ? 'Open jobs' : ($isRecoveryFocused ? 'Open recovery cases' : 'View tasks');
     @endphp
 
     @if ($vendor->category === 'affiliate' && $affiliateStats)
@@ -88,9 +92,9 @@
                     <p class="text-sm text-white/80 mt-3 max-w-lg">Accept inspection jobs, submit valuation evidence, and track payments from one place.</p>
                 @endif
             </div>
-            <a href="{{ route('site.partner.tasks') }}"
+            <a href="{{ route($primaryCtaRoute) }}"
                class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shrink-0 shadow-md">
-                {{ $isValuer ? 'Open jobs' : 'View tasks' }}
+                {{ $primaryCtaLabel }}
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
             </a>
         </div>

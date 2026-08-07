@@ -125,6 +125,8 @@ class PartnerApplicationController extends Controller
             'street' => ['nullable', 'string', 'max:255'],
             'coverage_regions' => ['nullable', 'array'],
             'coverage_regions.*' => ['string', 'max:100'],
+            'requested_roles' => ['nullable', 'array'],
+            'requested_roles.*' => ['string', 'in:debt_collector,auctioneer'],
             'message' => ['nullable', 'string', 'max:2000'],
             'doc_brela' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_tin_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
@@ -166,6 +168,17 @@ class PartnerApplicationController extends Controller
             if (blank($data['tin'] ?? null)) {
                 return back()->withErrors(['tin' => __('site.partner_apply.tin_required')])->withInput();
             }
+        }
+
+        if ($category === 'debt_collector') {
+            $roles = array_values(array_intersect(
+                $data['requested_roles'] ?? [],
+                ['debt_collector', 'auctioneer']
+            ));
+            if ($roles === []) {
+                return back()->withErrors(['requested_roles' => __('site.partner_apply.capabilities_required')])->withInput();
+            }
+            $data['requested_roles'] = $roles;
         }
 
         $application = $enrollment->submitApplication($data, $this->documentUploads($request));

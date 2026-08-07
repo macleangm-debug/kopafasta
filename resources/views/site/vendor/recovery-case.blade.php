@@ -42,7 +42,13 @@
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @if ($isOpen)
-                <form method="POST" action="{{ route('site.partner.recovery-case.remind', $assignment) }}">
+                <form method="POST" action="{{ route('site.partner.recovery-case.remind', $assignment) }}"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('site.partner_portal.confirm.reminder_title')),
+                          message: @js(__('site.partner_portal.confirm.reminder_message')),
+                          confirmLabel: @js(__('site.partner_portal.confirm.reminder_button')),
+                          tone: 'info',
+                      })">
                     @csrf
                     <button type="submit" class="rounded-lg border border-brand/30 bg-white text-brand text-xs font-semibold px-3 py-2 hover:bg-brand/5">
                         Send in-app reminder
@@ -209,7 +215,7 @@
                 />
             @endif
 
-            @if (! empty($talk_track['lines']))
+            @if (! empty($talk_track['lines'] ?? null))
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-3">{{ $talk_track['title'] ?? 'Suggested talk track' }}</h2>
                     <ol class="list-decimal pl-5 space-y-2 text-sm text-gray-700">
@@ -242,11 +248,47 @@
                                 $needsProceeds = ! empty($action['requires_auction_proceeds']);
                                 $isResolve = ! empty($action['completes']);
                                 $isAuctionSold = $actionKey === 'sold' && $needsProceeds;
+                                $needsConfirm = $isResolve
+                                    || in_array($actionKey, ['repossession_complete', 'sold', 'listed', 'removed', 'resolved'], true);
+                                $confirmTitle = match ($actionKey) {
+                                    'repossession_complete' => __('site.partner_portal.confirm.repossession_title'),
+                                    'sold' => __('site.partner_portal.confirm.sold_title'),
+                                    'listed' => __('site.partner_portal.confirm.listed_title'),
+                                    'removed' => __('site.partner_portal.confirm.gps_removed_title'),
+                                    'resolved' => __('site.partner_portal.confirm.resolved_title'),
+                                    default => __('site.partner_portal.confirm.complete_title', ['action' => $action['label']]),
+                                };
+                                $confirmMessage = match ($actionKey) {
+                                    'repossession_complete' => __('site.partner_portal.confirm.repossession_message'),
+                                    'sold' => __('site.partner_portal.confirm.sold_message'),
+                                    'listed' => __('site.partner_portal.confirm.listed_message'),
+                                    'removed' => __('site.partner_portal.confirm.gps_removed_message'),
+                                    'resolved' => __('site.partner_portal.confirm.resolved_message'),
+                                    default => __('site.partner_portal.confirm.complete_message', ['action' => $action['label']]),
+                                };
+                                $confirmLabel = match ($actionKey) {
+                                    'repossession_complete' => __('site.partner_portal.confirm.repossession_button'),
+                                    'sold' => __('site.partner_portal.confirm.sold_button'),
+                                    'listed' => __('site.partner_portal.confirm.listed_button'),
+                                    'removed' => __('site.partner_portal.confirm.gps_removed_button'),
+                                    'resolved' => __('site.partner_portal.confirm.resolved_button'),
+                                    default => __('site.partner_portal.confirm.complete_button'),
+                                };
+                                $confirmTone = in_array($actionKey, ['repossession_complete', 'sold', 'removed'], true) ? 'warning' : 'confirm';
                             @endphp
                             <form method="POST"
                                   action="{{ route('site.partner.recovery-case.action', $assignment) }}"
                                   enctype="multipart/form-data"
-                                  class="rounded-xl border border-gray-200 p-4 {{ $isResolve ? 'border-emerald-200 bg-emerald-50/40' : '' }}">
+                                  class="rounded-xl border border-gray-200 p-4 {{ $isResolve ? 'border-emerald-200 bg-emerald-50/40' : '' }}"
+                                  @if ($needsConfirm)
+                                      @submit.prevent="window.confirmForm($el, {
+                                          title: @js($confirmTitle),
+                                          message: @js($confirmMessage),
+                                          confirmLabel: @js($confirmLabel),
+                                          tone: @js($confirmTone),
+                                          confirmClass: @js($confirmTone === 'warning' ? 'bg-amber-500 hover:bg-amber-400 text-gray-900' : 'bg-brand-gold hover:bg-yellow-400 text-brand'),
+                                      })"
+                                  @endif>
                                 @csrf
                                 <input type="hidden" name="action" value="{{ $actionKey }}">
                                 <div class="flex flex-wrap items-start justify-between gap-3">

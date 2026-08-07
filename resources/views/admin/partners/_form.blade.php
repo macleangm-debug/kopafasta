@@ -49,14 +49,38 @@
         get isGps() { return this.category === 'gps_installer'; },
         get isSupplier() { return this.category === 'supplier'; },
         get isAffiliate() { return this.category === 'affiliate'; },
+        get isDebtCollector() { return this.category === 'debt_collector' || this.category === 'auctioneer'; },
         get allowsPerson() { return this.personTypes.includes(this.category); },
+        roles: @js(old('roles', $r ? ($r->roles ?: array_values(array_filter([$r->category]))) : (filled($category) ? [$category] : []))),
+        toggleRole(role) {
+            if (this.roles.includes(role)) {
+                this.roles = this.roles.filter((r) => r !== role);
+            } else {
+                this.roles = [...this.roles, role];
+            }
+            if (this.roles.length === 0 && this.category) {
+                this.roles = [this.category];
+            }
+        },
+        hasRole(role) { return this.roles.includes(role); },
         get isIndividual() { return this.allowsPerson && this.applicantCategory === 'individual'; },
         get isCompany() { return ! this.allowsPerson || this.applicantCategory === 'company'; },
         get snapshot() { return this.snapshots[this.category] || null; },
         get recovery() { return this.recoveryDefaults[this.category] || null; },
     }"
     x-init="
-        $watch('category', () => { $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))); });
+        $watch('category', (value) => {
+            if (value === 'debt_collector' && ! this.roles.includes('debt_collector')) {
+                this.roles = ['debt_collector', ...this.roles.filter((r) => r === 'auctioneer')];
+            }
+            if (value === 'auctioneer' && ! this.roles.includes('auctioneer')) {
+                this.roles = ['auctioneer', ...this.roles.filter((r) => r === 'debt_collector')];
+            }
+            if (! ['debt_collector', 'auctioneer'].includes(value)) {
+                this.roles = value ? [value] : [];
+            }
+            $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild')));
+        });
         $watch('applicantCategory', () => { $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))); });
         $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild')));
     "
@@ -93,6 +117,39 @@
             <input type="hidden" name="applicant_category" value="company">
         </template>
     </x-admin.step>
+
+    <div data-step-gate x-show="isDebtCollector" x-cloak>
+        <x-admin.step title="Service capabilities">
+            <div class="md:col-span-2 space-y-3">
+                <p class="text-xs text-gray-500">
+                    Tick what this partner can do. When both are selected, a repossessed asset can stay with the same partner for auctioning.
+                </p>
+                <template x-for="role in roles" :key="'hidden-'+role">
+                    <input type="hidden" name="roles[]" :value="role">
+                </template>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <label class="flex items-start gap-3 rounded-xl border border-brand/15 bg-white px-4 py-3 cursor-pointer">
+                        <input type="checkbox" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
+                               :checked="hasRole('debt_collector')"
+                               @change="toggleRole('debt_collector')">
+                        <span>
+                            <span class="block text-sm font-semibold text-gray-900">Repossession / field collection</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">Visits, collateral checks, and completing repossession.</span>
+                        </span>
+                    </label>
+                    <label class="flex items-start gap-3 rounded-xl border border-brand/15 bg-white px-4 py-3 cursor-pointer">
+                        <input type="checkbox" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
+                               :checked="hasRole('auctioneer')"
+                               @change="toggleRole('auctioneer')">
+                        <span>
+                            <span class="block text-sm font-semibold text-gray-900">Auctioning</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">List and sell repossessed assets after the hold period.</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+        </x-admin.step>
+    </div>
 
     <x-admin.step title="Basic info">
         @if ($r)

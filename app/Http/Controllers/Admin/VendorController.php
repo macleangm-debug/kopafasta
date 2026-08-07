@@ -257,7 +257,13 @@ class VendorController extends ResourceController
         }
 
         $roles = array_values(array_filter($data['roles'] ?? []));
+        $category = (string) ($data['category'] ?? '');
         if ($roles !== []) {
+            if ($category !== '' && in_array($category, $roles, true)) {
+                $roles = array_values(array_unique(array_merge([$category], $roles)));
+            } elseif (in_array('debt_collector', $roles, true)) {
+                $roles = array_values(array_unique(array_merge(['debt_collector'], $roles)));
+            }
             $data['roles'] = $roles;
             $data['category'] = $roles[0];
         } elseif (filled($data['category'] ?? null)) {

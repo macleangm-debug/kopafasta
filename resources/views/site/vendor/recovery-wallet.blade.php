@@ -27,9 +27,15 @@
         </div>
     </div>
 
-    </div>
-
-    <form method="POST" action="{{ route('site.partner.recovery-wallet.payout-request') }}" class="mb-6 glass-card rounded-2xl ring-1 ring-brand/10 p-5 grid sm:grid-cols-3 gap-3 items-end">
+    <form method="POST" action="{{ route('site.partner.recovery-wallet.payout-request') }}"
+          class="mb-6 glass-card rounded-2xl ring-1 ring-brand/10 p-5 grid sm:grid-cols-3 gap-3 items-end"
+          @submit.prevent="window.confirmForm($el, {
+              title: @js(__('site.partner_portal.confirm.payout_title')),
+              message: @js(__('site.partner_portal.confirm.payout_message')),
+              confirmLabel: @js(__('site.partner_portal.confirm.payout_button')),
+              tone: 'warning',
+              confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900',
+          })">
         @csrf
         <div>
             <label class="block text-xs text-gray-600 mb-1">Request payout (TZS)</label>
@@ -92,7 +98,14 @@
                                 @if (in_array($payment->status, ['pending', 'approved'], true))
                                     <details class="text-left">
                                         <summary class="text-xs font-semibold text-red-700 cursor-pointer">Dispute</summary>
-                                        <form method="POST" action="{{ route('site.partner.recovery-wallet.dispute', $payment) }}" class="mt-2 space-y-2">
+                                        <form method="POST" action="{{ route('site.partner.recovery-wallet.dispute', $payment) }}" class="mt-2 space-y-2"
+                                              @submit.prevent="window.confirmForm($el, {
+                                                  title: @js(__('site.partner_portal.confirm.dispute_title')),
+                                                  message: @js(__('site.partner_portal.confirm.dispute_message')),
+                                                  confirmLabel: @js(__('site.partner_portal.confirm.dispute_button')),
+                                                  tone: 'warning',
+                                                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                              })">
                                             @csrf
                                             <textarea name="reason" rows="2" required maxlength="1000"
                                                       class="w-full min-w-[12rem] rounded-lg border-gray-300 text-xs"

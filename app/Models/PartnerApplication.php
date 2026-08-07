@@ -11,6 +11,7 @@ class PartnerApplication extends Model
     protected $fillable = [
         'type',
         'partner_category',
+        'requested_roles',
         'applicant_category',
         'full_name',
         'email',
@@ -34,6 +35,7 @@ class PartnerApplication extends Model
         return [
             'reviewed_at' => 'datetime',
             'coverage_regions' => 'array',
+            'requested_roles' => 'array',
         ];
     }
 

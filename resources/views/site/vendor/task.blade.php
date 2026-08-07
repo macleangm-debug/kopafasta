@@ -222,7 +222,26 @@
                     @elseif ($task->task_type === 'vehicle_insurance')
                         <p class="text-xs text-gray-500 mb-4">Enter policy details for this specific collateral. Expiry updates the owner’s asset profile automatically.</p>
                     @endif
-                    <form method="POST" action="{{ route('site.partner.task.complete', $task) }}" class="space-y-3">
+                    <form method="POST" action="{{ route('site.partner.task.complete', $task) }}" class="space-y-3"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(match ($task->task_type) {
+                                  'asset_valuation' => __('site.partner_portal.confirm.valuation_title'),
+                                  'vehicle_insurance' => __('site.partner_portal.confirm.insurance_title'),
+                                  default => str_contains((string) $task->task_type, 'gps')
+                                      ? __('site.partner_portal.confirm.gps_complete_title')
+                                      : __('site.partner_portal.confirm.task_complete_title'),
+                              }),
+                              message: @js(match ($task->task_type) {
+                                  'asset_valuation' => __('site.partner_portal.confirm.valuation_message'),
+                                  'vehicle_insurance' => __('site.partner_portal.confirm.insurance_message'),
+                                  default => str_contains((string) $task->task_type, 'gps')
+                                      ? __('site.partner_portal.confirm.gps_complete_message')
+                                      : __('site.partner_portal.confirm.task_complete_message'),
+                              }),
+                              confirmLabel: @js(__('site.partner_portal.confirm.task_complete_button')),
+                              tone: 'warning',
+                              confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                          })">
                         @csrf
                         @if ($task->task_type === 'asset_valuation')
                             <div>

@@ -38,6 +38,7 @@ class PartnerEnrollmentFeatureTest extends TestCase
             'tin' => '100-200-300',
             'region' => 'Dar es Salaam',
             'coverage_regions' => ['Dar es Salaam', 'Pwani'],
+            'requested_roles' => ['debt_collector', 'auctioneer'],
             'message' => 'We cover DSM and Coast.',
             'doc_brela' => UploadedFile::fake()->create('brela.pdf', 120, 'application/pdf'),
             'doc_tin_certificate' => UploadedFile::fake()->create('tin.pdf', 80, 'application/pdf'),
@@ -53,9 +54,36 @@ class PartnerEnrollmentFeatureTest extends TestCase
         $this->assertNotNull($application);
         $this->assertSame('service', $application->type);
         $this->assertSame('debt_collector', $application->partner_category);
+        $this->assertSame(['debt_collector', 'auctioneer'], $application->requested_roles);
         $this->assertSame('BRELA-12345', $application->registration_number);
         $this->assertSame('100-200-300', $application->tin);
         $this->assertCount(5, $application->documents);
+    }
+
+    public function test_collection_partner_must_select_at_least_one_capability(): void
+    {
+        Storage::fake('public');
+
+        $this->from(route('site.partners.apply', 'debt_collector'))
+            ->post(route('site.partners.apply.post'), [
+                'partner_category' => 'debt_collector',
+                'applicant_category' => 'company',
+                'full_name' => 'No Caps Collector',
+                'email' => 'nocaps@example.com',
+                'phone' => '255712000999',
+                'business_name' => 'No Caps Ltd',
+                'registration_number' => 'BRELA-000',
+                'tin' => '000-000-000',
+                'region' => 'Dodoma',
+                'requested_roles' => [],
+                'doc_brela' => UploadedFile::fake()->create('brela.pdf', 100, 'application/pdf'),
+                'doc_tin_certificate' => UploadedFile::fake()->create('tin.pdf', 100, 'application/pdf'),
+                'doc_business_licence' => UploadedFile::fake()->create('licence.pdf', 100, 'application/pdf'),
+                'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
+                'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
+            ])
+            ->assertRedirect(route('site.partners.apply', 'debt_collector'))
+            ->assertSessionHasErrors('requested_roles');
     }
 
     public function test_admin_can_approve_and_convert_application_to_partner(): void
@@ -73,6 +101,7 @@ class PartnerEnrollmentFeatureTest extends TestCase
             'registration_number' => 'BRELA-999',
             'tin' => '111-222-333',
             'region' => 'Arusha',
+            'requested_roles' => ['debt_collector', 'auctioneer'],
             'doc_brela' => UploadedFile::fake()->create('brela.pdf', 100, 'application/pdf'),
             'doc_tin_certificate' => UploadedFile::fake()->create('tin.pdf', 100, 'application/pdf'),
             'doc_business_licence' => UploadedFile::fake()->create('licence.pdf', 100, 'application/pdf'),
@@ -96,6 +125,8 @@ class PartnerEnrollmentFeatureTest extends TestCase
 
         $partner = Vendor::findOrFail($application->partner_id);
         $this->assertSame('debt_collector', $partner->category);
+        $this->assertSame(['debt_collector', 'auctioneer'], $partner->roles);
+        $this->assertTrue($partner->hasPartnerRole('auctioneer'));
         $this->assertSame('John Recovery Co', $partner->name);
         $this->assertSame('BRELA-999', $partner->registration_number);
         $this->assertSame('111-222-333', $partner->tin);

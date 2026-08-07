@@ -54,7 +54,22 @@
         </div>
 
         <form method="POST" action="{{ route('site.partners.apply.post') }}" enctype="multipart/form-data" class="glass-card p-6 sm:p-8 space-y-5"
-              @submit="if (!document.querySelector('input[name=partner_category]')) { $el.insertAdjacentHTML('afterbegin', `<input type=hidden name=partner_category value='${category}'>`) }">
+              @submit.prevent="
+                  const roles = [...$el.querySelectorAll('input[name=\'requested_roles[]\']:checked')].map((el) => el.value);
+                  const caps = [];
+                  if (roles.includes('debt_collector')) caps.push(@js(__('site.partner_apply.capability_repossession')));
+                  if (roles.includes('auctioneer')) caps.push(@js(__('site.partner_apply.capability_auctioning')));
+                  const typeLabel = labels[category] || category;
+                  const message = category === 'debt_collector'
+                      ? (@js(__('site.partner_apply.confirm_message_roles'))).replace(':type', typeLabel).replace(':roles', caps.length ? caps.join(' + ') : @js(__('site.partner_apply.confirm_no_roles')))
+                      : (@js(__('site.partner_apply.confirm_message'))).replace(':type', typeLabel);
+                  window.confirmForm($el, {
+                      title: @js(__('site.partner_apply.confirm_title')),
+                      message,
+                      confirmLabel: @js(__('site.partner_apply.confirm_button')),
+                      tone: 'confirm',
+                  });
+              ">
             @csrf
             <input type="hidden" name="partner_category" :value="category">
 
@@ -95,15 +110,40 @@
                     <input name="full_name" value="{{ old('full_name') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 </div>
 
-                <div class="grid sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.email') }}</label>
+                    <input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                </div>
+                <div class="min-w-0">
+                    <x-site.phone-input name="phone" :label="__('site.affiliate_apply.phone')" :value="old('phone')" :required="true"
+                        select-class="w-[6.75rem] shrink-0 rounded-lg border-gray-300 ring-1 ring-gray-200 px-2.5 py-2.5 text-sm focus:border-brand focus:ring-brand"
+                        input-class="flex-1 min-w-0 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand" />
+                </div>
+
+                <div x-show="category === 'debt_collector'" x-cloak class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 space-y-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.email') }}</label>
-                        <input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.capabilities_title') }}</p>
+                        <p class="mt-1 text-xs text-gray-500">{{ __('site.partner_apply.capabilities_hint') }}</p>
                     </div>
-                    <div>
-                        <x-site.phone-input name="phone" :label="__('site.affiliate_apply.phone')" :value="old('phone')" :required="true"
-                            select-class="w-28 shrink-0 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand"
-                            input-class="flex-1 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand" />
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        <label class="flex items-start gap-3 rounded-xl bg-white ring-1 ring-gray-200 px-3 py-3 cursor-pointer hover:ring-brand/40 transition">
+                            <input type="checkbox" name="requested_roles[]" value="debt_collector"
+                                   @checked(in_array('debt_collector', old('requested_roles', ['debt_collector', 'auctioneer']), true))
+                                   class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
+                            <span>
+                                <span class="block text-sm font-semibold text-gray-900">{{ __('site.partner_apply.capability_repossession') }}</span>
+                                <span class="block text-xs text-gray-500 mt-0.5">{{ __('site.partner_apply.capability_repossession_hint') }}</span>
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 rounded-xl bg-white ring-1 ring-gray-200 px-3 py-3 cursor-pointer hover:ring-brand/40 transition">
+                            <input type="checkbox" name="requested_roles[]" value="auctioneer"
+                                   @checked(in_array('auctioneer', old('requested_roles', ['debt_collector', 'auctioneer']), true))
+                                   class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
+                            <span>
+                                <span class="block text-sm font-semibold text-gray-900">{{ __('site.partner_apply.capability_auctioning') }}</span>
+                                <span class="block text-xs text-gray-500 mt-0.5">{{ __('site.partner_apply.capability_auctioning_hint') }}</span>
+                            </span>
+                        </label>
                     </div>
                 </div>
 

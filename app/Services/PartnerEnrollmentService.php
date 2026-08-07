@@ -86,9 +86,15 @@ class PartnerEnrollmentService
         }
 
         return DB::transaction(function () use ($data, $documents, $category) {
+            $requestedRoles = $this->normalizeRequestedRoles(
+                $category,
+                is_array($data['requested_roles'] ?? null) ? $data['requested_roles'] : []
+            );
+
             $application = PartnerApplication::create([
                 'type' => $category === 'affiliate' ? 'affiliate' : 'service',
                 'partner_category' => $category,
+                'requested_roles' => $requestedRoles,
                 'applicant_category' => $data['applicant_category'] ?? 'company',
                 'full_name' => $data['full_name'],
                 'email' => $data['email'],
@@ -107,6 +113,37 @@ class PartnerEnrollmentService
 
             return $application->fresh('documents');
         });
+    }
+
+    /**
+     * Roles a debt collector may request at enrollment (repossession + auctioning).
+     *
+     * @param  list<string>  $requested
+     * @return list<string>
+     */
+    public function normalizeRequestedRoles(string $category, array $requested = []): array
+    {
+        $category = $this->normalizeCategory($category);
+
+        if ($category !== 'debt_collector') {
+            return [$category];
+        }
+
+        $allowed = ['debt_collector', 'auctioneer'];
+        $roles = array_values(array_intersect(
+            array_map('strval', $requested),
+            $allowed
+        ));
+
+        if ($roles === []) {
+            $roles = ['debt_collector'];
+        }
+
+        if (in_array('debt_collector', $roles, true)) {
+            $roles = array_values(array_unique(array_merge(['debt_collector'], $roles)));
+        }
+
+        return $roles;
     }
 
     /**
@@ -131,14 +168,19 @@ class PartnerEnrollmentService
         );
 
         return DB::transaction(function () use ($application, $category, $actor) {
+            $roles = $this->normalizeRequestedRoles(
+                $category,
+                is_array($application->requested_roles) ? $application->requested_roles : []
+            );
+
             $partner = Vendor::create([
-                'vendor_number' => app(PartnerCodeService::class)->generate($category),
+                'vendor_number' => app(PartnerCodeService::class)->generate($roles[0] ?? $category),
                 'name' => $application->business_name ?: $application->full_name,
                 'legal_name' => $application->legal_name,
                 'registration_number' => $application->registration_number,
                 'tin' => $application->tin,
-                'category' => $category,
-                'roles' => [$category],
+                'category' => $roles[0] ?? $category,
+                'roles' => $roles,
                 'phone' => $application->phone,
                 'email' => $application->email,
                 'address' => $application->region,

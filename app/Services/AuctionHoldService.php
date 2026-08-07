@@ -6,6 +6,7 @@ use App\Models\ArrearCase;
 use App\Models\Loan;
 use App\Models\RecoveryAssignment;
 use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Support\Facades\DB;
 
 class AuctionHoldService
@@ -228,13 +229,14 @@ class AuctionHoldService
             return null;
         }
 
-        $vendor = $this->partners
-            ->activePartnersForType('auctioneer')
-            ->sortBy(fn ($partner) => RecoveryAssignment::query()
-                ->where('partner_id', $partner->id)
-                ->whereIn('status', [RecoveryAssignment::STATUS_ASSIGNED, RecoveryAssignment::STATUS_IN_PROGRESS])
-                ->count())
-            ->first();
+        $vendor = $this->preferredAuctioneerAfterRepossession($case)
+            ?? $this->partners
+                ->activePartnersForType('auctioneer')
+                ->sortBy(fn ($partner) => RecoveryAssignment::query()
+                    ->where('partner_id', $partner->id)
+                    ->whereIn('status', [RecoveryAssignment::STATUS_ASSIGNED, RecoveryAssignment::STATUS_IN_PROGRESS])
+                    ->count())
+                ->first();
 
         if (! $vendor) {
             $this->collectionActions->logForCase(
@@ -248,13 +250,17 @@ class AuctionHoldService
             return null;
         }
 
-        return DB::transaction(function () use ($case, $vendor, $actor) {
+        $continuityNote = $vendor->hasPartnerRole('debt_collector')
+            ? ' Same collection partner retained for auctioning.'
+            : '';
+
+        return DB::transaction(function () use ($case, $vendor, $actor, $continuityNote) {
             $assignment = $this->assignments->assign(
                 $case,
                 $vendor,
                 'auctioneer',
                 $actor,
-                'Auto-assigned after repossession auction hold ('.$this->policy->auctionHoldDays().' days).',
+                'Auto-assigned after repossession auction hold ('.$this->policy->auctionHoldDays().' days).'.$continuityNote,
             );
 
             $case->update(['auction_status' => self::STATUS_ASSIGNED]);
@@ -273,6 +279,37 @@ class AuctionHoldService
 
             return $assignment;
         });
+    }
+
+    /**
+     * Keep the case with the debt collector who repossessed when they also auction.
+     */
+    private function preferredAuctioneerAfterRepossession(ArrearCase $case): ?Vendor
+    {
+        $assignment = RecoveryAssignment::query()
+            ->with('vendor')
+            ->where('arrear_case_id', $case->id)
+            ->where('partner_type', 'debt_collector')
+            ->whereIn('status', [
+                RecoveryAssignment::STATUS_COMPLETED,
+                RecoveryAssignment::STATUS_IN_PROGRESS,
+                RecoveryAssignment::STATUS_ASSIGNED,
+                RecoveryAssignment::STATUS_ESCALATED,
+            ])
+            ->orderByDesc('completed_at')
+            ->orderByDesc('id')
+            ->first();
+
+        $partner = $assignment?->vendor;
+        if (! $partner || $partner->status !== 'active') {
+            return null;
+        }
+
+        if (! $partner->hasPartnerRole('auctioneer')) {
+            return null;
+        }
+
+        return $partner;
     }
 
     private function shouldCancelBecauseCleared(ArrearCase $case): bool

@@ -279,7 +279,7 @@ class VendorController extends Controller
             $data['lot_reference'] ?? null,
         );
 
-        $message = in_array($data['action'], ['resolved', 'sold', 'gps_removed'], true)
+        $message = in_array($data['action'], ['resolved', 'sold', 'removed', 'repossession_complete'], true)
             ? 'Recovery case completed.'
             : 'Action recorded.';
 

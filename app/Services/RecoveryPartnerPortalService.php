@@ -134,15 +134,17 @@ class RecoveryPartnerPortalService
             : null;
 
         $collateral = app(GpsDeviceService::class)->collateralForLoan($loan);
-        $talkTrack = $this->talkTrack(
-            $assignment,
-            $loan?->loan_number,
-            $liveOutstanding,
-            $daysPastDue,
-            $nextInstallment,
-            $slaDaysRemaining,
-            $nextPartnerLabel,
-        );
+        $talkTrack = $assignment->partner_type === 'call_center'
+            ? $this->talkTrack(
+                $assignment,
+                $loan?->loan_number,
+                $liveOutstanding,
+                $daysPastDue,
+                $nextInstallment,
+                $slaDaysRemaining,
+                $nextPartnerLabel,
+            )
+            : null;
         $auctionHold = $loan
             ? app(AuctionHoldService::class)->statusForLoan($loan)
             : null;

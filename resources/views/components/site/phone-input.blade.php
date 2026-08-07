@@ -74,7 +74,7 @@
             {{ $label }} @if ($required)<span class="text-red-500">*</span>@endif
         </label>
     @endif
-    <div class="flex gap-2">
+    <div class="flex w-full min-w-0 gap-2">
         @if ($lockedCountry)
             <div class="{{ $prefixDisplayClass }}" aria-hidden="true">
                 <span>{{ ($countries[0]['emoji'] ?? '') }} {{ $lockedPrefix }}</span>
@@ -114,7 +114,7 @@
                @if ($requiredWhen) data-required-when="{{ $requiredWhen }}" @endif
                @if ($required) required @endif
                @if ($form) form="{{ $form }}" @endif
-               class="{{ $inputClass }} @error($name) border-red-400 @enderror">
+               class="min-w-0 {{ $inputClass }} @error($name) border-red-400 @enderror">
     </div>
     <input type="hidden" name="{{ $name }}" data-phone-hidden value="{{ $split['full'] }}" :value="full()"
            autocomplete="off" tabindex="-1" aria-hidden="true"
