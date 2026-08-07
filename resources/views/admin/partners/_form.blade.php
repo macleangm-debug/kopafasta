@@ -1,6 +1,7 @@
 {{-- Shared partner form. Expects $record, $statuses, $categories, $regionOptions --}}
 @php
     $r = $record ?? null;
+    $creating = (bool) ($creating ?? ($r === null));
     $category = old('category', $r?->category ?? ($defaultCategory ?? 'supplier'));
     $applicantCategory = old('applicant_category', $r?->applicant_category ?? 'company');
     $selectedRegions = old('regions', $r?->regions ?? []);
@@ -166,7 +167,14 @@
             <x-admin.input name="tin" label="TIN" :value="$r?->tin" />
         </div>
 
-        <x-admin.select name="status" label="Status" :options="$statuses" :value="$r?->status ?? 'active'" required />
+        @if ($creating)
+            <input type="hidden" name="status" value="{{ old('status', 'inactive') }}">
+            <div class="md:col-span-2 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3 text-xs text-brand">
+                Portal status is chosen on the final confirmation step (invite, activate now, or save as draft).
+            </div>
+        @else
+            <x-admin.select name="status" label="Status" :options="$statuses" :value="$r?->status ?? 'active'" required />
+        @endif
     </x-admin.step>
 
     <div data-step-gate x-show="needsCoverage" x-cloak>
@@ -196,8 +204,11 @@
     </div>
 
     <x-admin.step title="Contact">
-        <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" />
+        <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" :required="$creating" />
         <x-admin.input name="email" label="Email" :value="$r?->email" type="email" />
+        @if ($creating)
+            <p class="md:col-span-2 text-xs text-gray-500 -mt-2">Phone is required so the partner can activate and sign in to the portal.</p>
+        @endif
         <div class="md:col-span-2" x-show="! isValuer" x-cloak>
             <x-admin.textarea name="address" label="Address / coverage area" :value="$r?->address" rows="2"
                               placeholder="Office address or service coverage notes" />

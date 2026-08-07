@@ -9,11 +9,25 @@
             'auctioneer'         => 'Auctioneer',
             'affiliate'          => 'Affiliate Partner',
         ];
-        $isValuer = ($vendor->category ?? null) === 'valuer';
+        $isValuer = ($vendor->category ?? null) === 'valuer' || $vendor->isValuer();
+        $isInsurance = $vendor->isInsurance();
+        $isGps = $vendor->isGpsInstaller();
         $isRecoveryFocused = in_array($vendor->category ?? null, ['debt_collector', 'call_center', 'legal_partner', 'auctioneer', 'gps_installer'], true)
             || array_intersect($vendor->partnerRoles(), ['debt_collector', 'call_center', 'legal_partner', 'auctioneer', 'gps_installer']) !== [];
         $primaryCtaRoute = $isRecoveryFocused ? 'site.partner.recovery-cases' : 'site.partner.tasks';
-        $primaryCtaLabel = $isValuer ? 'Open jobs' : ($isRecoveryFocused ? 'Open recovery cases' : 'View tasks');
+        $primaryCtaLabel = match (true) {
+            $isInsurance => __('site.partner_portal.cta_cover_jobs'),
+            $isValuer => __('site.partner_portal.cta_valuation_jobs'),
+            $isGps => __('site.partner_portal.cta_gps_jobs'),
+            $isRecoveryFocused => 'Open recovery cases',
+            default => 'View tasks',
+        };
+        $heroBlurb = match (true) {
+            $isInsurance => __('site.partner_portal.hero_insurance'),
+            $isValuer => 'Accept inspection jobs, submit valuation evidence, and track payments from one place.',
+            $isGps => __('site.partner_portal.hero_gps'),
+            default => null,
+        };
     @endphp
 
     @if ($vendor->category === 'affiliate' && $affiliateStats)
@@ -88,8 +102,8 @@
                 </p>
                 <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">Hi, {{ $vendor->name }}</h1>
                 <p class="text-sm text-white/70 mt-2 font-mono">{{ $vendor->vendor_number }}</p>
-                @if ($isValuer)
-                    <p class="text-sm text-white/80 mt-3 max-w-lg">Accept inspection jobs, submit valuation evidence, and track payments from one place.</p>
+                @if ($heroBlurb)
+                    <p class="text-sm text-white/80 mt-3 max-w-lg">{{ $heroBlurb }}</p>
                 @endif
             </div>
             <a href="{{ route($primaryCtaRoute) }}"
@@ -118,7 +132,15 @@
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <div class="flex items-center justify-between mb-3">
-                <h2 class="font-bold">{{ $isValuer ? 'Upcoming jobs' : 'Upcoming tasks' }}</h2>
+                <h2 class="font-bold">
+                    @if ($isInsurance)
+                        {{ __('site.partner_portal.upcoming_cover_jobs') }}
+                    @elseif ($isValuer)
+                        Upcoming jobs
+                    @else
+                        Upcoming tasks
+                    @endif
+                </h2>
                 <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline font-semibold">All</a>
             </div>
             @if ($upcoming->isEmpty())

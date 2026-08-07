@@ -19,8 +19,12 @@ class PartnerPortalRedirectService
             return route('site.affiliate.dashboard');
         }
 
-        if ($vendor?->isSupplier()) {
+        if ($vendor?->portalShell() === 'supplier') {
             return route('site.partner.supplier.dashboard');
+        }
+
+        if ($vendor?->portalShell() === 'capital') {
+            return route('site.investor.dashboard');
         }
 
         return route('site.partner.dashboard');

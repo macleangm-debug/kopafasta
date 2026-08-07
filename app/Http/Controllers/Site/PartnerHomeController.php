@@ -34,11 +34,11 @@ class PartnerHomeController extends Controller
             return redirect()->route('site.affiliate.dashboard');
         }
 
-        if ($vendor?->isSupplier()) {
+        if ($vendor?->portalShell() === 'supplier') {
             return redirect()->route('site.supplier.dashboard');
         }
 
-        if ($vendor?->category === 'capital' || \App\Models\Lender::query()->where('user_id', $user->id)->exists()) {
+        if ($vendor?->portalShell() === 'capital' || \App\Models\Lender::query()->where('user_id', $user->id)->exists()) {
             return redirect()->route('site.investor.dashboard');
         }
 

@@ -11,7 +11,9 @@ use App\Models\VendorDocument;
 use App\Models\VendorPayment;
 use App\Services\AssetReservationService;
 use App\Services\MarketplaceAssetService;
+use App\Services\PartnerPortalRedirectService;
 use App\Services\PartnerProfileService;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +25,15 @@ class SupplierController extends Controller
     protected function supplier(): Vendor
     {
         $vendor = Vendor::where('user_id', Auth::id())->first();
-        abort_unless($vendor && $vendor->isSupplier(), 403, 'Supplier portal access requires an active supplier account.');
+        abort_unless($vendor, 403, 'Supplier portal access requires an active supplier account.');
+
+        if (! $vendor->isSupplier()) {
+            throw new HttpResponseException(
+                redirect()
+                    ->to(app(PartnerPortalRedirectService::class)->homeUrl(Auth::user()))
+                    ->with('warning', 'That area is for asset suppliers. Opening your partner portal instead.')
+            );
+        }
 
         return $vendor;
     }

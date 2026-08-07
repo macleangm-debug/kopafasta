@@ -7,6 +7,7 @@
     'backLabel' => 'Back',
     'submitLabel' => 'Create',
     'enctype' => null,
+    'confirmBeforeSubmit' => false,
 ])
 
 <x-admin.layout
@@ -24,13 +25,13 @@
             @endif
         </div>
         <div class="p-6">
-            <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="space-y-6">
+            <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="space-y-6" id="admin-create-form">
                 @csrf
 
                 @if ($errors->any())
                     <div class="rounded-xl bg-red-50 ring-1 ring-red-200 p-4 text-sm text-red-700">
                         <strong class="block mb-1">Please fix the following:</strong>
-                        <ul class="list-disc list-inside space-y-0.5">
+                        <ul class="list-disc ml-5 space-y-0.5">
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
@@ -38,7 +39,10 @@
                     </div>
                 @endif
 
-                <x-admin.wizard :submitLabel="$submitLabel" :cancelUrl="$cancelUrl">
+                <x-admin.wizard
+                    :submitLabel="$submitLabel"
+                    :cancelUrl="$cancelUrl"
+                    :confirmBeforeSubmit="$confirmBeforeSubmit">
                     {{ $slot }}
                 </x-admin.wizard>
             </form>

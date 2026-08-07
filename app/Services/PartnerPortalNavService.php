@@ -23,6 +23,44 @@ class PartnerPortalNavService
             ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
         ];
 
+        if ($vendor?->isInsurance()) {
+            $nav = [
+                ['key' => 'dashboard', 'label' => __('site.partner_portal.nav_dashboard'), 'route' => 'site.partner.dashboard', 'icon' => 'home'],
+                ['key' => 'tasks', 'label' => __('site.partner_portal.nav_cover_jobs'), 'route' => 'site.partner.tasks', 'icon' => 'clipboard'],
+                ['key' => 'payments', 'label' => __('site.partner_portal.nav_payments'), 'route' => 'site.partner.payments', 'icon' => 'wallet'],
+                ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.partner.notifications', 'icon' => 'bell'],
+                ['key' => 'profile', 'label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile', 'icon' => 'user'],
+                ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
+            ];
+
+            return $nav;
+        }
+
+        if ($vendor?->isValuer() || $vendor?->isGpsInstaller()) {
+            $nav = array_values(array_filter(
+                $nav,
+                fn (array $item) => ! in_array($item['key'], ['recovery', 'recovery_wallet', 'calendar'], true)
+            ));
+            if ($vendor->isValuer()) {
+                foreach ($nav as &$item) {
+                    if ($item['key'] === 'tasks') {
+                        $item['label'] = __('site.partner_portal.nav_valuation_jobs');
+                    }
+                }
+                unset($item);
+            }
+            if ($vendor->isGpsInstaller()) {
+                foreach ($nav as &$item) {
+                    if ($item['key'] === 'tasks') {
+                        $item['label'] = __('site.partner_portal.nav_gps_jobs');
+                    }
+                }
+                unset($item);
+            }
+
+            return $nav;
+        }
+
         $showRecovery = $vendor && app(RecoveryPartnerService::class)->isRecoveryPartner($vendor);
         if (! $showRecovery) {
             $nav = array_values(array_filter(

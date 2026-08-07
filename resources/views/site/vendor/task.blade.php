@@ -342,13 +342,27 @@
                 <h3 class="font-bold mb-3">Actions</h3>
                 <div class="space-y-2">
                     @if ($task->status === 'assigned')
-                        <form method="POST" action="{{ route('site.partner.task.accept', $task) }}">
+                        <form method="POST" action="{{ route('site.partner.task.accept', $task) }}"
+                              @submit.prevent="window.confirmForm($el, {
+                                  title: @js($task->task_type === 'vehicle_insurance' ? __('site.partner_portal.confirm.accept_cover_title') : __('site.partner_portal.confirm.accept_task_title')),
+                                  message: @js($task->task_type === 'vehicle_insurance' ? __('site.partner_portal.confirm.accept_cover_message') : __('site.partner_portal.confirm.accept_task_message')),
+                                  confirmLabel: @js(__('site.partner_portal.confirm.accept_task_button')),
+                                  tone: 'confirm',
+                              })">
                             @csrf
-                            <button class="w-full rounded-lg bg-brand text-white text-sm font-semibold py-2 hover:bg-brand-light">Accept task</button>
+                            <button class="w-full rounded-lg bg-brand text-white text-sm font-semibold py-2 hover:bg-brand-light">
+                                {{ $task->task_type === 'vehicle_insurance' ? __('site.partner_portal.accept_cover') : 'Accept task' }}
+                            </button>
                         </form>
                     @endif
                     @if (in_array($task->status, ['assigned', 'in_progress']))
-                        <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
+                        <form method="POST" action="{{ route('site.partner.task.start', $task) }}"
+                              @submit.prevent="window.confirmForm($el, {
+                                  title: @js(__('site.partner_portal.confirm.start_task_title')),
+                                  message: @js(__('site.partner_portal.confirm.start_task_message')),
+                                  confirmLabel: @js(__('site.partner_portal.confirm.start_task_button')),
+                                  tone: 'info',
+                              })">
                             @csrf
                             <button class="w-full rounded-lg bg-gray-900 text-white text-sm font-semibold py-2 hover:bg-black">Start work</button>
                         </form>

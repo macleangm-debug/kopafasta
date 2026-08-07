@@ -105,7 +105,37 @@ class VendorController extends ResourceController
 
     public function store(Request $request)
     {
-        $data = $this->transform($request->validate($this->rules()));
+        $validated = $request->validate(array_merge($this->rules(), [
+            'activation_mode' => ['nullable', 'in:invite,activate_now,draft'],
+            'notify_partner' => ['nullable', 'boolean'],
+            'activation_pin' => ['nullable', 'digits:4'],
+        ]));
+
+        $activationMode = (string) ($validated['activation_mode'] ?? 'invite');
+        $notifyPartner = $request->boolean('notify_partner');
+        $activationPin = $validated['activation_pin'] ?? null;
+        unset($validated['activation_mode'], $validated['notify_partner'], $validated['activation_pin']);
+
+        if ($activationMode === 'activate_now') {
+            if (blank($activationPin)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'activation_pin' => 'A 4-digit PIN is required to activate the account now.',
+                ]);
+            }
+            if (blank($validated['phone'] ?? null)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'phone' => 'Phone is required to activate the partner portal account.',
+                ]);
+            }
+        }
+
+        if ($activationMode === 'activate_now') {
+            $validated['status'] = 'inactive';
+        } elseif ($activationMode === 'draft' || $activationMode === 'invite') {
+            $validated['status'] = 'inactive';
+        }
+
+        $data = $this->transform($validated);
         $data = $this->normalizeApplicantCategory($data);
         $this->validateAffiliateCode($data, null);
         $this->validateRegions($data);
@@ -122,15 +152,28 @@ class VendorController extends ResourceController
             $record->refresh();
         }
 
-        if (app(\App\Services\PartnerActivationService::class)->requiresActivation($record)) {
-            app(\App\Services\PartnerActivationService::class)->sendActivationInvite($record);
+        $activation = app(\App\Services\PartnerActivationService::class);
+        $statusMessage = ucfirst($this->singular).' created.';
+
+        if ($activationMode === 'activate_now' && $activation->requiresActivation($record)) {
+            $token = $activation->prepareActivation($record);
+            $activation->activate($record->fresh(), $token, ['pin' => $activationPin]);
+            $statusMessage = ucfirst($this->singular).' created and portal activated.';
+        } elseif ($activationMode === 'invite' && $activation->requiresActivation($record)) {
+            $activation->sendActivationInvite($record, $request->user('admin'), notify: $notifyPartner);
+            $statusMessage = ucfirst($this->singular).' created. Activation invite prepared'
+                .($notifyPartner ? ' and notification queued.' : '. Share the partner code to activate.');
+        } elseif ($activationMode === 'draft') {
+            $statusMessage = ucfirst($this->singular).' saved as inactive draft.';
+        } elseif ($activation->requiresActivation($record)) {
+            $activation->sendActivationInvite($record, $request->user('admin'), notify: false);
         }
 
         $this->auditAdminCreated($record);
 
         return redirect()
             ->route("{$this->routePrefix}.show", $record)
-            ->with('status', ucfirst($this->singular).' created.');
+            ->with('status', $statusMessage);
     }
 
     public function update(Request $request, $id)
@@ -257,17 +300,21 @@ class VendorController extends ResourceController
         }
 
         $roles = array_values(array_filter($data['roles'] ?? []));
-        $category = (string) ($data['category'] ?? '');
-        if ($roles !== []) {
-            if ($category !== '' && in_array($category, $roles, true)) {
+        $category = (string) ($data['category'] ?? ($existing?->category ?? ''));
+
+        // Category from the form is authoritative. Roles may add capabilities
+        // (e.g. debt_collector + auctioneer) but must not demote the partner type.
+        if ($category !== '') {
+            if ($roles === []) {
+                $roles = [$category];
+            } else {
                 $roles = array_values(array_unique(array_merge([$category], $roles)));
-            } elseif (in_array('debt_collector', $roles, true)) {
-                $roles = array_values(array_unique(array_merge(['debt_collector'], $roles)));
             }
+            $data['category'] = $category;
+            $data['roles'] = $roles;
+        } elseif ($roles !== []) {
             $data['roles'] = $roles;
             $data['category'] = $roles[0];
-        } elseif (filled($data['category'] ?? null)) {
-            $data['roles'] = [$data['category']];
         }
 
         if (array_key_exists('regions', $data)) {

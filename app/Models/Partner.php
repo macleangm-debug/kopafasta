@@ -88,6 +88,43 @@ class Partner extends Model
         return $this->category === 'affiliate';
     }
 
+    public function isInsurance(): bool
+    {
+        return $this->category === 'insurance' || $this->hasPartnerRole('insurance');
+    }
+
+    public function isValuer(): bool
+    {
+        return $this->category === 'valuer' || $this->hasPartnerRole('valuer');
+    }
+
+    public function isGpsInstaller(): bool
+    {
+        return $this->category === 'gps_installer' || $this->hasPartnerRole('gps_installer');
+    }
+
+    /**
+     * Primary portal shell for this partner (category wins over extra roles).
+     *
+     * @return 'affiliate'|'supplier'|'capital'|'service'
+     */
+    public function portalShell(): string
+    {
+        if ($this->isAffiliate()) {
+            return 'affiliate';
+        }
+
+        if ($this->isSupplier()) {
+            return 'supplier';
+        }
+
+        if ($this->category === 'capital') {
+            return 'capital';
+        }
+
+        return 'service';
+    }
+
     public function isRecoveryPartner(): bool
     {
         return app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($this);
