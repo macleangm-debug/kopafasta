@@ -45,16 +45,18 @@ if ! command -v rsync >/dev/null 2>&1; then
 fi
 
 echo "==> Syncing project to ${SERVER}:${APP_DIR}"
+# Anchor excludes with a leading "/" so they only match project-root paths.
+# A bare "vendor/" also skipped resources/views/site/vendor/ (partner portal blades).
 rsync -az --delete \
   -e "ssh -p ${SSH_PORT}" \
-  --exclude ".git/" \
-  --exclude "vendor/" \
-  --exclude "node_modules/" \
-  --exclude ".env" \
-  --exclude "storage/*.key" \
-  --exclude "storage/app/public/" \
-  --exclude "storage/logs/" \
-  --exclude "public/hot" \
+  --exclude "/.git/" \
+  --exclude "/vendor/" \
+  --exclude "/node_modules/" \
+  --exclude "/.env" \
+  --exclude "/storage/*.key" \
+  --exclude "/storage/app/public/" \
+  --exclude "/storage/logs/" \
+  --exclude "/public/hot" \
   ./ "${SERVER}:${APP_DIR}/"
 
 echo "==> Running remote deploy steps"
