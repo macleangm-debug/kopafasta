@@ -109,7 +109,11 @@
                 <x-admin.input name="collateral_insurance_markup_percent" label="Kopafasta markup on premium (%)" type="number" step="0.1"
                                :value="$values['collateral_insurance_markup_percent'] ?? 0" required />
             </div>
-            <p class="text-xs text-gray-500 mt-3">After the decision/insurance window ends, grace days keep the application open briefly before it is closed. Premium = insured value × rate, then optional markup.</p>
+            <p class="text-xs text-gray-500 mt-3">
+                Premium = insured value × rate, then optional markup.
+                Primary place to manage insurance / GPS / valuer defaults (with Add partner links) is
+                <a href="{{ route('admin.settings.recovery') }}" class="font-semibold text-brand underline">Recovery policy → Service partner default rates</a>.
+            </p>
         </div>
 
         <div class="flex justify-end">

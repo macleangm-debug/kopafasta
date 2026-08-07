@@ -177,34 +177,22 @@ class CollateralSecureController extends Controller
         $asset = CustomerAsset::query()->findOrFail((int) ($state['customer_asset_id'] ?? 0));
         abort_unless((int) $asset->customer_id === (int) $customer->id, 403);
 
-        // Resume an in-flight premium payment instead of creating a duplicate.
-        $existingPaymentId = (int) data_get($state, 'insurance_purchase.payment_id', 0);
-        if ($existingPaymentId > 0 && data_get($state, 'insurance_purchase.status') === 'payment_pending') {
-            $existing = \App\Models\CustomerPayment::query()
-                ->whereKey($existingPaymentId)
-                ->where('customer_id', $customer->id)
-                ->where('payment_type', 'insurance_premium')
-                ->first();
-            if ($existing && ! $existing->isVerified() && in_array($existing->status, ['awaiting_payment', 'processing'], true)) {
-                return $this->redirectToInsurancePaymentWaiting($existing, $customer->phone);
-            }
-        }
-
         $data = $request->validate([
             'insured_value' => ['required'],
         ]);
         $insuredValue = \App\Support\MoneyFormat::toInteger($data['insured_value']);
-        if ($insuredValue < 100000) {
+        if ($insuredValue <= 0) {
             return back()
                 ->withInput()
                 ->with('error', __('borrower.collateral_secure.insurance_value_required'));
         }
 
         try {
-            return $this->startInsurancePremiumPayment(
+            return $this->resumeOrStartInsurancePremiumPayment(
                 $customer,
                 $application,
                 $asset,
+                $state,
                 $insuredValue,
                 route('site.borrower.application', $application),
             );
@@ -237,33 +225,22 @@ class CollateralSecureController extends Controller
         $asset = CustomerAsset::query()->findOrFail((int) ($state['customer_asset_id'] ?? 0));
         abort_unless((int) $asset->customer_id === (int) $customer->id, 403);
 
-        $existingPaymentId = (int) data_get($state, 'insurance_purchase.payment_id', 0);
-        if ($existingPaymentId > 0 && data_get($state, 'insurance_purchase.status') === 'payment_pending') {
-            $existing = \App\Models\CustomerPayment::query()
-                ->whereKey($existingPaymentId)
-                ->where('customer_id', $customer->id)
-                ->where('payment_type', 'insurance_premium')
-                ->first();
-            if ($existing && ! $existing->isVerified() && in_array($existing->status, ['awaiting_payment', 'processing'], true)) {
-                return $this->redirectToInsurancePaymentWaiting($existing, $customer->phone);
-            }
-        }
-
         $data = $request->validate([
             'insured_value' => ['required'],
         ]);
         $insuredValue = \App\Support\MoneyFormat::toInteger($data['insured_value']);
-        if ($insuredValue < 100000) {
+        if ($insuredValue <= 0) {
             return back()
                 ->withInput()
                 ->with('error', __('borrower.collateral_secure.insurance_value_required'));
         }
 
         try {
-            return $this->startInsurancePremiumPayment(
+            return $this->resumeOrStartInsurancePremiumPayment(
                 $customer,
                 $application,
                 $asset,
+                $state,
                 $insuredValue,
                 route('site.borrower.guaranteed.show', $customerGuarantor),
             );
@@ -276,6 +253,64 @@ class CollateralSecureController extends Controller
                 ->withInput()
                 ->with('error', $e->getMessage() ?: __('borrower.payments.aggregator_required'));
         }
+    }
+
+    /**
+     * Resume only when the pending premium matches the cover amount just entered.
+     * Otherwise supersede the old payment so the gate shows 3.5% of the new value.
+     */
+    private function resumeOrStartInsurancePremiumPayment(
+        $customer,
+        LoanApplication $application,
+        CustomerAsset $asset,
+        array $state,
+        int $insuredValue,
+        string $returnUrl,
+    ): RedirectResponse {
+        $quote = app(\App\Services\CollateralInsurancePartnerService::class)->quote($insuredValue);
+        if ($quote['premium'] <= 0) {
+            return back()
+                ->withInput()
+                ->with('error', __('borrower.collateral_secure.insurance_value_required'));
+        }
+
+        $existingPaymentId = (int) data_get($state, 'insurance_purchase.payment_id', 0);
+        if ($existingPaymentId > 0 && data_get($state, 'insurance_purchase.status') === 'payment_pending') {
+            $existing = \App\Models\CustomerPayment::query()
+                ->whereKey($existingPaymentId)
+                ->where('customer_id', $customer->id)
+                ->where('payment_type', 'insurance_premium')
+                ->first();
+
+            if ($existing && ! $existing->isVerified() && in_array($existing->status, ['awaiting_payment', 'processing'], true)) {
+                $storedInsured = (int) data_get($existing->provider_meta, 'collateral_insurance.insured_value')
+                    ?: (int) data_get($state, 'insurance_purchase.insured_value', 0);
+                $sameQuote = $storedInsured === $insuredValue
+                    && (int) $existing->amount === (int) $quote['premium'];
+
+                if ($sameQuote) {
+                    return $this->redirectToInsurancePaymentGate($existing, $customer->phone);
+                }
+
+                try {
+                    app(CustomerPaymentService::class)->reject(
+                        $existing,
+                        null,
+                        'Superseded by updated insurance cover amount'
+                    );
+                } catch (\Throwable) {
+                    $existing->update(['status' => 'rejected']);
+                }
+            }
+        }
+
+        return $this->startInsurancePremiumPayment(
+            $customer,
+            $application,
+            $asset,
+            $insuredValue,
+            $returnUrl,
+        );
     }
 
     private function startInsurancePremiumPayment(
@@ -331,42 +366,37 @@ class CollateralSecureController extends Controller
             'status' => 'payment_pending',
         ]);
 
-        // Skip the MM/bank picker — push USSD immediately and open the shared waiting screen.
-        return $this->redirectToInsurancePaymentWaiting($payment->fresh(), $phone);
+        // Open shared PSP gate (step 1); Pay now starts collection.
+        return $this->redirectToInsurancePaymentGate($payment->fresh(), $phone);
     }
 
     /**
-     * Insurance: start PayIn immediately, then open shared payments.show waiting UI.
-     * payments.show also auto-starts when needed (e.g. resume / refresh).
+     * Insurance: always open shared payments.show on the PSP gate (step 1).
+     * If a push is already in flight, reset to awaiting so Insure It does not skip to waiting.
+     * Pay now on the gate starts collection → waiting (step 2).
      */
-    private function redirectToInsurancePaymentWaiting(
+    private function redirectToInsurancePaymentGate(
         \App\Models\CustomerPayment $payment,
         ?string $phone,
     ): RedirectResponse {
-        if ($payment->isPayInWaiting()) {
-            return redirect()->route('site.borrower.payments.show', $payment);
+        $payments = app(CustomerPaymentService::class);
+
+        if ($payment->isPayInWaiting() || $payment->status === 'processing') {
+            try {
+                $payment = $payments->returnToPaymentGate($payment);
+            } catch (\Throwable) {
+                // Fall through to show whichever state we have.
+            }
         }
 
-        $pushPhone = $payment->mobile_number
-            ?: data_get($payment->provider_meta, 'attempted_phone')
-            ?: $phone;
-
-        if ($payment->awaitsCollection() && filled($pushPhone)) {
-            try {
-                $payment = app(CustomerPaymentService::class)->initiateCollection($payment, $pushPhone);
-            } catch (\Illuminate\Validation\ValidationException $e) {
-                $attempted = $payment->fresh()->mobile_number
-                    ?: data_get($payment->fresh()->provider_meta, 'attempted_phone')
-                    ?: $pushPhone;
-                $message = CustomerPaymentService::localizeProviderMessage(
-                    collect($e->errors())->flatten()->first(),
-                    $attempted
-                );
-
-                return redirect()
-                    ->route('site.borrower.payments.show', $payment)
-                    ->with('collect_error', $message)
-                    ->with('show_collect_failed', true);
+        // Gate default is always the member's registered phone.
+        if (filled($phone) && $payment->awaitsCollection()) {
+            $normalized = \App\Support\PhoneNumber::normalizeForCountry(
+                (string) $phone,
+                $payment->customer?->country_code ?? null,
+            );
+            if (filled($normalized)) {
+                $payment->update(['mobile_number' => $normalized]);
             }
         }
 

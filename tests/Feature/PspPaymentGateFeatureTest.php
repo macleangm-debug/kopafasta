@@ -49,7 +49,7 @@ class PspPaymentGateFeatureTest extends TestCase
             ->assertSee(__('borrower.membership.pay_now'), false);
     }
 
-    public function test_payment_gate_defaults_to_payment_phone_when_set(): void
+    public function test_payment_gate_always_defaults_to_member_registered_phone(): void
     {
         $user = User::factory()->create([
             'role' => 'borrower',
@@ -80,7 +80,7 @@ class PspPaymentGateFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
-            ->assertSee('715222132', false)
-            ->assertDontSee('722111222', false);
+            ->assertSee('722111222', false)
+            ->assertDontSee('715222132', false);
     }
 }

@@ -244,7 +244,7 @@ class CollateralSecureFeatureTest extends TestCase
         $this->assertSame('rejected', $app->fresh()->status);
     }
 
-    public function test_insure_it_starts_collection_and_opens_waiting_screen(): void
+    public function test_insure_it_opens_shared_psp_gate_before_collection(): void
     {
         $admin = $this->staff();
         [$app, $borrower] = $this->applicationWithGuarantor($admin);
@@ -298,16 +298,33 @@ class CollateralSecureFeatureTest extends TestCase
 
         $this->assertNotNull($payment);
         $response->assertRedirect(route('site.borrower.payments.show', $payment));
-        $this->assertSame('processing', $payment->fresh()->status);
-        $this->assertSame('payin', $payment->fresh()->provider);
+        $this->assertSame('awaiting_payment', $payment->fresh()->status);
         $this->assertSame('payment_pending', data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.status'));
-        $this->assertSame($payment->id, (int) data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.payment_id'));
+
+        // Step 1: shared PSP gate (amount + MM/bank), not the waiting screen.
+        $this->actingAs($user)
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
+            ->assertSee(__('borrower.payments_page.create.bank_transfer'), false)
+            ->assertSee(__('borrower.membership.pay_now'), false)
+            ->assertDontSee(__('borrower.payment_waiting.title'), false);
+
+        // Step 2: Pay now → waiting / verification screen.
+        $this->actingAs($user)
+            ->post(route('site.borrower.payments.pay', $payment), [
+                'payment_method' => 'mobile_money',
+                'mobile_number' => $borrower->phone,
+                'mobile_number_local' => preg_replace('/^\+?255/', '', (string) $borrower->phone),
+            ])
+            ->assertRedirect(route('site.borrower.payments.show', $payment));
+
+        $this->assertSame('processing', $payment->fresh()->status);
 
         $this->actingAs($user)
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
-            ->assertSee(__('borrower.payment_waiting.title'), false)
-            ->assertDontSee(__('borrower.payments_page.create.bank_transfer'), false);
+            ->assertSee(__('borrower.payment_waiting.title'), false);
     }
 
     public function test_insure_it_resumes_pending_payment_gate(): void
@@ -363,5 +380,97 @@ class CollateralSecureFeatureTest extends TestCase
             ->where('customer_id', $borrower->id)
             ->where('payment_type', 'insurance_premium')
             ->count());
+
+        // Insure It always re-opens step 1 (gate), even if a push was in flight.
+        $this->assertSame('awaiting_payment', $payment->fresh()->status);
+
+        $this->actingAs($borrower->user)
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
+            ->assertSee(__('borrower.membership.pay_now'), false)
+            ->assertDontSee(__('borrower.payment_waiting.title'), false);
+    }
+
+    public function test_insure_it_uses_submitted_cover_amount_not_stale_premium(): void
+    {
+        $admin = $this->staff();
+        [$app, $borrower] = $this->applicationWithGuarantor($admin);
+        $service = app(CollateralSecureService::class);
+
+        $asset = CustomerAsset::create([
+            'customer_id' => $borrower->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Vitz Cover',
+            'registration_number' => 'T777INS',
+            'is_active' => true,
+            'metadata' => ['details' => []],
+        ]);
+
+        $service->request($app, $admin);
+        $service->borrowerHasCollateral($app->fresh(), $borrower, true);
+        $service->linkAsset($app->fresh(), $borrower, $asset);
+        $service->markFeePaid($app->fresh());
+
+        $payIn = \Mockery::mock(\App\Services\PayInService::class)->makePartial();
+        $payIn->shouldReceive('isConfigured')->andReturn(true);
+        $payIn->shouldReceive('isLiveCollectionEnabled')->andReturn(false);
+        $this->app->instance(\App\Services\PayInService::class, $payIn);
+
+        $stale = \App\Models\CustomerPayment::create([
+            'reference' => 'INS-STALE-1M',
+            'customer_id' => $borrower->id,
+            'payment_type' => 'insurance_premium',
+            'payment_method' => 'mobile_money',
+            'amount' => 35000,
+            'currency' => 'TZS',
+            'status' => 'awaiting_payment',
+            'mobile_number' => '255715222132',
+            'provider_meta' => [
+                'collateral_insurance' => [
+                    'insured_value' => 1_000_000,
+                    'premium' => 35000,
+                ],
+            ],
+        ]);
+
+        $service->recordInsurancePurchase($app->fresh(), [
+            'insured_value' => 1_000_000,
+            'premium' => 35000,
+            'rate_percent' => 3.5,
+            'markup_percent' => 0,
+            'payment_id' => $stale->id,
+            'payment_reference' => $stale->reference,
+            'status' => 'payment_pending',
+        ]);
+
+        $response = $this->actingAs($borrower->user)
+            ->from(route('site.borrower.application', $app))
+            ->post(route('site.borrower.collateral-secure.buy-insurance', $app), [
+                'insured_value' => '10,000',
+            ]);
+
+        $this->assertSame('rejected', $stale->fresh()->status);
+
+        $payment = \App\Models\CustomerPayment::query()
+            ->where('customer_id', $borrower->id)
+            ->where('payment_type', 'insurance_premium')
+            ->where('status', 'awaiting_payment')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($payment);
+        $response->assertRedirect(route('site.borrower.payments.show', $payment));
+        $this->assertSame(350, (int) $payment->amount);
+        $this->assertSame(10_000, (int) data_get($payment->provider_meta, 'collateral_insurance.insured_value'));
+        $this->assertSame($borrower->phone, $payment->mobile_number);
+
+        $local = preg_replace('/^\+?255/', '', (string) $borrower->phone);
+        $this->actingAs($borrower->user)
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee('350', false)
+            ->assertSee($local, false)
+            ->assertDontSee('715222132', false);
     }
 }

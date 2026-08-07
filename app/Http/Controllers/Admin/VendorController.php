@@ -47,6 +47,7 @@ class VendorController extends ResourceController
             'address'                        => ['nullable', 'string', 'max:500'],
             'status'                         => ['required', 'in:active,inactive,suspended'],
             'partner_cost'                   => ['nullable', 'numeric', 'min:0'],
+            'service_rate_percent'           => ['nullable', 'numeric', 'min:0', 'max:100'],
             'markup_percent'                 => ['nullable', 'numeric', 'min:0', 'max:100'],
             'deposit_markup_percent'         => ['nullable', 'numeric', 'min:0', 'max:100'],
             'supplier_type'                  => ['nullable', 'in:managed_loan,upfront_settlement'],
@@ -273,7 +274,8 @@ class VendorController extends ResourceController
             $data['regions'] = [];
         }
 
-        return $data;
+        return app(\App\Services\PartnerDefaultsService::class)
+            ->applyPartnerPricingMeta($data, $existing instanceof Vendor ? $existing : null);
     }
 
     public function show($id)

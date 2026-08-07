@@ -870,8 +870,15 @@ class SettingsController extends Controller
 
     public function underwriting()
     {
+        $values = Setting::group('underwriting');
+        $insurance = app(\App\Services\PartnerDefaultsService::class)->defaultsFor('insurance');
+        $values['collateral_insurance_rate_percent'] = $insurance['rate_percent']
+            ?? ($values['collateral_insurance_rate_percent'] ?? 3.5);
+        $values['collateral_insurance_markup_percent'] = $insurance['markup_percent']
+            ?? ($values['collateral_insurance_markup_percent'] ?? 0);
+
         return view('admin.settings.underwriting', [
-            'values' => Setting::group('underwriting'),
+            'values' => $values,
         ]);
     }
 
@@ -908,6 +915,13 @@ class SettingsController extends Controller
         }
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["underwriting.$k" => $v])->all());
+
+        $markup = max(0, (float) $data['collateral_insurance_markup_percent']);
+        app(\App\Services\PartnerDefaultsService::class)->saveFromRequest([
+            'insurance_rate_percent' => $data['collateral_insurance_rate_percent'],
+            'insurance_has_markup' => $markup > 0,
+            'insurance_markup_percent' => $markup,
+        ], ['insurance']);
 
         return back()->with('status', 'Underwriting settings saved.');
     }
@@ -1401,6 +1415,7 @@ class SettingsController extends Controller
             'collateral_scope'  => [],
             'auto_escalate_type'=> [],
             'repossession_charges' => Setting::get('repossession.charges') ?? [],
+            'partner_defaults' => app(\App\Services\PartnerDefaultsService::class)->allDefaults(),
         ];
 
         foreach ($types as $type => $meta) {
@@ -1415,12 +1430,15 @@ class SettingsController extends Controller
             $values['auto_escalate_type'][$type] = (bool) ($raw["auto_escalate_type.{$type}"] ?? ($meta['default_auto_escalate'] ?? true));
         }
 
-        return view('admin.settings.recovery', compact('values', 'types'));
+        $partnerDefaults = $values['partner_defaults'];
+
+        return view('admin.settings.recovery', compact('values', 'types', 'partnerDefaults'));
     }
 
     public function saveRecovery(Request $request)
     {
         $types = array_keys(config('recovery.partner_types', []));
+        $serviceCategories = array_keys(config('partner_defaults.categories', []));
 
         $rules = [
             'grace_period_days'       => ['required', 'integer', 'min:1', 'max:60'],
@@ -1446,6 +1464,20 @@ class SettingsController extends Controller
             $rules["repossession_partner_cost_{$assetType}"] = ['nullable', 'numeric', 'min:0'];
             $rules["repossession_markup_{$assetType}"] = ['nullable', 'numeric', 'min:0', 'max:100'];
             $rules["repossession_manual_{$assetType}"] = ['nullable', 'boolean'];
+        }
+
+        foreach ($serviceCategories as $category) {
+            $mode = config("partner_defaults.categories.{$category}.pricing_mode");
+            $rules["{$category}_has_markup"] = ['nullable', 'boolean'];
+            $rules["{$category}_markup_percent"] = ['nullable', 'numeric', 'min:0', 'max:100'];
+            if ($mode === 'percent_of_value') {
+                $rules["{$category}_rate_percent"] = ['required', 'numeric', 'min:0', 'max:100'];
+            } else {
+                $rules["{$category}_base_cost"] = ['required', 'numeric', 'min:0'];
+            }
+            if ($mode === 'fixed_plus_recurring') {
+                $rules["{$category}_monitoring_monthly"] = ['required', 'numeric', 'min:0'];
+            }
         }
 
         $data = $request->validate($rules);
@@ -1484,7 +1516,30 @@ class SettingsController extends Controller
 
         Setting::setMany($settings);
 
-        return back()->with('status', 'Recovery policy saved.');
+        $partnerInput = [];
+        foreach ($serviceCategories as $category) {
+            $partnerInput["{$category}_has_markup"] = $request->boolean("{$category}_has_markup");
+            $partnerInput["{$category}_markup_percent"] = $data["{$category}_markup_percent"] ?? 0;
+            if (array_key_exists("{$category}_rate_percent", $data)) {
+                $partnerInput["{$category}_rate_percent"] = $data["{$category}_rate_percent"];
+            }
+            if (array_key_exists("{$category}_base_cost", $data)) {
+                $partnerInput["{$category}_base_cost"] = $data["{$category}_base_cost"];
+            }
+            if (array_key_exists("{$category}_monitoring_monthly", $data)) {
+                $partnerInput["{$category}_monitoring_monthly"] = $data["{$category}_monitoring_monthly"];
+            }
+        }
+        app(\App\Services\PartnerDefaultsService::class)->saveFromRequest($partnerInput);
+
+        $tab = (string) $request->input('_tab', 'timeline');
+        if (! in_array($tab, ['timeline', 'recovery', 'repossession', 'service'], true)) {
+            $tab = 'timeline';
+        }
+
+        return redirect()
+            ->route('admin.settings.recovery', ['tab' => $tab])
+            ->with('status', 'Recovery policy saved.');
     }
 
     public function chatbot()

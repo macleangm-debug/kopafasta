@@ -92,7 +92,7 @@ class ValuationPartnerService
                 'location'        => $location ?: null,
                 'instructions'    => $notes ?: 'Inspect the asset physically, upload photos, and submit market and forced sale values.',
                 'notes'           => $notes,
-                'fee_amount'      => (int) round((float) ($valuer->partner_cost ?? 0)),
+                'fee_amount'      => (int) round(app(PartnerDefaultsService::class)->valuerBaseCost($valuer)),
             ]);
 
             $assignment = ValuationAssignment::create([

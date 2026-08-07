@@ -19,26 +19,24 @@ class CollateralInsurancePartnerService
 {
     public const TASK_TYPE = 'vehicle_insurance';
 
-    public function ratePercent(): float
+    public function ratePercent(?\App\Models\Partner $partner = null): float
     {
-        return max(0, (float) app(UnderwritingSettingsService::class)
-            ->get('collateral_insurance_rate_percent', 3.5));
+        return app(PartnerDefaultsService::class)->insuranceRatePercent($partner);
     }
 
-    public function markupPercent(): float
+    public function markupPercent(?\App\Models\Partner $partner = null): float
     {
-        return max(0, (float) app(UnderwritingSettingsService::class)
-            ->get('collateral_insurance_markup_percent', 0));
+        return app(PartnerDefaultsService::class)->insuranceMarkupPercent($partner);
     }
 
     /**
      * @return array{insured_value: int, rate_percent: float, markup_percent: float, base_premium: int, markup_amount: int, premium: int}
      */
-    public function quote(int $insuredValue): array
+    public function quote(int $insuredValue, ?\App\Models\Partner $partner = null): array
     {
         $insuredValue = max(0, $insuredValue);
-        $rate = $this->ratePercent();
-        $markupPct = $this->markupPercent();
+        $rate = $this->ratePercent($partner);
+        $markupPct = $this->markupPercent($partner);
         $base = (int) round($insuredValue * ($rate / 100));
         $markup = (int) round($base * ($markupPct / 100));
 

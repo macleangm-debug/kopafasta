@@ -2,14 +2,17 @@
 
 namespace App\Services;
 
+use App\Models\Partner;
+
 class GpsPricingService
 {
     /** @return array{device_cost: float, monitoring_total: float, markup: float, total: float, monthly_monitoring: float, months: int} */
-    public function estimate(int $loanMonths): array
+    public function estimate(int $loanMonths, ?Partner $partner = null): array
     {
-        $device = (float) config('gps_pricing.device_cost', 100_000);
-        $monthly = (float) config('gps_pricing.monitoring_monthly', 10_000);
-        $markupPct = (float) config('gps_pricing.markup_percent', 10);
+        $defaults = app(PartnerDefaultsService::class);
+        $device = $defaults->gpsBaseCost($partner);
+        $monthly = $defaults->gpsMonitoringMonthly();
+        $markupPct = $defaults->gpsMarkupPercent($partner);
         $months = max(1, $loanMonths);
 
         $monitoringTotal = round($monthly * $months, 2);
