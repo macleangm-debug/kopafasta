@@ -68,6 +68,36 @@
             </div>
         </div>
 
+        @if (! empty($activeRecovery))
+            <x-admin.recovery-automation-status
+                :level="$activeRecovery['level'] ?? null"
+                :partner-name="$activeRecovery['partnerName'] ?? null"
+                :sla-due-at="$activeRecovery['slaDueAt'] ?? null"
+                :sla-days-left="$activeRecovery['slaDaysLeft'] ?? null"
+                :status="$activeRecovery['status'] ?? null"
+                :assignment-id="$activeRecovery['assignmentId'] ?? null"
+                :arrear-case-id="$activeRecovery['arrearCaseId'] ?? null"
+                :breached="(bool) ($activeRecovery['breached'] ?? false)"
+            />
+        @endif
+
+        @if (! empty($auctionHold))
+            <div class="mt-4">
+                <x-site.auction-hold-banner :status="$auctionHold" />
+            </div>
+        @endif
+
+        @if (! empty($collateralGps))
+            <div class="mt-4">
+                <x-collateral-gps-panel
+                    :items="$collateralGps"
+                    :installer-contact="$gpsInstallerContact ?? null"
+                    :show-installer-contact="! empty($gpsInstallerContact)"
+                    title="Collateral & GPS"
+                />
+            </div>
+        @endif
+
         @if ($restructureRequests->isNotEmpty() || $topUpRequests->isNotEmpty())
             <div class="grid md:grid-cols-2 gap-4 mb-5">
                 @if ($restructureRequests->isNotEmpty())

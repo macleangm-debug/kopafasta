@@ -19,6 +19,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/recovery-cases/{recoveryAssignment}', [VendorController::class, 'recoveryCase'])->name('recovery-case');
         Route::post('/recovery-cases/{recoveryAssignment}/start', [VendorController::class, 'startRecoveryCase'])->name('recovery-case.start');
         Route::post('/recovery-cases/{recoveryAssignment}/actions', [VendorController::class, 'recoveryCaseAction'])->name('recovery-case.action');
+        Route::post('/recovery-cases/{recoveryAssignment}/remind', [VendorController::class, 'remindRecoveryCase'])->name('recovery-case.remind');
         Route::get('/tasks/{task}', [VendorController::class, 'task'])->name('task');
         Route::post('/tasks/{task}/accept', [VendorController::class, 'acceptTask'])->name('task.accept');
         Route::post('/tasks/{task}/start', [VendorController::class, 'startTask'])->name('task.start');

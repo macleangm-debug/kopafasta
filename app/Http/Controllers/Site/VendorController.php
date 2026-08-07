@@ -263,6 +263,8 @@ class VendorController extends Controller
             'notes'            => ['nullable', 'string', 'max:2000'],
             'file'             => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'auction_proceeds' => ['nullable', 'numeric', 'min:0.01'],
+            'buyer_name'       => ['nullable', 'string', 'max:120'],
+            'lot_reference'    => ['nullable', 'string', 'max:80'],
         ]);
 
         $portal->recordAction(
@@ -273,6 +275,8 @@ class VendorController extends Controller
             $data['notes'] ?? null,
             $request->file('file'),
             isset($data['auction_proceeds']) ? (float) $data['auction_proceeds'] : null,
+            $data['buyer_name'] ?? null,
+            $data['lot_reference'] ?? null,
         );
 
         $message = in_array($data['action'], ['resolved', 'sold', 'gps_removed'], true)
@@ -282,6 +286,17 @@ class VendorController extends Controller
         return redirect()
             ->route('site.partner.recovery-case', $recoveryAssignment)
             ->with('status', $message);
+    }
+
+    public function remindRecoveryCase(\App\Models\RecoveryAssignment $recoveryAssignment)
+    {
+        $vendor = $this->vendor();
+        $portal = app(\App\Services\RecoveryPartnerPortalService::class);
+        $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
+
+        $portal->sendBorrowerReminder($recoveryAssignment, $vendor, Auth::user());
+
+        return back()->with('status', 'In-app payment reminder sent to the borrower.');
     }
 
     public function completedJobs()
@@ -350,6 +365,9 @@ class VendorController extends Controller
 
         $data = $request->validate([
             'gps_serial'        => ['nullable', 'string', 'max:60'],
+            'gps_provider'      => ['nullable', 'string', 'max:40'],
+            'gps_device_id'     => ['nullable', 'string', 'max:80'],
+            'gps_tracking_url'  => ['nullable', 'url', 'max:500'],
             'notes'             => ['nullable', 'string', 'max:1000'],
             'market_value'      => ['nullable', 'numeric', 'min:0'],
             'forced_sale_value' => ['nullable', 'numeric', 'min:0'],
@@ -396,15 +414,33 @@ class VendorController extends Controller
                 ->with('status', 'Insurance cover recorded on the collateral asset.');
         }
 
-        $task->update([
-            'status'       => 'completed',
-            'completed_at' => now(),
-            'gps_serial'   => $data['gps_serial'] ?? $task->gps_serial,
-            'notes'        => $data['notes'] ?? $task->notes,
-        ]);
-
         if (str_contains((string) $task->task_type, 'gps')) {
-            app(\App\Services\AssetReservationService::class)->syncGpsFromTask($task->fresh());
+            if (! filled($data['gps_serial'] ?? null) && ! filled($task->gps_serial)) {
+                return back()->withErrors(['gps_serial' => 'GPS serial number is required to complete installation.']);
+            }
+            if (! filled($data['gps_tracking_url'] ?? null) && ! filled($task->gps_tracking_url)) {
+                return back()->withErrors(['gps_tracking_url' => 'Enter this device’s tracking URL from your GPS provider portal.']);
+            }
+
+            app(\App\Services\GpsDeviceService::class)->recordInstallFromTask($task, [
+                'gps_serial' => $data['gps_serial'] ?? $task->gps_serial,
+                'gps_provider' => $data['gps_provider'] ?? null,
+                'gps_device_id' => $data['gps_device_id'] ?? null,
+                'gps_tracking_url' => $data['gps_tracking_url'] ?? null,
+            ]);
+
+            $task->update([
+                'status'       => 'completed',
+                'completed_at' => now(),
+                'notes'        => $data['notes'] ?? $task->notes,
+            ]);
+        } else {
+            $task->update([
+                'status'       => 'completed',
+                'completed_at' => now(),
+                'gps_serial'   => $data['gps_serial'] ?? $task->gps_serial,
+                'notes'        => $data['notes'] ?? $task->notes,
+            ]);
         }
 
         // auto-issue invoice if fee set and no payment yet

@@ -23,7 +23,23 @@
             </div>
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.loan_profile.outstanding') }}</p>
-                <p class="font-semibold text-emerald-900">{{ format_money($loan->outstanding_balance ?? $loan->principal_amount) }}</p>
+                @php
+                    $owed = app(\App\Services\ActiveLoanServicingService::class)->forLoan($loan);
+                    $bd = $owed['balance_breakdown'] ?? [];
+                    $rec = $owed['recovery_charges']['total'] ?? ($bd['recovery_costs'] ?? 0);
+                @endphp
+                <p class="font-semibold text-emerald-900">{{ format_money($bd['total_outstanding'] ?? $loan->outstanding_balance ?? $loan->principal_amount) }}</p>
+                @if (((float) ($bd['penalty_outstanding'] ?? 0)) > 0 || (float) $rec > 0)
+                    <p class="text-[11px] text-emerald-800/80 mt-1">
+                        @if (((float) ($bd['penalty_outstanding'] ?? 0)) > 0)
+                            {{ __('borrower.loan_servicing.penalty_outstanding') }}: {{ format_money($bd['penalty_outstanding']) }}
+                        @endif
+                        @if (((float) ($bd['penalty_outstanding'] ?? 0)) > 0 && (float) $rec > 0) · @endif
+                        @if ((float) $rec > 0)
+                            {{ __('borrower.loan_servicing.recovery_total') }}: {{ format_money($rec) }}
+                        @endif
+                    </p>
+                @endif
             </div>
             @php $repayment = $profile['repayment_summary'] ?? null; @endphp
             @if (! empty($repayment['disbursed_at']))

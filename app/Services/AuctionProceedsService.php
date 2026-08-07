@@ -146,6 +146,8 @@ class AuctionProceedsService
                     'auction_settlement',
                     $summary,
                     $allocation['loan_closed'] ? 'closed' : 'partial',
+                    null,
+                    $assignment,
                 );
             }
 

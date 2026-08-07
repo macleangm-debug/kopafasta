@@ -6,6 +6,9 @@
  * Built-in partners merge with admin-added custom partners
  * (Setting key: integrations.custom_partners).
  * Payment partners declare supported channels: mobile_money, bank, or both.
+ *
+ * GPS tracking URLs are per-device on the loan (entered by the GPS installer),
+ * not configured here.
  */
 return [
     'categories' => [
@@ -54,7 +57,7 @@ return [
         'unitxt' => [
             'label' => 'Unitxt SMS',
             'category' => 'messaging',
-            'description' => 'Primary SMS gateway for OTP and transactional alerts.',
+            'description' => 'Primary SMS gateway for OTP and transactional reminders.',
             'settings_route' => 'admin.settings.integrations.partner',
             'health_route' => 'admin.settings.gateways.health',
             'docs_url' => null,

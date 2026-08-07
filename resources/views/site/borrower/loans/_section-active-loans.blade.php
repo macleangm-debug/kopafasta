@@ -28,9 +28,25 @@
                     </div>
 
                     <div class="grid sm:grid-cols-3 gap-4 mb-4 text-sm">
+                        @php
+                            $owed = app(\App\Services\ActiveLoanServicingService::class)->forLoan($loan);
+                            $bd = $owed['balance_breakdown'] ?? [];
+                            $rec = $owed['recovery_charges']['total'] ?? ($bd['recovery_costs'] ?? 0);
+                        @endphp
                         <div>
                             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.outstanding') }}</p>
-                            <p class="font-semibold">{{ format_money($loan->outstanding_balance) }}</p>
+                            <p class="font-semibold">{{ format_money($bd['total_outstanding'] ?? $loan->outstanding_balance) }}</p>
+                            @if (((float) ($bd['penalty_outstanding'] ?? 0)) > 0 || (float) $rec > 0)
+                                <p class="text-[11px] text-gray-500 mt-1">
+                                    @if (((float) ($bd['penalty_outstanding'] ?? 0)) > 0)
+                                        {{ __('borrower.loan_servicing.penalty_outstanding') }}: {{ format_money($bd['penalty_outstanding']) }}
+                                    @endif
+                                    @if (((float) ($bd['penalty_outstanding'] ?? 0)) > 0 && (float) $rec > 0) · @endif
+                                    @if ((float) $rec > 0)
+                                        {{ __('borrower.loan_servicing.recovery_total') }}: {{ format_money($rec) }}
+                                    @endif
+                                </p>
+                            @endif
                         </div>
                         <div>
                             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.next_payment') }}</p>

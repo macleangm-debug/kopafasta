@@ -181,19 +181,50 @@ class LoanController extends Controller
         $recentRepayments = collect();
         $restructureRequests = collect();
         $topUpRequests = collect();
+        $activeRecovery = null;
+        $collateralGps = [];
+        $gpsInstallerContact = null;
+        $auctionHold = null;
 
         if (in_array($loan->status, ['active', 'arrears', 'defaulted', 'closed'], true)) {
             $servicing = app(ActiveLoanServicingService::class)->forLoan($loan);
             $arrearCase = ArrearCase::query()
                 ->where('loan_id', $loan->id)
                 ->where('status', 'open')
-                ->with(['actions' => fn ($q) => $q->with('performer')->latest('performed_at')->limit(10)])
+                ->with([
+                    'actions' => fn ($q) => $q->with('performer')->latest('performed_at')->limit(10),
+                    'recoveryAssignments' => fn ($q) => $q->with('vendor')
+                        ->whereIn('status', ['assigned', 'in_progress'])
+                        ->latest('id'),
+                ])
                 ->latest('id')
                 ->first();
             $collectionActions = $arrearCase?->actions ?? collect();
             $recentRepayments = $loan->repayments()->latest('paid_at')->limit(8)->get();
             $restructureRequests = $loan->restructureRequests()->latest()->limit(5)->get();
             $topUpRequests = $loan->topUpRequests()->latest()->limit(5)->get();
+
+            $assignment = $arrearCase?->recoveryAssignments?->first();
+            if ($assignment) {
+                $slaDaysLeft = null;
+                if ($assignment->sla_due_at && $assignment->isOpen()) {
+                    $slaDaysLeft = (int) now()->startOfDay()->diffInDays($assignment->sla_due_at->copy()->startOfDay(), false);
+                }
+                $activeRecovery = [
+                    'level' => app(\App\Services\RecoveryPolicyService::class)->partnerTypeLabel($assignment->partner_type),
+                    'partnerName' => $assignment->vendor?->name,
+                    'slaDueAt' => $assignment->sla_due_at,
+                    'slaDaysLeft' => $slaDaysLeft,
+                    'status' => $assignment->status,
+                    'assignmentId' => $assignment->id,
+                    'arrearCaseId' => $arrearCase?->id,
+                    'breached' => $assignment->slaBreached(),
+                ];
+            }
+
+            $collateralGps = app(\App\Services\GpsDeviceService::class)->collateralForLoan($loan);
+            $gpsInstallerContact = app(\App\Services\GpsDeviceService::class)->installerContactForLoan($loan);
+            $auctionHold = app(\App\Services\AuctionHoldService::class)->statusForLoan($loan);
         }
 
         return view('admin.loans.show', compact(
@@ -216,6 +247,10 @@ class LoanController extends Controller
             'topUpRequests',
             'needsManualCapitalAllocation',
             'capitalPartnerOptions',
+            'activeRecovery',
+            'collateralGps',
+            'gpsInstallerContact',
+            'auctionHold',
         ));
     }
 

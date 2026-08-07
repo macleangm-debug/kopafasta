@@ -17,6 +17,11 @@ class CollectionAction extends Model
         return $this->belongsTo(ArrearCase::class);
     }
 
+    public function recoveryAssignment(): BelongsTo
+    {
+        return $this->belongsTo(RecoveryAssignment::class);
+    }
+
     public function performer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'performed_by');

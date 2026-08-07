@@ -40,6 +40,12 @@
         </div>
     @endif
 
+    @if (! empty($auctionHold))
+        <div class="mb-4">
+            <x-site.auction-hold-banner :status="$auctionHold" />
+        </div>
+    @endif
+
     {{-- Loan summary --}}
     <div class="glass-card p-5 mb-6">
         <h2 class="font-semibold text-gray-900 mb-4">{{ __('borrower.loan_servicing.summary_title') }}</h2>

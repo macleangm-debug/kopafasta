@@ -136,6 +136,8 @@ class RecoveryAssignmentService
                 'recovery_partner_assigned',
                 'Assigned to '.$vendor->name.' ('.$this->policy->partnerTypeLabel($partnerType).'). SLA '.$slaDays.' days.',
                 'assigned',
+                null,
+                $assignment,
             );
 
             return $assignment->fresh(['vendor', 'arrearCase.loan.customer', 'vendorTask']);
@@ -199,6 +201,8 @@ class RecoveryAssignmentService
                     'recovery_partner_completed',
                     'Partner completed case with outcome: '.$outcome,
                     $outcome,
+                    null,
+                    $assignment,
                 );
             }
 
@@ -229,6 +233,8 @@ class RecoveryAssignmentService
                 'recovery_partner_escalated',
                 $notes ?? 'Recovery partner SLA expired.',
                 'escalated',
+                null,
+                $assignment,
             );
         }
 
@@ -288,5 +294,25 @@ class RecoveryAssignmentService
         );
 
         app(LoanBalanceService::class)->syncOutstandingBalance($loan->fresh());
+
+        $customer = $loan->customer;
+        if ($customer) {
+            try {
+                $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Customer';
+                $partnerLabel = $this->policy->partnerTypeLabel($partnerType);
+                $outstanding = (float) $loan->fresh()->outstanding_balance;
+                app(\App\Services\NotificationService::class)->notifyCustomer($customer, 'recovery_fee_accrued', [
+                    'name' => $name,
+                    'loan_number' => $loan->loan_number,
+                    'partner_type' => $partnerLabel,
+                    'recovery_amount' => format_money($totalCharge),
+                    'amount' => format_money($outstanding),
+                    '_fallback_body' => "Hi {$name}, a recovery fee of ".format_money($totalCharge)." ({$partnerLabel}) was added to loan {$loan->loan_number}. Total owed: ".format_money($outstanding).'. Please pay soon to avoid escalation. — '.brand_name(),
+                    '_fallback_subject' => 'Recovery fee added to your loan',
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
     }
 }

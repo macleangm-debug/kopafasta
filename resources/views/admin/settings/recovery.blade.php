@@ -55,6 +55,21 @@
                                help="Canonical grace lives on each loan product (and Loan rules)." />
                 <x-admin.input name="call_center_lead_days" label="Call center lead (days before grace ends)" type="number" min="0" max="30"
                                :value="$values['call_center_lead_days'] ?? 0" required />
+                <x-admin.input name="auction_hold_days" label="Auction hold after repossession (days)" type="number" min="1" max="30"
+                               :value="$values['auction_hold_days'] ?? 4" required
+                               help="After debt collector marks repossession complete, the borrower has this many days to settle before an auctioneer is auto-assigned." />
+                <div class="md:col-span-2 flex items-start gap-2 pt-2">
+                    <input type="hidden" name="gps_map_enabled" value="0">
+                    <input type="checkbox" name="gps_map_enabled" value="1" id="gps_map_enabled"
+                           @checked((bool) ($values['gps_map_enabled'] ?? false))
+                           class="mt-0.5 rounded border-gray-300 text-brand">
+                    <label for="gps_map_enabled" class="text-sm text-gray-700">
+                        <span class="font-medium">Enable GPS “View Asset Location” map links</span>
+                        <span class="block text-xs text-gray-500 mt-0.5">
+                            Each device’s tracking URL is entered by the GPS installer on the loan. When enabled, credit management, call center, and debt collectors see a <strong>View Asset Location</strong> button. Debt collectors also always see the GPS partner’s contact details to request deactivation on the provider platform.
+                        </span>
+                    </label>
+                </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Calculate recovery fees from</label>
                     <div class="flex flex-wrap gap-4 text-sm">
@@ -83,7 +98,7 @@
                     <label for="auto_escalate" class="text-sm text-gray-700">Auto escalate when partner SLA expires</label>
                 </div>
             </div>
-            <p class="text-xs text-gray-500 mt-4">Typical path: product grace → Call Center → Debt Collector → Auctioneer → Legal. GPS is for tracking tasks.</p>
+            <p class="text-xs text-gray-500 mt-4">Typical path: product grace → Call Center → Debt Collector → repossession hold ({{ $values['auction_hold_days'] ?? 4 }} days) → Auctioneer → Legal. GPS install feeds map links for credit &amp; recovery.</p>
         </div>
 
         {{-- Tab 2: Recovery partners (all escalation types) --}}
@@ -91,92 +106,138 @@
             <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-950">
                 <p class="font-semibold">All recovery escalation partners ({{ $recoveryTypeCount }})</p>
                 <p class="text-xs mt-1 text-sky-900/80">
-                    Call Center, Debt Collector, Auctioneer, Legal, and GPS live here — SLA, commission, and markup for collection cases.
-                    Insurance and Valuation are <strong>not</strong> in this list; they use the <button type="button" class="font-semibold underline" @click="tab = 'service'">Service rates</button> tab.
+                    Drag cards to set priority (1 = first). Escalation follows Call Center → Debt Collector → Auctioneer → Legal;
+                    GPS is for tracking. Insurance and Valuation use the
+                    <button type="button" class="font-semibold underline" @click="tab = 'service'">Service rates</button> tab.
                 </p>
             </div>
 
-            <div class="space-y-4">
-                @foreach ($types as $type => $meta)
-                    @php
-                        $vendorCategory = $meta['vendor_category'] ?? $type;
-                    @endphp
-                    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+            @php
+                $orderedTypes = [];
+                foreach ($types as $type => $meta) {
+                    $orderedTypes[] = [
+                        'type' => $type,
+                        'label' => $meta['label'],
+                        'vendor_category' => $meta['vendor_category'] ?? $type,
+                        'priority' => (int) ($values['priority'][$type] ?? $meta['default_priority'] ?? 99),
+                        'has_markup' => (bool) ($values['has_markup'][$type] ?? false),
+                        'markup' => (float) ($values['markup_percent'][$type] ?? 0),
+                        'loan_types' => $values['loan_types'][$type] ?? 'all',
+                        'collateral' => $values['collateral_scope'][$type] ?? 'all',
+                        'sla' => $values['sla_days'][$type] ?? $meta['default_sla_days'],
+                        'fee_type' => $values['fee_type'][$type] ?? 'percentage',
+                        'commission' => $values['commission_percent'][$type] ?? $meta['default_commission_percent'],
+                        'fixed' => $values['fixed_amount'][$type] ?? '',
+                        'auto_escalate' => (bool) ($values['auto_escalate_type'][$type] ?? true),
+                    ];
+                }
+            @endphp
+
+            <div class="space-y-3"
+                 x-data="{
+                    items: @js($orderedTypes),
+                    dragIndex: null,
+                    syncPriorities() {
+                        this.items.forEach((item, i) => { item.priority = i + 1; });
+                    },
+                    onDragStart(index) { this.dragIndex = index; },
+                    onDrop(index) {
+                        if (this.dragIndex === null || this.dragIndex === index) return;
+                        const moved = this.items.splice(this.dragIndex, 1)[0];
+                        this.items.splice(index, 0, moved);
+                        this.dragIndex = null;
+                        this.syncPriorities();
+                    }
+                 }">
+                <template x-for="(item, index) in items" :key="item.type">
+                    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5"
+                         draggable="true"
+                         @dragstart="onDragStart(index)"
+                         @dragover.prevent
+                         @drop.prevent="onDrop(index)"
+                         :class="dragIndex === index ? 'opacity-60 ring-brand' : ''">
                         <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
-                            <div>
-                                <p class="text-sm font-semibold text-gray-900">{{ $meta['label'] }}</p>
-                                <p class="text-xs text-gray-500 mt-0.5">Priority {{ $values['priority'][$type] ?? $meta['default_priority'] ?? '—' }} in the escalation chain</p>
+                            <div class="flex items-start gap-3">
+                                <div class="mt-0.5 cursor-grab active:cursor-grabbing text-gray-400 select-none text-lg leading-none" title="Drag to reorder">⋮⋮</div>
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-900" x-text="item.label"></p>
+                                    <p class="text-xs text-gray-500 mt-0.5">
+                                        Priority <span class="font-semibold text-brand" x-text="item.priority"></span>
+                                        · drag to reorder
+                                    </p>
+                                </div>
                             </div>
-                            <a href="{{ route('admin.partners.create', ['category' => $vendorCategory]) }}"
+                            <a :href="'{{ url('/admin/partners/create') }}?category=' + item.vendor_category"
                                class="inline-flex text-xs font-semibold text-brand hover:underline">
                                 Add partner →
                             </a>
                         </div>
-                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-700 mb-1">Priority</label>
-                                <input type="number" name="priority_{{ $type }}" min="1" max="99" step="1"
-                                       value="{{ $values['priority'][$type] ?? $meta['default_priority'] ?? 99 }}"
-                                       class="w-full rounded-lg border-gray-300 text-sm">
-                            </div>
+
+                        <input type="hidden" :name="'priority_' + item.type" :value="item.priority">
+
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+                             x-data="{ hasMarkup: item.has_markup }"
+                             x-init="$watch('hasMarkup', v => item.has_markup = v)">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Loan types</label>
-                                <input type="text" name="loan_types_{{ $type }}"
-                                       value="{{ $values['loan_types'][$type] ?? 'all' }}"
-                                       placeholder="all"
-                                       class="w-full rounded-lg border-gray-300 text-sm font-mono">
+                                <input type="text" :name="'loan_types_' + item.type" x-model="item.loan_types"
+                                       placeholder="all" class="w-full rounded-lg border-gray-300 text-sm font-mono">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Collateral</label>
-                                <select name="collateral_scope_{{ $type }}" class="w-full rounded-lg border-gray-300 text-sm">
-                                    @foreach (['all' => 'All', 'secured' => 'Secured', 'unsecured' => 'Unsecured'] as $scope => $label)
-                                        <option value="{{ $scope }}" @selected(($values['collateral_scope'][$type] ?? 'all') === $scope)>{{ $label }}</option>
-                                    @endforeach
+                                <select :name="'collateral_scope_' + item.type" x-model="item.collateral" class="w-full rounded-lg border-gray-300 text-sm">
+                                    <option value="all">All</option>
+                                    <option value="secured">Secured</option>
+                                    <option value="unsecured">Unsecured</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">SLA days</label>
-                                <input type="number" name="sla_days_{{ $type }}" min="1" max="90"
-                                       value="{{ $values['sla_days'][$type] ?? $meta['default_sla_days'] }}"
+                                <input type="number" :name="'sla_days_' + item.type" x-model="item.sla" min="1" max="90"
                                        class="w-full rounded-lg border-gray-300 text-sm">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Fee type</label>
-                                <select name="fee_type_{{ $type }}" class="w-full rounded-lg border-gray-300 text-sm">
-                                    <option value="percentage" @selected(($values['fee_type'][$type] ?? 'percentage') === 'percentage')>%</option>
-                                    <option value="fixed" @selected(($values['fee_type'][$type] ?? '') === 'fixed')>Fixed</option>
+                                <select :name="'fee_type_' + item.type" x-model="item.fee_type" class="w-full rounded-lg border-gray-300 text-sm">
+                                    <option value="percentage">%</option>
+                                    <option value="fixed">Fixed</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Commission %</label>
-                                <input type="number" name="commission_percent_{{ $type }}" step="0.1" min="0" max="100"
-                                       value="{{ $values['commission_percent'][$type] ?? $meta['default_commission_percent'] }}"
+                                <input type="number" :name="'commission_percent_' + item.type" x-model="item.commission" step="0.1" min="0" max="100"
                                        class="w-full rounded-lg border-gray-300 text-sm">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Fixed fee</label>
-                                <input type="number" name="fixed_amount_{{ $type }}" step="1" min="0"
-                                       value="{{ $values['fixed_amount'][$type] ?? '' }}"
+                                <input type="number" :name="'fixed_amount_' + item.type" x-model="item.fixed" step="1" min="0"
                                        class="w-full rounded-lg border-gray-300 text-sm">
+                            </div>
+                            <div class="flex items-center gap-2 pb-1">
+                                <input type="hidden" :name="'has_markup_' + item.type" value="0">
+                                <input type="checkbox" :name="'has_markup_' + item.type" value="1" x-model="hasMarkup"
+                                       class="rounded border-gray-300 text-brand">
+                                <label class="text-sm text-gray-700">Has markup</label>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Markup %</label>
-                                <input type="number" name="markup_percent_{{ $type }}" step="0.1" min="0" max="100"
-                                       value="{{ $values['markup_percent'][$type] ?? $meta['default_markup_percent'] }}"
-                                       class="w-full rounded-lg border-gray-300 text-sm">
+                                <input type="number" :name="'markup_percent_' + item.type" x-model="item.markup" step="0.1" min="0" max="100"
+                                       x-bind:disabled="!hasMarkup"
+                                       class="w-full rounded-lg border-gray-300 text-sm disabled:bg-gray-50 disabled:text-gray-400">
+                                <input type="hidden" :name="'markup_percent_' + item.type" :value="item.markup" x-bind:disabled="hasMarkup">
+                                <p class="mt-1 text-[11px] text-gray-500" x-show="!hasMarkup" x-cloak>No markup applied.</p>
                             </div>
                             <div class="flex items-end pb-2">
                                 <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="hidden" name="auto_escalate_type_{{ $type }}" value="0">
-                                    <input type="checkbox" name="auto_escalate_type_{{ $type }}" value="1"
-                                           @checked((bool) ($values['auto_escalate_type'][$type] ?? true))
+                                    <input type="hidden" :name="'auto_escalate_type_' + item.type" value="0">
+                                    <input type="checkbox" :name="'auto_escalate_type_' + item.type" value="1" x-model="item.auto_escalate"
                                            class="rounded border-gray-300 text-brand">
                                     Auto escalate
                                 </label>
                             </div>
                         </div>
                     </div>
-                @endforeach
+                </template>
             </div>
         </div>
 

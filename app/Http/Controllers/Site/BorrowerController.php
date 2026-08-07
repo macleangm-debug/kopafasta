@@ -905,6 +905,7 @@ class BorrowerController extends Controller
         $canRestructure = $policy->canSubmitRestructureRequest($loan) === null;
         $canTopUp = $policy->canSubmitTopUpRequest($loan) === null;
         $timeline = app(\App\Services\LoanServicingTimelineService::class)->forLoan($loan);
+        $auctionHold = app(\App\Services\AuctionHoldService::class)->statusForLoan($loan);
 
         return view('site.borrower.loan-show', compact(
             'customer',
@@ -916,6 +917,7 @@ class BorrowerController extends Controller
             'canRestructure',
             'canTopUp',
             'timeline',
+            'auctionHold',
         ));
     }
 

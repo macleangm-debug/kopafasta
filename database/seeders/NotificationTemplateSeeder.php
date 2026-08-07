@@ -178,6 +178,51 @@ class NotificationTemplateSeeder extends Seeder
                 ],
             ],
             [
+                'code' => 'recovery_case_reminder',
+                'name' => 'Recovery Case Payment Reminder',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Payment reminder',
+                        'body' => "Hi {{ name }}, reminder: loan {{ loan_number }} has {{ amount }} outstanding. Please pay today or contact us. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Kikumbusho cha malipo',
+                        'body' => "Habari {{ name }}, kikumbusho: mkopo {{ loan_number }} una deni la {{ amount }}. Tafadhali lipa leo au wasiliana nasi. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'collateral_repossessed',
+                'name' => 'Collateral Repossessed',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Collateral repossessed',
+                        'body' => "Hi {{ name }}, collateral on loan {{ loan_number }} has been repossessed. You have {{ hold_days }} day(s) (until {{ auction_date }}) to settle before auction. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Dhamana imekamatwa',
+                        'body' => "Habari {{ name }}, dhamana ya mkopo {{ loan_number }} imekamatwa. Una siku {{ hold_days }} (hadi {{ auction_date }}) kulipa kabla ya mnada. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'auction_window_started',
+                'name' => 'Auction Window Started',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Asset moving to auction',
+                        'body' => "Hi {{ name }}, the auction hold on loan {{ loan_number }} has ended. The repossessed asset is being prepared for auction. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Mnada unaanza',
+                        'body' => "Habari {{ name }}, kipindi cha kusubiri mnada kwa mkopo {{ loan_number }} kimekwisha. Mali inatayarishwa kwa mnada. — {$brand}",
+                    ],
+                ],
+            ],
+            [
                 'code' => 'application_approved',
                 'name' => 'Loan Application Approved',
                 'channel' => 'sms',

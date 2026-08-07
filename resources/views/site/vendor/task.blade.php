@@ -259,9 +259,38 @@
                             </div>
                         @endif
                         @if (str_contains($task->task_type, 'gps'))
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">GPS serial number</label>
-                                <input name="gps_serial" value="{{ $task->gps_serial }}" class="w-full rounded-lg border-gray-300 text-sm">
+                            @php
+                                $gpsProviders = app(\App\Services\GpsDeviceService::class)->providerOptions();
+                                $defaultProvider = old('gps_provider', $task->gps_provider ?: app(\App\Services\GpsDeviceService::class)->defaultProvider());
+                            @endphp
+                            <div class="rounded-xl border border-sky-100 bg-sky-50/50 p-3 space-y-3">
+                                <p class="text-xs font-semibold text-sky-950">GPS device (tied to this loan)</p>
+                                <p class="text-[11px] text-sky-900/80">Enter this unit’s own tracking URL from your provider portal. It is saved on the loan application — not as a global integration.</p>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">GPS serial number *</label>
+                                    <input name="gps_serial" value="{{ old('gps_serial', $task->gps_serial) }}" required
+                                           class="w-full rounded-lg border-gray-300 text-sm" placeholder="Device / unit serial">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">GPS provider</label>
+                                    <select name="gps_provider" class="w-full rounded-lg border-gray-300 text-sm">
+                                        @foreach ($gpsProviders as $key => $label)
+                                            <option value="{{ $key }}" @selected($defaultProvider === $key)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Provider device / IMEI (optional)</label>
+                                    <input name="gps_device_id" value="{{ old('gps_device_id', $task->gps_device_id) }}"
+                                           class="w-full rounded-lg border-gray-300 text-sm" placeholder="IMEI or portal device ID">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Device tracking URL *</label>
+                                    <input name="gps_tracking_url" type="url" value="{{ old('gps_tracking_url', $task->gps_tracking_url) }}" required
+                                           class="w-full rounded-lg border-gray-300 text-sm"
+                                           placeholder="https://… this device’s map/share link">
+                                    <p class="mt-1 text-[11px] text-gray-500">Paste the live link for <em>this</em> device only. Credit and recovery will use it when map viewing is enabled.</p>
+                                </div>
                             </div>
                         @endif
                         <div>

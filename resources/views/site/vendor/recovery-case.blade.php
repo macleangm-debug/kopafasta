@@ -40,15 +40,43 @@
                 @if ($loan?->loan_number) · {{ $loan->loan_number }} @endif
             </p>
         </div>
-        <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $statusBadge }}">
-            {{ display_label($assignment->status, 'record_status') }}
-        </span>
+        <div class="flex flex-wrap items-center gap-2">
+            @if ($isOpen)
+                <form method="POST" action="{{ route('site.partner.recovery-case.remind', $assignment) }}">
+                    @csrf
+                    <button type="submit" class="rounded-lg border border-brand/30 bg-white text-brand text-xs font-semibold px-3 py-2 hover:bg-brand/5">
+                        Send in-app reminder
+                    </button>
+                </form>
+            @endif
+            <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $statusBadge }}">
+                {{ display_label($assignment->status, 'record_status') }}
+            </span>
+        </div>
     </div>
 
     @if ($slaBreached && $isOpen)
         <div class="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
             <p class="font-semibold">SLA breached</p>
             <p class="mt-1">This case was due {{ $assignment->sla_due_at?->format('d M Y') }}. Please update status or contact collections.</p>
+        </div>
+    @elseif ($isOpen && $sla_days_remaining !== null && $sla_days_remaining <= 2)
+        <div class="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-950">
+            <p class="font-semibold">Short time left on this SLA</p>
+            <p class="mt-1">
+                {{ $sla_days_remaining }} day{{ $sla_days_remaining === 1 ? '' : 's' }} left.
+                Tell the borrower they must pay soon
+                @if (! empty($next_partner_label))
+                    or the loan moves to <strong>{{ $next_partner_label }}</strong>
+                @endif
+                .
+            </p>
+        </div>
+    @endif
+
+    @if (! empty($auction_hold))
+        <div class="mb-4">
+            <x-site.auction-hold-banner :status="$auction_hold" />
         </div>
     @endif
 
@@ -73,13 +101,64 @@
                         <dt class="text-gray-500 text-xs">Guarantor phone</dt>
                         <dd class="font-medium">{{ $guarantor_phone ?? '—' }}</dd>
                     </div>
+                    @if (! empty($product_name))
+                        <div>
+                            <dt class="text-gray-500 text-xs">Product</dt>
+                            <dd class="font-medium">{{ $product_name }}</dd>
+                        </div>
+                    @endif
+                    @if (! empty($borrower_region))
+                        <div>
+                            <dt class="text-gray-500 text-xs">Region / location</dt>
+                            <dd class="font-medium">{{ $borrower_region }}</dd>
+                        </div>
+                    @endif
+                    @if (! empty($borrower_address))
+                        <div class="sm:col-span-2">
+                            <dt class="text-gray-500 text-xs">Address</dt>
+                            <dd class="font-medium">{{ $borrower_address }}</dd>
+                        </div>
+                    @endif
+                    @if (! empty($branch_name))
+                        <div>
+                            <dt class="text-gray-500 text-xs">Branch</dt>
+                            <dd class="font-medium">{{ $branch_name }}</dd>
+                        </div>
+                    @endif
                     <div>
                         <dt class="text-gray-500 text-xs">Outstanding at assign</dt>
                         <dd class="font-semibold text-red-700">{{ format_money($assignment->original_outstanding) }}</dd>
                     </div>
                     <div>
-                        <dt class="text-gray-500 text-xs">Your commission</dt>
+                        <dt class="text-gray-500 text-xs">Live outstanding now</dt>
+                        <dd class="font-semibold text-red-800">{{ format_money($live_outstanding ?? $assignment->original_outstanding) }}</dd>
+                    </div>
+                    @if (($penalty_outstanding ?? 0) > 0)
+                        <div>
+                            <dt class="text-gray-500 text-xs">Penalty / late fees</dt>
+                            <dd class="font-semibold text-red-700">{{ format_money($penalty_outstanding) }}</dd>
+                        </div>
+                    @endif
+                    @if (($days_past_due ?? 0) > 0)
+                        <div>
+                            <dt class="text-gray-500 text-xs">Days past due</dt>
+                            <dd class="font-semibold">{{ $days_past_due }}</dd>
+                        </div>
+                    @endif
+                    @if (! empty($next_installment))
+                        <div>
+                            <dt class="text-gray-500 text-xs">Next installment</dt>
+                            <dd class="font-semibold">{{ format_money($next_installment['amount'] ?? 0) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-gray-500 text-xs">Next due date</dt>
+                            <dd class="font-medium">{{ optional($next_installment['due_date'] ?? null)->format('d M Y') ?? '—' }}</dd>
+                        </div>
+                    @endif
+                    <div>
+                        <dt class="text-gray-500 text-xs">Your commission on this case</dt>
                         <dd class="font-semibold">{{ format_money($assignment->commission_earned) }}</dd>
+                        <a href="{{ $wallet_url ?? route('site.partner.recovery-wallet') }}" class="text-xs text-brand hover:underline">Open commission wallet →</a>
                     </div>
                     <div>
                         <dt class="text-gray-500 text-xs">Assigned</dt>
@@ -107,6 +186,40 @@
                 @endif
             </div>
 
+            @if (($mini_schedule ?? collect())->isNotEmpty())
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+                    <h2 class="font-bold mb-3">Upcoming installments</h2>
+                    <ul class="divide-y divide-gray-100 text-sm">
+                        @foreach ($mini_schedule as $row)
+                            <li class="py-2 flex flex-wrap items-center justify-between gap-2">
+                                <span class="font-medium">#{{ $row['installment_no'] }} · {{ optional($row['due_date'])->format('d M Y') }}</span>
+                                <span class="font-semibold">{{ format_money($row['amount_due']) }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @if (! empty($collateral_items) || ! empty($show_gps_installer_contact))
+                <x-collateral-gps-panel
+                    :items="$collateral_items ?? []"
+                    :installer-contact="$gps_installer_contact ?? null"
+                    :show-installer-contact="(bool) ($show_gps_installer_contact ?? false)"
+                    class="glass-card rounded-2xl ring-1 ring-brand/10 p-5"
+                />
+            @endif
+
+            @if (! empty($talk_track['lines']))
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+                    <h2 class="font-bold mb-3">{{ $talk_track['title'] ?? 'Suggested talk track' }}</h2>
+                    <ol class="list-decimal pl-5 space-y-2 text-sm text-gray-700">
+                        @foreach ($talk_track['lines'] as $line)
+                            <li>{{ $line }}</li>
+                        @endforeach
+                    </ol>
+                </div>
+            @endif
+
             @if ($isOpen)
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -128,6 +241,7 @@
                                 $needsNotes = ($action['notes'] ?? null) === 'required';
                                 $needsProceeds = ! empty($action['requires_auction_proceeds']);
                                 $isResolve = ! empty($action['completes']);
+                                $isAuctionSold = $actionKey === 'sold' && $needsProceeds;
                             @endphp
                             <form method="POST"
                                   action="{{ route('site.partner.recovery-case.action', $assignment) }}"
@@ -157,6 +271,22 @@
                                             <p class="text-[11px] text-gray-500 mt-1">Loan balance and recovery costs are settled automatically. Surplus is returned to the borrower.</p>
                                         </div>
                                     @endif
+                                    @if ($isAuctionSold)
+                                        <div class="grid sm:grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-600 mb-1">Lot reference (optional)</label>
+                                                <input type="text" name="lot_reference" maxlength="80"
+                                                       class="w-full rounded-lg border-gray-300 text-sm"
+                                                       placeholder="e.g. LOT-12">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-600 mb-1">Buyer name (optional)</label>
+                                                <input type="text" name="buyer_name" maxlength="120"
+                                                       class="w-full rounded-lg border-gray-300 text-sm"
+                                                       placeholder="Buyer / bidder">
+                                            </div>
+                                        </div>
+                                    @endif
                                     <textarea name="notes" rows="2" maxlength="2000"
                                               @if ($needsNotes && ! $needsFile) required @endif
                                               placeholder="{{ $needsNotes ? 'Enter details…' : 'Optional notes…' }}"
@@ -173,7 +303,8 @@
             @endif
 
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-                <h2 class="font-bold mb-3">Activity log</h2>
+                <h2 class="font-bold mb-1">Activity on this assignment</h2>
+                <p class="text-xs text-gray-500 mb-3">Shows actions logged for this partner case only.</p>
                 @if (($activity ?? collect())->isEmpty())
                     <p class="text-sm text-gray-500">No actions logged yet.</p>
                 @else
@@ -221,8 +352,11 @@
             @endif
 
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 text-sm text-gray-600">
-                <p class="font-semibold text-gray-900 mb-2">Reminder</p>
-                <p>Commission is calculated from the original outstanding at assignment — not compounded across partners.</p>
+                <p class="font-semibold text-gray-900 mb-2">Commission</p>
+                <p class="mb-3">Commission is calculated from the original outstanding at assignment — not compounded across partners.</p>
+                <a href="{{ $wallet_url ?? route('site.partner.recovery-wallet') }}" class="text-brand text-xs font-semibold hover:underline">
+                    View wallet & payouts →
+                </a>
             </div>
         </div>
     </div>

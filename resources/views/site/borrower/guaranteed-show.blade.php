@@ -299,7 +299,26 @@
     @if ($row->in_arrears)
         <div class="mb-6 rounded-2xl bg-red-50 ring-1 ring-red-200 px-5 py-4 text-sm text-red-800">
             <p class="font-semibold">{{ __('borrower.guaranteed.arrears_alert_title') }}</p>
-            <p class="mt-1">{{ __('borrower.guaranteed.arrears_alert_body', ['balance' => format_money($row->outstanding ?? 0)]) }}</p>
+            @php
+                $guarantorLoan = $row->loan;
+                $guarantorOwed = $guarantorLoan
+                    ? app(\App\Services\ActiveLoanServicingService::class)->forLoan($guarantorLoan)
+                    : null;
+                $gBd = $guarantorOwed['balance_breakdown'] ?? [];
+                $gRec = $guarantorOwed['recovery_charges']['total'] ?? ($gBd['recovery_costs'] ?? 0);
+            @endphp
+            <p class="mt-1">{{ __('borrower.guaranteed.arrears_alert_body', ['balance' => format_money($gBd['total_outstanding'] ?? $row->outstanding ?? 0)]) }}</p>
+            @if (((float) ($gBd['penalty_outstanding'] ?? 0)) > 0 || (float) $gRec > 0)
+                <p class="mt-2 text-xs text-red-700">
+                    @if (((float) ($gBd['penalty_outstanding'] ?? 0)) > 0)
+                        {{ __('borrower.loan_servicing.penalty_outstanding') }}: {{ format_money($gBd['penalty_outstanding']) }}
+                    @endif
+                    @if (((float) ($gBd['penalty_outstanding'] ?? 0)) > 0 && (float) $gRec > 0) · @endif
+                    @if ((float) $gRec > 0)
+                        {{ __('borrower.loan_servicing.recovery_total') }}: {{ format_money($gRec) }}
+                    @endif
+                </p>
+            @endif
         </div>
     @endif
 

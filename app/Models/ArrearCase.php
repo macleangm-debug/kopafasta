@@ -14,6 +14,8 @@ class ArrearCase extends Model
             'amount_in_arrears' => 'decimal:2',
             'penalty_amount' => 'decimal:2',
             'last_follow_up_at' => 'datetime',
+            'repossessed_at' => 'datetime',
+            'auction_eligible_at' => 'datetime',
         ];
     }
 

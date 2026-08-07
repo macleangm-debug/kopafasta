@@ -10,9 +10,11 @@ use App\Models\LoanProduct;
 use App\Models\PartnerPayment;
 use App\Models\PartnerSettlement;
 use App\Models\RecoveryAssignment;
+use App\Models\RepaymentSchedule;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\AuctionHoldService;
 use App\Services\PartnerSettlementService;
 use App\Services\PinService;
 use App\Services\RecoveryCommissionWalletService;
@@ -250,6 +252,8 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
 
         $response = $this->actingAs($admin, 'admin')->put(route('admin.settings.recovery.save'), [
             'grace_period_days'       => 2,
+            'auction_hold_days'       => 4,
+            'gps_map_enabled'         => 1,
             'fee_base'                => 'principal',
             'auto_escalate'           => 1,
             'auto_assign_call_center' => 1,
@@ -299,6 +303,16 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
             'loan_types_gps_partner'           => 'all',
             'collateral_scope_gps_partner'     => 'secured',
             'auto_escalate_type_gps_partner'   => 0,
+            'insurance_rate_percent' => 3.5,
+            'insurance_has_markup' => 0,
+            'insurance_markup_percent' => 0,
+            'gps_installer_base_cost' => 100000,
+            'gps_installer_monitoring_monthly' => 10000,
+            'gps_installer_has_markup' => 1,
+            'gps_installer_markup_percent' => 10,
+            'valuer_base_cost' => 50000,
+            'valuer_has_markup' => 0,
+            'valuer_markup_percent' => 0,
         ]);
 
         $response->assertRedirect();
@@ -310,7 +324,7 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
     public function test_recovery_partner_can_view_commission_wallet(): void
     {
         $partner = $this->recoveryPartner();
-        $user = User::factory()->create(['role' => 'borrower']);
+        $user = User::factory()->create(['role' => 'vendor']);
         app(PinService::class)->setPin($user, '1234');
         $partner->update(['user_id' => $user->id]);
 
@@ -319,5 +333,220 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Commission wallet', false)
             ->assertSee('Pending', false);
+    }
+
+    public function test_recovery_case_view_shows_should_haves_and_sends_in_app_reminder(): void
+    {
+        $fixture = $this->loanFixture(false, 'CASE');
+        $customer = $fixture['customer'];
+        $customer->update([
+            'region' => 'Dar es Salaam',
+            'district' => 'Ilala',
+            'ward' => 'Kariakoo',
+            'street' => 'Uhuru St 12',
+        ]);
+
+        RepaymentSchedule::create([
+            'loan_id' => $fixture['loan']->id,
+            'installment_no' => 1,
+            'due_date' => now()->addDays(3)->toDateString(),
+            'principal_due' => 80_000,
+            'interest_due' => 10_000,
+            'total_due' => 90_000,
+            'amount_paid' => 0,
+            'status' => 'pending',
+        ]);
+
+        $partner = $this->recoveryPartner();
+        $user = User::factory()->create(['role' => 'vendor']);
+        app(PinService::class)->setPin($user, '1234');
+        $partner->update(['user_id' => $user->id]);
+
+        $assignment = RecoveryAssignment::create([
+            'arrear_case_id'         => $fixture['arrearCase']->id,
+            'vendor_id'              => $partner->id,
+            'partner_type'           => 'call_center',
+            'status'                 => RecoveryAssignment::STATUS_IN_PROGRESS,
+            'original_outstanding'   => 400_000,
+            'commission_percent'     => 5,
+            'commission_earned'      => 20_000,
+            'sla_due_at'             => now()->addDay(),
+            'assigned_at'            => now()->subDay(),
+        ]);
+
+        Setting::set('messaging.enabled', true);
+        Setting::set('messaging.channels', [
+            'sms' => false,
+            'email' => false,
+            'in_app' => true,
+            'whatsapp' => false,
+            'push' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.partner.recovery-case', $assignment))
+            ->assertOk()
+            ->assertSee('Upcoming installments', false)
+            ->assertSee('Suggested talk track', false)
+            ->assertSee('Send in-app reminder', false)
+            ->assertSee('Uhuru St 12', false)
+            ->assertSee('Open commission wallet', false)
+            ->assertSee('Activity on this assignment', false);
+
+        $this->actingAs($user)
+            ->post(route('site.partner.recovery-case.remind', $assignment))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('collection_actions', [
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'recovery_assignment_id' => $assignment->id,
+            'action_type' => 'reminder_sent',
+        ]);
+    }
+
+    public function test_repossession_starts_auction_hold_and_borrower_sees_countdown(): void
+    {
+        Setting::set('recovery.auction_hold_days', 4);
+        Setting::set('messaging.enabled', true);
+        Setting::set('messaging.channels', [
+            'sms' => false,
+            'email' => false,
+            'in_app' => true,
+            'whatsapp' => false,
+            'push' => false,
+        ]);
+
+        $fixture = $this->loanFixture(true, 'REPO');
+        $partner = Vendor::create([
+            'vendor_number' => 'PTR-P65-DC',
+            'name'          => 'Debt Collector Co',
+            'category'      => 'debt_collector',
+            'status'        => 'active',
+            'phone'         => '255712346120',
+        ]);
+        $user = User::factory()->create(['role' => 'vendor']);
+        app(PinService::class)->setPin($user, '1234');
+        $partner->update(['user_id' => $user->id]);
+
+        $task = \App\Models\PartnerTask::create([
+            'partner_id' => $partner->id,
+            'loan_id' => $fixture['loan']->id,
+            'loan_application_id' => $fixture['application']->id,
+            'task_type' => 'field_visit',
+            'status' => 'in_progress',
+            'customer_name' => 'Borrower',
+        ]);
+
+        $assignment = RecoveryAssignment::create([
+            'arrear_case_id'       => $fixture['arrearCase']->id,
+            'vendor_id'            => $partner->id,
+            'partner_type'         => 'debt_collector',
+            'status'               => RecoveryAssignment::STATUS_IN_PROGRESS,
+            'original_outstanding' => 400_000,
+            'commission_percent'   => 10,
+            'commission_earned'    => 40_000,
+            'sla_due_at'           => now()->addDays(5),
+            'assigned_at'          => now()->subDay(),
+            'vendor_task_id'       => $task->id,
+        ]);
+
+        $file = \Illuminate\Http\UploadedFile::fake()->image('repo.jpg');
+
+        $this->actingAs($user)
+            ->post(route('site.partner.recovery-case.action', $assignment), [
+                'action' => 'repossession_complete',
+                'notes' => 'Asset secured at yard',
+                'file' => $file,
+            ])
+            ->assertRedirect();
+
+        $case = $fixture['arrearCase']->fresh();
+        $this->assertNotNull($case->repossessed_at);
+        $this->assertSame(AuctionHoldService::STATUS_PENDING, $case->auction_status);
+        $this->assertTrue($case->auction_eligible_at->isSameDay(now()->addDays(4)));
+
+        $status = app(AuctionHoldService::class)->statusForLoan($fixture['loan']->fresh());
+        $this->assertTrue($status['repossessed']);
+        $this->assertSame(4, $status['days_until_auction']);
+
+        $borrowerUser = User::factory()->create(['role' => 'borrower']);
+        $fixture['customer']->update(['user_id' => $borrowerUser->id]);
+        app(PinService::class)->setPin($borrowerUser, '1234');
+
+        $this->actingAs($borrowerUser)
+            ->get(route('site.borrower.loans.show', $fixture['loan']))
+            ->assertOk()
+            ->assertSee('repossessed', false)
+            ->assertSee('day', false);
+    }
+
+    public function test_gps_install_persists_tracking_url_for_collateral_map(): void
+    {
+        $fixture = $this->loanFixture(true, 'GPS');
+        $asset = \App\Models\CustomerAsset::create([
+            'customer_id' => $fixture['customer']->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Bajaj Boxer',
+            'registration_number' => 'T123ABC',
+            'is_active' => true,
+            'metadata' => [],
+        ]);
+        \App\Models\LoanApplicationAsset::create([
+            'loan_application_id' => $fixture['application']->id,
+            'customer_asset_id' => $asset->id,
+            'asset_type' => 'vehicle',
+            'gps_required' => true,
+            'is_primary' => true,
+            'uw_status' => 'accepted',
+        ]);
+
+        $installer = Vendor::create([
+            'vendor_number' => 'PTR-P65-GPS',
+            'name' => 'GPS Install Co',
+            'category' => 'gps_installer',
+            'status' => 'active',
+            'phone' => '255712346130',
+        ]);
+        $user = User::factory()->create(['role' => 'vendor']);
+        app(PinService::class)->setPin($user, '1234');
+        $installer->update(['user_id' => $user->id]);
+
+        $task = \App\Models\PartnerTask::create([
+            'partner_id' => $installer->id,
+            'loan_application_id' => $fixture['application']->id,
+            'task_type' => 'gps_install',
+            'status' => 'in_progress',
+            'customer_name' => 'Borrower',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('site.partner.task.complete', $task), [
+                'gps_serial' => 'SN-998877',
+                'gps_provider' => 'generic',
+                'gps_device_id' => 'IMEI-55',
+                'gps_tracking_url' => 'https://track.example.com/device/IMEI-55',
+                'notes' => 'Installed under dash',
+            ])
+            ->assertRedirect();
+
+        $task->refresh();
+        $this->assertSame('completed', $task->status);
+        $this->assertSame('SN-998877', $task->gps_serial);
+        $this->assertSame('https://track.example.com/device/IMEI-55', $task->gps_tracking_url);
+
+        Setting::set('gps.map_enabled', false);
+        $itemsOff = app(\App\Services\GpsDeviceService::class)->collateralForLoan($fixture['loan']->fresh());
+        $this->assertFalse($itemsOff[0]['can_view_asset']);
+
+        Setting::set('gps.map_enabled', true);
+        $items = app(\App\Services\GpsDeviceService::class)->collateralForLoan($fixture['loan']->fresh());
+        $this->assertNotEmpty($items);
+        $this->assertSame('https://track.example.com/device/IMEI-55', $items[0]['tracking_url']);
+        $this->assertTrue($items[0]['can_view_asset']);
+        $this->assertSame('secured', $items[0]['gps_status']);
+
+        $contact = app(\App\Services\GpsDeviceService::class)->installerContactForLoan($fixture['loan']->fresh());
+        $this->assertSame('GPS Install Co', $contact['name']);
+        $this->assertSame('255712346130', $contact['phone']);
     }
 }

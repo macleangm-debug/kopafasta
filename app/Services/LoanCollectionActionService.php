@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ArrearCase;
 use App\Models\CollectionAction;
 use App\Models\Loan;
+use App\Models\RecoveryAssignment;
 use App\Models\User;
 
 class LoanCollectionActionService
@@ -50,6 +51,7 @@ class LoanCollectionActionService
         ?string $notes = null,
         ?string $result = null,
         ?array $metrics = null,
+        ?RecoveryAssignment $assignment = null,
     ): CollectionAction {
         $arrearCase->loadMissing('loan');
         $metrics ??= $arrearCase->loan
@@ -57,12 +59,13 @@ class LoanCollectionActionService
             : [];
 
         $action = CollectionAction::create([
-            'arrear_case_id' => $arrearCase->id,
-            'performed_by'   => $actor->id,
-            'action_type'    => $actionType,
-            'notes'          => $notes,
-            'result'         => $result,
-            'performed_at'   => now(),
+            'arrear_case_id'          => $arrearCase->id,
+            'recovery_assignment_id'  => $assignment?->id,
+            'performed_by'            => $actor->id,
+            'action_type'             => $actionType,
+            'notes'                   => $notes,
+            'result'                  => $result,
+            'performed_at'            => now(),
         ]);
 
         $arrearCase->update([

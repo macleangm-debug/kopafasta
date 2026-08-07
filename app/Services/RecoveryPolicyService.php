@@ -29,6 +29,15 @@ class RecoveryPolicyService
         return max(1, (int) Setting::get('recovery.grace_period_days', 2));
     }
 
+    /** Days after repossession before the asset is eligible for auction assignment. */
+    public function auctionHoldDays(): int
+    {
+        return max(1, (int) Setting::get(
+            'recovery.auction_hold_days',
+            config('recovery.default_auction_hold_days', 4)
+        ));
+    }
+
     public function gracePeriodDaysForLoan(?\App\Models\Loan $loan): int
     {
         if (! $loan) {
@@ -92,6 +101,33 @@ class RecoveryPolicyService
     }
 
     public function defaultMarkupPercent(string $type): float
+    {
+        if (! $this->hasMarkupForType($type)) {
+            return 0.0;
+        }
+
+        $key = "recovery.markup_percent.{$type}";
+        $stored = Setting::get($key);
+
+        if ($stored !== null && $stored !== '') {
+            return (float) $stored;
+        }
+
+        return (float) ($this->partnerTypes()[$type]['default_markup_percent'] ?? 0);
+    }
+
+    public function hasMarkupForType(string $type): bool
+    {
+        $stored = Setting::get("recovery.has_markup.{$type}");
+        if ($stored !== null && $stored !== '') {
+            return (bool) $stored;
+        }
+
+        return ((float) ($this->partnerTypes()[$type]['default_markup_percent'] ?? 0)) > 0;
+    }
+
+    /** Stored markup % even when has_markup is off (for the settings form). */
+    public function storedMarkupPercent(string $type): float
     {
         $key = "recovery.markup_percent.{$type}";
         $stored = Setting::get($key);

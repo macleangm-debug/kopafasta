@@ -1401,6 +1401,8 @@ class SettingsController extends Controller
 
         $values = [
             'grace_period_days'       => $raw['grace_period_days'] ?? 2,
+            'auction_hold_days'       => $raw['auction_hold_days'] ?? config('recovery.default_auction_hold_days', 4),
+            'gps_map_enabled'         => filter_var(Setting::get('gps.map_enabled', false), FILTER_VALIDATE_BOOLEAN),
             'fee_base'                => $raw['fee_base'] ?? 'principal',
             'auto_escalate'           => (bool) ($raw['auto_escalate'] ?? true),
             'auto_assign_call_center' => (bool) ($raw['auto_assign_call_center'] ?? true),
@@ -1414,6 +1416,7 @@ class SettingsController extends Controller
             'loan_types'        => [],
             'collateral_scope'  => [],
             'auto_escalate_type'=> [],
+            'has_markup'        => [],
             'repossession_charges' => Setting::get('repossession.charges') ?? [],
             'partner_defaults' => app(\App\Services\PartnerDefaultsService::class)->allDefaults(),
         ];
@@ -1421,7 +1424,8 @@ class SettingsController extends Controller
         foreach ($types as $type => $meta) {
             $values['sla_days'][$type] = $raw["sla_days.{$type}"] ?? $meta['default_sla_days'];
             $values['commission_percent'][$type] = $raw["commission_percent.{$type}"] ?? $meta['default_commission_percent'];
-            $values['markup_percent'][$type] = $raw["markup_percent.{$type}"] ?? $meta['default_markup_percent'];
+            $values['markup_percent'][$type] = $policy->storedMarkupPercent($type);
+            $values['has_markup'][$type] = $policy->hasMarkupForType($type);
             $values['fee_type'][$type] = $raw["fee_type.{$type}"] ?? ($meta['default_fee_type'] ?? 'percentage');
             $values['fixed_amount'][$type] = $raw["fixed_amount.{$type}"] ?? $meta['default_fixed_amount'];
             $values['priority'][$type] = $raw["priority.{$type}"] ?? ($meta['default_priority'] ?? 99);
@@ -1429,6 +1433,10 @@ class SettingsController extends Controller
             $values['collateral_scope'][$type] = $raw["collateral_scope.{$type}"] ?? ($meta['default_collateral_scope'] ?? 'all');
             $values['auto_escalate_type'][$type] = (bool) ($raw["auto_escalate_type.{$type}"] ?? ($meta['default_auto_escalate'] ?? true));
         }
+
+        $types = collect($types)
+            ->sortBy(fn ($meta, $type) => (int) ($values['priority'][$type] ?? 99))
+            ->all();
 
         $partnerDefaults = $values['partner_defaults'];
 
@@ -1442,6 +1450,8 @@ class SettingsController extends Controller
 
         $rules = [
             'grace_period_days'       => ['required', 'integer', 'min:1', 'max:60'],
+            'auction_hold_days'       => ['required', 'integer', 'min:1', 'max:30'],
+            'gps_map_enabled'         => ['nullable', 'boolean'],
             'fee_base'                => ['required', 'in:principal,outstanding'],
             'auto_escalate'           => ['nullable', 'boolean'],
             'auto_assign_call_center' => ['nullable', 'boolean'],
@@ -1452,6 +1462,7 @@ class SettingsController extends Controller
             $rules["sla_days_{$type}"] = ['required', 'integer', 'min:1', 'max:90'];
             $rules["commission_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
             $rules["markup_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
+            $rules["has_markup_{$type}"] = ['nullable', 'boolean'];
             $rules["fee_type_{$type}"] = ['required', 'in:percentage,fixed'];
             $rules["fixed_amount_{$type}"] = ['nullable', 'numeric', 'min:0'];
             $rules["priority_{$type}"] = ['required', 'integer', 'min:1', 'max:99'];
@@ -1484,6 +1495,8 @@ class SettingsController extends Controller
 
         $settings = [
             'recovery.grace_period_days'       => $data['grace_period_days'],
+            'recovery.auction_hold_days'       => $data['auction_hold_days'],
+            'gps.map_enabled'                  => $request->boolean('gps_map_enabled'),
             'recovery.fee_base'                => $data['fee_base'],
             'recovery.auto_escalate'           => $request->boolean('auto_escalate'),
             'recovery.auto_assign_call_center' => $request->boolean('auto_assign_call_center'),
@@ -1494,6 +1507,7 @@ class SettingsController extends Controller
             $settings["recovery.sla_days.{$type}"] = $data["sla_days_{$type}"];
             $settings["recovery.commission_percent.{$type}"] = $data["commission_percent_{$type}"];
             $settings["recovery.markup_percent.{$type}"] = $data["markup_percent_{$type}"];
+            $settings["recovery.has_markup.{$type}"] = $request->boolean("has_markup_{$type}");
             $settings["recovery.fee_type.{$type}"] = $data["fee_type_{$type}"];
             $settings["recovery.fixed_amount.{$type}"] = $data["fixed_amount_{$type}"] ?? null;
             $settings["recovery.priority.{$type}"] = $data["priority_{$type}"];

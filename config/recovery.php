@@ -85,6 +85,9 @@ return [
         'legal_partner',
     ],
 
+    /** Days after repossession before auto-assigning an auctioneer (borrower redemption window). */
+    'default_auction_hold_days' => 4,
+
     /** Outcomes counted as successful recovery in partner KPIs. */
     'recovered_outcomes' => [
         'resolved',
@@ -150,6 +153,9 @@ return [
                 'accepts_file'    => true,
                 'file_label'      => 'Repossession photo',
                 'notes'           => 'optional',
+                'completes'       => true,
+                'outcome'         => 'repossessed',
+                'starts_auction_hold' => true,
             ],
             'gps_check' => [
                 'label'           => 'GPS checked',
@@ -184,6 +190,7 @@ return [
                 'label'           => 'Asset listed',
                 'collection_type' => 'other',
                 'notes'           => 'optional',
+                'marks_auction_listed' => true,
             ],
             'sold' => [
                 'label'                   => 'Asset sold',
@@ -192,6 +199,7 @@ return [
                 'outcome'                 => 'sold',
                 'requires_auction_proceeds' => true,
                 'notes'                   => 'optional',
+                'marks_auction_sold'      => true,
             ],
             'note' => [
                 'label'           => 'Auction note',
