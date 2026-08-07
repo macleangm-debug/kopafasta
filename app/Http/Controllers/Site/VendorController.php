@@ -505,22 +505,29 @@ class VendorController extends Controller
     public function uploadDocument(Request $request)
     {
         $vendor = $this->vendor();
+        $types = array_keys(app(PartnerProfileService::class)->documentTypesFor($vendor));
         $data = $request->validate([
             'label' => ['required', 'string', 'max:80'],
+            'doc_type' => ['nullable', 'string', 'in:'.implode(',', $types)],
             'file'  => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         $path = $request->file('file')->store("vendor/{$vendor->id}/documents", 'public');
 
-        VendorDocument::create([
+        $payload = [
             'vendor_id'  => $vendor->id,
             'label'      => $data['label'],
             'file_path'  => $path,
             'mime'       => $request->file('file')->getMimeType(),
             'size_bytes' => $request->file('file')->getSize(),
-        ]);
+        ];
+        if (Schema::hasColumn('partner_documents', 'doc_type') || Schema::hasColumn('vendor_documents', 'doc_type')) {
+            $payload['doc_type'] = $data['doc_type'] ?? null;
+        }
 
-        return back()->with('status', 'Document uploaded.');
+        VendorDocument::create($payload);
+
+        return back()->with('status', __('site.partner_account.document_uploaded'));
     }
 
     /* ------------------------------------------------------------------ */

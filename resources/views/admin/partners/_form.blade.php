@@ -159,7 +159,8 @@
                 <p class="text-sm font-mono text-gray-900">{{ $r->vendor_number }}</p>
             </div>
         @endif
-        <x-admin.input name="name" label="Trading / display name" :value="$r?->name" required />
+        <x-admin.input name="name" label="Trading / company name" :value="$r?->name" required
+                       help="Company or trading name shown on the portal shell." />
 
         <div x-show="isCompany" x-cloak class="contents">
             <x-admin.input name="legal_name" label="Legal business name" :value="$r?->legal_name" />
@@ -203,15 +204,61 @@
         </x-admin.step>
     </div>
 
-    <x-admin.step title="Contact">
+    <x-admin.step title="Contact person">
+        @php
+            $residenceMeta = is_array($r?->metadata['residence'] ?? null) ? $r->metadata['residence'] : [];
+            $contactPerson = old('contact_person_name', data_get($r?->metadata, 'contact_person.name'));
+            $nationalId = old('national_id', data_get($r?->metadata, 'identity.national_id'));
+        @endphp
+        <div class="md:col-span-2" x-show="isCompany" x-cloak>
+            <x-admin.input name="contact_person_name" label="Contact person full name" :value="$contactPerson"
+                           help="Person who signs in / handles jobs — not the company trading name." />
+        </div>
         <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" :required="$creating" />
         <x-admin.input name="email" label="Email" :value="$r?->email" type="email" />
+        <x-admin.input name="national_id" label="NIDA number" :value="$nationalId" help="20-digit National ID for the contact person / individual." />
         @if ($creating)
             <p class="md:col-span-2 text-xs text-gray-500 -mt-2">Phone is required so the partner can activate and sign in to the portal.</p>
         @endif
-        <div class="md:col-span-2" x-show="! isValuer" x-cloak>
-            <x-admin.textarea name="address" label="Address / coverage area" :value="$r?->address" rows="2"
-                              placeholder="Office address or service coverage notes" />
+        <div class="md:col-span-2 space-y-2">
+            <p class="text-xs font-semibold text-gray-700">Address (region / district)</p>
+            <p class="text-xs text-gray-500">Same structured address used on the partner portal Address tab.</p>
+            <x-site.address-fields
+                prefix="address"
+                :region="old('address_region', $residenceMeta['region'] ?? '')"
+                :district="old('address_district', $residenceMeta['district'] ?? '')"
+                :ward="old('address_ward', $residenceMeta['ward'] ?? '')"
+                :street="old('address_street', $residenceMeta['street'] ?? '')"
+                :required="false"
+            />
+        </div>
+    </x-admin.step>
+
+    <x-admin.step title="Payout account">
+        @php $payout = is_array($r?->metadata['payout_account'] ?? null) ? $r->metadata['payout_account'] : []; @endphp
+        <div class="md:col-span-2" x-data="{ payoutType: @js(old('payout_type', $payout['type'] ?? 'mobile_money')) }">
+            <p class="text-xs text-gray-500 mb-3">Where approved partner payouts are sent. Partners can also update this under Profile → Payment.</p>
+            <div class="flex flex-wrap gap-4 mb-4 text-sm">
+                <label class="inline-flex items-center gap-2">
+                    <input type="radio" name="payout_type" value="mobile_money" x-model="payoutType" class="text-brand focus:ring-brand">
+                    Mobile money
+                </label>
+                <label class="inline-flex items-center gap-2">
+                    <input type="radio" name="payout_type" value="bank" x-model="payoutType" class="text-brand focus:ring-brand">
+                    Bank
+                </label>
+            </div>
+            <div class="grid md:grid-cols-2 gap-4">
+                <x-admin.input name="payout_account_name" label="Account name" :value="old('payout_account_name', $payout['account_name'] ?? '')" />
+                <div x-show="payoutType === 'mobile_money'" class="contents">
+                    <x-admin.input name="payout_mobile_provider" label="Provider (M-Pesa / Tigo / Airtel)" :value="old('payout_mobile_provider', $payout['mobile_provider'] ?? '')" />
+                    <x-admin.input name="payout_mobile_number" label="Mobile money number" :value="old('payout_mobile_number', $payout['mobile_number'] ?? '')" />
+                </div>
+                <div x-show="payoutType === 'bank'" class="contents">
+                    <x-admin.input name="payout_bank_name" label="Bank name" :value="old('payout_bank_name', $payout['bank_name'] ?? '')" />
+                    <x-admin.input name="payout_account_number" label="Account number" :value="old('payout_account_number', $payout['account_number'] ?? '')" />
+                </div>
+            </div>
         </div>
     </x-admin.step>
 

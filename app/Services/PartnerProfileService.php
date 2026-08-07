@@ -63,7 +63,13 @@ class PartnerProfileService
     public function hubCards(Partner|Lender $entity, string $profileRouteName): array
     {
         $meta = [
-            'personal'  => ['icon' => '👤', 'label' => __('site.partner_account.personal_section'), 'hint' => __('site.partner_account.hint_personal')],
+            'personal'  => [
+                'icon' => '👤',
+                'label' => __('site.partner_account.personal_section'),
+                'hint' => ($entity instanceof Partner && $entity->isCompanyApplicant())
+                    ? __('site.partner_account.hint_personal_company')
+                    : __('site.partner_account.hint_personal'),
+            ],
             'company'   => ['icon' => '🏢', 'label' => __('site.partner_account.company_section'), 'hint' => __('site.partner_account.hint_company')],
             'face'      => ['icon' => '🤳', 'label' => __('site.partner_account.face_section'), 'hint' => __('site.partner_account.hint_face')],
             'residence' => [
@@ -128,6 +134,32 @@ class PartnerProfileService
         return (int) round(((float) $complete->avg()) * 100);
     }
 
+    /**
+     * Document upload types for the documents tab (company vs personal).
+     *
+     * @return array<string, string>
+     */
+    public function documentTypesFor(Partner|Lender $entity): array
+    {
+        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
+            return [
+                'brela' => __('site.partner_account.doc_types.brela'),
+                'tin_certificate' => __('site.partner_account.doc_types.tin_certificate'),
+                'business_licence' => __('site.partner_account.doc_types.business_licence'),
+                'vat_certificate' => __('site.partner_account.doc_types.vat_certificate'),
+                'national_id_front' => __('site.partner_account.doc_types.national_id_front'),
+                'national_id_back' => __('site.partner_account.doc_types.national_id_back'),
+                'other' => __('site.partner_account.doc_types.other'),
+            ];
+        }
+
+        return [
+            'national_id_front' => __('site.partner_account.doc_types.national_id_front'),
+            'national_id_back' => __('site.partner_account.doc_types.national_id_back'),
+            'other' => __('site.partner_account.doc_types.other'),
+        ];
+    }
+
     public function updateSection(Partner|Lender $entity, string $section, Request $request): void
     {
         if (! in_array($section, $this->sectionsFor($entity), true)) {
@@ -157,24 +189,24 @@ class PartnerProfileService
     /** @param array<string, mixed> $meta */
     private function personalStatus(Partner|Lender $entity, array $meta): array
     {
-        $hasContact = filled($entity->name) && filled($entity->phone);
-
-        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
-            $complete = $hasContact && filled($entity->email);
-
-            return [
-                'status' => $complete ? 'complete' : ($hasContact ? 'in_progress' : 'not_started'),
-                'complete' => $complete,
-            ];
-        }
-
         $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
         $hasNida = filled($identity['national_id'] ?? null);
         $noPhysicalCard = (bool) ($identity['no_physical_nida_card'] ?? false);
         $hasUploads = filled($identity['national_id_front'] ?? null) && filled($identity['national_id_back'] ?? null);
         $identityComplete = $hasNida && ($noPhysicalCard || $hasUploads);
-        $complete = $hasContact && $identityComplete;
 
+        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
+            $hasContact = filled($entity->contactPersonName()) && filled($entity->phone) && filled($entity->email);
+            $complete = $hasContact && $identityComplete;
+
+            return [
+                'status' => $complete ? 'complete' : (($hasContact || $hasNida) ? 'in_progress' : 'not_started'),
+                'complete' => $complete,
+            ];
+        }
+
+        $hasContact = filled($entity->name) && filled($entity->phone);
+        $complete = $hasContact && $identityComplete;
         $status = $complete ? 'complete' : (($hasContact || $hasNida) ? 'in_progress' : 'not_started');
 
         return ['status' => $status, 'complete' => $complete];
@@ -297,6 +329,20 @@ class PartnerProfileService
             'address' => ['nullable', 'string', 'max:255'],
         ]);
 
+        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
+            $meta = $entity->metadata ?? [];
+            $meta['contact_person'] = array_filter([
+                'name' => $data['name'] ?? null,
+            ]);
+            $entity->update(array_filter([
+                'phone' => $data['phone'] ?? null,
+                'email' => $data['email'] ?? null,
+                'metadata' => $meta,
+            ], fn ($value) => $value !== null));
+
+            return;
+        }
+
         $entity->update(array_filter([
             'name'    => $data['name'] ?? null,
             'phone'   => $data['phone'] ?? null,
@@ -398,17 +444,30 @@ class PartnerProfileService
         $data = $request->validate([
             'residence_region'   => ['nullable', 'string', 'max:80'],
             'residence_district' => ['nullable', 'string', 'max:80'],
+            'residence_ward'     => ['nullable', 'string', 'max:80'],
             'residence_street'   => ['nullable', 'string', 'max:160'],
         ]);
 
         $meta = $entity->metadata ?? [];
-        $meta['residence'] = array_filter([
+        $residence = array_filter([
             'region'   => $data['residence_region'] ?? null,
             'district' => $data['residence_district'] ?? null,
+            'ward'     => $data['residence_ward'] ?? null,
             'street'   => $data['residence_street'] ?? null,
         ]);
+        $meta['residence'] = $residence;
 
-        $entity->update(['metadata' => $meta]);
+        $line = collect([
+            $residence['street'] ?? null,
+            $residence['ward'] ?? null,
+            $residence['district'] ?? null,
+            $residence['region'] ?? null,
+        ])->filter()->implode(', ');
+
+        $entity->update(array_filter([
+            'metadata' => $meta,
+            'address' => $line !== '' ? $line : null,
+        ], fn ($value) => $value !== null));
     }
 
     private function saveActivity(Partner|Lender $entity, Request $request): void

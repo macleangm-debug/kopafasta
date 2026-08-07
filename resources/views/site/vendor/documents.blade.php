@@ -18,5 +18,6 @@
     @include('site.partner-account._documents', [
         'documents' => $documents,
         'uploadRoute' => route('site.partner.documents.store'),
+        'documentTypes' => app(\App\Services\PartnerProfileService::class)->documentTypesFor($vendor),
     ])
 </x-site.vendor-layout>

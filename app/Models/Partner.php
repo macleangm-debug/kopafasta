@@ -123,6 +123,21 @@ class Partner extends Model
         return $this->allowsPersonApplicant() && ($this->applicant_category ?? 'company') === 'individual';
     }
 
+    /** Contact person for company portals (not the trading / company name). */
+    public function contactPersonName(): string
+    {
+        $fromMeta = trim((string) data_get($this->metadata, 'contact_person.name', ''));
+        if ($fromMeta !== '') {
+            return $fromMeta;
+        }
+
+        if ($this->isIndividualApplicant()) {
+            return (string) ($this->name ?? '');
+        }
+
+        return '';
+    }
+
     /**
      * Primary portal shell for this partner (category wins over extra roles).
      *

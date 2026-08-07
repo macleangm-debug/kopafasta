@@ -61,6 +61,7 @@
                            placeholder="{{ __('site.partner_account.doc_label_placeholder') }}">
                 </div>
                 <input type="hidden" name="label" value="" data-doc-label>
+                <input type="hidden" name="doc_type" :value="docType">
                 <div x-show="docType" x-cloak>
                     <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.doc_file') }}</label>
                     <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf,.webp,image/*" capture="environment" class="w-full text-sm"

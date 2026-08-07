@@ -32,7 +32,8 @@
         <x-site.profile-section-card
             :title="$hasPin ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin')"
             :complete="$hasPin"
-            :collapsible="true">
+            :collapsible="true"
+            :default-open="true">
             <x-slot:view>
                 <p class="text-sm text-gray-600">{{ __('site.partner_account.pin_hint') }}</p>
             </x-slot:view>
@@ -64,62 +65,14 @@
         </x-site.profile-section-card>
     @endif
 
-    <x-site.profile-section-card
-        :title="__('site.partner_account.settings_locale')"
-        :complete="true"
-        :collapsible="true">
-        <x-slot:view>
-            <p class="text-sm text-gray-600">{{ __('site.partner_account.settings_locale_hint') }}</p>
-            <p class="text-xs text-gray-500 mt-2">{{ __('site.partner_account.settings_locale_control') }}</p>
-        </x-slot:view>
-        <x-slot:form>
-            <p class="text-sm text-gray-600">{{ __('site.partner_account.settings_locale_hint') }}</p>
-            <p class="text-xs text-gray-500 mt-2">{{ __('site.partner_account.settings_locale_control') }}</p>
-        </x-slot:form>
-    </x-site.profile-section-card>
-
-    <x-site.profile-section-card
-        :title="__('site.partner_account.settings_account')"
-        :complete="filled($partner?->name)"
-        :collapsible="true">
-        <x-slot:view>
-            <dl class="text-sm space-y-3">
-                @if ($partner)
-                    <div class="flex justify-between gap-3">
-                        <dt class="text-gray-500">{{ __('site.partner_account.display_name') }}</dt>
-                        <dd class="font-semibold text-gray-900 text-right">{{ $partner->name }}</dd>
-                    </div>
-                    <div class="flex justify-between gap-3">
-                        <dt class="text-gray-500">{{ __('site.partner_account.partner_code') }}</dt>
-                        <dd class="font-mono font-semibold text-brand text-right">{{ $partner->vendor_number ?? $partner->partner_number ?? '—' }}</dd>
-                    </div>
-                    @if (filled($partner->email ?? null))
-                        <div class="flex justify-between gap-3">
-                            <dt class="text-gray-500">{{ __('site.partner_account.email') }}</dt>
-                            <dd class="text-gray-900 text-right">{{ $partner->email }}</dd>
-                        </div>
-                    @endif
-                @endif
-            </dl>
-        </x-slot:view>
-        <x-slot:form>
-            <dl class="text-sm space-y-3">
-                @if ($partner)
-                    <div class="flex justify-between gap-3">
-                        <dt class="text-gray-500">{{ __('site.partner_account.display_name') }}</dt>
-                        <dd class="font-semibold text-gray-900 text-right">{{ $partner->name }}</dd>
-                    </div>
-                    <div class="flex justify-between gap-3">
-                        <dt class="text-gray-500">{{ __('site.partner_account.partner_code') }}</dt>
-                        <dd class="font-mono font-semibold text-brand text-right">{{ $partner->vendor_number ?? $partner->partner_number ?? '—' }}</dd>
-                    </div>
-                @endif
-            </dl>
-            @if ($supportRoute)
-                <a href="{{ $supportRoute }}" class="inline-flex mt-4 text-sm font-semibold text-brand hover:underline">
-                    {{ __('site.partner_account.contact_support') }} →
-                </a>
-            @endif
-        </x-slot:form>
-    </x-site.profile-section-card>
+    <div class="rounded-2xl bg-gray-50 ring-1 ring-gray-100 px-4 py-4 text-sm text-gray-600 space-y-2">
+        <p class="font-semibold text-gray-900">{{ __('site.partner_account.settings_locale') }}</p>
+        <p>{{ __('site.partner_account.settings_locale_hint') }}</p>
+        <p class="text-xs text-gray-500">{{ __('site.partner_account.settings_locale_control') }}</p>
+        @if ($supportRoute)
+            <a href="{{ $supportRoute }}" class="inline-flex text-sm font-semibold text-brand hover:underline">
+                {{ __('site.partner_account.contact_support') }} →
+            </a>
+        @endif
+    </div>
 </div>

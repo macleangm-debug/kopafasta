@@ -14,13 +14,22 @@
 @php
     $isAffiliate = $partner instanceof \App\Models\Partner && $partner->isAffiliate();
     $isLender = $partner instanceof \App\Models\Lender;
+    $isCompany = $partner instanceof \App\Models\Partner && $partner->isCompanyApplicant();
     $meta = $partner->metadata ?? [];
     $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
     $noPhysicalCard = (bool) old('no_physical_nida_card', $identity['no_physical_nida_card'] ?? false);
     $hasNida = filled($identity['national_id'] ?? null);
     $nidaLocked = $hasNida;
-    $hasContact = filled($partner->name) && filled($partner->phone);
+    $personaName = $isCompany
+        ? ($partner->contactPersonName() ?: '')
+        : (string) ($partner->name ?? '');
+    $hasContact = $isCompany
+        ? (filled($personaName) && filled($partner->phone) && filled($partner->email))
+        : (filled($partner->name) && filled($partner->phone));
     $identityComplete = $hasNida && ($noPhysicalCard || (filled($identity['national_id_front'] ?? null) && filled($identity['national_id_back'] ?? null)));
+    $nameLabel = $isCompany
+        ? __('site.partner_account.contact_person_name')
+        : __('site.partner_account.display_name');
 @endphp
 
 <x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile">
@@ -54,20 +63,16 @@
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                     <div>
-                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.display_name') }}</dt>
-                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $partner->name ?: '—' }}</dd>
+                        <dt class="text-xs text-gray-500">{{ $nameLabel }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $personaName ?: '—' }}</dd>
                     </div>
                     <div>
                         <dt class="text-xs text-gray-500">{{ __('site.partner_account.phone') }}</dt>
                         <dd class="font-semibold text-gray-900 mt-0.5">{{ $partner->phone ?: '—' }}</dd>
                     </div>
-                    <div>
+                    <div class="sm:col-span-2">
                         <dt class="text-xs text-gray-500">{{ __('site.partner_account.email') }}</dt>
                         <dd class="font-semibold text-gray-900 mt-0.5">{{ $partner->email ?: '—' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.address') }}</dt>
-                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $partner->address ?: '—' }}</dd>
                     </div>
                 </dl>
             </x-slot:view>
@@ -76,22 +81,21 @@
                     @csrf @method('PUT')
                     <input type="hidden" name="focus" value="contact">
                     <div>
-                        <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.display_name') }}</label>
-                        <input name="name" value="{{ old('name', $partner->name) }}" required
-                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
+                        <label class="block text-xs font-semibold text-brand mb-1">{{ $nameLabel }}</label>
+                        <input name="name" value="{{ old('name', $personaName) }}" required
+                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand"
+                               placeholder="{{ $isCompany ? __('site.partner_account.contact_person_placeholder') : '' }}">
+                        @if ($isCompany)
+                            <p class="text-xs text-gray-500 mt-1">{{ __('site.partner_account.contact_person_hint') }}</p>
+                        @endif
                     </div>
                     <div class="grid sm:grid-cols-2 gap-3">
                         <x-site.phone-input name="phone" :label="__('site.partner_account.phone')" :value="old('phone', $partner->phone)" variant="rounded" />
                         <div>
                             <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.email') }}</label>
-                            <input name="email" type="email" value="{{ old('email', $partner->email) }}"
+                            <input name="email" type="email" value="{{ old('email', $partner->email) }}" @if($isCompany) required @endif
                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
                         </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.address') }}</label>
-                        <textarea name="address" rows="3"
-                                  class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">{{ old('address', $partner->address) }}</textarea>
                     </div>
                     <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
                 </form>

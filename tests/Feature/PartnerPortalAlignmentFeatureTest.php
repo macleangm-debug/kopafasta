@@ -53,6 +53,33 @@ class PartnerPortalAlignmentFeatureTest extends TestCase
         $this->assertTrue($partner->isIndividualApplicant());
         $sections = app(PartnerProfileService::class)->sectionsFor($partner);
         $this->assertSame(['personal', 'face', 'residence', 'payment'], $sections);
+        $types = app(PartnerProfileService::class)->documentTypesFor($partner);
+        $this->assertArrayHasKey('national_id_front', $types);
+        $this->assertArrayNotHasKey('brela', $types);
+    }
+
+    public function test_company_contact_person_is_not_trading_name(): void
+    {
+        $partner = Vendor::create([
+            'vendor_number' => 'PT-IN-TZ-CP',
+            'name' => 'Aventris Insurance',
+            'category' => 'insurance',
+            'applicant_category' => 'company',
+            'roles' => ['insurance'],
+            'status' => 'active',
+            'phone' => '255712349099',
+            'email' => 'info@aventris.test',
+            'metadata' => [
+                'contact_person' => ['name' => 'Jane Doe'],
+                'identity' => ['national_id' => '12345678901234567890', 'no_physical_nida_card' => true],
+            ],
+        ]);
+
+        $this->assertSame('Jane Doe', $partner->contactPersonName());
+        $this->assertNotSame($partner->name, $partner->contactPersonName());
+        $types = app(PartnerProfileService::class)->documentTypesFor($partner);
+        $this->assertArrayHasKey('brela', $types);
+        $this->assertArrayHasKey('national_id_front', $types);
     }
 
     public function test_insurance_dashboard_shows_wallet_and_empty_jobs_copy(): void
