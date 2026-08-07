@@ -28,11 +28,12 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/documents', [VendorController::class, 'documents'])->name('documents');
         Route::post('/documents', [VendorController::class, 'uploadDocument'])->name('documents.store');
         Route::get('/payments', [VendorController::class, 'payments'])->name('payments');
+        Route::post('/payments/payout-request', [VendorController::class, 'requestPayout'])->name('payments.payout-request');
         Route::get('/payments/{payment}/invoice', [VendorController::class, 'invoice'])->name('invoice');
         Route::get('/calendar', [VendorController::class, 'calendar'])->name('calendar');
         Route::get('/notifications', [VendorController::class, 'notifications'])->name('notifications');
-        Route::get('/profile/{section?}', [VendorController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
-        Route::put('/profile/{section}', [VendorController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
+        Route::get('/profile/{section?}', [VendorController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment');
+        Route::put('/profile/{section}', [VendorController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
         Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
         Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         Route::get('/support', [VendorController::class, 'support'])->name('support');

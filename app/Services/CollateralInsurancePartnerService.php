@@ -175,6 +175,22 @@ class CollateralInsurancePartnerService
                     'Collateral insurance premium '.$payment?->reference,
                     $task->id,
                 );
+
+                try {
+                    app(NotificationService::class)->notifyPartner(
+                        $partner,
+                        'partner_cover_job_assigned',
+                        [
+                            'partner' => $partner->name,
+                            'customer' => $task->customer_name,
+                            'asset' => $asset->label,
+                            'premium' => format_money($quote['premium']),
+                        ],
+                        route('site.partner.task', $task),
+                    );
+                } catch (\Throwable) {
+                    // Non-blocking: cover job remains assigned even if notice fails.
+                }
             }
 
             return [

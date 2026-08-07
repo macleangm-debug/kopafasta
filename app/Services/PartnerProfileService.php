@@ -13,11 +13,31 @@ use Illuminate\Http\Request;
  */
 class PartnerProfileService
 {
-    /** @var list<string> */
-    public const SECTIONS = ['personal', 'face', 'residence', 'activity', 'payment'];
+    /** All possible section keys (subset shown per partner type). */
+    public const SECTIONS = ['personal', 'company', 'face', 'residence', 'activity', 'payment'];
+
+    /**
+     * Profile sections for this partner.
+     * Company (insurance + company affiliate/valuer): personal, company, residence (address), payment — no face/activity.
+     * Individual (affiliate/valuer person): personal, face, residence, payment — no activity/company.
+     *
+     * @return list<string>
+     */
+    public function sectionsFor(Partner|Lender $entity): array
+    {
+        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
+            return ['personal', 'company', 'residence', 'payment'];
+        }
+
+        return ['personal', 'face', 'residence', 'payment'];
+    }
 
     public function frontPhotoPath(Partner|Lender $entity): ?string
     {
+        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
+            return null;
+        }
+
         $meta = $entity->metadata ?? [];
         $front = $meta['face_captures']['front'] ?? null;
 
@@ -44,13 +64,22 @@ class PartnerProfileService
     {
         $meta = [
             'personal'  => ['icon' => '👤', 'label' => __('site.partner_account.personal_section'), 'hint' => __('site.partner_account.hint_personal')],
+            'company'   => ['icon' => '🏢', 'label' => __('site.partner_account.company_section'), 'hint' => __('site.partner_account.hint_company')],
             'face'      => ['icon' => '🤳', 'label' => __('site.partner_account.face_section'), 'hint' => __('site.partner_account.hint_face')],
-            'residence' => ['icon' => '🏠', 'label' => __('site.partner_account.residence_section'), 'hint' => __('site.partner_account.hint_residence')],
+            'residence' => [
+                'icon' => '🏠',
+                'label' => ($entity instanceof Partner && $entity->isCompanyApplicant())
+                    ? __('site.partner_account.company_address_section')
+                    : __('site.partner_account.residence_section'),
+                'hint' => ($entity instanceof Partner && $entity->isCompanyApplicant())
+                    ? __('site.partner_account.hint_company_address')
+                    : __('site.partner_account.hint_residence'),
+            ],
             'activity'  => ['icon' => '💼', 'label' => __('site.partner_account.activity_section'), 'hint' => __('site.partner_account.hint_activity')],
             'payment'   => ['icon' => '💳', 'label' => __('site.partner_account.payment_section'), 'hint' => __('site.partner_account.hint_payment')],
         ];
 
-        return collect(self::SECTIONS)->map(function (string $key) use ($meta, $entity, $profileRouteName) {
+        return collect($this->sectionsFor($entity))->map(function (string $key) use ($meta, $entity, $profileRouteName) {
             $status = $this->sectionStatus($entity, $key);
             $info = $meta[$key];
 
@@ -77,6 +106,7 @@ class PartnerProfileService
 
         return match ($key) {
             'personal'  => $this->personalStatus($entity, $meta),
+            'company'   => $this->companyStatus($entity),
             'face'      => $this->faceStatus($entity, $meta),
             'residence' => $this->residenceStatus($meta),
             'activity'  => $this->activityStatus($meta),
@@ -87,7 +117,12 @@ class PartnerProfileService
 
     public function completionPercent(Partner|Lender $entity): int
     {
-        $complete = collect(self::SECTIONS)
+        $sections = $this->sectionsFor($entity);
+        if ($sections === []) {
+            return 100;
+        }
+
+        $complete = collect($sections)
             ->map(fn (string $key) => $this->sectionStatus($entity, $key)['complete'] ? 1 : 0);
 
         return (int) round(((float) $complete->avg()) * 100);
@@ -95,8 +130,13 @@ class PartnerProfileService
 
     public function updateSection(Partner|Lender $entity, string $section, Request $request): void
     {
+        if (! in_array($section, $this->sectionsFor($entity), true)) {
+            throw new \InvalidArgumentException("Section [{$section}] is not available for this partner.");
+        }
+
         match ($section) {
             'personal'  => $this->savePersonal($entity, $request),
+            'company'   => null, // admin-managed; read-only in portal
             'face'      => $this->saveFace($entity, $request),
             'residence' => $this->saveResidence($entity, $request),
             'activity'  => $this->saveActivity($entity, $request),
@@ -117,8 +157,18 @@ class PartnerProfileService
     /** @param array<string, mixed> $meta */
     private function personalStatus(Partner|Lender $entity, array $meta): array
     {
-        $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
         $hasContact = filled($entity->name) && filled($entity->phone);
+
+        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
+            $complete = $hasContact && filled($entity->email);
+
+            return [
+                'status' => $complete ? 'complete' : ($hasContact ? 'in_progress' : 'not_started'),
+                'complete' => $complete,
+            ];
+        }
+
+        $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
         $hasNida = filled($identity['national_id'] ?? null);
         $noPhysicalCard = (bool) ($identity['no_physical_nida_card'] ?? false);
         $hasUploads = filled($identity['national_id_front'] ?? null) && filled($identity['national_id_back'] ?? null);
@@ -130,9 +180,25 @@ class PartnerProfileService
         return ['status' => $status, 'complete' => $complete];
     }
 
+    private function companyStatus(Partner|Lender $entity): array
+    {
+        $hasLegal = filled($entity->legal_name ?? null) || filled($entity->name);
+        $hasReg = filled($entity->registration_number ?? null) || filled($entity->tin ?? null);
+        $complete = $hasLegal && $hasReg;
+
+        return [
+            'status' => $complete ? 'complete' : ($hasLegal ? 'in_progress' : 'not_started'),
+            'complete' => $complete,
+        ];
+    }
+
     /** @param array<string, mixed> $meta */
     private function faceStatus(Partner|Lender $entity, array $meta): array
     {
+        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
+            return ['status' => 'complete', 'complete' => true];
+        }
+
         $faces = is_array($meta['face_captures'] ?? null) ? $meta['face_captures'] : [];
         $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
         $noPhysicalCard = (bool) ($identity['no_physical_nida_card'] ?? false);

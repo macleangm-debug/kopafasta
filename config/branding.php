@@ -10,4 +10,5 @@ return [
     'logo_url_light' => env('BRAND_LOGO_URL_LIGHT', '/images/brand/kopafasta-logo-light.svg'),
     'support_email' => env('BRAND_SUPPORT_EMAIL', 'hello@kopafasta.com'),
     'support_phone' => env('BRAND_SUPPORT_PHONE', '+255 700 000 000'),
+    'support_whatsapp' => env('BRAND_SUPPORT_WHATSAPP', '255700000000'),
 ];

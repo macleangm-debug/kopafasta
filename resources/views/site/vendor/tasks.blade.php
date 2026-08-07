@@ -50,7 +50,11 @@
     </div>
 
     @if ($tasks->isEmpty())
-        <div class="rounded-2xl border border-dashed border-gray-300 p-10 text-center text-gray-500">No tasks here.</div>
+        <x-site.empty-state
+            icon="📋"
+            :title="$isInsurance ? __('site.partner_portal.cover_jobs_empty_title') : __('site.partner_portal.jobs_empty_title')"
+            :description="$isInsurance ? __('site.partner_portal.cover_jobs_empty_desc') : __('site.partner_portal.jobs_empty_desc')"
+        />
     @else
         {{-- Table on desktop, cards on mobile --}}
         <div class="hidden lg:block glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">

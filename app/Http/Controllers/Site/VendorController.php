@@ -81,10 +81,13 @@ class VendorController extends Controller
         $affiliateLinks = null;
         $recoveryKpi = null;
         $recoveryWallet = null;
+        $wallet = null;
 
         if (app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
             $recoveryKpi = app(\App\Services\RecoveryPartnerKpiService::class)->kpis($vendor);
             $recoveryWallet = app(\App\Services\RecoveryCommissionWalletService::class)->summary($vendor);
+        } else {
+            $wallet = app(\App\Services\PartnerWalletService::class)->summary($vendor);
         }
 
         if ($vendor->category === 'affiliate') {
@@ -99,7 +102,7 @@ class VendorController extends Controller
         return view('site.vendor.dashboard', compact(
             'vendor', 'stats', 'upcoming', 'notifications',
             'affiliateStats', 'affiliateShare', 'affiliateLinks',
-            'recoveryKpi', 'recoveryWallet',
+            'recoveryKpi', 'recoveryWallet', 'wallet',
         ));
     }
 
@@ -527,22 +530,66 @@ class VendorController extends Controller
     public function payments()
     {
         $vendor = $this->vendor();
+        $walletService = app(\App\Services\PartnerWalletService::class);
+        $wallet = $walletService->summary($vendor);
+
         $payments = VendorPayment::where('partner_id', $vendor->id)
             ->with('task')->latest()->paginate(15);
 
         $totals = [
-            'paid'    => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'paid')->sum('amount'),
-            'pending' => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
-            'count'   => VendorPayment::where('partner_id', $vendor->id)->count(),
+            'paid'      => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'paid')->sum('amount'),
+            'pending'   => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
+            'approved'  => (int) round($wallet['approved']),
+            'available' => (int) round($wallet['available']),
+            'count'     => VendorPayment::where('partner_id', $vendor->id)->count(),
         ];
 
-        return view('site.vendor.payments', compact('vendor', 'payments', 'totals'));
+        return view('site.vendor.payments', compact('vendor', 'payments', 'totals', 'wallet'));
+    }
+
+    public function requestPayout(Request $request)
+    {
+        $vendor = $this->vendor();
+        $walletService = app(\App\Services\PartnerWalletService::class);
+        $sourceType = $walletService->sourceTypeFor($vendor);
+
+        if (app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            return redirect()->route('site.partner.recovery-wallet');
+        }
+
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:1'],
+            'notes'  => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            $payout = app(\App\Services\PartnerPayoutRequestService::class)->request(
+                $vendor,
+                $sourceType,
+                (float) $data['amount'],
+                $data['notes'] ?? null,
+            );
+
+            app(\App\Services\NotificationService::class)->notifyPartner(
+                $vendor,
+                'partner_payout_requested',
+                [
+                    'amount' => format_money($payout->amount),
+                    'partner' => $vendor->name,
+                ],
+                route('site.partner.payments'),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['amount' => $e->getMessage()]);
+        }
+
+        return back()->with('status', __('site.partner_portal.payout_submitted'));
     }
 
     public function invoice(VendorPayment $payment)
     {
         $vendor = $this->vendor();
-        abort_unless($payment->vendor_id === $vendor->id, 404);
+        abort_unless($payment->vendor_id === $vendor->id || $payment->partner_id === $vendor->id, 404);
         $payment->load('task');
         return view('site.vendor.invoice', compact('vendor', 'payment'));
     }
@@ -602,8 +649,9 @@ class VendorController extends Controller
         $vendor = $this->vendor();
 
         $section = $section ?: 'hub';
+        $allowed = array_merge(['hub'], app(PartnerProfileService::class)->sectionsFor($vendor));
 
-        if (! in_array($section, array_merge(['hub'], PartnerProfileService::SECTIONS), true)) {
+        if (! in_array($section, $allowed, true)) {
             return redirect()->route('site.partner.profile');
         }
 
@@ -668,6 +716,25 @@ class VendorController extends Controller
 
     public function support()
     {
-        return view('site.vendor.support');
+        $vendor = $this->vendor();
+        $faqKey = match (true) {
+            $vendor->isInsurance() => 'insurance',
+            $vendor->isValuer() => 'valuer',
+            $vendor->isGpsInstaller() => 'gps',
+            app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor) => 'recovery',
+            default => 'default',
+        };
+        $faqs = __('site.partner_portal.faq.'.$faqKey);
+        if (! is_array($faqs)) {
+            $faqs = __('site.partner_portal.faq.default');
+        }
+
+        return view('site.vendor.support', [
+            'vendor' => $vendor,
+            'faqs' => is_array($faqs) ? $faqs : [],
+            'supportPhone' => support_contact('phone'),
+            'supportEmail' => support_contact('email'),
+            'supportWhatsapp' => support_contact('whatsapp'),
+        ]);
     }
 }

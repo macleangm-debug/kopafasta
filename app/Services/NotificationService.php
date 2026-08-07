@@ -9,6 +9,7 @@ use App\Services\Messaging\TransactionalMessagingService;
 use App\Services\Messaging\WhatsApp\WhatsAppManager;
 use App\Services\Sms\SmsManager;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class NotificationService
@@ -198,6 +199,10 @@ class NotificationService
             'sent_at'     => now(),
         ];
 
+        if (Schema::hasColumn('notification_logs', 'user_id') && $customer->user_id) {
+            $payload['user_id'] = $customer->user_id;
+        }
+
         if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null) || isset($i18n['customer_guarantor_id']) || isset($i18n['loan_application_id']) || isset($i18n['due_on']))) {
             $payload['meta'] = array_filter([
                 'title_key' => $i18n['title_key'] ?? null,
@@ -210,6 +215,61 @@ class NotificationService
         }
 
         return NotificationLog::create($payload);
+    }
+
+    /**
+     * In-app (and optional SMS/email) notice for a partner portal user.
+     *
+     * @param  array<string, mixed>  $vars
+     */
+    public function notifyPartner(
+        \App\Models\Vendor $partner,
+        string $templateCode,
+        array $vars = [],
+        ?string $actionUrl = null,
+    ): ?NotificationLog {
+        $user = $partner->user;
+        $locale = $user?->locale ?? app()->getLocale();
+        $tpl = NotificationTemplate::resolveActive($templateCode, $locale);
+
+        $body = $tpl
+            ? $this->render($tpl->body, $vars + ['partner' => $partner->name])
+            : (string) ($vars['_fallback_body'] ?? '');
+        $subject = $tpl
+            ? $this->render((string) $tpl->subject, $vars + ['partner' => $partner->name])
+            : (string) ($vars['_fallback_subject'] ?? brand_name());
+
+        if ($body === '') {
+            return null;
+        }
+
+        $payload = [
+            'channel'   => 'in_app',
+            'category'  => 'partner',
+            'template'  => $templateCode,
+            'recipient' => $this->normalizeActionRecipient($actionUrl)
+                ?: (string) ($partner->phone ?: $partner->email ?: $user?->email ?: 'in_app'),
+            'message'   => Str::limit(trim(($subject ? $subject."\n" : '').$body), 800, ''),
+            'status'    => 'sent',
+            'sent_at'   => now(),
+        ];
+
+        if (Schema::hasColumn('notification_logs', 'user_id') && $user?->id) {
+            $payload['user_id'] = $user->id;
+        }
+
+        $log = NotificationLog::create($payload);
+
+        if ($partner->phone && $this->messaging->channelEnabled('sms')) {
+            $this->sendSms($partner->phone, $body, null, $templateCode);
+        }
+
+        $email = $partner->email ?? $user?->email;
+        if ($email && $this->messaging->channelEnabled('email')) {
+            $this->sendEmail($email, $subject, $body, null, $templateCode);
+        }
+
+        return $log;
     }
 
     private function skippedLog(

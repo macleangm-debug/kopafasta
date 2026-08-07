@@ -33,6 +33,7 @@ class SettingsController extends Controller
             'tier'        => ['nullable', 'string', 'max:20'],
             'email'       => ['nullable', 'email', 'max:150'],
             'phone'       => ['nullable', 'string', 'max:30'],
+            'whatsapp'    => ['nullable', 'string', 'max:30'],
             'website'     => ['nullable', 'string', 'max:200'],
             'app_base_url' => ['nullable', 'url', 'max:255'],
             'address'     => ['nullable', 'string', 'max:500'],

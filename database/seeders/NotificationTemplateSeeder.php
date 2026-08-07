@@ -522,6 +522,66 @@ class NotificationTemplateSeeder extends Seeder
                     ],
                 ],
             ],
+            [
+                'code' => 'partner_cover_job_assigned',
+                'name' => 'Partner Cover Job Assigned',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'New cover job — {{ asset }}',
+                        'body' => "Hi {{ partner }}, a cover job for {{ customer }} ({{ asset }}) is ready. Premium {{ premium }}. Open your Cover jobs to accept. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Kazi mpya ya bima — {{ asset }}',
+                        'body' => "Habari {{ partner }}, kazi ya bima kwa {{ customer }} ({{ asset }}) iko tayari. Premium {{ premium }}. Fungua Kazi za bima. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'partner_job_assigned',
+                'name' => 'Partner Job Assigned',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'New job assigned',
+                        'body' => "Hi {{ partner }}, you have a new job. Open Jobs in your portal. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Kazi mpya imepangiwa',
+                        'body' => "Habari {{ partner }}, una kazi mpya. Fungua Kazi kwenye portal yako. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'partner_payout_requested',
+                'name' => 'Partner Payout Requested',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Payout request received',
+                        'body' => "Hi {{ partner }}, we received your payout request for {{ amount }}. We will notify you when it is paid. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Ombi la malipo limepokelewa',
+                        'body' => "Habari {{ partner }}, tumepokea ombi lako la malipo la {{ amount }}. Tutakujulisha litakapolipwa. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'partner_payout_paid',
+                'name' => 'Partner Payout Paid',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Payout sent — {{ amount }}',
+                        'body' => "Hi {{ partner }}, your payout of {{ amount }} has been marked paid. Check your payout account. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Malipo yametumwa — {{ amount }}',
+                        'body' => "Habari {{ partner }}, malipo yako ya {{ amount }} yamewekwa kuwa yamelipwa. Angalia akaunti yako. — {$brand}",
+                    ],
+                ],
+            ],
         ];
 
         foreach ($templates as $t) {

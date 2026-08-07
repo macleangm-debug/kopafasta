@@ -2,13 +2,20 @@
 
 @php
     $service = app(\App\Services\PartnerProfileService::class);
-    $tabs = [
+    $sectionKeys = $partner ? $service->sectionsFor($partner) : ['personal', 'face', 'residence', 'payment'];
+    $labels = [
         'personal'  => __('site.partner_account.tab_personal'),
+        'company'   => __('site.partner_account.tab_company'),
         'face'      => __('site.partner_account.tab_face'),
-        'residence' => __('site.partner_account.tab_residence'),
+        'residence' => ($partner instanceof \App\Models\Partner && $partner->isCompanyApplicant())
+            ? __('site.partner_account.tab_company_address')
+            : __('site.partner_account.tab_residence'),
         'activity'  => __('site.partner_account.tab_activity'),
         'payment'   => __('site.partner_account.tab_payment'),
     ];
+    $tabs = collect($sectionKeys)
+        ->mapWithKeys(fn (string $key) => [$key => $labels[$key] ?? $key])
+        ->all();
     $activeLabel = $tabs[$active] ?? __('site.partner_account.sections_title');
 @endphp
 

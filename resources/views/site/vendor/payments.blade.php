@@ -3,21 +3,57 @@
     <h1 class="text-2xl font-extrabold mb-1">{{ __('site.partner_portal.payments_title') }}</h1>
     <p class="text-sm text-gray-500 mb-5">{{ __('site.partner_portal.payments_subtitle') }}</p>
 
-    @if (! $payments->isEmpty() || (float) ($totals['paid'] ?? 0) > 0 || (float) ($totals['pending'] ?? 0) > 0 || (int) ($totals['count'] ?? 0) > 0)
-        <div class="grid sm:grid-cols-3 gap-3 mb-6">
-            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-                <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_earned') }}</p>
-                <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ $fmt($totals['paid']) }}</p>
-            </div>
-            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-                <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_pending') }}</p>
-                <p class="text-2xl font-extrabold text-amber-700 mt-1">{{ $fmt($totals['pending']) }}</p>
-            </div>
-            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-                <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_count') }}</p>
-                <p class="text-2xl font-extrabold mt-1">{{ $totals['count'] }}</p>
-            </div>
+    @if (session('status'))
+        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+    @endif
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.wallet_available') }}</p>
+            <p class="text-2xl font-extrabold text-brand mt-1">{{ $fmt($totals['available'] ?? 0) }}</p>
         </div>
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_pending') }}</p>
+            <p class="text-2xl font-extrabold text-amber-700 mt-1">{{ $fmt($totals['pending']) }}</p>
+        </div>
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_earned') }}</p>
+            <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ $fmt($totals['paid']) }}</p>
+        </div>
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_count') }}</p>
+            <p class="text-2xl font-extrabold mt-1">{{ $totals['count'] }}</p>
+        </div>
+    </div>
+
+    @if (($totals['available'] ?? 0) > 0)
+        <form method="POST" action="{{ route('site.partner.payments.payout-request') }}"
+              class="mb-6 glass-card rounded-2xl ring-1 ring-brand/10 p-5 grid sm:grid-cols-3 gap-3 items-end"
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js(__('site.partner_portal.confirm.payout_title')),
+                  message: @js(__('site.partner_portal.confirm.payout_message')),
+                  confirmLabel: @js(__('site.partner_portal.confirm.payout_button')),
+                  tone: 'warning',
+                  confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900',
+              })">
+            @csrf
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">{{ __('site.partner_portal.payout_amount') }}</label>
+                <input type="number" name="amount" min="1" step="1" max="{{ (int) ($totals['available'] ?? 0) }}" required
+                       class="w-full rounded-lg border-gray-300 text-sm px-3 py-2"
+                       placeholder="{{ (int) ($totals['available'] ?? 0) }}">
+                @error('amount')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                <p class="text-[11px] text-gray-500 mt-1">{{ __('site.partner_portal.payout_to_account_hint') }}</p>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-gray-600 mb-1">{{ __('site.partner_portal.payout_notes') }}</label>
+                <input type="text" name="notes" class="w-full rounded-lg border-gray-300 text-sm px-3 py-2"
+                       placeholder="{{ __('site.partner_portal.payout_notes_placeholder') }}">
+            </div>
+            <button type="submit" class="sm:col-span-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm w-full sm:w-auto">
+                {{ __('site.partner_portal.payout_submit') }}
+            </button>
+        </form>
     @endif
 
     @if ($payments->isEmpty())

@@ -115,8 +115,8 @@
 
     <section class="relative overflow-hidden rounded-3xl bg-brand text-white mb-6 shadow-lg">
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
-        <div class="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
+        <div class="relative p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+            <div class="min-w-0">
                 <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">
                     {{ $catLabels[$vendor->category] ?? ucfirst(str_replace('_', ' ', (string) $vendor->category)) }}
                 </p>
@@ -124,11 +124,33 @@
                 <p class="text-sm text-white/70 mt-2 font-mono">{{ $vendor->vendor_number }}</p>
                 <p class="text-sm text-white/80 mt-3 max-w-lg">{{ $heroBlurb }}</p>
             </div>
-            <a href="{{ route($primaryCtaRoute) }}"
-               class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shrink-0 shadow-md">
-                {{ $primaryCtaLabel }}
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-            </a>
+            <div class="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0 w-full sm:w-auto">
+                @php
+                    $heroWallet = $wallet ?? $recoveryWallet ?? null;
+                    $heroAvailable = null;
+                    if (is_array($heroWallet)) {
+                        $heroAvailable = array_key_exists('available', $heroWallet)
+                            ? (float) $heroWallet['available']
+                            : app(\App\Services\PartnerPayoutRequestService::class)->availableBalance(
+                                $vendor,
+                                \App\Services\RecoveryCommissionWalletService::SOURCE_TYPE
+                            );
+                    }
+                @endphp
+                @if ($heroWallet !== null)
+                    <a href="{{ ($recoveryWallet ?? null) ? route('site.partner.recovery-wallet') : route('site.partner.payments') }}"
+                       class="rounded-2xl bg-white/10 ring-1 ring-white/20 px-5 py-4 min-w-[12rem]">
+                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.partner_portal.wallet_available') }}</p>
+                        <p class="text-2xl font-extrabold tabular-nums mt-1">{{ format_money($heroAvailable ?? 0) }}</p>
+                        <p class="text-xs text-white/70 mt-1">{{ __('site.partner_portal.wallet_withdraw_hint') }}</p>
+                    </a>
+                @endif
+                <a href="{{ route($primaryCtaRoute) }}"
+                   class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shadow-md">
+                    {{ $primaryCtaLabel }}
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                </a>
+            </div>
         </div>
     </section>
 

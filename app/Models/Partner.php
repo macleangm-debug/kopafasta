@@ -103,6 +103,26 @@ class Partner extends Model
         return $this->category === 'gps_installer' || $this->hasPartnerRole('gps_installer');
     }
 
+    /** Affiliates and valuers may be individual or company; other service types are company. */
+    public function allowsPersonApplicant(): bool
+    {
+        return $this->isAffiliate() || $this->isValuer();
+    }
+
+    public function isCompanyApplicant(): bool
+    {
+        if (! $this->allowsPersonApplicant()) {
+            return true;
+        }
+
+        return ($this->applicant_category ?? 'company') !== 'individual';
+    }
+
+    public function isIndividualApplicant(): bool
+    {
+        return $this->allowsPersonApplicant() && ($this->applicant_category ?? 'company') === 'individual';
+    }
+
     /**
      * Primary portal shell for this partner (category wins over extra roles).
      *
