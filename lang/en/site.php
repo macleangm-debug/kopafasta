@@ -598,6 +598,7 @@ return [
         'reg_short' => 'Reg :reg',
         'insured_value' => 'Insured value',
         'premium' => 'Premium',
+        'your_payout' => 'Your payout',
         'premium_paid' => 'Premium paid',
         'priority_suffix' => 'priority',
         'tab_asset' => 'Asset',
@@ -703,7 +704,7 @@ return [
             ],
             'insurance' => [
                 ['q' => 'What is a cover job?', 'a' => 'When a borrower pays Insure It, you receive a cover job to issue comprehensive policy cover and record policy number and expiry.'],
-                ['q' => 'When is premium credited?', 'a' => 'Premium is accrued to your wallet when the cover job is opened after the borrower payment is verified.'],
+                ['q' => 'When is premium credited?', 'a' => 'Your base premium is credited to your wallet when you record cover on the job. Platform markup (if any) is not included in your payout.'],
                 ['q' => 'How do I withdraw?', 'a' => 'Open Payments, request a payout for your available balance. Funds go to the account under Profile → Payment after admin approval.'],
             ],
             'valuer' => [

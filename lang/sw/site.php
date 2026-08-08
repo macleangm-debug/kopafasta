@@ -578,6 +578,7 @@ return [
         'reg_short' => 'Usaj. :reg',
         'insured_value' => 'Thamani iliyobima',
         'premium' => 'Premium',
+        'your_payout' => 'Malipo yako',
         'premium_paid' => 'Premium iliyolipwa',
         'priority_suffix' => 'kipaumbele',
         'tab_asset' => 'Mali',
@@ -683,7 +684,7 @@ return [
             ],
             'insurance' => [
                 ['q' => 'Kazi ya bima ni nini?', 'a' => 'Mkopaji anapolipa Insure It, unapata kazi ya kutoa bima na kurekodi namba ya polisi na muda wa kuisha.'],
-                ['q' => 'Premium inawekwa lini?', 'a' => 'Premium inawekwa kwenye mkoba wako kazi ya bima inapofunguliwa baada ya malipo kuthibitishwa.'],
+                ['q' => 'Premium inawekwa lini?', 'a' => 'Premium yako ya msingi inawekwa kwenye mkoba unaporekodi bima. Markup ya jukwaa (kama ipo) haijajumuishwa kwenye malipo yako.'],
                 ['q' => 'Natoa pesa vipi?', 'a' => 'Fungua Malipo, omba kutoa salio linalopatikana. Pesa huenda kwenye akaunti ya Wasifu → Malipo baada ya idhini.'],
             ],
             'valuer' => [

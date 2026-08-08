@@ -44,6 +44,8 @@ class PartnerDefaultsFeatureTest extends TestCase
         $policy = app(\App\Services\RecoveryPolicyService::class);
         $payload = [
             'grace_period_days' => 2,
+            'auction_hold_days' => 3,
+            'gps_map_enabled' => 1,
             'fee_base' => 'principal',
             'auto_escalate' => 1,
             'auto_assign_call_center' => 1,
@@ -93,8 +95,9 @@ class PartnerDefaultsFeatureTest extends TestCase
 
         $quote = app(CollateralInsurancePartnerService::class)->quote(10_000);
         $this->assertSame(450, $quote['base_premium']);
-        $this->assertSame(23, $quote['markup_amount']); // 5% of 450
-        $this->assertSame(473, $quote['premium']);
+        $this->assertSame(500, $quote['markup_amount']); // 5% of insured value
+        $this->assertSame(950, $quote['premium']);
+        $this->assertSame(9.5, $quote['effective_rate_percent']);
     }
 
     public function test_partner_rate_override_is_used_for_insurance_quote(): void
@@ -118,8 +121,9 @@ class PartnerDefaultsFeatureTest extends TestCase
         $this->assertSame(2.0, $quote['rate_percent']);
         $this->assertSame(10.0, $quote['markup_percent']);
         $this->assertSame(2000, $quote['base_premium']);
-        $this->assertSame(200, $quote['markup_amount']);
-        $this->assertSame(2200, $quote['premium']);
+        $this->assertSame(10000, $quote['markup_amount']); // 10% of insured value
+        $this->assertSame(12000, $quote['premium']);
+        $this->assertSame(12.0, $quote['effective_rate_percent']);
     }
 
     public function test_gps_pricing_uses_partner_defaults(): void

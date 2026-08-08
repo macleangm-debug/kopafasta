@@ -7,13 +7,15 @@ use App\Models\CustomerAsset;
 use App\Models\CustomerPayment;
 use App\Models\LoanApplication;
 use App\Models\Vendor;
+use App\Models\VendorPayment;
 use App\Models\VendorTask;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Collateral insurance cover via insurance partners.
- * Premium = insured value × rate (default 3.5%) + optional Kopafasta markup (default 0).
+ * Premium = insured value × (cover rate% + platform markup%).
+ * Partner wallet share = insured value × cover rate% only.
  */
 class CollateralInsurancePartnerService
 {
@@ -30,20 +32,30 @@ class CollateralInsurancePartnerService
     }
 
     /**
-     * @return array{insured_value: int, rate_percent: float, markup_percent: float, base_premium: int, markup_amount: int, premium: int}
+     * @return array{
+     *   insured_value: int,
+     *   rate_percent: float,
+     *   markup_percent: float,
+     *   effective_rate_percent: float,
+     *   base_premium: int,
+     *   markup_amount: int,
+     *   premium: int
+     * }
      */
     public function quote(int $insuredValue, ?\App\Models\Partner $partner = null): array
     {
         $insuredValue = max(0, $insuredValue);
         $rate = $this->ratePercent($partner);
         $markupPct = $this->markupPercent($partner);
+        // Both percents apply to insured value (additive rates), not markup-on-base.
         $base = (int) round($insuredValue * ($rate / 100));
-        $markup = (int) round($base * ($markupPct / 100));
+        $markup = (int) round($insuredValue * ($markupPct / 100));
 
         return [
             'insured_value' => $insuredValue,
             'rate_percent' => $rate,
             'markup_percent' => $markupPct,
+            'effective_rate_percent' => $rate + $markupPct,
             'base_premium' => $base,
             'markup_amount' => $markup,
             'premium' => $base + $markup,
@@ -102,14 +114,13 @@ class CollateralInsurancePartnerService
         abort_unless((int) $asset->customer_id === (int) $payer->id
             || (int) $application->customer_id === (int) $payer->id, 403);
 
-        $quote = $this->quote($insuredValue);
+        $partner = $this->suggestInsurer($application);
+        $quote = $this->quote($insuredValue, $partner);
         if ($quote['premium'] <= 0) {
             throw ValidationException::withMessages([
                 'insured_value' => __('borrower.collateral_secure.insurance_value_required'),
             ]);
         }
-
-        $partner = $this->suggestInsurer($application);
 
         return DB::transaction(function () use ($application, $asset, $quote, $partner, $payer, $payment) {
             $customer = $asset->customer ?? $application->customer;
@@ -127,14 +138,19 @@ class CollateralInsurancePartnerService
             $instructions = implode("\n", array_filter([
                 'Issue comprehensive cover for this collateral asset within 1–2 days.',
                 'Insured value: '.format_money($quote['insured_value']),
-                'Premium collected: '.format_money($quote['premium']).' (rate '.$quote['rate_percent'].'%'
-                    .($quote['markup_percent'] > 0 ? ' + markup '.$quote['markup_percent'].'%' : '').').',
+                'Your payout on completion: '.format_money($quote['base_premium'])
+                    .' ('.rtrim(rtrim(number_format($quote['rate_percent'], 2), '0'), '.').'% of insured value)'
+                    .($quote['markup_amount'] > 0
+                        ? ' — borrower paid '.format_money($quote['premium'])
+                            .' at '.rtrim(rtrim(number_format($quote['effective_rate_percent'], 2), '0'), '.').'% incl. platform markup'
+                        : ''),
                 $payment?->reference ? 'Payment reference: '.$payment->reference : null,
                 'Full asset profile is included below — enter policy number and expiry to update the owner’s asset automatically.',
             ]));
 
             $task = null;
             if ($partner) {
+                $partnerShare = (int) $quote['base_premium'];
                 $task = VendorTask::create([
                     'vendor_id' => $partner->id,
                     'loan_id' => $application->loan_id,
@@ -155,26 +171,22 @@ class CollateralInsurancePartnerService
                         'customer_asset_id' => $asset->id,
                         'insured_value' => $quote['insured_value'],
                         'premium' => $quote['premium'],
+                        'base_premium' => $quote['base_premium'],
+                        'markup_amount' => $quote['markup_amount'],
                         'rate_percent' => $quote['rate_percent'],
                         'markup_percent' => $quote['markup_percent'],
+                        'effective_rate_percent' => $quote['effective_rate_percent'],
+                        'partner_share' => $partnerShare,
                         'payer_customer_id' => $payer->id,
                         'payment_id' => $payment?->id,
                         'payment_reference' => $payment?->reference,
                         'insurance_type' => 'comprehensive',
                         'asset_profile' => $profile,
+                        'wallet_accrued_at' => null,
                     ]),
-                    // Premium collected is credited to the partner wallet.
-                    'fee_amount' => $quote['premium'],
+                    // Partner wallet share (base premium) — credited when cover is recorded.
+                    'fee_amount' => $partnerShare,
                 ]);
-
-                app(PartnerSettlementService::class)->accrue(
-                    $partner,
-                    $quote['premium'],
-                    'insurance_premium',
-                    $payment?->id,
-                    'Collateral insurance premium '.$payment?->reference,
-                    $task->id,
-                );
 
                 try {
                     app(NotificationService::class)->notifyPartner(
@@ -184,7 +196,7 @@ class CollateralInsurancePartnerService
                             'partner' => $partner->name,
                             'customer' => $task->customer_name,
                             'asset' => $asset->label,
-                            'premium' => format_money($quote['premium']),
+                            'premium' => format_money($partnerShare),
                         ],
                         route('site.partner.task', $task),
                     );
@@ -324,7 +336,8 @@ class CollateralInsurancePartnerService
     }
 
     /**
-     * Partner (or ops) confirms cover — writes expiry onto the specific CustomerAsset.
+     * Partner (or ops) confirms cover — writes expiry onto the specific CustomerAsset
+     * and accrues the partner’s base premium to their wallet (markup stays with the platform).
      */
     public function completeCover(
         VendorTask $task,
@@ -355,13 +368,48 @@ class CollateralInsurancePartnerService
         $assetMeta['details'] = $details;
         $asset->update(['metadata' => $assetMeta]);
 
+        $partnerShare = (int) ($meta['partner_share'] ?? $meta['base_premium'] ?? 0);
+        if ($partnerShare <= 0 && filled($meta['insured_value'] ?? null)) {
+            $partnerShare = (int) $this->quote((int) $meta['insured_value'])['base_premium'];
+        }
+        if ($partnerShare <= 0) {
+            $partnerShare = (int) ($task->fee_amount ?? 0);
+        }
+
+        $walletAccruedAt = $meta['wallet_accrued_at'] ?? null;
+        if (! filled($walletAccruedAt) && $partnerShare > 0 && $task->vendor_id) {
+            $already = VendorPayment::query()
+                ->where('partner_task_id', $task->id)
+                ->where('source_type', 'insurance_premium')
+                ->where('status', '!=', 'cancelled')
+                ->exists();
+
+            if (! $already) {
+                $partner = Vendor::query()->find($task->vendor_id);
+                if ($partner) {
+                    app(PartnerSettlementService::class)->accrue(
+                        $partner,
+                        $partnerShare,
+                        'insurance_premium',
+                        isset($meta['payment_id']) ? (int) $meta['payment_id'] : null,
+                        'Collateral insurance cover '.($meta['payment_reference'] ?? ''),
+                        $task->id,
+                    );
+                }
+            }
+            $walletAccruedAt = now()->toIso8601String();
+        }
+
         $task->update([
             'status' => 'completed',
             'completed_at' => now(),
+            'fee_amount' => $partnerShare > 0 ? $partnerShare : $task->fee_amount,
             'notes' => json_encode(array_merge($meta, [
                 'insurance_expires_at' => $details['insurance_expires_at'],
                 'insurance_policy_number' => $details['insurance_policy_number'] ?? null,
                 'insurance_type' => $details['insurance_type'],
+                'partner_share' => $partnerShare,
+                'wallet_accrued_at' => $walletAccruedAt,
                 'completed_at' => now()->toIso8601String(),
             ])),
         ]);

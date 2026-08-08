@@ -320,13 +320,18 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Markup %</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                {{ $mode === 'percent_of_value' ? 'Markup % (added to rate)' : 'Markup % (on partner cost)' }}
+                            </label>
                             <input type="number" name="{{ $category }}_markup_percent" step="0.1" min="0" max="100"
                                    value="{{ $storedMarkup }}"
                                    x-bind:disabled="!hasMarkup"
                                    class="w-full rounded-lg border-gray-300 text-sm disabled:bg-gray-50 disabled:text-gray-400">
                             <input type="hidden" name="{{ $category }}_markup_percent" value="{{ $storedMarkup }}" x-bind:disabled="hasMarkup">
                             <p class="mt-1 text-[11px] text-gray-500" x-show="!hasMarkup" x-cloak>No markup applied.</p>
+                            @if ($mode === 'percent_of_value')
+                                <p class="mt-1 text-[11px] text-gray-500" x-show="hasMarkup" x-cloak>Borrower pays (rate + markup)% of insured value. Partner earns rate% only.</p>
+                            @endif
                         </div>
                     </div>
                 </div>

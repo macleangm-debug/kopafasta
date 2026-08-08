@@ -14,7 +14,7 @@ return [
             'default_rate_percent' => 3.5,
             'default_has_markup' => false,
             'default_markup_percent' => 0.0,
-            'help' => 'Borrower premium = insured value × rate, then optional Kopafasta markup.',
+            'help' => 'Borrower premium = insured value × (cover rate% + markup%). Partner earns cover rate% only; markup% is platform share of insured value.',
         ],
         'gps_installer' => [
             'label' => 'GPS partner',

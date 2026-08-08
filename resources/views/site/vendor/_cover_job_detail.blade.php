@@ -50,9 +50,15 @@
                 </span>
             @endif
             <span class="inline-flex items-center gap-1.5 rounded-lg bg-white ring-1 ring-brand/10 px-3 py-1.5">
-                <span class="text-xs text-gray-500">{{ __('site.partner_portal.premium') }}</span>
-                <span class="font-bold text-brand">{{ format_money($taskMeta['premium'] ?? $task->fee_amount) }}</span>
+                <span class="text-xs text-gray-500">{{ __('site.partner_portal.your_payout') }}</span>
+                <span class="font-bold text-brand">{{ format_money($taskMeta['partner_share'] ?? $taskMeta['base_premium'] ?? $task->fee_amount) }}</span>
             </span>
+            @if (! empty($taskMeta['premium']) && (int) ($taskMeta['premium'] ?? 0) !== (int) ($taskMeta['partner_share'] ?? $taskMeta['base_premium'] ?? $task->fee_amount ?? 0))
+                <span class="inline-flex items-center gap-1.5 rounded-lg bg-white ring-1 ring-gray-200 px-3 py-1.5">
+                    <span class="text-xs text-gray-500">{{ __('site.partner_portal.premium_paid') }}</span>
+                    <span class="font-semibold text-gray-700">{{ format_money($taskMeta['premium']) }}</span>
+                </span>
+            @endif
             <span class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 ring-1 ring-emerald-200/80 px-3 py-1.5">
                 <span class="text-xs text-emerald-700/80">{{ __('site.partner_portal.requested_cover') }}</span>
                 <span class="font-bold text-emerald-800">{{ __('site.partner_portal.comprehensive_only') }}</span>
@@ -219,9 +225,15 @@
                         <dd class="font-medium">{{ ! empty($taskMeta['insured_value']) ? format_money($taskMeta['insured_value']) : '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-gray-500 text-xs">{{ __('site.partner_portal.premium_paid') }}</dt>
-                        <dd class="font-bold text-brand">{{ format_money($taskMeta['premium'] ?? $task->fee_amount) }}</dd>
+                        <dt class="text-gray-500 text-xs">{{ __('site.partner_portal.your_payout') }}</dt>
+                        <dd class="font-bold text-brand">{{ format_money($taskMeta['partner_share'] ?? $taskMeta['base_premium'] ?? $task->fee_amount) }}</dd>
                     </div>
+                    @if (! empty($taskMeta['premium']) && (int) ($taskMeta['premium'] ?? 0) !== (int) ($taskMeta['partner_share'] ?? $taskMeta['base_premium'] ?? $task->fee_amount ?? 0))
+                        <div>
+                            <dt class="text-gray-500 text-xs">{{ __('site.partner_portal.premium_paid') }}</dt>
+                            <dd class="font-medium">{{ format_money($taskMeta['premium']) }}</dd>
+                        </div>
+                    @endif
                     <div>
                         <dt class="text-gray-500 text-xs">{{ __('site.partner_portal.requested_cover') }}</dt>
                         <dd class="font-semibold text-emerald-800">{{ __('site.partner_portal.comprehensive_only') }}</dd>

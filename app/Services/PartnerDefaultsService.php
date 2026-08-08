@@ -196,8 +196,10 @@ class PartnerDefaultsService
             $lines[] = 'Default monitoring: TZS '.number_format((float) ($defaults['monitoring_monthly'] ?? 0), 0).'/month';
         }
 
-        if (! empty($defaults['has_markup'])) {
-            $lines[] = 'Default markup: '.rtrim(rtrim(number_format((float) $defaults['markup_percent'], 2), '0'), '.').'%';
+        if (! empty($defaults['has_markup']) && (float) $defaults['markup_percent'] > 0) {
+            $lines[] = $mode === 'percent_of_value'
+                ? 'Platform markup: +'.rtrim(rtrim(number_format((float) $defaults['markup_percent'], 2), '0'), '.').'% of insured value (added to cover rate)'
+                : 'Default markup: '.rtrim(rtrim(number_format((float) $defaults['markup_percent'], 2), '0'), '.').'% on partner cost';
         } else {
             $lines[] = 'Default markup: none';
         }
