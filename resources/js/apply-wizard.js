@@ -482,13 +482,41 @@ export function applyWizard(config) {
                     }
                     if (this.effectiveFeeAmount() <= 0 || this.feeGateSatisfied()) {
                         this.feeGateOpen = false;
+                        // After fee payment, never leave the borrower on the pre-fee setup step.
+                        if (this.isPreFeeSetupStep(this.stepKey)) {
+                            this.goToStepKey(this.nextStepKeyAfterFee());
+                        }
                         return;
                     }
-                    if (onResume && this.applicationFeeState?.status) return;
+                    if (onResume && ['processing', 'pending'].includes(this.applicationFeeState?.status || '')) {
+                        return;
+                    }
                     if (this.needsFeeGateBefore(this.stepKey)) {
                         this.feeGateOpen = true;
                         this.enterApplicationFeeStep();
                     }
+                },
+
+                isPreFeeSetupStep(key) {
+                    return ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members', 'application_fee'].includes(key);
+                },
+
+                nextStepKeyAfterFee() {
+                    const keys = (this.steps || []).map(s => s.key);
+                    for (const key of ['guarantor', 'review', 'submit']) {
+                        if (keys.includes(key)) return key;
+                    }
+                    return 'review';
+                },
+
+                goToStepKey(key) {
+                    if (! key) return;
+                    this.rebuildSteps(key);
+                    const idx = this.resolveStepIndex(key, 0);
+                    this.step = idx;
+                    this.furthestStep = Math.max(this.furthestStep || 0, idx);
+                    this.syncStepKey();
+                    this.feeGateOpen = false;
                 },
 
                 openAddMemberPanel() {

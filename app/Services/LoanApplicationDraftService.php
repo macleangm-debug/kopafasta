@@ -341,6 +341,54 @@ class LoanApplicationDraftService
         return $draft;
     }
 
+    /**
+     * After application fee is confirmed, move the draft onto the next wizard stage
+     * (guarantor when required, otherwise review) so resume does not fall back to quote.
+     */
+    public function advancePastApplicationFee(Customer $customer, int $loanProductId, ?string $stepKey = null): LoanApplicationDraft
+    {
+        $product = LoanProduct::find($loanProductId);
+        $draft = $this->find($customer, $loanProductId)
+            ?? new LoanApplicationDraft([
+                'customer_id'     => $customer->id,
+                'loan_product_id' => $loanProductId,
+                'phase'           => 'application',
+                'step'            => 0,
+                'payload'         => [],
+            ]);
+
+        if (! $product) {
+            return $draft;
+        }
+
+        $payload = $draft->payload ?? [];
+        $amount = (float) ($payload['form']['amount'] ?? $payload['inputs']['amount'] ?? 0);
+        $nextKey = $stepKey ?: app(ApplicationFeePaymentService::class)
+            ->nextStepAfterApplicationFee($customer, $product, $payload);
+
+        $plan = app(SmartLoanApplicationWizardService::class)->borrowerStepPlan($customer, $product, $amount);
+        $index = collect($plan)->search(fn (array $step) => ($step['key'] ?? null) === $nextKey);
+        if ($index === false) {
+            $index = (int) $draft->step;
+        }
+
+        $payload['step_key'] = $nextKey;
+        $payload['application_started'] = true;
+
+        if (! $draft->draft_reference) {
+            $draft->draft_reference = app(ReferenceNumberService::class)->applicationReference($product);
+        }
+
+        $draft->fill([
+            'phase'    => 'application',
+            'step'     => (int) $index,
+            'payload'  => $payload,
+            'saved_at' => now(),
+        ])->save();
+
+        return $draft;
+    }
+
     /** @param array<string, mixed> $feeState */
     public function saveValuationFee(Customer $customer, int $loanProductId, array $feeState): LoanApplicationDraft
     {

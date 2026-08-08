@@ -540,11 +540,23 @@ class CustomerPaymentService
         if ($productId > 0 && in_array($payment->payment_type, ['application_fee', 'valuation_fee'], true)
             && ! $this->resolveLoanApplicationSource($payment)
         ) {
-            return route('site.borrower.apply', [
+            $nextStep = (string) data_get($payment->provider_meta, 'apply_context.next_step_key');
+            if ($payment->payment_type === 'application_fee' && $payment->customer) {
+                $product = LoanProduct::query()->find($productId);
+                if ($product && blank($nextStep)) {
+                    $draftPayload = app(LoanApplicationDraftService::class)->find($payment->customer, $productId)?->payload;
+                    $nextStep = app(ApplicationFeePaymentService::class)
+                        ->nextStepAfterApplicationFee($payment->customer, $product, is_array($draftPayload) ? $draftPayload : null);
+                }
+            }
+
+            return route('site.borrower.apply', array_filter([
                 'product' => $productId,
                 'resume' => 1,
-                'step_key' => $payment->payment_type === 'valuation_fee' ? 'valuation_fee' : 'application_fee',
-            ]);
+                'step_key' => $payment->payment_type === 'valuation_fee'
+                    ? 'valuation_fee'
+                    : ($nextStep ?: 'guarantor'),
+            ]));
         }
 
         return match ($payment->payment_type) {
@@ -970,6 +982,15 @@ class CustomerPaymentService
         $drafts->saveApplicationFee($customer, $productId, $feeState);
         if ($product && product_includes_valuation_fee($product)) {
             $drafts->saveValuationFee($customer, $productId, $feeState);
+        }
+
+        $nextStep = (string) ($ctx['next_step_key'] ?? '');
+        if ($product) {
+            $drafts->advancePastApplicationFee(
+                $customer,
+                $productId,
+                filled($nextStep) ? $nextStep : null,
+            );
         }
 
         if (! empty($ctx['settled'])) {

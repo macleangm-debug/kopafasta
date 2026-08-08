@@ -63,6 +63,48 @@ class ApplicationFeePaymentService
     }
 
     /**
+     * Wizard stage to open after application fee is confirmed.
+     * Fee sits between setup (quote/asset/group) and guarantor/review.
+     *
+     * @param  array<string, mixed>|null  $draftPayload
+     */
+    public function nextStepAfterApplicationFee(Customer $customer, LoanProduct $product, ?array $draftPayload = null): string
+    {
+        $amount = (float) (
+            $draftPayload['form']['amount']
+            ?? $draftPayload['inputs']['amount']
+            ?? 0
+        );
+
+        $plan = app(SmartLoanApplicationWizardService::class)->borrowerStepPlan($customer, $product, $amount);
+        $keys = collect($plan)->pluck('key')->all();
+
+        foreach (['guarantor', 'review', 'submit'] as $key) {
+            if (in_array($key, $keys, true)) {
+                return $key;
+            }
+        }
+
+        return 'review';
+    }
+
+    /**
+     * Resume URL after PSP confirms the fee — lands on the next wizard stage, not quote.
+     *
+     * @param  array<string, mixed>|null  $draftPayload
+     */
+    public function resumeUrlAfterFee(Customer $customer, LoanProduct $product, ?array $draftPayload = null, ?string $stepKey = null): string
+    {
+        $next = $stepKey ?: $this->nextStepAfterApplicationFee($customer, $product, $draftPayload);
+
+        return route('site.borrower.apply', [
+            'product' => $product->id,
+            'resume' => 1,
+            'step_key' => $next,
+        ]);
+    }
+
+    /**
      * @return array{0: ?string, 1: ?string} [promoCode, affiliateCode]
      */
     public function resolvePromoOrAffiliate(?string $promoCode, ?string $affiliateCode = null): array
@@ -156,16 +198,17 @@ class ApplicationFeePaymentService
 
         [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode);
 
+        $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
+        $nextStep = $this->nextStepAfterApplicationFee($customer, $product, is_array($draftPayload) ? $draftPayload : null);
+
         $applyContext = [
             'loan_product_id' => $product->id,
             'use_wallet' => $useWallet,
             'promo_code' => $effectivePromo,
             'affiliate_code' => $effectiveAffiliate,
             'group_member_count' => $groupMemberCount,
-            'return_url' => route('site.borrower.apply', [
-                'product' => $product->id,
-                'resume' => 1,
-            ]),
+            'next_step_key' => $nextStep,
+            'return_url' => $this->resumeUrlAfterFee($customer, $product, is_array($draftPayload) ? $draftPayload : null, $nextStep),
             'settled' => ! $awaitsPsp,
         ];
 
@@ -248,6 +291,9 @@ class ApplicationFeePaymentService
 
         [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode);
 
+        $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
+        $nextStep = $this->nextStepAfterApplicationFee($customer, $product, is_array($draftPayload) ? $draftPayload : null);
+
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
             'payment_type'   => 'application_fee',
@@ -262,10 +308,8 @@ class ApplicationFeePaymentService
                 'promo_code' => $effectivePromo,
                 'affiliate_code' => $effectiveAffiliate,
                 'group_member_count' => $groupMemberCount,
-                'return_url' => route('site.borrower.apply', [
-                    'product' => $product->id,
-                    'resume' => 1,
-                ]),
+                'next_step_key' => $nextStep,
+                'return_url' => $this->resumeUrlAfterFee($customer, $product, is_array($draftPayload) ? $draftPayload : null, $nextStep),
                 'settled' => $autoVerify,
             ],
         ]);
@@ -307,6 +351,12 @@ class ApplicationFeePaymentService
         if (product_includes_valuation_fee($product)) {
             $drafts->saveValuationFee($customer, $product->id, $feeState);
         }
+
+        $drafts->advancePastApplicationFee(
+            $customer,
+            $product->id,
+            $this->nextStepAfterApplicationFee($customer, $product, $drafts->find($customer, $product->id)?->payload),
+        );
 
         return $feeState;
     }
