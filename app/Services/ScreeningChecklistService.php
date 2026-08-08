@@ -597,8 +597,18 @@ class ScreeningChecklistService
                 break;
 
             case 'face_nida':
-                foreach ((array) ($ctx['face_photos'] ?? []) as $angle => $path) {
-                    if (! filled($path)) {
+                $facePhotos = $ctx['face_photos'] ?? [];
+                if ($facePhotos instanceof \Illuminate\Support\Collection) {
+                    $facePhotos = $facePhotos->all();
+                }
+                foreach ((array) $facePhotos as $angle => $entry) {
+                    $path = $entry;
+                    if (is_object($entry) && isset($entry->file_path)) {
+                        $path = $entry->file_path;
+                    } elseif (is_array($entry)) {
+                        $path = $entry['file_path'] ?? $entry['path'] ?? null;
+                    }
+                    if (! is_string($path) || ! filled($path)) {
                         continue;
                     }
                     $photos[] = [
@@ -606,10 +616,16 @@ class ScreeningChecklistService
                         'url' => asset('storage/'.$path),
                     ];
                 }
-                if (filled($ctx['nida_photo_path'] ?? null)) {
+                $nidaPath = $ctx['nida_photo_path'] ?? null;
+                if (is_object($nidaPath) && isset($nidaPath->file_path)) {
+                    $nidaPath = $nidaPath->file_path;
+                } elseif (is_array($nidaPath)) {
+                    $nidaPath = $nidaPath['file_path'] ?? $nidaPath['path'] ?? null;
+                }
+                if (is_string($nidaPath) && filled($nidaPath)) {
                     $photos[] = [
                         'label' => 'NIDA photo',
-                        'url' => asset('storage/'.$ctx['nida_photo_path']),
+                        'url' => asset('storage/'.$nidaPath),
                     ];
                 }
                 $rows = [
