@@ -410,7 +410,7 @@ class VendorController extends Controller
                 $task,
                 (string) $data['insurance_expires_at'],
                 $data['insurance_policy_number'] ?? null,
-                (string) ($data['insurance_type'] ?? 'comprehensive'),
+                'comprehensive',
             );
 
             return redirect()->route('site.partner.task', $task)

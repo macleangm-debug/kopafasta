@@ -29,6 +29,10 @@ class PartnerConfirmModalsFeatureTest extends TestCase
         $this->assertStringContainsString('insurance_title', $cover);
         $this->assertStringContainsString('tab_asset', $cover);
         $this->assertStringContainsString('ownership_document', $cover);
+        $this->assertStringContainsString("value=\"comprehensive\"", $cover);
+        $this->assertStringNotContainsString('third_party', $cover);
+        $this->assertStringContainsString('prev()', $cover);
+        $this->assertStringContainsString('next()', $cover);
         $this->assertStringContainsString('window.confirmForm($el', $wallet);
         $this->assertStringContainsString('payout_title', $wallet);
         $this->assertStringContainsString('dispute_title', $wallet);

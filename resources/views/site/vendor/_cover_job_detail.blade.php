@@ -5,14 +5,16 @@
     }
     $assetProfile = is_array($assetProfile ?? null) ? $assetProfile : [];
     $isOpen = ! in_array($task->status, ['completed', 'cancelled'], true);
-    $prefillType = old('insurance_type', $taskMeta['insurance_type'] ?? $assetProfile['insurance_type'] ?? 'comprehensive');
     $coverTitle = trim((string) (($assetProfile['label'] ?? '') ?: ($task->vehicle_details ?: __('site.partner_portal.cover_job_fallback_title'))));
     $reg = $assetProfile['registration_number'] ?? null;
-    $photos = $assetProfile['photos'] ?? [];
-    $labeled = $assetProfile['labeled_details'] ?? [];
+    $photos = array_values(array_filter($assetProfile['photos'] ?? []));
+    $labeled = collect($assetProfile['labeled_details'] ?? [])
+        ->reject(fn ($row) => in_array(($row['key'] ?? ''), ['insurance_type', 'insurance_policy_number', 'insurance_expires_at'], true))
+        ->values()
+        ->all();
     if ($labeled === [] && ! empty($assetProfile['details']) && is_array($assetProfile['details'])) {
         foreach ($assetProfile['details'] as $key => $value) {
-            if (! filled($value)) {
+            if (! filled($value) || in_array($key, ['insurance_type', 'insurance_policy_number', 'insurance_expires_at'], true)) {
                 continue;
             }
             $labeled[] = [
@@ -22,6 +24,8 @@
             ];
         }
     }
+    $hasOwnershipDoc = filled($assetProfile['ownership_document_url'] ?? null);
+    $hasInsuranceDoc = filled($assetProfile['insurance_document_url'] ?? null);
 @endphp
 
 <div class="mb-5">
@@ -49,6 +53,10 @@
                 <span class="text-xs text-gray-500">{{ __('site.partner_portal.premium') }}</span>
                 <span class="font-bold text-brand">{{ format_money($taskMeta['premium'] ?? $task->fee_amount) }}</span>
             </span>
+            <span class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 ring-1 ring-emerald-200/80 px-3 py-1.5">
+                <span class="text-xs text-emerald-700/80">{{ __('site.partner_portal.requested_cover') }}</span>
+                <span class="font-bold text-emerald-800">{{ __('site.partner_portal.comprehensive_only') }}</span>
+            </span>
             @if ($task->due_at)
                 <span class="inline-flex items-center gap-1.5 rounded-lg bg-white ring-1 ring-brand/10 px-3 py-1.5">
                     <span class="text-xs text-gray-500">{{ __('site.partner_portal.due') }}</span>
@@ -63,7 +71,7 @@
     </div>
 </div>
 
-<div class="grid lg:grid-cols-3 gap-6" x-data="{ tab: 'asset' }">
+<div class="grid lg:grid-cols-3 gap-6" x-data="{ tab: @js(request('tab', 'asset')) }">
     <div class="lg:col-span-2 space-y-4">
         <div class="inline-flex flex-wrap rounded-xl ring-1 ring-gray-200/80 bg-white/90 backdrop-blur p-0.5 text-sm gap-0.5 w-full sm:w-auto">
             @foreach ([
@@ -85,22 +93,58 @@
         <div x-show="tab === 'asset'" x-cloak class="space-y-4">
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
                 @if ($photos !== [])
-                    <div class="relative bg-gradient-to-br from-brand/5 via-white to-brand-muted/30">
-                        <img src="{{ $photos[0] }}" alt="" class="w-full max-h-80 object-cover">
+                    <div
+                        class="relative bg-gradient-to-br from-brand/5 via-slate-900/5 to-brand-muted/30"
+                        x-data="{
+                            photos: @js($photos),
+                            index: 0,
+                            get current() { return this.photos[this.index] || this.photos[0]; },
+                            get count() { return this.photos.length; },
+                            prev() { this.index = (this.index - 1 + this.count) % this.count; },
+                            next() { this.index = (this.index + 1) % this.count; },
+                            go(i) { this.index = i; },
+                        }"
+                    >
+                        <div class="relative aspect-[16/10] bg-gray-100">
+                            <img :src="current" alt="" class="absolute inset-0 w-full h-full object-cover">
+                            @if (count($photos) > 1)
+                                <button type="button" @click="prev()"
+                                        class="absolute left-3 top-1/2 -translate-y-1/2 size-10 rounded-full bg-black/55 text-white grid place-items-center hover:bg-black/75 transition shadow-lg"
+                                        aria-label="{{ __('site.partner_portal.prev_image') }}">
+                                    <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                                </button>
+                                <button type="button" @click="next()"
+                                        class="absolute right-3 top-1/2 -translate-y-1/2 size-10 rounded-full bg-black/55 text-white grid place-items-center hover:bg-black/75 transition shadow-lg"
+                                        aria-label="{{ __('site.partner_portal.next_image') }}">
+                                    <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                                <p class="absolute top-3 right-3 rounded-full bg-black/55 text-white text-[11px] font-semibold px-2.5 py-1 tabular-nums"
+                                   x-text="(index + 1) + ' / ' + count"></p>
+                            @endif
+                        </div>
                         @if (count($photos) > 1)
-                            <div class="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/50 to-transparent">
-                                <div class="flex gap-2 overflow-x-auto pb-0.5">
-                                    @foreach ($photos as $i => $photo)
-                                        <img src="{{ $photo }}" alt="" class="size-14 rounded-lg object-cover ring-2 {{ $i === 0 ? 'ring-white' : 'ring-white/40' }} shrink-0">
-                                    @endforeach
-                                </div>
+                            <div class="flex gap-2 overflow-x-auto p-3 bg-white/90 border-t border-gray-100">
+                                <template x-for="(photo, i) in photos" :key="i">
+                                    <button type="button" @click="go(i)"
+                                            class="shrink-0 rounded-lg overflow-hidden ring-2 transition focus:outline-none"
+                                            :class="i === index ? 'ring-brand' : 'ring-transparent opacity-70 hover:opacity-100'">
+                                        <img :src="photo" alt="" class="size-14 object-cover">
+                                    </button>
+                                </template>
                             </div>
                         @endif
                     </div>
                 @endif
                 <div class="p-5">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $assetProfile['type_label'] ?? __('site.partner_portal.collateral') }}</p>
-                    <p class="text-xl font-extrabold text-gray-900 mt-0.5">{{ $assetProfile['label'] ?? '—' }}</p>
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $assetProfile['type_label'] ?? __('site.partner_portal.collateral') }}</p>
+                            <p class="text-xl font-extrabold text-gray-900 mt-0.5">{{ $assetProfile['label'] ?? '—' }}</p>
+                        </div>
+                        <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1 ring-1 ring-emerald-200">
+                            {{ __('site.partner_portal.comprehensive_only') }}
+                        </span>
+                    </div>
                     @if (! empty($assetProfile['description']))
                         <p class="text-sm text-gray-600 mt-2">{{ $assetProfile['description'] }}</p>
                     @endif
@@ -118,6 +162,40 @@
                             @endforeach
                         </dl>
                     @endif
+                </div>
+            </div>
+
+            {{-- Asset documents visible on Asset tab --}}
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <h2 class="font-bold">{{ __('site.partner_portal.collateral_documents') }}</h2>
+                    <button type="button" @click="tab = 'documents'" class="text-xs font-semibold text-brand hover:underline">
+                        {{ __('site.partner_portal.tab_documents') }} →
+                    </button>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 p-4 flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.ownership_document') }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.profile.ownership_document_hint') }}</p>
+                        </div>
+                        @if ($hasOwnershipDoc)
+                            <x-site.document-view-button :url="$assetProfile['ownership_document_url']" :label="__('site.partner_portal.view')" class="text-brand hover:underline text-xs font-semibold shrink-0" />
+                        @else
+                            <span class="text-xs text-gray-400 shrink-0">{{ __('site.partner_portal.not_provided') }}</span>
+                        @endif
+                    </div>
+                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 p-4 flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_insurance_doc') }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ __('site.partner_portal.existing_cert_hint') }}</p>
+                        </div>
+                        @if ($hasInsuranceDoc)
+                            <x-site.document-view-button :url="$assetProfile['insurance_document_url']" :label="__('site.partner_portal.view')" class="text-brand hover:underline text-xs font-semibold shrink-0" />
+                        @else
+                            <span class="text-xs text-gray-400 shrink-0">{{ __('site.partner_portal.not_provided') }}</span>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -146,7 +224,7 @@
                     </div>
                     <div>
                         <dt class="text-gray-500 text-xs">{{ __('site.partner_portal.requested_cover') }}</dt>
-                        <dd class="font-medium capitalize">{{ str_replace('_', ' ', (string) ($taskMeta['insurance_type'] ?? $assetProfile['insurance_type'] ?? 'comprehensive')) }}</dd>
+                        <dd class="font-semibold text-emerald-800">{{ __('site.partner_portal.comprehensive_only') }}</dd>
                     </div>
                     @if (! empty($taskMeta['payment_reference']))
                         <div>
@@ -167,10 +245,18 @@
         {{-- Issue policy --}}
         <div x-show="tab === 'issue'" x-cloak class="space-y-4">
             @if ($isOpen)
-                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-                    <h2 class="font-bold mb-1">{{ __('site.partner_portal.record_cover') }}</h2>
-                    <p class="text-sm text-gray-600 mb-4">{{ __('site.partner_portal.record_cover_hint') }}</p>
-                    <form method="POST" action="{{ route('site.partner.task.complete', $task) }}" class="space-y-3"
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 sm:p-6">
+                    <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+                        <div>
+                            <h2 class="text-lg font-extrabold text-gray-900 tracking-tight">{{ __('site.partner_portal.record_cover') }}</h2>
+                            <p class="text-sm text-gray-500 mt-1 max-w-md">{{ __('site.partner_portal.record_cover_hint') }}</p>
+                        </div>
+                        <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 ring-1 ring-emerald-200">
+                            {{ __('site.partner_portal.comprehensive_only') }}
+                        </span>
+                    </div>
+
+                    <form method="POST" action="{{ route('site.partner.task.complete', $task) }}" class="max-w-md space-y-4"
                           @submit.prevent="window.confirmForm($el, {
                               title: @js(__('site.partner_portal.confirm.insurance_title')),
                               message: @js(__('site.partner_portal.confirm.insurance_message')),
@@ -179,20 +265,17 @@
                               confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
                           })">
                         @csrf
+                        <input type="hidden" name="insurance_type" value="comprehensive">
+
                         <div>
-                            <label class="block text-xs text-gray-500 mb-1">{{ __('site.partner_portal.insurance_type') }}</label>
-                            <select name="insurance_type" class="w-full rounded-lg border-gray-300 text-sm" required>
-                                <option value="comprehensive" @selected($prefillType === 'comprehensive')>Comprehensive (Bima kamili)</option>
-                                <option value="third_party" @selected($prefillType === 'third_party')>Third Party (Bima ya wahusika wengine)</option>
-                            </select>
-                            <p class="mt-1 text-[11px] text-gray-500">{{ __('site.partner_portal.insurance_type_hint') }}</p>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">{{ __('site.partner_portal.policy_number') }}</label>
+                            <input name="insurance_policy_number"
+                                   value="{{ old('insurance_policy_number', $assetProfile['insurance_policy_number'] ?? '') }}"
+                                   class="w-full max-w-xs rounded-xl border-gray-200 bg-white text-sm px-3.5 py-2.5 focus:border-brand focus:ring-2 focus:ring-brand/10"
+                                   placeholder="{{ __('site.partner_portal.policy_number_placeholder') }}">
                         </div>
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">{{ __('site.partner_portal.policy_number') }}</label>
-                            <input name="insurance_policy_number" value="{{ old('insurance_policy_number', $assetProfile['insurance_policy_number'] ?? '') }}"
-                                   class="w-full rounded-lg border-gray-300 text-sm" placeholder="{{ __('site.partner_portal.policy_number_placeholder') }}">
-                        </div>
-                        <div>
+
+                        <div class="max-w-xs">
                             <x-site.date-input
                                 name="insurance_expires_at"
                                 :label="__('site.partner_portal.cover_expiry')"
@@ -200,13 +283,18 @@
                                 :min="now()->format('Y-m-d')"
                                 :max="now()->addYears(15)->format('Y-m-d')"
                                 :value="old('insurance_expires_at')"
+                                input-class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
                             />
                         </div>
+
                         <div>
-                            <label class="block text-xs text-gray-500 mb-1">{{ __('site.partner_portal.notes_optional') }}</label>
-                            <textarea name="notes" rows="3" class="w-full rounded-lg border-gray-300 text-sm" placeholder="{{ __('site.partner_portal.notes_placeholder') }}"></textarea>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">{{ __('site.partner_portal.notes_optional') }}</label>
+                            <textarea name="notes" rows="2"
+                                      class="w-full max-w-sm rounded-xl border-gray-200 bg-white text-sm px-3.5 py-2.5 focus:border-brand focus:ring-2 focus:ring-brand/10"
+                                      placeholder="{{ __('site.partner_portal.notes_placeholder') }}"></textarea>
                         </div>
-                        <button class="rounded-lg bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 hover:bg-emerald-700 w-full sm:w-auto">
+
+                        <button class="rounded-xl bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 hover:bg-emerald-700 shadow-sm shadow-emerald-600/20">
                             {{ __('site.partner_portal.record_cover') }}
                         </button>
                     </form>
@@ -214,10 +302,10 @@
             @else
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-3">{{ __('site.partner_portal.cover_recorded') }}</h2>
-                    <dl class="grid sm:grid-cols-2 gap-3 text-sm">
+                    <dl class="grid sm:grid-cols-2 gap-3 text-sm max-w-lg">
                         <div>
                             <dt class="text-gray-500 text-xs">{{ __('site.partner_portal.insurance_type') }}</dt>
-                            <dd class="font-medium capitalize">{{ str_replace('_', ' ', (string) ($taskMeta['insurance_type'] ?? $assetProfile['insurance_type'] ?? '—')) }}</dd>
+                            <dd class="font-semibold text-emerald-800">{{ __('site.partner_portal.comprehensive_only') }}</dd>
                         </div>
                         <div>
                             <dt class="text-gray-500 text-xs">{{ __('site.partner_portal.policy_number') }}</dt>
@@ -248,7 +336,7 @@
                             <p class="font-semibold text-gray-900">{{ __('borrower.profile.ownership_document') }}</p>
                             <p class="text-xs text-gray-500">{{ __('borrower.profile.ownership_document_hint') }}</p>
                         </div>
-                        @if (! empty($assetProfile['ownership_document_url']))
+                        @if ($hasOwnershipDoc)
                             <x-site.document-view-button :url="$assetProfile['ownership_document_url']" :label="__('site.partner_portal.view')" class="text-brand hover:underline text-xs font-semibold shrink-0" />
                         @else
                             <span class="text-xs text-gray-400">{{ __('site.partner_portal.not_provided') }}</span>
@@ -259,7 +347,7 @@
                             <p class="font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_insurance_doc') }}</p>
                             <p class="text-xs text-gray-500">{{ __('site.partner_portal.existing_cert_hint') }}</p>
                         </div>
-                        @if (! empty($assetProfile['insurance_document_url']))
+                        @if ($hasInsuranceDoc)
                             <x-site.document-view-button :url="$assetProfile['insurance_document_url']" :label="__('site.partner_portal.view')" class="text-brand hover:underline text-xs font-semibold shrink-0" />
                         @else
                             <span class="text-xs text-gray-400">{{ __('site.partner_portal.not_provided') }}</span>
@@ -272,7 +360,7 @@
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-1">{{ __('site.partner_portal.upload_policy_document') }}</h2>
                     <p class="text-sm text-gray-600 mb-4">{{ __('site.partner_portal.upload_policy_hint') }}</p>
-                    <form method="POST" action="{{ route('site.partner.task.proof', $task) }}" enctype="multipart/form-data" class="space-y-3">
+                    <form method="POST" action="{{ route('site.partner.task.proof', $task) }}" enctype="multipart/form-data" class="space-y-3 max-w-md">
                         @csrf
                         <input type="hidden" name="label" value="{{ __('site.partner_portal.policy_document_label') }}">
                         <div>

@@ -344,9 +344,8 @@ class CollateralInsurancePartnerService
         $asset = CustomerAsset::query()->findOrFail($assetId);
 
         $details = $asset->details();
-        $details['insurance_type'] = in_array($insuranceType, ['comprehensive', 'third_party'], true)
-            ? $insuranceType
-            : 'comprehensive';
+        // Insure It cover jobs are always comprehensive — never third party.
+        $details['insurance_type'] = 'comprehensive';
         $details['insurance_expires_at'] = \Carbon\Carbon::parse($expiresAt)->toDateString();
         if (filled($policyNumber)) {
             $details['insurance_policy_number'] = $policyNumber;
