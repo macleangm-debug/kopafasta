@@ -293,6 +293,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/payments/{payment}',             [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'show'])        ->name('borrower.payments.show');
             Route::get('/borrower/payments/{payment}/status',      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'status'])      ->name('borrower.payments.status');
             Route::post('/borrower/payments/{payment}/pay',        [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'pay'])         ->name('borrower.payments.pay');
+            Route::post('/borrower/payments/{payment}/retry',      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'retry'])       ->name('borrower.payments.retry');
             Route::post('/borrower/payments/{payment}/gate',       [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'returnToGate'])->name('borrower.payments.gate');
             Route::post('/borrower/payments/{payment}/phone',      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'updatePhone'])->name('borrower.payments.phone');
             Route::post('/borrower/payments/{payment}/switch-bank',[\App\Http\Controllers\Site\BorrowerPaymentController::class, 'switchBank'])->name('borrower.payments.switch-bank');

@@ -18,11 +18,14 @@
         // Amount is already locked on this post-create gate, so codes stay hidden here.
         $showPromo = false;
         $supportsDiscounts = \App\Services\CustomerPaymentService::supportsCodeDiscounts($payment->payment_type);
+        $badge = match ($payment->status) {
+            'verified', 'paid' => 'bg-emerald-500/20 text-emerald-100 ring-emerald-400/40',
+            'rejected' => 'bg-red-500/20 text-red-100 ring-red-400/40',
+            'clarification_requested' => 'bg-sky-500/20 text-sky-100 ring-sky-400/40',
+            'awaiting_payment' => 'bg-brand-gold/25 text-brand-gold ring-brand-gold/40',
+            default => 'bg-amber-500/20 text-amber-100 ring-amber-400/40',
+        };
     @endphp
-
-    <div class="mb-5 max-w-xl mx-auto">
-        <a href="{{ route('site.borrower.dashboard') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.nav.dashboard') }}</a>
-    </div>
 
     @unless ($isPayInWaiting || ($showCollectFailed && $isReadyToPay))
         @if (session('status'))
@@ -32,16 +35,6 @@
     @if (session('error') && ! $showCollectFailed)
         <div class="mb-5 max-w-xl mx-auto rounded-2xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
     @endif
-
-    @php
-        $badge = match ($payment->status) {
-            'verified', 'paid' => 'bg-emerald-500/20 text-emerald-100 ring-emerald-400/40',
-            'rejected' => 'bg-red-500/20 text-red-100 ring-red-400/40',
-            'clarification_requested' => 'bg-sky-500/20 text-sky-100 ring-sky-400/40',
-            'awaiting_payment' => 'bg-brand-gold/25 text-brand-gold ring-brand-gold/40',
-            default => 'bg-amber-500/20 text-amber-100 ring-amber-400/40',
-        };
-    @endphp
 
     <div class="max-w-xl mx-auto space-y-5">
     @if ($isPayInWaiting || ($showCollectFailed && $isReadyToPay))

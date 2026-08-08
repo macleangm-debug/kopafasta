@@ -138,6 +138,7 @@ class PaymentWaitingPollTest extends TestCase
             ->assertSee(__('borrower.payment_waiting.try_again'), false)
             ->assertSee(__('borrower.payment_waiting.change_phone'), false)
             ->assertDontSee(__('borrower.payment_waiting.keep_waiting'), false)
+            ->assertSee(route('site.borrower.payments.retry', $payment), false)
             ->assertSee(route('site.borrower.payments.gate', $payment), false);
     }
 

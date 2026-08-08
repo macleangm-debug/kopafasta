@@ -10,8 +10,9 @@
 @php
     $statusUrl = $statusUrl ?? route('site.borrower.payments.status', $payment);
     $successUrl = $successUrl ?? app(\App\Services\CustomerPaymentService::class)->successRedirectUrl($payment);
-    // Always return to the shared PSP gate (MM | bank | Pay now) — never re-collect from here.
+    // Change number → shared PSP gate. Try again → re-send push to the same MSISDN.
     $gateUrl = $gateUrl ?? route('site.borrower.payments.gate', $payment);
+    $retryUrl = $retryUrl ?? route('site.borrower.payments.retry', $payment);
     $celebration = app(\App\Services\CustomerPaymentService::class)->celebrationCopy($payment);
     $waitingMessage = $payment->mobile_number
         ? __('borrower.payment_waiting.waiting_phone', ['phone' => $payment->mobile_number])
@@ -197,7 +198,7 @@
                     <p class="mt-3 text-sm text-white/85 max-w-sm mx-auto" x-text="message"></p>
 
                     <div class="mt-7 flex flex-wrap justify-center gap-3">
-                        <form method="POST" action="{{ $gateUrl }}">
+                        <form method="POST" action="{{ $retryUrl }}">
                             @csrf
                             <button type="submit" class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
                                 {{ __('borrower.payment_waiting.try_again') }}
@@ -267,7 +268,7 @@
                 </div>
 
                 <div class="mt-7 flex flex-wrap justify-center gap-3" x-show="state === 'failed' || state === 'timeout'" x-cloak>
-                    <form method="POST" action="{{ $gateUrl }}">
+                    <form method="POST" action="{{ $retryUrl }}">
                         @csrf
                         <button type="submit" class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
                             {{ __('borrower.payment_waiting.try_again') }}

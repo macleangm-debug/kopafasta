@@ -251,6 +251,51 @@ class BorrowerPaymentController extends Controller
         return redirect()->route('site.borrower.payments.show', $payment);
     }
 
+    /**
+     * Re-send the mobile-money prompt to the same number (clear stale provider_ref first).
+     */
+    public function retry(CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($payment->customer_id === $customer->id, 403);
+
+        try {
+            $payment = $payments->returnToPaymentGate($payment);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'));
+        }
+
+        $phone = $payment->mobile_number
+            ?: data_get($payment->provider_meta, 'attempted_phone')
+            ?: data_get($payment->provider_meta, 'phone')
+            ?: $customer->phone;
+
+        if (! filled($phone)) {
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('error', __('borrower.payments.mobile_number_required'));
+        }
+
+        try {
+            $payment = $payments->initiateCollection($payment, $phone);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $raw = collect($e->errors())->flatten()->first();
+            $attempted = $payment->fresh()->mobile_number
+                ?: data_get($payment->fresh()->provider_meta, 'attempted_phone');
+            $message = CustomerPaymentService::localizeProviderMessage($raw, $attempted);
+
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('collect_error', $message)
+                ->with('show_collect_failed', true)
+                ->withErrors(['mobile_number' => $message]);
+        }
+
+        return redirect()->route('site.borrower.payments.show', $payment);
+    }
+
     public function returnToGate(CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
     {
         $customer = $this->customer();
