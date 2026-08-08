@@ -331,6 +331,8 @@
                             <p class="mt-1 text-[11px] text-gray-500" x-show="!hasMarkup" x-cloak>No markup applied.</p>
                             @if ($mode === 'percent_of_value')
                                 <p class="mt-1 text-[11px] text-gray-500" x-show="hasMarkup" x-cloak>Borrower pays (rate + markup)% of insured value. Partner earns rate% only.</p>
+                            @else
+                                <p class="mt-1 text-[11px] text-gray-500" x-show="hasMarkup" x-cloak>Borrower pays base × (1 + markup%). Partner earns base only; markup is platform revenue.</p>
                             @endif
                         </div>
                     </div>

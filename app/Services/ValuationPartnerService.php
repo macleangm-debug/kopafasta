@@ -132,10 +132,39 @@ class ValuationPartnerService
                 'completed_at'      => now(),
             ]);
 
-            $assignment->vendorTask?->update([
+            $task = $assignment->vendorTask;
+            $partnerShare = (int) ($task?->fee_amount ?? 0);
+            if ($partnerShare <= 0) {
+                $partnerShare = (int) round(app(PartnerDefaultsService::class)->valuerBaseCost($assignment->vendor));
+            }
+
+            $task?->update([
                 'status'       => 'completed',
                 'completed_at' => now(),
+                'fee_amount'   => $partnerShare > 0 ? $partnerShare : $task->fee_amount,
             ]);
+
+            if ($partnerShare > 0 && $assignment->vendor_id && $task) {
+                $already = \App\Models\VendorPayment::query()
+                    ->where('partner_task_id', $task->id)
+                    ->where('source_type', 'valuation_fee')
+                    ->where('status', '!=', 'cancelled')
+                    ->exists();
+
+                if (! $already) {
+                    $partner = $assignment->vendor ?? \App\Models\Vendor::query()->find($assignment->vendor_id);
+                    if ($partner) {
+                        app(PartnerSettlementService::class)->accrue(
+                            $partner,
+                            $partnerShare,
+                            'valuation_fee',
+                            $assignment->loan_application_id,
+                            'Asset valuation '.$assignment->application?->application_number,
+                            $task->id,
+                        );
+                    }
+                }
+            }
 
             $application = $assignment->application;
             $assetType = LoanApplicationAsset::query()

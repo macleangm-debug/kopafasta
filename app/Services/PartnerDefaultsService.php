@@ -259,6 +259,12 @@ class PartnerDefaultsService
         }
 
         Setting::setMany($settings);
+
+        if (isset($settings['partner_defaults.valuer.base_cost'])
+            || isset($settings['partner_defaults.valuer.markup_percent'])
+            || isset($settings['partner_defaults.valuer.has_markup'])) {
+            app(ValuationPricingService::class)->syncChargesFees();
+        }
     }
 
     /** Merge optional rate override into partner metadata on create/update. */

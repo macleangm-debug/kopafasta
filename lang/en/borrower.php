@@ -3398,7 +3398,7 @@ return [
         'valuation_status_in_progress' => 'Valuation in progress',
         'valuation_status_completed' => 'Valuation completed',
         'valuation_fee_title' => 'Valuation fee',
-        'valuation_fee_hint' => 'Amount from Fees settings (VAL_FEE). You will continue to the payment screen.',
+        'valuation_fee_hint' => 'Amount from Recovery settings (valuer base + markup %). You will continue to the payment screen.',
         'valuation_fee_next_action' => 'Pay valuation fee (:amount) to continue',
         'pay_valuation_now' => 'Pay valuation fee',
         'pay_valuation_confirm_title' => 'Pay valuation fee?',

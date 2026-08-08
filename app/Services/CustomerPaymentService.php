@@ -237,6 +237,8 @@ class CustomerPaymentService
                 ] : null,
             ]);
 
+            $this->attachMarkupFeeSplitMeta($payment);
+
             // Never instant-finalize insurance — partner case opens only after verified payment.
             if ($type === 'insurance_premium') {
                 return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
@@ -719,13 +721,26 @@ class CustomerPaymentService
             config('payment_types.debit_gl_fallback'),
         );
 
+        if (! $debitAccountId) {
+            return null;
+        }
+
+        if (in_array($payment->payment_type, ['valuation_fee', 'insurance_premium', 'post_approval_fee'], true)) {
+            $splitEntry = app(PartnerMarkupPaymentLedgerService::class)->post($payment, $debitAccountId);
+            if ($splitEntry) {
+                $payment->update(['journal_entry_id' => $splitEntry->id]);
+
+                return $splitEntry;
+            }
+        }
+
         $typeConfig = config("payment_types.types.{$payment->payment_type}");
         $creditAccountId = $this->resolveGlAccount(
             $typeConfig['credit_gl'] ?? 'fee_income_gl_account_id',
             $typeConfig['fallback_gl'] ?? 'fee_income_gl_account_id',
         );
 
-        if (! $debitAccountId || ! $creditAccountId) {
+        if (! $creditAccountId) {
             return null;
         }
 
@@ -760,6 +775,42 @@ class CustomerPaymentService
         }
 
         return null;
+    }
+
+    /**
+     * Snapshot partner vs platform markup on the payment for ledger posting / admin visibility.
+     */
+    private function attachMarkupFeeSplitMeta(CustomerPayment $payment): void
+    {
+        $meta = (array) ($payment->provider_meta ?? []);
+
+        if ($payment->payment_type === 'valuation_fee') {
+            $quote = app(ValuationPricingService::class)->quote();
+            $meta['fee_split'] = [
+                'partner_share' => $quote['partner_share'],
+                'markup_amount' => $quote['markup_amount'],
+                'base_cost' => $quote['base_cost'],
+                'markup_percent' => $quote['markup_percent'],
+                'borrower_amount' => $quote['borrower_amount'],
+            ];
+            $payment->update(['provider_meta' => $meta]);
+
+            return;
+        }
+
+        if ($payment->payment_type === 'post_approval_fee') {
+            $breakdown = app(PartnerMarkupPaymentLedgerService::class)->computePostApprovalBreakdown($payment);
+            if ($breakdown) {
+                $meta['fee_split'] = [
+                    'gps_markup' => $breakdown['gpsMarkup'],
+                    'gps_partner_share' => $breakdown['gpsPartner'],
+                    'other_markup' => $breakdown['otherMarkup'],
+                    'other_partner_share' => $breakdown['otherPartner'],
+                    'plain_fees' => $breakdown['plainFees'],
+                ];
+                $payment->update(['provider_meta' => $meta]);
+            }
+        }
     }
 
     public function finalizePayment(CustomerPayment $payment): void

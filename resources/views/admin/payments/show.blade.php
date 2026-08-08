@@ -52,6 +52,27 @@
                         <dt class="text-xs text-gray-500 uppercase">Amount</dt>
                         <dd class="font-semibold">{{ format_money($payment->amount) }}</dd>
                     </div>
+                    @php
+                        $feeSplit = (array) data_get($payment->provider_meta, 'fee_split', []);
+                        $ins = (array) data_get($payment->provider_meta, 'collateral_insurance', []);
+                        if (array_key_exists('gps_partner_share', $feeSplit) || array_key_exists('other_partner_share', $feeSplit)) {
+                            $partnerShare = (float) ($feeSplit['gps_partner_share'] ?? 0) + (float) ($feeSplit['other_partner_share'] ?? 0);
+                            $markupAmount = (float) ($feeSplit['gps_markup'] ?? 0) + (float) ($feeSplit['other_markup'] ?? 0);
+                        } else {
+                            $partnerShare = (float) ($feeSplit['partner_share'] ?? $ins['base_premium'] ?? $ins['partner_share'] ?? 0);
+                            $markupAmount = (float) ($feeSplit['markup_amount'] ?? $ins['markup_amount'] ?? 0);
+                        }
+                    @endphp
+                    @if ($partnerShare > 0 || $markupAmount > 0)
+                        <div>
+                            <dt class="text-xs text-gray-500 uppercase">Partner share</dt>
+                            <dd>{{ format_money($partnerShare) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500 uppercase">Platform markup</dt>
+                            <dd>{{ format_money($markupAmount) }}</dd>
+                        </div>
+                    @endif
                     <div>
                         <dt class="text-xs text-gray-500 uppercase">Verification status</dt>
                         <dd>{{ $payment->statusLabel() }}</dd>

@@ -109,7 +109,12 @@ if (! function_exists('quoted_application_fee')) {
 if (! function_exists('quoted_valuation_fee')) {
     function quoted_valuation_fee(?Customer $customer): int
     {
-        $base = (float) (optional(ChargesFee::where('code', 'VAL_FEE')->where('is_active', true)->first())->amount ?? 0);
+        $quote = app(\App\Services\ValuationPricingService::class)->quote();
+        $base = (float) $quote['borrower_amount'];
+
+        if ($base <= 0) {
+            $base = (float) (optional(ChargesFee::where('code', 'VAL_FEE')->where('is_active', true)->first())->amount ?? 0);
+        }
 
         if ($base <= 0) {
             return 0;

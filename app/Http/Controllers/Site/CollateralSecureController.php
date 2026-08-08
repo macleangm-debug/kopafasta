@@ -411,10 +411,20 @@ class CollateralSecureController extends Controller
             'customer_asset_id' => $asset->id,
             'insured_value' => $quote['insured_value'],
             'premium' => $quote['premium'],
+            'base_premium' => $quote['base_premium'],
+            'markup_amount' => $quote['markup_amount'],
+            'partner_share' => $quote['base_premium'],
             'rate_percent' => $quote['rate_percent'],
             'markup_percent' => $quote['markup_percent'],
+            'effective_rate_percent' => $quote['effective_rate_percent'],
             'payer_customer_id' => $customer->id,
             'return_url' => $returnUrl,
+        ];
+        $meta['fee_split'] = [
+            'partner_share' => $quote['base_premium'],
+            'markup_amount' => $quote['markup_amount'],
+            'markup_percent' => $quote['markup_percent'],
+            'borrower_amount' => $quote['premium'],
         ];
         $payment->update(['provider_meta' => $meta]);
 

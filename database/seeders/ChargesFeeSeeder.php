@@ -116,18 +116,18 @@ class ChargesFeeSeeder extends Seeder
                 'code'        => 'VAL_POST_FEE',
                 'type'        => 'valuation',
                 'basis'       => 'fixed',
-                'amount'      => 25000,
+                'amount'      => 330, // valuer base 300 + 10% platform markup
                 'charge_when' => 'post_approval',
-                'description' => 'Collateral valuation fee charged after approval.',
+                'description' => 'Collateral valuation fee charged after approval (borrower total = partner base + markup).',
             ],
             [
                 'name'        => 'Valuation fee',
                 'code'        => 'VAL_FEE',
                 'type'        => 'valuation',
                 'basis'       => 'fixed',
-                'amount'      => 25000,
+                'amount'      => 330, // valuer base 300 + 10% platform markup
                 'charge_when' => 'application',
-                'description' => 'Collateral valuation fee.',
+                'description' => 'Collateral valuation fee (borrower total = partner base + markup).',
             ],
         ];
 

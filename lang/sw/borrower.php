@@ -3445,7 +3445,7 @@ return [
     'valuation_status_in_progress' => 'Thamani inaendelea',
     'valuation_status_completed' => 'Thamani imekamilika',
     'valuation_fee_title' => 'Ada ya thamani',
-    'valuation_fee_hint' => 'Kiasi kutoka mipangilio ya ada (VAL_FEE). Utaendelea kwenye skrini ya malipo.',
+    'valuation_fee_hint' => 'Kiasi kutoka mipangilio ya Recovery (gharama ya mthamini + asilimia ya markup). Utaendelea kwenye skrini ya malipo.',
     'valuation_fee_next_action' => 'Lipa ada ya thamani (:amount) ili kuendelea',
     'pay_valuation_now' => 'Lipa ada ya thamani',
     'pay_valuation_confirm_title' => 'Lipa ada ya thamani?',

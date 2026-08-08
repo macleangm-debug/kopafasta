@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             DemoAffiliateSeeder::class,
             PartnerDemoAccountsSeeder::class,
             ChargesFeeSeeder::class,
+            ValuationPricingDefaultsSeeder::class,
             NotificationTemplateSeeder::class,
         ]);
     }
