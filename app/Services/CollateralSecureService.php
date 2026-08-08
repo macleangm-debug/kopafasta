@@ -544,6 +544,7 @@ class CollateralSecureService
             'thumbnail' => $asset->thumbnailPath() ? asset('storage/'.$asset->thumbnailPath()) : null,
             'insurance_type' => $asset->insuranceType(),
             'insurance_expires_at' => $asset->detail('insurance_expires_at'),
+            'insurance_policy_number' => $asset->detail('insurance_policy_number'),
             'has_insurance_doc' => $asset->hasVehicleInsurance(),
         ];
     }

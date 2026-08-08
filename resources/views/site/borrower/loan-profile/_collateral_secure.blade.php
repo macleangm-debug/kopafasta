@@ -20,8 +20,16 @@
         <div class="px-5 sm:px-6 py-5 border-b border-brand/10 bg-gradient-to-br from-brand-muted/50 via-white to-white flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
                 <p class="text-[11px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.collateral_secure.eyebrow') }}</p>
-                <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title') }}</h2>
-                <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why') }}</p>
+                @if ($status === 'secured')
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_secured') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_secured') }}</p>
+                @elseif ($status === 'awaiting_insurance')
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_insurance') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_insurance') }}</p>
+                @else
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why') }}</p>
+                @endif
             </div>
             @if ($open && $daysLeft !== null)
                 <span @class([
@@ -43,39 +51,16 @@
         </div>
 
         <div class="px-5 sm:px-6 py-5 space-y-4">
-            @if ($selected)
-                <div class="rounded-2xl ring-1 ring-brand/15 overflow-hidden bg-brand-muted/20">
-                    <div class="flex gap-3 sm:gap-4 p-3.5 sm:p-4 items-center">
-                        <div class="shrink-0 size-16 sm:size-20 rounded-xl overflow-hidden bg-white ring-1 ring-gray-200">
-                            @if (! empty($selected['thumbnail']))
-                                <img src="{{ $selected['thumbnail'] }}" alt="" class="h-full w-full object-cover">
-                            @else
-                                <span class="h-full w-full grid place-items-center text-2xl">{{ $typeIcons[$selected['asset_type'] ?? ''] ?? '📦' }}</span>
-                            @endif
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $selected['type_label'] ?? '' }}</p>
-                            <p class="text-base sm:text-lg font-extrabold text-gray-900 mt-0.5 truncate">{{ $selected['label'] }}</p>
-                            @if (! empty($selected['registration_number']))
-                                <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-0.5 truncate">{{ __('borrower.profile.collateral_fields.registration_number') }}: {{ $selected['registration_number'] }}</p>
-                            @endif
-                            @if (! empty($selected['insurance_type']))
-                                <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-0.5 truncate">
-                                    {{ __('borrower.profile.collateral_fields.insurance_type') }}:
-                                    {{ $selected['insurance_type'] === 'comprehensive'
-                                        ? __('borrower.profile.insurance_comprehensive')
-                                        : __('borrower.profile.insurance_third_party') }}
-                                </p>
-                            @endif
-                            @if ($isGuarantorSource)
-                                <p class="text-[11px] font-bold text-brand mt-1">{{ __('borrower.collateral_secure.from_guarantor') }}</p>
-                            @else
-                                <p class="text-[11px] font-bold text-emerald-800 mt-1">{{ __('borrower.collateral_secure.from_borrower') }}</p>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            @endif
+            @include('site.borrower.loan-profile._collateral_asset_card', [
+                'selected' => $selected,
+                'typeIcons' => $typeIcons,
+                'showInsured' => $status === 'secured',
+                'sourceLabel' => $selected
+                    ? ($isGuarantorSource
+                        ? __('borrower.collateral_secure.from_guarantor')
+                        : __('borrower.collateral_secure.from_borrower'))
+                    : null,
+            ])
 
             @if ($status === 'awaiting_borrower_has_collateral')
                 <p class="text-base font-bold text-gray-900">{{ __('borrower.collateral_secure.q_has_collateral') }}</p>
@@ -182,7 +167,7 @@
                             default => __('borrower.collateral_secure.insure_asset_hint_missing'),
                         };
                         $markupPct = (float) ($quoteDefaults['markup_percent'] ?? 0);
-                        $effectiveRate = $ratePct * (1 + ($markupPct / 100));
+                        $effectiveRate = $ratePct + $markupPct;
                         $formValue = (int) ($purchase['insured_value'] ?? 0);
                         if ($formValue <= 0) {
                             $formValue = $suggested > 0 ? $suggested : 1000000;
@@ -257,7 +242,7 @@
                     </button>
                 </form>
             @elseif ($status === 'secured')
-                <p class="text-base font-bold text-emerald-900">{{ __('borrower.collateral_secure.secured_body') }}</p>
+                @include('site.borrower.loan-profile._collateral_next_steps', ['audience' => 'borrower'])
             @elseif (in_array($status, ['rejected', 'expired'], true))
                 <p class="text-base font-bold text-red-800">{{ __('borrower.collateral_secure.rejected_body') }}</p>
             @endif

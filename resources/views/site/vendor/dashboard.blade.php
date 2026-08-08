@@ -33,21 +33,24 @@
             default => __('site.partner_portal.hero_default'),
         };
         $activeStatCards = [];
-        if ((int) ($stats['assigned'] ?? 0) > 0) {
-            $activeStatCards[] = [__('site.partner_portal.stat_assigned'), $stats['assigned'], 'text-amber-700', 'bg-amber-50 ring-amber-100'];
+        if (! $isInsurance) {
+            if ((int) ($stats['assigned'] ?? 0) > 0) {
+                $activeStatCards[] = [__('site.partner_portal.stat_assigned'), $stats['assigned'], 'text-amber-700', 'bg-amber-50 ring-amber-100'];
+            }
+            if ((int) ($stats['in_progress'] ?? 0) > 0) {
+                $activeStatCards[] = [__('site.partner_portal.stat_in_progress'), $stats['in_progress'], 'text-brand', 'bg-brand-muted/50 ring-brand/10'];
+            }
+            if ((int) ($stats['completed_mo'] ?? 0) > 0) {
+                $activeStatCards[] = [__('site.partner_portal.stat_completed_mo'), $stats['completed_mo'], 'text-emerald-700', 'bg-emerald-50 ring-emerald-100'];
+            }
+            if ((float) ($stats['payments_pend'] ?? 0) > 0) {
+                $activeStatCards[] = [__('site.partner_portal.stat_pending_pay'), $fmt($stats['payments_pend']), 'text-orange-700', 'bg-orange-50 ring-orange-100'];
+            }
+            if ((float) ($stats['earnings'] ?? 0) > 0) {
+                $activeStatCards[] = [__('site.partner_portal.stat_earnings'), $fmt($stats['earnings']), 'text-sky-700', 'bg-sky-50 ring-sky-100'];
+            }
         }
-        if ((int) ($stats['in_progress'] ?? 0) > 0) {
-            $activeStatCards[] = [__('site.partner_portal.stat_in_progress'), $stats['in_progress'], 'text-brand', 'bg-brand-muted/50 ring-brand/10'];
-        }
-        if ((int) ($stats['completed_mo'] ?? 0) > 0) {
-            $activeStatCards[] = [__('site.partner_portal.stat_completed_mo'), $stats['completed_mo'], 'text-emerald-700', 'bg-emerald-50 ring-emerald-100'];
-        }
-        if ((float) ($stats['payments_pend'] ?? 0) > 0) {
-            $activeStatCards[] = [__('site.partner_portal.stat_pending_pay'), $fmt($stats['payments_pend']), 'text-orange-700', 'bg-orange-50 ring-orange-100'];
-        }
-        if ((float) ($stats['earnings'] ?? 0) > 0) {
-            $activeStatCards[] = [__('site.partner_portal.stat_earnings'), $fmt($stats['earnings']), 'text-sky-700', 'bg-sky-50 ring-sky-100'];
-        }
+        $insuranceAssigned = (int) ($stats['assigned'] ?? 0) + (int) ($stats['in_progress'] ?? 0);
     @endphp
 
     @if ($vendor->category === 'affiliate' && $affiliateStats)
@@ -154,7 +157,41 @@
         </div>
     </section>
 
-    @if (count($activeStatCards) > 0)
+    @if ($isInsurance)
+        @php
+            $insWallet = is_array($wallet ?? null) ? $wallet : [];
+            $insAvailable = array_key_exists('available', $insWallet)
+                ? (float) $insWallet['available']
+                : (float) ($heroAvailable ?? 0);
+            $insPending = (float) ($stats['payments_pend'] ?? ($insWallet['pending'] ?? 0));
+            $insCompleted = (int) ($stats['completed_mo'] ?? 0);
+            $insOpenJobs = $insuranceAssigned;
+        @endphp
+        <section class="mb-6 overflow-hidden rounded-3xl ring-1 ring-brand/15 bg-white shadow-sm">
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-brand/10">
+                <a href="{{ route('site.partner.payments') }}" class="group p-5 sm:p-6 hover:bg-brand-muted/30 transition-colors">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('site.partner_portal.wallet_available') }}</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2 tabular-nums tracking-tight">{{ format_money($insAvailable) }}</p>
+                    <p class="text-xs text-gray-500 mt-1.5 group-hover:text-brand font-semibold">{{ __('site.partner_portal.wallet_withdraw_hint') }} →</p>
+                </a>
+                <div class="p-5 sm:p-6 bg-gradient-to-br from-brand-gold/15 to-white">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-bold">{{ __('site.partner_portal.stat_pending_pay') }}</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2 tabular-nums tracking-tight">{{ format_money($insPending) }}</p>
+                    <p class="text-xs text-gray-500 mt-1.5">{{ __('site.partner_portal.insurance_pending_hint') }}</p>
+                </div>
+                <div class="p-5 sm:p-6">
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-bold">{{ __('site.partner_portal.stat_completed_mo') }}</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2 tabular-nums tracking-tight">{{ $insCompleted }}</p>
+                    <p class="text-xs text-gray-500 mt-1.5">{{ __('site.partner_portal.insurance_completed_hint') }}</p>
+                </div>
+                <a href="{{ route('site.partner.tasks') }}" class="group p-5 sm:p-6 hover:bg-brand-muted/30 transition-colors">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('site.partner_portal.stat_open_cover') }}</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2 tabular-nums tracking-tight">{{ $insOpenJobs }}</p>
+                    <p class="text-xs text-gray-500 mt-1.5 group-hover:text-brand font-semibold">{{ __('site.partner_portal.cta_cover_jobs') }} →</p>
+                </a>
+            </div>
+        </section>
+    @elseif (count($activeStatCards) > 0)
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
             @foreach ($activeStatCards as [$label, $value, $color, $tile])
                 <div class="rounded-2xl ring-1 {{ $tile }} p-4">
@@ -224,16 +261,37 @@
                 @endif
             </div>
 
-            <div class="rounded-2xl bg-gradient-to-br from-brand-muted to-white ring-1 ring-brand/15 p-5">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_portal.account') }}</p>
-                <h3 class="font-bold text-gray-900 mt-1">{{ __('site.partner_portal.profile_documents') }}</h3>
-                <p class="text-xs text-gray-600 mt-1">{{ __('site.partner_portal.profile_documents_hint') }}</p>
-                <div class="mt-4 flex flex-wrap gap-3 text-sm">
-                    <a href="{{ route('site.partner.profile') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_profile') }}</a>
-                    <a href="{{ route('site.partner.documents') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_documents') }}</a>
-                    <a href="{{ route('site.partner.settings') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_settings') }}</a>
+            @if ($isInsurance)
+                <div class="overflow-hidden rounded-2xl ring-1 ring-brand/15 bg-brand text-white shadow-md">
+                    <div class="p-5">
+                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.partner_portal.account') }}</p>
+                        <h3 class="font-extrabold text-lg mt-1">{{ __('site.partner_portal.profile_documents') }}</h3>
+                        <p class="text-xs text-white/70 mt-1.5 leading-relaxed">{{ __('site.partner_portal.profile_documents_hint') }}</p>
+                    </div>
+                    <div class="grid grid-cols-3 divide-x divide-white/10 border-t border-white/10 bg-black/10">
+                        <a href="{{ route('site.partner.profile') }}" class="px-3 py-3.5 text-center text-xs font-bold hover:bg-white/10 transition-colors">
+                            {{ __('site.partner_portal.nav_profile') }}
+                        </a>
+                        <a href="{{ route('site.partner.documents') }}" class="px-3 py-3.5 text-center text-xs font-bold hover:bg-white/10 transition-colors">
+                            {{ __('site.partner_portal.nav_documents') }}
+                        </a>
+                        <a href="{{ route('site.partner.settings') }}" class="px-3 py-3.5 text-center text-xs font-bold hover:bg-white/10 transition-colors">
+                            {{ __('site.partner_portal.nav_settings') }}
+                        </a>
+                    </div>
                 </div>
-            </div>
+            @else
+                <div class="rounded-2xl bg-gradient-to-br from-brand-muted to-white ring-1 ring-brand/15 p-5">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_portal.account') }}</p>
+                    <h3 class="font-bold text-gray-900 mt-1">{{ __('site.partner_portal.profile_documents') }}</h3>
+                    <p class="text-xs text-gray-600 mt-1">{{ __('site.partner_portal.profile_documents_hint') }}</p>
+                    <div class="mt-4 flex flex-wrap gap-3 text-sm">
+                        <a href="{{ route('site.partner.profile') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_profile') }}</a>
+                        <a href="{{ route('site.partner.documents') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_documents') }}</a>
+                        <a href="{{ route('site.partner.settings') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_portal.open_settings') }}</a>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </x-site.vendor-layout>

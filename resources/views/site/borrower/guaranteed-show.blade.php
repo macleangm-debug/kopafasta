@@ -90,7 +90,10 @@
         <div class="mb-6 overflow-hidden rounded-2xl ring-1 ring-brand/20 bg-white shadow-sm">
             <div class="px-5 sm:px-6 py-5 border-b border-brand/10 bg-gradient-to-br from-brand-muted/50 via-white to-white">
                 <p class="text-[11px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.collateral_secure.eyebrow') }}</p>
-                @if ($csStatus === 'awaiting_insurance')
+                @if ($csStatus === 'secured')
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">{{ __('borrower.collateral_secure.title_secured') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5">{{ __('borrower.collateral_secure.guarantor_why_secured') }}</p>
+                @elseif ($csStatus === 'awaiting_insurance')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">{{ __('borrower.collateral_secure.guarantor_insurance_title') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5">{{ __('borrower.collateral_secure.guarantor_insurance_why') }}</p>
                 @else
@@ -99,26 +102,11 @@
                 @endif
             </div>
             <div class="px-5 sm:px-6 py-5 space-y-4">
-                @if ($csSelected)
-                    <div class="rounded-2xl ring-1 ring-brand/15 overflow-hidden bg-brand-muted/20">
-                        <div class="flex gap-3 sm:gap-4 p-3.5 sm:p-4 items-center">
-                            <div class="shrink-0 size-16 sm:size-20 rounded-xl overflow-hidden bg-white ring-1 ring-gray-200">
-                                @if (! empty($csSelected['thumbnail']))
-                                    <img src="{{ $csSelected['thumbnail'] }}" alt="" class="h-full w-full object-cover">
-                                @else
-                                    <span class="h-full w-full grid place-items-center text-2xl">{{ $typeIcons[$csSelected['asset_type'] ?? ''] ?? '📦' }}</span>
-                                @endif
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $csSelected['type_label'] ?? '' }}</p>
-                                <p class="text-base sm:text-lg font-extrabold text-gray-900 mt-0.5 truncate">{{ $csSelected['label'] }}</p>
-                                @if (! empty($csSelected['registration_number']))
-                                    <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-0.5 truncate">{{ __('borrower.profile.collateral_fields.registration_number') }}: {{ $csSelected['registration_number'] }}</p>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                @endif
+                @include('site.borrower.loan-profile._collateral_asset_card', [
+                    'selected' => $csSelected,
+                    'typeIcons' => $typeIcons,
+                    'showInsured' => $csStatus === 'secured',
+                ])
 
                 @if ($csStatus === 'awaiting_guarantor_consent')
                     <div class="flex flex-wrap gap-3">
@@ -178,7 +166,7 @@
                             in_array($insReason, ['expiring_soon', 'buffer'], true) => __('borrower.collateral_secure.insure_asset_hint_expiring'),
                             default => __('borrower.collateral_secure.insure_asset_hint_missing'),
                         };
-                        $effectiveRate = $csRatePct * (1 + ($csMarkupPct / 100));
+                        $effectiveRate = $csRatePct + $csMarkupPct;
                     @endphp
                     @if ($csPurchase && ! empty($csPurchase['paid_at'] ?? $csPurchase['partner_task_id'] ?? null))
                         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 space-y-1">
@@ -251,7 +239,7 @@
                 @elseif ($csStatus === 'awaiting_fee')
                     <p class="text-base font-bold text-gray-900">{{ __('borrower.collateral_secure.waiting_borrower_fee') }}</p>
                 @elseif ($csStatus === 'secured')
-                    <p class="text-base font-bold text-emerald-900">{{ __('borrower.collateral_secure.waiting_borrower_valuation') }}</p>
+                    @include('site.borrower.loan-profile._collateral_next_steps', ['audience' => 'guarantor'])
                 @endif
             </div>
         </div>
