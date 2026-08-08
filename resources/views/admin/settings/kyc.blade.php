@@ -12,8 +12,9 @@
                 'require_selfie'       => 'Require selfie',
                 'require_address_proof'=> 'Require residence verification letter',
                 'require_income_proof' => 'Require income proof',
+                'require_marriage_certificate' => 'Require marriage certificate (when married)',
                 'auto_approve_low_risk'=> 'Auto-approve low risk customers',
-                'crb_check_required'   => 'Pull CRB credit report on loan submission (underwriting only)',
+                'crb_check_required'   => 'Pull CRB credit report after affordability / capacity pass (underwriting only)',
             ];
         @endphp
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

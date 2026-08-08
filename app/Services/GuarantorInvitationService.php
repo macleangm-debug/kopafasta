@@ -1289,7 +1289,9 @@ class GuarantorInvitationService
             'guarantor_deadline_at' => null,
         ]);
 
-        app(CapacityAutoRejectService::class)->evaluateAndPark($application->fresh(['customer', 'product']));
+        $released = $application->fresh(['customer', 'product']);
+        app(CapacityAutoRejectService::class)->evaluateAndPark($released);
+        app(CrbCreditCheckService::class)->pullAndAttachAfterCapacityPass($released->fresh(['customer', 'product']));
 
         return true;
     }

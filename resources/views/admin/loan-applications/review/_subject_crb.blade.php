@@ -27,6 +27,12 @@
     $buckets = collect($detail['overdue_buckets'] ?? []);
     $exposureProduct = collect($detail['exposure_by_product'] ?? []);
     $overview = $detail['overview'] ?? [];
+    $crossCheck = $isGuarantor
+        ? ($review['guarantor_row']['crb_cross_check'] ?? null)
+        : ($review['crb_cross_check'] ?? null);
+    if (! is_array($crossCheck)) {
+        $crossCheck = null;
+    }
 
     $kv = function (?string $label, mixed $value) {
         $display = filled($value) || $value === 0 || $value === '0' ? $value : '—';
@@ -39,7 +45,7 @@
         <div>
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $isGuarantor ? 'Guarantor' : 'Borrower' }} · CRB</p>
             <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Credit bureau report</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Full CIR pull for screening &amp; committee — summaries first, then complete detail.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Pulled after affordability / capacity pass — summaries first, then complete detail.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <span class="inline-flex text-xs font-bold rounded-full px-3 py-1 bg-brand-muted text-brand ring-1 ring-brand/15 uppercase">
@@ -82,6 +88,58 @@
                 @endif
             </div>
         </div>
+
+        @php
+            $identityFlags = collect(is_array($crossCheck) ? ($crossCheck['identity_flags'] ?? []) : []);
+            $creditFlags = collect(is_array($crossCheck) ? ($crossCheck['credit_flags'] ?? []) : []);
+            $allFlags = $identityFlags->merge($creditFlags);
+            $matches = collect(is_array($crossCheck) ? ($crossCheck['matches'] ?? []) : []);
+        @endphp
+
+        @if ($allFlags->isNotEmpty() || $matches->isNotEmpty() || is_array($crossCheck))
+            <div class="rounded-xl ring-1 ring-red-200 bg-red-50/60 px-4 py-4 space-y-3">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-red-800 font-semibold">Quick red flags</p>
+                        <p class="text-sm font-semibold text-red-950 mt-0.5">Profile vs CRB · credit behaviour</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span class="rounded-full px-2.5 py-1 bg-red-100 text-red-900 font-semibold">{{ (int) ($crossCheck['critical_count'] ?? $allFlags->where('severity', 'critical')->count()) }} critical</span>
+                        <span class="rounded-full px-2.5 py-1 bg-amber-100 text-amber-900 font-semibold">{{ (int) ($crossCheck['warning_count'] ?? $allFlags->where('severity', 'warning')->count()) }} warning</span>
+                    </div>
+                </div>
+                <p class="text-xs text-red-900/80">{{ $crossCheck['photo_note'] ?? 'No portrait is returned from CRB — use borrower face / ID uploads.' }}</p>
+                @if ($allFlags->isNotEmpty())
+                    <ul class="space-y-2">
+                        @foreach ($allFlags as $flag)
+                            @php
+                                $tone = match ($flag['severity'] ?? 'info') {
+                                    'critical' => 'bg-red-100 text-red-900 ring-red-200',
+                                    'warning' => 'bg-amber-100 text-amber-900 ring-amber-200',
+                                    default => 'bg-white text-gray-800 ring-gray-200',
+                                };
+                            @endphp
+                            <li class="rounded-lg ring-1 px-3 py-2 {{ $tone }}">
+                                <p class="text-xs font-bold uppercase tracking-wide">{{ $flag['severity'] ?? 'info' }} · {{ $flag['title'] ?? 'Flag' }}</p>
+                                <p class="text-sm mt-0.5">{{ $flag['detail'] ?? '' }}</p>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-sm text-emerald-800 font-medium">No automatic red flags from profile cross-check or credit behaviour rules.</p>
+                @endif
+                @if ($matches->isNotEmpty())
+                    <details class="rounded-lg bg-white/80 ring-1 ring-emerald-200 px-3 py-2">
+                        <summary class="cursor-pointer text-xs font-semibold text-emerald-900">{{ $matches->count() }} field(s) matched profile</summary>
+                        <ul class="mt-2 grid sm:grid-cols-2 gap-2 text-xs text-gray-700">
+                            @foreach ($matches as $match)
+                                <li><span class="font-semibold">{{ $match['label'] ?? $match['code'] }}:</span> {{ $match['profile'] ?? '—' }}</li>
+                            @endforeach
+                        </ul>
+                    </details>
+                @endif
+            </div>
+        @endif
 
         {{-- Personal / identity --}}
         <div>

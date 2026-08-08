@@ -98,6 +98,26 @@ class UnderwritingAnomalyService
             $anomalies[] = $this->item('rec_differs_crb', 'info', 'Screening differs from CRB', 'Analyst recommendation does not match the bureau suggestion — read screening notes.');
         }
 
+        $crossCheck = data_get($application->credit_appraisal_payload, 'crb_cross_check');
+        if (is_array($crossCheck)) {
+            foreach (array_merge($crossCheck['identity_flags'] ?? [], $crossCheck['credit_flags'] ?? []) as $flag) {
+                if (! is_array($flag)) {
+                    continue;
+                }
+                $code = (string) ($flag['code'] ?? 'crb_cross');
+                // Avoid duplicating the high-level CRB reject/delinquency anomalies already added above.
+                if (in_array($code, ['crb_reject', 'crb_refer', 'delinquencies'], true)) {
+                    continue;
+                }
+                $anomalies[] = $this->item(
+                    'crb_x_'.$code,
+                    (string) ($flag['severity'] ?? 'warning'),
+                    (string) ($flag['title'] ?? 'CRB cross-check'),
+                    (string) ($flag['detail'] ?? '')
+                );
+            }
+        }
+
         $severity = ['critical' => 0, 'warning' => 1, 'info' => 2];
         usort($anomalies, fn ($a, $b) => ($severity[$a['severity']] ?? 9) <=> ($severity[$b['severity']] ?? 9));
 

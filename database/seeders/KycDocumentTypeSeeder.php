@@ -19,6 +19,7 @@ class KycDocumentTypeSeeder extends Seeder
             ['code' => 'identity_verification_photo', 'name' => 'Identity verification photo'],
             ['code' => 'selfie',            'name' => 'Selfie with ID'],
             ['code' => 'residence_letter',  'name' => 'Residence verification letter (LGA)'],
+            ['code' => 'marriage_certificate', 'name' => 'Marriage certificate'],
             ['code' => 'employment_contract', 'name' => 'Employment contract'],
             ['code' => 'bank_statement',      'name' => 'Bank statement (last 6 months)'],
             ['code' => 'mobile_money_statement', 'name' => 'Mobile money statement (last 6 months)'],

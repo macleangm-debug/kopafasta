@@ -239,7 +239,9 @@ class ProfileCompletionService
         $requireIdentity = $identityPolicy->requiredDuringProfileCreation();
         $paymentAccounts = app(CustomerDisbursementDetailsService::class)->accountsForCustomer($customer);
 
-        $personalComplete = $validation->isCorePersonalComplete($customer) && $validation->isKinComplete($customer);
+        $personalComplete = $validation->isCorePersonalComplete($customer)
+            && $validation->isFamilyComplete($customer)
+            && $validation->isKinComplete($customer);
         if ($requireIdentity) {
             $personalComplete = $personalComplete && app(ProfileRevisionService::class)->nidaStepComplete($customer);
         }

@@ -292,6 +292,59 @@ class CrbCreditCheckService
     }
 
     /**
+     * Paid CIR pull after capacity/affordability pass only.
+     * Capacity-parked applications stay in screening without a bureau charge.
+     *
+     * @param  list<array{customer_id: int, invitation_id?: int}>|null  $groupMembers
+     * @return array{skipped: bool, reason?: string, meta?: array, cross_check?: array}
+     */
+    public function pullAndAttachAfterCapacityPass(LoanApplication $application, ?array $groupMembers = null): array
+    {
+        $capacity = app(CapacityAutoRejectService::class);
+        $application->refresh();
+
+        if ($capacity->isPending($application)) {
+            return [
+                'skipped' => true,
+                'reason' => 'capacity_pending',
+            ];
+        }
+
+        if (! $this->creditPullEnabled()) {
+            return [
+                'skipped' => true,
+                'reason' => 'crb_disabled',
+            ];
+        }
+
+        $application->loadMissing('customer');
+        $customer = $application->customer;
+        if (! $customer) {
+            return ['skipped' => true, 'reason' => 'no_customer'];
+        }
+
+        $meta = $this->ensureFreshForSubmission($customer);
+        $this->attachToApplication($application, $meta['history'] ?? null, $meta);
+
+        if (is_array($groupMembers) && $groupMembers !== []) {
+            $this->attachGroupMemberCrbs($application, $groupMembers);
+        }
+
+        $summary = $this->summaryForCustomer($customer->fresh(), $application->fresh());
+        $crossCheck = app(ProfileCrbCrossCheckService::class)->analyze($customer, $summary);
+
+        $payload = $application->fresh()->credit_appraisal_payload ?? [];
+        $payload['crb_cross_check'] = $crossCheck;
+        $application->update(['credit_appraisal_payload' => $payload]);
+
+        return [
+            'skipped' => false,
+            'meta' => $meta,
+            'cross_check' => $crossCheck,
+        ];
+    }
+
+    /**
      * @param  list<array{customer_id: int, invitation_id?: int}>  $members
      */
     public function attachGroupMemberCrbs(LoanApplication $application, array $members): void

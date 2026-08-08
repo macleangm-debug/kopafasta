@@ -182,6 +182,7 @@ class LoanApplicationReviewService
             'alternate_id_types' => (array) ($customer->alternate_id_types ?? []),
             'alternate_id_notes' => $customer->alternate_id_notes,
             'crb'                => $crb,
+            'crb_cross_check'    => data_get($application->credit_appraisal_payload, 'crb_cross_check'),
             'guarantors'         => $guarantorRows,
             'asset'              => $asset,
             'checklist'          => $checklist,

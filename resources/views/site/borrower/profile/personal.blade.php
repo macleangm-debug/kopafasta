@@ -47,6 +47,11 @@
             $editable = 'kf-field';
             $hasContact = filled($customer->phone) || filled($customer->email);
             $kinComplete = app(\App\Services\ProfileValidationService::class)->isKinComplete($customer);
+            $familyComplete = app(\App\Services\ProfileValidationService::class)->isFamilyComplete($customer);
+            $requireMarriageCert = app(\App\Services\ProfileValidationService::class)->requiresMarriageCertificate();
+            $isMarried = app(\App\Services\ProfileValidationService::class)->isMarried($customer);
+            $spouseName = trim(collect([$customer->spouse_first_name, $customer->spouse_middle_name, $customer->spouse_last_name])->filter()->implode(' '));
+            $marriageCertificate = $marriageCertificate ?? null;
             $kinStale = in_array('kin', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $kinName = $customer->nok_name ?: trim(($customer->nok_first_name ?? '').' '.($customer->nok_last_name ?? ''));
             $faceKey = $customer->face_verification_status ?? 'incomplete';
@@ -57,6 +62,7 @@
                 $errors->hasAny(['national_id_front', 'national_id_back', 'alternate_id_types', 'alternate_id_front', 'alternate_id_back', 'no_physical_nida_card', 'passport', 'voter_id', 'driving_license', 'other_id']) => 'id_images',
                 $errors->hasAny(['national_id']) => 'identity',
                 $errors->hasAny(['phone', 'email']) => 'contact',
+                $errors->hasAny(['marital_status', 'spouse_first_name', 'spouse_middle_name', 'spouse_last_name', 'number_of_children', 'marriage_certificate']) => 'family',
                 $errors->hasAny(['nok_first_name', 'nok_last_name', 'nok_name', 'nok_phone', 'nok_relationship', 'nok_region', 'nok_district', 'nok_street']) => 'kin',
                 $errors->hasAny(['signature_data', 'signer_name']) => 'signature',
                 default => null,
@@ -355,6 +361,108 @@
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }}</label>
                                     <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">
+                                </div>
+                            </div>
+                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
+                        </form>
+                    </x-slot:form>
+                </x-site.profile-section-card>
+
+                {{-- Family / marital --}}
+                <x-site.profile-section-card
+                    section-id="profile-family"
+                    icon="💍"
+                    :title="__('borrower.profile.family_info')"
+                    :complete="$familyComplete"
+                    :empty="! $familyComplete"
+                    :default-open="$focusHash === 'family'"
+                    :default-edit="$editFocus === 'family'">
+                    <x-slot:view>
+                        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.marital_status') }}</dt>
+                                @if ($customer->marital_status)
+                                    <dd class="font-medium mt-0.5">{{ __('borrower.profile.marital_options.'.$customer->marital_status) }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.number_of_children') }}</dt>
+                                @if ($customer->number_of_children !== null)
+                                    <dd class="font-medium mt-0.5">{{ $customer->number_of_children }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
+                            @if ($isMarried)
+                                <div class="sm:col-span-2">
+                                    <dt class="text-gray-500">{{ __('borrower.profile.fields.spouse_full_name') }}</dt>
+                                    <dd class="font-medium mt-0.5">{{ $spouseName !== '' ? $spouseName : '—' }}</dd>
+                                </div>
+                                @if ($marriageCertificate?->file_path ?? false)
+                                    <div class="sm:col-span-2">
+                                        <dt class="text-gray-500">{{ __('borrower.profile.marriage_certificate') }}</dt>
+                                        <dd class="mt-0.5"><a href="{{ asset('storage/'.$marriageCertificate->file_path) }}" target="_blank" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.profile.view_document') }}</a></dd>
+                                    </div>
+                                @elseif ($requireMarriageCert)
+                                    <div class="sm:col-span-2">
+                                        <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.marriage_certificate') }} — {{ __('borrower.profile.missing') }}</p>
+                                    </div>
+                                @endif
+                            @endif
+                        </dl>
+                    </x-slot:view>
+                    <x-slot:form>
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
+                              x-data="{ marital: @js(old('marital_status', $customer->marital_status)) }">
+                            @csrf @method('PUT')
+                            <input type="hidden" name="focus" value="family">
+                            @if (! empty($returnUrl))
+                                <input type="hidden" name="return" value="{{ $returnUrl }}">
+                            @endif
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.marital_status') }} <span class="text-red-500">*</span></label>
+                                    <select name="marital_status" x-model="marital" class="{{ $editable }}" required>
+                                        <option value="">{{ __('borrower.profile.select') }}</option>
+                                        @foreach (['single', 'married', 'divorced', 'widowed'] as $opt)
+                                            <option value="{{ $opt }}" @selected(old('marital_status', $customer->marital_status) === $opt)>{{ __('borrower.profile.marital_options.'.$opt) }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('marital_status')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                </div>
+                                <div x-show="marital === 'married'" x-cloak class="grid sm:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_first_name') }} <span class="text-red-500">*</span></label>
+                                        <input type="text" name="spouse_first_name" value="{{ old('spouse_first_name', $customer->spouse_first_name) }}" class="{{ $editable }}">
+                                        @error('spouse_first_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_middle_name') }}</label>
+                                        <input type="text" name="spouse_middle_name" value="{{ old('spouse_middle_name', $customer->spouse_middle_name) }}" class="{{ $editable }}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_last_name') }} <span class="text-red-500">*</span></label>
+                                        <input type="text" name="spouse_last_name" value="{{ old('spouse_last_name', $customer->spouse_last_name) }}" class="{{ $editable }}">
+                                        @error('spouse_last_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.number_of_children') }} <span class="text-red-500">*</span></label>
+                                    <input type="number" min="0" max="30" name="number_of_children" value="{{ old('number_of_children', $customer->number_of_children) }}" class="{{ $editable }}" required>
+                                    @error('number_of_children')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                </div>
+                                <div x-show="marital === 'married'" x-cloak>
+                                    <label class="block text-xs text-gray-600 mb-1">
+                                        {{ __('borrower.profile.marriage_certificate') }}
+                                        @if ($requireMarriageCert)<span class="text-red-500">*</span>@else<span class="text-gray-400">{{ __('borrower.profile.optional') }}</span>@endif
+                                    </label>
+                                    <input type="file" name="marriage_certificate" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-gray-600">
+                                    @error('marriage_certificate')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                    @if ($marriageCertificate?->file_path ?? false)
+                                        <p class="text-xs text-emerald-700 mt-1">{{ __('borrower.profile.on_file') }} — <a href="{{ asset('storage/'.$marriageCertificate->file_path) }}" target="_blank" class="underline">{{ __('borrower.profile.view_document') }}</a></p>
+                                    @endif
                                 </div>
                             </div>
                             <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />

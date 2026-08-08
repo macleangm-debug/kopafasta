@@ -15,6 +15,9 @@
             'fields' => [
                 ['label' => 'Date of birth', 'value' => optional($customer->date_of_birth)->format('d M Y') ?: '—'],
                 ['label' => 'Gender', 'value' => filled($customer->gender) ? ucfirst($customer->gender) : '—'],
+                ['label' => 'Marital status', 'value' => filled($customer->marital_status) ? ucfirst($customer->marital_status) : '—'],
+                ['label' => 'Spouse', 'value' => trim(collect([$customer->spouse_first_name, $customer->spouse_middle_name, $customer->spouse_last_name])->filter()->implode(' ')) ?: '—'],
+                ['label' => 'Children', 'value' => $customer->number_of_children !== null ? (string) $customer->number_of_children : '—'],
                 ['label' => 'NIDA number', 'value' => $customer->national_id, 'class' => 'font-mono'],
                 ['label' => 'Phone', 'value' => $customer->phone],
                 ['label' => 'Email', 'value' => $customer->email],

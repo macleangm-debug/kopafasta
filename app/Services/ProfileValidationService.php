@@ -47,6 +47,44 @@ class ProfileValidationService
         return (bool) ($settings['require_residence_letter'] ?? $settings['require_address_proof'] ?? false);
     }
 
+    public function requiresMarriageCertificate(): bool
+    {
+        return (bool) ($this->kycSettings()['require_marriage_certificate'] ?? false);
+    }
+
+    public function hasMarriageCertificate(Customer $customer): bool
+    {
+        return $this->hasDocument($customer, 'marriage_certificate');
+    }
+
+    public function isFamilyComplete(Customer $customer): bool
+    {
+        if (! filled($customer->marital_status)) {
+            return false;
+        }
+
+        if ($customer->number_of_children === null) {
+            return false;
+        }
+
+        if ($this->isMarried($customer)) {
+            if (! filled($customer->spouse_first_name) || ! filled($customer->spouse_last_name)) {
+                return false;
+            }
+        }
+
+        if ($this->requiresMarriageCertificate() && $this->isMarried($customer) && ! $this->hasMarriageCertificate($customer)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function isMarried(Customer $customer): bool
+    {
+        return strtolower((string) $customer->marital_status) === 'married';
+    }
+
     public function hasDocument(Customer $customer, string $code): bool
     {
         return app(ProfileDocumentService::class)->hasProfileDocument($customer, $code);
@@ -106,7 +144,9 @@ class ProfileValidationService
 
     public function isPersonalInfoComplete(Customer $customer): bool
     {
-        return $this->isCorePersonalComplete($customer) && $this->isKinComplete($customer);
+        return $this->isCorePersonalComplete($customer)
+            && $this->isFamilyComplete($customer)
+            && $this->isKinComplete($customer);
     }
 
     /**
@@ -154,6 +194,13 @@ class ProfileValidationService
                     'url' => $personalUrl.'#profile-identity',
                 ];
             }
+        }
+        if (! $this->isFamilyComplete($customer)) {
+            $gaps[] = [
+                'key' => 'family',
+                'label' => __('borrower.profile.gaps.family'),
+                'url' => $personalUrl.'#profile-family',
+            ];
         }
         if (! $this->isKinComplete($customer)) {
             $gaps[] = [

@@ -1556,6 +1556,10 @@ class BorrowerController extends Controller
             ->latestByCodes($customer, ['residence_letter'])
             ->get('residence_letter');
 
+        $marriageCertificate = app(\App\Services\ProfileDocumentService::class)
+            ->latestByCodes($customer, ['marriage_certificate'])
+            ->get('marriage_certificate');
+
         $incomeProofChecklist = app(\App\Services\IncomeProofService::class)->checklist($customer);
         $incomeProofEmployed = app(\App\Services\IncomeProofService::class)->isEmployed($customer);
         $incomeProofMethod = app(\App\Services\IncomeProofService::class)->selectedPrimaryMethod($customer);
@@ -1589,7 +1593,7 @@ class BorrowerController extends Controller
             $faceSteps = $faces->wizardSteps($customer);
         }
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey', 'faceSteps', 'faceUploadUrls', 'faceDeleteUrls', 'faceWizard', 'facePhotos', 'faceAngles'))
+        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'marriageCertificate', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey', 'faceSteps', 'faceUploadUrls', 'faceDeleteUrls', 'faceWizard', 'facePhotos', 'faceAngles'))
             ->with('editing', $wizardMode || $request->boolean('edit'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
@@ -1651,6 +1655,8 @@ class BorrowerController extends Controller
             $focus = (string) $request->input('focus', 'all');
             $identityRequired = app(\App\Services\ProfileCompletionService::class)->identityRequiredDuringProfile();
             $kinRequired = in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
+            $familyRequired = in_array($focus, ['family', 'all'], true);
+            $married = strtolower((string) $request->input('marital_status', $customer->marital_status)) === 'married';
 
             $rules = [
                 'phone' => ['nullable', 'string', 'max:20'],
@@ -1661,6 +1667,12 @@ class BorrowerController extends Controller
                     'max:30',
                     new \App\Rules\ValidNidaNumber,
                 ],
+                'marital_status' => [$familyRequired ? 'required' : 'nullable', 'string', 'in:single,married,divorced,widowed'],
+                'spouse_first_name' => [$familyRequired && $married ? 'required' : 'nullable', 'string', 'max:80'],
+                'spouse_middle_name' => ['nullable', 'string', 'max:80'],
+                'spouse_last_name' => [$familyRequired && $married ? 'required' : 'nullable', 'string', 'max:80'],
+                'number_of_children' => [$familyRequired ? 'required' : 'nullable', 'integer', 'min:0', 'max:30'],
+                'marriage_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'nok_first_name'   => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
                 'nok_middle_name'  => ['nullable', 'string', 'max:80'],
                 'nok_last_name'    => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
@@ -1739,7 +1751,40 @@ class BorrowerController extends Controller
                 ], fn ($value) => $value !== null));
             }
 
+            if (in_array($focus, ['family', 'all'], true)) {
+                $status = $data['marital_status'] ?? null;
+                $isMarried = strtolower((string) $status) === 'married';
+                $customer->fill([
+                    'marital_status' => $status,
+                    'spouse_first_name' => $isMarried ? ($data['spouse_first_name'] ?? null) : null,
+                    'spouse_middle_name' => $isMarried ? ($data['spouse_middle_name'] ?? null) : null,
+                    'spouse_last_name' => $isMarried ? ($data['spouse_last_name'] ?? null) : null,
+                    'number_of_children' => array_key_exists('number_of_children', $data)
+                        ? (int) $data['number_of_children']
+                        : $customer->number_of_children,
+                ]);
+            }
+
             $customer->save();
+
+            if (in_array($focus, ['family', 'all'], true)) {
+                $this->persistProfileDocumentUpload(
+                    $customer,
+                    'marriage_certificate',
+                    $request->file('marriage_certificate'),
+                    []
+                );
+
+                if ($validation->requiresMarriageCertificate()
+                    && $validation->isMarried($customer->fresh())
+                    && ! $validation->hasMarriageCertificate($customer->fresh())) {
+                    return redirect()
+                        ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'family'])
+                        ->withErrors(['marriage_certificate' => __('borrower.profile.marriage_certificate_required')])
+                        ->withInput()
+                        ->withFragment('profile-family');
+                }
+            }
 
             if ($focus === 'signature') {
                 $sigData = $request->validate([

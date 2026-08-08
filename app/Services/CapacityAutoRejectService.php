@@ -151,7 +151,19 @@ class CapacityAutoRejectService
             'remarks' => 'Capacity auto-reject cancelled'.($note ? ': '.$note : ''),
         ]);
 
-        return $application->fresh();
+        $fresh = $application->fresh(['customer', 'product', 'loanGroup.members']);
+        // Management kept the file — run the paid CIR + profile cross-check now.
+        $groupMembers = $fresh->loanGroup?->members
+            ?->map(fn ($m) => ['customer_id' => (int) $m->customer_id, 'invitation_id' => $m->invitation_id ?? null])
+            ->filter(fn ($row) => ($row['customer_id'] ?? 0) > 0)
+            ->values()
+            ->all();
+        app(CrbCreditCheckService::class)->pullAndAttachAfterCapacityPass(
+            $fresh,
+            $groupMembers !== [] ? $groupMembers : null,
+        );
+
+        return $fresh->fresh();
     }
 
     public function fireNow(LoanApplication $application, ?User $actor = null): LoanApplication

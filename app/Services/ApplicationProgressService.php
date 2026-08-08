@@ -194,6 +194,13 @@ class ApplicationProgressService
         ];
 
         $items[] = [
+            'key'        => 'family',
+            'label'      => __('borrower.profile.family_info'),
+            'complete'   => $this->profileValidation->isFamilyComplete($customer),
+            'action_url' => route('site.borrower.profile', ['section' => 'personal']).'#profile-family',
+        ];
+
+        $items[] = [
             'key'        => 'residence',
             'label'      => __('borrower.loan_profile.sections.residence'),
             'complete'   => $this->profileCompletion->isResidenceComplete($customer),
@@ -206,6 +213,15 @@ class ApplicationProgressService
                 'label'      => __('borrower.profile.residence_letter'),
                 'complete'   => $this->profileValidation->hasResidenceLetter($customer),
                 'action_url' => route('site.borrower.profile', ['section' => 'residence']),
+            ];
+        }
+
+        if ($this->profileValidation->requiresMarriageCertificate() && $this->profileValidation->isMarried($customer)) {
+            $items[] = [
+                'key'        => 'marriage_certificate',
+                'label'      => __('borrower.profile.marriage_certificate'),
+                'complete'   => $this->profileValidation->hasMarriageCertificate($customer),
+                'action_url' => route('site.borrower.profile', ['section' => 'personal']).'#profile-family',
             ];
         }
 

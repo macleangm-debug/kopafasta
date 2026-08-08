@@ -1897,16 +1897,7 @@ class ApplyController extends Controller
         $feeChannel = $feeState['channel'] ?? null;
         $feePaidAt = isset($feeState['paid_at']) ? \Carbon\Carbon::parse($feeState['paid_at']) : ($feeStatus === 'paid' ? now() : null);
 
-        $crbMeta = $crbCredit->ensureFreshForSubmission($customer);
-
-        if ($isGroupProduct && $groupData) {
-            $groupCrbErrors = $crbCredit->validateGroupMemberCrbs($groupData['members']);
-            if ($groupCrbErrors !== []) {
-                return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
-                    'crb' => __('borrower.apply.group.crb_group_blocked').' '.implode(' ', $groupCrbErrors),
-                ]);
-            }
-        }
+        // CRB credit pull happens only after capacity/affordability pass (see below).
 
         $referenceService = app(ReferenceNumberService::class);
         $draftReference = $draft?->draft_reference;
@@ -1959,8 +1950,6 @@ class ApplyController extends Controller
             'submitted_at'               => $submittedAt,
         ]);
 
-        $crbCredit->attachToApplication($app, $crbMeta['history'] ?? null, $crbMeta);
-
         if ($request->filled('asset_reservation_id')) {
             $reservation = AssetReservation::query()
                 ->where('customer_id', $customer->id)
@@ -1992,7 +1981,6 @@ class ApplyController extends Controller
                 (int) ($groupData['target_member_count'] ?? count($groupData['members'])),
             );
 
-            $crbCredit->attachGroupMemberCrbs($app, $groupData['members']);
             app(GroupMemberInvitationService::class)->attachSignaturesToApplication($app, $groupData['members']);
 
             $scoring = app(GroupScoringService::class)->score(
@@ -2089,9 +2077,14 @@ class ApplyController extends Controller
 
         if ($guarantorPending && app(\App\Services\UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
             // Hold outside credit screening until guarantor accepts + completes profile.
+            // CRB pull waits until release + capacity pass.
             app(\App\Services\GuarantorDeadlineService::class)->markAwaiting($app->fresh());
         } else {
             app(\App\Services\CapacityAutoRejectService::class)->evaluateAndPark($app->fresh(['customer', 'product']));
+            $crbCredit->pullAndAttachAfterCapacityPass(
+                $app->fresh(['customer', 'product']),
+                ($isGroupProduct && $groupData) ? $groupData['members'] : null,
+            );
         }
 
         $message = __('borrower.apply.success.submitted_message');

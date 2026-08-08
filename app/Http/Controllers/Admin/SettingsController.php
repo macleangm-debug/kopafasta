@@ -573,6 +573,7 @@ class SettingsController extends Controller
             'require_selfie'    => ['nullable', 'boolean'],
             'require_address_proof' => ['nullable', 'boolean'],
             'require_income_proof'  => ['nullable', 'boolean'],
+            'require_marriage_certificate' => ['nullable', 'boolean'],
             'min_age'  => ['required', 'integer', 'min:18', 'max:100'],
             'max_age'  => ['required', 'integer', 'min:18', 'max:120'],
             'auto_approve_low_risk' => ['nullable', 'boolean'],
@@ -585,7 +586,7 @@ class SettingsController extends Controller
             'freshness_section_days.*' => ['nullable'],
         ]);
 
-        foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
+        foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','require_marriage_certificate','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
             $data[$k] = (bool) ($data[$k] ?? false);
         }
 
