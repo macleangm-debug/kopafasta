@@ -61,7 +61,15 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('site.borrower.application.post-approval-fees.pay', $application) }}" enctype="multipart/form-data" class="space-y-4 bg-white rounded-2xl border border-gray-200 p-6">
+            <form method="POST" action="{{ route('site.borrower.application.post-approval-fees.pay', $application) }}" enctype="multipart/form-data" class="space-y-4 bg-white rounded-2xl border border-gray-200 p-6"
+                  x-data="{ paying: false }"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js(__('borrower.post_approval_fees.confirm_title')),
+                      message: @js(__('borrower.post_approval_fees.confirm_message')),
+                      confirmLabel: @js(__('borrower.post_approval_fees.pay_now')),
+                      tone: 'confirm'
+                  })"
+                  @sync-before-submit="paying = true">
                 @csrf
 
                 <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-5">
@@ -121,8 +129,9 @@
                     </label>
                 @endif
 
-                <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 rounded-xl text-sm w-full sm:w-auto">
-                    {{ __('borrower.post_approval_fees.pay_now') }}
+                <button type="submit" :disabled="paying" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 rounded-xl text-sm w-full sm:w-auto disabled:opacity-70">
+                    <span x-show="!paying">{{ __('borrower.post_approval_fees.pay_now') }}</span>
+                    <span x-cloak x-show="paying">{{ __('borrower.membership.paying') }}</span>
                 </button>
             </form>
         @else

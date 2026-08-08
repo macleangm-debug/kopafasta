@@ -10,7 +10,15 @@
     </div>
 @endif
 
-<form method="POST" action="{{ route('site.borrower.marketplace.reservation.pay', $assetId) }}" enctype="multipart/form-data" class="space-y-4 mt-4" x-data="{ channel: @js($channel), useWallet: {{ old('use_wallet') ? 'true' : 'false' }} }">
+<form method="POST" action="{{ route('site.borrower.marketplace.reservation.pay', $assetId) }}" enctype="multipart/form-data" class="space-y-4 mt-4"
+      x-data="{ channel: @js($channel), useWallet: {{ old('use_wallet') ? 'true' : 'false' }}, paying: false }"
+      @submit.prevent="window.confirmForm($el, {
+          title: @js(__('borrower.marketplace.pay_confirm_title')),
+          message: @js(__('borrower.marketplace.pay_confirm_message')),
+          confirmLabel: @js(__('borrower.marketplace.pay_now')),
+          tone: 'confirm'
+      })"
+      @sync-before-submit="paying = true">
     @csrf
     <input type="hidden" name="step" value="{{ $step }}">
 
@@ -117,7 +125,8 @@
         </div>
     @endif
 
-    <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-        {{ __('borrower.marketplace.pay_now') }}
+    <button type="submit" :disabled="paying" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm disabled:opacity-70">
+        <span x-show="!paying">{{ __('borrower.marketplace.pay_now') }}</span>
+        <span x-cloak x-show="paying">{{ __('borrower.membership.paying') }}</span>
     </button>
 </form>

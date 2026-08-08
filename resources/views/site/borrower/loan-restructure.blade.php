@@ -17,7 +17,13 @@
                     pickerOpen: false,
                     options: @js($types),
                     pick(val) { this.type = val; this.pickerOpen = false; }
-                  }">
+                  }"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js(__('borrower.loan_actions.restructure_confirm_title')),
+                      message: @js(__('borrower.loan_actions.restructure_confirm_message')),
+                      confirmLabel: @js(__('borrower.loan_actions.submit_restructure')),
+                      tone: 'confirm'
+                  })">
                 @csrf
                 <p class="text-sm text-gray-700">{{ __('borrower.loan_actions.restructure_hint') }}</p>
 

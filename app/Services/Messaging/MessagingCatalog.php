@@ -17,6 +17,9 @@ class MessagingCatalog
         'group' => 'Group lending',
         'marketplace' => 'Marketplace',
         'staff' => 'Staff alerts',
+        'partner_jobs' => 'Partner jobs & cover',
+        'partner_payouts' => 'Partner payouts',
+        'partner_account' => 'Partner account',
     ];
 
     /**
@@ -62,6 +65,10 @@ class MessagingCatalog
             'label' => 'Staff alerts',
             'hint' => 'Internal SMS/email for officers',
         ],
+        'partners' => [
+            'label' => 'Partner & insurance',
+            'hint' => 'Cover jobs, partner jobs, payouts, activation',
+        ],
         'other' => [
             'label' => 'Other / custom',
             'hint' => 'Templates not mapped to a standard event',
@@ -89,6 +96,8 @@ class MessagingCatalog
             'collateral_repossessed', 'auction_window_started' => 'late_payment',
             'marketplace_viewing_scheduled' => 'marketplace',
             'staff_restructure_request', 'staff_top_up_request' => 'staff',
+            'partner_cover_job_assigned', 'partner_job_assigned', 'partner_cover_job_cancelled',
+            'partner_payout_requested', 'partner_payout_paid', 'partner_payout_rejected' => 'partners',
             default => str_starts_with($code, 'group_') ? 'group' : 'other',
         };
     }
@@ -482,6 +491,64 @@ class MessagingCatalog
                 'default_channels' => ['sms', 'email'],
                 'default_enabled' => true,
                 'description' => 'Alert officers when a borrower requests a top-up.',
+            ],
+
+            // Partner jobs & cover
+            [
+                'code' => 'partner_cover_job_assigned',
+                'name' => 'Partner cover job assigned',
+                'group' => 'partner_jobs',
+                'critical' => false,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => true,
+                'description' => 'Notify an insurance partner when a new collateral cover job is ready to accept.',
+            ],
+            [
+                'code' => 'partner_job_assigned',
+                'name' => 'Partner job assigned',
+                'group' => 'partner_jobs',
+                'critical' => false,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => true,
+                'description' => 'Generic notice when a partner is assigned a new task in their portal.',
+            ],
+            [
+                'code' => 'partner_cover_job_cancelled',
+                'name' => 'Partner cover job cancelled',
+                'group' => 'partner_jobs',
+                'critical' => false,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => false,
+                'description' => 'Notify a partner when a cover job assigned to them is cancelled before completion.',
+            ],
+
+            // Partner payouts
+            [
+                'code' => 'partner_payout_requested',
+                'name' => 'Partner payout requested',
+                'group' => 'partner_payouts',
+                'critical' => false,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => false,
+                'description' => 'Acknowledge a partner payout / withdrawal request while it awaits review.',
+            ],
+            [
+                'code' => 'partner_payout_paid',
+                'name' => 'Partner payout paid',
+                'group' => 'partner_payouts',
+                'critical' => false,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => true,
+                'description' => 'Notify a partner once their payout request has been marked paid.',
+            ],
+            [
+                'code' => 'partner_payout_rejected',
+                'name' => 'Partner payout rejected',
+                'group' => 'partner_payouts',
+                'critical' => false,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => true,
+                'description' => 'Notify a partner when their payout request is rejected, with reason.',
             ],
         ];
     }

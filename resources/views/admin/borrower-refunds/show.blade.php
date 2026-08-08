@@ -75,7 +75,14 @@
         @if ($borrowerRefund->isPayable())
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
                 <h3 class="text-sm font-semibold mb-4">Mark as paid</h3>
-                <form method="POST" action="{{ route('admin.borrower-refunds.pay', $borrowerRefund) }}" class="space-y-3">
+                <form method="POST" action="{{ route('admin.borrower-refunds.pay', $borrowerRefund) }}" class="space-y-3"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('admin.confirm.refund_mark_paid_title')),
+                          message: @js(__('admin.confirm.refund_mark_paid_message')),
+                          confirmLabel: @js(__('admin.confirm.refund_mark_paid_confirm')),
+                          confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                          tone: 'warning',
+                      })">
                     @csrf
                     @if ($borrowerRefund->payout_channel === 'mobile_money')
                         <label class="flex items-start gap-2 text-sm bg-amber-50 ring-1 ring-amber-100 rounded-lg px-3 py-2.5">

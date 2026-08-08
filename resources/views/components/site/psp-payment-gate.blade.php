@@ -28,6 +28,8 @@
     'payLabel' => null,
     'payingLabel' => null,
     'hidden' => [],
+    'confirmTitle' => null,
+    'confirmMessage' => null,
 ])
 
 @php
@@ -35,6 +37,8 @@
     $payingLabel = $payingLabel ?? __('borrower.membership.paying');
     $defaultMethod = $defaultMethod ?? old($methodField, $mobileValue);
     $promoAction = $promoAction ?? url()->current();
+    $confirmTitle = $confirmTitle ?? __('borrower.membership.pay_confirm_title');
+    $confirmMessage = $confirmMessage ?? __('borrower.membership.pay_confirm_message', ['label' => $label]);
 @endphp
 
 <div {{ $attributes->class('space-y-5') }}>
@@ -72,7 +76,14 @@
         @endif
 
         <form method="POST" action="{{ $formAction }}" class="space-y-5"
-              x-data="{ paying: false }" @submit="paying = true"
+              x-data="{ paying: false }"
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js($confirmTitle),
+                  message: @js($confirmMessage),
+                  confirmLabel: @js($payLabel),
+                  tone: 'confirm'
+              })"
+              @sync-before-submit="paying = true"
               {{ $formAttributes ?? '' }}>
             @csrf
             @foreach ($hidden as $name => $value)

@@ -33,11 +33,25 @@
                                 <td class="py-2 px-4 text-xs text-gray-600 max-w-xs truncate">{{ $req->notes ?? '—' }}</td>
                                 <td class="py-2 px-4 text-right">
                                     @if ($req->status === 'pending')
-                                        <form method="post" action="{{ route('admin.capital-withdrawal-requests.approve', $req) }}" class="inline">
+                                        <form method="post" action="{{ route('admin.capital-withdrawal-requests.approve', $req) }}" class="inline"
+                                              @submit.prevent="window.confirmForm($el, {
+                                                  title: @js(__('admin.confirm.capital_withdrawal_approve_title')),
+                                                  message: @js(__('admin.confirm.capital_withdrawal_approve_message', ['amount' => format_money($req->amount), 'partner' => $req->lender?->name ?? '—'])),
+                                                  confirmLabel: @js(__('admin.confirm.capital_withdrawal_approve_confirm')),
+                                                  confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                                                  tone: 'confirm',
+                                              })">
                                             @csrf
                                             <button type="submit" class="text-xs font-semibold text-emerald-700 hover:underline">{{ __('admin.capital_partner.approve_withdrawal') }}</button>
                                         </form>
-                                        <form method="post" action="{{ route('admin.capital-withdrawal-requests.reject', $req) }}" class="inline ml-2">
+                                        <form method="post" action="{{ route('admin.capital-withdrawal-requests.reject', $req) }}" class="inline ml-2"
+                                              @submit.prevent="window.confirmForm($el, {
+                                                  title: @js(__('admin.confirm.capital_withdrawal_reject_title')),
+                                                  message: @js(__('admin.confirm.capital_withdrawal_reject_message', ['amount' => format_money($req->amount), 'partner' => $req->lender?->name ?? '—'])),
+                                                  confirmLabel: @js(__('admin.confirm.capital_withdrawal_reject_confirm')),
+                                                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                                  tone: 'warning',
+                                              })">
                                             @csrf
                                             <button type="submit" class="text-xs font-semibold text-red-700 hover:underline">{{ __('admin.capital_partner.reject_withdrawal') }}</button>
                                         </form>

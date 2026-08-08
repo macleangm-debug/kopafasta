@@ -11,7 +11,13 @@
         @if ($blocked)
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900">{{ $blocked }}</div>
         @else
-            <form method="post" action="{{ route('site.borrower.loans.top-up.submit', $loan) }}" class="glass-card p-6 space-y-5">
+            <form method="post" action="{{ route('site.borrower.loans.top-up.submit', $loan) }}" class="glass-card p-6 space-y-5"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js(__('borrower.loan_actions.top_up_confirm_title')),
+                      message: @js(__('borrower.loan_actions.top_up_confirm_message')),
+                      confirmLabel: @js(__('borrower.loan_actions.submit_top_up')),
+                      tone: 'confirm'
+                  })">
                 @csrf
                 <p class="text-sm text-gray-700">{{ __('borrower.loan_actions.top_up_hint') }}</p>
 

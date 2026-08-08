@@ -47,17 +47,38 @@
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap gap-2">
                                 @if ($row->status === 'pending')
-                                    <form method="POST" action="{{ route('admin.partner-payout-requests.approve', $row) }}">
+                                    <form method="POST" action="{{ route('admin.partner-payout-requests.approve', $row) }}"
+                                          @submit.prevent="window.confirmForm($el, {
+                                              title: @js(__('admin.confirm.approve_payout_title')),
+                                              message: @js(__('admin.confirm.approve_payout_message', ['amount' => format_money($row->amount), 'partner' => $row->partner?->name ?? '—'])),
+                                              confirmLabel: @js(__('admin.confirm.approve_payout_confirm')),
+                                              confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                                              tone: 'confirm',
+                                          })">
                                         @csrf
                                         <button class="text-xs font-semibold text-emerald-700 hover:underline">Approve</button>
                                     </form>
-                                    <form method="POST" action="{{ route('admin.partner-payout-requests.reject', $row) }}">
+                                    <form method="POST" action="{{ route('admin.partner-payout-requests.reject', $row) }}"
+                                          @submit.prevent="window.confirmForm($el, {
+                                              title: @js(__('admin.confirm.reject_payout_title')),
+                                              message: @js(__('admin.confirm.reject_payout_message', ['amount' => format_money($row->amount), 'partner' => $row->partner?->name ?? '—'])),
+                                              confirmLabel: @js(__('admin.confirm.reject_payout_confirm')),
+                                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                              tone: 'warning',
+                                          })">
                                         @csrf
                                         <button class="text-xs font-semibold text-red-700 hover:underline">Reject</button>
                                     </form>
                                 @endif
                                 @if (in_array($row->status, ['pending', 'approved'], true))
-                                    <form method="POST" action="{{ route('admin.partner-payout-requests.mark-paid', $row) }}">
+                                    <form method="POST" action="{{ route('admin.partner-payout-requests.mark-paid', $row) }}"
+                                          @submit.prevent="window.confirmForm($el, {
+                                              title: @js(__('admin.confirm.mark_payout_paid_title')),
+                                              message: @js(__('admin.confirm.mark_payout_paid_message', ['amount' => format_money($row->amount), 'partner' => $row->partner?->name ?? '—'])),
+                                              confirmLabel: @js(__('admin.confirm.mark_payout_paid_confirm')),
+                                              confirmClass: 'bg-brand hover:bg-brand-light text-white',
+                                              tone: 'warning',
+                                          })">
                                         @csrf
                                         <button class="text-xs font-semibold text-brand hover:underline">Mark paid</button>
                                     </form>

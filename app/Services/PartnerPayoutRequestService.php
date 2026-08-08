@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PartnerPayment;
 use App\Models\PartnerPayoutRequest;
 use App\Models\Vendor;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class PartnerPayoutRequestService
@@ -89,7 +90,29 @@ class PartnerPayoutRequestService
             'notes'       => trim(($request->notes ? $request->notes."\n" : '').($reason ? 'Rejected: '.$reason : 'Rejected')),
         ]);
 
-        return $request->fresh();
+        $request = $request->fresh();
+
+        $partner = $this->resolvePartner($request);
+        if ($partner) {
+            try {
+                app(NotificationService::class)->notifyPartner(
+                    $partner,
+                    'partner_payout_rejected',
+                    [
+                        'partner' => $partner->name,
+                        'amount' => format_money((float) $request->amount),
+                        'reason' => $reason ? 'Reason: '.$reason : '',
+                        '_fallback_subject' => 'Payout request rejected',
+                        '_fallback_body' => trim('Your payout request for '.format_money((float) $request->amount).' was rejected.'.($reason ? ' Reason: '.$reason : '')),
+                    ],
+                    $this->partnerPaymentsUrl(),
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to notify partner of payout rejection', ['request_id' => $request->id, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return $request;
     }
 
     public function markPaid(PartnerPayoutRequest $request, ?\App\Models\User $actor = null): PartnerPayoutRequest
@@ -129,6 +152,45 @@ class PartnerPayoutRequestService
                 });
         }
 
-        return $request->fresh();
+        $request = $request->fresh();
+
+        $partner = $this->resolvePartner($request);
+        if ($partner) {
+            try {
+                app(NotificationService::class)->notifyPartner(
+                    $partner,
+                    'partner_payout_paid',
+                    [
+                        'partner' => $partner->name,
+                        'amount' => format_money((float) $request->amount),
+                        '_fallback_subject' => 'Payout sent',
+                        '_fallback_body' => 'Your payout of '.format_money((float) $request->amount).' has been marked paid.',
+                    ],
+                    $this->partnerPaymentsUrl(),
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to notify partner of payout paid', ['request_id' => $request->id, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return $request;
+    }
+
+    private function resolvePartner(PartnerPayoutRequest $request): ?Vendor
+    {
+        if ($request->partner_id) {
+            return Vendor::query()->find($request->partner_id);
+        }
+
+        $partner = $request->partner ?? null;
+
+        return $partner ? Vendor::query()->find($partner->id) : null;
+    }
+
+    private function partnerPaymentsUrl(): ?string
+    {
+        return \Illuminate\Support\Facades\Route::has('site.partner.payments')
+            ? route('site.partner.payments')
+            : null;
     }
 }

@@ -42,7 +42,13 @@
                     ]) }}
                 </div>
             @elseif ($refund->needsPayoutDetails())
-                <form method="POST" action="{{ route('site.borrower.refunds.details', $refund) }}" class="space-y-4 border-t border-gray-100 pt-6 mt-6" x-data="{ channel: '{{ old('payout_channel', $refund->payout_channel ?? 'mobile_money') }}' }">
+                <form method="POST" action="{{ route('site.borrower.refunds.details', $refund) }}" class="space-y-4 border-t border-gray-100 pt-6 mt-6" x-data="{ channel: '{{ old('payout_channel', $refund->payout_channel ?? 'mobile_money') }}' }"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('borrower.payments_page.refund.confirm_title')),
+                          message: @js(__('borrower.payments_page.refund.confirm_message')),
+                          confirmLabel: @js(__('borrower.payments_page.refund.submit_payout')),
+                          tone: 'confirm'
+                      })">
                     @csrf
                     <p class="text-sm text-gray-700">{{ __('borrower.payments_page.refund.payout_prompt') }}</p>
                     <div class="grid sm:grid-cols-2 gap-3">

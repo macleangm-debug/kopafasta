@@ -65,7 +65,13 @@
             </form>
 
             <form method="POST" action="{{ route('site.borrower.group-contract.decline', $application) }}" class="mt-4"
-                  onsubmit="return confirm(@js(__('borrower.apply.group.contract_decline_confirm')))">
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js(__('borrower.apply.group.contract_decline_confirm_title')),
+                      message: @js(__('borrower.apply.group.contract_decline_confirm')),
+                      confirmLabel: @js(__('borrower.apply.group.contract_decline_cta')),
+                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                      tone: 'warning'
+                  })">
                 @csrf
                 <button type="submit" class="text-sm text-red-700 underline">{{ __('borrower.apply.group.contract_decline_cta') }}</button>
             </form>

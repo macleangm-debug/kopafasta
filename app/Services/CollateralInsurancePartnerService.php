@@ -261,18 +261,64 @@ class CollateralInsurancePartnerService
             ->values()
             ->all();
 
+        $meta = $asset->metadata ?? [];
+        $ownershipPath = $meta['ownership_document_path'] ?? null;
+        $insuranceDocPath = $meta['insurance_document_path'] ?? null;
+        $personPath = $meta['person_with_asset_path'] ?? null;
+
+        $detailFields = CustomerAsset::detailFieldsFor((string) $asset->asset_type);
+        $details = $asset->details();
+        $labeledDetails = [];
+        foreach ($detailFields as $field) {
+            $key = (string) ($field['key'] ?? '');
+            if ($key === '') {
+                continue;
+            }
+            $value = ! empty($field['column']) && $key === 'registration_number'
+                ? $asset->registration_number
+                : ($details[$key] ?? null);
+            if (! filled($value)) {
+                continue;
+            }
+            $labeledDetails[] = [
+                'key' => $key,
+                'label' => __('borrower.profile.collateral_fields.'.$key),
+                'value' => is_scalar($value) ? $value : json_encode($value),
+            ];
+        }
+        // Include any extra detail keys not in the schema (e.g. insurance fields).
+        foreach ($details as $key => $value) {
+            if (! filled($value) || collect($labeledDetails)->contains('key', $key)) {
+                continue;
+            }
+            $labelKey = 'borrower.profile.collateral_fields.'.$key;
+            $labeledDetails[] = [
+                'key' => (string) $key,
+                'label' => \Illuminate\Support\Facades\Lang::has($labelKey)
+                    ? __($labelKey)
+                    : str_replace('_', ' ', ucfirst((string) $key)),
+                'value' => is_scalar($value) ? $value : json_encode($value),
+            ];
+        }
+
         return [
             'id' => $asset->id,
             'label' => $asset->label,
+            'description' => $asset->description,
             'asset_type' => $asset->asset_type,
             'type_label' => $typeOptions[$asset->asset_type] ?? $asset->asset_type,
             'registration_number' => $asset->registration_number,
             'estimated_value' => $asset->estimated_value,
-            'details' => $asset->details(),
+            'details' => $details,
+            'labeled_details' => $labeledDetails,
             'insurance_type' => $asset->insuranceType(),
+            'insurance_policy_number' => $asset->detail('insurance_policy_number'),
             'insurance_expires_at' => $asset->detail('insurance_expires_at'),
             'thumbnail' => $asset->thumbnailPath() ? asset('storage/'.$asset->thumbnailPath()) : null,
             'photos' => $photos,
+            'person_with_asset_url' => filled($personPath) ? asset('storage/'.$personPath) : null,
+            'ownership_document_url' => filled($ownershipPath) ? asset('storage/'.$ownershipPath) : null,
+            'insurance_document_url' => filled($insuranceDocPath) ? asset('storage/'.$insuranceDocPath) : null,
             'owner_customer_id' => $asset->customer_id,
         ];
     }

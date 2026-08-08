@@ -19,10 +19,16 @@ class PartnerConfirmModalsFeatureTest extends TestCase
     public function test_task_and_wallet_views_wire_confirm_modals(): void
     {
         $task = file_get_contents(resource_path('views/site/vendor/task.blade.php'));
+        $cover = file_get_contents(resource_path('views/site/vendor/_cover_job_detail.blade.php'));
         $wallet = file_get_contents(resource_path('views/site/vendor/recovery-wallet.blade.php'));
 
         $this->assertStringContainsString('window.confirmForm($el', $task);
         $this->assertStringContainsString('task_complete_button', $task);
+        $this->assertStringContainsString('window.confirmForm($el', $cover);
+        $this->assertStringContainsString('accept_cover_title', $cover);
+        $this->assertStringContainsString('insurance_title', $cover);
+        $this->assertStringContainsString('tab_asset', $cover);
+        $this->assertStringContainsString('ownership_document', $cover);
         $this->assertStringContainsString('window.confirmForm($el', $wallet);
         $this->assertStringContainsString('payout_title', $wallet);
         $this->assertStringContainsString('dispute_title', $wallet);

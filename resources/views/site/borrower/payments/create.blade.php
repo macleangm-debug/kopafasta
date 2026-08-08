@@ -45,7 +45,13 @@
                       threshold: {{ (int) $paymentThreshold }},
                       get mobileAllowed() { return !this.threshold || this.amount <= this.threshold; },
                   }"
-                  @submit="paying = true">
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js(__('borrower.payments_page.create.submit_confirm_title')),
+                      message: @js(__('borrower.payments_page.create.submit_confirm_message')),
+                      confirmLabel: @js(__('borrower.payments_page.create.submit_confirm_label')),
+                      tone: 'confirm'
+                  })"
+                  @sync-before-submit="paying = true">
                 @csrf
 
                 <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-brand via-brand to-brand-light text-white shadow-lg shadow-brand/20 -mx-1">

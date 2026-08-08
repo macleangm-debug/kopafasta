@@ -106,7 +106,14 @@
                                 </button>
                             </form>
 
-                            <form method="POST" action="{{ route('site.borrower.application.agreement.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3">
+                            <form method="POST" action="{{ route('site.borrower.application.agreement.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3"
+                                  @submit.prevent="window.confirmForm($el, {
+                                      title: @js(__('borrower.agreement.accept_confirm_title')),
+                                      message: @js(__('borrower.agreement.accept_confirm')),
+                                      confirmLabel: @js(__('borrower.offer.accept')),
+                                      confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                                      tone: 'confirm'
+                                  })">
                                 @csrf
                                 <div>
                                     <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.agreement.otp_label') }}</label>
@@ -121,14 +128,26 @@
                             <p class="text-xs text-gray-600 mt-1">{{ __('borrower.agreement.decision_help') }}</p>
                             <div class="mt-4 flex flex-wrap gap-3">
                                 <form method="POST" action="{{ route('site.borrower.application.agreement.accept', $application) }}"
-                                      onsubmit='return confirm(@json(__('borrower.agreement.accept_confirm')))'>
+                                      @submit.prevent="window.confirmForm($el, {
+                                          title: @js(__('borrower.agreement.accept_confirm_title')),
+                                          message: @js(__('borrower.agreement.accept_confirm')),
+                                          confirmLabel: @js(__('borrower.offer.accept')),
+                                          confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                                          tone: 'confirm'
+                                      })">
                                     @csrf
                                     <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
                                         {{ __('borrower.offer.accept') }}
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ route('site.borrower.application.agreement.decline', $application) }}"
-                                      onsubmit='return confirm(@json(__('borrower.agreement.decline_confirm')))'>
+                                      @submit.prevent="window.confirmForm($el, {
+                                          title: @js(__('borrower.agreement.decline_confirm_title')),
+                                          message: @js(__('borrower.agreement.decline_confirm')),
+                                          confirmLabel: @js(__('borrower.agreement.decline_button')),
+                                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                          tone: 'warning'
+                                      })">
                                     @csrf
                                     <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-5 py-2.5 rounded-lg">
                                         {{ __('borrower.agreement.decline_button') }}

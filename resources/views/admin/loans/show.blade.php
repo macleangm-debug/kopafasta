@@ -112,7 +112,13 @@
             @if (in_array($loan->status, ['pending']))
                 @if ($canDisburse ?? true)
                     <form method="POST" action="{{ route('admin.loans.disburse', $loan) }}"
-                          onsubmit="return confirm('Disburse this loan? Fees will be auto-charged from charges_fees config.');">
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('admin.confirm.loan_disburse_title')),
+                              message: @js(__('admin.confirm.loan_disburse_message')),
+                              confirmLabel: @js(__('admin.confirm.loan_disburse_confirm')),
+                              confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                              tone: 'confirm',
+                          })">
                         @csrf
                         <button type="submit"
                                 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg shadow-sm transition">
@@ -137,7 +143,13 @@
                         </summary>
                         <form method="POST" action="{{ route('admin.loans.reverse-disbursement', $loan) }}"
                               class="absolute right-0 z-10 mt-2 w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
-                              onsubmit="return confirm('Reverse this disbursement? Capital returns to partner pools and the loan goes back to pending.');">
+                              @submit.prevent="window.confirmForm($el, {
+                                  title: @js(__('admin.confirm.loan_reverse_disbursement_title')),
+                                  message: @js(__('admin.confirm.loan_reverse_disbursement_message')),
+                                  confirmLabel: @js(__('admin.confirm.loan_reverse_disbursement_confirm')),
+                                  confirmClass: 'bg-orange-600 hover:bg-orange-700 text-white',
+                                  tone: 'warning',
+                              })">
                             @csrf
                             <p class="text-sm text-gray-600 mb-3">Capital allocation and schedules will be rolled back. The application returns to the disbursement queue.</p>
                             <label for="reverse-reason" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Reason</label>

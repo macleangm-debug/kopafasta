@@ -582,6 +582,36 @@ class NotificationTemplateSeeder extends Seeder
                     ],
                 ],
             ],
+            [
+                'code' => 'partner_payout_rejected',
+                'name' => 'Partner Payout Rejected',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Payout request rejected',
+                        'body' => "Hi {{ partner }}, your payout request for {{ amount }} was rejected. {{ reason }} — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Ombi la malipo limekataliwa',
+                        'body' => "Habari {{ partner }}, ombi lako la malipo la {{ amount }} limekataliwa. {{ reason }} — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'partner_cover_job_cancelled',
+                'name' => 'Partner Cover Job Cancelled',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Cover job cancelled — {{ asset }}',
+                        'body' => "Hi {{ partner }}, the cover job for {{ customer }} ({{ asset }}) has been cancelled. No further action needed. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Kazi ya bima imesitishwa — {{ asset }}',
+                        'body' => "Habari {{ partner }}, kazi ya bima kwa {{ customer }} ({{ asset }}) imesitishwa. Hakuna hatua zaidi inayohitajika. — {$brand}",
+                    ],
+                ],
+            ],
         ];
 
         foreach ($templates as $t) {

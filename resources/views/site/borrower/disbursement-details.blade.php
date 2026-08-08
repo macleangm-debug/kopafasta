@@ -29,7 +29,13 @@
                        class="font-semibold underline ml-1">{{ __('borrower.disbursement_details.add_payment_details') }}</a>
                 </div>
             @else
-                <form method="POST" action="{{ route('site.borrower.application.disbursement-details.confirm', $application) }}" class="mt-6 space-y-4">
+                <form method="POST" action="{{ route('site.borrower.application.disbursement-details.confirm', $application) }}" class="mt-6 space-y-4"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('borrower.disbursement_details.confirm_title')),
+                          message: @js(__('borrower.disbursement_details.confirm_message')),
+                          confirmLabel: @js(__('borrower.disbursement_details.confirm_account_button')),
+                          tone: 'confirm'
+                      })">
                     @csrf
                     <p class="text-sm font-semibold text-gray-900">{{ __('borrower.disbursement_details.select_account') }}</p>
                     <p class="text-xs text-gray-500">{{ __('borrower.payment_details.name_must_match', ['name' => $borrowerLegalName]) }}</p>

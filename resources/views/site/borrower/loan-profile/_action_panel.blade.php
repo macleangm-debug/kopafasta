@@ -133,9 +133,9 @@
             @if ($canDiscardDraft)
                 <form method="POST" action="{{ route('site.borrower.draft.discard', $draft) }}" class="mt-4"
                       onsubmit="event.preventDefault(); confirmForm(this, {
-                          title: @js(__('borrower.policy.withdraw_confirm_title')),
-                          message: @js(__('borrower.policy.withdraw_confirm_body')),
-                          confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
+                          title: @js(__('borrower.policy.discard_draft_confirm_title')),
+                          message: @js(__('borrower.policy.discard_draft_confirm_body')),
+                          confirmLabel: @js(__('borrower.policy.discard_draft_confirm_action')),
                           tone: 'warning',
                           confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
                       }); return false;">

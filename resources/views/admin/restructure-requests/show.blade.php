@@ -71,14 +71,28 @@
 
         @if ($record->status === 'pending')
             <div class="space-y-4">
-                <form method="post" action="{{ route('admin.restructure-requests.approve', $record) }}" class="bg-white rounded-xl ring-1 ring-emerald-200 p-5 space-y-3">
+                <form method="post" action="{{ route('admin.restructure-requests.approve', $record) }}" class="bg-white rounded-xl ring-1 ring-emerald-200 p-5 space-y-3"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('admin.confirm.restructure_approve_title')),
+                          message: @js(__('admin.confirm.restructure_approve_message')),
+                          confirmLabel: @js(__('admin.confirm.restructure_approve_confirm')),
+                          confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                          tone: 'confirm',
+                      })">
                     @csrf
                     <h3 class="text-sm font-semibold text-emerald-900">Approve request</h3>
                     <textarea name="notes" rows="3" placeholder="Optional notes for borrower"
                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2"></textarea>
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm">Approve</button>
                 </form>
-                <form method="post" action="{{ route('admin.restructure-requests.reject', $record) }}" class="bg-white rounded-xl ring-1 ring-red-200 p-5 space-y-3">
+                <form method="post" action="{{ route('admin.restructure-requests.reject', $record) }}" class="bg-white rounded-xl ring-1 ring-red-200 p-5 space-y-3"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('admin.confirm.restructure_reject_title')),
+                          message: @js(__('admin.confirm.restructure_reject_message')),
+                          confirmLabel: @js(__('admin.confirm.restructure_reject_confirm')),
+                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                          tone: 'warning',
+                      })">
                     @csrf
                     <h3 class="text-sm font-semibold text-red-900">Reject request</h3>
                     <textarea name="notes" rows="3" placeholder="Reason for rejection"

@@ -149,7 +149,13 @@
                     <h3 class="text-sm font-semibold text-gray-900 mb-3">Verify payment</h3>
                     <p class="text-xs text-gray-500 mb-4">Match bank account, amount, reference and payment date before approving.</p>
                     <form method="POST" action="{{ route('admin.payments.verify', $payment) }}"
-                          onsubmit="return confirm('Verify this payment and post to ledger?')">
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('admin.confirm.payment_verify_title')),
+                              message: @js(__('admin.confirm.payment_verify_message')),
+                              confirmLabel: @js(__('admin.confirm.payment_verify_confirm')),
+                              confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                              tone: 'confirm',
+                          })">
                         @csrf
                         <button type="submit" class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
                             Verify payment
@@ -172,7 +178,13 @@
                 <div class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
                     <h3 class="text-sm font-semibold text-gray-900 mb-3">Reject payment</h3>
                     <form method="POST" action="{{ route('admin.payments.reject', $payment) }}" class="space-y-2"
-                          onsubmit="return confirm('Reject this payment?')">
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('admin.confirm.payment_reject_title')),
+                              message: @js(__('admin.confirm.payment_reject_message')),
+                              confirmLabel: @js(__('admin.confirm.payment_reject_confirm')),
+                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                              tone: 'warning',
+                          })">
                         @csrf
                         <textarea name="notes" rows="3" placeholder="Rejection reason"
                                   class="w-full rounded-lg border-gray-200 text-sm"></textarea>

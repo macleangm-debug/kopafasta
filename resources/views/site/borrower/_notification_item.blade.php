@@ -33,7 +33,14 @@
                    class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand">
                     {{ $actionLabel ?: __('borrower.guarantor_notifications.accept_cta') }}
                 </a>
-                <form method="POST" action="{{ $declineUrl }}" class="inline">
+                <form method="POST" action="{{ $declineUrl }}" class="inline"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('borrower.guarantor.decline_title')),
+                          message: @js(__('borrower.guarantor.decline_message')),
+                          confirmLabel: @js($ctas['decline_label'] ?: __('borrower.guarantor_notifications.decline_cta')),
+                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                          tone: 'warning'
+                      })">
                     @csrf
                     <input type="hidden" name="action" value="reject">
                     <button type="submit"

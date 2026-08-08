@@ -136,7 +136,14 @@
                                 {{ __('borrower.collateral_secure.guarantor_agree') }}
                             </button>
                         </form>
-                        <form method="POST" action="{{ route('site.borrower.collateral-secure.guarantor-respond', $customerGuarantor) }}">
+                        <form method="POST" action="{{ route('site.borrower.collateral-secure.guarantor-respond', $customerGuarantor) }}"
+                              @submit.prevent="window.confirmForm($el, {
+                                  title: @js(__('borrower.collateral_secure.guarantor_decline_confirm_title')),
+                                  message: @js(__('borrower.collateral_secure.guarantor_decline_confirm_message')),
+                                  confirmLabel: @js(__('borrower.collateral_secure.guarantor_decline_confirm_button')),
+                                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                  tone: 'warning'
+                              })">
                             @csrf
                             <input type="hidden" name="accept" value="0">
                             <button type="submit" class="inline-flex font-bold px-7 py-3.5 rounded-xl text-sm bg-white ring-1 ring-gray-200 text-gray-900 hover:bg-gray-50">
@@ -206,7 +213,13 @@
                                 <p class="text-xs text-gray-500 mt-1">{{ __('borrower.collateral_secure.insure_asset_eta') }}</p>
                             </div>
                             <form method="POST" action="{{ route('site.borrower.collateral-secure.guarantor-buy-insurance', $customerGuarantor) }}"
-                                  class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3">
+                                  class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3"
+                                  @submit.prevent="window.confirmForm($el, {
+                                      title: @js(__('borrower.collateral_secure.guarantor_insure_confirm_title')),
+                                      message: @js(__('borrower.collateral_secure.guarantor_insure_confirm_message')),
+                                      confirmLabel: @js(__('borrower.collateral_secure.insure_asset')),
+                                      tone: 'confirm'
+                                  })">
                                 @csrf
                                 @if ($errors->any())
                                     <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-3 py-2 text-sm text-rose-900">

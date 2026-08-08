@@ -56,7 +56,14 @@
         @endif
 
         <div class="flex flex-wrap gap-3">
-            <form method="POST" action="{{ route('site.borrower.application.offer.respond', $application->id) }}">
+            <form method="POST" action="{{ route('site.borrower.application.offer.respond', $application->id) }}"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js(__('borrower.offer.accept_confirm_title')),
+                      message: @js(__('borrower.offer.accept_confirm')),
+                      confirmLabel: @js(__('borrower.offer.accept')),
+                      confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                      tone: 'confirm'
+                  })">
                 @csrf
                 <input type="hidden" name="decision" value="accept">
                 <button type="submit"
@@ -65,7 +72,13 @@
                 </button>
             </form>
             <form method="POST" action="{{ route('site.borrower.application.offer.respond', $application->id) }}"
-                  onsubmit="return confirm(@json(__('borrower.offer.decline_confirm')));">
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js(__('borrower.offer.decline_confirm_title')),
+                      message: @js(__('borrower.offer.decline_confirm')),
+                      confirmLabel: @js(__('borrower.offer.decline')),
+                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                      tone: 'warning'
+                  })">
                 @csrf
                 <input type="hidden" name="decision" value="decline">
                 <button type="submit"

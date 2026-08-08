@@ -203,7 +203,13 @@
                             <p class="text-xs text-gray-500 mt-1">{{ __('borrower.collateral_secure.insure_asset_eta') }}</p>
                         </div>
                         <form method="POST" action="{{ route('site.borrower.collateral-secure.buy-insurance', $application) }}"
-                              class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3">
+                              class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3"
+                              @submit.prevent="window.confirmForm($el, {
+                                  title: @js(__('borrower.collateral_secure.insure_confirm_title')),
+                                  message: @js(__('borrower.collateral_secure.insure_confirm_message')),
+                                  confirmLabel: @js(__('borrower.collateral_secure.insure_asset')),
+                                  tone: 'confirm'
+                              })">
                             @csrf
                             @if ($errors->any())
                                 <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-3 py-2 text-sm text-rose-900">
@@ -238,7 +244,13 @@
                     <p class="text-3xl font-extrabold text-brand tabular-nums">{{ format_money($feeQuote['due'] ?? 0) }}</p>
                     <p class="text-sm font-semibold text-gray-600">{{ __('borrower.collateral_secure.fee_hint') }}</p>
                 @endif
-                <form method="POST" action="{{ route('site.borrower.collateral-secure.pay', $application) }}">
+                <form method="POST" action="{{ route('site.borrower.collateral-secure.pay', $application) }}"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('borrower.collateral_secure.pay_confirm_title')),
+                          message: @js(__('borrower.collateral_secure.pay_confirm_message')),
+                          confirmLabel: @js(__('borrower.collateral_secure.pay_now')),
+                          tone: 'confirm'
+                      })">
                     @csrf
                     <button type="submit" class="inline-flex font-extrabold px-7 py-3.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
                         {{ __('borrower.collateral_secure.pay_now') }}

@@ -53,16 +53,36 @@
         @endphp
 
         @if ($awaitingAccept)
-            <form method="POST" action="{{ route('site.borrower.application.asset-conversion.respond', $application) }}" class="flex flex-wrap gap-3 mb-6">
-                @csrf
-                <button type="submit" name="decision" value="accept" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full text-sm">
-                    {{ __('borrower.offer.accept_asset_conversion') }}
-                </button>
-                <button type="submit" name="decision" value="decline" class="bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-6 py-3 rounded-full text-sm"
-                        onclick="return confirm(@js(__('borrower.offer.decline_confirm')))">
-                    {{ __('borrower.offer.decline_asset_conversion') }}
-                </button>
-            </form>
+            <div class="flex flex-wrap gap-3 mb-6">
+                <form method="POST" action="{{ route('site.borrower.application.asset-conversion.respond', $application) }}"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('borrower.offer.accept_asset_conversion_confirm_title')),
+                          message: @js(__('borrower.offer.accept_asset_conversion_confirm')),
+                          confirmLabel: @js(__('borrower.offer.accept_asset_conversion')),
+                          confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold',
+                          tone: 'confirm'
+                      })">
+                    @csrf
+                    <input type="hidden" name="decision" value="accept">
+                    <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full text-sm">
+                        {{ __('borrower.offer.accept_asset_conversion') }}
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('site.borrower.application.asset-conversion.respond', $application) }}"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('borrower.offer.decline_asset_conversion_confirm_title')),
+                          message: @js(__('borrower.offer.decline_asset_conversion_confirm')),
+                          confirmLabel: @js(__('borrower.offer.decline_asset_conversion')),
+                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                          tone: 'warning'
+                      })">
+                    @csrf
+                    <input type="hidden" name="decision" value="decline">
+                    <button type="submit" class="bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-6 py-3 rounded-full text-sm">
+                        {{ __('borrower.offer.decline_asset_conversion') }}
+                    </button>
+                </form>
+            </div>
         @endif
 
         @if ($awaitingPayment && ($quote['due'] ?? 0) > 0)
@@ -72,7 +92,15 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('site.borrower.application.asset-conversion.pay', $application) }}" enctype="multipart/form-data" class="space-y-4 bg-white rounded-2xl border border-gray-200 p-6">
+            <form method="POST" action="{{ route('site.borrower.application.asset-conversion.pay', $application) }}" enctype="multipart/form-data" class="space-y-4 bg-white rounded-2xl border border-gray-200 p-6"
+                  x-data="{ paying: false }"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js(__('borrower.offer.pay_asset_conversion_confirm_title')),
+                      message: @js(__('borrower.offer.pay_asset_conversion_confirm')),
+                      confirmLabel: @js(__('borrower.post_approval_fees.pay_now')),
+                      tone: 'confirm'
+                  })"
+                  @sync-before-submit="paying = true">
                 @csrf
 
                 <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-5">
@@ -127,8 +155,9 @@
                     </label>
                 </div>
 
-                <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full text-sm">
-                    {{ __('borrower.post_approval_fees.pay_now') }}
+                <button type="submit" :disabled="paying" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full text-sm disabled:opacity-70">
+                    <span x-show="!paying">{{ __('borrower.post_approval_fees.pay_now') }}</span>
+                    <span x-cloak x-show="paying">{{ __('borrower.membership.paying') }}</span>
                 </button>
             </form>
         @endif

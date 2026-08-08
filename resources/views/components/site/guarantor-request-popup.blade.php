@@ -60,7 +60,14 @@
                 </dl>
                 <p class="text-xs text-gray-500">{{ __('borrower.guarantor_notifications.popup_hint') }}</p>
                 <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}">
+                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('borrower.guarantor.decline_title')),
+                              message: @js(__('borrower.guarantor.decline_message')),
+                              confirmLabel: @js(__('borrower.guarantor_notifications.decline_cta')),
+                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                              tone: 'warning'
+                          })">
                         @csrf
                         <input type="hidden" name="action" value="reject">
                         <button type="submit"
@@ -68,7 +75,14 @@
                             {{ __('borrower.guarantor_notifications.decline_cta') }}
                         </button>
                     </form>
-                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}">
+                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('borrower.guarantor.approve_title')),
+                              message: @js(__('borrower.guarantor.approve_message')),
+                              confirmLabel: @js(__('borrower.guarantor_notifications.accept_cta')),
+                              confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand font-bold',
+                              tone: 'confirm'
+                          })">
                         @csrf
                         <input type="hidden" name="action" value="approve">
                         <button type="submit"
