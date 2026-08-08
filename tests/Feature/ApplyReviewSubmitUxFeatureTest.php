@@ -121,7 +121,7 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('optionEntries', $sheet);
         $this->assertStringContainsString('change_purpose', $quote);
         $this->assertStringContainsString('purposeEditing', $quote);
-        $this->assertStringContainsString('x-show="!form.purpose || purposeEditing"', $quote);
+        $this->assertStringContainsString('x-show="!form.purpose || purposeEditing || purposeNeedsDetail()"', $quote);
         $this->assertStringNotContainsString('template x-if="!form.purpose || purposeEditing"', $quote);
         $this->assertStringContainsString('guarantorHoldTitle()', $submit);
         $this->assertStringContainsString('guarantorProgressSteps()', $submit);
@@ -161,8 +161,11 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('data-submit-purpose-other', $wizard);
         $this->assertStringContainsString("name=\"purpose_other\"", $wizard);
         $this->assertStringContainsString('[data-submit-purpose-other]', $js);
+        $this->assertStringContainsString('purposeNeedsDetail', $js);
+        $this->assertStringContainsString('normalizePurposeKey', $js);
+        $this->assertStringContainsString('isOtherPurpose', $js);
         $this->assertStringContainsString("purpose_other", $js);
-        $this->assertStringContainsString('purpose_other', $activity);
+        $this->assertStringContainsString('format_loan_purpose_display', $activity);
         $this->assertStringContainsString('showReadyBeforeSubmit', $progress);
         $this->assertStringContainsString('showWaitingCopy', $progress);
         $this->assertStringNotContainsString('guarantor_section_hint', $submitted);

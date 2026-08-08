@@ -100,6 +100,85 @@ if (! function_exists('loan_purpose_label')) {
     }
 }
 
+if (! function_exists('normalize_loan_purpose_key')) {
+    /**
+     * Map a purpose key or localized label (e.g. "Nyingine") back to the config key.
+     */
+    function normalize_loan_purpose_key(?string $value): ?string
+    {
+        if (! filled($value)) {
+            return null;
+        }
+
+        $raw = trim((string) $value);
+        $config = config('loan_purposes', []);
+
+        if (isset($config[$raw])) {
+            return $raw;
+        }
+
+        // "Other: custom text" / "Nyingine: ..."
+        if (preg_match('/^(other|nyingine)\s*:/iu', $raw)) {
+            return 'other';
+        }
+
+        foreach ($config as $key => $english) {
+            if (strcasecmp((string) $english, $raw) === 0) {
+                return $key;
+            }
+
+            $label = loan_purpose_label($key);
+            if ($label && strcasecmp($label, $raw) === 0) {
+                return $key;
+            }
+        }
+
+        return $raw;
+    }
+}
+
+if (! function_exists('is_loan_purpose_other')) {
+    function is_loan_purpose_other(?string $value): bool
+    {
+        return normalize_loan_purpose_key($value) === 'other';
+    }
+}
+
+if (! function_exists('format_loan_purpose_display')) {
+    /**
+     * Human-readable purpose for screening / committee, including free-text for "other".
+     */
+    function format_loan_purpose_display(?string $purpose, ?string $purposeOther = null, ?array $screeningPayload = null): string
+    {
+        $purposeOther = trim((string) ($purposeOther
+            ?? data_get($screeningPayload, 'purpose_other')
+            ?? ''));
+        $key = normalize_loan_purpose_key(
+            data_get($screeningPayload, 'purpose_key') ?: $purpose
+        );
+        $label = $key ? (loan_purpose_label($key) ?? $purpose) : ($purpose ?: '—');
+
+        if ($key === 'other' || is_loan_purpose_other($purpose)) {
+            if ($purposeOther !== '') {
+                if (filled($purpose) && str_contains((string) $purpose, $purposeOther)) {
+                    return (string) $purpose;
+                }
+
+                return trim(($label ?: 'Other').': '.$purposeOther);
+            }
+
+            // Legacy rows stored only the translated "Other" label.
+            if (filled($purpose) && ! is_loan_purpose_other($purpose) && ! isset(config('loan_purposes')[$purpose])) {
+                return (string) $purpose;
+            }
+
+            return (string) ($label ?: 'Other');
+        }
+
+        return (string) ($purpose ?: $label ?: '—');
+    }
+}
+
 if (! function_exists('loan_purpose_options')) {
     /** @return array<string, string> */
     function loan_purpose_options(): array

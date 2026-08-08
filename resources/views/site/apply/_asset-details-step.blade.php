@@ -95,7 +95,7 @@
             </div>
 
             <div x-show="customerAssets.length && selectedCustomerAssetIds().length" class="glass-card p-5 ring-1 ring-gray-200/80">
-                <div x-show="form.purpose && !purposeEditing" x-cloak class="space-y-2">
+                <div x-show="form.purpose && !purposeEditing && !purposeNeedsDetail()" x-cloak class="space-y-2">
                     <div class="flex items-center justify-between gap-3">
                         <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.purpose') }}</p>
                         <button type="button"
@@ -106,11 +106,14 @@
                     </div>
                     <p class="text-base font-bold text-gray-900"
                        x-text="purposeLabels[form.purpose] || form.purpose"></p>
-                    <p x-show="form.purpose === 'other' && form.purpose_other"
+                    <p x-show="isOtherPurpose() && form.purpose_other"
                        class="text-sm text-gray-600"
                        x-text="form.purpose_other"></p>
+                    <p x-show="purposeNeedsDetail()"
+                       class="text-xs font-semibold text-amber-700"
+                       x-cloak>{{ __('borrower.apply.alerts.purpose_other_required') }}</p>
                 </div>
-                <div x-show="!form.purpose || purposeEditing" x-cloak>
+                <div x-show="!form.purpose || purposeEditing || purposeNeedsDetail()" x-cloak>
                     <x-site.sheet-select
                         model="form.purpose"
                         setter="setLoanPurpose"
@@ -119,14 +122,14 @@
                         :required="true"
                         :placeholder="__('borrower.apply.quote.select_purpose')"
                     />
-                    <div x-show="form.purpose === 'other'" x-cloak class="mt-4">
+                    <div x-show="isOtherPurpose()" x-cloak class="mt-4">
                         <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
                         <input type="text"
                                x-model="form.purpose_other"
                                @input="syncPurposeHidden(); scheduleDraftSave()"
                                maxlength="120"
                                class="kf-field"
-                               :required="form.purpose === 'other'"
+                               :required="isOtherPurpose()"
                                placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
                         <button type="button"
                                 x-show="form.purpose_other && String(form.purpose_other).trim()"

@@ -48,7 +48,7 @@
                     <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.group_setup.amount_per_member_hint') }}</p>
                 </div>
                 <div>
-                    <div x-show="group.purpose && !purposeEditing" x-cloak class="space-y-2">
+                    <div x-show="group.purpose && !purposeEditing && !purposeNeedsDetail()" x-cloak class="space-y-2">
                         <div class="flex items-center justify-between gap-3">
                             <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.group_setup.purpose') }}</p>
                             <button type="button"
@@ -59,8 +59,11 @@
                         </div>
                         <p class="text-base font-bold text-gray-900"
                            x-text="purposeLabels[group.purpose] || group.purpose"></p>
+                        <p x-show="isOtherPurpose(group.purpose) && form.purpose_other"
+                           class="text-sm text-gray-600"
+                           x-text="form.purpose_other"></p>
                     </div>
-                    <div x-show="!group.purpose || purposeEditing" x-cloak>
+                    <div x-show="!group.purpose || purposeEditing || purposeNeedsDetail()" x-cloak>
                         <x-site.sheet-select
                             model="group.purpose"
                             setter="setGroupPurpose"
@@ -68,6 +71,23 @@
                             :options="$loanPurposes"
                             :placeholder="__('borrower.apply.quote.select_purpose')"
                         />
+                        <div x-show="isOtherPurpose(group.purpose)" x-cloak class="mt-4">
+                            <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
+                            <input type="text"
+                                   x-model="form.purpose_other"
+                                   @input="syncPurposeHidden(); scheduleDraftSave()"
+                                   maxlength="120"
+                                   class="kf-field"
+                                   :required="isOtherPurpose(group.purpose)"
+                                   placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
+                            <button type="button"
+                                    x-show="form.purpose_other && String(form.purpose_other).trim()"
+                                    x-cloak
+                                    @click="purposeEditing = false; scheduleDraftSave()"
+                                    class="mt-3 inline-flex text-xs font-semibold text-brand hover:underline">
+                                {{ __('borrower.apply.quote.purpose_other_done') }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1660,10 +1660,13 @@ class ApplyController extends Controller
         }
 
         $purposeOther = trim((string) ($data['purpose_other'] ?? ''));
+        $purposeKey = normalize_loan_purpose_key($data['purpose'] ?? null) ?? (string) ($data['purpose'] ?? '');
+        $data['purpose'] = $purposeKey;
+
         if (
             ! $isMarketplaceProduct
             && ! $isGroupProduct
-            && ($data['purpose'] ?? '') === 'other'
+            && is_loan_purpose_other($purposeKey)
             && $purposeOther === ''
         ) {
             // Prefer draft free-text if the hidden field was omitted from the POST.
@@ -1676,15 +1679,25 @@ class ApplyController extends Controller
                     ->withErrors(['purpose_other' => __('borrower.apply.alerts.purpose_other_required')]);
             }
         }
-        if (($data['purpose'] ?? '') !== 'other') {
+        if (! is_loan_purpose_other($purposeKey)) {
             $purposeOther = '';
         }
         $data['purpose_other'] = $purposeOther;
 
         if ($isGroupProduct) {
             $groupDraft = $draftPayload['group'] ?? [];
+            if (! is_array($groupDraft)) {
+                $groupDraft = [];
+            }
+            // Free-text for "other" lives on the Alpine form, not always inside group draft.
+            $groupDraft['purpose_other'] = trim((string) (
+                $groupDraft['purpose_other']
+                ?? $draftPayload['form']['purpose_other']
+                ?? $data['purpose_other']
+                ?? ''
+            ));
             try {
-                $groupData = app(GroupApplyService::class)->validateGroupPayload($customer, $loanProduct, is_array($groupDraft) ? $groupDraft : []);
+                $groupData = app(GroupApplyService::class)->validateGroupPayload($customer, $loanProduct, $groupDraft);
                 $groupData['members'] = app(GroupMemberInvitationService::class)->resolveMembersForSubmit(
                     $customer,
                     $groupData['members'],
@@ -1700,6 +1713,8 @@ class ApplyController extends Controller
             }
 
             $data['purpose'] = $groupData['purpose'];
+            $data['purpose_other'] = $groupData['purpose_other'] ?? '';
+            $purposeOther = trim((string) $data['purpose_other']);
             $data['requested_amount'] = collect($groupData['members'])->sum('requested_amount');
             $amount = (float) $data['requested_amount'];
         }
@@ -1827,10 +1842,13 @@ class ApplyController extends Controller
         $user = Auth::user();
         $customer = Customer::firstOrNew(['user_id' => $user->id]);
         $addressLine = trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', '));
-        $purposeKey = (string) ($data['purpose'] ?? '');
+        $purposeKey = normalize_loan_purpose_key($data['purpose'] ?? null) ?? (string) ($data['purpose'] ?? '');
         $purposeOther = trim((string) ($data['purpose_other'] ?? ''));
+        if (! is_loan_purpose_other($purposeKey)) {
+            $purposeOther = '';
+        }
         $purposeLabel = loan_purpose_label($purposeKey) ?? $purposeKey;
-        $purposeStored = ($purposeKey === 'other' && $purposeOther !== '')
+        $purposeStored = (is_loan_purpose_other($purposeKey) && $purposeOther !== '')
             ? $purposeLabel.': '.$purposeOther
             : $purposeLabel;
 
@@ -1934,7 +1952,7 @@ class ApplyController extends Controller
                 'product_questions' => array_filter($data['product_question'] ?? []),
                 'engagement'        => $engagementBoosts,
                 'purpose_key'       => $purposeKey !== '' ? $purposeKey : null,
-                'purpose_other'     => ($purposeKey === 'other' && $purposeOther !== '') ? $purposeOther : null,
+                'purpose_other'     => (is_loan_purpose_other($purposeKey) && $purposeOther !== '') ? $purposeOther : null,
             ],
             'engagement_priority'        => (int) ($engagementBoosts['processing_priority'] ?? 0),
             'registration_fee_amount'    => 0,

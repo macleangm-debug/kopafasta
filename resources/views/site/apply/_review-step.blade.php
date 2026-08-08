@@ -86,7 +86,7 @@
                         <p class="text-[10px] uppercase tracking-widest text-white/55">{{ __('borrower.apply.review_step.purpose') }}</p>
                         <p class="font-semibold text-white/95 sm:mt-0.5 text-right sm:text-left"
                            x-text="purposeLabels[form.purpose] || form.purpose || (group.purpose ? (purposeLabels[group.purpose] || group.purpose) : '—')"></p>
-                        <p x-show="form.purpose === 'other' && form.purpose_other"
+                        <p x-show="isOtherPurpose() && form.purpose_other"
                            class="text-sm text-white/75 sm:mt-0.5 text-right sm:text-left"
                            x-text="form.purpose_other"></p>
                     </div>

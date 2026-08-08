@@ -80,11 +80,21 @@ class GroupApplyService
             ]);
         }
 
-        $purpose = trim((string) ($group['purpose'] ?? ''));
+        $purpose = normalize_loan_purpose_key(trim((string) ($group['purpose'] ?? ''))) ?? '';
         if ($purpose === '') {
             throw ValidationException::withMessages([
                 'group.purpose' => __('borrower.apply.alerts.select_purpose'),
             ]);
+        }
+
+        $purposeOther = trim((string) ($group['purpose_other'] ?? ''));
+        if (is_loan_purpose_other($purpose) && $purposeOther === '') {
+            throw ValidationException::withMessages([
+                'purpose_other' => __('borrower.apply.alerts.purpose_other_required'),
+            ]);
+        }
+        if (! is_loan_purpose_other($purpose)) {
+            $purposeOther = '';
         }
 
         $targetCount = max(1, (int) ($group['target_member_count'] ?? 0));
@@ -200,6 +210,7 @@ class GroupApplyService
         return [
             'name'                => $name,
             'purpose'             => $purpose,
+            'purpose_other'       => $purposeOther,
             'target_member_count' => $targetCount,
             'amount_per_member'   => $amountPerMember,
             'members'             => $members->values()->all(),

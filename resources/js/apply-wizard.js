@@ -274,8 +274,8 @@ export function applyWizard(config) {
                             this.$nextTick(() => this.refreshReview(this.formRoot()));
                         }
                         if (key === 'quote' || key === 'asset_details' || key === 'group_setup') {
-                            // Keep purpose locked when navigating back with a value already set.
-                            this.purposeEditing = false;
+                            // Keep purpose locked when set — but force edit open if "other" still needs detail.
+                            this.purposeEditing = this.purposeNeedsDetail();
                         }
                     });
                     this.$watch('steps', () => this.syncStepKey());
@@ -286,17 +286,32 @@ export function applyWizard(config) {
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
                     this.$watch('form.purpose', (value, oldValue) => {
+                        const next = this.normalizePurposeKey(value);
+                        if (next && next !== value) {
+                            this.form.purpose = next;
+                            return;
+                        }
                         // Keep the editor open for "other" so the custom text field stays visible.
-                        if (value && value !== oldValue && value !== 'other') {
+                        if (next && next !== oldValue && ! this.isOtherPurpose(next)) {
                             this.purposeEditing = false;
+                        } else if (this.purposeNeedsDetail()) {
+                            this.purposeEditing = true;
                         }
                         this.syncPurposeHidden();
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
                     this.$watch('group.purpose', (value, oldValue) => {
-                        if (value && value !== oldValue && value !== 'other') {
+                        const next = this.normalizePurposeKey(value);
+                        if (next && next !== value) {
+                            this.group.purpose = next;
+                            return;
+                        }
+                        if (next && next !== oldValue && ! this.isOtherPurpose(next)) {
                             this.purposeEditing = false;
-                            this.form.purpose = value;
+                            this.form.purpose = next;
+                        } else if (this.isOtherPurpose(next)) {
+                            this.form.purpose = next;
+                            this.purposeEditing = this.purposeNeedsDetail();
                         }
                         this.syncPurposeHidden();
                         if (this.phase === 'application') this.scheduleDraftSave();
@@ -504,12 +519,12 @@ export function applyWizard(config) {
                 },
 
                 setLoanPurpose(value) {
-                    const next = String(value || '');
+                    const next = this.normalizePurposeKey(value);
                     this.form.purpose = next;
-                    if (next && next !== 'other') {
+                    if (next && ! this.isOtherPurpose(next)) {
                         this.form.purpose_other = '';
                         this.purposeEditing = false;
-                    } else if (next === 'other') {
+                    } else if (this.isOtherPurpose(next)) {
                         // Keep the free-text field open until they describe the purpose.
                         this.purposeEditing = true;
                     }
@@ -518,24 +533,50 @@ export function applyWizard(config) {
                 },
 
                 setGroupPurpose(value) {
-                    const next = String(value || '');
+                    const next = this.normalizePurposeKey(value);
                     this.group.purpose = next;
                     this.form.purpose = next;
-                    if (next && next !== 'other') {
+                    if (next && ! this.isOtherPurpose(next)) {
+                        this.form.purpose_other = '';
                         this.purposeEditing = false;
+                    } else if (this.isOtherPurpose(next)) {
+                        this.purposeEditing = true;
                     }
                     this.syncPurposeHidden();
                     this.scheduleDraftSave();
                 },
 
+                normalizePurposeKey(value) {
+                    const raw = String(value || '').trim();
+                    if (! raw) return '';
+                    const labels = this.purposeLabels || {};
+                    if (Object.prototype.hasOwnProperty.call(labels, raw)) {
+                        return raw;
+                    }
+                    const match = Object.entries(labels).find(([, label]) => String(label) === raw);
+                    return match ? match[0] : raw;
+                },
+
+                isOtherPurpose(value = null) {
+                    const key = this.normalizePurposeKey(value ?? this.form.purpose);
+                    if (key === 'other') return true;
+                    const label = this.purposeLabels?.other;
+                    return !!(label && String(value ?? this.form.purpose) === String(label));
+                },
+
+                purposeNeedsDetail() {
+                    return this.isOtherPurpose(this.form.purpose)
+                        && ! String(this.form.purpose_other || '').trim();
+                },
+
                 syncPurposeHidden() {
                     const el = this.formRoot()?.querySelector('[data-submit-purpose]');
                     if (el) {
-                        el.value = this.form.purpose || '';
+                        el.value = this.normalizePurposeKey(this.form.purpose) || '';
                     }
                     const otherEl = this.formRoot()?.querySelector('[data-submit-purpose-other]');
                     if (otherEl) {
-                        otherEl.value = this.form.purpose === 'other'
+                        otherEl.value = this.isOtherPurpose(this.form.purpose)
                             ? String(this.form.purpose_other || '').trim()
                             : '';
                     }
@@ -1026,7 +1067,10 @@ export function applyWizard(config) {
                     this.selectProduct(product, false);
 
                     Object.assign(this.form, draft.form || {});
-                    this.purposeEditing = false;
+                    if (this.form.purpose) {
+                        this.form.purpose = this.normalizePurposeKey(this.form.purpose);
+                    }
+                    this.purposeEditing = this.purposeNeedsDetail();
                     if (draft.inputs) {
                         this.restoreFormInputs(draft.inputs);
                         [
@@ -2124,7 +2168,7 @@ export function applyWizard(config) {
                     }
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
                         if (! this.form.purpose) return false;
-                        if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) return false;
+                        if (this.purposeNeedsDetail()) return false;
                         if (! this.quoteProductQuestionsReady()) return false;
                         return true;
                     }
@@ -2133,7 +2177,8 @@ export function applyWizard(config) {
                         return !!(this.group.name || '').trim()
                             && count >= this.groupLimits.min && count <= this.groupLimits.max
                             && Number(this.group.amount_per_member) >= this.groupAmountPerMemberMin()
-                            && !! this.group.purpose;
+                            && !! this.group.purpose
+                            && ! this.purposeNeedsDetail();
                     }
                     if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
                         const target = this.groupTargetCount();
@@ -2154,7 +2199,7 @@ export function applyWizard(config) {
                         if (this.current && this.form.requested_amount > this.current.max) return false;
                         if (! this.form.requested_tenure_months || this.form.requested_tenure_months < (this.current?.tmin || 1)) return false;
                         if (! this.form.purpose) return false;
-                        if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) return false;
+                        if (this.purposeNeedsDetail()) return false;
                         return true;
                     }
                     // Generic DOM check for other wizard panels (product questions, etc.)
@@ -2800,7 +2845,8 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.alerts.selectPurpose);
                             return false;
                         }
-                        if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) {
+                        if (this.purposeNeedsDetail()) {
+                            this.purposeEditing = true;
                             showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
                             return false;
                         }
@@ -2827,8 +2873,13 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.group.purposeRequired);
                             return false;
                         }
+                        if (this.purposeNeedsDetail()) {
+                            this.purposeEditing = true;
+                            showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
+                            return false;
+                        }
                         this.syncGroupAmounts();
-                        this.form.purpose = this.group.purpose;
+                        this.form.purpose = this.normalizePurposeKey(this.group.purpose);
                     }
                     if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
                         await this.refreshGroupMemberStatuses();
@@ -2883,7 +2934,8 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.alerts.selectPurpose || this.i18n.assetDetails.purposeRequired);
                             return false;
                         }
-                        if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) {
+                        if (this.purposeNeedsDetail()) {
+                            this.purposeEditing = true;
                             showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
                             return false;
                         }
@@ -3245,10 +3297,10 @@ export function applyWizard(config) {
                     set('[data-submit-product]', this.form.loan_product_id);
                     set('[data-submit-amount]', this.form.requested_amount);
                     set('[data-submit-tenure]', this.form.requested_tenure_months);
-                    set('[data-submit-purpose]', this.form.purpose);
+                    set('[data-submit-purpose]', this.normalizePurposeKey(this.form.purpose));
                     const purposeOtherEl = form.querySelector('[data-submit-purpose-other]');
                     if (purposeOtherEl) {
-                        purposeOtherEl.value = this.form.purpose === 'other'
+                        purposeOtherEl.value = this.isOtherPurpose(this.form.purpose)
                             ? String(this.form.purpose_other || '').trim()
                             : '';
                     }

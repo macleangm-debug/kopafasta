@@ -47,6 +47,7 @@
                             @if ($customer->phone)
                                 <span>{{ $customer->phone }}</span>
                             @endif
+                            <span>Purpose {{ format_loan_purpose_display($record->purpose, data_get($record->screening_payload, 'purpose_other'), $record->screening_payload) }}</span>
                         </p>
                     </div>
                 </div>

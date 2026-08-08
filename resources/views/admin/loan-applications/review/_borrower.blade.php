@@ -73,14 +73,11 @@
                 @endif
                 <div class="sm:col-span-2"><dt class="text-xs text-gray-500">Loan purpose</dt>
                     <dd class="font-medium mt-0.5">
-                        @php
-                            $purposeOther = data_get($record->screening_payload, 'purpose_other');
-                            $purposeValue = $record->purpose ?? '—';
-                            if (filled($purposeOther) && ! str_contains((string) $purposeValue, (string) $purposeOther)) {
-                                $purposeValue = trim(($record->purpose ?: 'Other').': '.$purposeOther);
-                            }
-                        @endphp
-                        {{ $purposeValue }}
+                        {{ format_loan_purpose_display(
+                            $record->purpose,
+                            data_get($record->screening_payload, 'purpose_other'),
+                            $record->screening_payload
+                        ) }}
                     </dd>
                 </div>
             </dl>
