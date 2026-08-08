@@ -63,8 +63,8 @@ class ApplicationFeePaymentService
     }
 
     /**
-     * Wizard stage to open after application fee is confirmed.
-     * Fee sits between setup (quote/asset/group) and guarantor/review.
+     * Wizard stage to open after application fee is confirmed — for every loan product.
+     * Fee sits after the product setup step(s); resume on whatever comes next in the plan.
      *
      * @param  array<string, mixed>|null  $draftPayload
      */
@@ -73,14 +73,28 @@ class ApplicationFeePaymentService
         $amount = (float) (
             $draftPayload['form']['amount']
             ?? $draftPayload['inputs']['amount']
+            ?? $draftPayload['form']['requested_amount']
+            ?? $draftPayload['inputs']['requested_amount']
             ?? 0
         );
 
         $plan = app(SmartLoanApplicationWizardService::class)->borrowerStepPlan($customer, $product, $amount);
-        $keys = collect($plan)->pluck('key')->all();
+        $setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members'];
 
-        foreach (['guarantor', 'review', 'submit'] as $key) {
-            if (in_array($key, $keys, true)) {
+        $lastSetupIndex = -1;
+        foreach ($plan as $index => $step) {
+            if (in_array($step['key'] ?? '', $setupKeys, true)) {
+                $lastSetupIndex = $index;
+            }
+        }
+
+        if ($lastSetupIndex >= 0 && isset($plan[$lastSetupIndex + 1]['key'])) {
+            return (string) $plan[$lastSetupIndex + 1]['key'];
+        }
+
+        foreach ($plan as $step) {
+            $key = (string) ($step['key'] ?? '');
+            if ($key !== '' && ! in_array($key, $setupKeys, true)) {
                 return $key;
             }
         }
@@ -169,6 +183,14 @@ class ApplicationFeePaymentService
 
         if ($cashDue <= 0) {
             app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
+            app(LoanApplicationDraftService::class)->saveApplicationFee($customer, $product->id, [
+                'status' => 'waived',
+                'reference' => null,
+                'channel' => 'waived',
+                'amount' => 0,
+                'paid_at' => now()->toIso8601String(),
+            ]);
+            app(LoanApplicationDraftService::class)->advancePastApplicationFee($customer, $product->id);
 
             return [
                 'status'    => 'waived',

@@ -1070,12 +1070,31 @@ class ApplyController extends Controller
             if (product_includes_valuation_fee($product)) {
                 $drafts->saveValuationFee($customer, $product->id, $feeState);
             }
+            $drafts->advancePastApplicationFee($customer, $product->id);
 
             if ($request->expectsJson()) {
-                return response()->json(['ok' => true, 'fee' => $feeState]);
+                $next = $fees->nextStepAfterApplicationFee(
+                    $customer,
+                    $product,
+                    $drafts->find($customer, $product->id)?->payload,
+                );
+
+                return response()->json([
+                    'ok' => true,
+                    'fee' => $feeState,
+                    'next_step_key' => $next,
+                ]);
             }
 
-            return back()->with('status', __('borrower.apply.application_fee.waived'));
+            return redirect()->route('site.borrower.apply', [
+                'product' => $product->id,
+                'resume' => 1,
+                'step_key' => $fees->nextStepAfterApplicationFee(
+                    $customer,
+                    $product,
+                    $drafts->find($customer, $product->id)?->payload,
+                ),
+            ])->with('status', __('borrower.apply.application_fee.waived'));
         }
 
         $paymentReference = $request->session()->get('application_fee_payment_ref')

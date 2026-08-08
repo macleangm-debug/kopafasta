@@ -343,7 +343,7 @@ class LoanApplicationDraftService
 
     /**
      * After application fee is confirmed, move the draft onto the next wizard stage
-     * (guarantor when required, otherwise review) so resume does not fall back to quote.
+     * for this product plan so resume does not fall back to the setup step.
      */
     public function advancePastApplicationFee(Customer $customer, int $loanProductId, ?string $stepKey = null): LoanApplicationDraft
     {
@@ -362,7 +362,13 @@ class LoanApplicationDraftService
         }
 
         $payload = $draft->payload ?? [];
-        $amount = (float) ($payload['form']['amount'] ?? $payload['inputs']['amount'] ?? 0);
+        $amount = (float) (
+            $payload['form']['amount']
+            ?? $payload['inputs']['amount']
+            ?? $payload['form']['requested_amount']
+            ?? $payload['inputs']['requested_amount']
+            ?? 0
+        );
         $nextKey = $stepKey ?: app(ApplicationFeePaymentService::class)
             ->nextStepAfterApplicationFee($customer, $product, $payload);
 

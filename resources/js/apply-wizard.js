@@ -501,12 +501,19 @@ export function applyWizard(config) {
                     return ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members', 'application_fee'].includes(key);
                 },
 
+                /** Next numbered wizard stage after the fee gate — works for every product plan. */
                 nextStepKeyAfterFee() {
-                    const keys = (this.steps || []).map(s => s.key);
-                    for (const key of ['guarantor', 'review', 'submit']) {
-                        if (keys.includes(key)) return key;
+                    const setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members'];
+                    const steps = this.steps || [];
+                    let lastSetup = -1;
+                    steps.forEach((step, index) => {
+                        if (setupKeys.includes(step.key)) lastSetup = index;
+                    });
+                    if (lastSetup >= 0 && steps[lastSetup + 1]?.key) {
+                        return steps[lastSetup + 1].key;
                     }
-                    return 'review';
+                    const afterSetup = steps.find(s => s.key && ! setupKeys.includes(s.key));
+                    return afterSetup?.key || 'review';
                 },
 
                 goToStepKey(key) {

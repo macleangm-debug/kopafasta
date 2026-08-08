@@ -555,7 +555,7 @@ class CustomerPaymentService
                 'resume' => 1,
                 'step_key' => $payment->payment_type === 'valuation_fee'
                     ? 'valuation_fee'
-                    : ($nextStep ?: 'guarantor'),
+                    : ($nextStep ?: null),
             ]));
         }
 
