@@ -77,8 +77,12 @@
                         </a>
                     @endif
                 @else
-                    <a href="{{ $row['action_url'] }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
-                        {{ __('borrower.applications_list.view') }}
+                    <a href="{{ $row['action_url'] }}" @class([
+                        'inline-flex font-semibold px-4 py-2 rounded-xl text-sm',
+                        'bg-brand-gold hover:brightness-95 text-brand' => ($row['status'] ?? '') === 'awaiting_valuation_fee',
+                        'bg-brand hover:bg-brand-light text-white' => ($row['status'] ?? '') !== 'awaiting_valuation_fee',
+                    ])>
+                        {{ $row['action_label'] ?? __('borrower.applications_list.view') }}
                     </a>
                 @endif
             </div>

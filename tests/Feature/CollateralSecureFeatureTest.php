@@ -172,14 +172,19 @@ class CollateralSecureFeatureTest extends TestCase
         $service->borrowerHasCollateral($app->fresh(), $borrower, true);
         $state = $service->linkAsset($app->fresh(), $borrower, $asset);
 
-        // Land skips insurance; AB fee delta should move to awaiting_fee or secured.
+        // Land may move to AB fee, valuation fee, or secured.
         $this->assertContains($state['status'], [
             CollateralSecureService::STATUS_AWAITING_FEE,
+            CollateralSecureService::STATUS_AWAITING_VALUATION_FEE,
             CollateralSecureService::STATUS_SECURED,
         ]);
 
         if ($state['status'] === CollateralSecureService::STATUS_AWAITING_FEE) {
-            $service->markFeePaid($app->fresh());
+            $state = $service->markFeePaid($app->fresh());
+        }
+
+        if (($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE) {
+            $service->markValuationFeePaid($app->fresh());
         }
 
         $app->refresh()->load('product');

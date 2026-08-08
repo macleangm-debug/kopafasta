@@ -238,8 +238,10 @@
             <p class="text-xl sm:text-2xl font-extrabold mt-2 tracking-tight">
                 @if ($underwritingActions->isNotEmpty())
                     {{ __('borrower.applications_list.documents_required') }}
+                @elseif (! empty($status['detail']))
+                    {{ $status['detail'] }}
                 @else
-                    {{ $next['label'] ?? __('borrower.loan_profile.next_actions.under_review', ['time' => '']) }}
+                    {{ $next['label'] ?? __('borrower.loan_profile.next_actions.under_review') }}
                 @endif
             </p>
             @if (! empty($progress['is_loan_progress']))
@@ -253,7 +255,27 @@
         </div>
 
         <div class="px-5 sm:px-6 py-5">
-            @if (! empty($next['url']) && $underwritingActions->isEmpty() && ! in_array($next['code'] ?? '', ['under_review', 'awaiting_guarantor', 'view_application'], true))
+            @if (($next['code'] ?? '') === 'pay_valuation_fee' && $underwritingActions->isEmpty() && $application)
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] uppercase tracking-widest text-gray-500 font-bold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>
+                        <p class="text-base font-extrabold text-gray-900">{{ $next['label'] }}</p>
+                    </div>
+                    <form method="POST" action="{{ route('site.borrower.collateral-secure.pay-valuation', $application) }}"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('borrower.collateral_secure.pay_valuation_confirm_title')),
+                              message: @js(__('borrower.collateral_secure.pay_valuation_confirm_message')),
+                              confirmLabel: @js(__('borrower.collateral_secure.pay_valuation_now')),
+                              tone: 'confirm'
+                          })">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex items-center justify-center font-extrabold px-6 py-3 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
+                            {{ $next['button_label'] ?? __('borrower.collateral_secure.pay_valuation_now') }}
+                        </button>
+                    </form>
+                </div>
+            @elseif (! empty($next['url']) && $underwritingActions->isEmpty() && ! in_array($next['code'] ?? '', ['under_review', 'awaiting_guarantor', 'view_application', 'documents_resubmitted'], true))
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
                         <p class="text-[11px] uppercase tracking-widest text-gray-500 font-bold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>

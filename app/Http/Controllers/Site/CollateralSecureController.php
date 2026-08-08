@@ -182,7 +182,11 @@ class CollateralSecureController extends Controller
         abort_unless((int) $application->customer_id === (int) $customer->id, 403);
 
         $state = $service->state($application);
-        abort_unless(($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, 422);
+        abort_unless(
+            ($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE
+            || $service->needsValuationFeePayment($application),
+            422
+        );
 
         $due = (int) quoted_valuation_fee($customer);
         $ab = $service->assetBackedFeeProduct();

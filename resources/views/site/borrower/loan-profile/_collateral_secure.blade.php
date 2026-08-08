@@ -16,16 +16,16 @@
         $typeIcons = \App\Models\CustomerAsset::typeIcons();
     @endphp
 
-    <div class="mb-6 overflow-hidden rounded-2xl ring-1 ring-brand/20 bg-white shadow-sm">
+    <div id="collateral-secure" class="mb-6 overflow-hidden rounded-2xl ring-1 ring-brand/20 bg-white shadow-sm">
         <div class="px-5 sm:px-6 py-5 border-b border-brand/10 bg-gradient-to-br from-brand-muted/50 via-white to-white flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
                 <p class="text-[11px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.collateral_secure.eyebrow') }}</p>
-                @if ($status === 'secured')
-                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_secured') }}</h2>
-                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_secured') }}</p>
-                @elseif ($status === 'awaiting_valuation_fee')
+                @if ($status === 'awaiting_valuation_fee')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_valuation_fee') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_valuation_fee') }}</p>
+                @elseif ($status === 'secured')
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_secured') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_secured') }}</p>
                 @elseif ($status === 'awaiting_insurance')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_insurance') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_insurance') }}</p>
@@ -34,7 +34,7 @@
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why') }}</p>
                 @endif
             </div>
-            @if ($open && $daysLeft !== null)
+            @if ($open && $daysLeft !== null && $status !== 'awaiting_valuation_fee')
                 <span @class([
                     'inline-flex text-xs font-bold rounded-full px-3 py-1.5 shadow-sm shrink-0',
                     'bg-amber-100 text-amber-900' => ! empty($secure['in_grace']),
@@ -46,13 +46,13 @@
                         {{ __('borrower.collateral_secure.days_left', ['days' => $daysLeft]) }}
                     @endif
                 </span>
-            @elseif ($status === 'secured')
-                <span class="inline-flex text-xs font-bold rounded-full px-3 py-1.5 bg-emerald-100 text-emerald-900 shrink-0">
-                    {{ __('borrower.collateral_secure.status_secured') }}
-                </span>
             @elseif ($status === 'awaiting_valuation_fee')
                 <span class="inline-flex text-xs font-bold rounded-full px-3 py-1.5 bg-amber-100 text-amber-900 shrink-0">
                     {{ __('borrower.collateral_secure.status_pay_valuation') }}
+                </span>
+            @elseif ($status === 'secured')
+                <span class="inline-flex text-xs font-bold rounded-full px-3 py-1.5 bg-emerald-100 text-emerald-900 shrink-0">
+                    {{ __('borrower.collateral_secure.status_secured') }}
                 </span>
             @endif
         </div>
@@ -249,24 +249,32 @@
                     </button>
                 </form>
             @elseif ($status === 'awaiting_valuation_fee')
-                @php $valQuote = $secure['valuation_fee_quote'] ?? null; @endphp
-                <p class="text-base font-extrabold text-gray-900">{{ __('borrower.collateral_secure.valuation_fee_title') }}</p>
-                @if ($valQuote)
-                    <p class="text-3xl font-extrabold text-brand tabular-nums">{{ format_money($valQuote['due'] ?? 0) }}</p>
-                @endif
-                <p class="text-sm font-semibold text-gray-600">{{ __('borrower.collateral_secure.valuation_fee_hint') }}</p>
-                <form method="POST" action="{{ route('site.borrower.collateral-secure.pay-valuation', $application) }}"
-                      @submit.prevent="window.confirmForm($el, {
-                          title: @js(__('borrower.collateral_secure.pay_valuation_confirm_title')),
-                          message: @js(__('borrower.collateral_secure.pay_valuation_confirm_message')),
-                          confirmLabel: @js(__('borrower.collateral_secure.pay_valuation_now')),
-                          tone: 'confirm'
-                      })">
-                    @csrf
-                    <button type="submit" class="inline-flex font-extrabold px-7 py-3.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
-                        {{ __('borrower.collateral_secure.pay_valuation_now') }}
-                    </button>
-                </form>
+                @php
+                    $valQuote = $secure['valuation_fee_quote'] ?? null;
+                    $valAmount = (int) ($valQuote['due'] ?? 0);
+                    $progress = $secure['valuation_progress'] ?? null;
+                @endphp
+                <div class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3">
+                    <p class="text-base font-extrabold text-gray-900">{{ __('borrower.collateral_secure.valuation_fee_title') }}</p>
+                    <p class="text-3xl font-extrabold text-brand tabular-nums">{{ format_money($valAmount) }}</p>
+                    <p class="text-sm font-semibold text-gray-600">{{ __('borrower.collateral_secure.valuation_fee_hint') }}</p>
+                    @include('site.borrower.loan-profile._collateral_next_steps', [
+                        'audience' => 'borrower',
+                        'progress' => $progress,
+                    ])
+                    <form method="POST" action="{{ route('site.borrower.collateral-secure.pay-valuation', $application) }}"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('borrower.collateral_secure.pay_valuation_confirm_title')),
+                              message: @js(__('borrower.collateral_secure.pay_valuation_confirm_message')),
+                              confirmLabel: @js(__('borrower.collateral_secure.pay_valuation_now')),
+                              tone: 'confirm'
+                          })">
+                        @csrf
+                        <button type="submit" class="w-full sm:w-auto inline-flex justify-center font-extrabold px-7 py-3.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                            {{ __('borrower.collateral_secure.pay_valuation_now') }}
+                        </button>
+                    </form>
+                </div>
             @elseif ($status === 'secured')
                 @include('site.borrower.loan-profile._collateral_next_steps', [
                     'audience' => 'borrower',

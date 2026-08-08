@@ -208,6 +208,24 @@ class LoanApplicationNextActionService
         }
 
         $collateralSecure = app(\App\Services\CollateralSecureService::class);
+        if ($collateralSecure->needsValuationFeePayment($application)
+            || ($collateralSecure->isOpen($application)
+                && data_get($collateralSecure->state($application), 'status') === \App\Services\CollateralSecureService::STATUS_AWAITING_VALUATION_FEE)
+        ) {
+            $quote = $collateralSecure->valuationFeeQuote($application);
+            $amount = (int) ($quote['due'] ?? 0);
+
+            return $this->action(
+                'pay_valuation_fee',
+                __('borrower.collateral_secure.valuation_fee_next_action', [
+                    'amount' => format_money($amount),
+                ]),
+                __('borrower.collateral_secure.pay_valuation_now'),
+                $profileUrl.'#collateral-secure',
+                tone: 'primary',
+            );
+        }
+
         if ($collateralSecure->isOpen($application)) {
             $statusCode = data_get($collateralSecure->state($application), 'status');
             $label = match ($statusCode) {
@@ -226,7 +244,7 @@ class LoanApplicationNextActionService
                 'collateral_secure',
                 $label,
                 $button,
-                $profileUrl,
+                $profileUrl.'#collateral-secure',
                 tone: 'primary',
             );
         }
@@ -397,20 +415,27 @@ class LoanApplicationNextActionService
             // do not surface a generic "upload documents" top CTA.
             return $this->action(
                 'under_review',
-                __('borrower.loan_profile.next_actions.under_review', [
-                    'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),
-                ]),
+                __('borrower.loan_profile.next_actions.under_review'),
                 __('borrower.applications_list.view'),
                 $profileUrl.'#requirement-'.($first['id'] ?? ''),
                 tone: 'secondary',
             );
         }
 
+        $statusCode = app(ApplicationBorrowerStatusService::class)->forApplication($application)['code'] ?? null;
+        if ($statusCode === 'documents_resubmitted') {
+            return $this->action(
+                'documents_resubmitted',
+                __('borrower.loan_profile.next_actions.documents_resubmitted'),
+                __('borrower.applications_list.view'),
+                $profileUrl,
+                tone: 'secondary',
+            );
+        }
+
         return $this->action(
             'under_review',
-            __('borrower.loan_profile.next_actions.under_review', [
-                'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),
-            ]),
+            __('borrower.loan_profile.next_actions.under_review'),
             __('borrower.applications_list.view'),
             $profileUrl,
             tone: 'secondary',

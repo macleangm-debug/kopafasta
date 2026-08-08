@@ -89,17 +89,22 @@ class ApplicationBorrowerStatusService
                     'items' => $pending->implode(', '),
                 ]);
             }
+
+            if ($this->resolveCode($application) === 'documents_resubmitted') {
+                return __('borrower.loan_profile.documents_resubmitted_detail');
+            }
         }
 
         $code = $this->resolveCode($application);
-        if (in_array($code, ['submitted', 'under_review', 'screening', 'credit_review'], true)) {
-            $application->loadMissing('customer');
+        if ($code === 'awaiting_valuation_fee') {
+            $amount = (int) quoted_valuation_fee($application->customer);
 
-            return __('borrower.loan_profile.review_sla', [
-                'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel($application->customer),
+            return __('borrower.collateral_secure.valuation_fee_next_action', [
+                'amount' => format_money($amount),
             ]);
         }
 
+        // Generic SLA copy is not shown as the status detail — next-action steps cover what to do.
         return null;
     }
 
@@ -347,6 +352,11 @@ class ApplicationBorrowerStatusService
 
         // Open underwriting requests always win over "approved" labels — borrower should
         // never see Approved while still asked for documents or other UW actions.
+        $secure = app(CollateralSecureService::class);
+        if ($secure->needsValuationFeePayment($application)) {
+            return 'awaiting_valuation_fee';
+        }
+
         if ($requests->where('status', 'uploaded')->isNotEmpty()) {
             return 'documents_resubmitted';
         }
@@ -416,6 +426,7 @@ class ApplicationBorrowerStatusService
             'screening'             => __('borrower.applications_list.statuses.under_review'),
             'documents_requested'   => __('borrower.applications_list.statuses.documents_requested'),
             'documents_resubmitted' => __('borrower.applications_list.statuses.documents_resubmitted'),
+            'awaiting_valuation_fee'=> __('borrower.applications_list.statuses.awaiting_valuation_fee'),
             'credit_review'         => __('borrower.applications_list.statuses.under_review'),
             'awaiting_offer'        => __('borrower.applications_list.statuses.awaiting_offer'),
             'offer_accepted'        => __('borrower.applications_list.statuses.offer_accepted'),
@@ -447,6 +458,7 @@ class ApplicationBorrowerStatusService
             'draft', 'submitted' => 'amber',
             'under_review', 'screening', 'credit_review' => 'sky',
             'documents_requested', 'documents_resubmitted' => 'orange',
+            'awaiting_valuation_fee' => 'amber',
             default => 'sky',
         };
     }
