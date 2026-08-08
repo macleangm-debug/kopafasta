@@ -69,7 +69,7 @@
                         <th class="px-4 py-3 text-left">{{ __('borrower.schedule_page.col_number') }}</th>
                         <th class="px-4 py-3 text-left">{{ __('borrower.schedule_page.col_due_date') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('borrower.schedule_page.col_principal') }}</th>
-                        <th class="px-4 py-3 text-right">{{ __('borrower.schedule_page.col_interest') }}</th>
+                        <th class="px-4 py-3 text-right">{{ loan_product_hides_interest($loan?->product) ? __('borrower.pricing.sharia.charge_column') : __('borrower.schedule_page.col_interest') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('borrower.schedule_page.col_total_due') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('borrower.schedule_page.col_paid') }}</th>
                         <th class="px-4 py-3 text-center">{{ __('borrower.schedule_page.col_status') }}</th>

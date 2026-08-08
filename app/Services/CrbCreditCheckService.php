@@ -160,8 +160,11 @@ class CrbCreditCheckService
         $payload = array_merge($credit, [
             'report_type'  => 'credit',
             'national_id'  => $formatted,
-            'crb_ruid'     => $identityResult->crbRuid ?? ($customer->kyc?->payload['nida_verification']['crb_ruid'] ?? null),
-            'search_score' => $identityResult->searchScore,
+            'crb_ruid'     => $identityResult->crbRuid
+                ?? ($credit['report_meta']['ruid'] ?? null)
+                ?? ($customer->kyc?->payload['nida_verification']['crb_ruid'] ?? null),
+            'search_score' => $identityResult->searchScore
+                ?? ($credit['report_meta']['search_score'] ?? null),
             'identity_raw' => $identityResult->raw,
         ]);
 
@@ -172,8 +175,8 @@ class CrbCreditCheckService
         return CreditHistory::create([
             'customer_id' => $customer->id,
             'source'      => $this->crb->usesStub() ? 'crb_stub' : 'crb',
-            'score'       => $credit['score'] ?? null,
-            'risk_grade'  => $credit['risk_grade'] ?? null,
+            'score'       => $credit['credit']['score'] ?? null,
+            'risk_grade'  => $credit['credit']['risk_grade'] ?? null,
             'payload'     => $payload,
             'checked_at'  => now(),
         ]);
@@ -367,13 +370,25 @@ class CrbCreditCheckService
         $history ??= $this->latest($customer);
 
         $payload = $history?->payload ?? [];
-        $credit = $payload['credit'] ?? $payload;
+        $credit = $payload['credit'] ?? [];
+        if ($credit === [] && isset($payload['score'])) {
+            $credit = $payload;
+        }
+        $personal = $payload['personal'] ?? [];
+        $reportMeta = $payload['report_meta'] ?? [];
         $kyc = $customer->kyc?->payload ?? [];
         $nidaVerification = $kyc['nida_verification'] ?? [];
         $freshness = $this->freshness->statusMeta($history);
 
         $score = $history?->score ?? ($credit['score'] ?? null);
-        $recommendation = $credit['recommendation'] ?? $this->recommendationFromScore($score);
+        $recommendation = $credit['recommendation'] ?? $this->recommendationFromScore(is_numeric($score) ? (int) $score : null);
+
+        $identityFromCustomer = [
+            'full_name' => $customer->full_name,
+            'national_id' => $customer->national_id,
+            'date_of_birth' => optional($customer->date_of_birth)->format('d M Y'),
+            'gender' => $customer->gender,
+        ];
 
         return [
             'status'               => $history?->source ? strtoupper(str_replace('_', ' ', (string) $history->source)) : ($this->nida->isVerified($customer) ? 'Identity verified' : 'Not checked'),
@@ -389,14 +404,21 @@ class CrbCreditCheckService
             'loan_history'         => $credit['loan_history'] ?? [],
             'recommendation'       => $recommendation,
             'checked_at'           => $history?->checked_at,
-            'crb_ruid'             => $payload['crb_ruid'] ?? $nidaVerification['crb_ruid'] ?? null,
+            'crb_ruid'             => $payload['crb_ruid'] ?? $reportMeta['ruid'] ?? $nidaVerification['crb_ruid'] ?? null,
             'report_type'          => $payload['report_type'] ?? null,
-            'identity'             => [
-                'full_name'   => $customer->full_name,
+            'search_score'         => $payload['search_score'] ?? $reportMeta['search_score'] ?? null,
+            'identity'             => array_merge($identityFromCustomer, array_filter([
+                'full_name' => $personal['full_name'] ?? null,
+                'surname' => $personal['surname'] ?? null,
+                'first_name' => $personal['first_name'] ?? null,
+                'middle_names' => $personal['middle_names'] ?? null,
+                'gender' => $personal['gender'] ?? null,
+                'date_of_birth' => $personal['date_of_birth'] ?? null,
                 'national_id' => $customer->national_id,
-                'date_of_birth' => optional($customer->date_of_birth)->format('d M Y'),
-                'gender'      => $customer->gender,
-            ],
+            ], fn ($v) => filled($v))),
+            'personal'             => $personal,
+            'credit_detail'        => $credit,
+            'report_meta'          => $reportMeta,
             'submission_meta'      => $applicationCrb ? [
                 'reused'    => (bool) ($applicationCrb['reused'] ?? false),
                 'refreshed' => (bool) ($applicationCrb['refreshed'] ?? false),
@@ -414,10 +436,13 @@ class CrbCreditCheckService
 
     private function enrichWithCreditData(Customer $customer, CreditHistory $history): CreditHistory
     {
-        $built = $this->buildCreditPayload($customer, null);
+        $xml = data_get($history->payload, 'identity_raw.response');
+        $built = $this->buildCreditPayloadFromXml(is_string($xml) ? $xml : null);
         $credit = $built['credit'];
         $payload = $history->payload ?? [];
         $payload['credit'] = $credit;
+        $payload['personal'] = $built['personal'];
+        $payload['report_meta'] = $built['report_meta'];
         $payload['report_type'] = 'credit';
 
         $history->update([
@@ -430,27 +455,36 @@ class CrbCreditCheckService
         return $history->fresh();
     }
 
-    /** @return array<string, mixed> */
+    /** @return array{credit: array<string, mixed>, personal?: array<string, mixed>, report_meta?: array<string, mixed>} */
     private function buildCreditPayload(Customer $customer, ?CrbIdentityResult $identityResult): array
     {
         if ($this->crb->usesStub()) {
             $sample = config('crb_credit_samples.default', []);
 
-            return ['credit' => $sample];
+            return [
+                'credit' => $sample['credit'] ?? $sample,
+                'personal' => $sample['personal'] ?? [],
+                'report_meta' => $sample['report_meta'] ?? [],
+            ];
         }
 
-        $raw = $identityResult?->raw ?? [];
+        $xml = $identityResult?->raw['response'] ?? null;
+
+        return $this->buildCreditPayloadFromXml(is_string($xml) ? $xml : null);
+    }
+
+    /** @return array{credit: array<string, mixed>, personal: array<string, mixed>, report_meta: array<string, mixed>} */
+    private function buildCreditPayloadFromXml(?string $xml): array
+    {
+        $parsed = app(\App\Services\Crb\CrbConsumerReportParser::class)->parse($xml);
+        $credit = $parsed['credit'];
+        $score = $credit['score'] ?? null;
+        $credit['recommendation'] = $this->recommendationFromScore(is_numeric($score) ? (int) $score : null);
 
         return [
-            'credit' => [
-                'score'               => $raw['credit_score'] ?? null,
-                'risk_grade'          => $raw['risk_grade'] ?? null,
-                'recommendation'      => $this->recommendationFromScore($raw['credit_score'] ?? null),
-                'existing_loans'      => (int) ($raw['existing_loans'] ?? 0),
-                'outstanding_balance' => (float) ($raw['outstanding_balance'] ?? 0),
-                'delinquencies'       => (int) ($raw['delinquencies'] ?? 0),
-                'loan_history'        => $raw['loan_history'] ?? [],
-            ],
+            'credit' => $credit,
+            'personal' => $parsed['personal'],
+            'report_meta' => $parsed['report_meta'],
         ];
     }
 

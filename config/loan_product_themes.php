@@ -15,6 +15,13 @@ return [
         'label_sw' => 'Mkopo wa mtu binafsi',
         'illustration' => 'individual',
     ],
+    'SL' => [
+        'icon' => '☪',
+        'theme' => 'emerald',
+        'label' => 'Sharia Loan',
+        'label_sw' => 'Mkopo wa Sharia',
+        'illustration' => 'individual',
+    ],
     'GL' => [
         'icon' => '🤝',
         'theme' => 'violet',

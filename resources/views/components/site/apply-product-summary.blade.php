@@ -21,7 +21,7 @@
         <template x-if="!isGroupProduct(current)">
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 w-full">
                 <div class="min-w-0">
-                    <span class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.apply.product_summary.interest_rate') }}</span>
+                    <span class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold" x-text="current?.rate_field_label || @js(__('borrower.apply.product_summary.interest_rate'))"></span>
                     <p class="font-bold text-gray-900" x-text="current?.rate_label || ((current?.rate ?? 0) + '% / mo')"></p>
                 </div>
                 <div class="min-w-0">

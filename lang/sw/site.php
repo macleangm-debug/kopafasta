@@ -425,6 +425,7 @@ return [
         'eligibility_heading'=> 'Ustahili',
         'limits'             => 'Vikomo vya mkopo',
         'rates'              => 'Riba na faida',
+        'rates_sharia'       => 'Ada na jumla ya kulipa',
         'fees_heading'       => 'Ada',
         'documents_heading'  => 'Nyaraka zinazohitajika',
         'faq_heading'        => 'Maswali yanayoulizwa mara kwa mara',

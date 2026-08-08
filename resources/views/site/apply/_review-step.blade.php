@@ -191,7 +191,10 @@
                                         : @js(__('borrower.apply.review_step.col_week'))"></th>
                                 <th class="px-4 py-2.5 text-left font-semibold" x-show="scheduleDatesAvailable">{{ __('borrower.apply.review_step.col_due_date') }}</th>
                                 <th class="px-4 py-2.5 text-right font-semibold">{{ __('borrower.apply.review_step.col_principal') }}</th>
-                                <th class="px-4 py-2.5 text-right font-semibold">{{ __('borrower.apply.review_step.col_interest') }}</th>
+                                <th class="px-4 py-2.5 text-right font-semibold"
+                                    x-text="current?.hides_interest
+                                        ? @js(__('borrower.pricing.sharia.charge_column'))
+                                        : @js(__('borrower.apply.review_step.col_interest'))"></th>
                                 <th class="px-4 py-2.5 text-right font-semibold">{{ __('borrower.apply.review_step.col_total') }}</th>
                                 <th class="px-4 py-2.5 text-right font-semibold">{{ __('borrower.apply.review_step.col_balance') }}</th>
                             </tr>

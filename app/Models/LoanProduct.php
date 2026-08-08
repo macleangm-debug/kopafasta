@@ -27,8 +27,14 @@ class LoanProduct extends Model
             'uses_capital_partner' => 'boolean',
             'collateral_rules' => 'array',
             'is_active' => 'boolean',
+            'hides_interest' => 'boolean',
             'status' => 'string',
         ];
+    }
+
+    public function hidesInterest(): bool
+    {
+        return (bool) ($this->hides_interest ?? false);
     }
 
     public function offerLetterTemplate(): BelongsTo

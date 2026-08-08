@@ -438,6 +438,7 @@ return [
         'eligibility_heading'=> 'Eligibility',
         'limits'             => 'Loan limits',
         'rates'              => 'Interest & profit',
+        'rates_sharia'       => 'Charges & total repayable',
         'fees_heading'       => 'Fees',
         'documents_heading'  => 'Required documents',
         'faq_heading'        => 'Frequently asked questions',

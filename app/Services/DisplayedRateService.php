@@ -177,13 +177,25 @@ class DisplayedRateService
     public function borrowerDisclosureLines(LoanProduct $product, ?float $principal = null): array
     {
         $parts = $this->breakdown($product, $principal);
+        $sharia = $product->hidesInterest();
 
         if ($parts['uses_tiers']) {
             return [
-                __('borrower.rate_disclosure.tiered_range', ['range' => $parts['tier_borrower_range']]),
-                __('borrower.rate_disclosure.tiered_at_min', [
+                __($sharia ? 'borrower.rate_disclosure.sharia_tiered_range' : 'borrower.rate_disclosure.tiered_range', [
+                    'range' => $parts['tier_borrower_range'],
+                ]),
+                __($sharia ? 'borrower.rate_disclosure.sharia_tiered_at_min' : 'borrower.rate_disclosure.tiered_at_min', [
                     'rate' => $this->formatPercent($parts['tier_borrower_rate_at_min'] ?? $parts['displayed_monthly_rate']),
                 ]),
+            ];
+        }
+
+        if ($sharia) {
+            return [
+                __('borrower.rate_disclosure.sharia_total_monthly', [
+                    'rate' => $this->formatPercent($parts['displayed_monthly_rate']),
+                ]),
+                __('borrower.rate_disclosure.sharia_footnote'),
             ];
         }
 

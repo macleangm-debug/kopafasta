@@ -868,6 +868,10 @@ class BorrowerController extends Controller
 
         abort_if($loan && $loan->customer_id !== $customer->id, 404);
 
+        if ($loan) {
+            $loan->loadMissing('product');
+        }
+
         $schedule = $loan
             ? RepaymentSchedule::where('loan_id', $loan->id)->orderBy('installment_no')->get()
             : collect();

@@ -4003,6 +4003,8 @@ return [
             'approved_amount' => 'Approved amount',
             'interest_rate' => 'Interest rate',
             'interest_rate_value' => ':rate% per month (reducing balance)',
+            'charge_rate' => 'Monthly charge',
+            'charge_rate_value' => ':rate% per month (included in total repayable)',
             'tenure' => 'Tenure',
             'tenure_months' => ':months months',
             'repayment_frequency' => 'Repayment frequency',
@@ -4373,6 +4375,18 @@ return [
         'total_monthly' => 'Monthly rate to borrower: :rate per month',
         'tiered_range' => 'Tiered monthly rate: :range per month (by approved amount)',
         'tiered_at_min' => 'At minimum amount: :rate per month',
+        'sharia_total_monthly' => 'Monthly charge included in your repayments: :rate per month',
+        'sharia_footnote' => 'You repay a fixed total for the facility — we show instalments and total repayable, not interest.',
+        'sharia_tiered_range' => 'Tiered monthly charge: :range per month (by approved amount)',
+        'sharia_tiered_at_min' => 'At minimum amount: :rate per month',
+    ],
+
+    'pricing' => [
+        'sharia' => [
+            'monthly_charge' => 'Monthly charge',
+            'charge_column' => 'Charge (TZS)',
+            'charge_est' => 'Charge (est.)',
+        ],
     ],
 
     'disbursement_details' => [

@@ -83,6 +83,42 @@ if (! function_exists('is_group_loan_product')) {
     }
 }
 
+if (! function_exists('loan_product_hides_interest')) {
+    function loan_product_hides_interest(?LoanProduct $product): bool
+    {
+        return (bool) ($product?->hidesInterest() ?? false);
+    }
+}
+
+if (! function_exists('loan_product_rate_field_label')) {
+    /** Borrower-facing label for the monthly pricing field (cards, apply summary). */
+    function loan_product_rate_field_label(?LoanProduct $product): string
+    {
+        return loan_product_hides_interest($product)
+            ? __('borrower.pricing.sharia.monthly_charge')
+            : __('borrower.apply.details.monthly_rate');
+    }
+}
+
+if (! function_exists('loan_product_interest_column_label')) {
+    /** Schedule / PDF column for the finance charge portion. */
+    function loan_product_interest_column_label(?LoanProduct $product): string
+    {
+        return loan_product_hides_interest($product)
+            ? __('borrower.pricing.sharia.charge_column')
+            : __('borrower.apply.review_step.col_interest');
+    }
+}
+
+if (! function_exists('loan_product_rates_section_title')) {
+    function loan_product_rates_section_title(?LoanProduct $product): string
+    {
+        return loan_product_hides_interest($product)
+            ? __('site.product_detail.rates_sharia')
+            : __('site.product_detail.rates');
+    }
+}
+
 if (! function_exists('loan_product_wizard_payload')) {
     /** @return array<string, mixed> */
     function loan_product_wizard_payload(LoanProduct $product, ?Customer $customer = null): array
@@ -104,7 +140,9 @@ if (! function_exists('loan_product_wizard_payload')) {
                 : null,
             'rate'              => (float) $rateService->displayedMonthlyRate($product),
             'rate_label'        => $rateService->formatBorrowerRateRange($product),
+            'rate_field_label'  => loan_product_rate_field_label($product),
             'rate_disclosure'   => $rateService->borrowerDisclosureLines($product, (float) $product->min_amount),
+            'hides_interest'    => loan_product_hides_interest($product),
             'tiers'             => app(\App\Services\LoanRateTierService::class)->tiersForProduct($product),
             'min'               => (float) $product->min_amount,
             'max'               => (float) $product->max_amount,

@@ -823,6 +823,7 @@ class LoanAgreementService
             'internal_fee_rate'    => $rateBreakdown['internal_fee_rate'],
             'displayed_monthly_rate' => $monthlyRate,
             'rate_breakdown'       => $rateBreakdown,
+            'hides_interest'       => (bool) ($a->product?->hidesInterest() ?? false),
             'tenure_months'        => $tenure,
             'repayment_cadence'    => $cadence,
             'installment_count'    => count($schedule),

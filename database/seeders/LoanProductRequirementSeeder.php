@@ -82,6 +82,9 @@ class LoanProductRequirementSeeder extends Seeder
             'IL'  => [
                 ['name' => 'Source of income proof',    'description' => 'Any document showing how you earn money.'],
             ],
+            'SL'  => [
+                ['name' => 'Source of income proof',    'description' => 'Any document showing how you earn money.'],
+            ],
             'WM'  => [
                 ['name' => 'Source of income proof',    'description' => 'Any document showing how you earn money.'],
             ],

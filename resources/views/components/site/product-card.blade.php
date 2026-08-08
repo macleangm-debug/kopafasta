@@ -29,7 +29,7 @@
 
         <div class="mt-4 space-y-2 text-xs">
             <div class="flex justify-between gap-2 py-2 border-b border-gray-100/80">
-                <span class="text-gray-500">{{ __('site.products.monthly_rate') }}</span>
+                <span class="text-gray-500">{{ loan_product_rate_field_label($product) }}</span>
                 <span class="font-semibold text-gray-900">{{ $rateLabel }} / mo</span>
             </div>
             <div class="flex justify-between gap-2 py-2">

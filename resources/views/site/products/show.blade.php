@@ -58,7 +58,7 @@
                 <div class="text-sm sm:text-lg font-bold mt-2 tabular-nums">{{ $p['limits']['tenure_min_months'] }}–{{ $p['limits']['tenure_max_months'] }} mo</div>
             </div>
             <div class="glass-card p-4 sm:p-5 text-center">
-                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.rates') }}</div>
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ loan_product_rates_section_title($product) }}</div>
                 <div class="text-sm sm:text-lg font-bold mt-2 text-brand">{{ $p['rate_label'] }} / mo</div>
             </div>
             <div class="glass-card p-4 sm:p-5 text-center col-span-2 lg:col-span-1">

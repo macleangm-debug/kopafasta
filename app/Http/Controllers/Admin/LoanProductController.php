@@ -81,6 +81,7 @@ class LoanProductController extends ResourceController
             'requires_guarantor'  => ['nullable', 'boolean'],
             'uses_capital_partner' => ['nullable', 'in:0,1'],
             'status'              => ['required', 'in:active,inactive,coming_soon'],
+            'hides_interest'      => ['nullable', 'in:0,1'],
             'requirements'        => ['nullable', 'array'],
             'requirements.*.id'   => ['nullable', 'integer'],
             'requirements.*.name' => ['nullable', 'string', 'max:150'],
@@ -115,6 +116,7 @@ class LoanProductController extends ResourceController
         }
         $data['status']              = $data['status'] ?? 'inactive';
         $data['is_active']           = $data['status'] === 'active';
+        $data['hides_interest']      = (bool) ($data['hides_interest'] ?? false);
         $data['repayment_cadence']   = $data['repayment_cadence'] ?? 'weekly';
 
         $data['min_amount'] = MoneyFormat::toNumber($data['min_amount'] ?? 0);
@@ -299,6 +301,7 @@ class LoanProductController extends ResourceController
             'tenure_min_months', 'tenure_max_months', 'repayment_cadence',
             'min_amount', 'max_amount', 'default_grace_days', 'penalty_rate_percent',
             'penalty_basis', 'requires_collateral', 'requires_guarantor', 'uses_capital_partner',
+            'hides_interest',
         ] as $key) {
             if (! array_key_exists($key, $validated) || blank($validated[$key])) {
                 $validated[$key] = $source->{$key};

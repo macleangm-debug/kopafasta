@@ -56,7 +56,7 @@
 
         <dl class="mt-4 space-y-2 text-xs">
             <div class="flex justify-between gap-2 py-2 border-b border-gray-100/80">
-                <dt class="text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt>
+                <dt class="text-gray-500">{{ loan_product_rate_field_label($product) }}</dt>
                 <dd class="font-semibold text-gray-900 tabular-nums">
                     @if ($isMarketplace)
                         @php $assetRate = rtrim(rtrim(format_number((float) config('asset_lending.default_monthly_rate', 0.12) * 100, 1), '0'), '.'); @endphp

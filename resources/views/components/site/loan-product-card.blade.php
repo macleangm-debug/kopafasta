@@ -52,7 +52,7 @@
 
         <dl class="mt-3 space-y-1.5 text-xs flex-1">
             <div class="flex justify-between gap-2 py-1.5 border-b border-gray-100/80">
-                <dt class="text-gray-500 shrink-0">{{ __('borrower.apply.details.monthly_rate') }}</dt>
+                <dt class="text-gray-500 shrink-0">{{ loan_product_rate_field_label($product) }}</dt>
                 <dd class="font-semibold text-gray-900 tabular-nums text-right">
                     @if ($isMarketplace)
                         {{ __('borrower.marketplace.from_rate', ['rate' => $assetRate]) }}
