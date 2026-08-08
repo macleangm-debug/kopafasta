@@ -80,8 +80,10 @@ class ApplicationConversionFeePaymentService
             return ['payment' => null, 'quote' => $quote];
         }
 
-        $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
+        $payIn = app(PayInService::class);
+        $payInLive = $payIn->isLiveCollectionEnabled();
         $dummyGateway = $this->usesDummyGateway();
+        $awaitsPsp = $payIn->isConfigured() || $payInLive || ! $dummyGateway;
 
         if (! $dummyGateway && ! $payInLive) {
             throw \Illuminate\Validation\ValidationException::withMessages([
@@ -89,7 +91,7 @@ class ApplicationConversionFeePaymentService
             ]);
         }
 
-        if ($dummyGateway && ! $payInLive) {
+        if (! $awaitsPsp) {
             $this->settleDiscounts($customer, $application, $quote, $useWallet);
         }
 
@@ -102,7 +104,7 @@ class ApplicationConversionFeePaymentService
             'reference'      => $paymentReference,
             'source'         => $application,
             'mobile_number'  => $customer->phone,
-            'auto_verify'    => $dummyGateway && ! $payInLive,
+            'auto_verify'    => ! $awaitsPsp,
         ]);
 
         return ['payment' => $payment, 'quote' => $quote];
@@ -126,7 +128,10 @@ class ApplicationConversionFeePaymentService
             return ['payment' => null, 'quote' => $quote];
         }
 
-        $this->settleDiscounts($customer, $application, $quote, $useWallet);
+        $autoVerify = $this->usesDummyGateway() && ! app(PayInService::class)->isConfigured();
+        if ($autoVerify) {
+            $this->settleDiscounts($customer, $application, $quote, $useWallet);
+        }
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
@@ -136,7 +141,7 @@ class ApplicationConversionFeePaymentService
             'loan_product'   => $application->alternativeProduct,
             'reference'      => $paymentReference,
             'source'         => $application,
-            'auto_verify'    => $this->usesDummyGateway(),
+            'auto_verify'    => $autoVerify,
         ]);
 
         return ['payment' => $payment, 'quote' => $quote];

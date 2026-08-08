@@ -335,6 +335,20 @@ class ApplyController extends Controller
         }
 
         try {
+            if ($selectedProduct) {
+                $syncedFee = app(ApplicationFeePaymentService::class)
+                    ->syncDraftFromVerifiedPayment($customer, $selectedProduct);
+                if ($syncedFee) {
+                    $savedDraft = $drafts->payloadForWizard($customer, $selectedProduct->id) ?? $savedDraft;
+                    if (is_array($savedDraft)) {
+                        $savedDraft['application_fee'] = $syncedFee;
+                        if (product_includes_valuation_fee($selectedProduct)) {
+                            $savedDraft['valuation_fee'] = $syncedFee;
+                        }
+                    }
+                }
+            }
+
             $feeQuote = $selectedProduct
                 ? app(ApplicationFeePaymentService::class)->quote(
                     $customer,
@@ -1014,8 +1028,8 @@ class ApplyController extends Controller
         $dummyGateway = payment_gateway_is_dummy();
         $data = $request->validate([
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
-            'channel'         => ['required', 'in:mobile_money,bank'],
-            'payment_phone'   => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'channel'         => ['nullable', 'in:mobile_money,bank'],
+            'payment_phone'   => ['nullable', 'string', 'max:20'],
             'use_wallet'      => ['nullable', 'boolean'],
             'promo_code'      => ['nullable', 'string', 'max:40'],
             'affiliate_code'  => ['nullable', 'string', 'max:40'],
@@ -1068,51 +1082,8 @@ class ApplyController extends Controller
             ?? $fees->generatePaymentReference();
         $request->session()->put('application_fee_payment_ref', $paymentReference);
 
-        if ($data['channel'] === 'mobile_money') {
-            $feeState = $fees->processMobileMoney(
-                $customer,
-                $product,
-                $paymentReference,
-                $request->boolean('use_wallet'),
-                $data['promo_code'] ?? null,
-                $groups->isGroupProduct($product) ? $memberCount : null,
-                $data['affiliate_code'] ?? $data['promo_code'] ?? null,
-                $data['payment_phone'] ?? null,
-            );
-            $drafts->saveApplicationFee($customer, $product->id, $feeState);
-            if (product_includes_valuation_fee($product)) {
-                $drafts->saveValuationFee($customer, $product->id, $feeState);
-            }
-            $request->session()->forget('application_fee_payment_ref');
-
-            $message = $dummyGateway
-                ? __('borrower.apply.application_fee.dummy_paid')
-                : (($feeState['status'] ?? '') === 'processing'
-                    ? __('borrower.payment_waiting.waiting')
-                    : __('borrower.apply.application_fee.paid'));
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'ok' => true,
-                    'fee' => $feeState,
-                    'message' => $message,
-                    'dummy' => $dummyGateway,
-                    'loyalty_redeemed' => $loyaltyRedeemed,
-                    'wait_url' => $feeState['wait_url'] ?? null,
-                    'processing' => ($feeState['status'] ?? '') === 'processing',
-                ]);
-            }
-
-            if (($feeState['status'] ?? '') === 'processing' && ! empty($feeState['payment_id'])) {
-                return redirect()
-                    ->route('site.borrower.payments.show', $feeState['payment_id'])
-                    ->with('status', $message);
-            }
-
-            return back()->with('status', $message);
-        }
-
-        $feeState = $fees->processBankPending(
+        // Always open the shared payments.show gate — method + USSD live there.
+        $feeState = $fees->openSharedGate(
             $customer,
             $product,
             $paymentReference,
@@ -1120,6 +1091,7 @@ class ApplyController extends Controller
             $data['promo_code'] ?? null,
             $groups->isGroupProduct($product) ? $memberCount : null,
             $data['affiliate_code'] ?? $data['promo_code'] ?? null,
+            $data['payment_phone'] ?? $customer->phone,
         );
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
         if (product_includes_valuation_fee($product)) {
@@ -1127,21 +1099,35 @@ class ApplyController extends Controller
         }
         $request->session()->forget('application_fee_payment_ref');
 
-        $bankMessage = ($dummyGateway && ($feeState['status'] ?? '') === 'paid')
-            ? __('borrower.apply.application_fee.dummy_paid')
-            : __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference]);
+        $message = (($feeState['status'] ?? '') === 'paid')
+            ? ($dummyGateway
+                ? __('borrower.apply.application_fee.dummy_paid')
+                : __('borrower.apply.application_fee.paid'))
+            : __('borrower.payment_waiting.ready');
 
         if ($request->expectsJson()) {
             return response()->json([
-                'ok'      => true,
-                'fee'     => $feeState,
-                'message' => $bankMessage,
-                'dummy'   => $dummyGateway,
+                'ok' => true,
+                'fee' => $feeState,
+                'message' => $message,
+                'dummy' => $dummyGateway,
                 'loyalty_redeemed' => $loyaltyRedeemed,
+                'wait_url' => $feeState['wait_url']
+                    ?? (! empty($feeState['payment_id'])
+                        ? route('site.borrower.payments.show', $feeState['payment_id'])
+                        : null),
+                'processing' => in_array($feeState['status'] ?? '', ['processing', 'pending', 'paid'], true)
+                    && ! empty($feeState['payment_id']),
             ]);
         }
 
-        return back()->with(($feeState['status'] ?? '') === 'paid' ? 'status' : 'warning', $bankMessage);
+        if (! empty($feeState['payment_id'])) {
+            return redirect()
+                ->route('site.borrower.payments.show', $feeState['payment_id'])
+                ->with('status', $message);
+        }
+
+        return back()->with('status', $message);
     }
 
     public function payValuationFee(
@@ -1236,11 +1222,11 @@ class ApplyController extends Controller
                     'message' => $message,
                     'dummy' => $dummyGateway,
                     'wait_url' => $feeState['wait_url'] ?? null,
-                    'processing' => ($feeState['status'] ?? '') === 'processing',
+                    'processing' => in_array($feeState['status'] ?? '', ['processing', 'pending'], true),
                 ]);
             }
 
-            if (($feeState['status'] ?? '') === 'processing' && ! empty($feeState['payment_id'])) {
+            if (! empty($feeState['wait_url']) && ! empty($feeState['payment_id'])) {
                 return redirect()
                     ->route('site.borrower.payments.show', $feeState['payment_id'])
                     ->with('status', $message);
@@ -1253,9 +1239,11 @@ class ApplyController extends Controller
         $drafts->saveValuationFee($customer, $product->id, $feeState);
         $request->session()->forget('valuation_fee_payment_ref');
 
-        $bankMessage = ($dummyGateway && ($feeState['status'] ?? '') === 'paid')
-            ? __('borrower.apply.valuation_fee.dummy_paid')
-            : __('borrower.apply.valuation_fee.bank_submitted', ['ref' => $paymentReference]);
+        $bankMessage = (($feeState['status'] ?? '') === 'paid')
+            ? ($dummyGateway
+                ? __('borrower.apply.valuation_fee.dummy_paid')
+                : __('borrower.apply.valuation_fee.paid'))
+            : __('borrower.apply.valuation_fee.bank_submitted', ['ref' => $feeState['reference'] ?? $paymentReference]);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -1263,7 +1251,15 @@ class ApplyController extends Controller
                 'fee'     => $feeState,
                 'message' => $bankMessage,
                 'dummy'   => $dummyGateway,
+                'wait_url' => $feeState['wait_url'] ?? null,
+                'processing' => in_array($feeState['status'] ?? '', ['processing', 'pending'], true),
             ]);
+        }
+
+        if (! empty($feeState['wait_url']) && ! empty($feeState['payment_id'])) {
+            return redirect()
+                ->route('site.borrower.payments.show', $feeState['payment_id'])
+                ->with(($feeState['status'] ?? '') === 'paid' ? 'status' : 'warning', $bankMessage);
         }
 
         return back()->with(($feeState['status'] ?? '') === 'paid' ? 'status' : 'warning', $bankMessage);

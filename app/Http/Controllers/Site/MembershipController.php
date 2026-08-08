@@ -127,6 +127,16 @@ class MembershipController extends Controller
             $paymentBreakdown = $quote;
         }
 
+        $membershipContext = [
+            'is_first_time' => $isFirstTime,
+            'base_fee' => (float) $baseFee,
+            'use_wallet' => $useWallet,
+            'promo_code' => $resolvedPromo,
+            'affiliate_code' => $resolvedAffiliate,
+            'quote' => $paymentBreakdown,
+            'settled' => false,
+        ];
+
         if ($data['channel'] === 'mobile_money') {
             $paymentPhone = PhoneNumber::fromRequest($request, 'payment_phone', $customer->country_code ?? null);
 
@@ -136,6 +146,10 @@ class MembershipController extends Controller
                 ]);
             }
 
+            $awaitsPsp = app(\App\Services\PayInService::class)->isConfigured()
+                || app(\App\Services\PayInService::class)->isLiveCollectionEnabled()
+                || ! payment_gateway_is_dummy();
+
             try {
                 $payment = app(\App\Services\CustomerPaymentService::class)->create([
                     'customer'       => $customer,
@@ -144,7 +158,8 @@ class MembershipController extends Controller
                     'amount'         => $paymentBreakdown['cash_due'] ?? $paymentBreakdown['after_discount'] ?? $baseFee,
                     'reference'      => $paymentReference,
                     'mobile_number'  => $paymentPhone,
-                    'auto_verify'    => payment_gateway_is_dummy() && ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(),
+                    'auto_verify'    => ! $awaitsPsp,
+                    'membership_context' => $membershipContext,
                 ]);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 return back()->withInput()->withErrors($e->errors())->with('feedback', [
@@ -164,49 +179,13 @@ class MembershipController extends Controller
                 ]);
             }
 
-            // Only settle wallet / commissions once payment is confirmed (dummy/instant path).
-            // Live PayIn stays in processing until webhook/poll verifies — settle then in finalize.
-            if ($isFirstTime && $payment->status !== 'processing' && is_array($paymentBreakdown)) {
-                if ($referrals->referrer($customer)) {
-                    $referrals->settleFee(
-                        $customer,
-                        (float) $baseFee,
-                        $useWallet,
-                        'registration_fee',
-                        \App\Models\MembershipHistory::class,
-                        null,
-                    );
-                } else {
-                    app(AffiliateService::class)->accrueCommission(
-                        $customer,
-                        (float) $baseFee,
-                        'registration_fee',
-                        \App\Models\MembershipHistory::class,
-                        null,
-                    );
-                    if ($useWallet && ($paymentBreakdown['wallet_applied'] ?? 0) > 0) {
-                        $referrals->debit(
-                            $customer,
-                            $paymentBreakdown['wallet_applied'],
-                            'Applied to membership fee',
-                            \App\Models\MembershipHistory::class,
-                            null,
-                        );
-                    }
-                }
-            }
-
-            if (in_array($payment->status, ['processing', 'awaiting_payment'], true)) {
+            // Shared payments.show gate — PSP confirmation (or admin bank verify) unlocks membership.
+            if (in_array($payment->status, ['processing', 'awaiting_payment', 'pending_verification'], true)) {
                 return redirect()
                     ->route('site.borrower.payments.show', $payment);
             }
 
-            // Dummy / already-verified payments activate membership in CustomerPaymentService::finalizePayment.
-            if ($isFirstTime) {
-                $message = 'Membership fee received. Your membership is now active!';
-            } else {
-                $message = 'Membership renewed successfully!';
-            }
+            // Instant dummy path already finalized membership in CustomerPaymentService::create.
 
             $this->auditBorrower($isFirstTime ? 'membership.issued' : 'membership.renewed', $customer, [
                 'channel'   => 'mobile_money',
@@ -217,7 +196,7 @@ class MembershipController extends Controller
             $redirect = redirect()->route('site.borrower.dashboard')
                 ->with('status', $isFirstTime
                     ? __('borrower.membership.activated_start_loan')
-                    : $message)
+                    : 'Membership renewed successfully!')
                 ->with(\App\Support\Celebration::SESSION_KEY, [$isFirstTime ? 'membership' : 'payment']);
 
             if ($next = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer->fresh())) {
@@ -227,13 +206,33 @@ class MembershipController extends Controller
             return $redirect;
         }
 
+        // Bank: create pending CustomerPayment + history, then open shared payment gate.
         $service->recordPendingPayment($customer, $paymentReference, 'bank', $request->user()?->id, $paymentBreakdown);
+
+        $payment = \App\Models\CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('reference', $paymentReference)
+            ->where('payment_type', 'registration_fee')
+            ->latest('id')
+            ->first();
+
+        if ($payment) {
+            $meta = $payment->provider_meta ?? [];
+            $meta['membership_context'] = $membershipContext;
+            $payment->update(['provider_meta' => $meta]);
+        }
 
         $this->auditBorrower('membership.payment_pending', $customer, [
             'channel'   => 'bank',
             'reference' => $paymentReference,
             'referral'  => $paymentBreakdown,
         ]);
+
+        if ($payment) {
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('warning', 'Bank payment submitted. We will activate your membership after verifying your transfer. Reference: '.$paymentReference);
+        }
 
         return redirect()->route('site.borrower.dashboard')
             ->with('warning', 'Bank payment submitted. We will activate your membership after verifying your transfer. Reference: '.$paymentReference);

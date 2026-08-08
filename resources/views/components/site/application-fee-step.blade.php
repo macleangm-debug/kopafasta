@@ -13,32 +13,19 @@
 @php
     $referralPoints = wallet_balance_as_points((float) ($referralWallet->balance ?? 0));
     $loyaltyPoints = (int) ($pointsBalance ?? 0);
-    $hasRewardsCta = $loyaltyPoints > 0 || $referralPoints > 0;
 @endphp
 
-{{-- Use $data.feeGateOpen so a stale JS bundle without feeGateOpen cannot ReferenceError-blank the wizard. --}}
+{{-- Fee discounts stay here; method + USSD push live on payments.show (canonical PSP gate). --}}
 <div x-show="stepKey === 'application_fee' || $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.application_fee.eyebrow')"
         :title="__('borrower.apply.application_fee.title')"
-        :subtitle="null"
+        :subtitle="__('borrower.apply.application_fee.gate_subtitle')"
     />
 
     <div x-show="feeNotice" x-cloak class="mb-6 rounded-xl px-4 py-4 text-sm"
          :class="feeNotice?.tone === 'success' ? 'bg-emerald-50 ring-1 ring-emerald-200 text-emerald-900' : 'bg-rose-50 ring-1 ring-rose-200 text-rose-900'">
         <p class="font-semibold" x-text="feeNotice?.message"></p>
-    </div>
-
-    @if ($paymentGatewayDummy)
-        <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand mb-6">
-            <p class="font-semibold">{{ __('borrower.apply.application_fee.dummy_banner_title') }}</p>
-        </div>
-    @endif
-
-    <div x-show="applicationFeeState?.status === 'pending'" x-cloak class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand mb-6">
-        <p class="font-semibold">{{ __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference ?? '—']) }}</p>
-        <p class="mt-1 text-xs font-mono" x-show="applicationFeeState?.reference" x-text="applicationFeeState.reference"></p>
-        <p class="mt-2 text-xs text-brand/70">{{ __('borrower.membership.bank_hint') }}</p>
     </div>
 
     <div x-show="applicationFeePaid" x-cloak class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/20 px-4 py-4 text-sm text-brand mb-6">
@@ -83,10 +70,6 @@
                 <p class="text-[10px] uppercase tracking-widest text-white/80">{{ __('borrower.apply.application_fee.amount_label') }}</p>
                 <p class="mt-2 text-3xl font-extrabold tabular-nums" x-show="feeQuoteData && feeQuoteData.base > 0" x-text="formatAmount(feeQuoteData?.cash_due ?? feeQuoteData?.after_discount ?? effectiveFeeAmount())"></p>
                 <p class="mt-2 text-3xl font-extrabold tabular-nums" x-show="!feeQuoteData || feeQuoteData.base <= 0"><span x-text="formatAmount(effectiveFeeAmount())"></span></p>
-                @if ($paymentReference)
-                    <p class="mt-3 text-xs text-white/90">{{ __('borrower.membership.payment_reference') }}</p>
-                    <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
-                @endif
             </div>
             <div class="px-6 py-4 bg-white border-t border-gray-100 text-sm space-y-1.5" x-show="feeQuoteData && feeQuoteData.base > 0">
                 <div class="flex justify-between gap-4 text-gray-600">
@@ -130,7 +113,6 @@
             </div>
         </div>
 
-        {{-- Only show redeem CTA when points can actually be redeemed here --}}
         <div class="mb-6 rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand"
              x-show="feeLoyaltyOption?.can_redeem" x-cloak>
             <label class="flex items-start gap-3 cursor-pointer">
@@ -175,63 +157,13 @@
             </div>
         @endif
 
-        <div class="space-y-5">
-            <div>
-                <p class="text-xs uppercase tracking-wider text-gray-500 mb-3">{{ __('borrower.membership.payment_method') }}</p>
-                <div class="grid sm:grid-cols-2 gap-3">
-                    <label class="cursor-pointer">
-                        <input type="radio" value="mobile_money" x-model="feeChannel" class="sr-only peer">
-                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-brand peer-checked:bg-brand-muted/30 p-4">
-                            <p class="font-semibold text-sm">{{ __('borrower.membership.mobile_money') }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.membership.mobile_hint') }}</p>
-                        </div>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" value="bank" x-model="feeChannel" class="sr-only peer">
-                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-brand peer-checked:bg-brand-muted/30 p-4">
-                            <p class="font-semibold text-sm">{{ __('borrower.membership.bank') }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.membership.bank_hint') }}</p>
-                        </div>
-                    </label>
-                </div>
-            </div>
+        <p class="mb-4 text-sm text-gray-600">{{ __('borrower.apply.application_fee.open_gate_hint') }}</p>
 
-            <div x-show="feeChannel === 'mobile_money'" x-transition>
-                <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.membership.mobile_money') }}</label>
-                <input type="tel" x-model="feePhone" class="w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" placeholder="+255 7XX XXX XXX">
-                <p class="mt-2 text-xs text-gray-500">
-                    @if ($paymentGatewayDummy)
-                        {{ __('borrower.apply.application_fee.dummy_mobile_hint') }}
-                    @else
-                        {{ __('borrower.apply.application_fee.mobile_hint') }}
-                    @endif
-                </p>
-            </div>
-
-            <div x-show="feeChannel === 'bank'" x-cloak class="rounded-xl bg-sky-50 border border-sky-200 p-4 text-sm">
-                @if ($paymentGatewayDummy)
-                    <p class="font-semibold text-sky-900 mb-2">{{ __('borrower.apply.application_fee.dummy_banner_title') }}</p>
-                    <p class="text-sky-800 text-xs">{{ __('borrower.apply.application_fee.dummy_bank_hint') }}</p>
-                @else
-                    <p class="font-semibold text-sky-900 mb-2">{{ __('borrower.apply.application_fee.bank_instructions') }}</p>
-                    @if ($paymentReference)
-                        <p class="text-sky-800 text-xs mb-3">{{ __('borrower.apply.application_fee.bank_reference', ['ref' => $paymentReference]) }}</p>
-                    @endif
-                    @foreach ($bankAccounts as $acct)
-                        <div class="mb-2 last:mb-0 text-xs text-sky-800">
-                            <p class="font-medium">{{ $acct['bank'] }}</p>
-                            <p>{{ $acct['account_name'] }} · {{ $acct['account_number'] }}</p>
-                        </div>
-                    @endforeach
-                @endif
-            </div>
-
-            <button type="button"
-                    @click="payApplicationFee()"
-                    :disabled="feePaying"
-                    class="w-full bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-5 py-3 rounded-xl text-sm shadow-sm">
-                <span x-text="feePaying ? @js(__('borrower.apply.application_fee.processing')) : (@js($paymentGatewayDummy) ? @js(__('borrower.apply.application_fee.dummy_pay')) : (feeChannel === 'mobile_money' ? @js(__('borrower.membership.pay_now')) : @js(__('borrower.membership.submit_bank'))))"></span>
-            </button>
-        </div>
+        <button type="button"
+                @click="payApplicationFee()"
+                :disabled="feePaying"
+                class="w-full bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-5 py-3 rounded-xl text-sm shadow-sm">
+            <span x-text="feePaying ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.application_fee.continue_to_payment'))"></span>
+        </button>
     </div>
 </div>

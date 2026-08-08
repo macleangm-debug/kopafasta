@@ -575,6 +575,12 @@ class BorrowerController extends Controller
                     ->with('status', __('borrower.offer.asset_conversion_accepted'));
             }
 
+            if (in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true)) {
+                return redirect()
+                    ->route('site.borrower.payments.show', $payment)
+                    ->with('status', __('borrower.payment_waiting.ready'));
+            }
+
             return redirect()
                 ->route('site.borrower.application', $application->id)
                 ->with('status', payment_gateway_is_dummy()

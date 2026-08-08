@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CustomerPayment;
 use App\Models\LoanProduct;
 
 class ValuationFeePaymentService
@@ -82,9 +83,11 @@ class ValuationFeePaymentService
             ];
         }
 
-        $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
+        $payIn = app(PayInService::class);
+        $payInLive = $payIn->isLiveCollectionEnabled();
         $dummyGateway = $this->usesDummyGateway();
         $phone = $mobileNumber ?: $customer->phone;
+        $awaitsPsp = $payIn->isConfigured() || $payInLive || ! $dummyGateway;
 
         if (! $dummyGateway && ! $payInLive) {
             throw \Illuminate\Validation\ValidationException::withMessages([
@@ -98,8 +101,8 @@ class ValuationFeePaymentService
             ]);
         }
 
-        // Settle discounts only in dummy instant mode — live waits for aggregator confirmation.
-        if ($dummyGateway && ! $payInLive) {
+        // Instant dummy only — live / configured PayIn settles on verify.
+        if (! $awaitsPsp) {
             $referrals = app(ReferralService::class);
             if ($referrals->referrer($customer)) {
                 $referrals->settleFee($customer, (float) $quote['base'], $useWallet, 'valuation_fee');
@@ -127,23 +130,23 @@ class ValuationFeePaymentService
             'loan_product'   => $product,
             'reference'      => $paymentReference,
             'mobile_number'  => $phone,
-            'auto_verify'    => $dummyGateway && ! $payInLive,
+            'auto_verify'    => ! $awaitsPsp,
+            'apply_context'  => [
+                'loan_product_id' => $product->id,
+                'use_wallet' => $useWallet,
+                'return_url' => route('site.borrower.apply', [
+                    'product' => $product->id,
+                    'resume' => 1,
+                    'step_key' => 'valuation_fee',
+                ]),
+                'settled' => ! $awaitsPsp,
+            ],
         ]);
 
-        $pending = in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true);
-
-        return [
-            'status'     => $pending ? 'processing' : 'paid',
-            'reference'  => $payment->reference,
-            'payment_id' => $payment->id,
-            'channel'    => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
-            'amount'     => $amount,
-            'paid_at'    => $pending ? null : now()->toIso8601String(),
-            'wait_url'   => $pending ? route('site.borrower.payments.show', $payment) : null,
-        ];
+        return $this->feeStateFromPayment($payment, $amount, 'mobile_money');
     }
 
-    /** @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null} */
+    /** @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null, payment_id?: int, wait_url?: string|null} */
     public function processBankPending(Customer $customer, LoanProduct $product, string $paymentReference): array
     {
         $quote = $this->quote($customer);
@@ -159,7 +162,7 @@ class ValuationFeePaymentService
             ];
         }
 
-        $autoVerify = $this->usesDummyGateway();
+        $autoVerify = $this->usesDummyGateway() && ! app(PayInService::class)->isConfigured();
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
@@ -169,15 +172,19 @@ class ValuationFeePaymentService
             'loan_product'   => $product,
             'reference'      => $paymentReference,
             'auto_verify'    => $autoVerify,
+            'apply_context'  => [
+                'loan_product_id' => $product->id,
+                'use_wallet' => false,
+                'return_url' => route('site.borrower.apply', [
+                    'product' => $product->id,
+                    'resume' => 1,
+                    'step_key' => 'valuation_fee',
+                ]),
+                'settled' => $autoVerify,
+            ],
         ]);
 
-        return [
-            'status'    => $autoVerify ? 'paid' : 'pending',
-            'reference' => $payment->reference,
-            'channel'   => $autoVerify ? 'dummy_bank' : 'bank',
-            'amount'    => $amount,
-            'paid_at'   => $autoVerify ? now()->toIso8601String() : null,
-        ];
+        return $this->feeStateFromPayment($payment, $amount, 'bank');
     }
 
     public function isFeeSatisfied(?array $feeState, int $requiredAmount): bool
@@ -195,14 +202,29 @@ class ValuationFeePaymentService
 
     public function isFeeRecordedForWizard(?array $feeState, int $requiredAmount): bool
     {
-        if ($requiredAmount <= 0) {
-            return true;
-        }
+        return $this->isFeeSatisfied($feeState, $requiredAmount);
+    }
 
-        if (! is_array($feeState)) {
-            return false;
-        }
+    /**
+     * @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null, payment_id?: int, wait_url?: string|null}
+     */
+    private function feeStateFromPayment(CustomerPayment $payment, int $amount, string $channel): array
+    {
+        $pending = in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true);
+        $isBank = $channel === 'bank';
 
-        return in_array($feeState['status'] ?? '', ['paid', 'waived', 'pending'], true);
+        return [
+            'status'     => $pending ? ($isBank ? 'pending' : 'processing') : 'paid',
+            'reference'  => $payment->reference,
+            'payment_id' => $payment->id,
+            'channel'    => $this->usesDummyGateway()
+                ? ($isBank ? 'dummy_bank' : 'dummy_mobile_money')
+                : ($isBank ? 'bank' : 'mobile_money'),
+            'amount'     => $amount,
+            'paid_at'    => $pending ? null : now()->toIso8601String(),
+            'wait_url'   => $pending
+                ? route('site.borrower.payments.show', $payment)
+                : null,
+        ];
     }
 }

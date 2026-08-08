@@ -454,7 +454,7 @@ export function applyWizard(config) {
 
                 feeGateSatisfied() {
                     return this.effectiveFeeAmount() <= 0
-                        || ['paid', 'waived', 'pending'].includes(this.applicationFeeState?.status || '');
+                        || ['paid', 'waived'].includes(this.applicationFeeState?.status || '');
                 },
 
                 /** Fee is a gate between setup steps and guarantor/review — not a numbered wizard step. */
@@ -625,7 +625,7 @@ export function applyWizard(config) {
                 valuationFeeGateSatisfied() {
                     if (! this.hasStep('valuation_fee')) return true;
                     return this.effectiveValuationFeeAmount() <= 0
-                        || ['paid', 'waived', 'pending'].includes(this.valuationFeeState?.status || '');
+                        || ['paid', 'waived'].includes(this.valuationFeeState?.status || '');
                 },
 
                 valuationGateRequiredForStep(targetStepKey) {
@@ -686,6 +686,10 @@ export function applyWizard(config) {
                         const data = await res.json();
                         if (! res.ok || ! data.ok) {
                             throw new Error(data.message || this.i18n.valuationFee.failed);
+                        }
+                        if (data.wait_url) {
+                            window.location.href = data.wait_url;
+                            return;
                         }
                         this.valuationFeeState = data.fee;
                         this.syncValuationFeePaidState();
@@ -855,7 +859,6 @@ export function applyWizard(config) {
                             : null;
                         const body = {
                             loan_product_id: this.form.loan_product_id,
-                            channel: this.feeChannel || 'mobile_money',
                             payment_phone: this.feePhone || '',
                             use_wallet: !!this.feeUseWallet,
                             promo_code: feeCode,
@@ -878,7 +881,8 @@ export function applyWizard(config) {
                         if (! res.ok || ! data.ok) {
                             throw new Error(data.message || this.i18n.applicationFee.failed);
                         }
-                        if (data.processing && data.wait_url) {
+                        // Shared payments.show owns method selection + USSD push.
+                        if (data.wait_url) {
                             window.location.href = data.wait_url;
                             return;
                         }
@@ -907,8 +911,9 @@ export function applyWizard(config) {
                         try {
                             await this.next();
                         } catch (advanceErr) {
-                            console.warn('post-fee advance failed', advanceErr);
+                            console.warn('advance after fee pay failed', advanceErr);
                         }
+                        return;
                     } catch (e) {
                         this.feeNotice = {
                             tone: 'error',

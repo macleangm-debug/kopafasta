@@ -165,6 +165,16 @@ class CustomerPaymentService
                 }
             }
 
+            // Fee types that unlock a next borrower step must wait for aggregator confirmation
+            // whenever PayIn is configured — same gate pattern as insurance.
+            if (in_array($type, ['application_fee', 'registration_fee', 'valuation_fee'], true)
+                && $method === 'mobile_money'
+                && $payIn->isConfigured()
+            ) {
+                $usePayIn = true;
+                $autoVerify = false;
+            }
+
             // Collateral insurance must never skip the aggregator payment gate.
             if ($type === 'insurance_premium') {
                 $autoVerify = false;
@@ -230,11 +240,22 @@ class CustomerPaymentService
                 'loan_id'                 => $loan?->id,
                 'loan_product_id'         => $product?->id,
                 'created_by'              => auth()->id(),
-                'provider_meta'           => $usePayIn ? [
-                    'awaiting_collection' => true,
-                    'description' => $data['description'] ?? null,
-                    'operator' => $data['operator'] ?? null,
-                ] : null,
+                'provider_meta'           => (function () use ($usePayIn, $data) {
+                    $context = array_filter([
+                        'apply_context' => $data['apply_context'] ?? null,
+                        'membership_context' => $data['membership_context'] ?? null,
+                    ], fn ($v) => $v !== null);
+
+                    if ($usePayIn) {
+                        return array_filter(array_merge([
+                            'awaiting_collection' => true,
+                            'description' => $data['description'] ?? null,
+                            'operator' => $data['operator'] ?? null,
+                        ], $context), fn ($v) => $v !== null);
+                    }
+
+                    return $context !== [] ? $context : null;
+                })(),
             ]);
 
             $this->attachMarkupFeeSplitMeta($payment);
@@ -508,6 +529,22 @@ class CustomerPaymentService
             if (filled($return)) {
                 return (string) $return;
             }
+        }
+
+        $applyReturn = data_get($payment->provider_meta, 'apply_context.return_url');
+        if (filled($applyReturn) && in_array($payment->payment_type, ['application_fee', 'valuation_fee'], true)) {
+            return (string) $applyReturn;
+        }
+
+        $productId = (int) data_get($payment->provider_meta, 'apply_context.loan_product_id', $payment->loan_product_id ?? 0);
+        if ($productId > 0 && in_array($payment->payment_type, ['application_fee', 'valuation_fee'], true)
+            && ! $this->resolveLoanApplicationSource($payment)
+        ) {
+            return route('site.borrower.apply', [
+                'product' => $productId,
+                'resume' => 1,
+                'step_key' => $payment->payment_type === 'valuation_fee' ? 'valuation_fee' : 'application_fee',
+            ]);
         }
 
         return match ($payment->payment_type) {
@@ -831,24 +868,32 @@ class CustomerPaymentService
             app(PostApprovalFeeService::class)->markAllPaid($application, $payment->customer);
         }
 
-        if ($payment->payment_type === 'application_fee' && $application) {
-            if (in_array($application->offer_status, ['asset_conversion_fee_due', 'pending_asset_conversion'], true)
-                && $application->alternative_loan_product_id) {
-                app(ApplicationOfferService::class)->completeAssetConversion($application);
-            }
+        if ($payment->payment_type === 'application_fee') {
+            $this->settleApplyFeeContext($payment);
 
-            $secure = app(CollateralSecureService::class);
-            $state = $secure->state($application);
-            if (($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_FEE) {
-                $secure->markFeePaid($application);
+            if ($application) {
+                if (in_array($application->offer_status, ['asset_conversion_fee_due', 'pending_asset_conversion'], true)
+                    && $application->alternative_loan_product_id) {
+                    app(ApplicationOfferService::class)->completeAssetConversion($application);
+                }
+
+                $secure = app(CollateralSecureService::class);
+                $state = $secure->state($application);
+                if (($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_FEE) {
+                    $secure->markFeePaid($application);
+                }
             }
         }
 
-        if ($payment->payment_type === 'valuation_fee' && $application) {
-            $secure = app(CollateralSecureService::class);
-            $state = $secure->state($application);
-            if (($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE) {
-                $secure->markValuationFeePaid($application);
+        if ($payment->payment_type === 'valuation_fee') {
+            $this->settleValuationFeeContext($payment);
+
+            if ($application) {
+                $secure = app(CollateralSecureService::class);
+                $state = $secure->state($application);
+                if (($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE) {
+                    $secure->markValuationFeePaid($application);
+                }
             }
         }
 
@@ -861,6 +906,8 @@ class CustomerPaymentService
         }
 
         if ($payment->payment_type === 'registration_fee' && $payment->customer) {
+            $this->settleMembershipFeeContext($payment);
+
             $alreadyApplied = \App\Models\MembershipHistory::query()
                 ->where('payment_reference', $payment->reference)
                 ->whereIn('event', ['issued', 'renewed'])
@@ -891,6 +938,159 @@ class CustomerPaymentService
         }
 
         $this->postLedger($payment);
+    }
+
+    /** Mark apply-wizard draft paid and settle promo/wallet only after PSP confirmation. */
+    private function settleApplyFeeContext(CustomerPayment $payment): void
+    {
+        $ctx = data_get($payment->provider_meta, 'apply_context');
+        if (! is_array($ctx) || ! $payment->customer) {
+            return;
+        }
+
+        $productId = (int) ($ctx['loan_product_id'] ?? $payment->loan_product_id ?? 0);
+        if ($productId <= 0) {
+            return;
+        }
+
+        $product = LoanProduct::query()->find($productId);
+        $customer = $payment->customer->fresh();
+        $drafts = app(LoanApplicationDraftService::class);
+        $fees = app(ApplicationFeePaymentService::class);
+
+        $feeState = [
+            'status'     => 'paid',
+            'reference'  => $payment->reference,
+            'payment_id' => $payment->id,
+            'channel'    => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
+            'amount'     => (int) round((float) $payment->amount),
+            'paid_at'    => ($payment->paid_at ?? now())->toIso8601String(),
+        ];
+
+        $drafts->saveApplicationFee($customer, $productId, $feeState);
+        if ($product && product_includes_valuation_fee($product)) {
+            $drafts->saveValuationFee($customer, $productId, $feeState);
+        }
+
+        if (! empty($ctx['settled'])) {
+            return;
+        }
+
+        $useWallet = (bool) ($ctx['use_wallet'] ?? false);
+        $memberCount = isset($ctx['group_member_count']) ? (int) $ctx['group_member_count'] : null;
+        $quote = $fees->quote(
+            $customer,
+            $product ?? LoanProduct::query()->findOrFail($productId),
+            $useWallet,
+            $ctx['promo_code'] ?? null,
+            $memberCount,
+            $ctx['affiliate_code'] ?? null,
+        );
+
+        if ((float) ($quote['cash_due'] ?? 0) > 0 || (float) ($quote['wallet_applied'] ?? 0) > 0 || (float) ($quote['discount'] ?? 0) > 0) {
+            app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
+        }
+
+        $meta = $payment->provider_meta ?? [];
+        $meta['apply_context'] = array_merge($ctx, ['settled' => true]);
+        $payment->update(['provider_meta' => $meta]);
+    }
+
+    private function settleValuationFeeContext(CustomerPayment $payment): void
+    {
+        $ctx = data_get($payment->provider_meta, 'apply_context');
+        if (! is_array($ctx) || ! $payment->customer) {
+            return;
+        }
+
+        $productId = (int) ($ctx['loan_product_id'] ?? $payment->loan_product_id ?? 0);
+        if ($productId <= 0) {
+            return;
+        }
+
+        $customer = $payment->customer->fresh();
+        app(LoanApplicationDraftService::class)->saveValuationFee($customer, $productId, [
+            'status'     => 'paid',
+            'reference'  => $payment->reference,
+            'payment_id' => $payment->id,
+            'channel'    => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
+            'amount'     => (int) round((float) $payment->amount),
+            'paid_at'    => ($payment->paid_at ?? now())->toIso8601String(),
+        ]);
+
+        if (! empty($ctx['settled'])) {
+            return;
+        }
+
+        $quote = app(ValuationFeePaymentService::class)->quote($customer);
+        $referrals = app(ReferralService::class);
+        $useWallet = (bool) ($ctx['use_wallet'] ?? false);
+
+        if ($referrals->referrer($customer)) {
+            $referrals->settleFee($customer, (float) ($quote['base'] ?? 0), $useWallet, 'valuation_fee');
+        } else {
+            if ($useWallet && $referrals->canUseWalletFor('valuation_fee')) {
+                $walletQuote = $referrals->quoteFee($customer, (float) ($quote['after_discount'] ?? 0), true, 'valuation_fee', applyDiscount: false);
+                if (($walletQuote['wallet_applied'] ?? 0) > 0) {
+                    $referrals->debit($customer, $walletQuote['wallet_applied'], 'Applied to valuation fee');
+                }
+            }
+            app(AffiliateService::class)->accrueCommission(
+                $customer,
+                (float) ($quote['base'] ?? 0),
+                'valuation_fee',
+            );
+        }
+
+        $meta = $payment->provider_meta ?? [];
+        $meta['apply_context'] = array_merge($ctx, ['settled' => true]);
+        $payment->update(['provider_meta' => $meta]);
+    }
+
+    private function settleMembershipFeeContext(CustomerPayment $payment): void
+    {
+        $ctx = data_get($payment->provider_meta, 'membership_context');
+        if (! is_array($ctx) || empty($ctx['is_first_time']) || ! empty($ctx['settled']) || ! $payment->customer) {
+            return;
+        }
+
+        $customer = $payment->customer->fresh();
+        $baseFee = (float) ($ctx['base_fee'] ?? $payment->amount);
+        $useWallet = (bool) ($ctx['use_wallet'] ?? false);
+        $quote = is_array($ctx['quote'] ?? null) ? $ctx['quote'] : null;
+        $referrals = app(ReferralService::class);
+
+        if ($referrals->referrer($customer)) {
+            $referrals->settleFee(
+                $customer,
+                $baseFee,
+                $useWallet,
+                'registration_fee',
+                \App\Models\MembershipHistory::class,
+                null,
+            );
+        } else {
+            app(AffiliateService::class)->accrueCommission(
+                $customer,
+                $baseFee,
+                'registration_fee',
+                \App\Models\MembershipHistory::class,
+                null,
+            );
+            if ($useWallet && is_array($quote) && ($quote['wallet_applied'] ?? 0) > 0) {
+                $referrals->debit(
+                    $customer,
+                    $quote['wallet_applied'],
+                    'Applied to membership fee',
+                    \App\Models\MembershipHistory::class,
+                    null,
+                );
+            }
+        }
+
+        $meta = $payment->provider_meta ?? [];
+        $meta['membership_context'] = array_merge($ctx, ['settled' => true]);
+        $payment->update(['provider_meta' => $meta]);
     }
 
     private function resolveLoanApplicationSource(CustomerPayment $payment): ?LoanApplication
