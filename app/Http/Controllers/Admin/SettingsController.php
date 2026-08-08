@@ -897,12 +897,18 @@ class SettingsController extends Controller
             'enable_counter_offers'                  => ['nullable', 'boolean'],
             'enable_asset_backed_alternative'        => ['nullable', 'boolean'],
             'enable_automatic_rejection'             => ['nullable', 'boolean'],
+            'enable_capacity_auto_reject'            => ['nullable', 'boolean'],
+            'capacity_auto_reject_delay_hours'       => ['required', 'integer', 'min:1', 'max:168'],
             'collateral_secure_decision_days'        => ['required', 'integer', 'min:1', 'max:30'],
             'insurance_expiry_buffer_months'         => ['required', 'integer', 'min:0', 'max:24'],
             'insurance_renewal_decision_days'        => ['required', 'integer', 'min:1', 'max:30'],
             'collateral_secure_grace_days'           => ['required', 'integer', 'min:0', 'max:14'],
             'collateral_insurance_rate_percent'      => ['required', 'numeric', 'min:0', 'max:100'],
             'collateral_insurance_markup_percent'    => ['required', 'numeric', 'min:0', 'max:100'],
+            'disbursement_sla_working_days'          => ['required', 'integer', 'min:1', 'max:10'],
+            'enable_disbursement_fast_track'         => ['nullable', 'boolean'],
+            'disbursement_fast_track_business_hours' => ['required', 'integer', 'min:1', 'max:72'],
+            'disbursement_fast_track_fee_amount'     => ['required', 'numeric', 'min:0', 'max:10000000'],
         ]);
 
         foreach ([
@@ -911,6 +917,8 @@ class SettingsController extends Controller
             'enable_counter_offers',
             'enable_asset_backed_alternative',
             'enable_automatic_rejection',
+            'enable_capacity_auto_reject',
+            'enable_disbursement_fast_track',
         ] as $key) {
             $data[$key] = (bool) ($data[$key] ?? false);
         }

@@ -51,6 +51,46 @@ class LoanAgreementController extends Controller
             ]);
     }
 
+    public function showRejectionLetter(LoanApplication $application): View
+    {
+        $customer = $this->customerOrFail($application);
+        abort_unless(in_array((string) $application->status, ['rejected'], true)
+            || (string) $application->current_stage === 'rejected', 404);
+
+        $agreement = LoanAgreement::where('loan_application_id', $application->id)
+            ->where('document_type', 'rejection_letter')
+            ->latest('id')
+            ->first();
+
+        if (! $agreement) {
+            $agreement = $this->service->generateRejectionLetter($application->loadMissing(['customer', 'product']));
+        }
+
+        return view('site.borrower.rejection-letter', compact('application', 'agreement', 'customer'));
+    }
+
+    public function downloadRejectionLetter(LoanApplication $application): BinaryFileResponse
+    {
+        $this->customerOrFail($application);
+        abort_unless(in_array((string) $application->status, ['rejected'], true)
+            || (string) $application->current_stage === 'rejected', 404);
+
+        $agreement = LoanAgreement::where('loan_application_id', $application->id)
+            ->where('document_type', 'rejection_letter')
+            ->latest('id')
+            ->firstOrFail();
+
+        abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
+
+        return response()->file(
+            Storage::disk('public')->path($agreement->file_path),
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.$agreement->reference.'.pdf"',
+            ]
+        );
+    }
+
     public function showContract(LoanApplication $application): View|RedirectResponse
     {
         $customer = $this->customerOrFail($application);

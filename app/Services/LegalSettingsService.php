@@ -100,8 +100,30 @@ class LegalSettingsService
 
     public function activeSignatory(): ?\App\Models\CompanySignatory
     {
+        $company = \App\Models\CompanySignatory::query()
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->where('signatory_type', 'company')->orWhereNull('signatory_type');
+            })
+            ->orderBy('id')
+            ->first();
+
+        if ($company) {
+            return $company;
+        }
+
         return \App\Models\CompanySignatory::query()
             ->where('is_active', true)
+            ->where('signatory_type', '!=', 'legal_advocate')
+            ->orderBy('id')
+            ->first();
+    }
+
+    public function activeLegalSignatory(): ?\App\Models\CompanySignatory
+    {
+        return \App\Models\CompanySignatory::query()
+            ->where('is_active', true)
+            ->where('signatory_type', 'legal_advocate')
             ->orderBy('id')
             ->first();
     }

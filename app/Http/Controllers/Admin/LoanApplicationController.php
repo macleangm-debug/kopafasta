@@ -267,6 +267,41 @@ class LoanApplicationController extends ResourceController
         ));
     }
 
+    public function fireCapacityAutoReject(LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless($this->canManageCapacityAutoReject(), 403);
+
+        app(\App\Services\CapacityAutoRejectService::class)->fireNow($loan_application, auth()->user());
+
+        return back()->with('status', 'Capacity rejection feedback sent to the borrower.');
+    }
+
+    public function cancelCapacityAutoReject(LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless($this->canManageCapacityAutoReject(), 403);
+
+        app(\App\Services\CapacityAutoRejectService::class)->cancel($loan_application, auth()->user(), 'Kept in screening by management');
+
+        return back()->with('status', 'Auto-reject cancelled — application stays in screening.');
+    }
+
+    private function canManageCapacityAutoReject(): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        // Screening analysts may view; only management / reject permission holders act.
+        if (in_array((string) $user->role, ['credit_analyst'], true)
+            && ! in_array((string) $user->role, ['admin', 'super_admin', 'manager'], true)) {
+            return false;
+        }
+
+        return $user->hasPermission('applications.reject')
+            || in_array((string) $user->role, ['admin', 'super_admin', 'manager'], true);
+    }
+
     public function assignAnalyst(Request $request, LoanApplication $loan_application): RedirectResponse
     {
         $data = $request->validate([

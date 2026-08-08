@@ -23,6 +23,9 @@
                 @if ($status === 'secured')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_secured') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_secured') }}</p>
+                @elseif ($status === 'awaiting_valuation_fee')
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_valuation_fee') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_valuation_fee') }}</p>
                 @elseif ($status === 'awaiting_insurance')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_insurance') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_insurance') }}</p>
@@ -47,6 +50,10 @@
                 <span class="inline-flex text-xs font-bold rounded-full px-3 py-1.5 bg-emerald-100 text-emerald-900 shrink-0">
                     {{ __('borrower.collateral_secure.status_secured') }}
                 </span>
+            @elseif ($status === 'awaiting_valuation_fee')
+                <span class="inline-flex text-xs font-bold rounded-full px-3 py-1.5 bg-amber-100 text-amber-900 shrink-0">
+                    {{ __('borrower.collateral_secure.status_pay_valuation') }}
+                </span>
             @endif
         </div>
 
@@ -54,7 +61,7 @@
             @include('site.borrower.loan-profile._collateral_asset_card', [
                 'selected' => $selected,
                 'typeIcons' => $typeIcons,
-                'showInsured' => $status === 'secured',
+                'showInsured' => (bool) data_get($secure, 'insurance.ok'),
                 'sourceLabel' => $selected
                     ? ($isGuarantorSource
                         ? __('borrower.collateral_secure.from_guarantor')
@@ -241,8 +248,30 @@
                         {{ __('borrower.collateral_secure.pay_now') }}
                     </button>
                 </form>
+            @elseif ($status === 'awaiting_valuation_fee')
+                @php $valQuote = $secure['valuation_fee_quote'] ?? null; @endphp
+                <p class="text-base font-extrabold text-gray-900">{{ __('borrower.collateral_secure.valuation_fee_title') }}</p>
+                @if ($valQuote)
+                    <p class="text-3xl font-extrabold text-brand tabular-nums">{{ format_money($valQuote['due'] ?? 0) }}</p>
+                @endif
+                <p class="text-sm font-semibold text-gray-600">{{ __('borrower.collateral_secure.valuation_fee_hint') }}</p>
+                <form method="POST" action="{{ route('site.borrower.collateral-secure.pay-valuation', $application) }}"
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js(__('borrower.collateral_secure.pay_valuation_confirm_title')),
+                          message: @js(__('borrower.collateral_secure.pay_valuation_confirm_message')),
+                          confirmLabel: @js(__('borrower.collateral_secure.pay_valuation_now')),
+                          tone: 'confirm'
+                      })">
+                    @csrf
+                    <button type="submit" class="inline-flex font-extrabold px-7 py-3.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                        {{ __('borrower.collateral_secure.pay_valuation_now') }}
+                    </button>
+                </form>
             @elseif ($status === 'secured')
-                @include('site.borrower.loan-profile._collateral_next_steps', ['audience' => 'borrower'])
+                @include('site.borrower.loan-profile._collateral_next_steps', [
+                    'audience' => 'borrower',
+                    'progress' => $secure['valuation_progress'] ?? null,
+                ])
             @elseif (in_array($status, ['rejected', 'expired'], true))
                 <p class="text-base font-bold text-red-800">{{ __('borrower.collateral_secure.rejected_body') }}</p>
             @endif

@@ -17,23 +17,32 @@ class LoanApplicationsTable extends Component
     #[Url] public string $sort = 'created_at';
     #[Url] public string $direction = 'desc';
     #[Url] public bool $mine = false;
+    #[Url] public bool $hideSystemSorted = true;
     public int $perPage = 15;
     public bool $lockStage = false;
     public ?string $pipeline = null;
 
-    public function mount(?string $stage = null, bool $lockStage = false, ?string $pipeline = null): void
+    public function mount(?string $stage = null, bool $lockStage = false, ?string $pipeline = null, ?bool $hideSystemSorted = null): void
     {
         if ($stage !== null && $stage !== '') {
             $this->stage = $stage;
         }
         $this->lockStage = $lockStage;
         $this->pipeline = $pipeline;
+        if ($hideSystemSorted !== null) {
+            $this->hideSystemSorted = $hideSystemSorted;
+        } elseif ($pipeline === 'system_sorted') {
+            $this->hideSystemSorted = false;
+        } elseif ($pipeline === 'under_review') {
+            $this->hideSystemSorted = true;
+        }
     }
 
     public function updatingSearch(): void { $this->resetPage(); }
     public function updatingStatus(): void { $this->resetPage(); }
     public function updatingStage(): void { $this->resetPage(); }
     public function updatingMine(): void { $this->resetPage(); }
+    public function updatingHideSystemSorted(): void { $this->resetPage(); }
 
     public function sortBy(string $col): void
     {
@@ -76,6 +85,17 @@ class LoanApplicationsTable extends Component
                 })->whereNotIn('status', ['approved', 'disbursed', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
                     ->whereNotIn('current_stage', ['awaiting_guarantor', 'expired']);
             })
+            ->when($this->pipeline === 'system_sorted', function ($q) {
+                $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
+                    ->whereNotIn('status', ['approved', 'disbursed', 'rejected', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
+                    ->where('screening_payload->capacity_auto_reject->status', \App\Services\CapacityAutoRejectService::STATUS_PENDING);
+            })
+            ->when($this->pipeline === 'under_review' && $this->hideSystemSorted, function ($q) {
+                $q->where(function ($q) {
+                    $q->whereNull('screening_payload->capacity_auto_reject->status')
+                        ->orWhere('screening_payload->capacity_auto_reject->status', '!=', \App\Services\CapacityAutoRejectService::STATUS_PENDING);
+                });
+            })
             ->when($this->pipeline === 'committee', function ($q) {
                 $q->where('current_stage', 'pre_approval')
                     ->whereNotIn('status', ['approved', 'disbursed', 'rejected']);
@@ -109,6 +129,9 @@ class LoanApplicationsTable extends Component
             })
             ->when($this->pipeline === 'under_review', function ($q) {
                 $q->orderByDesc('engagement_priority');
+            })
+            ->when($this->pipeline === 'system_sorted', function ($q) {
+                $q->orderBy('screening_payload->capacity_auto_reject->auto_reject_at');
             })
             ->orderBy($this->sort, $this->direction)
             ->paginate($this->perPage);

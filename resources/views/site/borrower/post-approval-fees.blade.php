@@ -27,6 +27,9 @@
                             @if ($line['rate_label'])
                                 <p class="text-xs text-gray-500">{{ __('borrower.post_approval_fees.fee_rate') }}: {{ $line['rate_label'] }}</p>
                             @endif
+                            @if (! empty($line['is_fast_track']))
+                                <p class="text-xs text-brand font-semibold mt-0.5">{{ __('borrower.post_approval_fees.fast_track_hint', ['hours' => $fastTrack['business_hours'] ?? 12]) }}</p>
+                            @endif
                         </div>
                         <div class="text-right">
                             <p class="font-semibold">{{ format_money($line['amount']) }}</p>
@@ -37,6 +40,33 @@
                     </li>
                 @endforeach
             </ul>
+
+            @if (! empty($fastTrack['enabled']) && empty($fastTrack['paid']))
+                <div class="px-5 py-4 border-t border-gray-100 bg-brand-muted/30">
+                    <p class="text-sm font-bold text-gray-900">{{ __('borrower.post_approval_fees.fast_track_title') }}</p>
+                    <p class="text-xs text-gray-600 mt-1">
+                        {{ __('borrower.post_approval_fees.fast_track_body', [
+                            'hours' => $fastTrack['business_hours'],
+                            'days' => $fastTrack['standard_working_days'],
+                            'amount' => format_money($fastTrack['fee_amount']),
+                        ]) }}
+                    </p>
+                    <form method="POST" action="{{ route('site.borrower.application.post-approval-fees.fast-track', $application) }}" class="mt-3">
+                        @csrf
+                        <input type="hidden" name="opt_in" value="{{ ! empty($fastTrack['opted_in']) ? 0 : 1 }}">
+                        <button type="submit" @class([
+                            'inline-flex font-extrabold px-5 py-2.5 rounded-xl text-sm shadow-sm',
+                            'bg-white ring-1 ring-gray-200 text-gray-900 hover:bg-gray-50' => ! empty($fastTrack['opted_in']),
+                            'bg-brand-gold hover:brightness-95 text-brand' => empty($fastTrack['opted_in']),
+                        ])>
+                            {{ ! empty($fastTrack['opted_in'])
+                                ? __('borrower.post_approval_fees.fast_track_remove')
+                                : __('borrower.post_approval_fees.fast_track_add') }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
             <div class="px-5 py-4 bg-gray-50 space-y-2">
                 <x-site.payment-gate-breakdown
                     :label="__('borrower.post_approval_fees.total_due')"

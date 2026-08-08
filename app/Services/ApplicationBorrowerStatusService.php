@@ -49,11 +49,21 @@ class ApplicationBorrowerStatusService
         }
 
         if ($this->resolveCode($application) === 'rejected') {
-            $label = $this->rejectionReasons->formatReasonsForBorrower(
+            $codes = $this->rejectionReasons->normalizeCodes(
                 $application->rejection_reason_codes,
                 $application->rejection_reason_code,
-                $application->rejection_reason,
             );
+            $custom = trim((string) ($application->rejection_reason ?? ''));
+            $isCapacity = in_array(CapacityAutoRejectService::REASON_CODE, $codes, true)
+                || data_get($application->screening_payload, 'capacity_auto_reject.status') === CapacityAutoRejectService::STATUS_FIRED;
+
+            $label = ($isCapacity && $custom !== '')
+                ? $custom
+                : $this->rejectionReasons->formatReasonsForBorrower(
+                    $application->rejection_reason_codes,
+                    $application->rejection_reason_code,
+                    $application->rejection_reason,
+                );
 
             $detail = __('borrower.loan_profile.rejection_reason', ['reason' => $label]);
             $advice = $this->rejectionReasons->resolveBorrowerAdvice(

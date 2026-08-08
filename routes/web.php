@@ -255,7 +255,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/applications/{application}/collateral-secure/ask-guarantor', [\App\Http\Controllers\Site\CollateralSecureController::class, 'borrowerAskGuarantor'])->name('borrower.collateral-secure.ask-guarantor');
             Route::post('/borrower/applications/{application}/collateral-secure/link-asset', [\App\Http\Controllers\Site\CollateralSecureController::class, 'linkAsset'])->name('borrower.collateral-secure.link');
             Route::post('/borrower/applications/{application}/collateral-secure/pay', [\App\Http\Controllers\Site\CollateralSecureController::class, 'payFee'])->name('borrower.collateral-secure.pay');
+            Route::post('/borrower/applications/{application}/collateral-secure/pay-valuation', [\App\Http\Controllers\Site\CollateralSecureController::class, 'payValuationFee'])->name('borrower.collateral-secure.pay-valuation');
             Route::post('/borrower/applications/{application}/collateral-secure/buy-insurance', [\App\Http\Controllers\Site\CollateralSecureController::class, 'buyInsurance'])->name('borrower.collateral-secure.buy-insurance');
+            Route::post('/borrower/applications/{application}/post-approval-fees/fast-track', [\App\Http\Controllers\Site\BorrowerController::class, 'toggleFastTrack'])->name('borrower.application.post-approval-fees.fast-track');
             Route::post('/borrower/guaranteed/{customerGuarantor}/collateral-secure/respond', [\App\Http\Controllers\Site\CollateralSecureController::class, 'guarantorRespond'])->name('borrower.collateral-secure.guarantor-respond');
             Route::post('/borrower/guaranteed/{customerGuarantor}/collateral-secure/link-asset', [\App\Http\Controllers\Site\CollateralSecureController::class, 'guarantorLinkAsset'])->name('borrower.collateral-secure.guarantor-link');
             Route::post('/borrower/guaranteed/{customerGuarantor}/collateral-secure/buy-insurance', [\App\Http\Controllers\Site\CollateralSecureController::class, 'guarantorBuyInsurance'])->name('borrower.collateral-secure.guarantor-buy-insurance');
@@ -264,6 +266,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/applications/{application}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadApplicationDocument'])->name('borrower.application.documents.store');
             Route::post('/borrower/applications/{application}/document-requests/{documentRequest}', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocumentRequest'])->name('borrower.application.document-requests.store');
             Route::get('/borrower/applications/{application}/agreement',                [\App\Http\Controllers\Site\LoanAgreementController::class, 'show'])      ->name('borrower.application.agreement');
+            Route::get('/borrower/applications/{application}/rejection-letter',         [\App\Http\Controllers\Site\LoanAgreementController::class, 'showRejectionLetter'])->name('borrower.application.rejection-letter');
+            Route::get('/borrower/applications/{application}/rejection-letter/download',[\App\Http\Controllers\Site\LoanAgreementController::class, 'downloadRejectionLetter'])->name('borrower.application.rejection-letter.download');
             Route::post('/borrower/applications/{application}/agreement/otp',           [\App\Http\Controllers\Site\LoanAgreementController::class, 'requestOtp'])->name('borrower.application.agreement.otp');
             Route::post('/borrower/applications/{application}/agreement/sign',          [\App\Http\Controllers\Site\LoanAgreementController::class, 'sign'])      ->name('borrower.application.agreement.sign');
             Route::post('/borrower/applications/{application}/agreement/accept',        [\App\Http\Controllers\Site\LoanAgreementController::class, 'acceptOffer'])->name('borrower.application.agreement.accept');
@@ -540,6 +544,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         // Applications
         Route::view('loan-applications/pipeline/under-review',  'admin.loan-applications.pipeline-under-review') ->name('loan-applications.pipeline.under-review');
+        Route::view('loan-applications/pipeline/system-sorted', 'admin.loan-applications.pipeline-system-sorted')->name('loan-applications.pipeline.system-sorted');
         Route::view('loan-applications/pipeline/approved',      'admin.loan-applications.pipeline-approved')     ->name('loan-applications.pipeline.approved');
         Route::view('loan-applications/pipeline/disbursement',  'admin.loan-applications.pipeline-disbursement') ->name('loan-applications.pipeline.disbursement');
         Route::view('loan-applications/new',              'admin.loan-applications.new')              ->name('loan-applications.new');
@@ -591,6 +596,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.guarantor-change');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])
             ->name('loan-applications.workflow');
+        Route::post('loan-applications/{loan_application}/capacity-auto-reject/fire', [LoanApplicationController::class, 'fireCapacityAutoReject'])
+            ->name('loan-applications.capacity-auto-reject.fire');
+        Route::post('loan-applications/{loan_application}/capacity-auto-reject/cancel', [LoanApplicationController::class, 'cancelCapacityAutoReject'])
+            ->name('loan-applications.capacity-auto-reject.cancel');
         Route::post('loan-applications/{loan_application}/assign-analyst', [LoanApplicationController::class, 'assignAnalyst'])
             ->name('loan-applications.assign-analyst');
         Route::post('loan-applications/{loan_application}/documents/{document}/verify', [LoanApplicationController::class, 'verifyDocument'])

@@ -188,11 +188,7 @@ class LoanApplicationProfileService
                 'tone'    => $borrowerStatus['tone'],
                 'detail'  => $this->statusDetail($application),
                 'rejection_reasons' => $borrowerStatus['code'] === 'rejected'
-                    ? app(\App\Services\LoanRejectionReasonService::class)->labelsForCodes(
-                        $application->rejection_reason_codes,
-                        null,
-                        $application->rejection_reason_code,
-                    )
+                    ? $this->rejectionReasonLabelsForBorrower($application)
                     : [],
                 'rejection_advice' => $borrowerStatus['code'] === 'rejected'
                     ? app(\App\Services\LoanRejectionReasonService::class)->resolveBorrowerAdvice(
@@ -769,5 +765,34 @@ class LoanApplicationProfileService
             ->whereIn('id', $ids->all())
             ->latest('id')
             ->get();
+    }
+
+    /** @return list<string> */
+    private function rejectionReasonLabelsForBorrower(LoanApplication $application): array
+    {
+        $custom = trim((string) ($application->rejection_reason ?? ''));
+        $codes = app(LoanRejectionReasonService::class)->normalizeCodes(
+            $application->rejection_reason_codes,
+            $application->rejection_reason_code,
+        );
+
+        $isCapacity = in_array(CapacityAutoRejectService::REASON_CODE, $codes, true)
+            || data_get($application->screening_payload, 'capacity_auto_reject.status') === CapacityAutoRejectService::STATUS_FIRED;
+
+        if ($isCapacity && $custom !== '') {
+            return [$custom];
+        }
+
+        $labels = app(LoanRejectionReasonService::class)->labelsForCodes(
+            $application->rejection_reason_codes,
+            null,
+            $application->rejection_reason_code,
+        );
+
+        if ($labels === [] && $custom !== '') {
+            return [$custom];
+        }
+
+        return $labels;
     }
 }

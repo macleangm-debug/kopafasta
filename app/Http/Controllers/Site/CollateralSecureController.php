@@ -73,6 +73,11 @@ class CollateralSecureController extends Controller
                 'message' => __('borrower.collateral_secure.linked_fee_body'),
                 'tone' => 'success',
             ],
+            \App\Services\CollateralSecureService::STATUS_AWAITING_VALUATION_FEE => [
+                'title' => __('borrower.collateral_secure.linked_valuation_title'),
+                'message' => __('borrower.collateral_secure.linked_valuation_body'),
+                'tone' => 'success',
+            ],
             \App\Services\CollateralSecureService::STATUS_AWAITING_INSURANCE => [
                 'title' => __('borrower.collateral_secure.linked_insurance_title'),
                 'message' => __('borrower.collateral_secure.linked_insurance_body', [
@@ -140,6 +145,11 @@ class CollateralSecureController extends Controller
 
         $state = $service->state($application->fresh());
         $flash = match ($state['status'] ?? '') {
+            CollateralSecureService::STATUS_AWAITING_VALUATION_FEE => [
+                'title' => __('borrower.collateral_secure.linked_valuation_title'),
+                'message' => __('borrower.collateral_secure.linked_valuation_body'),
+                'tone' => 'success',
+            ],
             CollateralSecureService::STATUS_AWAITING_INSURANCE => [
                 'title' => __('borrower.collateral_secure.linked_insurance_title'),
                 'message' => __('borrower.collateral_secure.linked_insurance_body', [
@@ -164,6 +174,54 @@ class CollateralSecureController extends Controller
                 'confirm' => __('borrower.feedback.ok'),
             ]))
             : $redirect;
+    }
+
+    public function payValuationFee(Request $request, LoanApplication $application, CollateralSecureService $service): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless((int) $application->customer_id === (int) $customer->id, 403);
+
+        $state = $service->state($application);
+        abort_unless(($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, 422);
+
+        $due = (int) quoted_valuation_fee($customer);
+        $ab = $service->assetBackedFeeProduct();
+        abort_unless($ab, 422);
+
+        if ($due > 0) {
+            $phone = $customer->phone;
+            abort_unless(filled($phone) || ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(), 422);
+
+            $payment = app(CustomerPaymentService::class)->create([
+                'customer'       => $customer,
+                'payment_type'   => 'valuation_fee',
+                'payment_method' => 'mobile_money',
+                'amount'         => $due,
+                'loan_product'   => $ab,
+                'reference'      => 'VAL-CS-'.strtoupper(uniqid()),
+                'source'         => $application,
+                'mobile_number'  => $phone,
+                'auto_verify'    => ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(),
+            ]);
+
+            if (in_array($payment->status, ['processing', 'awaiting_payment'], true)) {
+                return redirect()
+                    ->route('site.borrower.payments.show', $payment);
+            }
+        }
+
+        if (! app(\App\Services\PayInService::class)->isLiveCollectionEnabled() || $due <= 0) {
+            $service->markValuationFeePaid($application->fresh());
+        }
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('collateral_secure_flash', [
+                'title' => __('borrower.collateral_secure.linked_secured_title'),
+                'message' => __('borrower.collateral_secure.linked_secured_body'),
+                'confirm' => __('borrower.feedback.ok'),
+                'tone' => 'success',
+            ]);
     }
 
     public function buyInsurance(Request $request, LoanApplication $application, CollateralSecureService $service): RedirectResponse

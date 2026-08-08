@@ -208,7 +208,19 @@
                     {{ $rejectionAdvice }}
                 </p>
             @endif
-            @if (! empty($next['url']))
+            @php
+                $rejectionLetter = \App\Models\LoanAgreement::query()
+                    ->where('loan_application_id', $application->id ?? 0)
+                    ->where('document_type', 'rejection_letter')
+                    ->latest('id')
+                    ->first();
+            @endphp
+            @if ($rejectionLetter && ! empty($application))
+                <a href="{{ route('site.borrower.application.rejection-letter', $application) }}"
+                   class="inline-flex items-center justify-center font-semibold px-5 py-2.5 rounded-full text-sm mt-4 bg-brand-gold hover:brightness-95 text-brand">
+                    {{ __('borrower.rejection_letter.preview') }}
+                </a>
+            @elseif (! empty($next['url']))
                 <a href="{{ $next['url'] }}"
                    class="inline-flex items-center justify-center font-semibold px-5 py-2.5 rounded-full text-sm mt-4 bg-white ring-1 ring-red-200 hover:bg-red-50 text-red-800">
                     {{ $next['button_label'] ?? __('borrower.loan_profile.actions.view_reason') }}

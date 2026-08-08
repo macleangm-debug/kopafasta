@@ -80,6 +80,56 @@
         </div>
     </div>
 
+    @php
+        $capacityAutoReject = app(\App\Services\CapacityAutoRejectService::class);
+        $capacityPending = $capacityAutoReject->isPending($record);
+        $capacityHours = $capacityPending ? $capacityAutoReject->hoursRemaining($record) : null;
+        $capacityState = $capacityPending ? ($capacityAutoReject->state($record) ?? []) : [];
+    @endphp
+    @if ($capacityPending)
+        <div class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="min-w-0">
+                <p class="text-xs uppercase tracking-widest text-amber-800 font-bold">System sorted</p>
+                <p class="text-sm font-semibold text-amber-950 mt-1">
+                    @if ($capacityHours === 0)
+                        {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin_due') }}
+                    @else
+                        {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin', ['hours' => $capacityHours ?? '—']) }}
+                    @endif
+                </p>
+                <p class="text-xs text-amber-900/80 mt-1">
+                    Ask {{ format_money((float) ($capacityState['requested_amount'] ?? $record->requested_amount ?? 0)) }}
+                    · installment {{ format_money((float) ($capacityState['proposed_installment'] ?? 0)) }}
+                    · capacity {{ format_money((float) ($capacityState['available_capacity'] ?? 0)) }}
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
+                @php
+                    $canManageCapacity = auth()->user()
+                        && ! in_array((string) auth()->user()->role, ['credit_analyst'], true)
+                        && (auth()->user()->hasPermission('applications.reject')
+                            || in_array((string) auth()->user()->role, ['admin', 'super_admin', 'manager'], true));
+                @endphp
+                @if ($canManageCapacity)
+                    <form method="POST" action="{{ route('admin.loan-applications.capacity-auto-reject.fire', $record) }}">
+                        @csrf
+                        <button type="submit" class="inline-flex text-xs font-bold px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700">
+                            Send rejection now
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.loan-applications.capacity-auto-reject.cancel', $record) }}">
+                        @csrf
+                        <button type="submit" class="inline-flex text-xs font-bold px-3 py-2 rounded-lg bg-white ring-1 ring-amber-300 text-amber-950 hover:bg-amber-100">
+                            Keep in screening
+                        </button>
+                    </form>
+                @else
+                    <p class="text-xs font-semibold text-amber-900/80 self-center">View only — management confirms Send now / Keep in screening.</p>
+                @endif
+            </div>
+        </div>
+    @endif
+
     @if ($isCreditWorkspace)
         @include('admin.loan-applications.review._credit_workspace')
     @elseif ($isOpsStage)

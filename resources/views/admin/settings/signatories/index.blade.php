@@ -1,9 +1,14 @@
-<x-admin.layout title="Signatories" heading="Company signatories" subheading="Authorised signatories for contracts and offer letters">
+<x-admin.layout title="Signatories" heading="Company signatories" subheading="Authorised signatories for contracts, offer letters, and decision letters">
     @include('admin.settings._tabs', ['active' => 'signatories'])
 
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
     @endif
+
+    <div class="mb-4 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-sm text-gray-800">
+        Signatures live on each signatory record. The <strong>company stamp</strong> for offer and decision letters is uploaded under
+        <a href="{{ route('admin.settings.legal') }}" class="font-semibold text-brand hover:underline">Legal settings → Company stamp</a>.
+    </div>
 
     <div class="mb-4 flex justify-end">
         <a href="{{ route('admin.settings.signatories.create') }}"

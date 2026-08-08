@@ -116,7 +116,7 @@ class GroupScoringService
         return $latest?->score !== null ? (float) $latest->score : null;
     }
 
-    private function resolveMonthlyIncome(Customer $customer): float
+    public function resolveMonthlyIncome(Customer $customer): float
     {
         $income = (float) ($customer->monthly_income ?? 0);
         if ($income > 0) {

@@ -194,7 +194,7 @@ class CollateralSecureFeatureTest extends TestCase
         ]);
     }
 
-    public function test_fee_gate_runs_before_insurance_on_vehicle(): void
+    public function test_fee_gate_runs_before_valuation_on_vehicle(): void
     {
         $admin = $this->staff();
         [$app, $borrower] = $this->applicationWithGuarantor($admin);
@@ -216,7 +216,10 @@ class CollateralSecureFeatureTest extends TestCase
         $this->assertSame(CollateralSecureService::STATUS_AWAITING_FEE, $state['status']);
 
         $afterFee = $service->markFeePaid($app->fresh());
-        $this->assertSame(CollateralSecureService::STATUS_AWAITING_INSURANCE, $afterFee['status']);
+        $this->assertContains($afterFee['status'], [
+            CollateralSecureService::STATUS_AWAITING_VALUATION_FEE,
+            CollateralSecureService::STATUS_SECURED,
+        ]);
     }
 
     public function test_expire_waits_for_grace_days_after_due(): void
@@ -264,10 +267,11 @@ class CollateralSecureFeatureTest extends TestCase
         $service->linkAsset($app->fresh(), $borrower, $asset);
         $service->markFeePaid($app->fresh());
 
-        $this->assertSame(
-            CollateralSecureService::STATUS_AWAITING_INSURANCE,
-            data_get($app->fresh()->screening_payload, 'collateral_secure.status')
-        );
+        // Legacy in-flight status: insurance was pre-valuation; keep UI/pay path working.
+        $payload = $app->fresh()->screening_payload;
+        $payload['collateral_secure']['status'] = CollateralSecureService::STATUS_AWAITING_INSURANCE;
+        $payload['collateral_secure']['customer_asset_id'] = $asset->id;
+        $app->update(['screening_payload' => $payload]);
 
         $payIn = \Mockery::mock(\App\Services\PayInService::class)->makePartial();
         $payIn->shouldReceive('isConfigured')->andReturn(true);
@@ -347,6 +351,11 @@ class CollateralSecureFeatureTest extends TestCase
         $service->linkAsset($app->fresh(), $borrower, $asset);
         $service->markFeePaid($app->fresh());
 
+        $payload = $app->fresh()->screening_payload;
+        $payload['collateral_secure']['status'] = CollateralSecureService::STATUS_AWAITING_INSURANCE;
+        $payload['collateral_secure']['customer_asset_id'] = $asset->id;
+        $app->update(['screening_payload' => $payload]);
+
         $payment = \App\Models\CustomerPayment::create([
             'reference' => 'INS-RESUME-1',
             'customer_id' => $borrower->id,
@@ -411,6 +420,11 @@ class CollateralSecureFeatureTest extends TestCase
         $service->borrowerHasCollateral($app->fresh(), $borrower, true);
         $service->linkAsset($app->fresh(), $borrower, $asset);
         $service->markFeePaid($app->fresh());
+
+        $payload = $app->fresh()->screening_payload;
+        $payload['collateral_secure']['status'] = CollateralSecureService::STATUS_AWAITING_INSURANCE;
+        $payload['collateral_secure']['customer_asset_id'] = $asset->id;
+        $app->update(['screening_payload' => $payload]);
 
         $payIn = \Mockery::mock(\App\Services\PayInService::class)->makePartial();
         $payIn->shouldReceive('isConfigured')->andReturn(true);

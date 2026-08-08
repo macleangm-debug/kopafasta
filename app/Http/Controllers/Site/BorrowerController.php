@@ -2844,13 +2844,17 @@ class BorrowerController extends Controller
         $loanAmount = app(\App\Services\ApplicationOfferService::class)->effectiveAmount($application);
         $feeLines = $application->postApprovalFees->map(fn ($fee) => [
             'name'       => $fee->name,
+            'code'       => $fee->code,
             'fee_type'   => $fee->fee_type,
             'rate_label' => $fee->fee_type === 'percent'
                 ? rtrim(rtrim(format_number($fee->configured_amount, 2), '0'), '.').'%'
                 : null,
             'amount'     => (float) $fee->calculated_amount,
             'paid'       => $fee->isPaid(),
+            'is_fast_track' => strtoupper((string) $fee->code) === \App\Services\DisbursementSlaService::FEE_CODE,
         ])->values()->all();
+
+        $fastTrack = app(\App\Services\DisbursementSlaService::class)->viewModel($application);
 
         return view('site.borrower.post-approval-fees', compact(
             'customer',
@@ -2865,7 +2869,29 @@ class BorrowerController extends Controller
             'channelOptions',
             'loanAmount',
             'feeLines',
+            'fastTrack',
         ));
+    }
+
+    public function toggleFastTrack(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        $data = $request->validate([
+            'opt_in' => ['required', 'boolean'],
+        ]);
+
+        $sla = app(\App\Services\DisbursementSlaService::class);
+        abort_unless($sla->enabled(), 422);
+
+        $sla->setOptIn($application->fresh(), (bool) $data['opt_in']);
+
+        return redirect()
+            ->route('site.borrower.application.post-approval-fees', $application)
+            ->with('status', $data['opt_in']
+                ? __('borrower.post_approval_fees.fast_track_added')
+                : __('borrower.post_approval_fees.fast_track_removed'));
     }
 
     public function payPostApprovalFees(Request $request, LoanApplication $application, PostApprovalFeeService $fees): RedirectResponse

@@ -87,6 +87,18 @@
                            class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Enable automatic rejection guidance when affordability fails</span>
                 </label>
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                    <input type="hidden" name="enable_capacity_auto_reject" value="0">
+                    <input type="checkbox" name="enable_capacity_auto_reject" value="1"
+                           @checked(! isset($values['enable_capacity_auto_reject']) || ! empty($values['enable_capacity_auto_reject']))
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                    <span class="text-gray-800">Auto-park &amp; reject when repayment capacity fails (screening does not work these)</span>
+                </label>
+                <x-admin.input name="capacity_auto_reject_delay_hours" label="Capacity auto-reject delay (hours)" type="number"
+                               :value="$values['capacity_auto_reject_delay_hours'] ?? 12" required />
+                <p class="text-xs text-gray-500 md:col-span-2 -mt-2">
+                    After submit, capacity-fail applications are marked “system sorted” on the screening list. Feedback (with ask amount, installment, and capacity numbers) is sent to the borrower when this delay elapses. Default 12 hours.
+                </p>
             </div>
         </div>
 
@@ -113,6 +125,33 @@
                 Premium = insured value × rate, then optional markup.
                 Primary place to manage insurance / GPS / valuer defaults (with Add partner links) is
                 <a href="{{ route('admin.settings.recovery') }}" class="font-semibold text-brand underline">Recovery policy → Service partner default rates</a>.
+            </p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-1">Disbursement SLA</h3>
+            <p class="text-xs text-gray-500 mb-4">
+                Clock starts when the borrower accepts the loan contract. Credit management owns the release queue.
+                Valuation-first collateral flow: pay valuation → valuation → offer; insurance / GPS / ownership transfer are post-acceptance.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <x-admin.input name="disbursement_sla_working_days" label="Standard disbursement SLA (working days)" type="number"
+                               :value="$values['disbursement_sla_working_days'] ?? 2" required />
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
+                    <input type="hidden" name="enable_disbursement_fast_track" value="0">
+                    <input type="checkbox" name="enable_disbursement_fast_track" value="1"
+                           @checked(! empty($values['enable_disbursement_fast_track']))
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                    <span class="text-gray-800">Offer paid fast-track disbursement on post-approval fees (after offer acceptance)</span>
+                </label>
+                <x-admin.input name="disbursement_fast_track_business_hours" label="Fast-track window (business hours)" type="number"
+                               :value="$values['disbursement_fast_track_business_hours'] ?? 12" required />
+                <x-admin.input name="disbursement_fast_track_fee_amount" label="Fast-track fee amount (TZS)" type="number" step="1"
+                               :value="$values['disbursement_fast_track_fee_amount'] ?? 25000" required />
+            </div>
+            <p class="text-xs text-gray-500 mt-3">
+                When fast-track is off, borrowers only see the standard SLA. When on, an optional fee appears on
+                <strong>Post-approval fees</strong> after they accept the offer letter. Leave off until you are ready to sell rush disbursement.
             </p>
         </div>
 

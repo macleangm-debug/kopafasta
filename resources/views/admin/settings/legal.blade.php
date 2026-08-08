@@ -9,7 +9,7 @@
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Authorised signatory</h3>
-            <p class="text-xs text-gray-500 mb-4">Appears on offer letters and loan contracts as the company representative.</p>
+            <p class="text-xs text-gray-500 mb-4">Appears on offer letters, decision (rejection) letters, and loan contracts as the company representative. Prefer managing multiple people under <a href="{{ route('admin.settings.signatories.index') }}" class="text-brand hover:underline">Signatories</a>.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="signatory_name" label="Signatory name" :value="$values['signatory_name'] ?? ''" placeholder="John Doe" />
                 <x-admin.input name="signatory_title" label="Position / title" :value="$values['signatory_title'] ?? ''" placeholder="Chief Executive Officer" />
@@ -27,7 +27,7 @@
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Company stamp</h3>
-            <p class="text-xs text-gray-500 mb-4">Upload or replace your official company stamp (transparent PNG recommended).</p>
+            <p class="text-xs text-gray-500 mb-4">Official Kopafasta stamp used on offer letters, decision (rejection) letters, and contracts. Transparent PNG recommended.</p>
             <div>
                 @if (! empty($values['stamp_path']))
                     <img src="{{ asset('storage/'.$values['stamp_path']) }}" alt="Company stamp" class="h-24 mb-3 object-contain">

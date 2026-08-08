@@ -1289,6 +1289,8 @@ class GuarantorInvitationService
             'guarantor_deadline_at' => null,
         ]);
 
+        app(CapacityAutoRejectService::class)->evaluateAndPark($application->fresh(['customer', 'product']));
+
         return true;
     }
 

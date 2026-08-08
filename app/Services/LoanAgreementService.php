@@ -79,6 +79,99 @@ class LoanAgreementService
     }
 
     /**
+     * Formal rejection letter PDF (offer-letter style with company signatory + stamp).
+     */
+    public function generateRejectionLetter(LoanApplication $application, bool $regenerate = false): LoanAgreement
+    {
+        $existing = LoanAgreement::where('loan_application_id', $application->id)
+            ->where('document_type', 'rejection_letter')
+            ->first();
+
+        if ($existing && ! $regenerate) {
+            return $existing;
+        }
+
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
+
+        $snapshot = $this->snapshotFromApplication($application);
+        $locale = $this->borrowerContractLocale($application);
+
+        $codes = app(LoanRejectionReasonService::class)->normalizeCodes(
+            $application->rejection_reason_codes,
+            $application->rejection_reason_code,
+        );
+        $isCapacity = in_array(CapacityAutoRejectService::REASON_CODE, $codes, true)
+            || data_get($application->screening_payload, 'capacity_auto_reject.status') === CapacityAutoRejectService::STATUS_FIRED;
+
+        $reason = ($isCapacity && filled($application->rejection_reason))
+            ? (string) $application->rejection_reason
+            : app(LoanRejectionReasonService::class)->formatReasonsForBorrower(
+                $application->rejection_reason_codes,
+                $application->rejection_reason_code,
+                $application->rejection_reason,
+                $locale,
+            );
+
+        $advice = app(LoanRejectionReasonService::class)->resolveBorrowerAdvice(
+            $application->rejection_advice_code,
+            $application->rejection_advice,
+            $locale,
+        );
+
+        $snapshot['rejection_reason'] = $reason;
+        $snapshot['rejection_advice'] = $advice;
+        $snapshot['rejection_codes'] = $codes;
+        $snapshot['requested_amount'] = (float) ($application->requested_amount ?? 0);
+        $snapshot['rejected_at'] = now()->toDateString();
+        $snapshot['letter_kind'] = 'decision';
+        $snapshot['show_legal_stamp'] = false; // offer/decision: company stamp only
+
+        $capacity = data_get($application->screening_payload, 'capacity_auto_reject');
+        if (is_array($capacity)) {
+            $snapshot['capacity_auto_reject'] = [
+                'is_group' => (bool) ($capacity['is_group'] ?? false),
+                'proposed_installment' => (float) ($capacity['proposed_installment'] ?? 0),
+                'available_capacity' => (float) ($capacity['available_capacity'] ?? 0),
+                'requested_amount' => (float) ($capacity['requested_amount'] ?? $application->requested_amount ?? 0),
+                'failed_members' => $capacity['failed_members'] ?? [],
+                'group_members' => $capacity['group_members'] ?? [],
+                'repayment_ratio_pct' => (float) ($capacity['repayment_ratio_pct'] ?? 33.33),
+            ];
+            $snapshot['failed_members'] = $capacity['failed_members'] ?? [];
+            $snapshot['is_group_rejection'] = (bool) ($capacity['is_group'] ?? false);
+        }
+
+        $agreement = $existing ?: new LoanAgreement([
+            'loan_application_id' => $application->id,
+            'customer_id'         => $application->customer_id,
+            'document_type'       => 'rejection_letter',
+            'reference'           => 'RJ-'.strtoupper(Str::random(8)),
+        ]);
+
+        $agreement->fill([
+            'snapshot'             => $snapshot,
+            'status'               => 'sent',
+            'sent_at'              => now(),
+            'generated_by_user_id' => Auth::id(),
+        ]);
+
+        $viewData = [
+            'application' => $application,
+            'snapshot'    => $snapshot,
+            'agreement'   => $agreement,
+        ];
+
+        $pdf = $this->renderAgreementPdf(null, 'pdf.rejection-letter', $viewData);
+
+        $path = "agreements/{$agreement->reference}.pdf";
+        Storage::disk('public')->put($path, $pdf->output());
+        $agreement->file_path = $path;
+        $agreement->save();
+
+        return $agreement;
+    }
+
+    /**
      * Generate a loan contract PDF after offer acceptance.
      */
     public function generateLoanContract(LoanApplication $application, bool $regenerate = false): LoanAgreement
@@ -506,6 +599,10 @@ class LoanAgreementService
             'acceptance_signature_data' => $acceptanceSignature,
             'otp_code'                  => null,
         ]);
+
+        if ($agreement->document_type === 'loan_contract' && $application) {
+            app(DisbursementSlaService::class)->startClockOnContractSigned($application->fresh());
+        }
     }
 
     /**
@@ -828,22 +925,30 @@ class LoanAgreementService
     private function companySignatorySnapshot(LegalSettingsService $legal): array
     {
         $signatory = $legal->activeSignatory();
+        $legalSignatory = $legal->activeLegalSignatory();
 
-        if ($signatory) {
-            return [
+        $company = $signatory
+            ? [
                 'company_signatory_name'  => $signatory->name,
                 'company_signatory_title' => $signatory->position,
                 'company_signature_path'  => $signatory->signatureFilesystemPath(),
                 'company_stamp_path'      => $legal->stampFilesystemPath(),
+            ]
+            : [
+                'company_signatory_name'  => $legal->signatoryName() ?: brand('legal_name'),
+                'company_signatory_title' => $legal->signatoryTitle(),
+                'company_signature_path'  => $legal->signatureFilesystemPath(),
+                'company_stamp_path'      => $legal->stampFilesystemPath(),
             ];
-        }
 
-        return [
-            'company_signatory_name'  => $legal->signatoryName() ?: brand('legal_name'),
-            'company_signatory_title' => $legal->signatoryTitle(),
-            'company_signature_path'  => $legal->signatureFilesystemPath(),
-            'company_stamp_path'    => $legal->stampFilesystemPath(),
+        $advocate = [
+            'legal_signatory_name'  => $legalSignatory?->name,
+            'legal_signatory_title' => $legalSignatory?->position,
+            'legal_signature_path'  => $legalSignatory?->signatureFilesystemPath(),
+            'legal_stamp_path'      => $legalSignatory?->stampFilesystemPath() ?? null,
         ];
+
+        return array_merge($company, $advocate);
     }
 
     private function borrowerContractLocale(?LoanApplication $application): string

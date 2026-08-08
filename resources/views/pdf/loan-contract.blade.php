@@ -247,6 +247,26 @@
                 <div class="muted" style="margin-top:12px">—</div>
             @endif
         </div>
+        @if (! empty($snapshot['legal_signatory_name']) || ! empty($snapshot['legal_stamp_path']) || ! empty($snapshot['legal_signature_path']))
+            <div class="sign-col">
+                <strong>{{ __('borrower.loan_contract.pdf.legal_advocate') }}</strong>
+                @if (! empty($snapshot['legal_signature_path']))
+                    <div style="margin-top:4px"><img src="{{ $snapshot['legal_signature_path'] }}" class="sig-img"></div>
+                @endif
+                <div class="muted" style="margin-top:4px">{{ $snapshot['legal_signatory_name'] ?? '—' }}</div>
+                @if (! empty($snapshot['legal_signatory_title']))
+                    <div class="muted">{{ $snapshot['legal_signatory_title'] }}</div>
+                @endif
+            </div>
+            <div class="sign-col" style="text-align:center">
+                <strong>{{ __('borrower.loan_contract.pdf.legal_stamp') }}</strong>
+                @if (! empty($snapshot['legal_stamp_path']))
+                    <div><img src="{{ $snapshot['legal_stamp_path'] }}" class="stamp-img" alt="Legal stamp"></div>
+                @else
+                    <div class="muted" style="margin-top:12px">—</div>
+                @endif
+            </div>
+        @endif
     </div>
     @if ($agreement->isSigned())
         <div class="muted" style="margin-top:10px">{{ __('borrower.loan_contract.pdf.executed', ['date' => $agreement->signed_at->format('d M Y H:i')]) }}</div>

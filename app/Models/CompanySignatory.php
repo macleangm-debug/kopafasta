@@ -44,6 +44,17 @@ class CompanySignatory extends Model
         return $this->stamp_path ? asset('storage/'.$this->stamp_path) : null;
     }
 
+    public function stampFilesystemPath(): ?string
+    {
+        if (! $this->stamp_path) {
+            return null;
+        }
+
+        $full = storage_path('app/public/'.ltrim($this->stamp_path, '/'));
+
+        return is_file($full) ? $full : null;
+    }
+
     public function isLegalAdvocate(): bool
     {
         return $this->signatory_type === 'legal_advocate';

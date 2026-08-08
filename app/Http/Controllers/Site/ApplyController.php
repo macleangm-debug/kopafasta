@@ -2090,6 +2090,8 @@ class ApplyController extends Controller
         if ($guarantorPending && app(\App\Services\UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
             // Hold outside credit screening until guarantor accepts + completes profile.
             app(\App\Services\GuarantorDeadlineService::class)->markAwaiting($app->fresh());
+        } else {
+            app(\App\Services\CapacityAutoRejectService::class)->evaluateAndPark($app->fresh(['customer', 'product']));
         }
 
         $message = __('borrower.apply.success.submitted_message');

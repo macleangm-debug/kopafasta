@@ -101,6 +101,21 @@ class PayInWebhookController extends Controller
                         }
                     }
                 }
+
+                if ($fresh
+                    && $fresh->payment_type === 'valuation_fee'
+                    && $fresh->source_type === \App\Models\LoanApplication::class
+                    && $fresh->source_id
+                ) {
+                    $application = \App\Models\LoanApplication::query()->find($fresh->source_id);
+                    if ($application) {
+                        $secure = app(\App\Services\CollateralSecureService::class);
+                        $state = $secure->state($application);
+                        if (($state['status'] ?? '') === \App\Services\CollateralSecureService::STATUS_AWAITING_VALUATION_FEE) {
+                            $secure->markValuationFeePaid($application);
+                        }
+                    }
+                }
             } else {
                 $payment->update(['provider_meta' => $meta]);
             }

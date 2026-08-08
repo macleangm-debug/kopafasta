@@ -22,6 +22,19 @@ class UnderwritingAnomalyService
         $profile = $review['profile'] ?? ['percent' => 0];
         $anomalies = [];
 
+        $capacityAuto = app(CapacityAutoRejectService::class);
+        if ($capacityAuto->isPending($application)) {
+            $hours = $capacityAuto->hoursRemaining($application);
+            $state = $capacityAuto->state($application) ?? [];
+            $detail = ($hours === 0)
+                ? __('borrower.loan_profile.capacity_auto_reject_pending_admin_due')
+                : __('borrower.loan_profile.capacity_auto_reject_pending_admin', ['hours' => $hours ?? '—']);
+            $detail .= ' Ask '.format_money((float) ($state['requested_amount'] ?? $application->requested_amount ?? 0))
+                .' · installment '.format_money((float) ($state['proposed_installment'] ?? 0))
+                .' · capacity '.format_money((float) ($state['available_capacity'] ?? 0)).'.';
+            $anomalies[] = $this->item('capacity_auto_reject_pending', 'info', 'System sorted — awaiting auto-reject', $detail);
+        }
+
         $crbRec = strtolower((string) ($crb['recommendation'] ?? ''));
         if ($crbRec === 'reject') {
             $anomalies[] = $this->item('crb_reject', 'critical', 'CRB suggests reject', 'Bureau recommendation is reject — committee should treat as high risk unless screening explains otherwise.');

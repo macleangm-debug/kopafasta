@@ -97,6 +97,18 @@ class UnderwritingSettingsService
         return (bool) $this->get('enable_automatic_rejection', true);
     }
 
+    /** Park capacity-fail applications and auto-reject after delay. */
+    public function capacityAutoRejectEnabled(): bool
+    {
+        return $this->automaticRejectionEnabled()
+            && (bool) $this->get('enable_capacity_auto_reject', true);
+    }
+
+    public function capacityAutoRejectDelayHours(): int
+    {
+        return max(1, min(168, (int) $this->get('capacity_auto_reject_delay_hours', 12)));
+    }
+
     public function collateralSecureDecisionDays(): int
     {
         return max(1, (int) $this->get('collateral_secure_decision_days', 3));
@@ -125,5 +137,28 @@ class UnderwritingSettingsService
     public function collateralInsuranceMarkupPercent(): float
     {
         return app(PartnerDefaultsService::class)->insuranceMarkupPercent();
+    }
+
+    /** Working days after contract acceptance before standard disbursement is due. */
+    public function disbursementSlaWorkingDays(): int
+    {
+        return max(1, min(10, (int) $this->get('disbursement_sla_working_days', 2)));
+    }
+
+    /** Optional paid fast-track after offer acceptance (off by default). */
+    public function disbursementFastTrackEnabled(): bool
+    {
+        return (bool) $this->get('enable_disbursement_fast_track', false);
+    }
+
+    public function disbursementFastTrackBusinessHours(): int
+    {
+        return max(1, min(72, (int) $this->get('disbursement_fast_track_business_hours', 12)));
+    }
+
+    /** Fixed rush fee in local currency (TZS). */
+    public function disbursementFastTrackFeeAmount(): float
+    {
+        return max(0, round((float) $this->get('disbursement_fast_track_fee_amount', 25000), 2));
     }
 }

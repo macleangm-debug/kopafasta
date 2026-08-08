@@ -53,6 +53,20 @@
                         'awaiting_guarantor' => 'bg-purple-100 text-purple-800',
                         'expired'            => 'bg-gray-200 text-gray-700',
                     ]" />
+                    @php
+                        $autoReject = app(\App\Services\CapacityAutoRejectService::class);
+                        $pendingCapacity = in_array($pipeline, ['under_review', 'system_sorted'], true) && $autoReject->isPending($r);
+                        $hoursLeft = $pendingCapacity ? $autoReject->hoursRemaining($r) : null;
+                    @endphp
+                    @if ($pendingCapacity)
+                        <div class="mt-1 inline-flex max-w-[14rem] text-[10px] font-semibold leading-snug rounded-md px-1.5 py-1 bg-amber-50 text-amber-900 ring-1 ring-amber-200">
+                            @if ($hoursLeft === 0)
+                                {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin_due') }}
+                            @else
+                                {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin', ['hours' => $hoursLeft ?? '—']) }}
+                            @endif
+                        </div>
+                    @endif
                     @if (! in_array($pipeline, ['approved', 'disbursement'], true))
                         <div class="text-[10px] text-gray-400 mt-0.5">
                             {{ display_label($r->current_stage, 'application_stage') }}

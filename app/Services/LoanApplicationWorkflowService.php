@@ -293,8 +293,14 @@ class LoanApplicationWorkflowService
         }
 
         if ($to === 'rejected') {
-            $this->notifyRejection($application->fresh(['customer']));
-            $loan = $application->fresh(['loan'])->loan;
+            $fresh = $application->fresh(['customer', 'product']);
+            try {
+                app(LoanAgreementService::class)->generateRejectionLetter($fresh);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+            $this->notifyRejection($fresh);
+            $loan = $fresh->loan;
             if ($loan && $loan->status === 'pending') {
                 app(CapitalPartnerAllocationService::class)->releaseAllocationForLoan($loan);
             }
@@ -538,6 +544,16 @@ class LoanApplicationWorkflowService
             '_fallback_subject'  => 'Loan application update',
         ];
 
+        $letterUrl = route('site.borrower.application', $application->id);
+        $rejectionLetter = \App\Models\LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'rejection_letter')
+            ->latest('id')
+            ->first();
+        if ($rejectionLetter) {
+            $letterUrl = route('site.borrower.application.rejection-letter', $application->id);
+        }
+
         app(NotificationService::class)->notifyCustomer($customer, 'application_rejected', $vars);
         app(NotificationService::class)->notifyInApp(
             $customer,
@@ -548,8 +564,10 @@ class LoanApplicationWorkflowService
             'application',
             'application_rejected',
             __('borrower.notifications.application_rejected_title'),
-            route('site.borrower.application', $application->id),
-            __('borrower.notifications.view_application'),
+            $letterUrl,
+            $rejectionLetter
+                ? __('borrower.rejection_letter.notify_cta')
+                : __('borrower.notifications.view_application'),
         );
     }
 

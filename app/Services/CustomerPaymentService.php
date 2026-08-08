@@ -510,7 +510,9 @@ class CustomerPaymentService
 
         return match ($payment->payment_type) {
             'registration_fee' => route('site.borrower.dashboard'),
-            'application_fee', 'valuation_fee' => route('site.borrower.apply'),
+            'application_fee', 'valuation_fee' => $this->resolveLoanApplicationSource($payment)
+                ? route('site.borrower.application', $this->resolveLoanApplicationSource($payment))
+                : route('site.borrower.apply'),
             'loan_repayment' => $payment->loan_id
                 ? route('site.borrower.loans.show', $payment->loan_id)
                 : route('site.borrower.loans'),
@@ -782,6 +784,20 @@ class CustomerPaymentService
             if (in_array($application->offer_status, ['asset_conversion_fee_due', 'pending_asset_conversion'], true)
                 && $application->alternative_loan_product_id) {
                 app(ApplicationOfferService::class)->completeAssetConversion($application);
+            }
+
+            $secure = app(CollateralSecureService::class);
+            $state = $secure->state($application);
+            if (($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_FEE) {
+                $secure->markFeePaid($application);
+            }
+        }
+
+        if ($payment->payment_type === 'valuation_fee' && $application) {
+            $secure = app(CollateralSecureService::class);
+            $state = $secure->state($application);
+            if (($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE) {
+                $secure->markValuationFeePaid($application);
             }
         }
 
