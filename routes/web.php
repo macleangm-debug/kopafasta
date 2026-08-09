@@ -117,6 +117,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::post('/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storePublicRequest'])->name('marketplace.request');
     Route::get('/marketplace/{assetId}', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicShow'])->name('marketplace.show');
     Route::get('/verify/member/{memberNo}', [\App\Http\Controllers\Site\MemberVerificationController::class, 'show'])->name('member.verify');
+    Route::get('/v/{memberNo}', [\App\Http\Controllers\Site\MemberVerificationController::class, 'show'])->name('short.member');
     Route::get('/verify/affiliate', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'index'])->name('affiliate.verify.index');
     Route::post('/verify/affiliate', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'lookup'])->name('affiliate.verify.lookup');
     Route::get('/verify/affiliate/{code}', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'show'])->name('affiliate.verify');
@@ -235,7 +236,6 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/rewards', fn () => redirect()->route('site.borrower.engagement', ['tab' => 'rewards']))->name('borrower.rewards');
             Route::post('/borrower/rewards/redeem', [\App\Http\Controllers\Site\EngagementHubController::class, 'redeem'])->name('borrower.rewards.redeem');
             Route::get('/borrower/membership', fn () => redirect()->route('site.borrower.profile', ['section' => 'membership']))->name('membership.show');
-            Route::get('/borrower/membership/card.pdf', [\App\Http\Controllers\Site\MembershipController::class, 'downloadCard'])->name('membership.card.download');
             Route::get('/borrower/membership/renew',   [\App\Http\Controllers\Site\MembershipController::class, 'renewForm']) ->name('membership.renew');
             Route::post('/borrower/membership/renew',  [\App\Http\Controllers\Site\MembershipController::class, 'renew'])     ->name('membership.renew.post');
 

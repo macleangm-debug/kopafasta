@@ -1160,4 +1160,17 @@ return [
         'verify_not_found'    => 'Affiliate not found',
         'verify_not_found_body' => 'No affiliate matches :code.',
     ],
+
+    'member_verify' => [
+        'page_title'       => 'Member verification',
+        'eyebrow'          => 'Official check',
+        'heading'          => 'Member card',
+        'subtitle'         => 'Confirm this membership card is genuine on kopafasta.',
+        'verified_badge'   => 'Verified active member',
+        'inactive_title'   => 'Membership inactive',
+        'inactive_body'    => 'This member was found, but membership is not currently active.',
+        'not_found_title'  => 'Member not found',
+        'not_found_body'   => 'No member matches :member.',
+        'footer_note'      => 'Language follows your country setting or the language you select in the header.',
+    ],
 ];

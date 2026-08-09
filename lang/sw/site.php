@@ -1136,4 +1136,17 @@ return [
         'verify_not_found'    => 'Wakala hajapatikana',
         'verify_not_found_body' => 'Hakuna wakala anayelingana na :code.',
     ],
+
+    'member_verify' => [
+        'page_title'       => 'Uthibitishaji wa mwanachama',
+        'eyebrow'          => 'Ukaguzi rasmi',
+        'heading'          => 'Kadi ya mwanachama',
+        'subtitle'         => 'Thibitisha kadi hii ya uanachama ni halali kwenye kopafasta.',
+        'verified_badge'   => 'Mwanachama hai amethibitishwa',
+        'inactive_title'   => 'Uanachama si hai',
+        'inactive_body'    => 'Mwanachama amepatikana, lakini uanachama wake si hai kwa sasa.',
+        'not_found_title'  => 'Mwanachama hajapatikana',
+        'not_found_body'   => 'Hakuna mwanachama anayelingana na :member.',
+        'footer_note'      => 'Lugha inafuata nchi uliyochagua au lugha unayochagua kwenye kichwa cha ukurasa.',
+    ],
 ];

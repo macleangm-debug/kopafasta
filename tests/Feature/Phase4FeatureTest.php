@@ -110,11 +110,11 @@ class Phase4FeatureTest extends TestCase
         $this->assertSame('blocked', $insuranceItem['status']);
     }
 
-    public function test_membership_card_pdf_download_requires_membership(): void
+    public function test_public_member_verification_page_shows_active_member(): void
     {
         $user = User::factory()->create();
 
-        $customer = Customer::create([
+        Customer::create([
             'user_id'               => $user->id,
             'customer_number'       => 'CU-P4-002',
             'type'                => 'individual',
@@ -122,14 +122,15 @@ class Phase4FeatureTest extends TestCase
             'first_name'          => 'Member',
             'last_name'           => 'Card',
             'phone'               => '255712345682',
-            'member_no'           => 'KPF-TEST001',
+            'member_no'           => 'KPF-TZ-TEST01',
             'membership_issued_at'=> now()->subMonth(),
             'membership_expires_at'=> now()->addMonths(11),
         ]);
 
-        $response = $this->actingAs($user)->get(route('site.membership.card.download'));
+        $response = $this->get(route('site.short.member', ['memberNo' => 'KPF-TZ-TEST01']));
 
         $response->assertOk();
-        $response->assertHeader('content-type', 'application/pdf');
+        $response->assertSee('MEMBER CARD', false);
+        $response->assertSeeText(__('site.member_verify.verified_badge'));
     }
 }
