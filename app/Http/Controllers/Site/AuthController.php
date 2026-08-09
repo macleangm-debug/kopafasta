@@ -25,7 +25,6 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -58,7 +57,8 @@ class AuthController extends Controller
         }
 
         return view('site.auth.login', [
-            'defaultMethod' => 'pin',
+            'defaultMethod' => $request->query('auth_method', 'pin'),
+            'prefillPhone' => $request->query('phone'),
             'biometricEnabled' => (bool) config('auth_portal.biometric_enabled', false),
             'clearedGuarantorContext' => $request->boolean('clear_guarantor'),
             'partnerPortal' => $partnerPortal || $request->session()->get('login_portal') === 'partner',
@@ -247,30 +247,65 @@ class AuthController extends Controller
         return $this->completeWebLogin($user, $request, $login, (bool) ($data['trust_device'] ?? false));
     }
 
-    public function showSetupPin(): View|RedirectResponse
+    public function showSetupPin(\App\Services\PinRecoveryChallengeService $recovery): View|RedirectResponse
     {
         $user = Auth::user();
         if ($user->role !== 'borrower') {
             return redirect()->route('site.borrower.dashboard');
         }
 
-        if ($this->pins->hasPin($user)) {
+        $needsPin = ! $this->pins->hasPin($user);
+        $needsRecovery = ! $recovery->hasEnrolledAnswers($user);
+
+        if (! $needsPin && ! $needsRecovery) {
             return redirect()->route('site.borrower.dashboard');
         }
 
-        return view('site.auth.setup-pin');
+        $keys = session('pin_setup_question_keys');
+        if (! is_array($keys) || count($keys) < (int) config('pin_recovery.questions_to_ask', 3)) {
+            $keys = $recovery->pickRandomKeys();
+            session(['pin_setup_question_keys' => $keys]);
+        }
+
+        return view('site.auth.setup-pin', [
+            'needsPin' => $needsPin,
+            'questions' => $recovery->questionsForKeys($keys),
+        ]);
     }
 
-    public function storeSetupPin(Request $request): RedirectResponse
+    public function storeSetupPin(Request $request, \App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
     {
         $user = Auth::user();
         abort_unless($user && $user->role === 'borrower', 403);
 
-        $data = $request->validate([
-            'pin'              => ['required', 'string', new FourDigitPin, 'confirmed'],
-        ]);
+        $needsPin = ! $this->pins->hasPin($user);
+        $keys = session('pin_setup_question_keys', []);
+        if (! is_array($keys) || count($keys) < (int) config('pin_recovery.questions_to_ask', 3)) {
+            return redirect()->route('site.borrower.setup-pin')
+                ->withErrors(['answers' => __('site.auth.pin_recovery.expired')]);
+        }
 
-        $this->pins->setPin($user, $data['pin']);
+        $rules = [
+            'answers' => ['required', 'array'],
+        ];
+        foreach ($keys as $key) {
+            $rules["answers.$key"] = ['required', 'string', 'max:120'];
+        }
+        if ($needsPin) {
+            $rules['pin'] = ['required', 'string', new FourDigitPin, 'confirmed'];
+        }
+
+        $data = $request->validate($rules);
+
+        $recovery->enroll($user, collect($keys)->mapWithKeys(
+            fn ($key) => [$key => (string) ($data['answers'][$key] ?? '')]
+        )->all());
+
+        if ($needsPin) {
+            $this->pins->setPin($user, $data['pin']);
+        }
+
+        $request->session()->forget('pin_setup_question_keys');
 
         if ($user->customer && ($guarantorRedirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer))) {
             return $guarantorRedirect;
@@ -278,7 +313,7 @@ class AuthController extends Controller
 
         if ($returnUrl = $request->session()->pull('login_redirect')) {
             return redirect($returnUrl)
-                ->with('status', 'PIN created. Welcome back!')
+                ->with('status', __('site.auth.pin_recovery.setup_done'))
                 ->with(\App\Support\Celebration::SESSION_KEY, ['registration']);
         }
 
@@ -289,12 +324,26 @@ class AuthController extends Controller
 
     public function showForgotPin(Request $request): View
     {
+        $step = (int) $request->query('step', old('step', 1));
+        $mode = (string) $request->session()->get('pin_recovery_mode', old('mode', 'phone'));
+        $questions = $request->session()->get('pin_recovery_questions', []);
+
+        if ($step === 2 && ($mode !== 'kba' || blank($questions))) {
+            $step = 1;
+            $mode = 'phone';
+        }
+
         return view('site.auth.forgot-pin', [
-            'step' => (int) $request->query('step', 1),
+            'step' => $step,
+            'mode' => $mode,
+            'questions' => is_array($questions) ? $questions : [],
+            'requiredCorrect' => (int) $request->session()->get('pin_recovery_required', 2),
+            'prefillPhone' => old('phone', $request->session()->get('pin_recovery_phone', $request->query('phone'))),
+            'challengeToken' => $request->session()->get('pin_recovery_token'),
         ]);
     }
 
-    public function sendPinResetOtp(Request $request): RedirectResponse
+    public function startPinRecovery(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
     {
         $data = $request->validate([
             'phone' => ['required', 'string', 'max:20'],
@@ -303,55 +352,108 @@ class AuthController extends Controller
         $phone = trim($data['phone']);
         $user = $this->findUserByPhone($phone);
 
+        $request->session()->forget([
+            'pin_recovery_token',
+            'pin_recovery_mode',
+            'pin_recovery_questions',
+            'pin_recovery_required',
+            'pin_recovery_phone',
+        ]);
+
         if (! $user || ! $this->pins->hasPin($user)) {
             return back()
                 ->withInput(['phone' => $phone])
-                ->with('status', 'If that phone number is registered, a verification code has been sent.');
+                ->with('status', __('site.auth.pin_recovery.soft_sent'));
         }
 
-        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        Cache::put('pin_reset:'.$user->id, Hash::make($otp), now()->addMinutes((int) config('auth_portal.pin_reset_otp_minutes', 10)));
-
-        $message = "Your Kopafasta PIN reset code is {$otp}. Valid for 10 minutes.";
-        if ($user->phone) {
-            app(NotificationService::class)->sendSms($user->phone, $message, $user->customer, 'pin_reset_otp');
+        $started = $challenge->startForUser($user);
+        if (! $started) {
+            return back()
+                ->withInput(['phone' => $phone])
+                ->withErrors(['phone' => __('site.auth.pin_recovery.not_enrolled')]);
         }
 
-        $flash = 'If that phone number is registered, a verification code has been sent.';
-        if (! app()->environment('production')) {
-            $flash .= " (Dev code: {$otp})";
-        }
+        $request->session()->put([
+            'pin_recovery_token' => $started['token'],
+            'pin_recovery_mode' => 'kba',
+            'pin_recovery_questions' => $started['questions'],
+            'pin_recovery_required' => $started['required_correct'],
+            'pin_recovery_phone' => $phone,
+        ]);
 
         return redirect()
             ->route('site.forgot-pin', ['step' => 2])
-            ->withInput(['phone' => $phone])
-            ->with('status', $flash);
+            ->withInput(['phone' => $phone, 'step' => 2, 'mode' => 'kba']);
     }
 
-    public function resetPinWithOtp(Request $request): RedirectResponse
+    public function resetPinWithChallenge(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
     {
         $data = $request->validate([
+            'token' => ['required', 'string'],
             'phone' => ['required', 'string', 'max:20'],
-            'otp'   => ['required', 'string', 'size:6'],
-            'pin'   => ['required', 'string', new FourDigitPin, 'confirmed'],
+            'answers' => ['required', 'array'],
+            'answers.*' => ['nullable', 'string', 'max:120'],
+            'pin' => ['required', 'string', new FourDigitPin, 'confirmed'],
         ]);
 
-        $user = $this->findUserByPhone(trim($data['phone']));
+        $token = (string) $data['token'];
+        $sessionToken = (string) $request->session()->get('pin_recovery_token', '');
+        if ($sessionToken === '' || ! hash_equals($sessionToken, $token)) {
+            return redirect()
+                ->route('site.forgot-pin')
+                ->withErrors(['phone' => __('site.auth.pin_recovery.expired')]);
+        }
+
+        $result = $challenge->verify($token, $data['answers'] ?? []);
+        if (! ($result['ok'] ?? false)) {
+            $reason = $result['reason'] ?? 'mismatch';
+            if ($reason === 'locked' || $reason === 'expired') {
+                $request->session()->forget([
+                    'pin_recovery_token',
+                    'pin_recovery_mode',
+                    'pin_recovery_questions',
+                    'pin_recovery_required',
+                    'pin_recovery_phone',
+                ]);
+                $challenge->forget($token);
+
+                return redirect()
+                    ->route('site.forgot-pin')
+                    ->withErrors(['phone' => __('site.auth.pin_recovery.'.$reason)]);
+            }
+
+            return back()
+                ->withInput($request->except(['pin', 'pin_confirmation']))
+                ->withErrors([
+                    'answers' => __('site.auth.pin_recovery.mismatch', [
+                        'remaining' => $result['remaining_attempts'] ?? 0,
+                    ]),
+                ]);
+        }
+
+        $payload = $challenge->consumeVerified($token);
+        $user = $payload ? User::query()->find($payload['user_id'] ?? null) : null;
         if (! $user) {
-            return back()->withErrors(['otp' => 'Invalid or expired verification code.'])->withInput(['phone' => $data['phone'], 'step' => 2]);
+            return redirect()
+                ->route('site.forgot-pin')
+                ->withErrors(['phone' => __('site.auth.pin_recovery.expired')]);
         }
 
-        $cached = Cache::get('pin_reset:'.$user->id);
-        if (! $cached || ! Hash::check($data['otp'], $cached)) {
-            return back()->withErrors(['otp' => 'Invalid or expired verification code.'])->withInput(['phone' => $data['phone'], 'step' => 2]);
-        }
-
-        Cache::forget('pin_reset:'.$user->id);
         $this->pins->setPin($user, $data['pin']);
         $user->forceFill(['locked_until' => null])->save();
 
-        return redirect()->route('site.login')
-            ->with('status', 'PIN reset successfully. Sign in with your phone and new PIN.');
+        $request->session()->forget([
+            'pin_recovery_token',
+            'pin_recovery_mode',
+            'pin_recovery_questions',
+            'pin_recovery_required',
+            'pin_recovery_phone',
+        ]);
+
+        return redirect()->route('site.login', [
+            'phone' => $data['phone'],
+            'auth_method' => 'pin',
+        ])->with('status', __('site.auth.pin_recovery.success'));
     }
 
     private function completeWebLogin(User $user, Request $request, string $identifier, bool $trustDevice): RedirectResponse
@@ -622,6 +724,10 @@ class AuthController extends Controller
             return response()->json([
                 'available' => false,
                 'message' => __('borrower.auth.phone_taken'),
+                'redirect' => route('site.login', [
+                    'phone' => $data['phone'],
+                    'auth_method' => 'pin',
+                ]),
             ]);
         }
 
@@ -652,12 +758,10 @@ class AuthController extends Controller
             'middle_name'   => ['nullable', 'string', 'max:60'],
             'last_name'     => ['required', 'string', 'max:60'],
             'gender'        => ['required', 'in:male,female'],
-            'date_of_birth' => ['required', 'date', 'before:today', new \App\Rules\MinimumAge],
             'phone'         => [
                 'required',
                 'string',
                 'max:20',
-                Rule::unique('users', 'phone')->where(fn ($query) => $query->where('role', 'borrower')),
             ],
             'password'      => ['required', 'string', 'min:8', 'confirmed'],
             'referral_code' => ['nullable', 'string', 'max:32'],
@@ -669,11 +773,7 @@ class AuthController extends Controller
             $rules['national_id'] = ['nullable', 'string', 'max:30'];
         }
 
-        $data = $request->validate($rules, [
-            'phone.unique' => $isGuarantorRegistration
-                ? __('borrower.guarantor_invite.register_phone_taken')
-                : 'This phone number is already registered to a member account.',
-        ]);
+        $data = $request->validate($rules);
 
         if (! app(TurnstileService::class)->verify($request->input('cf-turnstile-response'), $request->ip())) {
             return back()
@@ -682,18 +782,29 @@ class AuthController extends Controller
         }
 
         $phoneDigits = preg_replace('/\D/', '', $data['phone']);
-        $phoneTaken = \App\Models\Customer::query()
+        $phoneTaken = \App\Models\User::query()
+            ->where('role', 'borrower')
             ->where(function ($query) use ($data, $phoneDigits) {
                 $query->where('phone', $data['phone'])
                     ->orWhere('phone', $phoneDigits)
                     ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
             })
-            ->exists();
+            ->exists()
+            || \App\Models\Customer::query()
+                ->where(function ($query) use ($data, $phoneDigits) {
+                    $query->where('phone', $data['phone'])
+                        ->orWhere('phone', $phoneDigits)
+                        ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
+                })
+                ->exists();
 
         if ($phoneTaken && ! $isGuarantorRegistration) {
-            return back()
-                ->withInput()
-                ->withErrors(['phone' => 'This phone number is already registered to a member account.']);
+            return redirect()
+                ->route('site.login', [
+                    'phone' => $data['phone'],
+                    'auth_method' => 'pin',
+                ])
+                ->with('status', __('borrower.auth.phone_taken_login'));
         }
 
         if (filled($data['promo_code'] ?? null) && blank($data['affiliate_code'] ?? null) && blank($data['referral_code'] ?? null)) {
@@ -745,7 +856,7 @@ class AuthController extends Controller
                 'national_id'     => filled($data['national_id'] ?? null)
                     ? (NationalIdValidator::format($data['national_id'], $data['country']) ?? \App\Support\NidaNumber::format($data['national_id']))
                     : null,
-                'date_of_birth'   => $data['date_of_birth'],
+                'date_of_birth'   => null,
                 'email'           => null,
                 'phone'           => $data['phone'],
                 'onboarded_at'    => now(),

@@ -1,5 +1,6 @@
 @php
-    $authMethod = old('auth_method', 'pin');
+    $authMethod = old('auth_method', $defaultMethod ?? 'pin');
+    $prefillPhone = old('phone', $prefillPhone ?? null);
 @endphp
 {{-- Premium login — borrower / partner portal --}}
 <x-site.layout :auth="true" :title="brand_title(__('site.auth.sign_in'))">
@@ -55,11 +56,11 @@
                     <input type="hidden" name="auth_method" id="login-auth-method" value="{{ $authMethod }}">
 
                     <div data-method-panel="pin" @class(['hidden' => $authMethod !== 'pin'])>
-                        <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" :required="$authMethod === 'pin'" required-when="pin" :show-errors="false" />
+                        <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="$prefillPhone" variant="rounded" :required="$authMethod === 'pin'" required-when="pin" :show-errors="false" />
                         <div class="mt-4">
                             <div class="flex items-center justify-between mb-1.5">
-                                <label class="block text-sm font-medium text-gray-700">4-digit PIN</label>
-                                <a href="{{ route('site.forgot-pin') }}" class="text-xs text-brand font-medium hover:underline">Forgot PIN?</a>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('site.auth.pin_label') }}</label>
+                                <a href="{{ route('site.forgot-pin', array_filter(['phone' => $prefillPhone])) }}" class="text-xs text-brand font-medium hover:underline">{{ __('site.auth.forgot_pin') }}</a>
                             </div>
                             <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="off"
                                    placeholder="••••"

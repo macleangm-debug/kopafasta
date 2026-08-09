@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
 use Closure;
 use Illuminate\Http\Request;
@@ -17,7 +18,10 @@ class EnsureBorrowerPin
             return $next($request);
         }
 
-        if (app(PinService::class)->hasPin($user)) {
+        $hasPin = app(PinService::class)->hasPin($user);
+        $hasRecovery = app(PinRecoveryChallengeService::class)->hasEnrolledAnswers($user);
+
+        if ($hasPin && $hasRecovery) {
             return $next($request);
         }
 
@@ -30,7 +34,10 @@ class EnsureBorrowerPin
             return $next($request);
         }
 
-        return redirect()->route('site.borrower.setup-pin')
-            ->with('status', 'Set your 4-digit PIN to secure your account.');
+        $message = ! $hasPin
+            ? __('site.auth.pin_recovery.middleware_need_pin')
+            : __('site.auth.pin_recovery.middleware_need_recovery');
+
+        return redirect()->route('site.borrower.setup-pin')->with('status', $message);
     }
 }

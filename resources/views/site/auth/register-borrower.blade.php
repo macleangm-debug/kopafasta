@@ -182,17 +182,16 @@
                                     <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.register.mobile_hint') }}</p>
                                 </div>
 
-                                <div class="rounded-xl border p-4"
-                                     :class="activeCountry.active ? 'border-emerald-200 bg-emerald-50/80' : 'border-rose-200 bg-rose-50/80'">
-                                    <div class="flex items-center justify-between gap-3">
-                                        <p class="text-sm font-semibold text-gray-900" x-text="activeCountry.active ? @js(__('borrower.register.ready_title')) : @js(__('borrower.register.unavailable_title'))"></p>
-                                        <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
-                                              :class="activeCountry.active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'"
-                                              x-text="activeCountry.active ? @js(__('borrower.register.live')) : @js(__('borrower.register.waitlist'))"></span>
-                                    </div>
-                                    <p class="mt-2 text-sm text-gray-600" x-text="activeCountry.active ? @js(__('borrower.register.ready_body')) : @js(__('borrower.register.unavailable_body'))"></p>
+                                <template x-if="!activeCountry.active">
+                                    <div class="rounded-xl border border-rose-200 bg-rose-50/80 p-4">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.register.unavailable_title') }}</p>
+                                            <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase bg-rose-100 text-rose-700">
+                                                {{ __('borrower.register.waitlist') }}
+                                            </span>
+                                        </div>
+                                        <p class="mt-2 text-sm text-gray-600">{{ __('borrower.register.unavailable_body') }}</p>
 
-                                    <template x-if="!activeCountry.active">
                                         <form method="POST" action="{{ route('site.waitlist.store') }}" class="mt-4 space-y-3">
                                             @csrf
                                             <input type="hidden" name="country" :value="form.country">
@@ -209,8 +208,8 @@
                                                 {{ __('borrower.register.notify_me') }}
                                             </button>
                                         </form>
-                                    </template>
-                                </div>
+                                    </div>
+                                </template>
 
                                 @if (session('waitlist_status'))
                                     <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
@@ -246,31 +245,20 @@
                                     <input name="middle_name" x-model="form.middle_name" autocomplete="additional-name"
                                            class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                 </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-                                    <div class="min-w-0">
-                                        <x-site.profile-select
-                                            name="gender"
-                                            :label="__('borrower.register.gender')"
-                                            :options="['male' => __('borrower.register.male'), 'female' => __('borrower.register.female')]"
-                                            :value="old('gender')"
-                                            :required="true"
-                                            :placeholder="__('borrower.register.gender_placeholder')"
-                                            select-class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
-                                        />
-                                    </div>
-                                    <div class="min-w-0">
-                                        <x-site.date-input
-                                            name="date_of_birth"
-                                            :label="__('borrower.register.dob')"
-                                            :value="old('date_of_birth')"
-                                            :required="true"
-                                            :max="now()->subYears(18)->format('Y-m-d')"
-                                        />
-                                    </div>
+                                <div class="min-w-0">
+                                    <x-site.profile-select
+                                        name="gender"
+                                        :label="__('borrower.register.gender')"
+                                        :options="['male' => __('borrower.register.male'), 'female' => __('borrower.register.female')]"
+                                        :value="old('gender')"
+                                        :required="true"
+                                        :placeholder="__('borrower.register.gender_placeholder')"
+                                        select-class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
+                                    />
                                 </div>
                                 <div class="flex items-start gap-2 rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3.5 py-2.5 text-xs text-brand">
                                     <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                                    <span>{{ __('borrower.register.age_notice', ['age' => 18, 'date' => now()->subYears(18)->format('d M Y')]) }}</span>
+                                    <span>{{ __('borrower.register.age_notice', ['age' => 18]) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -458,6 +446,10 @@
                             });
                             const data = await response.json();
                             if (! data.available) {
+                                if (data.redirect) {
+                                    window.location.href = data.redirect;
+                                    return;
+                                }
                                 return this.showNotice(data.message || @js(__('borrower.auth.phone_taken')));
                             }
                         } catch (e) {
