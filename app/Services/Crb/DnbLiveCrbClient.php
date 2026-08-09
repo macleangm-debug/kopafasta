@@ -123,7 +123,7 @@ class DnbLiveCrbClient implements CrbClientInterface
             $response = Http::timeout(config('crb.timeout'))
                 ->withHeaders([
                     'Content-Type' => 'text/xml; charset=utf-8',
-                    'SOAPAction'   => 'http://tempuri.org/IReportService/GetLiveCIR',
+                    'SOAPAction'   => 'http://tempuri.org/ILiveRequestService/GetLiveCIR',
                 ])
                 ->withBody($envelope, 'text/xml')
                 ->post($endpoint);
