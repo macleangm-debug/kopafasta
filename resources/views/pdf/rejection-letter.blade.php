@@ -31,7 +31,10 @@
 </head>
 <body>
 @php
-    $logo = public_path('images/brand/kopafasta-logo.png');
+    $logo = public_path('images/brand/kopafasta-mark.png');
+    if (! is_file($logo)) {
+        $logo = public_path('images/brand/kopafasta-logo.png');
+    }
     $failed = $snapshot['failed_members'] ?? data_get($snapshot, 'capacity_auto_reject.failed_members', []);
 @endphp
 

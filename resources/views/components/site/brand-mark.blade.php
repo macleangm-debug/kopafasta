@@ -6,44 +6,43 @@
 ])
 
 @php
+    /*
+     * Brand system: official icon (PNG/SVG) + CSS wordmark.
+     * Icon height is matched to the wordmark so they read as one lockup.
+     */
     $sizes = [
-        'sm' => ['img' => 'h-7', 'mark' => 'size-7', 'sub' => 'text-[10px]'],
-        'md' => ['img' => 'h-9', 'mark' => 'size-9', 'sub' => 'text-[11px]'],
-        'lg' => ['img' => 'h-11', 'mark' => 'size-11', 'sub' => 'text-xs'],
+        // icon height tracks the CSS wordmark; mark-only is a touch larger for presence
+        'sm' => ['icon' => 'h-5', 'mark' => 'h-7', 'text' => 'text-[15px]', 'sub' => 'text-[10px]', 'gap' => 'gap-1.5'],
+        'md' => ['icon' => 'h-7', 'mark' => 'h-9', 'text' => 'text-xl', 'sub' => 'text-[11px]', 'gap' => 'gap-2'],
+        'lg' => ['icon' => 'h-9', 'mark' => 'h-11', 'text' => 'text-2xl', 'sub' => 'text-xs', 'gap' => 'gap-2.5'],
     ];
     $s = $sizes[$size] ?? $sizes['md'];
-    $logoUrl = $mark
-        ? (brand('logo_mark_url') ?: brand('logo_url'))
-        : ($variant === 'light'
-            ? (brand('logo_url_light') ?: brand('logo_url'))
-            : brand('logo_url'));
+
+    $markUrl = brand('logo_mark_url') ?: '/images/brand/kopafasta-mark.png';
+    $useMarkOnly = (bool) $mark;
+    $textClass = $variant === 'light' ? 'text-white' : 'text-gray-900';
     $subClass = $variant === 'light' ? 'text-white/70' : 'text-gray-500';
-    $isSvg = $logoUrl && str_ends_with(strtolower(parse_url((string) $logoUrl, PHP_URL_PATH) ?: (string) $logoUrl), '.svg');
-    // Full wordmark PNGs are black-on-white; on dark surfaces sit them on a light chip so they stay readable.
-    $needsLightBackdrop = $logoUrl && ! $isSvg && $variant === 'light' && ! $mark;
-    $imgWrapClass = $needsLightBackdrop ? 'inline-flex rounded-md bg-white px-1.5 py-0.5' : '';
-    $imgClass = $mark ? ($s['mark'].' object-contain') : ($s['img'].' w-auto object-contain');
+    $iconClass = ($useMarkOnly ? $s['mark'] : $s['icon']).' w-auto object-contain';
 @endphp
 
-<div {{ $attributes->merge(['class' => 'inline-flex items-center gap-2 shrink-0']) }}>
-    @if ($logoUrl)
-        <div class="{{ $showSubtitle ? 'flex flex-col gap-1' : '' }}">
-            <span class="{{ $imgWrapClass }}">
-                <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}"
-                     alt="{{ brand_name() }}"
-                     class="{{ $imgClass }}"
-                     @if ($mark) width="40" height="40" @else width="160" height="80" @endif>
+<div {{ $attributes->merge(['class' => 'inline-flex items-center shrink-0']) }}>
+    @if ($useMarkOnly)
+        <img src="{{ asset(ltrim((string) $markUrl, '/')) }}"
+             alt="{{ brand_name() }}"
+             class="{{ $iconClass }}"
+             width="40" height="40">
+    @else
+        <div class="{{ $showSubtitle ? 'flex flex-col gap-0.5' : '' }}">
+            <span class="inline-flex items-center {{ $s['gap'] }}">
+                <img src="{{ asset(ltrim((string) $markUrl, '/')) }}"
+                     alt=""
+                     aria-hidden="true"
+                     class="{{ $iconClass }}"
+                     width="40" height="40">
+                <span class="font-bold tracking-tight leading-none {{ $s['text'] }} {{ $textClass }}">{{ brand_name() }}</span>
             </span>
             @if ($showSubtitle)
                 <span class="{{ $s['sub'] }} {{ $subClass }}">{{ brand('tagline') }}</span>
-            @endif
-        </div>
-    @else
-        <span class="size-9 grid place-items-center font-extrabold rounded-lg bg-gradient-to-br from-brand-light to-brand text-white shadow-sm text-lg">{{ brand('logo_letter', 'K') }}</span>
-        <div class="leading-tight">
-            <span class="font-bold tracking-tight text-lg {{ $variant === 'light' ? 'text-white' : 'text-gray-900' }}">{{ brand_name() }}</span>
-            @if ($showSubtitle)
-                <span class="block {{ $s['sub'] }} {{ $subClass }}">{{ brand('tagline') }}</span>
             @endif
         </div>
     @endif

@@ -34,7 +34,10 @@
         ?? now()->addDays($validityDays)->toDateString();
     $cadences = __('borrower.agreement.repayment_cadences');
     $cadenceKey = $snapshot['repayment_cadence'] ?? 'weekly';
-    $logo = public_path('images/brand/kopafasta-logo.png');
+    $logo = public_path('images/brand/kopafasta-mark.png');
+    if (! is_file($logo)) {
+        $logo = public_path('images/brand/kopafasta-logo.png');
+    }
 @endphp
 
 <div class="band">

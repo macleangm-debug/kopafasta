@@ -37,10 +37,32 @@
     $pct     = $duration > 0 ? max(0, min(100, ($days / $duration) * 100)) : 0;
     $logoUrl = brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png';
     $downloadName = 'membership-'.($memberNoRaw ?: 'card');
+    $serverPdfUrl = route('site.membership.card.download');
+
+    // Embed QR + photo as data URIs so html2canvas is not blocked by CORS.
+    $qrDataUri = null;
+    if ($verifyUrl) {
+        $qrPng = @file_get_contents('https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=6&data='.urlencode($verifyUrl));
+        if (is_string($qrPng) && $qrPng !== '') {
+            $qrDataUri = 'data:image/png;base64,'.base64_encode($qrPng);
+        }
+    }
+    $photoDataUri = null;
+    if ($facePhoto?->file_path) {
+        $absolute = public_path('storage/'.$facePhoto->file_path);
+        if (is_file($absolute)) {
+            $mime = mime_content_type($absolute) ?: 'image/jpeg';
+            $bytes = @file_get_contents($absolute);
+            if (is_string($bytes) && $bytes !== '') {
+                $photoDataUri = 'data:'.$mime.';base64,'.base64_encode($bytes);
+            }
+        }
+    }
+    $cardPhotoSrc = $photoDataUri ?: $photoUrl;
 @endphp
 
 <div {{ $attributes->merge(['class' => 'grid grid-cols-1 md:grid-cols-2 gap-4']) }}
-     x-data="memberCardActions(@js($memberNoRaw), @js($shareText), @js($verifyUrl), @js($downloadName))">
+     x-data="memberCardActions(@js($memberNoRaw), @js($shareText), @js($verifyUrl), @js($downloadName), @js($serverPdfUrl))">
 
     <div class="space-y-3">
         <p class="text-xs text-gray-500" data-html2canvas-ignore>{{ __('borrower.membership.tap_to_expand') }}</p>
@@ -59,15 +81,15 @@
             <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-gold/80 via-white/40 to-brand-gold/80 pointer-events-none"></div>
 
             <div class="relative flex items-center justify-between gap-3 mb-5">
-                <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="{{ brand_name() }}" class="h-9 w-9 object-contain drop-shadow-sm">
+                <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="{{ brand_name() }}" class="h-12 w-12 sm:h-14 sm:w-14 object-contain drop-shadow-sm">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide {{ $badgeClass }} shrink-0 shadow-sm">
                     {{ $label }}
                 </span>
             </div>
 
             <div class="relative flex items-start gap-4">
-                @if ($photoUrl)
-                    <img src="{{ $photoUrl }}" alt="" crossorigin="anonymous" class="size-16 sm:size-20 rounded-xl object-cover ring-2 ring-white/35 bg-white/10 shrink-0 shadow-md">
+                @if ($cardPhotoSrc)
+                    <img src="{{ $cardPhotoSrc }}" alt="" class="size-16 sm:size-20 rounded-xl object-cover ring-2 ring-white/35 bg-white/10 shrink-0 shadow-md">
                 @else
                     <div class="size-16 sm:size-20 rounded-xl bg-white/15 ring-2 ring-white/25 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
                 @endif
@@ -120,10 +142,18 @@
                 </div>
             </dl>
 
-            @if ($verifyUrl)
+            @if ($verifyUrl && $qrDataUri)
                 <div class="relative mt-5 flex items-center gap-4 rounded-xl bg-black/20 px-4 py-3.5 ring-1 ring-white/20">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ urlencode($verifyUrl) }}"
-                         alt="Membership QR code" crossorigin="anonymous" class="size-[68px] rounded-lg bg-white p-1 shrink-0">
+                    <img src="{{ $qrDataUri }}"
+                         alt="Membership QR code" class="size-[68px] rounded-lg bg-white p-1 shrink-0">
+                    <div class="text-left min-w-0">
+                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
+                        <p class="text-xs text-white/90 mt-1" data-html2canvas-ignore>{{ __('borrower.membership.scan_hint') }}</p>
+                    </div>
+                </div>
+            @elseif ($verifyUrl)
+                <div class="relative mt-5 flex items-center gap-4 rounded-xl bg-black/20 px-4 py-3.5 ring-1 ring-white/20">
+                    <div class="size-[68px] rounded-lg bg-white/90 shrink-0 grid place-items-center text-[10px] text-brand font-bold text-center px-1">QR</div>
                     <div class="text-left min-w-0">
                         <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
                         <p class="text-xs text-white/90 mt-1" data-html2canvas-ignore>{{ __('borrower.membership.scan_hint') }}</p>
@@ -189,13 +219,13 @@
                 <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-gold via-white/50 to-brand-gold"></div>
 
                 <div class="relative flex items-center justify-between gap-3 mb-6">
-                    <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="{{ brand_name() }}" class="h-11 w-11 object-contain">
+                    <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="{{ brand_name() }}" class="h-14 w-14 object-contain">
                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide {{ $badgeClass }}">{{ $label }}</span>
                 </div>
 
                 <div class="relative flex items-start gap-4">
-                    @if ($photoUrl)
-                        <img src="{{ $photoUrl }}" alt="" class="size-24 rounded-2xl object-cover ring-2 ring-white/40 shrink-0">
+                    @if ($cardPhotoSrc)
+                        <img src="{{ $cardPhotoSrc }}" alt="" class="size-24 rounded-2xl object-cover ring-2 ring-white/40 shrink-0">
                     @else
                         <div class="size-24 rounded-2xl bg-white/15 ring-2 ring-white/25 grid place-items-center text-3xl font-bold shrink-0">{{ $initial }}</div>
                     @endif
@@ -221,9 +251,9 @@
                     </div>
                 </dl>
 
-                @if ($verifyUrl)
+                @if ($verifyUrl && $qrDataUri)
                     <div class="relative mt-6 flex items-center gap-4 rounded-2xl bg-black/20 px-4 py-4 ring-1 ring-white/20">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data={{ urlencode($verifyUrl) }}"
+                        <img src="{{ $qrDataUri }}"
                              alt="" class="size-20 rounded-xl bg-white p-1.5 shrink-0">
                         <p class="text-xs uppercase tracking-widest text-white/80 font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
                     </div>
@@ -242,7 +272,7 @@
             <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
             <script>
                 document.addEventListener('alpine:init', function () {
-                    Alpine.data('memberCardActions', function (copyNo, shareText, verifyUrl, downloadName) {
+                    Alpine.data('memberCardActions', function (copyNo, shareText, verifyUrl, downloadName, serverPdfUrl) {
                         return {
                             copied: false,
                             shareCopied: false,
@@ -253,6 +283,7 @@
                             shareText: shareText,
                             verifyUrl: verifyUrl,
                             downloadName: downloadName || 'membership-card',
+                            serverPdfUrl: serverPdfUrl || '',
                             async captureCard() {
                                 if (typeof html2canvas !== 'function') {
                                     throw new Error('html2canvas missing');
@@ -262,12 +293,20 @@
                                     throw new Error('card missing');
                                 }
                                 return html2canvas(target, {
-                                    scale: Math.min(3, (window.devicePixelRatio || 1) * 2),
+                                    scale: Math.min(2.5, (window.devicePixelRatio || 1) * 1.5),
                                     backgroundColor: null,
                                     useCORS: true,
                                     allowTaint: false,
                                     logging: false,
+                                    imageTimeout: 15000,
                                 });
+                            },
+                            fallbackToServerPdf() {
+                                if (this.serverPdfUrl) {
+                                    window.location.href = this.serverPdfUrl;
+                                    return true;
+                                }
+                                return false;
                             },
                             async saveCardImage() {
                                 this.saving = true;
@@ -280,10 +319,17 @@
                                     if (! blob) throw new Error('blob');
                                     const filename = this.downloadName + '.png';
                                     const file = new File([blob], filename, { type: 'image/png' });
-                                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                        await navigator.share({ files: [file], title: 'Membership card' });
-                                        this.saved = true;
-                                        return;
+                                    try {
+                                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                            await navigator.share({ files: [file], title: 'Membership card' });
+                                            this.saved = true;
+                                            return;
+                                        }
+                                    } catch (shareErr) {
+                                        if (shareErr && shareErr.name === 'AbortError') {
+                                            return;
+                                        }
+                                        // Fall through to anchor download.
                                     }
                                     const url = URL.createObjectURL(blob);
                                     const link = document.createElement('a');
@@ -295,7 +341,10 @@
                                     URL.revokeObjectURL(url);
                                     this.saved = true;
                                 } catch (e) {
-                                    if (! e || e.name !== 'AbortError') {
+                                    if (e && e.name === 'AbortError') {
+                                        return;
+                                    }
+                                    if (! this.fallbackToServerPdf()) {
                                         alert('Could not save image. Try again.');
                                     }
                                 } finally {
@@ -314,8 +363,9 @@
                                     const jspdfNs = window.jspdf || {};
                                     const JsPDF = jspdfNs.jsPDF;
                                     if (! JsPDF) {
-                                        // Fallback: PNG download if jsPDF CDN blocked
-                                        await this.saveCardImage();
+                                        if (! this.fallbackToServerPdf()) {
+                                            await this.saveCardImage();
+                                        }
                                         return;
                                     }
                                     const pdf = new JsPDF({
@@ -334,7 +384,9 @@
                                     pdf.addImage(img, 'PNG', x, y, w, h);
                                     pdf.save(this.downloadName + '.pdf');
                                 } catch (e) {
-                                    alert('Could not download PDF. Try Save to Photos instead.');
+                                    if (! this.fallbackToServerPdf()) {
+                                        alert('Could not download PDF. Try Save to Photos instead.');
+                                    }
                                 } finally {
                                     this.saving = false;
                                 }

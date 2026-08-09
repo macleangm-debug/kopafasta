@@ -66,7 +66,7 @@
     <aside class="hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <a href="{{ Route::has($homeRoute) ? route($homeRoute) : route('site.home') }}" class="relative flex items-center gap-2 px-5 h-16 border-b border-white/15">
-            <x-site.brand-mark size="sm" variant="light" />
+            <x-site.brand-mark size="md" variant="light" :mark="true" />
             <div class="leading-tight ml-1">
                 <div class="text-[11px] text-white/70">{{ $portalLabel }}</div>
             </div>
