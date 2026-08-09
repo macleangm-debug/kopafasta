@@ -287,16 +287,27 @@ class MembershipController extends Controller
             }
         }
 
-        $logoPath = public_path('images/brand/kopafasta-logo.png');
+        $logoPath = public_path('images/brand/kopafasta-mark.png');
+        if (! is_file($logoPath)) {
+            $logoPath = public_path('images/brand/kopafasta-logo.png');
+        }
         if (! is_file($logoPath)) {
             $logoPath = null;
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl', 'photoPath', 'logoPath'))
+        $qrDataUri = null;
+        if ($verifyUrl) {
+            $qrPng = @file_get_contents('https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data='.urlencode($verifyUrl));
+            if (is_string($qrPng) && $qrPng !== '') {
+                $qrDataUri = 'data:image/png;base64,'.base64_encode($qrPng);
+            }
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl', 'photoPath', 'logoPath', 'qrDataUri'))
             ->setPaper([0, 0, 297.64, 419.53], 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
             ->setOption('isRemoteEnabled', false)
-            ->setOption('dpi', 96)
+            ->setOption('dpi', 120)
             ->setOption('defaultFont', 'DejaVu Sans');
 
         $filename = 'membership-'.($memberNo ?: $customer->id).'.pdf';

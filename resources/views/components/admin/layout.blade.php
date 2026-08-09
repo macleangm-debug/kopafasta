@@ -14,6 +14,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="app-currency" content="{{ currency_code() }}">
     <title>{{ $title ?? 'Console' }} · {{ brand_name() }}</title>
+    <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
+    <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
     @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/alpine-init.js'])
     @livewireStyles
     <style>

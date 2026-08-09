@@ -14,7 +14,7 @@
            style="background-color: #0B3D32; color: #fff;">
         <div class="absolute inset-0 opacity-40 pointer-events-none" style="background-image: radial-gradient(circle at 20% 20%, rgba(251,191,36,0.35), transparent 42%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.12), transparent 40%);"></div>
         <div class="relative">
-            <img src="{{ asset(brand('logo_url_light') ?: brand('logo_url') ?: 'images/brand/kopafasta-logo-light.svg') }}"
+            <img src="{{ asset(brand('logo_url_light') ?: brand('logo_url') ?: 'images/brand/kopafasta-logo.png') }}"
                  alt="{{ brand_name() }}"
                  class="h-10 w-auto object-contain">
             <p class="mt-3 text-xs uppercase tracking-[0.2em] text-white/60">Secure access</p>
@@ -28,7 +28,7 @@
         <div class="absolute inset-0 opacity-60" style="background-image: linear-gradient(180deg, rgba(11,61,50,0.04), transparent 40%), radial-gradient(circle at 80% 10%, rgba(251,191,36,0.12), transparent 35%);"></div>
         <div class="relative w-full max-w-lg rounded-3xl bg-white/95 p-6 sm:p-8 shadow-[0_24px_80px_rgba(11,61,50,0.12)] ring-1 ring-[#0B3D32]/10">
             <div class="lg:hidden mb-6">
-                <img src="{{ asset(brand('logo_url') ?: 'images/brand/kopafasta-logo.svg') }}"
+                <img src="{{ asset(brand('logo_url') ?: 'images/brand/kopafasta-logo.png') }}"
                      alt="{{ brand_name() }}"
                      class="h-9 w-auto object-contain">
             </div>
