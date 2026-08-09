@@ -12,9 +12,9 @@
      * Icon height is matched to the wordmark so they read as one lockup.
      */
     $sizes = [
-        'sm' => ['icon' => 'h-5', 'mark' => 'h-7', 'text' => 'text-[15px]', 'sub' => 'text-[10px]', 'portal' => 'text-[10px]', 'gap' => 'gap-1.5'],
-        'md' => ['icon' => 'h-6', 'mark' => 'h-9', 'text' => 'text-lg', 'sub' => 'text-[11px]', 'portal' => 'text-[11px]', 'gap' => 'gap-2'],
-        'lg' => ['icon' => 'h-8', 'mark' => 'h-11', 'text' => 'text-xl', 'sub' => 'text-xs', 'portal' => 'text-xs', 'gap' => 'gap-2.5'],
+        'sm' => ['icon' => 'h-6', 'mark' => 'h-8', 'text' => 'text-base', 'sub' => 'text-[10px]', 'portal' => 'text-[10px]', 'gap' => 'gap-1.5'],
+        'md' => ['icon' => 'h-7', 'mark' => 'h-10', 'text' => 'text-xl', 'sub' => 'text-[11px]', 'portal' => 'text-[11px]', 'gap' => 'gap-2'],
+        'lg' => ['icon' => 'h-9', 'mark' => 'h-12', 'text' => 'text-2xl', 'sub' => 'text-xs', 'portal' => 'text-xs', 'gap' => 'gap-2.5'],
     ];
     $s = $sizes[$size] ?? $sizes['md'];
 

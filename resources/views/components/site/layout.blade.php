@@ -42,7 +42,7 @@
 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4">
             <a href="{{ route('site.home') }}" class="flex items-center gap-2 shrink-0">
-                <x-site.brand-mark size="md" />
+                <x-site.brand-mark size="lg" />
             </a>
 
             <nav class="hidden lg:flex items-center justify-center gap-1 text-sm font-medium text-gray-700">
@@ -143,7 +143,7 @@
         <footer class="bg-brand text-gray-300 mt-20">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-6">
                 <div class="lg:col-span-2">
-                    <x-site.brand-mark variant="light" size="md" :showSubtitle="true" />
+                    <x-site.brand-mark variant="light" size="lg" :showSubtitle="true" />
                     <p class="text-sm text-gray-400 max-w-xs mt-3">{{ brand('tagline') }}. {{ __('site.footer.tagline') }}</p>
                 </div>
                 <div>

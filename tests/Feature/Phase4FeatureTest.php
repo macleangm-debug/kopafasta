@@ -132,5 +132,6 @@ class Phase4FeatureTest extends TestCase
         $response->assertOk();
         $response->assertSee('MEMBER CARD', false);
         $response->assertSeeText(__('site.member_verify.verified_badge'));
+        $response->assertSeeText(__('site.member_verify.join_cta'));
     }
 }
