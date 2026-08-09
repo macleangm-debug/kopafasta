@@ -224,12 +224,25 @@ XML;
 
     private function extractResponseXml(string $soapBody): ?string
     {
+        // LiveRequestService returns the DATAPACKET HTML-escaped inside <a:ResponseXML>.
+        if (preg_match('/<(?:[\w.]+:)?ResponseXML[^>]*>([\s\S]*?)<\/(?:[\w.]+:)?ResponseXML>/i', $soapBody, $matches)) {
+            $inner = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+            if (preg_match('/<DATAPACKET[\s\S]*<\/DATAPACKET>/i', $inner, $datapacket)) {
+                return $datapacket[0];
+            }
+
+            if ($inner !== '') {
+                return $inner;
+            }
+        }
+
         if (preg_match('/<DATAPACKET[\s\S]*<\/DATAPACKET>/i', $soapBody, $matches)) {
             return $matches[0];
         }
 
-        if (preg_match('/<!\[CDATA\[([\s\S]*?\]\]>)/i', $soapBody, $matches)) {
-            return trim(rtrim($matches[1], ']]>'));
+        if (preg_match('/<!\[CDATA\[([\s\S]*?)\]\]>/i', $soapBody, $matches)) {
+            return trim($matches[1]);
         }
 
         return $soapBody;
