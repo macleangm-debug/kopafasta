@@ -168,6 +168,13 @@ class AssetReservationService
             report($e);
         }
 
+        $reservation = $reservation->refresh()->loadMissing('loanApplication');
+        if ($reservation->loanApplication
+            && app(PostApprovalFeeService::class)->allPaid($reservation->loanApplication)) {
+            $reservation->update(['status' => 'post_approval_fees_paid']);
+            app(UpfrontSettlementService::class)->accrueIfNeeded($reservation->fresh(['asset.vendor']), 'post_approval_fees');
+        }
+
         return $reservation->refresh();
     }
 
@@ -244,19 +251,50 @@ class AssetReservationService
             default     => $reservation->status,
         };
 
-        if ($status !== $reservation->status) {
+        $rank = [
+            'application_started' => 1,
+            'viewing_scheduled' => 2,
+            'viewing_completed' => 3,
+            'interest_confirmed' => 4,
+            'reservation_fee_paid' => 5,
+            'application_submitted' => 6,
+            'approved' => 7,
+            'deposit_paid' => 8,
+            'post_approval_fees_paid' => 9,
+            'gps_installation' => 10,
+            'insurance_active' => 11,
+            'registration_complete' => 12,
+            'released' => 13,
+        ];
+
+        $currentRank = $rank[$reservation->status] ?? 0;
+        $nextRank = $rank[$status] ?? 0;
+
+        // Never move the reservation backwards (e.g. approved must not overwrite deposit_paid).
+        if ($nextRank > $currentRank) {
             $reservation->update([
                 'status'      => $status,
                 'released_at' => $status === 'released' ? now() : $reservation->released_at,
             ]);
+        } elseif ($application->status === 'disbursed' && $reservation->status !== 'released') {
+            $reservation->update([
+                'status'      => 'released',
+                'released_at' => now(),
+            ]);
         }
 
-        if ($status === 'approved' && app(PostApprovalFeeService::class)->allPaid($application)) {
+        $reservation->refresh();
+        $status = (string) $reservation->status;
+
+        if (in_array($status, ['approved', 'deposit_paid'], true)
+            && $reservation->deposit_status === 'paid'
+            && app(PostApprovalFeeService::class)->allPaid($application)) {
             $reservation->update(['status' => 'post_approval_fees_paid']);
             app(UpfrontSettlementService::class)->accrueIfNeeded($reservation->fresh(['asset.vendor']), 'post_approval_fees');
+            $status = 'post_approval_fees_paid';
         }
 
-        if (in_array($status, ['approved', 'post_approval_fees_paid'], true)) {
+        if (in_array($status, ['approved', 'deposit_paid', 'post_approval_fees_paid'], true)) {
             app(UpfrontSettlementService::class)->accrueIfNeeded($reservation->fresh(['asset.vendor']), 'approval');
         }
 
@@ -305,11 +343,21 @@ class AssetReservationService
         $category = $reservation->asset?->category;
         $reqs = app(AssetLendingService::class)->categoryRequirements($category);
 
-        if ((bool) ($reqs['gps_required'] ?? false)) {
-            return in_array($reservation->status, ['insurance_active', 'released'], true);
+        if ($reservation->deposit_status !== 'paid') {
+            return false;
         }
 
-        return in_array($reservation->status, ['post_approval_fees_paid', 'insurance_active', 'released'], true);
+        $readyStatuses = ['registration_complete', 'released'];
+
+        if ((bool) ($reqs['ownership_transfer_required'] ?? false)) {
+            return in_array($reservation->status, $readyStatuses, true);
+        }
+
+        if ((bool) ($reqs['insurance_required'] ?? false) || (bool) ($reqs['gps_required'] ?? false)) {
+            return in_array($reservation->status, ['insurance_active', 'registration_complete', 'released'], true);
+        }
+
+        return in_array($reservation->status, ['post_approval_fees_paid', 'insurance_active', 'registration_complete', 'released'], true);
     }
 
     public function unlockAssetIfIdle(AssetReservation $reservation): void
@@ -340,6 +388,7 @@ class AssetReservationService
             'pay_deposit' => $this->markDepositPaid($reservation),
             'gps_installation' => $reservation->update(['status' => 'gps_installation']),
             'insurance_active' => $reservation->update(['status' => 'insurance_active']),
+            'registration_complete' => $reservation->update(['status' => 'registration_complete']),
             'release' => $reservation->update(['status' => 'released', 'released_at' => now()]),
             'cancel' => (function () use ($reservation): void {
                 $reservation->update(['status' => 'cancelled']);
@@ -385,16 +434,15 @@ class AssetReservationService
         $reqs = app(AssetLendingService::class)->categoryRequirements($reservation->asset?->category);
         $gpsRequired = (bool) ($reqs['gps_required'] ?? false);
         $insuranceRequired = (bool) ($reqs['insurance_required'] ?? false);
+        $registrationRequired = (bool) ($reqs['ownership_transfer_required'] ?? false);
 
+        // Spine: apply → screen → approve → deposit → post-approval fees → GPS → insurance → registration → handover.
         $labels = [
-            ['key' => 'start', 'label' => __('borrower.marketplace.steps.start'), 'phase' => 'reservation'],
-            ['key' => 'interest', 'label' => __('borrower.marketplace.steps.interest'), 'phase' => 'reservation'],
-            ['key' => 'application_fee', 'label' => __('borrower.marketplace.steps.application_fee'), 'phase' => 'reservation'],
-            ['key' => 'viewing', 'label' => __('borrower.marketplace.steps.viewing'), 'phase' => 'reservation'],
-            ['key' => 'viewing_done', 'label' => __('borrower.marketplace.steps.viewing_done'), 'phase' => 'reservation'],
-            ['key' => 'deposit', 'label' => __('borrower.marketplace.steps.deposit'), 'phase' => 'reservation'],
+            ['key' => 'start', 'label' => __('borrower.marketplace.steps.start'), 'phase' => 'apply'],
+            ['key' => 'application_fee', 'label' => __('borrower.marketplace.steps.application_fee'), 'phase' => 'apply'],
             ['key' => 'loan_application', 'label' => __('borrower.marketplace.steps.loan_application'), 'phase' => 'loan'],
             ['key' => 'loan_offer', 'label' => __('borrower.marketplace.steps.loan_offer'), 'phase' => 'loan'],
+            ['key' => 'deposit', 'label' => __('borrower.marketplace.steps.deposit'), 'phase' => 'loan'],
             ['key' => 'post_approval_fees', 'label' => __('borrower.marketplace.steps.post_approval_fees'), 'phase' => 'loan'],
             ['key' => 'contract', 'label' => __('borrower.marketplace.steps.contract'), 'phase' => 'loan'],
         ];
@@ -407,9 +455,20 @@ class AssetReservationService
             $labels[] = ['key' => 'insurance', 'label' => __('borrower.marketplace.steps.insurance'), 'phase' => 'handover'];
         }
 
+        if ($registrationRequired) {
+            $labels[] = ['key' => 'registration', 'label' => __('borrower.marketplace.steps.registration'), 'phase' => 'handover'];
+        }
+
         $labels[] = ['key' => 'handover', 'label' => __('borrower.marketplace.steps.handover'), 'phase' => 'handover'];
 
-        $currentKey = $this->resolvePipelineStepKey($reservation, $application, $readiness, $gpsRequired, $insuranceRequired);
+        $currentKey = $this->resolvePipelineStepKey(
+            $reservation,
+            $application,
+            $readiness,
+            $gpsRequired,
+            $insuranceRequired,
+            $registrationRequired,
+        );
         $currentIndex = max(0, collect($labels)->search(fn (array $row) => $row['key'] === $currentKey));
         $completed = $currentKey === 'handover' && (string) $reservation->status === 'released';
 
@@ -429,40 +488,60 @@ class AssetReservationService
         ApplicationDisbursementReadinessService $readiness,
         bool $gpsRequired,
         bool $insuranceRequired,
+        bool $registrationRequired = false,
     ): string {
         $status = (string) $reservation->status;
+        $depositPaid = $reservation->deposit_status === 'paid';
 
         if ($status === 'released') {
             return 'handover';
         }
 
-        if ($status === 'insurance_active') {
+        if ($status === 'registration_complete') {
             return 'handover';
         }
 
+        if ($status === 'insurance_active') {
+            return $registrationRequired ? 'registration' : 'handover';
+        }
+
         if ($status === 'gps_installation') {
-            return $insuranceRequired ? 'insurance' : 'handover';
+            return $insuranceRequired ? 'insurance' : ($registrationRequired ? 'registration' : 'handover');
         }
 
         if ($application) {
             if ($readiness->contractSigned($application)) {
-                if ($gpsRequired && ! in_array($status, ['insurance_active', 'released'], true)) {
+                if ($gpsRequired && ! in_array($status, ['insurance_active', 'registration_complete', 'released'], true)) {
                     return 'gps';
                 }
 
-                if ($insuranceRequired && $status !== 'insurance_active') {
+                if ($insuranceRequired && ! in_array($status, ['insurance_active', 'registration_complete', 'released'], true)) {
                     return 'insurance';
+                }
+
+                if ($registrationRequired && $status !== 'registration_complete' && $status !== 'released') {
+                    return 'registration';
                 }
 
                 if ($readiness->canMarkAssetHandover($application)) {
                     return 'handover';
                 }
 
-                return $gpsRequired ? 'gps' : ($insuranceRequired ? 'insurance' : 'handover');
+                return $gpsRequired ? 'gps' : ($insuranceRequired ? 'insurance' : ($registrationRequired ? 'registration' : 'handover'));
             }
 
-            if ($readiness->needsPostApprovalFees($application) || $status === 'post_approval_fees_paid') {
-                return $readiness->feesPaid($application) ? 'contract' : 'post_approval_fees';
+            if (! $depositPaid && in_array($status, ['approved', 'deposit_paid'], true)) {
+                return $status === 'deposit_paid' ? 'post_approval_fees' : 'deposit';
+            }
+
+            if ($status === 'approved' && ! $depositPaid) {
+                return 'deposit';
+            }
+
+            if ($depositPaid || $status === 'deposit_paid' || $status === 'post_approval_fees_paid') {
+                if ($readiness->needsPostApprovalFees($application) || ($status === 'post_approval_fees_paid' && ! $readiness->contractSigned($application))) {
+                    return $readiness->feesPaid($application) ? 'contract' : 'post_approval_fees';
+                }
             }
 
             if ($readiness->needsBorrowerSignature($application) || in_array($application->offer_status, ['pending_borrower'], true)) {
@@ -470,34 +549,19 @@ class AssetReservationService
             }
 
             if ($readiness->offerSigned($application)) {
-                return 'post_approval_fees';
+                return $depositPaid ? 'post_approval_fees' : 'deposit';
             }
 
             return 'loan_application';
         }
 
         return match ($status) {
-            'application_started' => 'start',
-            'viewing_completed' => 'interest',
-            'interest_confirmed' => 'interest',
-            'reservation_fee_paid' => $this->resolveViewingStepKey($reservation),
-            'viewing_scheduled' => 'viewing',
+            'application_started', 'interest_confirmed', 'viewing_completed', 'viewing_scheduled', 'reservation_fee_paid' => 'application_fee',
             'deposit_paid' => 'deposit',
-            'application_submitted', 'approved', 'post_approval_fees_paid' => 'loan_application',
+            'application_submitted' => 'loan_application',
+            'approved' => 'deposit',
+            'post_approval_fees_paid' => 'post_approval_fees',
             default => 'start',
         };
-    }
-
-    private function resolveViewingStepKey(AssetReservation $reservation): string
-    {
-        if ($reservation->viewing_completed_at) {
-            return 'viewing_done';
-        }
-
-        if ($reservation->viewing_date) {
-            return 'viewing';
-        }
-
-        return 'application_fee';
     }
 }

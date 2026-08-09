@@ -3,6 +3,12 @@
     $coverPhoto = $photoUrls[0] ?? null;
     $currentStepLabel = collect($steps)->firstWhere('current', true)['label']
         ?? __('borrower.marketplace.next_action');
+    $productCode = config('asset_marketplace.asset_loan_product_code', 'AL');
+    $applyUrl = route('site.borrower.apply', [
+        'product' => $productCode,
+        'reservation' => $reservation->id,
+    ]);
+    $depositDeadlineDays = app(\App\Services\AssetLendingService::class)->depositDeadlineWorkingDays();
 @endphp
 
 <x-site.borrower-layout :title="brand_title(__('borrower.marketplace.reserve_title'))" active="marketplace" content-width="narrow">
@@ -78,83 +84,38 @@
         </div>
 
         @php
-            $feePaid = $reservation->reservation_fee_status === 'paid';
-            $viewingOptional = $feePaid && ! $reservation->viewing_completed_at;
+            $app = $reservation->loanApplication;
+            $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+            $postFeeUrl = $app ? route('site.borrower.application.post-approval-fees', $app->id) : null;
+            $contractUrl = $app ? route('site.borrower.application.contract', $app->id) : null;
+            $appUrl = $app ? route('site.borrower.application', $app->id) : null;
+            $earlyApplyStatuses = [
+                'application_started',
+                'viewing_scheduled',
+                'viewing_completed',
+                'interest_confirmed',
+                'reservation_fee_paid',
+            ];
         @endphp
 
-        @if ($reservation->status === 'application_started')
-            <p class="text-sm text-gray-600">{{ __('borrower.marketplace.confirm_interest_hint') }}</p>
-            <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
-                @csrf
-                <input type="hidden" name="action" value="confirm_interest">
-                <button class="w-full sm:w-auto bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm shadow-sm">{{ __('borrower.marketplace.confirm_interest') }}</button>
-            </form>
-        @elseif ($reservation->status === 'viewing_scheduled' && ! $feePaid)
-            <p class="text-sm text-gray-600">{{ __('borrower.marketplace.viewing_scheduled_for', ['date' => optional($reservation->viewing_date)->format('d M Y') ?? '—', 'time' => $reservation->viewing_time ?? '—']) }}</p>
-            <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
-                @csrf
-                <input type="hidden" name="action" value="complete_viewing">
-                <button class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-bold px-6 py-3 rounded-xl text-sm shadow-sm">{{ __('borrower.marketplace.mark_viewing_done') }}</button>
-            </form>
-        @elseif ($reservation->status === 'viewing_completed')
-            <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
-                @csrf
-                <input type="hidden" name="action" value="confirm_interest">
-                <button class="w-full sm:w-auto bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm shadow-sm">{{ __('borrower.marketplace.confirm_interest') }}</button>
-            </form>
-        @elseif ($reservation->status === 'interest_confirmed')
-            <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_application_fee_hint', ['amount' => format_number($reservation->reservation_fee_amount)]) }}</p>
-            @include('site.borrower.marketplace._reservation-payment-form', [
-                'step' => 'reservation_fee',
-                'amount' => $reservation->reservation_fee_amount,
-                'assetId' => $asset['id'],
-                'paymentGatewayDummy' => $paymentGatewayDummy ?? payment_gateway_is_dummy(),
-                'paymentReference' => $reservationRef ?? ('RES-'.$reservation->id),
-                'bankAccounts' => $bankAccounts ?? [],
-                'mobileDetails' => $mobileDetails ?? null,
-                'reservationFeeQuote' => $reservationFeeQuote ?? null,
-                'depositQuote' => $depositQuote ?? null,
-                'referralWallet' => $referralWallet ?? null,
-            ])
-        @elseif (in_array($reservation->status, ['reservation_fee_paid', 'viewing_scheduled'], true) && $feePaid)
-            @if ($viewingOptional && ! $reservation->viewing_date)
-                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 space-y-4">
-                    <p class="text-sm text-gray-700">{{ __('borrower.marketplace.schedule_viewing_after_fee_hint') }}</p>
-                    <form method="POST" action="{{ route('site.borrower.marketplace.reserve.post', $asset['id']) }}" class="grid sm:grid-cols-2 gap-3">
-                        @csrf
-                        <div>
-                            <x-site.date-input
-                                name="viewing_date"
-                                :label="__('borrower.marketplace.viewing_date')"
-                                :required="true"
-                                :min="now()->addDay()->format('Y-m-d')"
-                                input-class="w-full rounded-xl border-brand/20 ring-1 ring-brand/15 px-3 py-2.5 text-base"
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.viewing_time') }}</label>
-                            <input type="time" name="viewing_time" required class="w-full rounded-xl border-brand/20 ring-1 ring-brand/15 px-3 py-2.5 text-sm">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <button class="w-full sm:w-auto bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm shadow-sm">{{ __('borrower.marketplace.schedule_viewing') }}</button>
-                        </div>
-                    </form>
-                    <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
-                        @csrf
-                        <input type="hidden" name="action" value="skip_viewing">
-                        <button type="submit" class="text-sm font-semibold text-gray-600 hover:text-brand underline">{{ __('borrower.marketplace.skip_viewing') }}</button>
-                    </form>
-                </div>
-            @elseif ($reservation->status === 'viewing_scheduled')
-                <p class="text-sm text-gray-600 mb-3">{{ __('borrower.marketplace.viewing_scheduled_for', ['date' => optional($reservation->viewing_date)->format('d M Y') ?? '—', 'time' => $reservation->viewing_time ?? '—']) }}</p>
-                <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}" class="mb-4">
-                    @csrf
-                    <input type="hidden" name="action" value="complete_viewing">
-                    <button class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-bold px-6 py-3 rounded-xl text-sm shadow-sm">{{ __('borrower.marketplace.mark_viewing_done') }}</button>
-                </form>
+        @if (in_array($reservation->status, $earlyApplyStatuses, true) && ! $app)
+            <p class="text-sm text-gray-600">{{ __('borrower.marketplace.continue_apply_hint') }}</p>
+            <a href="{{ $applyUrl }}"
+               class="inline-flex w-full sm:w-auto justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm shadow-sm">
+                {{ __('borrower.marketplace.start_loan_application') }} →
+            </a>
+        @elseif ($reservation->status === 'application_submitted')
+            <p class="text-sm text-gray-600">{{ __('borrower.marketplace.post_deposit.application_submitted') }}</p>
+            @if ($appUrl)
+                <a href="{{ $appUrl }}" class="inline-flex w-full sm:w-auto justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm shadow-sm">
+                    {{ __('borrower.marketplace.post_deposit.view_application') }} →
+                </a>
             @endif
-
-            <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_deposit_hint', ['amount' => format_number($reservation->deposit_amount)]) }}</p>
+        @elseif ($reservation->status === 'approved' && $reservation->deposit_status !== 'paid')
+            <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_deposit_after_approval_hint', [
+                'amount' => format_number($reservation->deposit_amount),
+                'days' => $depositDeadlineDays,
+            ]) }}</p>
             @include('site.borrower.marketplace._reservation-payment-form', [
                 'step' => 'deposit',
                 'amount' => $reservation->deposit_amount,
@@ -167,28 +128,8 @@
                 'depositQuote' => $depositQuote ?? null,
                 'referralWallet' => $referralWallet ?? null,
             ])
-        @elseif ($reservation->status === 'deposit_paid')
-            <p class="text-sm text-emerald-800 font-medium">{{ __('borrower.marketplace.deposit_ready') }}</p>
-            <a href="{{ route('site.borrower.apply', ['product' => config('asset_marketplace.asset_loan_product_code', 'AL'), 'reservation' => $reservation->id]) }}"
-               class="inline-flex w-full sm:w-auto justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm shadow-sm">
-                {{ __('borrower.marketplace.start_loan_application') }} →
-            </a>
-        @elseif (in_array($reservation->status, ['application_submitted', 'approved', 'post_approval_fees_paid', 'gps_installation', 'insurance_active'], true))
-            @php
-                $app = $reservation->loanApplication;
-                $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
-                $postFeeUrl = $app ? route('site.borrower.application.post-approval-fees', $app->id) : null;
-                $contractUrl = $app ? route('site.borrower.application.contract', $app->id) : null;
-                $appUrl = $app ? route('site.borrower.application', $app->id) : null;
-            @endphp
-            @if ($reservation->status === 'application_submitted')
-                <p class="text-sm text-gray-600">{{ __('borrower.marketplace.post_deposit.application_submitted') }}</p>
-                @if ($appUrl)
-                    <a href="{{ $appUrl }}" class="inline-flex w-full sm:w-auto justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm shadow-sm">
-                        {{ __('borrower.marketplace.post_deposit.view_application') }} →
-                    </a>
-                @endif
-            @elseif ($app && $readiness->needsPostApprovalFees($app))
+        @elseif (in_array($reservation->status, ['deposit_paid', 'approved', 'post_approval_fees_paid', 'gps_installation', 'insurance_active', 'registration_complete'], true))
+            @if ($reservation->deposit_status === 'paid' && $app && $readiness->needsPostApprovalFees($app))
                 <p class="text-sm text-gray-600">{{ __('borrower.marketplace.post_deposit.fees_pending') }}</p>
                 <a href="{{ $postFeeUrl }}" class="inline-flex w-full sm:w-auto justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm shadow-sm">
                     {{ __('borrower.marketplace.post_deposit.pay_fees') }} →

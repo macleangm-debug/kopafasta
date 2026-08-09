@@ -9,7 +9,7 @@
 @if ($isAl && $reservation)
     <div class="bg-white rounded-xl ring-1 ring-gray-200 p-5 mb-6">
         <h3 class="text-sm font-semibold text-gray-900 mb-1">Asset lending — handover pipeline</h3>
-        <p class="text-xs text-gray-500 mb-4">Advance GPS and insurance milestones before marking asset handover.</p>
+        <p class="text-xs text-gray-500 mb-4">After deposit and post-approval fees: GPS → insurance (full asset value) → registration → handover (loan start).</p>
 
         <div class="flex flex-wrap gap-2 mb-4">
             <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-900 ring-1 ring-amber-200">
@@ -21,10 +21,14 @@
         </div>
 
         @if ($asset)
-            @php $supplierType = $asset->vendor ? app(\App\Services\AssetLendingService::class)->supplierType($asset->vendor) : null; @endphp
+            @php
+                $supplierType = $asset->vendor ? app(\App\Services\AssetLendingService::class)->supplierType($asset->vendor) : null;
+                $insuredValue = app(\App\Services\AssetLendingService::class)->insuredValueForMarketplaceAsset($asset);
+            @endphp
             @if ($supplierType === 'upfront_settlement')
                 <p class="text-xs text-brand bg-brand-muted rounded-lg px-3 py-2 mb-4">Upfront settlement supplier — company pays net asset value (after customer deposit) on loan approval.</p>
             @endif
+            <p class="text-xs text-gray-600 mb-3">Insurance cover value (full asset): <span class="font-semibold tabular-nums">{{ format_money($insuredValue) }}</span></p>
             <form method="POST" action="{{ route('admin.loan-applications.asset-identifiers', $application) }}" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 border-t border-gray-100 pt-4">
                 @csrf
                 @method('PUT')
@@ -39,7 +43,7 @@
         @endif
 
         <div class="flex flex-wrap gap-2 border-t border-gray-100 pt-4">
-            @if (($reqs['gps_required'] ?? false) && ! in_array($reservation->status, ['gps_installation', 'insurance_active', 'released'], true))
+            @if (($reqs['gps_required'] ?? false) && ! in_array($reservation->status, ['gps_installation', 'insurance_active', 'registration_complete', 'released'], true))
                 <div class="w-full rounded-lg bg-sky-50 ring-1 ring-sky-200 p-4 mb-2 space-y-3">
                     <p class="text-xs font-semibold text-sky-900">Assign GPS installer</p>
                     <form method="POST" action="{{ route('admin.loan-applications.assign-gps', $application) }}" class="flex flex-wrap gap-3 items-end">
@@ -69,11 +73,18 @@
                     <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Mark GPS installation</button>
                 </form>
             @endif
-            @if (($reqs['insurance_required'] ?? false) && ! in_array($reservation->status, ['insurance_active', 'released'], true))
+            @if (($reqs['insurance_required'] ?? false) && ! in_array($reservation->status, ['insurance_active', 'registration_complete', 'released'], true))
                 <form method="POST" action="{{ route('admin.loan-applications.reservation-advance', $application) }}">
                     @csrf
                     <input type="hidden" name="action" value="insurance_active">
                     <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-lg text-sm">Mark insurance active</button>
+                </form>
+            @endif
+            @if (($reqs['ownership_transfer_required'] ?? false) && $reservation->status === 'insurance_active')
+                <form method="POST" action="{{ route('admin.loan-applications.reservation-advance', $application) }}">
+                    @csrf
+                    <input type="hidden" name="action" value="registration_complete">
+                    <button type="submit" class="bg-indigo-700 hover:bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Mark registration complete</button>
                 </form>
             @endif
             @if ($disbursementReadiness->canMarkAssetHandover($application) && $reservation->status !== 'released')

@@ -37,19 +37,21 @@ class AssetHandoverMilestoneService
 
         $status = (string) $reservation->status;
         $assetReady = $readiness->contractSigned($application)
+            && $readiness->assetDepositPaid($application)
             && (! $readiness->hasPostApprovalFees($application) || $readiness->feesPaid($application));
 
         $gpsComplete = ! $gpsRequired
-            || in_array($status, ['gps_installation', 'insurance_active', 'released'], true)
+            || in_array($status, ['gps_installation', 'insurance_active', 'registration_complete', 'released'], true)
             || $this->gpsTaskComplete($application->id);
 
         $insurance = app(AssetLendingService::class)->insuranceStatus($asset?->insurance_expires_at);
         $insuranceComplete = ! $insuranceRequired
-            || in_array($status, ['insurance_active', 'released'], true)
+            || in_array($status, ['insurance_active', 'registration_complete', 'released'], true)
             || in_array($insurance['status'] ?? '', ['valid', 'expiring'], true);
 
+        // Registration follows insurance; handover starts the loan clock.
         $registrationComplete = ! $registrationRequired
-            || in_array($status, ['insurance_active', 'released'], true);
+            || in_array($status, ['registration_complete', 'released'], true);
 
         $handoverComplete = $status === 'released';
 

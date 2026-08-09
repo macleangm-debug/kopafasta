@@ -17,6 +17,7 @@ class AssetLendingService
                 'markup_base'                    => config('asset_lending.markup_base', 'deposit'),
                 'default_deposit_markup_percent' => 10,
                 'default_waiting_period_days'    => 7,
+                'deposit_deadline_working_days'  => 5,
                 'insurance_expiry_warning_days'  => 30,
                 'default_monthly_rate_percent'   => 12,
             ],
@@ -32,6 +33,21 @@ class AssetLendingService
     public function defaultWaitingPeriodDays(): int
     {
         return max(0, (int) ($this->settings()['default_waiting_period_days'] ?? 7));
+    }
+
+    /** Working days after approval for the borrower to pay the asset deposit. */
+    public function depositDeadlineWorkingDays(): int
+    {
+        return max(1, (int) ($this->settings()['deposit_deadline_working_days'] ?? 5));
+    }
+
+    /** Full asset value used for AL insurance cover (not borrower-entered). */
+    public function insuredValueForMarketplaceAsset(MarketplaceAsset $asset): int
+    {
+        $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
+        $value = (float) ($asset->asset_value ?: max($deposit * 1.4, $deposit));
+
+        return (int) max(0, round($value));
     }
 
     public function insuranceExpiryWarningDays(): int

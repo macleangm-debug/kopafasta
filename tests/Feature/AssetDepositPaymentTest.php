@@ -43,7 +43,7 @@ class AssetDepositPaymentTest extends TestCase
         $reservation = AssetReservation::create([
             'customer_id'            => $customer->id,
             'marketplace_asset_id'   => $asset->id,
-            'status'                 => 'reservation_fee_paid',
+            'status'                 => 'approved',
             'reservation_fee_amount' => 50_000,
             'reservation_fee_status' => 'paid',
             'deposit_amount'         => 500_000,

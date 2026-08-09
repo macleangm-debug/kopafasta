@@ -30,6 +30,8 @@
                            :value="$values['default_monthly_rate_percent'] ?? 12" required />
             <x-admin.input name="default_waiting_period_days" label="Default asset waiting period (days)" type="number"
                            :value="$values['default_waiting_period_days'] ?? 7" required />
+            <x-admin.input name="deposit_deadline_working_days" label="Deposit deadline after approval (working days)" type="number"
+                           :value="$values['deposit_deadline_working_days'] ?? 5" required />
             <x-admin.input name="insurance_expiry_warning_days" label="Insurance expiry warning (days before)" type="number"
                            :value="$values['insurance_expiry_warning_days'] ?? 30" required />
             <x-admin.input name="max_asset_photos" label="Max asset photos per listing" type="number"
@@ -37,7 +39,7 @@
             <x-admin.input name="vehicle_max_age_years" label="Vehicle max age (years from manufacture)" type="number"
                            :value="$values['vehicle_max_age_years'] ?? config('asset_lending.vehicle_max_age_years', 10)" required />
         </div>
-        <p class="text-xs text-gray-500">Waiting period is shown to borrowers between deposit and loan application. The monthly rate drives auto-calculated weekly installments during loan processing. Insurance warning appears in underwriting when policy expiry is near or past due. Vehicle max age limits the year-of-manufacture dropdown on borrower collateral (e.g. 10 → from {{ now()->year - 10 }} to {{ now()->year }}).</p>
+        <p class="text-xs text-gray-500">Deposit deadline is the working-day window after approval for the borrower to pay the asset deposit (before post-approval fees). Insurance for marketplace assets uses the full listed asset value. Vehicle max age limits the year-of-manufacture dropdown on borrower collateral (e.g. 10 → from {{ now()->year - 10 }} to {{ now()->year }}).</p>
 
         <div class="border-t border-gray-100 pt-6">
             <p class="text-sm font-semibold text-gray-900 mb-2">Partner code format</p>

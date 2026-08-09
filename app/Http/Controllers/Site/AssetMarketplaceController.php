@@ -102,15 +102,20 @@ class AssetMarketplaceController extends Controller
         abort_if(! $model, 404);
 
         try {
-            app(AssetReservationService::class)->startApplication($customer, $model);
+            $reservation = app(AssetReservationService::class)->startApplication($customer, $model);
         } catch (\InvalidArgumentException $e) {
             return redirect()
                 ->route('site.borrower.marketplace.show', $assetId)
                 ->with('error', $e->getMessage());
         }
 
+        $productCode = config('asset_marketplace.asset_loan_product_code', 'AL');
+
         return redirect()
-            ->route('site.borrower.marketplace.reserve', $assetId)
+            ->route('site.borrower.apply', [
+                'product' => $productCode,
+                'reservation' => $reservation->id,
+            ])
             ->with('status', __('borrower.marketplace.started'));
     }
 

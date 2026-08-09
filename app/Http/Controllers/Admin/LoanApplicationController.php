@@ -847,7 +847,7 @@ class LoanApplicationController extends ResourceController
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
         $action = $request->validate([
-            'action' => ['required', 'in:gps_installation,insurance_active,release'],
+            'action' => ['required', 'in:gps_installation,insurance_active,registration_complete,release'],
         ])['action'];
 
         $reservation = app(\App\Services\AssetReservationService::class)->reservationForApplication($loan_application);

@@ -191,12 +191,14 @@ class ApplyController extends Controller
                 ->with('status', __('borrower.marketplace.subtitle'));
         }
 
-        if ($reservation && $reservation->status !== 'deposit_paid') {
+        // Marketplace AL: enter the standard loan wizard after reservation starts.
+        // Deposit is paid only after approval — do not require deposit_paid here.
+        if ($reservation && in_array((string) $reservation->status, ['cancelled', 'released'], true)) {
             $assetKey = $reservation->asset?->slug ?: $reservation->marketplace_asset_id;
 
             return redirect()
-                ->route('site.borrower.marketplace.reserve', $assetKey)
-                ->with('warning', __('borrower.marketplace.complete_reservation_first'));
+                ->route('site.borrower.marketplace.show', $assetKey)
+                ->with('warning', __('borrower.marketplace.reservation_closed'));
         }
 
         if ($reservation?->asset) {

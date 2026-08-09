@@ -316,12 +316,40 @@ class ApplicationDisbursementReadinessService
             return false;
         }
 
+        if ($this->isAssetLendingApplication($application) && ! $this->assetDepositPaid($application)) {
+            return false;
+        }
+
         return $this->hasPostApprovalFees($application) && ! $this->feesPaid($application);
+    }
+
+    public function needsAssetDeposit(LoanApplication $application): bool
+    {
+        if (! $this->isAssetLendingApplication($application)) {
+            return false;
+        }
+
+        if (! $this->offerSigned($application)) {
+            return false;
+        }
+
+        return ! $this->assetDepositPaid($application);
+    }
+
+    public function assetDepositPaid(LoanApplication $application): bool
+    {
+        $reservation = app(AssetReservationService::class)->reservationForApplication($application);
+
+        return $reservation && $reservation->deposit_status === 'paid';
     }
 
     public function needsContractSignature(LoanApplication $application): bool
     {
         if (! $this->offerSigned($application)) {
+            return false;
+        }
+
+        if ($this->isAssetLendingApplication($application) && ! $this->assetDepositPaid($application)) {
             return false;
         }
 
@@ -504,6 +532,10 @@ class ApplicationDisbursementReadinessService
     {
         if ($this->needsBorrowerSignature($application)) {
             return 'sign_offer';
+        }
+
+        if ($this->needsAssetDeposit($application)) {
+            return 'pay_deposit';
         }
 
         if ($this->needsPostApprovalFees($application)) {

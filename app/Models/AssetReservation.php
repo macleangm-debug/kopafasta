@@ -19,6 +19,7 @@ class AssetReservation extends Model
         'post_approval_fees_paid',
         'gps_installation',
         'insurance_active',
+        'registration_complete',
         'released',
         'cancelled',
     ];
@@ -74,7 +75,7 @@ class AssetReservation extends Model
             'interest_confirmed' => 4,
             'reservation_fee_paid' => 5,
             'deposit_paid' => 6,
-            'application_submitted', 'approved', 'post_approval_fees_paid', 'gps_installation', 'insurance_active' => 7,
+            'application_submitted', 'approved', 'post_approval_fees_paid', 'gps_installation', 'insurance_active', 'registration_complete' => 7,
             'released' => 8,
             default => 0,
         };

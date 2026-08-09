@@ -33,7 +33,15 @@ class AssetReservationPaymentService
 
     public function expectedStatus(string $step): string
     {
-        return $step === self::STEP_DEPOSIT ? 'reservation_fee_paid' : 'interest_confirmed';
+        // Deposit is paid only after loan approval (not before screening).
+        return $step === self::STEP_DEPOSIT ? 'approved' : 'interest_confirmed';
+    }
+
+    public function canPayDeposit(AssetReservation $reservation): bool
+    {
+        return $reservation->status === 'approved'
+            && $reservation->deposit_status !== 'paid'
+            && (float) $reservation->deposit_amount > 0;
     }
 
     public function paymentReference(AssetReservation $reservation, string $step): string
