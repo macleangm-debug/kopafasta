@@ -41,7 +41,17 @@
                             ]"
                             :value="$r?->category" />
             <x-admin.select name="status"              label="Visibility"          :options="['active' => 'Active', 'coming_soon' => 'Coming soon', 'inactive' => 'Inactive']" :value="$r?->status ?? 'active'" required />
-            <x-admin.textarea name="description" label="Description" :value="$r?->description" rows="3" />
+            <x-admin.textarea name="description" label="Long description (English)" :value="$r?->description" rows="3" />
+            <div class="grid sm:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <x-admin.textarea name="short_description" label="Short description (English)" :value="$r?->short_description" rows="2" maxlength="90" />
+                    <p class="mt-1 text-[11px] text-gray-500">Max 90 characters — fits about 2 lines on product cards.</p>
+                </div>
+                <div>
+                    <x-admin.textarea name="short_description_sw" label="Short description (Swahili)" :value="$r?->short_description_sw" rows="2" maxlength="90" />
+                    <p class="mt-1 text-[11px] text-gray-500">Max 90 characters — shown when locale is Kiswahili.</p>
+                </div>
+            </div>
         </div>
 
         <div class="md:col-span-2">

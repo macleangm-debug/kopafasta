@@ -43,14 +43,14 @@
     </div>
 
     <div class="px-3.5 py-3 flex flex-col flex-1 min-h-0">
-        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2" title="{{ $productName }}">
+        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2 min-h-[2.5rem]" title="{{ $productName }}">
             {{ $productName }}
         </h3>
-        <p class="mt-0.5 text-xs text-gray-600 line-clamp-2 leading-snug">
+        <p class="mt-0.5 text-xs text-gray-600 line-clamp-2 leading-snug min-h-[2rem]">
             {{ $description }}
         </p>
 
-        <dl class="mt-2.5 space-y-0 text-xs">
+        <dl class="mt-2.5 space-y-0 text-xs flex-1">
             <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
                 <dt class="text-gray-500 shrink-0">{{ loan_product_rate_field_label($product) }}</dt>
                 <dd class="font-semibold text-gray-900 tabular-nums text-right">
@@ -79,7 +79,7 @@
             </div>
         </dl>
 
-        <div class="mt-2.5">
+        <div class="mt-auto pt-2.5">
             @if ($isAvailable)
                 <a href="{{ $ctaUrl }}"
                    class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-bold px-4 py-2 rounded-xl text-sm transition shadow-sm">

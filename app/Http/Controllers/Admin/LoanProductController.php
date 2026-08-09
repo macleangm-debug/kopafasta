@@ -60,6 +60,8 @@ class LoanProductController extends ResourceController
             'name_sw'             => ['nullable', 'string', 'max:150'],
             'category'            => ['nullable', 'string', 'max:50'],
             'description'         => ['nullable', 'string', 'max:1000'],
+            'short_description'   => ['nullable', 'string', 'max:90'],
+            'short_description_sw'=> ['nullable', 'string', 'max:90'],
             'image'               => ['nullable', 'image', 'max:4096'],
             'clone_from_id'       => ['nullable', 'integer', 'exists:loan_products,id'],
             'interest_rate'       => ['nullable', 'numeric', 'min:0', 'max:1'],
@@ -295,7 +297,8 @@ class LoanProductController extends ResourceController
     protected function mergeCloneDefaults(array $validated, LoanProduct $source): array
     {
         foreach ([
-            'category', 'description', 'interest_rate', 'interest_method', 'application_fee_amount',
+            'category', 'description', 'short_description', 'short_description_sw',
+            'interest_rate', 'interest_method', 'application_fee_amount',
             'offer_letter_template_id', 'loan_contract_template_id',
             'guarantor_agreement_template_id', 'asset_lending_agreement_template_id',
             'tenure_min_months', 'tenure_max_months', 'repayment_cadence',

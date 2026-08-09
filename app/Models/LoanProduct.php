@@ -92,4 +92,22 @@ class LoanProduct extends Model
 
         return (string) ($this->name ?? '');
     }
+
+    /**
+     * Card blurb (max ~2 lines). Prefer locale short description, then English short.
+     */
+    public function localizedShortDescription(?string $locale = null): ?string
+    {
+        $locale = $locale ?? app()->getLocale();
+
+        if ($locale === 'sw' && filled($this->short_description_sw)) {
+            return (string) $this->short_description_sw;
+        }
+
+        if (filled($this->short_description)) {
+            return (string) $this->short_description;
+        }
+
+        return null;
+    }
 }

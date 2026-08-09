@@ -80,7 +80,7 @@
                    class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
                     {{ $hero['cta_label'] }}
                 </a>
-                @if (! $cleanHome && ! empty($hero['secondary_cta_url']) && ! empty($hero['secondary_cta_label']))
+                @if (! empty($hero['secondary_cta_url']) && ! empty($hero['secondary_cta_label']))
                     <a href="{{ $hero['secondary_cta_url'] }}"
                        class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25">
                         {{ $hero['secondary_cta_label'] }}

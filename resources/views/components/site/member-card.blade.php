@@ -19,12 +19,6 @@
         'red'    => 'bg-rose-100 text-rose-800',
         default  => 'bg-slate-100 text-slate-800',
     };
-    $ringClass = match ($color) {
-        'green'  => 'stroke-emerald-400',
-        'orange' => 'stroke-amber-400',
-        'red'    => 'stroke-rose-400',
-        default  => 'stroke-slate-400',
-    };
 
     $issued  = optional($customer->membership_issued_at)->format('d M Y') ?? '—';
     $expires = optional($customer->membership_expires_at)->format('d M Y') ?? '—';
@@ -43,121 +37,125 @@
     $pct     = $duration > 0 ? max(0, min(100, ($days / $duration) * 100)) : 0;
 @endphp
 
-<div {{ $attributes->merge(['class' => 'grid grid-cols-1 md:grid-cols-2 gap-4']) }}>
+<div {{ $attributes->merge(['class' => 'grid grid-cols-1 md:grid-cols-2 gap-4']) }}
+     x-data="memberCardActions(@js($memberNoRaw), @js($shareText), @js($verifyUrl))">
 
-    {{-- Member card --}}
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-lg p-6"
-         x-data="memberCardActions(@js($memberNoRaw), @js($shareText), @js($verifyUrl))"
-         x-ref="cardCapture">
-        <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10"></div>
-        <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/10"></div>
+    <div class="space-y-3">
+        {{-- Visual card only (PDF/image capture target) --}}
+        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-lg p-6"
+             x-ref="cardFace">
+            <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10"></div>
+            <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/10"></div>
 
-        <div class="flex items-start justify-between relative gap-4">
-            <div class="flex items-start gap-4 min-w-0 flex-1">
-                @if ($photoUrl)
-                    <img src="{{ $photoUrl }}" alt="" class="size-16 sm:size-20 rounded-xl object-cover ring-2 ring-white/30 bg-white/10 shrink-0">
-                @else
-                    <div class="size-16 sm:size-20 rounded-xl bg-white/15 ring-2 ring-white/25 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
-                @endif
-                <div class="min-w-0">
-                    <p class="text-[10px] uppercase tracking-widest text-white/70">{{ brand_name() }} Member</p>
-                    <h3 class="mt-1 text-xl font-bold tracking-wide truncate">{{ $name ?: '—' }}</h3>
+            <div class="flex items-start justify-between relative gap-4">
+                <div class="flex items-start gap-4 min-w-0 flex-1">
+                    @if ($photoUrl)
+                        <img src="{{ $photoUrl }}" alt="" crossorigin="anonymous" class="size-16 sm:size-20 rounded-xl object-cover ring-2 ring-white/30 bg-white/10 shrink-0">
+                    @else
+                        <div class="size-16 sm:size-20 rounded-xl bg-white/15 ring-2 ring-white/25 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
+                    @endif
+                    <div class="min-w-0">
+                        <p class="text-[10px] uppercase tracking-widest text-white/70">{{ brand_name() }} Member</p>
+                        <h3 class="mt-1 text-xl font-bold tracking-wide truncate">{{ $name ?: '—' }}</h3>
+                    </div>
                 </div>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold {{ $badgeClass }} shrink-0">
+                    {{ $label }}
+                </span>
             </div>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold {{ $badgeClass }} shrink-0">
-                {{ $label }}
-            </span>
-        </div>
 
-        <div class="relative mt-6 rounded-xl bg-black/15 px-4 py-4 ring-1 ring-white/20">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <p class="text-[10px] uppercase tracking-[0.2em] text-white/60 mb-2">Membership number</p>
-                    <p class="font-mono text-lg sm:text-xl md:text-2xl font-bold tracking-[0.12em] leading-tight break-all">
-                        {{ $memberNoDisplay }}
-                    </p>
+            <div class="relative mt-6 rounded-xl bg-black/15 px-4 py-4 ring-1 ring-white/20">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/60 mb-2">Membership number</p>
+                        <p class="font-mono text-lg sm:text-xl md:text-2xl font-bold tracking-[0.12em] leading-tight break-all">
+                            {{ $memberNoDisplay }}
+                        </p>
+                    </div>
+                    @if ($memberNoRaw)
+                        <button type="button"
+                                @click="navigator.clipboard.writeText(copyNo).then(() => { copied = true; setTimeout(() => copied = false, 2500); })"
+                                class="shrink-0 inline-flex items-center justify-center size-10 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 transition"
+                                :title="copied ? 'Copied!' : 'Copy membership number'">
+                            <template x-if="!copied">
+                                <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                </svg>
+                            </template>
+                            <template x-if="copied">
+                                <svg class="size-5 text-emerald-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </template>
+                        </button>
+                    @endif
                 </div>
-                @if ($memberNoRaw)
-                    <button type="button"
-                            @click="navigator.clipboard.writeText(copyNo).then(() => { copied = true; setTimeout(() => copied = false, 2500); })"
-                            class="shrink-0 inline-flex items-center justify-center size-10 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 transition"
-                            :title="copied ? 'Copied!' : 'Copy membership number'">
-                        <template x-if="!copied">
-                            <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                            </svg>
-                        </template>
-                        <template x-if="copied">
-                            <svg class="size-5 text-emerald-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                            </svg>
-                        </template>
-                    </button>
-                @endif
+                <p x-show="copied" x-cloak x-transition
+                   class="mt-3 text-xs font-semibold text-emerald-100 bg-emerald-900/30 rounded-lg px-3 py-2 inline-flex items-center gap-1.5">
+                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Membership Number Copied
+                </p>
             </div>
-            <p x-show="copied" x-cloak x-transition
-               class="mt-3 text-xs font-semibold text-emerald-100 bg-emerald-900/30 rounded-lg px-3 py-2 inline-flex items-center gap-1.5">
-                <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                Membership Number Copied
-            </p>
-        </div>
 
-        <dl class="mt-5 grid grid-cols-2 gap-3 relative text-sm">
-            <div>
-                <dt class="text-[10px] uppercase tracking-wider text-white/70">Issued</dt>
-                <dd class="font-semibold">{{ $issued }}</dd>
-            </div>
-            <div>
-                <dt class="text-[10px] uppercase tracking-wider text-white/70">Expires</dt>
-                <dd class="font-semibold">{{ $expires }}</dd>
-            </div>
-        </dl>
+            <dl class="mt-5 grid grid-cols-2 gap-3 relative text-sm">
+                <div>
+                    <dt class="text-[10px] uppercase tracking-wider text-white/70">Issued</dt>
+                    <dd class="font-semibold">{{ $issued }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[10px] uppercase tracking-wider text-white/70">Expires</dt>
+                    <dd class="font-semibold">{{ $expires }}</dd>
+                </div>
+            </dl>
+
+            @if ($verifyUrl)
+                <div class="relative mt-5 flex items-center gap-4 rounded-xl bg-black/15 px-4 py-4 ring-1 ring-white/20">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ urlencode($verifyUrl) }}"
+                         alt="Membership QR code" crossorigin="anonymous" class="size-[72px] rounded-lg bg-white p-1 shrink-0">
+                    <div class="text-left min-w-0">
+                        <p class="text-[10px] uppercase tracking-widest text-white/70">Scan to verify</p>
+                        <p class="text-xs text-white/90 mt-1">Opens public member verification for this card.</p>
+                    </div>
+                </div>
+            @endif
+        </div>
 
         @if ($verifyUrl)
-            <div class="relative mt-5 flex items-center gap-4 rounded-xl bg-black/15 px-4 py-4 ring-1 ring-white/20">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ urlencode($verifyUrl) }}"
-                     alt="Membership QR code" class="size-[72px] rounded-lg bg-white p-1 shrink-0">
-                <div class="text-left min-w-0">
-                    <p class="text-[10px] uppercase tracking-widest text-white/70">Scan to verify</p>
-                    <p class="text-xs text-white/90 mt-1">Opens public member verification for this card.</p>
-                </div>
-            </div>
-
-            <div class="relative mt-4 flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-2">
                 <button type="button"
                     @click="if (verifyUrl) { navigator.clipboard.writeText(verifyUrl).then(() => { shareCopied = true; setTimeout(() => shareCopied = false, 2500); }); }"
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
-                {{ __('borrower.membership.copy_verify_link') }}
-            </button>
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-brand/10 hover:bg-brand/15 text-brand ring-1 ring-brand/20 px-3 py-2 text-xs font-semibold">
+                    {{ __('borrower.membership.copy_verify_link') }}
+                </button>
                 @if (Route::has('site.membership.card.download'))
                     <a href="{{ route('site.membership.card.download') }}"
-                       class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
+                       class="inline-flex items-center gap-1.5 rounded-lg bg-brand/10 hover:bg-brand/15 text-brand ring-1 ring-brand/20 px-3 py-2 text-xs font-semibold">
                         Download PDF
                     </a>
                 @endif
                 <button type="button"
                         @click="saveCardImage()"
                         :disabled="saving"
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold disabled:opacity-60">
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-brand/10 hover:bg-brand/15 text-brand ring-1 ring-brand/20 px-3 py-2 text-xs font-semibold disabled:opacity-60">
                     <span x-show="!saving && !saved">Save to Photos</span>
                     <span x-show="saving" x-cloak>Saving…</span>
                     <span x-show="saved && !saving" x-cloak>Saved</span>
                 </button>
                 <button type="button"
                         @click="shareMembership()"
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-brand/10 hover:bg-brand/15 text-brand ring-1 ring-brand/20 px-3 py-2 text-xs font-semibold">
                     Share
                 </button>
             </div>
-            <p x-show="shareCopied" x-cloak class="mt-2 text-xs text-emerald-100">{{ __('borrower.membership.link_copied') }}</p>
+            <p x-show="shareCopied" x-cloak class="text-xs text-brand">{{ __('borrower.membership.link_copied') }}</p>
         @endif
 
-        <div class="relative mt-5 rounded-xl bg-black/10 px-4 py-4 ring-1 ring-white/15">
-            <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold mb-2">{{ __('borrower.membership.benefits_title') }}</p>
-            <ul class="space-y-1.5 text-xs text-white/90">
+        <div class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('borrower.membership.benefits_title') }}</p>
+            <ul class="space-y-1.5 text-xs text-gray-700">
                 @foreach (__('borrower.membership.benefits') as $benefit)
                     <li class="flex items-start gap-2">
-                        <span class="text-brand-gold shrink-0">✓</span>
+                        <span class="text-brand shrink-0">✓</span>
                         <span>{{ $benefit }}</span>
                     </li>
                 @endforeach
@@ -185,14 +183,21 @@
                                     return;
                                 }
 
+                                const target = this.$refs.cardFace;
+                                if (! target) {
+                                    alert('Could not find the membership card.');
+                                    return;
+                                }
+
                                 this.saving = true;
                                 this.saved = false;
 
                                 try {
-                                    const canvas = await html2canvas(this.$refs.cardCapture, {
+                                    const canvas = await html2canvas(target, {
                                         scale: window.devicePixelRatio > 1 ? 2 : 1,
                                         backgroundColor: null,
                                         useCORS: true,
+                                        allowTaint: false,
                                     });
 
                                     const blob = await new Promise(function (resolve) {
@@ -236,7 +241,7 @@
                             shareMembership() {
                                 var title = @js(brand_name().' membership');
                                 if (navigator.share) {
-                                    navigator.share({ title: title, text: this.shareText, url: this.verifyUrl });
+                                    navigator.share({ title: title, text: this.shareText, url: this.verifyUrl }).catch(function () {});
                                 } else if (this.verifyUrl) {
                                     navigator.clipboard.writeText(this.verifyUrl);
                                     this.shareCopied = true;
@@ -251,7 +256,6 @@
         @endpush
     @endonce
 
-    {{-- Membership tenure widget --}}
     @php
         $urgencyLabel = match (true) {
             ! $customer->hasMembership() => __('borrower.membership.pay_registration'),

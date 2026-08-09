@@ -22,12 +22,12 @@
                 {{ $statusLabel }}
             </span>
         </div>
-        <h3 class="text-lg font-extrabold text-brand leading-snug tracking-tight group-hover:text-brand-light transition-colors">
+        <h3 class="text-lg font-extrabold text-brand leading-snug tracking-tight line-clamp-2 min-h-[2.75rem] group-hover:text-brand-light transition-colors">
             {{ $productName }}
         </h3>
-        <p class="mt-0.5 text-sm text-gray-600 line-clamp-2 leading-snug">{{ loan_product_card_description($product) }}</p>
+        <p class="mt-0.5 text-sm text-gray-600 line-clamp-2 leading-snug min-h-[2.5rem]">{{ loan_product_card_description($product) }}</p>
 
-        <div class="mt-2.5 space-y-0 text-xs">
+        <div class="mt-2.5 space-y-0 text-xs flex-1">
             <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
                 <span class="text-gray-500">{{ loan_product_rate_field_label($product) }}</span>
                 <span class="font-semibold text-gray-900">{{ $rateLabel }} / mo</span>
@@ -39,7 +39,7 @@
         </div>
 
         <a href="{{ route('site.product', $product->code) }}"
-           class="mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-bold px-4 py-2.5 transition-all duration-300 shadow-sm">
+           class="mt-auto pt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-bold px-4 py-2.5 transition-all duration-300 shadow-sm">
             {{ __('site.products.learn_more') }}
             <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
         </a>

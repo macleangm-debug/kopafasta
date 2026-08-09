@@ -99,17 +99,25 @@ if (! function_exists('loan_product_card_description')) {
             return (string) __('borrower.marketplace.subtitle');
         }
 
+        $max = 90;
+
+        if (method_exists($product, 'localizedShortDescription')) {
+            $short = $product->localizedShortDescription();
+            if (filled($short)) {
+                return \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/', ' ', (string) $short) ?? ''), $max, '…');
+            }
+        }
+
         $theme = loan_product_theme($product->code ?? null);
         $locale = app()->getLocale();
         $themeLabel = $locale === 'sw'
             ? ($theme['label_sw'] ?? $theme['label'] ?? null)
             : ($theme['label'] ?? $theme['label_sw'] ?? null);
 
-        // Prefer short theme labels for uniform cards; fall back to product description.
         $text = filled($themeLabel)
             ? (string) $themeLabel
             : (string) ($product->description ?? __('borrower.dashboard.browse_products'));
 
-        return \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/', ' ', $text) ?? ''), 90, '…');
+        return \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/', ' ', $text) ?? ''), $max, '…');
     }
 }

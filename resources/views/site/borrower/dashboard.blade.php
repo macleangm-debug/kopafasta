@@ -29,10 +29,22 @@
                 if (($hero['variant'] ?? '') === 'applications') {
                     $hero['cta_label'] = __('borrower.dashboard.hero.view_application');
                 } elseif (! empty($hero['membership_no']) && ($customer->isMembershipActive() || $customer->isMembershipInGrace())) {
-                    // Active members: quick open for the digital membership card.
-                    $hero['cta_label'] = __('borrower.membership.view_card');
+                    $hero['cta_label'] = __('borrower.membership.my_card');
                     $hero['cta_url'] = route('site.borrower.profile', ['section' => 'membership']);
                 }
+            }
+        }
+
+        // Active members always get a My Card action on the hero.
+        if (! empty($hero['membership_no']) && ($customer->isMembershipActive() || $customer->isMembershipInGrace())) {
+            $cardUrl = route('site.borrower.profile', ['section' => 'membership']);
+            $cardLabel = __('borrower.membership.my_card');
+            if (empty($hero['cta_url'])) {
+                $hero['cta_label'] = $cardLabel;
+                $hero['cta_url'] = $cardUrl;
+            } elseif (($hero['cta_url'] ?? '') !== $cardUrl) {
+                $hero['secondary_cta_label'] = $cardLabel;
+                $hero['secondary_cta_url'] = $cardUrl;
             }
         }
     @endphp

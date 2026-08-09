@@ -295,8 +295,9 @@ class MembershipController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl', 'photoPath', 'logoPath'))
             ->setPaper([0, 0, 297.64, 419.53], 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isRemoteEnabled', true)
-            ->setOption('dpi', 150);
+            ->setOption('isRemoteEnabled', false)
+            ->setOption('dpi', 96)
+            ->setOption('defaultFont', 'DejaVu Sans');
 
         $filename = 'membership-'.($memberNo ?: $customer->id).'.pdf';
 
