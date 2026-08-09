@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\PinRecoveryAnswer;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,26 @@ class PinRecoveryChallengeService
     }
 
     /**
+     * Challenge TTL in seconds (admin setting, then config).
+     */
+    public function sessionTtlSeconds(): int
+    {
+        $stored = Setting::get('auth_portal.pin_recovery_session_seconds');
+        if ($stored !== null && $stored !== '') {
+            return max(30, min(900, (int) $stored));
+        }
+
+        $seconds = (int) config('pin_recovery.session_seconds', 90);
+        if ($seconds > 0) {
+            return max(30, min(900, $seconds));
+        }
+
+        $minutes = (int) config('pin_recovery.session_minutes', 0);
+
+        return max(30, min(900, $minutes > 0 ? $minutes * 60 : 90));
+    }
+
+    /**
      * @return list<string>
      */
     public function pickRandomKeys(?int $count = null): array
@@ -30,6 +51,40 @@ class PinRecoveryChallengeService
         $count = $count ?? (int) config('pin_recovery.questions_to_ask', 3);
 
         return array_values(array_slice($keys, 0, max(1, min($count, count($keys)))));
+    }
+
+    /**
+     * Replace one enrolled question with another from the bank (same form).
+     *
+     * @param  list<string>  $currentKeys
+     * @return list<string>
+     */
+    public function swapQuestionKey(array $currentKeys, int $index): array
+    {
+        $currentKeys = array_values($currentKeys);
+        if (! isset($currentKeys[$index])) {
+            return $currentKeys;
+        }
+
+        $bank = array_keys($this->bank());
+        $current = $currentKeys[$index];
+        $available = array_values(array_diff($bank, $currentKeys));
+        if ($available === []) {
+            $available = array_values(array_diff($bank, [$current]));
+        }
+        if ($available === []) {
+            return $currentKeys;
+        }
+
+        shuffle($available);
+        $currentKeys[$index] = $available[0];
+
+        return $currentKeys;
+    }
+
+    protected function cacheTtl(): \DateTimeInterface
+    {
+        return now()->addSeconds($this->sessionTtlSeconds());
     }
 
     /**
@@ -246,6 +301,7 @@ class PinRecoveryChallengeService
     {
         $questions = $this->enrolledQuestions($user);
         $token = Str::random(40);
+        $expiresAt = $this->cacheTtl()->getTimestamp();
 
         Cache::put(self::CACHE_PREFIX.$token, [
             'user_id' => $user->id,
@@ -253,13 +309,15 @@ class PinRecoveryChallengeService
             'attempts' => 0,
             'verified' => false,
             'question_keys' => collect($questions)->pluck('key')->all(),
-        ], now()->addMinutes((int) config('pin_recovery.session_minutes', 15)));
+            'expires_at' => $expiresAt,
+        ], $this->cacheTtl());
 
         return [
             'token' => $token,
             'mode' => 'enrolled',
             'questions' => $questions,
             'required_correct' => (int) config('pin_recovery.required_correct', 2),
+            'expires_at' => $expiresAt,
         ];
     }
 
@@ -297,19 +355,22 @@ class PinRecoveryChallengeService
         }
 
         $token = Str::random(40);
+        $expiresAt = $this->cacheTtl()->getTimestamp();
         Cache::put(self::CACHE_PREFIX.$token, [
             'user_id' => $user->id,
             'mode' => 'profile',
             'attempts' => 0,
             'verified' => false,
             'expected' => $expected,
-        ], now()->addMinutes((int) config('pin_recovery.session_minutes', 15)));
+            'expires_at' => $expiresAt,
+        ], $this->cacheTtl());
 
         return [
             'token' => $token,
             'mode' => 'profile',
             'questions' => $questions,
             'required_correct' => (int) config('pin_recovery.required_correct', 2),
+            'expires_at' => $expiresAt,
         ];
     }
 
@@ -327,7 +388,7 @@ class PinRecoveryChallengeService
         $attempts = (int) ($payload['attempts'] ?? 0) + 1;
         $payload['attempts'] = $attempts;
         $max = (int) config('pin_recovery.max_attempts', 5);
-        Cache::put(self::CACHE_PREFIX.$token, $payload, now()->addMinutes((int) config('pin_recovery.session_minutes', 15)));
+        Cache::put(self::CACHE_PREFIX.$token, $payload, $this->cacheTtl());
 
         if ($attempts > $max) {
             Cache::forget(self::CACHE_PREFIX.$token);
@@ -369,7 +430,7 @@ class PinRecoveryChallengeService
         }
 
         $payload['verified'] = true;
-        Cache::put(self::CACHE_PREFIX.$token, $payload, now()->addMinutes((int) config('pin_recovery.session_minutes', 15)));
+        Cache::put(self::CACHE_PREFIX.$token, $payload, $this->cacheTtl());
 
         return ['ok' => true];
     }

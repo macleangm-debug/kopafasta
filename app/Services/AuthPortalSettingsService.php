@@ -69,6 +69,11 @@ class AuthPortalSettingsService
         return max(1, (int) config('auth_portal.two_factor_session_hours', 12));
     }
 
+    public function pinRecoverySessionSeconds(): int
+    {
+        return app(PinRecoveryChallengeService::class)->sessionTtlSeconds();
+    }
+
     /** @return array<string, bool|int> */
     public function forForm(): array
     {
@@ -77,6 +82,7 @@ class AuthPortalSettingsService
             'require_2fa_staff'        => $this->require2faStaff(),
             'require_2fa_partner'      => $this->require2faPartner(),
             'two_factor_session_hours' => $this->twoFactorSessionHours(),
+            'pin_recovery_session_seconds' => $this->pinRecoverySessionSeconds(),
         ];
     }
 

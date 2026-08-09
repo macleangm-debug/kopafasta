@@ -10,8 +10,8 @@
 return [
     'Organization' => [
         ['Company profile', 'admin.settings.company', 'company'],
-        ['Account security', 'admin.settings.account-security', 'account-security'],
-        ['Authentication', 'admin.settings.auth-portal', 'auth-portal'],
+        ['Account security', 'admin.settings.account-security', 'account-security', '2fa authenticator totp password'],
+        ['Authentication', 'admin.settings.auth-portal', 'auth-portal', '2fa pin reset timer recovery turnstile session forgot'],
         ['Branches', 'admin.branches.index', 'branches'],
         ['Departments', 'admin.departments.index', 'departments'],
         ['Users', 'admin.users.index', 'users'],

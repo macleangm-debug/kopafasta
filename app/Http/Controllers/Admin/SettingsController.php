@@ -851,6 +851,7 @@ class SettingsController extends Controller
             'require_2fa_staff'        => ['nullable', 'boolean'],
             'require_2fa_partner'      => ['nullable', 'boolean'],
             'two_factor_session_hours' => ['required', 'integer', 'min:1', 'max:168'],
+            'pin_recovery_session_seconds' => ['required', 'integer', 'min:30', 'max:900'],
             'turnstile_site_key'       => ['nullable', 'string', 'max:255'],
             'turnstile_secret_key'     => ['nullable', 'string', 'max:255'],
         ]);
@@ -860,6 +861,7 @@ class SettingsController extends Controller
             'auth_portal.require_2fa_staff'        => $request->boolean('require_2fa_staff'),
             'auth_portal.require_2fa_partner'      => $request->boolean('require_2fa_partner'),
             'auth_portal.two_factor_session_hours' => (int) $data['two_factor_session_hours'],
+            'auth_portal.pin_recovery_session_seconds' => (int) $data['pin_recovery_session_seconds'],
             'security.turnstile_site_key'          => trim((string) ($data['turnstile_site_key'] ?? '')),
             'security.turnstile_secret_key'        => trim((string) ($data['turnstile_secret_key'] ?? '')),
         ]);

@@ -5,6 +5,7 @@
         $questions = $questions ?? [];
         $requiredCorrect = (int) ($requiredCorrect ?? 2);
         $totalQuestions = max(count($questions), 2);
+        $expiresAt = (int) ($expiresAt ?? 0);
     @endphp
     <section class="min-h-full grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
@@ -23,6 +24,41 @@
                 <a href="{{ route('site.home') }}" class="lg:hidden mb-8 inline-block">
                     <x-site.brand-mark size="md" />
                 </a>
+
+                @if (in_array($step, [2, 3], true) && $expiresAt > 0)
+                    <div
+                        class="mb-5"
+                        x-data="{
+                            endsAt: {{ $expiresAt }} * 1000,
+                            left: 0,
+                            total: Math.max(1, {{ $expiresAt }} - Math.floor(Date.now() / 1000)),
+                            tick() {
+                                this.left = Math.max(0, Math.ceil((this.endsAt - Date.now()) / 1000));
+                                if (this.left <= 0) {
+                                    window.location = @js(route('site.forgot-pin'));
+                                }
+                            },
+                            label() {
+                                const m = Math.floor(this.left / 60);
+                                const s = String(this.left % 60).padStart(2, '0');
+                                return m + ':' + s;
+                            },
+                            init() {
+                                this.tick();
+                                setInterval(() => this.tick(), 250);
+                            }
+                        }"
+                    >
+                        <div class="flex items-center justify-between gap-3 text-xs font-semibold text-gray-600">
+                            <span>{{ __('site.auth.pin_recovery.timer_label') }}</span>
+                            <span class="tabular-nums text-brand" x-text="label()"></span>
+                        </div>
+                        <div class="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                            <div class="h-full rounded-full bg-brand transition-[width] duration-200"
+                                 :style="'width:' + Math.max(0, Math.min(100, (left / total) * 100)) + '%'"></div>
+                        </div>
+                    </div>
+                @endif
 
                 <h1 class="text-3xl font-bold tracking-tight text-gray-900">
                     @if ($step === 3)

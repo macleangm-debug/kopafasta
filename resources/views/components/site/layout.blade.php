@@ -135,12 +135,6 @@
         </div>
     </header>
 
-    @if (session('status'))
-        <div class="bg-emerald-50 border-b border-emerald-200 text-emerald-800 text-sm py-2">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">{{ session('status') }}</div>
-        </div>
-    @endif
-
     <main @class(['flex-1', 'min-h-0 overflow-y-auto overscroll-y-contain' => $auth])>{{ $slot }}</main>
 
     @unless ($auth)
@@ -265,7 +259,14 @@
                     message: @js($feedback['message'] ?? ''),
                     lines: @js($feedback['lines'] ?? []),
                 });
-            @elseif ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any() && request()->routeIs('site.forgot-pin', 'site.forgot-pin.*', 'site.login', 'site.register*'))
+            @elseif (session('status'))
+                window.showBorrowerFeedback({
+                    tone: 'success',
+                    title: @js(brand_name()),
+                    message: @js(session('status')),
+                    lines: [],
+                });
+            @elseif ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any() && request()->routeIs('site.forgot-pin', 'site.forgot-pin.*', 'site.login', 'site.register*', 'site.borrower.setup-pin*'))
                 window.showBorrowerFeedback({
                     tone: 'error',
                     title: @js(__('site.auth.pin_recovery.title')),

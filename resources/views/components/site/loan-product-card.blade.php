@@ -29,29 +29,29 @@
 
 <article class="snap-start shrink-0 w-[min(85vw,300px)] self-stretch glass-card overflow-hidden flex flex-col hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] transition-shadow {{ ! $isAvailable ? 'opacity-90' : '' }}">
     <div class="relative shrink-0">
-        <x-site.product-illustration :code="$product->code" :image-path="$product->image_path" size="sm" class="!rounded-none !size-auto w-full !aspect-[16/9] !max-w-none" />
-        <div class="absolute top-3 left-3">
-            <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 {{ $statusBadge['class'] }}">
+        <x-site.product-illustration :code="$product->code" :image-path="$product->image_path" size="sm" class="!rounded-none !size-auto w-full !aspect-[2/1] !max-w-none" />
+        <div class="absolute top-2 left-2">
+            <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 ring-1 {{ $statusBadge['class'] }}">
                 {{ $statusBadge['label'] }}
             </span>
         </div>
-        <div class="absolute top-3 right-3">
-            <span class="inline-flex text-[10px] font-mono font-semibold uppercase tracking-widest rounded-full px-2 py-1 bg-white/90 text-brand/70 ring-1 ring-white/80">
+        <div class="absolute top-2 right-2">
+            <span class="inline-flex text-[10px] font-mono font-semibold uppercase tracking-widest rounded-full px-2 py-0.5 bg-white/90 text-brand/70 ring-1 ring-white/80">
                 {{ $product->code }}
             </span>
         </div>
     </div>
 
-    <div class="p-4 flex flex-col flex-1 min-h-0">
-        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2 min-h-[2.5rem]" title="{{ $productName }}">
+    <div class="px-3.5 py-3 flex flex-col flex-1 min-h-0">
+        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2" title="{{ $productName }}">
             {{ $productName }}
         </h3>
-        <p class="mt-1.5 text-xs text-gray-600 line-clamp-2 leading-relaxed min-h-[2.25rem]">
+        <p class="mt-0.5 text-xs text-gray-600 line-clamp-2 leading-snug">
             {{ $description }}
         </p>
 
-        <dl class="mt-3 space-y-1.5 text-xs flex-1">
-            <div class="flex justify-between gap-2 py-1.5 border-b border-gray-100/80">
+        <dl class="mt-2.5 space-y-0 text-xs">
+            <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
                 <dt class="text-gray-500 shrink-0">{{ loan_product_rate_field_label($product) }}</dt>
                 <dd class="font-semibold text-gray-900 tabular-nums text-right">
                     @if ($isMarketplace)
@@ -61,7 +61,7 @@
                     @endif
                 </dd>
             </div>
-            <div class="flex justify-between gap-2 py-1.5 border-b border-gray-100/80">
+            <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
                 <dt class="text-gray-500 shrink-0">{{ __('site.products.amount') }}</dt>
                 <dd class="font-semibold text-gray-900 tabular-nums text-right truncate" title="{{ format_money($product->min_amount, false, 0) }} – {{ format_money($product->max_amount, false, 0) }}">
                     @if ($isMarketplace)
@@ -71,7 +71,7 @@
                     @endif
                 </dd>
             </div>
-            <div class="flex justify-between gap-2 py-1.5">
+            <div class="flex justify-between gap-2 py-1">
                 <dt class="text-gray-500 shrink-0">{{ __('site.products.tenure') }}</dt>
                 <dd class="font-semibold text-gray-900 tabular-nums text-right">
                     {{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}
@@ -79,14 +79,14 @@
             </div>
         </dl>
 
-        <div class="mt-3 pt-1">
+        <div class="mt-2.5">
             @if ($isAvailable)
                 <a href="{{ $ctaUrl }}"
-                   class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-bold px-4 py-2.5 rounded-xl text-sm transition shadow-sm">
+                   class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-bold px-4 py-2 rounded-xl text-sm transition shadow-sm">
                     {{ $ctaLabel }} →
                 </a>
             @else
-                <p class="text-center text-xs text-gray-500 py-2">{{ __('borrower.dashboard.product_unavailable_hint') }}</p>
+                <p class="text-center text-xs text-gray-500 py-1.5">{{ __('borrower.dashboard.product_unavailable_hint') }}</p>
             @endif
         </div>
     </div>

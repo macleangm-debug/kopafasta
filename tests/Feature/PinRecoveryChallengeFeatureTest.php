@@ -20,7 +20,8 @@ class PinRecoveryChallengeFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.setup-pin'))
             ->assertOk()
-            ->assertSee(__('site.auth.pin_recovery.enroll_notice_title'), false);
+            ->assertSee(__('site.auth.pin_recovery.setup_title'), false)
+            ->assertDontSee(__('site.auth.pin_recovery.enroll_notice_title'), false);
 
         $keys = session('pin_setup_question_keys');
         $this->assertIsArray($keys);
@@ -98,10 +99,15 @@ class PinRecoveryChallengeFeatureTest extends TestCase
         ])->assertRedirect(route('site.login', [
             'phone' => $user->phone,
             'auth_method' => 'pin',
-        ]));
+        ]))->assertSessionMissing('status');
 
         $user->refresh();
         $this->assertTrue(app(PinService::class)->verify('9876', $user->pin_hash));
+        $this->assertDatabaseHas('notification_logs', [
+            'customer_id' => $user->customer->id,
+            'channel' => 'in_app',
+            'template' => 'pin_reset',
+        ]);
     }
 
     public function test_forgot_pin_uses_profile_fallback_when_not_enrolled(): void

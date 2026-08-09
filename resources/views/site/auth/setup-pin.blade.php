@@ -20,24 +20,12 @@
             <div class="w-full max-w-md">
                 <a href="{{ route('site.home') }}" class="lg:hidden inline-block mb-6"><x-site.brand-mark size="md" /></a>
                 <div class="glass-card p-8 sm:p-10">
-                    @if (session('status'))
-                        <div class="mb-5 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">{{ session('status') }}</div>
-                    @endif
-                    @if ($errors->any())
-                        <div class="mb-5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
-                    @endif
-
                     <h1 class="text-2xl font-bold text-gray-900">
                         {{ $needsPin ? __('site.auth.pin_recovery.setup_title') : __('site.auth.pin_recovery.recovery_only_title') }}
                     </h1>
                     <p class="mt-1 text-sm text-gray-600">
                         {{ $needsPin ? __('site.auth.pin_recovery.setup_body') : __('site.auth.pin_recovery.recovery_only_body') }}
                     </p>
-
-                    <div class="mt-5 rounded-xl bg-brand-muted/60 ring-1 ring-brand/10 px-4 py-3 text-sm text-brand">
-                        <p class="font-semibold">{{ __('site.auth.pin_recovery.enroll_notice_title') }}</p>
-                        <p class="mt-1 text-brand/90">{{ __('site.auth.pin_recovery.enroll_notice_body') }}</p>
-                    </div>
 
                     <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off">
                         @csrf
@@ -62,10 +50,23 @@
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('site.auth.pin_recovery.enroll_questions_label') }}</p>
                             @foreach ($questions as $index => $question)
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                                        <span class="text-xs font-semibold text-brand mr-1">{{ $index + 1 }}.</span>
-                                        {{ $question['prompt'] }}
-                                    </label>
+                                    <div class="flex items-start justify-between gap-3 mb-1.5">
+                                        <label class="block text-sm font-medium text-gray-700">
+                                            <span class="text-xs font-semibold text-brand mr-1">{{ $index + 1 }}.</span>
+                                            {{ $question['prompt'] }}
+                                        </label>
+                                        <button
+                                            type="submit"
+                                            formaction="{{ route('site.borrower.setup-pin.swap') }}"
+                                            formmethod="post"
+                                            name="index"
+                                            value="{{ $index }}"
+                                            formnovalidate
+                                            class="shrink-0 text-xs font-semibold text-brand hover:underline"
+                                        >
+                                            {{ __('site.auth.pin_recovery.change_question') }}
+                                        </button>
+                                    </div>
                                     <input
                                         type="text"
                                         name="answers[{{ $question['key'] }}]"

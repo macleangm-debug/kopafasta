@@ -65,6 +65,19 @@
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-1">PIN reset challenge timer</h3>
+            <p class="text-xs text-gray-500 mb-4">
+                How long a member has to answer security questions (and set a new PIN) after starting Forgot PIN.
+                A countdown shows on the form. Recommended: <strong>90 seconds</strong> (1.5 minutes) — enough for three short answers without leaving the session open too long.
+            </p>
+            <div class="max-w-xs">
+                <x-admin.input name="pin_recovery_session_seconds" label="Seconds" type="number" min="30" max="900"
+                               :value="$values['pin_recovery_session_seconds'] ?? 90" required />
+                <p class="mt-1.5 text-[11px] text-gray-500">Min 30 · Max 900 (15 minutes)</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Cloudflare Turnstile (bot protection)</h3>
             <p class="text-xs text-gray-500 mb-4">
                 Optional. When both keys are set, public login/register and admin login require a Turnstile challenge.

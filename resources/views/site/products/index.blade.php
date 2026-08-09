@@ -19,15 +19,15 @@
                 @foreach ($products as $product)
                     @if (is_marketplace_loan_product($product->code))
                         <article class="glass-card overflow-hidden flex flex-col h-full hover:shadow-[0_16px_48px_rgba(0,77,64,0.14)] hover:-translate-y-0.5 transition-all duration-300">
-                            <div class="p-4 pb-0">
-                                <x-site.product-illustration code="AL" size="card" />
+                            <div class="p-3 pb-0">
+                                <x-site.product-illustration code="AL" size="card" class="!aspect-[2/1]" />
                             </div>
-                            <div class="p-5 pt-4 flex flex-col flex-1">
+                            <div class="px-4 py-3.5 flex flex-col flex-1">
                                 <p class="text-[11px] font-mono font-semibold uppercase tracking-widest text-brand/60">{{ $product->code }}</p>
-                                <h2 class="text-xl font-extrabold text-brand leading-tight mt-1">{{ $product->localizedName() }}</h2>
-                                <p class="mt-2 text-sm text-gray-600 flex-1">{{ __('borrower.marketplace.subtitle') }}</p>
+                                <h2 class="text-lg font-extrabold text-brand leading-snug mt-0.5">{{ $product->localizedName() }}</h2>
+                                <p class="mt-0.5 text-sm text-gray-600 line-clamp-2 leading-snug flex-1">{{ __('borrower.marketplace.subtitle') }}</p>
                                 <a href="{{ route('site.marketplace') }}"
-                                   class="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-bold px-4 py-3 transition shadow-sm">
+                                   class="mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-bold px-4 py-2.5 transition shadow-sm">
                                     {{ __('site.marketplace.browse') }}
                                 </a>
                             </div>

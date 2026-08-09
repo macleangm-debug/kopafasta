@@ -183,6 +183,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
         Route::get('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'showSetupPin'])->name('borrower.setup-pin');
         Route::post('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'storeSetupPin'])->name('borrower.setup-pin.post');
+        Route::post('/borrower/setup-pin/swap-question', [\App\Http\Controllers\Site\AuthController::class, 'swapSetupPinQuestion'])->name('borrower.setup-pin.swap');
 
         Route::get('/partner/setup-pin', [\App\Http\Controllers\Site\PartnerPortalController::class, 'showSetupPin'])->name('partner.setup-pin');
         Route::post('/partner/setup-pin', [\App\Http\Controllers\Site\PartnerPortalController::class, 'storeSetupPin'])->name('partner.setup-pin.post');

@@ -345,6 +345,7 @@ class AuthController extends Controller
             'requiredCorrect' => (int) $request->session()->get('pin_recovery_required', 2),
             'prefillPhone' => old('phone', $request->session()->get('pin_recovery_phone', $request->query('phone'))),
             'challengeToken' => $request->session()->get('pin_recovery_token'),
+            'expiresAt' => (int) $request->session()->get('pin_recovery_expires_at', 0),
         ]);
     }
 
@@ -364,6 +365,7 @@ class AuthController extends Controller
             'pin_recovery_required',
             'pin_recovery_phone',
             'pin_recovery_answers_ok',
+            'pin_recovery_expires_at',
         ]);
 
         if (! $user || ! $this->pins->hasPin($user)) {
@@ -394,6 +396,7 @@ class AuthController extends Controller
             'pin_recovery_required' => $started['required_correct'],
             'pin_recovery_phone' => $phone,
             'pin_recovery_answers_ok' => false,
+            'pin_recovery_expires_at' => (int) ($started['expires_at'] ?? now()->addSeconds($challenge->sessionTtlSeconds())->getTimestamp()),
         ]);
 
         return redirect()
@@ -433,6 +436,7 @@ class AuthController extends Controller
                     'pin_recovery_required',
                     'pin_recovery_phone',
                     'pin_recovery_answers_ok',
+                    'pin_recovery_expires_at',
                 ]);
                 $challenge->forget($token);
 
@@ -460,7 +464,13 @@ class AuthController extends Controller
 
         $request->session()->put('pin_recovery_answers_ok', true);
 
-        return redirect()->route('site.forgot-pin', ['step' => 3]);
+        return redirect()
+            ->route('site.forgot-pin', ['step' => 3])
+            ->with('feedback', [
+                'tone' => 'success',
+                'title' => __('site.auth.pin_recovery.answers_ok_title'),
+                'message' => __('site.auth.pin_recovery.answers_ok_body'),
+            ]);
     }
 
     public function resetPinWithChallenge(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
@@ -498,6 +508,22 @@ class AuthController extends Controller
         $this->pins->setPin($user, $data['pin']);
         $user->forceFill(['locked_until' => null])->save();
 
+        if ($user->customer) {
+            app(\App\Services\NotificationService::class)->notifyInApp(
+                $user->customer,
+                __('site.auth.pin_recovery.success'),
+                'security',
+                'pin_reset',
+                __('site.auth.pin_recovery.success_title'),
+                '/borrower/notifications',
+                null,
+                [
+                    'title_key' => 'site.auth.pin_recovery.success_title',
+                    'body_key' => 'site.auth.pin_recovery.success',
+                ],
+            );
+        }
+
         $request->session()->forget([
             'pin_recovery_token',
             'pin_recovery_mode',
@@ -505,12 +531,34 @@ class AuthController extends Controller
             'pin_recovery_required',
             'pin_recovery_phone',
             'pin_recovery_answers_ok',
+            'pin_recovery_expires_at',
         ]);
 
         return redirect()->route('site.login', [
             'phone' => $data['phone'],
             'auth_method' => 'pin',
-        ])->with('status', __('site.auth.pin_recovery.success'));
+        ]);
+    }
+
+    public function swapSetupPinQuestion(Request $request, \App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless($user && $user->role === 'borrower', 403);
+
+        $data = $request->validate([
+            'index' => ['required', 'integer', 'min:0', 'max:9'],
+        ]);
+
+        $keys = session('pin_setup_question_keys', []);
+        if (! is_array($keys) || $keys === []) {
+            return redirect()->route('site.borrower.setup-pin');
+        }
+
+        session([
+            'pin_setup_question_keys' => $recovery->swapQuestionKey($keys, (int) $data['index']),
+        ]);
+
+        return redirect()->route('site.borrower.setup-pin');
     }
 
     private function completeWebLogin(User $user, Request $request, string $identifier, bool $trustDevice): RedirectResponse

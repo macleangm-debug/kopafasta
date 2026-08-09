@@ -28,6 +28,7 @@ class EnsureBorrowerPin
         if ($request->routeIs(
             'site.borrower.setup-pin',
             'site.borrower.setup-pin.post',
+            'site.borrower.setup-pin.swap',
             'site.logout',
             'site.membership.*',
         )) {
@@ -38,6 +39,10 @@ class EnsureBorrowerPin
             ? __('site.auth.pin_recovery.middleware_need_pin')
             : __('site.auth.pin_recovery.middleware_need_recovery');
 
-        return redirect()->route('site.borrower.setup-pin')->with('status', $message);
+        return redirect()->route('site.borrower.setup-pin')->with('feedback', [
+            'tone' => 'info',
+            'title' => __('site.auth.pin_recovery.setup_title'),
+            'message' => $message,
+        ]);
     }
 }

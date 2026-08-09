@@ -14,7 +14,10 @@ return [
     'questions_to_ask' => 3,
     'required_correct' => 2,
     'max_attempts' => 5,
-    'session_minutes' => (int) env('PIN_RECOVERY_SESSION_MINUTES', 15),
+    // Default 90s (1.5 min). Overridable in Admin → Settings → Authentication.
+    'session_seconds' => (int) env('PIN_RECOVERY_SESSION_SECONDS', 90),
+    /** @deprecated Use session_seconds */
+    'session_minutes' => (int) env('PIN_RECOVERY_SESSION_MINUTES', 0),
 
     'bank' => [
         'mother_first_name' => [
