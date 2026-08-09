@@ -45,6 +45,8 @@ return [
     'login_promo_hint' => 'Si lazima — hutumika kwenye ada ya uanachama ikiwa bado hujalipa.',
     'phone_invalid' => 'Weka nambari sahihi ya simu (angalau tarakimu 9).',
     'phone_taken' => 'Nambari hii tayari imesajiliwa. Ingia badala yake.',
+    'phone_taken_title' => 'Akaunti tayari ipo',
+    'phone_taken_cta' => 'Nenda kuingia',
     'phone_taken_login' => 'Nambari hii tayari ina akaunti ya mwanachama. Ingia kwa PIN au nenosiri — tumia Umesahau PIN ukihitaji kuweka upya.',
     'phone_required_title' => 'Nambari ya simu',
     'phone_check_failed' => 'Hatukuweza kuthibitisha nambari. Jaribu tena.',

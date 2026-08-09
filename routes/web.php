@@ -912,6 +912,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/integrations/primary', [SettingsController::class, 'saveIntegrationsPrimary'])->name('settings.integrations.primary');
         Route::put('settings/integrations/channels', [SettingsController::class, 'saveIntegrationChannels'])->name('settings.integrations.channels');
         Route::post('settings/integrations/health', [SettingsController::class, 'checkIntegrationHealth'])->name('settings.integrations.health');
+        Route::post('settings/integrations/live-test', [SettingsController::class, 'runIntegrationLiveTest'])->name('settings.integrations.live-test');
+        Route::get('settings/integrations/live-test/payments/{payment}', [SettingsController::class, 'previewIntegrationPaymentGate'])->name('settings.integrations.live-test.payment');
         Route::put('settings/integrations/{partner}/billing', [SettingsController::class, 'saveIntegrationBilling'])->name('settings.integrations.billing');
         Route::get('settings/integrations/{partner}', [SettingsController::class, 'showIntegrationPartner'])->name('settings.integrations.partner');
         Route::get('settings/gateways',         [SettingsController::class, 'gateways'])      ->name('settings.gateways');

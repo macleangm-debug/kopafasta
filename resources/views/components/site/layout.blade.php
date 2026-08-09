@@ -256,6 +256,24 @@
                 }));
             };
         });
+        document.addEventListener('DOMContentLoaded', () => {
+            @if (session('feedback'))
+                @php $feedback = session('feedback'); @endphp
+                window.showBorrowerFeedback({
+                    tone: @js($feedback['tone'] ?? 'info'),
+                    title: @js($feedback['title'] ?? brand_name()),
+                    message: @js($feedback['message'] ?? ''),
+                    lines: @js($feedback['lines'] ?? []),
+                });
+            @elseif ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any() && request()->routeIs('site.forgot-pin', 'site.forgot-pin.*', 'site.login', 'site.register*'))
+                window.showBorrowerFeedback({
+                    tone: 'error',
+                    title: @js(__('site.auth.pin_recovery.title')),
+                    message: '',
+                    lines: @js($errors->all()),
+                });
+            @endif
+        });
     </script>
     @vite('resources/js/alpine-init.js')
 </body>

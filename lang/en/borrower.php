@@ -47,6 +47,8 @@ return [
         'login_promo_hint' => 'Optional — applied to your membership fee if you have not paid yet.',
         'phone_invalid' => 'Enter a valid mobile number (at least 9 digits).',
         'phone_taken' => 'This phone number is already registered. Log in instead.',
+        'phone_taken_title' => 'Account already exists',
+        'phone_taken_cta' => 'Go to login',
         'phone_taken_login' => 'This phone number already has a member account. Sign in with your PIN or password — use Forgot PIN if you need to reset.',
         'phone_required_title' => 'Mobile number',
         'phone_check_failed' => 'Could not verify this number. Please try again.',

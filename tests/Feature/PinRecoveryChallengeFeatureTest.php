@@ -87,18 +87,44 @@ class PinRecoveryChallengeFeatureTest extends TestCase
         $this->assertTrue(app(PinService::class)->verify('9876', $user->pin_hash));
     }
 
-    public function test_forgot_pin_blocks_when_not_enrolled(): void
+    public function test_forgot_pin_uses_profile_fallback_when_not_enrolled(): void
     {
-        $user = $this->makeBorrowerUser();
+        $user = $this->makeBorrowerUser([
+            'date_of_birth' => '1990-05-15',
+            'national_id' => '19900515123456789012',
+            'district' => 'Ilala',
+        ]);
+        app(PinService::class)->setPin($user, '1234');
+
+        $this->post(route('site.forgot-pin.start'), ['phone' => $user->phone])
+            ->assertRedirect(route('site.forgot-pin', ['step' => 2]));
+
+        $this->assertSame('kba', session('pin_recovery_mode'));
+        $this->assertNotEmpty(session('pin_recovery_questions'));
+    }
+
+    public function test_forgot_pin_blocks_when_no_questions_available(): void
+    {
+        $user = $this->makeBorrowerUser([
+            'date_of_birth' => null,
+            'national_id' => null,
+            'middle_name' => null,
+            'district' => null,
+            'ward' => null,
+            'member_no' => null,
+            'gender' => null,
+            'nok_first_name' => null,
+            'nok_name' => null,
+        ]);
         app(PinService::class)->setPin($user, '1234');
 
         $this->from(route('site.forgot-pin'))
             ->post(route('site.forgot-pin.start'), ['phone' => $user->phone])
             ->assertRedirect(route('site.forgot-pin'))
-            ->assertSessionHasErrors('phone');
+            ->assertSessionHas('feedback');
     }
 
-    private function makeBorrowerUser(): User
+    private function makeBorrowerUser(array $customerAttrs = []): User
     {
         $user = User::factory()->create([
             'role' => 'borrower',
@@ -106,7 +132,7 @@ class PinRecoveryChallengeFeatureTest extends TestCase
             'is_active' => true,
         ]);
 
-        Customer::create([
+        Customer::create(array_merge([
             'user_id' => $user->id,
             'customer_number' => 'CU-PIN-'.random_int(100, 999),
             'type' => 'individual',
@@ -115,7 +141,7 @@ class PinRecoveryChallengeFeatureTest extends TestCase
             'last_name' => 'Shiliba',
             'status' => 'active',
             'gender' => 'male',
-        ]);
+        ], $customerAttrs));
 
         return $user->fresh();
     }

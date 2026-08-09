@@ -363,14 +363,22 @@ class AuthController extends Controller
         if (! $user || ! $this->pins->hasPin($user)) {
             return back()
                 ->withInput(['phone' => $phone])
-                ->with('status', __('site.auth.pin_recovery.soft_sent'));
+                ->with('feedback', [
+                    'tone' => 'info',
+                    'title' => __('site.auth.pin_recovery.title'),
+                    'message' => __('site.auth.pin_recovery.soft_sent'),
+                ]);
         }
 
         $started = $challenge->startForUser($user);
         if (! $started) {
             return back()
                 ->withInput(['phone' => $phone])
-                ->withErrors(['phone' => __('site.auth.pin_recovery.not_enrolled')]);
+                ->with('feedback', [
+                    'tone' => 'warning',
+                    'title' => __('site.auth.pin_recovery.title'),
+                    'message' => __('site.auth.pin_recovery.not_enrolled'),
+                ]);
         }
 
         $request->session()->put([
@@ -424,8 +432,10 @@ class AuthController extends Controller
 
             return back()
                 ->withInput($request->except(['pin', 'pin_confirmation']))
-                ->withErrors([
-                    'answers' => __('site.auth.pin_recovery.mismatch', [
+                ->with('feedback', [
+                    'tone' => 'error',
+                    'title' => __('site.auth.pin_recovery.title'),
+                    'message' => __('site.auth.pin_recovery.mismatch', [
                         'remaining' => $result['remaining_attempts'] ?? 0,
                     ]),
                 ]);

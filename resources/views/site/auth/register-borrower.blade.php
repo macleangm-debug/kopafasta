@@ -446,11 +446,17 @@
                             });
                             const data = await response.json();
                             if (! data.available) {
-                                if (data.redirect) {
-                                    window.location.href = data.redirect;
-                                    return;
-                                }
-                                return this.showNotice(data.message || @js(__('borrower.auth.phone_taken')));
+                                const loginUrl = data.redirect || @js(route('site.login'));
+                                window.dispatchEvent(new CustomEvent('open-confirm-default', {
+                                    detail: {
+                                        tone: 'confirm',
+                                        title: @js(__('borrower.auth.phone_taken_title')),
+                                        message: data.message || @js(__('borrower.auth.phone_taken')),
+                                        confirmLabel: @js(__('borrower.auth.phone_taken_cta')),
+                                        onConfirm: () => { window.location.href = loginUrl; },
+                                    },
+                                }));
+                                return;
                             }
                         } catch (e) {
                             return this.showNotice(@js(__('borrower.auth.phone_check_failed')));

@@ -392,6 +392,88 @@ class SettingsController extends Controller
         ]);
     }
 
+    public function runIntegrationLiveTest(
+        Request $request,
+        \App\Services\Integrations\IntegrationLiveTestService $liveTest,
+    ) {
+        $data = $request->validate([
+            'suite' => ['required', 'in:payment,messaging,crb'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'amount' => ['nullable', 'numeric', 'min:500', 'max:100000'],
+            'message' => ['nullable', 'string', 'max:320'],
+            'nida' => ['nullable', 'string', 'max:40'],
+            'full_name' => ['nullable', 'string', 'max:120'],
+            'date_of_birth' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $result = match ($data['suite']) {
+            'payment' => $liveTest->testPayment(
+                (string) ($data['phone'] ?? ''),
+                (float) ($data['amount'] ?? 1000),
+            ),
+            'messaging' => $liveTest->testMessaging(
+                (string) ($data['phone'] ?? ''),
+                $data['message'] ?? null,
+            ),
+            'crb' => $liveTest->testCrb(
+                $data['nida'] ?? null,
+                $data['full_name'] ?? null,
+                $data['date_of_birth'] ?? null,
+            ),
+        };
+
+        $lines = $result['lines'] ?? [];
+        if (! empty($result['payment_id'])) {
+            $lines[] = 'Admin payment: '.route('admin.payments.show', $result['payment_id']);
+            $lines[] = 'Borrower gate preview: '.route('admin.settings.integrations.live-test.payment', $result['payment_id']);
+        }
+
+        return back()->with('feedback', [
+            'tone' => ($result['ok'] ?? false) ? 'success' : 'error',
+            'title' => $result['title'] ?? 'Live test',
+            'message' => $result['message'] ?? '',
+            'lines' => $lines,
+        ])->with('live_test_result', $result);
+    }
+
+    public function previewIntegrationPaymentGate(\App\Models\CustomerPayment $payment): \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+    {
+        abort_unless(data_get($payment->provider_meta, 'integration_live_test'), 404);
+
+        $payment->load(['bankAccount', 'mobileMoneyAccount', 'loan', 'loanProduct', 'customer']);
+        $accounts = app(\App\Services\PaymentAccountService::class);
+        $bankDetails = null;
+        $mobileDetails = [];
+        $bankAccounts = [];
+        $canSwitchToBank = false;
+
+        if ($payment->payment_method === 'bank_transfer' && $payment->bankAccount) {
+            $bankDetails = $accounts->bankTransferDetails($payment->bankAccount, $payment->reference);
+        }
+        if ($payment->payment_method === 'mobile_money' && $payment->mobileMoneyAccount) {
+            $mobileDetails = $accounts->mobileMoneyDetails($payment->mobileMoneyAccount, $payment->reference);
+        }
+        if ($payment->awaitsCollection()) {
+            $product = $payment->loanProduct ?? $payment->loan?->product;
+            $bankAccounts = $accounts->bankAccountsForDisplay($payment->payment_type, $payment->reference, $product);
+            $canSwitchToBank = (bool) $accounts->resolveBankAccount($payment->payment_type, $product);
+            if (! $payment->mobileMoneyAccount) {
+                $resolvedMobile = $accounts->resolve($payment->payment_type, 'mobile_money', $product);
+                $mobileDetails = $accounts->mobileMoneyDetails($resolvedMobile['mobile_money_account'] ?? null, $payment->reference);
+            }
+        }
+
+        return view('site.borrower.payments.show', [
+            'payment' => $payment,
+            'customer' => $payment->customer,
+            'bankDetails' => $bankDetails,
+            'mobileDetails' => $mobileDetails,
+            'bankAccounts' => $bankAccounts,
+            'canSwitchToBank' => $canSwitchToBank,
+            'adminLivePreview' => true,
+        ]);
+    }
+
     // ---------------- PayIn payments ----------------
     public function payin(\App\Services\PayInService $payIn)
     {
