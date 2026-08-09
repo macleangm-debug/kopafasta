@@ -327,10 +327,15 @@ class AuthController extends Controller
         $step = (int) $request->query('step', old('step', 1));
         $mode = (string) $request->session()->get('pin_recovery_mode', old('mode', 'phone'));
         $questions = $request->session()->get('pin_recovery_questions', []);
+        $verified = (bool) $request->session()->get('pin_recovery_answers_ok', false);
 
         if ($step === 2 && ($mode !== 'kba' || blank($questions))) {
             $step = 1;
             $mode = 'phone';
+        }
+
+        if ($step === 3 && (! $verified || blank($request->session()->get('pin_recovery_token')))) {
+            $step = blank($questions) ? 1 : 2;
         }
 
         return view('site.auth.forgot-pin', [
@@ -358,6 +363,7 @@ class AuthController extends Controller
             'pin_recovery_questions',
             'pin_recovery_required',
             'pin_recovery_phone',
+            'pin_recovery_answers_ok',
         ]);
 
         if (! $user || ! $this->pins->hasPin($user)) {
@@ -387,6 +393,7 @@ class AuthController extends Controller
             'pin_recovery_questions' => $started['questions'],
             'pin_recovery_required' => $started['required_correct'],
             'pin_recovery_phone' => $phone,
+            'pin_recovery_answers_ok' => false,
         ]);
 
         return redirect()
@@ -394,14 +401,13 @@ class AuthController extends Controller
             ->withInput(['phone' => $phone, 'step' => 2, 'mode' => 'kba']);
     }
 
-    public function resetPinWithChallenge(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
+    public function verifyPinRecoveryAnswers(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
     {
         $data = $request->validate([
             'token' => ['required', 'string'],
             'phone' => ['required', 'string', 'max:20'],
             'answers' => ['required', 'array'],
             'answers.*' => ['nullable', 'string', 'max:120'],
-            'pin' => ['required', 'string', new FourDigitPin, 'confirmed'],
         ]);
 
         $token = (string) $data['token'];
@@ -409,7 +415,11 @@ class AuthController extends Controller
         if ($sessionToken === '' || ! hash_equals($sessionToken, $token)) {
             return redirect()
                 ->route('site.forgot-pin')
-                ->withErrors(['phone' => __('site.auth.pin_recovery.expired')]);
+                ->with('feedback', [
+                    'tone' => 'error',
+                    'title' => __('site.auth.pin_recovery.title'),
+                    'message' => __('site.auth.pin_recovery.expired'),
+                ]);
         }
 
         $result = $challenge->verify($token, $data['answers'] ?? []);
@@ -422,22 +432,54 @@ class AuthController extends Controller
                     'pin_recovery_questions',
                     'pin_recovery_required',
                     'pin_recovery_phone',
+                    'pin_recovery_answers_ok',
                 ]);
                 $challenge->forget($token);
 
                 return redirect()
                     ->route('site.forgot-pin')
-                    ->withErrors(['phone' => __('site.auth.pin_recovery.'.$reason)]);
+                    ->with('feedback', [
+                        'tone' => 'error',
+                        'title' => __('site.auth.pin_recovery.title'),
+                        'message' => __('site.auth.pin_recovery.'.$reason),
+                    ]);
             }
 
-            return back()
-                ->withInput($request->except(['pin', 'pin_confirmation']))
+            // Wrong answers: stay on questions, try again.
+            return redirect()
+                ->route('site.forgot-pin', ['step' => 2])
+                ->withInput($request->except(['_token']))
                 ->with('feedback', [
-                    'tone' => 'error',
-                    'title' => __('site.auth.pin_recovery.title'),
+                    'tone' => 'warning',
+                    'title' => __('site.auth.pin_recovery.answers_wrong_title'),
                     'message' => __('site.auth.pin_recovery.mismatch', [
                         'remaining' => $result['remaining_attempts'] ?? 0,
                     ]),
+                ]);
+        }
+
+        $request->session()->put('pin_recovery_answers_ok', true);
+
+        return redirect()->route('site.forgot-pin', ['step' => 3]);
+    }
+
+    public function resetPinWithChallenge(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'phone' => ['required', 'string', 'max:20'],
+            'pin' => ['required', 'string', new FourDigitPin, 'confirmed'],
+        ]);
+
+        $token = (string) $data['token'];
+        $sessionToken = (string) $request->session()->get('pin_recovery_token', '');
+        if ($sessionToken === '' || ! hash_equals($sessionToken, $token) || ! $request->session()->get('pin_recovery_answers_ok')) {
+            return redirect()
+                ->route('site.forgot-pin')
+                ->with('feedback', [
+                    'tone' => 'error',
+                    'title' => __('site.auth.pin_recovery.title'),
+                    'message' => __('site.auth.pin_recovery.expired'),
                 ]);
         }
 
@@ -446,7 +488,11 @@ class AuthController extends Controller
         if (! $user) {
             return redirect()
                 ->route('site.forgot-pin')
-                ->withErrors(['phone' => __('site.auth.pin_recovery.expired')]);
+                ->with('feedback', [
+                    'tone' => 'error',
+                    'title' => __('site.auth.pin_recovery.title'),
+                    'message' => __('site.auth.pin_recovery.expired'),
+                ]);
         }
 
         $this->pins->setPin($user, $data['pin']);
@@ -458,6 +504,7 @@ class AuthController extends Controller
             'pin_recovery_questions',
             'pin_recovery_required',
             'pin_recovery_phone',
+            'pin_recovery_answers_ok',
         ]);
 
         return redirect()->route('site.login', [

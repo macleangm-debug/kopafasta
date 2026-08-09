@@ -139,6 +139,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/login', [\App\Http\Controllers\Site\AuthController::class, 'login'])->name('login.post');
         Route::get('/forgot-pin', [\App\Http\Controllers\Site\AuthController::class, 'showForgotPin'])->name('forgot-pin');
         Route::post('/forgot-pin/start', [\App\Http\Controllers\Site\AuthController::class, 'startPinRecovery'])->name('forgot-pin.start');
+        Route::post('/forgot-pin/verify-challenge', [\App\Http\Controllers\Site\AuthController::class, 'verifyPinRecoveryAnswers'])->name('forgot-pin.verify-challenge');
         Route::post('/forgot-pin/reset-challenge', [\App\Http\Controllers\Site\AuthController::class, 'resetPinWithChallenge'])->name('forgot-pin.reset-challenge');
 
         Route::get('/aff/{code}', \App\Http\Controllers\Site\AffiliateRedirectController::class)->name('affiliate.redirect');

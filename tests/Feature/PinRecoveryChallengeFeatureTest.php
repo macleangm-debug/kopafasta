@@ -62,20 +62,37 @@ class PinRecoveryChallengeFeatureTest extends TestCase
         $this->assertSame('kba', session('pin_recovery_mode'));
         $this->assertNotEmpty(session('pin_recovery_token'));
 
+        $token = session('pin_recovery_token');
+
         $this->withSession([
-            'pin_recovery_token' => session('pin_recovery_token'),
+            'pin_recovery_token' => $token,
             'pin_recovery_mode' => 'kba',
             'pin_recovery_questions' => session('pin_recovery_questions'),
             'pin_recovery_required' => 2,
             'pin_recovery_phone' => $user->phone,
-        ])->post(route('site.forgot-pin.reset-challenge'), [
-            'token' => session('pin_recovery_token'),
+            'pin_recovery_answers_ok' => false,
+        ])->post(route('site.forgot-pin.verify-challenge'), [
+            'token' => $token,
             'phone' => $user->phone,
             'answers' => [
                 'mother_first_name' => 'Asha',
                 'primary_school' => 'Uhuru Primary',
                 'nida_middle4' => '0000', // one wrong is ok if 2 of 3 match
             ],
+        ])->assertRedirect(route('site.forgot-pin', ['step' => 3]));
+
+        $this->assertTrue(session('pin_recovery_answers_ok'));
+
+        $this->withSession([
+            'pin_recovery_token' => $token,
+            'pin_recovery_mode' => 'kba',
+            'pin_recovery_questions' => session('pin_recovery_questions'),
+            'pin_recovery_required' => 2,
+            'pin_recovery_phone' => $user->phone,
+            'pin_recovery_answers_ok' => true,
+        ])->post(route('site.forgot-pin.reset-challenge'), [
+            'token' => $token,
+            'phone' => $user->phone,
             'pin' => '9876',
             'pin_confirmation' => '9876',
         ])->assertRedirect(route('site.login', [

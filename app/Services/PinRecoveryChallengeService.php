@@ -89,7 +89,7 @@ class PinRecoveryChallengeService
             $pool[] = [
                 'key' => 'profile_dob',
                 'prompt' => __('site.auth.pin_recovery.profile.q_dob'),
-                'input' => 'text',
+                'input' => 'date',
                 'digits' => null,
                 'answer' => $customer->date_of_birth->format('Y-m-d'),
             ];
