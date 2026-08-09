@@ -84,12 +84,13 @@ class MembershipController extends Controller
     public function renew(Request $request, MembershipService $service, ReferralService $referrals): RedirectResponse
     {
         $data = $request->validate([
-            'channel'       => ['required', 'in:mobile_money,bank'],
-            'payment_phone' => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'channel'       => ['nullable', 'in:mobile_money,bank'],
+            'payment_phone' => ['nullable', 'string', 'max:20'],
             'payment_phone_local' => ['nullable', 'string', 'max:20'],
             'use_wallet'    => ['nullable', 'boolean'],
             'promo_code'    => ['nullable', 'string', 'max:40'],
         ]);
+        $data['channel'] = $data['channel'] ?? 'mobile_money';
 
         $customer = $this->resolveCustomer($request);
         if (! $customer) {
@@ -138,7 +139,8 @@ class MembershipController extends Controller
         ];
 
         if ($data['channel'] === 'mobile_money') {
-            $paymentPhone = PhoneNumber::fromRequest($request, 'payment_phone', $customer->country_code ?? null);
+            $paymentPhone = PhoneNumber::fromRequest($request, 'payment_phone', $customer->country_code ?? null)
+                ?: $customer->phone;
 
             if (! filled($paymentPhone)) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
@@ -179,14 +181,13 @@ class MembershipController extends Controller
                 ]);
             }
 
-            // Shared payments.show gate — PSP confirmation (or admin bank verify) unlocks membership.
+            // Shared payments.show gate — PSP confirmation unlocks membership.
             if (in_array($payment->status, ['processing', 'awaiting_payment', 'pending_verification'], true)) {
                 return redirect()
                     ->route('site.borrower.payments.show', $payment);
             }
 
-            // Instant dummy path already finalized membership in CustomerPaymentService::create.
-
+            // Instant dummy path — stay on dashboard and surface the member card there.
             $this->auditBorrower($isFirstTime ? 'membership.issued' : 'membership.renewed', $customer, [
                 'channel'   => 'mobile_money',
                 'reference' => $paymentReference,
@@ -197,10 +198,13 @@ class MembershipController extends Controller
                 ->with('status', $isFirstTime
                     ? __('borrower.membership.activated_start_loan')
                     : 'Membership renewed successfully!')
+                ->with('show_membership_card', true)
                 ->with(\App\Support\Celebration::SESSION_KEY, [$isFirstTime ? 'membership' : 'payment']);
 
             if ($next = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer->fresh())) {
-                return $next->with(\App\Support\Celebration::SESSION_KEY, [$isFirstTime ? 'membership' : 'payment']);
+                return $next
+                    ->with('show_membership_card', true)
+                    ->with(\App\Support\Celebration::SESSION_KEY, [$isFirstTime ? 'membership' : 'payment']);
             }
 
             return $redirect;

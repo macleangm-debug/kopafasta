@@ -11,9 +11,18 @@ class SetLocale
     /** @param \Closure(Request): Response $next */
     public function handle(Request $request, Closure $next): Response
     {
-        $locale = $request->session()->get('locale', config('app.locale', 'en'));
+        $locale = $request->session()->get('locale');
+
+        // Tanzania-first product: Kiswahili is the default until the visitor picks English.
+        if (! is_string($locale) || $locale === '') {
+            $country = strtoupper((string) $request->session()->get('country', 'TZ'));
+            $locale = $country === 'TZ'
+                ? 'sw'
+                : (string) config('app.locale', 'sw');
+        }
+
         if (! in_array($locale, ['en', 'sw'], true)) {
-            $locale = 'en';
+            $locale = 'sw';
         }
 
         app()->setLocale($locale);

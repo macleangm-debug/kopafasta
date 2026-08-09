@@ -28,12 +28,28 @@
                 $hero['secondary_cta_url'] = null;
                 if (($hero['variant'] ?? '') === 'applications') {
                     $hero['cta_label'] = __('borrower.dashboard.hero.view_application');
+                } elseif (! empty($hero['membership_no']) && ($customer->isMembershipActive() || $customer->isMembershipInGrace())) {
+                    // Active members: quick open for the digital membership card.
+                    $hero['cta_label'] = __('borrower.membership.view_card');
+                    $hero['cta_url'] = route('site.borrower.profile', ['section' => 'membership']);
                 }
             }
         }
     @endphp
 
     <x-site.borrower-dashboard-hero :hero="$hero" />
+
+    @if (session('show_membership_card') && ($customer->isMembershipActive() || $customer->isMembershipInGrace() || $customer->hasMembership()))
+        <section class="mb-6">
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-gray-900">{{ __('borrower.membership.card_ready_title') }}</h2>
+                <a href="{{ route('site.borrower.profile', ['section' => 'membership']) }}" class="text-xs font-semibold text-brand hover:underline">
+                    {{ __('borrower.membership.view_card') }}
+                </a>
+            </div>
+            <x-site.member-card :customer="$customer" />
+        </section>
+    @endif
 
     @if (! empty($financialHealth))
         <x-site.borrower-financial-health :health="$financialHealth" />

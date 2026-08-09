@@ -78,7 +78,8 @@ class Phase27FeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('borrower.membership.promo_inline_label'), false)
             ->assertSee(__('borrower.membership.payment_reference_label'), false)
-            ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
+            ->assertSee(__('borrower.membership.continue_to_payment'), false)
+            ->assertSee(__('borrower.membership.open_gate_hint'), false)
             ->assertDontSee(__('borrower.payments_page.create.mobile_allowed'), false);
     }
 

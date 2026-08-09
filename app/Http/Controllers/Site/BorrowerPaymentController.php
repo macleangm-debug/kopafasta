@@ -385,6 +385,10 @@ class BorrowerPaymentController extends Controller
         if ($state === 'paid') {
             $redirect = $payments->successRedirectUrl($payment);
             $celebration = $payments->celebrationCopy($payment);
+            if ($payment->payment_type === 'registration_fee') {
+                session()->flash('show_membership_card', true);
+                session()->flash(\App\Support\Celebration::SESSION_KEY, ['membership']);
+            }
         }
 
         return response()->json([
@@ -413,6 +417,17 @@ class BorrowerPaymentController extends Controller
         abort_unless($payment->customer_id === $customer->id, 403);
 
         $payment->load(['bankAccount', 'mobileMoneyAccount', 'loan', 'loanProduct', 'customer']);
+
+        // After PSP confirms membership, land on the dashboard with the card — not the membership settings page.
+        if ($payment->payment_type === 'registration_fee'
+            && ($payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true))
+        ) {
+            return redirect()
+                ->route('site.borrower.dashboard')
+                ->with('status', __('borrower.membership.activated_start_loan'))
+                ->with('show_membership_card', true)
+                ->with(\App\Support\Celebration::SESSION_KEY, ['membership']);
+        }
 
         $accounts = app(PaymentAccountService::class);
         $bankDetails = null;

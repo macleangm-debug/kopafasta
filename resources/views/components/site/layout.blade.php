@@ -94,28 +94,39 @@
                 @endauth
             </div>
 
-            <div class="lg:hidden justify-self-end relative" data-mobile-menu>
-                <button type="button" data-mobile-menu-toggle class="p-2 rounded-md hover:bg-gray-100" aria-label="Menu" aria-expanded="false">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
-                <div data-mobile-menu-panel hidden
-                     class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] bg-white shadow-xl ring-1 ring-gray-200 max-h-[80vh] overflow-y-auto z-50 rounded-xl">
-                    <div class="px-4 py-4 flex flex-col gap-3 text-sm border-b border-gray-100">
-                        <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                    </div>
-                    <div class="px-4 py-4 flex flex-col gap-1 text-sm">
-                        <a href="{{ route('site.home') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.home') }}</a>
-                        <a href="{{ route('site.products') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.all_products') }}</a>
-                        <a href="{{ route('site.marketplace') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.marketplace') }}</a>
-                        <a href="{{ route('site.affiliate') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.affiliate') }}</a>
-                        <a href="{{ route('site.how-it-works') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.how_it_works.title') }}</a>
-                        <div class="border-t border-gray-200 pt-3 mt-2 flex flex-col gap-2">
+            <div class="lg:hidden justify-self-end flex items-center gap-2">
+                <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                @guest
+                    <a href="{{ route('site.login') }}"
+                       class="text-xs font-semibold text-brand border border-brand/30 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+                        {{ __('site.nav.log_in') }}
+                    </a>
+                    <a href="{{ route('site.register.borrower') }}"
+                       class="inline-flex items-center rounded-lg bg-brand text-white text-xs font-semibold px-2.5 py-1.5 whitespace-nowrap">
+                        {{ __('site.nav.register') }}
+                    </a>
+                @else
+                    <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
+                       class="text-xs font-semibold text-brand px-1.5 py-1.5 whitespace-nowrap">
+                        {{ __('site.auth.welcome_back') }}
+                    </a>
+                @endguest
+                <div class="relative" data-mobile-menu>
+                    <button type="button" data-mobile-menu-toggle class="p-2 rounded-md hover:bg-gray-100" aria-label="Menu" aria-expanded="false">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                    <div data-mobile-menu-panel hidden
+                         class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] bg-white shadow-xl ring-1 ring-gray-200 max-h-[80vh] overflow-y-auto z-50 rounded-xl">
+                        <div class="px-4 py-4 flex flex-col gap-1 text-sm">
+                            <a href="{{ route('site.home') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.home') }}</a>
+                            <a href="{{ route('site.products') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.all_products') }}</a>
+                            <a href="{{ route('site.marketplace') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.marketplace') }}</a>
+                            <a href="{{ route('site.affiliate') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.affiliate') }}</a>
+                            <a href="{{ route('site.how-it-works') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.how_it_works.title') }}</a>
                             @auth
-                                <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}" class="py-1.5">{{ __('site.auth.welcome_back') }}</a>
-                                <form method="POST" action="{{ route('site.logout') }}">@csrf<button class="py-1.5 text-left text-gray-500 w-full">Log out</button></form>
-                            @else
-                                <a href="{{ route('site.login') }}" class="py-1.5">{{ __('site.nav.log_in') }}</a>
-                                <a href="{{ route('site.register.borrower') }}" class="inline-flex justify-center rounded-lg bg-brand text-white font-semibold px-4 py-2 mt-1">{{ __('site.nav.register') }}</a>
+                                <div class="border-t border-gray-200 pt-3 mt-2">
+                    <form method="POST" action="{{ route('site.logout') }}">@csrf<button class="px-2 py-2 text-left text-gray-500 w-full hover:bg-gray-50 rounded-lg">{{ __('borrower.sign_out') }}</button></form>
+                                </div>
                             @endauth
                         </div>
                     </div>
