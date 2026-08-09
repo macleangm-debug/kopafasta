@@ -1385,7 +1385,8 @@ return [
     'complete_reservation_first' => 'Anza ombi la mkopo kutoka mali ya soko kwanza.',
     'reservation_closed' => 'Uhifadhi wa mali hii umefungwa. Chagua mali nyingine au anza ombi jipya.',
     'continue_apply_hint' => 'Endelea na ombi la kawaida la mkopo (kiasi na muda, mdhamini ikiwa inahitajika, kagua, wasilisha). Amana hulipwa baada ya idhini tu.',
-    'pay_deposit_after_approval_hint' => 'Mkopo wako umeidhinishwa. Lipa amana ya :amount ndani ya siku :days za kazi ili kuendelea.',
+    'pay_deposit_after_approval_hint' => 'Mkopo wako umeidhinishwa. Lipa amana ya :amount ndani ya siku :days za kazi. Hadi hapo mali inabaki kwenye soko — anayelipa amana kwanza ndiye anayeshinda.',
+    'deposit_lost_to_other' => 'Mnunuzi mwingine ameshapata mali hii. Chagua orodha nyingine au wasiliana na usaidizi.',
     'steps' => 
 [
       'start' => 'Anza ombi la mkopo wa mali',
@@ -4355,7 +4356,7 @@ Asante.',
     'top_up_repayments_required' => 'Unahitaji angalau malipo :count yaliyofanikiwa kabla ya kuomba ongezeko.',
     'top_up_pending' => 'Tayari una ombi la ongezeko linalosubiri kwa mkopo huu.',
     'asset_inactive' => 'Mali hii haipatikani tena.',
-    'asset_locked' => 'Mali hii imewekwa kama imehifadhiwa na ombi lingine.',
+    'asset_locked' => 'Mali hii imeshapata mnunuzi mwingine (amana imelipwa au mauzo ya fedha taslimu). Chagua orodha nyingine.',
     'asset_no_reuse' => 'Mali hii haiwezi kutumika tena kwa mkopo mpya.',
 ],
   'loan_actions' => 

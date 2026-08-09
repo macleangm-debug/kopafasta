@@ -63,5 +63,6 @@ class AssetDepositPaymentTest extends TestCase
         $this->assertTrue($payment->isVerified());
         $this->assertSame('paid', $reservation->deposit_status);
         $this->assertSame('deposit_paid', $reservation->status);
+        $this->assertSame('locked', $asset->fresh()->availability_status);
     }
 }

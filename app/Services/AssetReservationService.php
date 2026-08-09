@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\MarketplaceAsset;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class AssetReservationService
 {
@@ -31,7 +32,8 @@ class AssetReservationService
             'deposit_status'         => 'pending',
         ]);
 
-        $asset->lock();
+        // Keep the listing open until deposit is paid (first-come, first-served).
+        // Cash sales or a faster depositor can still take the asset.
 
         return $reservation;
     }
@@ -154,28 +156,63 @@ class AssetReservationService
 
     public function markDepositPaid(AssetReservation $reservation, ?string $paymentReference = null): AssetReservation
     {
-        $reservation->update([
-            'deposit_status'            => 'paid',
-            'deposit_paid_at'           => now(),
-            'deposit_payment_reference' => $paymentReference,
-            'status'                    => 'deposit_paid',
-        ]);
+        return DB::transaction(function () use ($reservation, $paymentReference) {
+            $reservation = AssetReservation::query()->lockForUpdate()->findOrFail($reservation->id);
+            $asset = MarketplaceAsset::query()->lockForUpdate()->find($reservation->marketplace_asset_id);
 
-        try {
-            $this->accrueSupplierDeposit($reservation->fresh(['asset.vendor']));
-            app(AssetLendingRevenuePostingService::class)->postDepositMarkup($reservation->fresh(['asset']));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+            if ($asset && ! $asset->isAvailable()) {
+                $ownsLock = AssetReservation::query()
+                    ->where('marketplace_asset_id', $asset->id)
+                    ->where('id', $reservation->id)
+                    ->where('deposit_status', 'paid')
+                    ->exists();
 
-        $reservation = $reservation->refresh()->loadMissing('loanApplication');
-        if ($reservation->loanApplication
-            && app(PostApprovalFeeService::class)->allPaid($reservation->loanApplication)) {
-            $reservation->update(['status' => 'post_approval_fees_paid']);
-            app(UpfrontSettlementService::class)->accrueIfNeeded($reservation->fresh(['asset.vendor']), 'post_approval_fees');
-        }
+                if (! $ownsLock && $reservation->deposit_status !== 'paid') {
+                    throw ValidationException::withMessages([
+                        'payment' => __('borrower.marketplace.deposit_lost_to_other'),
+                    ]);
+                }
+            }
 
-        return $reservation->refresh();
+            $otherDeposit = AssetReservation::query()
+                ->where('marketplace_asset_id', $reservation->marketplace_asset_id)
+                ->where('id', '!=', $reservation->id)
+                ->where('deposit_status', 'paid')
+                ->whereNotIn('status', ['cancelled'])
+                ->exists();
+
+            if ($otherDeposit && $reservation->deposit_status !== 'paid') {
+                throw ValidationException::withMessages([
+                    'payment' => __('borrower.marketplace.deposit_lost_to_other'),
+                ]);
+            }
+
+            $reservation->update([
+                'deposit_status'            => 'paid',
+                'deposit_paid_at'           => now(),
+                'deposit_payment_reference' => $paymentReference,
+                'status'                    => 'deposit_paid',
+            ]);
+
+            // First successful deposit locks the listing for everyone else.
+            $asset?->lock();
+
+            try {
+                $this->accrueSupplierDeposit($reservation->fresh(['asset.vendor']));
+                app(AssetLendingRevenuePostingService::class)->postDepositMarkup($reservation->fresh(['asset']));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            $reservation = $reservation->refresh()->loadMissing('loanApplication');
+            if ($reservation->loanApplication
+                && app(PostApprovalFeeService::class)->allPaid($reservation->loanApplication)) {
+                $reservation->update(['status' => 'post_approval_fees_paid']);
+                app(UpfrontSettlementService::class)->accrueIfNeeded($reservation->fresh(['asset.vendor']), 'post_approval_fees');
+            }
+
+            return $reservation->refresh();
+        });
     }
 
     public function accrueSupplierDeposit(AssetReservation $reservation): void
@@ -222,8 +259,6 @@ class AssetReservationService
             'loan_application_id' => $application->id,
             'status'              => 'application_submitted',
         ]);
-
-        $reservation->asset?->lock();
 
         return $reservation->refresh();
     }
@@ -360,6 +395,31 @@ class AssetReservationService
         return in_array($reservation->status, ['post_approval_fees_paid', 'insurance_active', 'registration_complete', 'released'], true);
     }
 
+    public function unlockIdleListings(): int
+    {
+        $locked = MarketplaceAsset::query()
+            ->where('availability_status', 'locked')
+            ->get();
+
+        $unlocked = 0;
+        foreach ($locked as $asset) {
+            $depositHeld = AssetReservation::query()
+                ->where('marketplace_asset_id', $asset->id)
+                ->where('deposit_status', 'paid')
+                ->whereNotIn('status', ['cancelled', 'released'])
+                ->exists();
+
+            if ($depositHeld) {
+                continue;
+            }
+
+            $asset->unlock();
+            $unlocked++;
+        }
+
+        return $unlocked;
+    }
+
     public function unlockAssetIfIdle(AssetReservation $reservation): void
     {
         $asset = $reservation->asset;
@@ -367,13 +427,13 @@ class AssetReservationService
             return;
         }
 
-        $otherActive = AssetReservation::query()
+        $depositHeld = AssetReservation::query()
             ->where('marketplace_asset_id', $asset->id)
-            ->where('id', '!=', $reservation->id)
-            ->whereNotIn('status', ['released', 'cancelled'])
+            ->where('deposit_status', 'paid')
+            ->whereNotIn('status', ['cancelled', 'released'])
             ->exists();
 
-        if (! $otherActive) {
+        if (! $depositHeld) {
             $asset->unlock();
         }
     }

@@ -31,7 +31,7 @@
             <x-admin.input name="default_waiting_period_days" label="Default asset waiting period (days)" type="number"
                            :value="$values['default_waiting_period_days'] ?? 7" required />
             <x-admin.input name="deposit_deadline_working_days" label="Deposit deadline after approval (working days)" type="number"
-                           :value="$values['deposit_deadline_working_days'] ?? 5" required />
+                           :value="$values['deposit_deadline_working_days'] ?? 2" required />
             <x-admin.input name="insurance_expiry_warning_days" label="Insurance expiry warning (days before)" type="number"
                            :value="$values['insurance_expiry_warning_days'] ?? 30" required />
             <x-admin.input name="max_asset_photos" label="Max asset photos per listing" type="number"

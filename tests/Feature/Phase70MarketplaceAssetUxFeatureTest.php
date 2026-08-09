@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureBorrowerPin;
+use App\Models\AssetReservation;
 use App\Models\Customer;
 use App\Models\MarketplaceAsset;
 use App\Models\User;
@@ -14,6 +16,12 @@ use Tests\TestCase;
 class Phase70MarketplaceAssetUxFeatureTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutMiddleware(EnsureBorrowerPin::class);
+    }
 
     public function test_deposit_percent_is_derived_from_asset_value_on_save(): void
     {
@@ -52,7 +60,7 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             ->assertSee('Deposit (% of asset value)', false);
     }
 
-    public function test_borrower_can_access_reserve_flow_after_asset_is_locked(): void
+    public function test_starting_application_keeps_asset_listed_until_deposit(): void
     {
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
@@ -79,14 +87,21 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             'weekly_installment' => 150_000,
             'max_tenure_months'  => 18,
             'is_active'          => true,
+            'availability_status'=> 'available',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('site.borrower.marketplace.apply', $asset->slug))
-            ->assertRedirect(route('site.borrower.marketplace.reserve', $asset->slug));
+        $response = $this->actingAs($user)
+            ->post(route('site.borrower.marketplace.apply', $asset->slug));
+
+        $reservation = AssetReservation::query()->where('marketplace_asset_id', $asset->id)->first();
+        $this->assertNotNull($reservation);
+        $response->assertRedirect(route('site.borrower.apply', [
+            'product' => config('asset_marketplace.asset_loan_product_code', 'AL'),
+            'reservation' => $reservation->id,
+        ]));
 
         $asset->refresh();
-        $this->assertSame('locked', $asset->availability_status);
+        $this->assertTrue($asset->isAvailable());
 
         $this->actingAs($user)
             ->get(route('site.borrower.marketplace.reserve', $asset->slug))
@@ -121,12 +136,19 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             'weekly_installment' => 150_000,
             'max_tenure_months'  => 18,
             'is_active'          => true,
+            'availability_status'=> 'available',
             'photos'             => ['marketplace/test.jpg'],
         ]);
 
-        $this->actingAs($user)
-            ->post(route('site.borrower.marketplace.apply', $asset->slug))
-            ->assertRedirect(route('site.borrower.marketplace.reserve', $asset->slug));
+        $response = $this->actingAs($user)
+            ->post(route('site.borrower.marketplace.apply', $asset->slug));
+
+        $reservation = AssetReservation::query()->where('marketplace_asset_id', $asset->id)->first();
+        $this->assertNotNull($reservation);
+        $response->assertRedirect(route('site.borrower.apply', [
+            'product' => config('asset_marketplace.asset_loan_product_code', 'AL'),
+            'reservation' => $reservation->id,
+        ]));
     }
 
     public function test_marketplace_card_shows_supplier_and_region(): void

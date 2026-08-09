@@ -1348,7 +1348,8 @@ return [
         'pay_application_fee_hint' => 'Pay the application fee of TZS :amount, then confirm below.',
         'confirm_application_fee' => 'Confirm application fee paid',
         'pay_deposit_hint' => 'Pay your deposit of TZS :amount, then confirm below.',
-        'pay_deposit_after_approval_hint' => 'Your loan is approved. Pay the deposit of :amount within :days working days to continue.',
+        'pay_deposit_after_approval_hint' => 'Your loan is approved. Pay the deposit of :amount within :days working days. Until then the asset stays listed — first deposit wins.',
+        'deposit_lost_to_other' => 'Another buyer secured this asset first. Pick another listing or ask support for options.',
         'confirm_deposit' => 'Confirm deposit paid',
         'deposit_ready' => 'Deposit received. Continue with post-approval steps.',
         'start_loan_application' => 'Continue loan application',
@@ -3939,7 +3940,7 @@ return [
         'top_up_repayments_required' => 'You need at least :count successful repayments before requesting a top-up.',
         'top_up_pending' => 'You already have a pending top-up request for this loan.',
         'asset_inactive' => 'This asset is no longer available.',
-        'asset_locked' => 'This asset is currently reserved by another application.',
+        'asset_locked' => 'This asset was secured by another buyer (deposit paid or cash sale). Choose another listing.',
         'asset_no_reuse' => 'This asset cannot be used again for a new loan.',
     ],
 
