@@ -43,10 +43,12 @@ class AssetMarketplaceController extends Controller
         $asset = $this->findAsset($assetId);
         abort_if(! $asset, 404);
 
-        $loginUrl = route('site.login', ['redirect' => route('site.borrower.marketplace.show', $assetId)]);
+        $applyReturn = route('site.borrower.marketplace.show', $assetId).'?apply=1';
+        $loginUrl = route('site.login', ['redirect' => $applyReturn]);
+        $registerUrl = route('site.register.borrower', ['redirect' => $applyReturn]);
         $relatedAssets = $this->relatedAssets($asset);
 
-        return view('site.public.marketplace.show', compact('asset', 'loginUrl', 'relatedAssets'));
+        return view('site.public.marketplace.show', compact('asset', 'loginUrl', 'registerUrl', 'relatedAssets'));
     }
 
     private function renderIndex(Request $request, string $view, bool $authenticated): View

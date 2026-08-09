@@ -11,9 +11,13 @@
             <x-admin.input name="tin"             label="TIN"               :value="$values['tin'] ?? ''" />
             <x-admin.input name="bot_licence"     label="BOT licence"       :value="$values['bot_licence'] ?? ''" />
             <x-admin.input name="tier"            label="Tier (1/2/3)"      :value="$values['tier'] ?? ''" />
-            <x-admin.input name="email"           label="Contact email"     type="email" :value="$values['email'] ?? ''" />
-            <x-admin.input name="phone"           label="Contact phone"     :value="$values['phone'] ?? ''" />
+            <x-admin.input name="email"           label="Primary contact email" type="email" :value="$values['email'] ?? ''" />
+            <x-admin.input name="support_email"   label="Support email (optional 2nd)" type="email" :value="$values['support_email'] ?? ''" />
+            <x-admin.input name="phone"           label="Hotline / phone 1"     :value="$values['phone'] ?? ''" />
+            <x-admin.input name="phone_2"         label="Phone 2 (optional)"    :value="$values['phone_2'] ?? ''" />
+            <x-admin.input name="phone_3"         label="Phone 3 (optional)"    :value="$values['phone_3'] ?? ''" />
             <x-admin.input name="whatsapp"        label="WhatsApp (digits, e.g. 2557…)" :value="$values['whatsapp'] ?? ''" />
+            <x-admin.input name="hotline_label"   label="Hotline label (e.g. Customer care)" :value="$values['hotline_label'] ?? ''" />
             <x-admin.input name="website"         label="Website"           :value="$values['website'] ?? ''" />
             <x-admin.input name="app_base_url"    label="App base URL"      :value="$values['app_base_url'] ?? ''" placeholder="https://app.kopafasta.com" />
             <x-admin.input name="address"         label="Address"           :value="$values['address'] ?? ''" />
@@ -21,6 +25,10 @@
             <x-admin.input name="timezone"        label="Timezone"          :value="$values['timezone'] ?? 'Africa/Dar_es_Salaam'" required />
             <x-admin.input name="fiscal_year_start" label="Fiscal year start (MM-DD)" :value="$values['fiscal_year_start'] ?? '01-01'" />
         </div>
+
+        <p class="text-xs text-gray-500 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
+            Phone 1–3 and emails appear on the public support page and help widget. Leave extra phones blank if unused.
+        </p>
 
         <div class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-5 py-4 space-y-3">
             <div>

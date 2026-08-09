@@ -100,12 +100,12 @@ trait HasMembership
     public function membershipStatusLabel(): string
     {
         return match (true) {
-            ! $this->hasMembership()           => 'NOT ISSUED',
-            $this->isMembershipExpired()       => 'EXPIRED',
-            $this->isMembershipInGrace()       => 'GRACE',
-            $this->isMembershipExpiringSoon(7) => 'EXPIRING SOON',
-            $this->isMembershipExpiringSoon(30)=> 'EXPIRING',
-            default                            => 'ACTIVE',
+            ! $this->hasMembership()           => __('borrower.membership.badge_not_issued'),
+            $this->isMembershipExpired()       => __('borrower.membership.badge_expired'),
+            $this->isMembershipInGrace()       => __('borrower.membership.badge_grace'),
+            $this->isMembershipExpiringSoon(7) => __('borrower.membership.badge_expiring_soon'),
+            $this->isMembershipExpiringSoon(30)=> __('borrower.membership.badge_expiring'),
+            default                            => __('borrower.membership.badge_active'),
         };
     }
 

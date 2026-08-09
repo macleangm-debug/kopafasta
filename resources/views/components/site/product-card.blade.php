@@ -23,13 +23,13 @@
             </span>
         </div>
 
-        <div class="mt-1.5 space-y-1 flex-1 flex flex-col">
-            <h3 class="text-lg font-extrabold text-brand leading-snug tracking-tight line-clamp-2 min-h-[2.5rem] group-hover:text-brand-light transition-colors">
+        <div class="mt-1.5 flex-1 flex flex-col">
+            <h3 class="text-lg font-extrabold text-brand leading-snug tracking-tight line-clamp-2 group-hover:text-brand-light transition-colors">
                 {{ $productName }}
             </h3>
-            <p class="text-sm text-gray-600 line-clamp-2 leading-snug min-h-[2.5rem]">{{ loan_product_card_description($product) }}</p>
+            <p class="mt-0.5 text-sm text-gray-600 line-clamp-2 leading-snug">{{ loan_product_card_description($product) }}</p>
 
-            <div class="mt-auto pt-1 space-y-0 text-xs">
+            <div class="mt-auto pt-2.5 space-y-0 text-xs">
                 <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
                     <span class="text-gray-500">{{ loan_product_rate_field_label($product) }}</span>
                     <span class="font-semibold text-gray-900">{{ $rateLabel }} / mo</span>

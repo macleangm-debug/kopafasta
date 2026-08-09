@@ -10,6 +10,7 @@
 return [
     'Organization' => [
         ['Company profile', 'admin.settings.company', 'company'],
+        ['Working hours', 'admin.settings.working-hours', 'working-hours', 'sla holiday calendar office'],
         ['Account security', 'admin.settings.account-security', 'account-security', '2fa authenticator totp password'],
         ['Authentication', 'admin.settings.auth-portal', 'auth-portal', '2fa pin reset timer recovery turnstile session forgot'],
         ['Branches', 'admin.branches.index', 'branches'],

@@ -29,6 +29,17 @@ return [
                     'custom' => 'Other (write reason)',
                 ],
             ],
+            'marital_vs_crb' => [
+                'label' => 'Compare marital / family status to CRB',
+                'evidence' => 'marital_crb',
+                'fail_reasons' => [
+                    'marital_mismatch' => 'Marital status differs from CRB',
+                    'spouse_mismatch' => 'Spouse name differs from CRB',
+                    'children_mismatch' => 'Number of children differs from CRB',
+                    'crb_missing' => 'CRB personal data not available',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
             'face_vs_nida' => [
                 'label' => 'Compare face verification to NIDA photo',
                 'evidence' => 'face_nida',

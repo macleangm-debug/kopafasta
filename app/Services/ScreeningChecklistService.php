@@ -575,6 +575,7 @@ class ScreeningChecklistService
         $crb = (array) ($ctx['crb'] ?? []);
         $photos = [];
         $rows = [];
+        $compare = [];
         $hint = null;
 
         switch ($type) {
@@ -588,12 +589,50 @@ class ScreeningChecklistService
                 break;
 
             case 'name_crb':
+                $personal = (array) ($crb['personal'] ?? []);
+                $crbName = (string) ($personal['full_name'] ?? data_get($crb, 'identity.full_name') ?: '—');
+                $profileName = (string) ($customer?->full_name ?: '—');
+                $compare = [
+                    $this->compareRow('Full name', $profileName, $crbName),
+                ];
                 $rows = [
-                    ['label' => 'Customer name', 'value' => (string) ($customer?->full_name ?: '—')],
                     ['label' => 'CRB recommendation', 'value' => strtoupper((string) ($crb['recommendation'] ?? '—'))],
                     ['label' => 'CRB score', 'value' => (string) ($crb['score'] ?? '—')],
                 ];
-                $hint = 'Confirm the bureau file belongs to this person.';
+                $hint = 'Expand to compare profile name with the CRB file.';
+                break;
+
+            case 'marital_crb':
+                $personal = (array) ($crb['personal'] ?? []);
+                $profileMarital = $customer?->marital_status
+                    ? (__('borrower.profile.marital_options.'.$customer->marital_status) ?: $customer->marital_status)
+                    : '—';
+                $crbMarital = (string) ($personal['marital_status'] ?? '—');
+                $spouseProfile = trim(implode(' ', array_filter([
+                    $customer?->spouse_first_name,
+                    $customer?->spouse_middle_name,
+                    $customer?->spouse_last_name,
+                ])));
+                $spouseCrb = collect($personal['spouses'] ?? [])->pluck('name')->filter()->implode(' ');
+                if ($spouseCrb === '') {
+                    $spouseCrb = collect($personal['related_persons'] ?? [])
+                        ->filter(fn ($r) => str_contains(strtolower((string) ($r['relation'] ?? '')), 'spouse'))
+                        ->pluck('name')
+                        ->filter()
+                        ->implode(' ');
+                }
+                $childrenProfile = $customer?->number_of_children !== null ? (string) $customer->number_of_children : '—';
+                $childrenCrb = array_key_exists('number_of_children', $personal) && $personal['number_of_children'] !== null
+                    ? (string) $personal['number_of_children']
+                    : '—';
+
+                $compare = [
+                    $this->compareRow('Marital status', $profileMarital, $crbMarital !== '' ? $crbMarital : '—'),
+                    $this->compareRow('Spouse name', $spouseProfile !== '' ? $spouseProfile : '—', $spouseCrb !== '' ? $spouseCrb : '—'),
+                    $this->compareRow('Number of children', $childrenProfile, $childrenCrb),
+                ];
+                $rows = [];
+                $hint = 'Expand to compare what the borrower entered with CRB personal data.';
                 break;
 
             case 'face_nida':
@@ -735,8 +774,30 @@ class ScreeningChecklistService
         return [
             'type' => $type,
             'rows' => $rows,
+            'compare' => $compare,
             'photos' => $photos,
             'hint' => $hint,
+        ];
+    }
+
+    /**
+     * @return array{label: string, profile: string, crb: string, status: string}
+     */
+    private function compareRow(string $label, string $profile, string $crb): array
+    {
+        $profileNorm = strtolower(trim(preg_replace('/\s+/', ' ', $profile) ?? ''));
+        $crbNorm = strtolower(trim(preg_replace('/\s+/', ' ', $crb) ?? ''));
+        $status = match (true) {
+            $profileNorm === '' || $profileNorm === '—' || $crbNorm === '' || $crbNorm === '—' => 'missing',
+            $profileNorm === $crbNorm => 'match',
+            default => 'mismatch',
+        };
+
+        return [
+            'label' => $label,
+            'profile' => $profile !== '' ? $profile : '—',
+            'crb' => $crb !== '' ? $crb : '—',
+            'status' => $status,
         ];
     }
 }

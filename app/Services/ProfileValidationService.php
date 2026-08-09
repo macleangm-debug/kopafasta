@@ -49,7 +49,8 @@ class ProfileValidationService
 
     public function requiresMarriageCertificate(): bool
     {
-        return (bool) ($this->kycSettings()['require_marriage_certificate'] ?? false);
+        // Temporarily disabled — re-enable via KYC settings when required again.
+        return false;
     }
 
     public function hasMarriageCertificate(Customer $customer): bool

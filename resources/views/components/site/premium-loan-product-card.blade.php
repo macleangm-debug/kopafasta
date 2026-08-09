@@ -50,13 +50,13 @@
     <div class="px-4 py-3.5 flex flex-col flex-1">
         <p class="text-[10px] font-semibold uppercase tracking-widest text-brand/70">{{ loan_product_type_label($product) }}</p>
 
-        <div class="mt-1 space-y-1 flex-1 flex flex-col">
-            <h3 class="text-lg font-extrabold text-brand leading-snug tracking-tight group-hover:text-brand-light transition-colors line-clamp-2 min-h-[2.5rem]" title="{{ $productName }}">
+        <div class="mt-1 flex-1 flex flex-col">
+            <h3 class="text-lg font-extrabold text-brand leading-snug tracking-tight group-hover:text-brand-light transition-colors line-clamp-2" title="{{ $productName }}">
                 {{ $productName }}
             </h3>
-            <p class="text-sm text-gray-600 line-clamp-2 leading-snug min-h-[2.5rem]">{{ $description }}</p>
+            <p class="mt-0.5 text-sm text-gray-600 line-clamp-2 leading-snug">{{ $description }}</p>
 
-            <dl class="mt-auto pt-1 space-y-0 text-xs">
+            <dl class="mt-auto pt-2.5 space-y-0 text-xs">
                 <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
                     <dt class="text-gray-500">{{ loan_product_rate_field_label($product) }}</dt>
                     <dd class="font-semibold text-gray-900 tabular-nums">

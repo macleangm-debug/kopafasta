@@ -40,14 +40,13 @@
             </div>
         </div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4">
-            <a href="{{ route('site.home') }}" class="flex items-center gap-2 shrink-0">
-                <x-site.brand-mark size="lg" />
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4">
+            <a href="{{ route('site.home') }}" class="flex items-center min-w-0 max-w-[min(100%,11.5rem)] sm:max-w-none shrink">
+                <span class="lg:hidden min-w-0"><x-site.brand-mark size="md" /></span>
+                <span class="hidden lg:inline-flex"><x-site.brand-mark size="lg" /></span>
             </a>
 
             <nav class="hidden lg:flex items-center justify-center gap-1 text-sm font-medium text-gray-700">
-                <a href="{{ route('site.home') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.home') }}</a>
-
                 <div class="relative" x-data="{ productsOpen: false }"
                      @mouseenter="productsOpen = true" @mouseleave="productsOpen = false"
                      @keydown.escape.window="productsOpen = false">
@@ -96,8 +95,7 @@
                 @endauth
             </div>
 
-            <div class="lg:hidden justify-self-end flex items-center gap-2">
-                <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+            <div class="lg:hidden justify-self-end flex items-center gap-1.5 min-w-0">
                 @guest
                     <a href="{{ route('site.login') }}"
                        class="text-xs font-semibold text-brand border border-brand/30 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
@@ -109,7 +107,7 @@
                     </a>
                 @else
                     <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
-                       class="text-xs font-semibold text-brand px-1.5 py-1.5 whitespace-nowrap">
+                       class="text-xs font-semibold text-brand px-1.5 py-1.5 whitespace-nowrap max-w-[5.5rem] truncate">
                         {{ __('site.auth.welcome_back') }}
                     </a>
                 @endguest
@@ -120,7 +118,9 @@
                     <div data-mobile-menu-panel hidden
                          class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] bg-white shadow-xl ring-1 ring-gray-200 max-h-[80vh] overflow-y-auto z-50 rounded-xl">
                         <div class="px-4 py-4 flex flex-col gap-1 text-sm">
-                            <a href="{{ route('site.home') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.home') }}</a>
+                            <div class="px-2 py-2 border-b border-gray-100 mb-1">
+                                <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                            </div>
                             <a href="{{ route('site.products') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.all_products') }}</a>
                             <a href="{{ route('site.marketplace') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.marketplace') }}</a>
                             <a href="{{ route('site.affiliate') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.affiliate') }}</a>

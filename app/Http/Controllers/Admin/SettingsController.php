@@ -32,8 +32,12 @@ class SettingsController extends Controller
             'bot_licence' => ['nullable', 'string', 'max:100'],
             'tier'        => ['nullable', 'string', 'max:20'],
             'email'       => ['nullable', 'email', 'max:150'],
+            'support_email' => ['nullable', 'email', 'max:150'],
             'phone'       => ['nullable', 'string', 'max:30'],
+            'phone_2'     => ['nullable', 'string', 'max:30'],
+            'phone_3'     => ['nullable', 'string', 'max:30'],
             'whatsapp'    => ['nullable', 'string', 'max:30'],
+            'hotline_label' => ['nullable', 'string', 'max:80'],
             'website'     => ['nullable', 'string', 'max:200'],
             'app_base_url' => ['nullable', 'url', 'max:255'],
             'address'     => ['nullable', 'string', 'max:500'],
@@ -52,6 +56,72 @@ class SettingsController extends Controller
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["company.$k" => $v])->all());
         return back()->with('status', 'Company profile saved.');
+    }
+
+    // ---------------- Working hours & public holidays ----------------
+    public function workingHours()
+    {
+        $company = Setting::group('company');
+
+        return view('admin.settings.working-hours', [
+            'values' => [
+                'working_weekdays' => $company['working_weekdays'] ?? ['mon', 'tue', 'wed', 'thu', 'fri'],
+                'working_hours_start' => $company['working_hours_start'] ?? '08:00',
+                'working_hours_end' => $company['working_hours_end'] ?? '17:00',
+            ],
+            'holidays' => \App\Models\PublicHoliday::query()
+                ->orderByDesc('date')
+                ->limit(200)
+                ->get(),
+        ]);
+    }
+
+    public function saveWorkingHours(Request $request)
+    {
+        $data = $request->validate([
+            'working_hours_start' => ['required', 'date_format:H:i'],
+            'working_hours_end' => ['required', 'date_format:H:i', 'after:working_hours_start'],
+            'working_weekdays' => ['required', 'array', 'min:1'],
+            'working_weekdays.*' => ['in:mon,tue,wed,thu,fri,sat,sun'],
+        ]);
+
+        Setting::setMany([
+            'company.working_hours_start' => $data['working_hours_start'],
+            'company.working_hours_end' => $data['working_hours_end'],
+            'company.working_weekdays' => array_values($data['working_weekdays']),
+        ]);
+
+        return back()->with('status', 'Working hours saved. SLAs now use these office hours (excluding weekends and public holidays).');
+    }
+
+    public function storePublicHoliday(Request $request)
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date', 'unique:public_holidays,date'],
+            'name' => ['required', 'string', 'max:150'],
+            'name_sw' => ['nullable', 'string', 'max:150'],
+            'is_recurring' => ['nullable', 'boolean'],
+        ]);
+
+        \App\Models\PublicHoliday::create([
+            'date' => $data['date'],
+            'name' => $data['name'],
+            'name_sw' => $data['name_sw'] ?? null,
+            'country_code' => 'TZ',
+            'is_recurring' => $request->boolean('is_recurring'),
+        ]);
+
+        \App\Services\WorkingCalendarService::forgetHolidayCache();
+
+        return back()->with('status', 'Public holiday added.');
+    }
+
+    public function destroyPublicHoliday(\App\Models\PublicHoliday $holiday)
+    {
+        $holiday->delete();
+        \App\Services\WorkingCalendarService::forgetHolidayCache();
+
+        return back()->with('status', 'Public holiday removed.');
     }
 
     public function legal()

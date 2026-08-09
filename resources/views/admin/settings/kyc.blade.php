@@ -12,7 +12,7 @@
                 'require_selfie'       => 'Require selfie',
                 'require_address_proof'=> 'Require residence verification letter',
                 'require_income_proof' => 'Require income proof',
-                'require_marriage_certificate' => 'Require marriage certificate (when married)',
+                'require_marriage_certificate' => 'Require marriage certificate (when married) — currently disabled in product until re-enabled',
                 'auto_approve_low_risk'=> 'Auto-approve low risk customers',
                 'crb_check_required'   => 'Pull CRB credit report after affordability / capacity pass (underwriting only)',
             ];

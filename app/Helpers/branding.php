@@ -44,6 +44,60 @@ if (! function_exists('support_contact')) {
     }
 }
 
+if (! function_exists('support_phones')) {
+    /**
+     * Up to 3 public hotline / contact numbers from company settings.
+     *
+     * @return list<string>
+     */
+    function support_phones(): array
+    {
+        $phones = [];
+        foreach (['company.phone', 'company.phone_2', 'company.phone_3'] as $key) {
+            $value = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get($key) : null;
+            if (filled($value)) {
+                $phones[] = (string) $value;
+            }
+        }
+
+        if ($phones === []) {
+            $fallback = support_contact('phone');
+            if (filled($fallback)) {
+                $phones[] = $fallback;
+            }
+        }
+
+        return array_values(array_unique($phones));
+    }
+}
+
+if (! function_exists('support_emails')) {
+    /**
+     * Up to 2 public support emails from company settings.
+     *
+     * @return list<string>
+     */
+    function support_emails(): array
+    {
+        $emails = [];
+        foreach (['company.email', 'company.support_email'] as $key) {
+            $value = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get($key) : null;
+            if (filled($value)) {
+                $emails[] = (string) $value;
+            }
+        }
+
+        if ($emails === []) {
+            $fallback = support_contact('email');
+            if (filled($fallback)) {
+                $emails[] = $fallback;
+            }
+        }
+
+        return array_values(array_unique($emails));
+    }
+}
+
 if (! function_exists('brand_name')) {
     function brand_name(): string
     {

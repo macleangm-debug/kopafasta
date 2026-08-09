@@ -10,8 +10,9 @@
     <a href="{{ $showUrl }}" class="block relative overflow-hidden bg-slate-50" x-data="{ imgLoaded: {{ empty($asset['photos'][0]) ? 'true' : 'false' }} }">
         @if (! empty($asset['photos'][0]))
             <div x-show="!imgLoaded" class="absolute inset-0 skeleton z-10"></div>
-        <img src="{{ marketplace_photo_url($asset['photos'][0]) }}" alt="{{ $asset['title'] }}" loading="lazy" referrerpolicy="no-referrer"
+        <img src="{{ marketplace_photo_url($asset['photos'][0]) }}" alt="{{ $asset['title'] }}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
              @load="imgLoaded = true"
+             @error="imgLoaded = true"
              class="aspect-[4/3] w-full object-cover group-hover:scale-[1.03] transition-all duration-500"
                  :class="imgLoaded ? 'opacity-100' : 'opacity-0'">
         @else
@@ -28,11 +29,11 @@
             </span>
         @endif
     </a>
-    <div class="p-4 flex-1 flex flex-col gap-3">
+    <div class="p-4 flex-1 flex flex-col gap-2">
         <div class="min-w-0">
             <a href="{{ $showUrl }}" class="font-bold text-base text-gray-900 leading-snug line-clamp-2 group-hover:text-brand transition">{{ $asset['title'] }}</a>
             @if (! empty($asset['vendor']))
-                <p class="text-xs text-gray-500 mt-1 truncate">
+                <p class="text-xs text-gray-500 mt-0.5 truncate">
                     {{ $asset['vendor'] }}
                     @if (! empty($asset['supplier_region']))
                         <span class="text-gray-400">· {{ $asset['supplier_region'] }}</span>

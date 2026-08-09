@@ -107,18 +107,27 @@
                                     [$ig, $ik] = array_pad(explode('.', $item['key'], 2), 2, '');
                                     $fieldBase = "items[{$ig}][{$ik}]";
                                     $uid = 'rd-'.str_replace(['.', ':'], '-', $item['key']);
+                                    $compareRows = $item['evidence']['compare'] ?? [];
+                                    $mismatchCount = collect($compareRows)->where('status', 'mismatch')->count();
+                                    $checklistOpen = ($item['verdict'] ?? null) === null || $mismatchCount > 0;
                                 @endphp
                                 <li class="p-4"
                                     x-data="{
                                         verdict: @js($item['verdict'] ?? ''),
                                         reason: @js($item['fail_reason_code'] ?? ''),
-                                        open: {{ ($item['verdict'] ?? null) === null ? 'true' : 'false' }}
+                                        open: {{ $checklistOpen ? 'true' : 'false' }}
                                     }">
                                     <div class="flex flex-wrap items-start justify-between gap-3">
                                         <button type="button" class="text-left min-w-0 flex-1" @click="open = !open">
-                                            <p class="text-sm font-semibold text-gray-900">{{ $item['label'] }}</p>
+                                            <p class="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
+                                                <span>{{ $item['label'] }}</span>
+                                                <svg class="size-3.5 text-gray-400 transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                            </p>
                                             @if ($item['evidence']['hint'] ?? null)
                                                 <p class="text-[11px] text-gray-500 mt-0.5">{{ $item['evidence']['hint'] }}</p>
+                                            @endif
+                                            @if ($mismatchCount > 0)
+                                                <p class="text-[11px] font-semibold text-amber-700 mt-0.5">{{ $mismatchCount }} difference{{ $mismatchCount === 1 ? '' : 's' }} vs CRB — expand to compare</p>
                                             @endif
                                         </button>
                                         <div class="flex flex-wrap gap-1.5 shrink-0">
@@ -152,6 +161,32 @@
                                                         <img src="{{ $photo['url'] }}" alt="{{ $photo['label'] }}" class="w-full h-full object-cover">
                                                     </a>
                                                 @endforeach
+                                            </div>
+                                        @endif
+                                        @if (! empty($item['evidence']['compare']))
+                                            <div class="rounded-xl ring-1 ring-brand/15 overflow-hidden">
+                                                <div class="grid grid-cols-[1.1fr_1fr_1fr] gap-0 bg-brand-muted/40 px-3 py-2 text-[10px] uppercase tracking-widest font-semibold text-brand">
+                                                    <span>Field</span>
+                                                    <span>Profile</span>
+                                                    <span>CRB</span>
+                                                </div>
+                                                <ul class="divide-y divide-gray-100 bg-white">
+                                                    @foreach ($item['evidence']['compare'] as $row)
+                                                        @php
+                                                            $tone = match ($row['status'] ?? '') {
+                                                                'match' => 'bg-emerald-50/50',
+                                                                'mismatch' => 'bg-amber-50/70',
+                                                                'missing' => 'bg-slate-50/80',
+                                                                default => 'bg-white',
+                                                            };
+                                                        @endphp
+                                                        <li class="grid grid-cols-[1.1fr_1fr_1fr] gap-2 px-3 py-2.5 text-sm {{ $tone }}">
+                                                            <span class="text-xs font-semibold text-gray-600 self-center">{{ $row['label'] }}</span>
+                                                            <span class="font-semibold text-gray-900 break-words">{{ $row['profile'] }}</span>
+                                                            <span class="font-semibold text-gray-900 break-words">{{ $row['crb'] }}</span>
+                                                        </li>
+                                                    @endforeach
+                                                </ul>
                                             </div>
                                         @endif
                                         @if (! empty($item['evidence']['rows']))

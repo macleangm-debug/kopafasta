@@ -13,7 +13,7 @@
             <div class="relative mt-12">
                 <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">Partner onboarding</p>
                 <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">Partner with Tanzania's fastest lender.</h2>
-                <p class="mt-3 text-white/70 text-sm">Tell us about your business — our team will review your application and onboard you within 48 hours.</p>
+                <p class="mt-3 text-white/70 text-sm">Tell us about your business — our team will review your application and onboard you within 48 working hours.</p>
             </div>
 
             <ol class="relative mt-12 space-y-6">
@@ -146,7 +146,7 @@
 
                                 <div class="rounded-xl bg-gray-50 border border-gray-200 p-4 text-sm text-gray-700 flex items-start gap-2">
                                     <svg class="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                                    Your account will be created with <strong>pending</strong> status. Our partnerships team will review and activate it within 48 hours.
+                                    Your account will be created with <strong>pending</strong> status. Our partnerships team will review and activate it within 48 working hours.
                                 </div>
                             </div>
                         </div>

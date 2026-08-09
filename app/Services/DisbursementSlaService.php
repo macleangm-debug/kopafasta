@@ -16,6 +16,7 @@ class DisbursementSlaService
 
     public function __construct(
         private readonly UnderwritingSettingsService $settings,
+        private readonly WorkingCalendarService $calendar,
     ) {}
 
     public function enabled(): bool
@@ -167,45 +168,11 @@ class DisbursementSlaService
 
     public function addWorkingDays(CarbonInterface $from, int $days): Carbon
     {
-        $cursor = Carbon::parse($from)->startOfDay();
-        $added = 0;
-        while ($added < $days) {
-            $cursor = $cursor->addDay();
-            if ($cursor->isWeekday()) {
-                $added++;
-            }
-        }
-
-        return $cursor->endOfDay();
+        return $this->calendar->addWorkingDays($from, $days);
     }
 
     public function addBusinessHours(CarbonInterface $from, int $hours): Carbon
     {
-        $cursor = Carbon::parse($from);
-        $remaining = $hours;
-        while ($remaining > 0) {
-            if (! $cursor->isWeekday()) {
-                $cursor = $cursor->nextWeekday()->startOfDay()->setTime(9, 0);
-                continue;
-            }
-            $hour = (int) $cursor->format('G');
-            if ($hour < 9) {
-                $cursor = $cursor->copy()->setTime(9, 0);
-            } elseif ($hour >= 17) {
-                $cursor = $cursor->copy()->nextWeekday()->setTime(9, 0);
-                continue;
-            }
-            $endOfDay = $cursor->copy()->setTime(17, 0);
-            $available = max(0, (int) $cursor->diffInHours($endOfDay, false));
-            if ($available <= 0) {
-                $cursor = $cursor->copy()->nextWeekday()->setTime(9, 0);
-                continue;
-            }
-            $step = min($remaining, $available);
-            $cursor = $cursor->copy()->addHours($step);
-            $remaining -= $step;
-        }
-
-        return $cursor;
+        return $this->calendar->addWorkingHours($from, $hours);
     }
 }

@@ -415,7 +415,20 @@
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
-                              x-data="{ marital: @js(old('marital_status', $customer->marital_status)) }">
+                              x-data="{
+                                  marital: @js(old('marital_status', $customer->marital_status)),
+                                  maritalOpen: false,
+                                  maritalLabels: {
+                                      single: @js(__('borrower.profile.marital_options.single')),
+                                      married: @js(__('borrower.profile.marital_options.married')),
+                                      divorced: @js(__('borrower.profile.marital_options.divorced')),
+                                      widowed: @js(__('borrower.profile.marital_options.widowed')),
+                                  },
+                                  pickMarital(value) {
+                                      this.marital = value;
+                                      this.maritalOpen = false;
+                                  },
+                              }">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="family">
                             @if (! empty($returnUrl))
@@ -424,45 +437,56 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.marital_status') }} <span class="text-red-500">*</span></label>
-                                    <select name="marital_status" x-model="marital" class="{{ $editable }}" required>
+                                    <input type="hidden" name="marital_status" :value="marital" required>
+                                    {{-- Desktop native select --}}
+                                    <select x-model="marital" class="{{ $editable }} hidden lg:block" required>
                                         <option value="">{{ __('borrower.profile.select') }}</option>
                                         @foreach (['single', 'married', 'divorced', 'widowed'] as $opt)
-                                            <option value="{{ $opt }}" @selected(old('marital_status', $customer->marital_status) === $opt)>{{ __('borrower.profile.marital_options.'.$opt) }}</option>
+                                            <option value="{{ $opt }}">{{ __('borrower.profile.marital_options.'.$opt) }}</option>
                                         @endforeach
                                     </select>
+                                    {{-- Mobile bottom-sheet trigger (avoids native select viewport jump) --}}
+                                    <button type="button"
+                                            @click="maritalOpen = true"
+                                            class="lg:hidden w-full inline-flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-left text-sm font-semibold text-gray-900 shadow-sm">
+                                        <span x-text="marital ? (maritalLabels[marital] || marital) : @js(__('borrower.profile.select'))"></span>
+                                        <svg class="size-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                    </button>
+                                    <x-site.bottom-sheet :title="__('borrower.profile.fields.marital_status')" open="maritalOpen">
+                                        <div class="space-y-1">
+                                            @foreach (['single', 'married', 'divorced', 'widowed'] as $opt)
+                                                <button type="button"
+                                                        @click="pickMarital(@js($opt))"
+                                                        class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm transition"
+                                                        :class="marital === @js($opt) ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'hover:bg-gray-50 text-gray-700'">
+                                                    <span class="flex-1">{{ __('borrower.profile.marital_options.'.$opt) }}</span>
+                                                    <svg x-show="marital === @js($opt)" class="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    </x-site.bottom-sheet>
                                     @error('marital_status')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
                                 <div x-show="marital === 'married'" x-cloak class="grid sm:grid-cols-3 gap-4">
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_first_name') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="spouse_first_name" value="{{ old('spouse_first_name', $customer->spouse_first_name) }}" class="{{ $editable }}">
+                                        <input type="text" name="spouse_first_name" value="{{ old('spouse_first_name', $customer->spouse_first_name) }}" class="{{ $editable }}" autocomplete="off">
                                         @error('spouse_first_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_middle_name') }}</label>
-                                        <input type="text" name="spouse_middle_name" value="{{ old('spouse_middle_name', $customer->spouse_middle_name) }}" class="{{ $editable }}">
+                                        <input type="text" name="spouse_middle_name" value="{{ old('spouse_middle_name', $customer->spouse_middle_name) }}" class="{{ $editable }}" autocomplete="off">
                                     </div>
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_last_name') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="spouse_last_name" value="{{ old('spouse_last_name', $customer->spouse_last_name) }}" class="{{ $editable }}">
+                                        <input type="text" name="spouse_last_name" value="{{ old('spouse_last_name', $customer->spouse_last_name) }}" class="{{ $editable }}" autocomplete="off">
                                         @error('spouse_last_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.number_of_children') }} <span class="text-red-500">*</span></label>
-                                    <input type="number" min="0" max="30" name="number_of_children" value="{{ old('number_of_children', $customer->number_of_children) }}" class="{{ $editable }}" required>
+                                    <input type="number" min="0" max="30" name="number_of_children" value="{{ old('number_of_children', $customer->number_of_children) }}" class="{{ $editable }}" required inputmode="numeric">
                                     @error('number_of_children')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                                </div>
-                                <div x-show="marital === 'married'" x-cloak>
-                                    <label class="block text-xs text-gray-600 mb-1">
-                                        {{ __('borrower.profile.marriage_certificate') }}
-                                        @if ($requireMarriageCert)<span class="text-red-500">*</span>@else<span class="text-gray-400">{{ __('borrower.profile.optional') }}</span>@endif
-                                    </label>
-                                    <input type="file" name="marriage_certificate" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-gray-600">
-                                    @error('marriage_certificate')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                                    @if ($marriageCertificate?->file_path ?? false)
-                                        <p class="text-xs text-emerald-700 mt-1">{{ __('borrower.profile.on_file') }} — <a href="{{ asset('storage/'.$marriageCertificate->file_path) }}" target="_blank" class="underline">{{ __('borrower.profile.view_document') }}</a></p>
-                                    @endif
                                 </div>
                             </div>
                             <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />

@@ -22,17 +22,20 @@ class PublicLoanProductsSeeder extends Seeder
             ['code' => 'EM', 'name' => 'Emergency Loan', 'name_sw' => 'Mkopo wa Dharura', 'category' => 'individual',  'interest_rate' => 0.20,  'min_amount' => 500_000,   'max_amount' => 3000000,  'tenure_min_months' => 1, 'tenure_max_months' => 6,  'description' => 'When it cannot wait. Disbursed in hours after KYC clears.'],
             ['code' => 'WL', 'name' => 'Women Loan', 'name_sw' => 'Mkopo wa Malkia', 'category' => 'individual',  'interest_rate' => 0.165, 'min_amount' => 500_000,   'max_amount' => 10000000, 'tenure_min_months' => 1, 'tenure_max_months' => 18, 'description' => 'Empowerment capital specifically for women-owned ventures.'],
             ['code' => 'AB', 'name' => 'Asset-Backed Loan', 'name_sw' => 'Mkopo wa Chap', 'category' => 'asset',       'interest_rate' => 0.15,  'min_amount' => 500_000,  'max_amount' => 100000000,'tenure_min_months' => 3, 'tenure_max_months' => 60, 'description' => 'Use a vehicle, machine or property as security to unlock larger capital at the best rates.'],
-            ['code' => 'SAL-12', 'name' => 'Salary Advance 12', 'name_sw' => 'Mkopo wa Nivushe', 'category' => 'salary_loan', 'interest_rate' => 0.035, 'min_amount' => 200_000, 'max_amount' => 5000000, 'tenure_min_months' => 1, 'tenure_max_months' => 12, 'description' => 'Payroll-deducted salary advance for salaried employees.'],
+            ['code' => 'SAL-12', 'name' => 'Salary Advance 12', 'name_sw' => 'Mkopo wa Nivushe', 'category' => 'salary_loan', 'interest_rate' => 0.035, 'min_amount' => 200_000, 'max_amount' => 5000000, 'tenure_min_months' => 1, 'tenure_max_months' => 12, 'description' => 'Payroll-deducted salary advance for salaried employees.', 'status' => 'coming_soon'],
         ];
 
         foreach ($products as $p) {
+            $status = $p['status'] ?? 'active';
+            unset($p['status']);
+
             LoanProduct::updateOrCreate(
                 ['code' => $p['code']],
                 array_merge($p, [
                     'requires_collateral' => in_array($p['code'], ['AB', 'AL']),
                     'requires_guarantor'  => ! in_array($p['code'], ['GL', 'SAL-12'], true),
-                    'is_active'           => true,
-                    'status'              => 'active',
+                    'is_active'           => $status === 'active',
+                    'status'              => $status,
                     'hides_interest'      => (bool) ($p['hides_interest'] ?? false),
                 ])
             );

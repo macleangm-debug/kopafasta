@@ -132,7 +132,8 @@
             <h3 class="text-sm font-semibold text-gray-700 mb-1">Disbursement SLA</h3>
             <p class="text-xs text-gray-500 mb-4">
                 Clock starts when the borrower accepts the loan contract. Credit management owns the release queue.
-                Valuation-first collateral flow: pay valuation → valuation → offer; insurance / GPS / ownership transfer are post-acceptance.
+                Hours/days use <a href="{{ route('admin.settings.working-hours') }}" class="font-semibold text-brand underline">Working hours</a>
+                (default Mon–Fri 08:00–17:00) and skip public holidays.
             </p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="disbursement_sla_working_days" label="Standard disbursement SLA (working days)" type="number"
@@ -144,7 +145,7 @@
                            class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Offer paid fast-track disbursement on post-approval fees (after offer acceptance)</span>
                 </label>
-                <x-admin.input name="disbursement_fast_track_business_hours" label="Fast-track window (business hours)" type="number"
+                <x-admin.input name="disbursement_fast_track_business_hours" label="Fast-track window (working hours)" type="number"
                                :value="$values['disbursement_fast_track_business_hours'] ?? 12" required />
                 <x-admin.input name="disbursement_fast_track_fee_amount" label="Fast-track fee amount (TZS)" type="number" step="1"
                                :value="$values['disbursement_fast_track_fee_amount'] ?? 25000" required />

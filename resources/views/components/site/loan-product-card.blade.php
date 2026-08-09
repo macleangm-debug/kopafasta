@@ -43,10 +43,10 @@
     </div>
 
     <div class="px-3.5 py-3 flex flex-col flex-1 min-h-0">
-        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2 min-h-[2.5rem]" title="{{ $productName }}">
+        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2" title="{{ $productName }}">
             {{ $productName }}
         </h3>
-        <p class="mt-0.5 text-xs text-gray-600 line-clamp-2 leading-snug min-h-[2rem]">
+        <p class="mt-0.5 text-xs text-gray-600 line-clamp-2 leading-snug">
             {{ $description }}
         </p>
 

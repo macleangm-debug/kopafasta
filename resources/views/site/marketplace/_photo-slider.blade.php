@@ -43,6 +43,9 @@
             <img
                 :src="photos[index]"
                 alt=""
+                loading="eager"
+                decoding="async"
+                fetchpriority="high"
                 referrerpolicy="no-referrer"
                 class="absolute inset-0 w-full h-full object-cover {{ $zoom ? 'cursor-zoom-in' : '' }}"
                 @if ($zoom) @click="zoomed = true" @endif

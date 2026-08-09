@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             ChargesFeeSeeder::class,
             ValuationPricingDefaultsSeeder::class,
             NotificationTemplateSeeder::class,
+            PublicHolidaySeeder::class,
         ]);
     }
 }

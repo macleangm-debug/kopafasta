@@ -902,6 +902,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings',                  [SettingsController::class, 'index'])         ->name('settings.index');
         Route::get('settings/company',          [SettingsController::class, 'company'])       ->name('settings.company');
         Route::put('settings/company',          [SettingsController::class, 'saveCompany'])   ->name('settings.company.save');
+        Route::get('settings/working-hours',    [SettingsController::class, 'workingHours'])->name('settings.working-hours');
+        Route::put('settings/working-hours',    [SettingsController::class, 'saveWorkingHours'])->name('settings.working-hours.save');
+        Route::post('settings/working-hours/holidays', [SettingsController::class, 'storePublicHoliday'])->name('settings.working-hours.holidays.store');
+        Route::delete('settings/working-hours/holidays/{holiday}', [SettingsController::class, 'destroyPublicHoliday'])->name('settings.working-hours.holidays.destroy');
         Route::get('settings/account-security', [\App\Http\Controllers\Admin\AccountSecurityController::class, 'show'])
             ->name('settings.account-security');
         Route::post('settings/account-security/recovery-codes', [\App\Http\Controllers\Admin\AccountSecurityController::class, 'regenerateRecoveryCodes'])

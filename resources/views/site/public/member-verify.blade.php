@@ -35,10 +35,7 @@
     <section class="relative min-h-[70vh] py-10 sm:py-14 px-4">
         <div class="absolute inset-0 bg-gradient-to-b from-[#0B3D32]/10 via-white to-[#f7faf8] pointer-events-none"></div>
         <div class="relative max-w-md mx-auto space-y-4">
-            <div class="text-center mb-1">
-                <h1 class="text-lg font-semibold tracking-tight text-gray-900">{{ __('site.member_verify.heading') }}</h1>
-            </div>
-
+            <div class="relative max-w-md mx-auto space-y-4">
             @if ($verified && $customer)
                 <div class="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_24px_60px_rgba(8,47,39,0.35)] p-5 sm:p-6 ring-1 ring-brand-gold/35">
                     <div class="absolute inset-[1px] rounded-[1.28rem] ring-1 ring-white/10 pointer-events-none"></div>

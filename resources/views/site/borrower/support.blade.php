@@ -16,24 +16,30 @@
             </p>
             <p class="text-sm text-amber-900 mt-3">{{ __('borrower.support_page.identity_appeal_contact_hint') }}</p>
             <div class="mt-4 flex flex-wrap gap-3">
-                <a href="tel:{{ preg_replace('/\s+/', '', config('branding.support_phone')) }}"
-                   class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
-                    {{ __('borrower.support_page.call', ['phone' => config('branding.support_phone')]) }}
-                </a>
-                <a href="mailto:{{ config('branding.support_email') }}?subject=Identity%20verification%20appeal"
-                   class="inline-flex bg-white ring-1 ring-amber-200 hover:bg-amber-100 text-amber-950 font-semibold px-5 py-2.5 rounded-xl text-sm">
-                    {{ __('borrower.support_page.email', ['email' => config('branding.support_email')]) }}
-                </a>
+                @foreach (support_phones() as $phone)
+                    <a href="tel:{{ preg_replace('/\s+/', '', $phone) }}"
+                       class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
+                        {{ __('borrower.support_page.call', ['phone' => $phone]) }}
+                    </a>
+                @endforeach
+                @foreach (support_emails() as $email)
+                    <a href="mailto:{{ $email }}?subject=Identity%20verification%20appeal"
+                       class="inline-flex bg-white ring-1 ring-amber-200 hover:bg-amber-100 text-amber-950 font-semibold px-5 py-2.5 rounded-xl text-sm">
+                        {{ __('borrower.support_page.email', ['email' => $email]) }}
+                    </a>
+                @endforeach
             </div>
         </div>
     @else
         <div id="identity-appeal" class="mb-8 glass-card p-6">
             <h2 class="font-semibold">{{ __('borrower.support_page.identity_help_title') }}</h2>
             <p class="text-sm text-gray-600 mt-2">{{ __('borrower.support_page.identity_help_body') }}</p>
-            <a href="mailto:{{ config('branding.support_email') }}?subject=Identity%20verification%20help"
-               class="inline-flex mt-4 text-sm font-semibold text-brand hover:underline">
-                {{ config('branding.support_email') }}
-            </a>
+            @foreach (support_emails() as $email)
+                <a href="mailto:{{ $email }}?subject=Identity%20verification%20help"
+                   class="inline-flex mt-4 text-sm font-semibold text-brand hover:underline {{ ! $loop->first ? 'ml-3' : '' }}">
+                    {{ $email }}
+                </a>
+            @endforeach
         </div>
     @endif
 
