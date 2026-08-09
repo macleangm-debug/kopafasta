@@ -2846,6 +2846,7 @@ return [
     'tap_to_expand' => 'Gusa kadi ili kupanua kwa picha na kampeni.',
     'close_card' => 'Funga',
     'member_no_label' => 'Nambari ya uanachama',
+    'member_role' => 'Mwanachama',
     'scan_to_verify' => 'Changanua kuthibitisha',
     'scan_hint' => 'Inafungua uthibitishaji wa umma wa kadi hii.',
     'download_card' => 'Pakua PDF',

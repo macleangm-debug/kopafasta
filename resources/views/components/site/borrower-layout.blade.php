@@ -85,11 +85,8 @@
     {{-- Sidebar (desktop) --}}
     <aside class="hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
-        <a href="{{ route('site.borrower.dashboard') }}" class="relative flex items-center gap-2 px-5 h-16 border-b border-white/15">
-            <x-site.brand-mark size="md" variant="light" :mark="true" />
-            <div class="leading-tight ml-1">
-                <div class="text-[11px] text-white/70">{{ __('borrower.portal') }}</div>
-            </div>
+        <a href="{{ route('site.borrower.dashboard') }}" class="relative block px-5 py-4 border-b border-white/15">
+            <x-site.brand-mark size="md" variant="light" :portal="__('borrower.portal')" />
         </a>
         <nav class="relative flex-1 overflow-y-auto px-3 py-5 space-y-1">
             @foreach ($nav as $item)
@@ -276,9 +273,11 @@
         <div x-show="open" x-cloak class="fixed inset-0 z-[10055] lg:hidden">
             <div class="absolute inset-0 bg-black/40" @click="open = false"></div>
             <div class="absolute inset-y-0 left-0 w-72 bg-brand text-white shadow-xl flex flex-col">
-                <div class="flex items-center justify-between px-5 h-14 border-b border-white/15">
-                    <span class="font-bold">{{ __('borrower.layout.menu') }}</span>
-                    <button @click="open = false" class="p-1 text-white/80"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+                <div class="px-5 py-4 border-b border-white/15">
+                    <div class="flex items-start justify-between gap-3">
+                        <x-site.brand-mark size="sm" variant="light" :portal="__('borrower.portal')" />
+                        <button @click="open = false" class="p-1 text-white/80 shrink-0"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+                    </div>
                 </div>
                 <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
                     @foreach ($nav as $item)

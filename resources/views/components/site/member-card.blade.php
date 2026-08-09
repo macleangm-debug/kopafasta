@@ -8,10 +8,10 @@
     $label = $customer->membershipStatusLabel();
 
     $bgGradient = match ($color) {
-        'green'  => 'from-emerald-500 via-emerald-600 to-emerald-700',
-        'orange' => 'from-amber-500 via-amber-600 to-amber-700',
-        'red'    => 'from-rose-500 via-rose-600 to-rose-700',
-        default  => 'from-slate-500 via-slate-600 to-slate-700',
+        'green'  => 'from-[#0B3D32] via-[#127A5F] to-[#082f27]',
+        'orange' => 'from-[#7a4a10] via-[#b45309] to-[#5c370c]',
+        'red'    => 'from-[#7f1d1d] via-[#b91c1c] to-[#450a0a]',
+        default  => 'from-slate-700 via-slate-600 to-slate-800',
     };
     $badgeClass = match ($color) {
         'green'  => 'bg-white text-emerald-800',
@@ -69,41 +69,45 @@
 
         {{-- Campaign card face (web + export share this markup) --}}
         <div
-                class="relative w-full text-left overflow-hidden rounded-2xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_20px_50px_rgba(0,77,64,0.35)] p-5 sm:p-6 ring-1 ring-white/10 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                class="relative w-full text-left overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_24px_60px_rgba(8,47,39,0.45)] p-5 sm:p-6 ring-1 ring-brand-gold/35 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
                 x-ref="cardFace"
                 role="button"
                 tabindex="0"
                 @click="expanded = true"
                 @keydown.enter="expanded = true"
                 aria-label="{{ __('borrower.membership.my_card') }}">
-            <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10 pointer-events-none"></div>
-            <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/10 pointer-events-none"></div>
-            <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-gold/80 via-white/40 to-brand-gold/80 pointer-events-none"></div>
+            <div class="absolute inset-[1px] rounded-[1.28rem] ring-1 ring-white/10 pointer-events-none"></div>
+            <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-gold/10 pointer-events-none"></div>
+            <div class="absolute -left-12 -bottom-20 h-44 w-44 rounded-full bg-white/5 pointer-events-none"></div>
+            <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold pointer-events-none"></div>
 
-            <div class="relative flex items-center justify-between gap-3 mb-5">
-                <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="{{ brand_name() }}" class="h-12 w-12 sm:h-14 sm:w-14 object-contain drop-shadow-sm">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide {{ $badgeClass }} shrink-0 shadow-sm">
+            <div class="relative flex items-center justify-between gap-3 mb-6">
+                <span class="inline-flex items-center gap-2 min-w-0">
+                    <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" aria-hidden="true" class="h-7 w-auto object-contain drop-shadow-sm shrink-0">
+                    <span class="text-lg sm:text-xl font-bold tracking-tight text-white leading-none truncate">{{ brand_name() }}</span>
+                </span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] {{ $badgeClass }} shrink-0 shadow-sm ring-1 ring-brand-gold/30">
                     {{ $label }}
                 </span>
             </div>
 
             <div class="relative flex items-start gap-4">
                 @if ($cardPhotoSrc)
-                    <img src="{{ $cardPhotoSrc }}" alt="" class="size-16 sm:size-20 rounded-xl object-cover ring-2 ring-white/35 bg-white/10 shrink-0 shadow-md">
+                    <img src="{{ $cardPhotoSrc }}" alt="" class="size-16 sm:size-20 rounded-2xl object-cover ring-2 ring-brand-gold/50 bg-white/10 shrink-0 shadow-md">
                 @else
-                    <div class="size-16 sm:size-20 rounded-xl bg-white/15 ring-2 ring-white/25 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
+                    <div class="size-16 sm:size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
                 @endif
                 <div class="min-w-0 pt-0.5">
-                    <p class="text-[10px] uppercase tracking-[0.18em] text-white/70 font-semibold">{{ brand_name() }} Member</p>
-                    <h3 class="mt-1 text-lg sm:text-xl font-bold tracking-wide leading-snug break-words">{{ $name ?: '—' }}</h3>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ __('borrower.membership.member_role') }}</p>
+                    <h3 class="mt-1 text-lg sm:text-xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
                 </div>
             </div>
 
-            <div class="relative mt-5 rounded-xl bg-black/20 px-4 py-4 ring-1 ring-white/20 backdrop-blur-[2px]">
+            <div class="relative mt-5 rounded-2xl bg-black/25 px-4 py-4 ring-1 ring-white/15 backdrop-blur-[2px]">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/60 mb-2">{{ __('borrower.membership.member_no_label') }}</p>
-                        <p class="font-mono text-lg sm:text-xl md:text-2xl font-bold tracking-[0.12em] leading-tight break-all">
+                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/55 mb-2">{{ __('borrower.membership.member_no_label') }}</p>
+                        <p class="font-mono text-lg sm:text-xl md:text-2xl font-bold tracking-[0.12em] leading-tight break-all text-white">
                             {{ $memberNoDisplay }}
                         </p>
                     </div>
@@ -114,7 +118,7 @@
                             data-html2canvas-ignore
                             @click.stop="navigator.clipboard.writeText(copyNo).then(() => { copied = true; setTimeout(() => copied = false, 2500); })"
                             @keydown.enter.stop="navigator.clipboard.writeText(copyNo).then(() => { copied = true; setTimeout(() => copied = false, 2500); })"
-                            class="shrink-0 inline-flex items-center justify-center size-10 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 transition cursor-pointer"
+                            class="shrink-0 inline-flex items-center justify-center size-10 rounded-xl bg-white/10 hover:bg-white/20 ring-1 ring-white/20 transition cursor-pointer"
                             :title="copied ? 'Copied!' : 'Copy membership number'">
                             <svg x-show="!copied" class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
@@ -133,30 +137,30 @@
 
             <dl class="mt-5 grid grid-cols-2 gap-3 relative text-sm">
                 <div>
-                    <dt class="text-[10px] uppercase tracking-wider text-white/70">{{ __('borrower.membership.issued_label') }}</dt>
-                    <dd class="font-semibold">{{ $issued }}</dd>
+                    <dt class="text-[10px] uppercase tracking-wider text-white/55">{{ __('borrower.membership.issued_label') }}</dt>
+                    <dd class="font-semibold mt-0.5">{{ $issued }}</dd>
                 </div>
                 <div>
-                    <dt class="text-[10px] uppercase tracking-wider text-white/70">{{ __('borrower.membership.expires_label') }}</dt>
-                    <dd class="font-semibold">{{ $expires }}</dd>
+                    <dt class="text-[10px] uppercase tracking-wider text-white/55">{{ __('borrower.membership.expires_label') }}</dt>
+                    <dd class="font-semibold mt-0.5">{{ $expires }}</dd>
                 </div>
             </dl>
 
             @if ($verifyUrl && $qrDataUri)
-                <div class="relative mt-5 flex items-center gap-4 rounded-xl bg-black/20 px-4 py-3.5 ring-1 ring-white/20">
+                <div class="relative mt-5 flex items-center gap-4 rounded-2xl bg-black/25 px-4 py-3.5 ring-1 ring-white/15">
                     <img src="{{ $qrDataUri }}"
-                         alt="Membership QR code" class="size-[68px] rounded-lg bg-white p-1 shrink-0">
+                         alt="Membership QR code" class="size-[68px] rounded-xl bg-white p-1.5 shrink-0">
                     <div class="text-left min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
-                        <p class="text-xs text-white/90 mt-1" data-html2canvas-ignore>{{ __('borrower.membership.scan_hint') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
+                        <p class="text-xs text-white/80 mt-1" data-html2canvas-ignore>{{ __('borrower.membership.scan_hint') }}</p>
                     </div>
                 </div>
             @elseif ($verifyUrl)
-                <div class="relative mt-5 flex items-center gap-4 rounded-xl bg-black/20 px-4 py-3.5 ring-1 ring-white/20">
-                    <div class="size-[68px] rounded-lg bg-white/90 shrink-0 grid place-items-center text-[10px] text-brand font-bold text-center px-1">QR</div>
+                <div class="relative mt-5 flex items-center gap-4 rounded-2xl bg-black/25 px-4 py-3.5 ring-1 ring-white/15">
+                    <div class="size-[68px] rounded-xl bg-white/90 shrink-0 grid place-items-center text-[10px] text-brand font-bold text-center px-1">QR</div>
                     <div class="text-left min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
-                        <p class="text-xs text-white/90 mt-1" data-html2canvas-ignore>{{ __('borrower.membership.scan_hint') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
+                        <p class="text-xs text-white/80 mt-1" data-html2canvas-ignore>{{ __('borrower.membership.scan_hint') }}</p>
                     </div>
                 </div>
             @endif
@@ -213,49 +217,53 @@
          data-html2canvas-ignore>
         <button type="button" class="absolute inset-0 cursor-zoom-out" @click="expanded = false" aria-label="Close"></button>
         <div class="relative w-full max-w-md" @click.stop>
-            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-2xl p-6 sm:p-8 ring-1 ring-white/15">
-                <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10"></div>
-                <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/10"></div>
-                <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-gold via-white/50 to-brand-gold"></div>
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-2xl p-6 sm:p-8 ring-1 ring-brand-gold/40">
+                <div class="absolute inset-[1px] rounded-[1.4rem] ring-1 ring-white/10 pointer-events-none"></div>
+                <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-brand-gold/10"></div>
+                <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/5"></div>
+                <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
 
                 <div class="relative flex items-center justify-between gap-3 mb-6">
-                    <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="{{ brand_name() }}" class="h-14 w-14 object-contain">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide {{ $badgeClass }}">{{ $label }}</span>
+                    <span class="inline-flex items-center gap-2.5 min-w-0">
+                        <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" aria-hidden="true" class="h-8 w-auto object-contain shrink-0">
+                        <span class="text-xl font-bold tracking-tight text-white leading-none truncate">{{ brand_name() }}</span>
+                    </span>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-[0.14em] {{ $badgeClass }} ring-1 ring-brand-gold/30">{{ $label }}</span>
                 </div>
 
                 <div class="relative flex items-start gap-4">
                     @if ($cardPhotoSrc)
-                        <img src="{{ $cardPhotoSrc }}" alt="" class="size-24 rounded-2xl object-cover ring-2 ring-white/40 shrink-0">
+                        <img src="{{ $cardPhotoSrc }}" alt="" class="size-24 rounded-2xl object-cover ring-2 ring-brand-gold/50 shrink-0">
                     @else
-                        <div class="size-24 rounded-2xl bg-white/15 ring-2 ring-white/25 grid place-items-center text-3xl font-bold shrink-0">{{ $initial }}</div>
+                        <div class="size-24 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-3xl font-bold shrink-0">{{ $initial }}</div>
                     @endif
                     <div class="min-w-0 pt-1">
-                        <p class="text-[11px] uppercase tracking-[0.18em] text-white/70 font-semibold">{{ brand_name() }} Member</p>
-                        <h3 class="mt-2 text-2xl font-bold tracking-wide leading-snug break-words">{{ $name ?: '—' }}</h3>
+                        <p class="text-[11px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ __('borrower.membership.member_role') }}</p>
+                        <h3 class="mt-1.5 text-2xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
                     </div>
                 </div>
 
-                <div class="relative mt-6 rounded-2xl bg-black/20 px-5 py-5 ring-1 ring-white/20">
-                    <p class="text-[10px] uppercase tracking-[0.2em] text-white/60 mb-2">{{ __('borrower.membership.member_no_label') }}</p>
+                <div class="relative mt-6 rounded-2xl bg-black/25 px-5 py-5 ring-1 ring-white/15">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-white/55 mb-2">{{ __('borrower.membership.member_no_label') }}</p>
                     <p class="font-mono text-2xl font-bold tracking-[0.14em] break-all">{{ $memberNoDisplay }}</p>
                 </div>
 
                 <dl class="mt-5 grid grid-cols-2 gap-4 relative text-sm">
                     <div>
-                        <dt class="text-[10px] uppercase tracking-wider text-white/70">{{ __('borrower.membership.issued_label') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-wider text-white/55">{{ __('borrower.membership.issued_label') }}</dt>
                         <dd class="font-semibold text-base mt-0.5">{{ $issued }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] uppercase tracking-wider text-white/70">{{ __('borrower.membership.expires_label') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-wider text-white/55">{{ __('borrower.membership.expires_label') }}</dt>
                         <dd class="font-semibold text-base mt-0.5">{{ $expires }}</dd>
                     </div>
                 </dl>
 
                 @if ($verifyUrl && $qrDataUri)
-                    <div class="relative mt-6 flex items-center gap-4 rounded-2xl bg-black/20 px-4 py-4 ring-1 ring-white/20">
+                    <div class="relative mt-6 flex items-center gap-4 rounded-2xl bg-black/25 px-4 py-4 ring-1 ring-white/15">
                         <img src="{{ $qrDataUri }}"
                              alt="" class="size-20 rounded-xl bg-white p-1.5 shrink-0">
-                        <p class="text-xs uppercase tracking-widest text-white/80 font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
+                        <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
                     </div>
                 @endif
             </div>

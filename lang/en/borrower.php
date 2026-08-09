@@ -3063,6 +3063,7 @@ return [
         'tap_to_expand'      => 'Tap the card to expand for photos and campaigns.',
         'close_card'         => 'Close',
         'member_no_label'    => 'Membership number',
+        'member_role'        => 'Member',
         'scan_to_verify'     => 'Scan to verify',
         'scan_hint'          => 'Opens public member verification for this card.',
         'download_card'      => 'Download PDF',

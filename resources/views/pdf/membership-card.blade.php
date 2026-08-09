@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <title>{{ brand_name() }} Membership</title>
@@ -13,7 +13,7 @@
             padding: 0;
             font-family: DejaVu Sans, sans-serif;
             color: #ffffff;
-            background: #047857;
+            background: #0B3D32;
             overflow: hidden;
         }
         .page {
@@ -22,15 +22,14 @@
             position: relative;
             overflow: hidden;
             page-break-inside: avoid;
-            page-break-after: avoid;
-            background: #059669;
+            background: #0B3D32;
         }
         .gold {
             position: absolute;
             left: 0;
             right: 0;
             top: 0;
-            height: 2.2mm;
+            height: 2.4mm;
             background: #f5c842;
         }
         .inner {
@@ -40,83 +39,108 @@
             right: 7mm;
             bottom: 7mm;
         }
-        .logo { height: 9mm; width: auto; }
+        .header {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6mm;
+        }
+        .header td { vertical-align: middle; }
+        .brand-cell { width: 68%; }
+        .logo {
+            height: 7mm;
+            width: auto;
+            vertical-align: middle;
+            margin-right: 2mm;
+        }
+        .wordmark {
+            display: inline-block;
+            vertical-align: middle;
+            font-size: 13pt;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: -0.4px;
+            line-height: 1;
+        }
         .badge {
-            float: right;
+            display: inline-block;
             background: #ffffff;
-            color: #065f46;
+            color: #0B3D32;
             font-size: 6.5pt;
             font-weight: bold;
             text-transform: uppercase;
-            padding: 1.2mm 3mm;
+            letter-spacing: 0.8px;
+            padding: 1.4mm 3.2mm;
             border-radius: 999px;
         }
-        .header { overflow: hidden; margin-bottom: 5mm; }
+        .profile {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .profile td { vertical-align: top; }
         .photo {
-            float: left;
             width: 22mm;
             height: 28mm;
             border-radius: 4px;
-            border: 1.5px solid rgba(255,255,255,0.45);
+            border: 1.6px solid #f5c842;
             object-fit: cover;
-            background: rgba(255,255,255,0.15);
-            margin-right: 3.5mm;
+            background: rgba(255,255,255,0.12);
         }
         .photo-fallback {
-            float: left;
             width: 22mm;
             height: 28mm;
             border-radius: 4px;
-            border: 1.5px solid rgba(255,255,255,0.45);
-            background: rgba(255,255,255,0.18);
+            border: 1.6px solid #f5c842;
+            background: rgba(255,255,255,0.12);
             text-align: center;
             line-height: 28mm;
             font-size: 16pt;
             font-weight: bold;
-            margin-right: 3.5mm;
         }
+        .profile-copy { padding-left: 3.5mm; padding-top: 1mm; }
         .eyebrow {
-            font-size: 5.5pt;
-            letter-spacing: 1.5px;
+            font-size: 6pt;
+            letter-spacing: 1.8px;
             text-transform: uppercase;
-            color: rgba(255,255,255,0.72);
+            color: #f5c842;
             font-weight: bold;
+            line-height: 1;
+            margin: 0;
         }
         .member-name {
-            margin-top: 1mm;
-            font-size: 11pt;
+            margin-top: 1.2mm;
+            font-size: 11.5pt;
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.05;
             text-transform: uppercase;
-            max-height: 14mm;
+            max-height: 13mm;
             overflow: hidden;
         }
-        .clear { clear: both; }
         .box {
-            margin-top: 5mm;
-            padding: 3mm 3.5mm;
+            margin-top: 5.5mm;
+            padding: 3.2mm 3.6mm;
             border-radius: 4px;
-            background: rgba(0,0,0,0.18);
-            border: 1px solid rgba(255,255,255,0.22);
+            background: rgba(0,0,0,0.28);
+            border: 1px solid rgba(255,255,255,0.16);
         }
         .label {
             font-size: 5.5pt;
             letter-spacing: 1.4px;
             text-transform: uppercase;
-            color: rgba(255,255,255,0.65);
+            color: rgba(255,255,255,0.55);
             font-weight: bold;
         }
         .member-no {
-            margin-top: 1.5mm;
+            margin-top: 1.4mm;
             font-family: DejaVu Sans Mono, monospace;
-            font-size: 12pt;
+            font-size: 12.5pt;
             font-weight: bold;
             letter-spacing: 1px;
+            line-height: 1.15;
         }
         .meta {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 4mm;
+            margin-top: 4.5mm;
         }
         .meta td {
             width: 50%;
@@ -124,14 +148,14 @@
             font-size: 8pt;
             padding-right: 2mm;
         }
-        .meta .label { display: block; margin-bottom: 0.8mm; }
-        .meta .value { font-weight: bold; font-size: 9pt; }
+        .meta .label { display: block; margin-bottom: 0.8mm; color: rgba(255,255,255,0.55); }
+        .meta .value { font-weight: bold; font-size: 9pt; line-height: 1.15; }
         .qr-wrap {
             margin-top: 5mm;
             padding: 3mm;
             border-radius: 4px;
-            background: rgba(0,0,0,0.18);
-            border: 1px solid rgba(255,255,255,0.22);
+            background: rgba(0,0,0,0.28);
+            border: 1px solid rgba(255,255,255,0.16);
             overflow: hidden;
         }
         .qr {
@@ -139,15 +163,16 @@
             width: 18mm;
             height: 18mm;
             background: #ffffff;
-            padding: 1mm;
+            padding: 1.2mm;
             margin-right: 3mm;
+            border-radius: 2px;
         }
         .scan {
             font-size: 6.5pt;
-            letter-spacing: 1.2px;
+            letter-spacing: 1.4px;
             text-transform: uppercase;
             font-weight: bold;
-            color: rgba(255,255,255,0.85);
+            color: #f5c842;
             padding-top: 5mm;
         }
     </style>
@@ -155,47 +180,60 @@
 <body>
     @php
         $name = strtoupper(trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')));
-        if (mb_strlen($name) > 40) {
-            $name = mb_substr($name, 0, 39).'…';
+        if (mb_strlen($name) > 42) {
+            $name = mb_substr($name, 0, 41).'…';
         }
         $initial = strtoupper(substr(trim($customer->first_name ?? ''), 0, 1) ?: '?');
         $status = strtoupper((string) $customer->membershipStatusLabel());
         $qrDataUri = $qrDataUri ?? null;
+        $memberLabel = __('borrower.membership.member_role');
     @endphp
     <div class="page">
         <div class="gold"></div>
         <div class="inner">
-            <div class="header">
-                <span class="badge">{{ $status }}</span>
-                @if (! empty($logoPath))
-                    <img src="{{ $logoPath }}" alt="" class="logo">
-                @else
-                    <span style="font-size:12pt;font-weight:bold;">{{ brand_name() }}</span>
-                @endif
-            </div>
+            <table class="header">
+                <tr>
+                    <td class="brand-cell">
+                        @if (! empty($logoPath))
+                            <img src="{{ $logoPath }}" alt="" class="logo">
+                        @endif
+                        <span class="wordmark">{{ brand_name() }}</span>
+                    </td>
+                    <td style="text-align:right;">
+                        <span class="badge">{{ $status }}</span>
+                    </td>
+                </tr>
+            </table>
 
-            @if (! empty($photoPath))
-                <img src="{{ $photoPath }}" alt="" class="photo">
-            @else
-                <div class="photo-fallback">{{ $initial }}</div>
-            @endif
-            <p class="eyebrow">{{ brand_name() }} Member</p>
-            <p class="member-name">{{ $name ?: '—' }}</p>
-            <div class="clear"></div>
+            <table class="profile">
+                <tr>
+                    <td style="width:22mm;">
+                        @if (! empty($photoPath))
+                            <img src="{{ $photoPath }}" alt="" class="photo">
+                        @else
+                            <div class="photo-fallback">{{ $initial }}</div>
+                        @endif
+                    </td>
+                    <td class="profile-copy">
+                        <p class="eyebrow">{{ $memberLabel }}</p>
+                        <p class="member-name">{{ $name ?: '—' }}</p>
+                    </td>
+                </tr>
+            </table>
 
             <div class="box">
-                <p class="label">Membership number</p>
+                <p class="label">{{ __('borrower.membership.member_no_label') }}</p>
                 <p class="member-no">{{ \App\Support\MemberNumberFormatter::display($customer->member_no) }}</p>
             </div>
 
             <table class="meta">
                 <tr>
                     <td>
-                        <span class="label">Issued</span>
+                        <span class="label">{{ __('borrower.membership.issued_label') }}</span>
                         <span class="value">{{ optional($customer->membership_issued_at)->format('d M Y') ?? '—' }}</span>
                     </td>
                     <td>
-                        <span class="label">Expires</span>
+                        <span class="label">{{ __('borrower.membership.expires_label') }}</span>
                         <span class="value">{{ optional($customer->membership_expires_at)->format('d M Y') ?? '—' }}</span>
                     </td>
                 </tr>
@@ -206,7 +244,7 @@
                     @if (! empty($qrDataUri))
                         <img src="{{ $qrDataUri }}" alt="" class="qr">
                     @endif
-                    <p class="scan">Scan to verify</p>
+                    <p class="scan">{{ __('borrower.membership.scan_to_verify') }}</p>
                 </div>
             @endif
         </div>
