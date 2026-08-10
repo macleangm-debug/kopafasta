@@ -80,7 +80,10 @@
                                    class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none">
                         </div>
                         <div class="mt-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-sm font-medium text-gray-700">Password</label>
+                                <a href="{{ route('site.forgot-pin', array_filter(['phone' => $prefillPhone])) }}" class="text-xs text-brand font-medium hover:underline">{{ __('site.auth.forgot_password') }}</a>
+                            </div>
                             <input type="password" name="password" autocomplete="current-password"
                                    data-required-when="password"
                                    @required($authMethod === 'password')
