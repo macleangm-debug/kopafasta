@@ -15,24 +15,31 @@
             ],
         ];
     } else {
-        $paidOrWaiting = in_array($status, ['waiting_payment', 'awaiting_valuer', 'in_progress', 'completed'], true);
-        $valuerDone = in_array($status, ['completed'], true);
-        $valuerCurrent = in_array($status, ['awaiting_valuer', 'in_progress'], true);
-
+        // 4 borrower steps: pay → wait for valuer → in progress → completed
         $steps = [
             [
-                'label' => $status === 'pay_valuation'
+                'label' => $status === 'pay_valuation' || $status === 'idle'
                     ? __('borrower.collateral_secure.valuation_status_pay')
                     : ($status === 'waiting_payment'
                         ? __('borrower.collateral_secure.valuation_status_waiting_payment')
                         : __('borrower.collateral_secure.next_step_valuation_paid')),
-                'done' => $paidOrWaiting && $status !== 'pay_valuation' && $status !== 'waiting_payment',
+                'done' => in_array($status, ['awaiting_valuer', 'in_progress', 'completed'], true),
                 'current' => in_array($status, ['pay_valuation', 'waiting_payment', 'idle'], true),
             ],
             [
                 'label' => __('borrower.collateral_secure.valuation_status_awaiting_valuer'),
-                'done' => $valuerDone,
-                'current' => $valuerCurrent,
+                'done' => in_array($status, ['in_progress', 'completed'], true),
+                'current' => $status === 'awaiting_valuer',
+            ],
+            [
+                'label' => __('borrower.collateral_secure.valuation_status_in_progress'),
+                'done' => $status === 'completed',
+                'current' => $status === 'in_progress',
+            ],
+            [
+                'label' => __('borrower.collateral_secure.valuation_status_completed'),
+                'done' => $status === 'completed',
+                'current' => false,
             ],
         ];
     }

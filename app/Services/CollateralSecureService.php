@@ -813,7 +813,12 @@ class CollateralSecureService
         $state['valuation_fee_paid_at'] = now()->toIso8601String();
         $state['valuation_fee_due'] = 0;
 
-        return $this->finalizeSecured($application, $state, $asset, $ab, $this->feeQuote($application));
+        $state = $this->finalizeSecured($application, $state, $asset, $ab, $this->feeQuote($application));
+
+        // Non-blocking: place the job with a suggested valuer when one is available.
+        app(ValuationPartnerService::class)->autoAssignIfPossible($application->fresh());
+
+        return $state;
     }
 
     /** @param array{quoted?: int, credit?: int, due?: int} $quote */

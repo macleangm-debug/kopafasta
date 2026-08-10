@@ -68,7 +68,7 @@
                 </div>
             @endif
             <button type="submit" :disabled="!canSubmit"
-                    class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold px-4 py-2.5 rounded-full text-sm">
+                    class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold px-4 py-2.5 rounded-full text-sm inline-flex items-center justify-center gap-2">
                 {{ __('borrower.document_upload.submit') }}
             </button>
         </form>
@@ -166,6 +166,10 @@
 
                     submitForm() {
                         const form = this.$refs.form;
+                        const btn = form?.querySelector('button[type=submit]');
+                        if (btn && typeof window.kfMarkBusy === 'function') {
+                            window.kfMarkBusy(btn);
+                        }
                         const fd = new FormData(form);
                         fd.delete('files[]');
                         fd.delete('file');
@@ -182,6 +186,10 @@
                         }).then((res) => {
                             if (res.redirected) window.location.href = res.url;
                             else window.location.reload();
+                        }).catch(() => {
+                            if (btn && typeof window.kfClearBusy === 'function') {
+                                window.kfClearBusy(btn);
+                            }
                         });
                     },
                 }));

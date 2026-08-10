@@ -36,15 +36,19 @@
             if (this.form instanceof HTMLFormElement) {
                 delete this.form.dataset.loadingBound;
                 this.form.querySelectorAll('button[type=submit], input[type=submit]').forEach((btn) => {
-                    if (btn.dataset.originalHtml != null) {
-                        btn.innerHTML = btn.dataset.originalHtml;
-                        delete btn.dataset.originalHtml;
-                    } else if (btn.dataset.originalValue != null) {
-                        btn.value = btn.dataset.originalValue;
-                        delete btn.dataset.originalValue;
+                    if (typeof window.kfClearBusy === 'function') {
+                        window.kfClearBusy(btn);
+                    } else {
+                        if (btn.dataset.originalHtml != null) {
+                            btn.innerHTML = btn.dataset.originalHtml;
+                            delete btn.dataset.originalHtml;
+                        } else if (btn.dataset.originalValue != null) {
+                            btn.value = btn.dataset.originalValue;
+                            delete btn.dataset.originalValue;
+                        }
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-70', 'cursor-wait', 'inline-flex', 'items-center', 'gap-2', 'pointer-events-none');
                     }
-                    btn.disabled = false;
-                    btn.classList.remove('opacity-70', 'cursor-wait', 'inline-flex', 'items-center', 'gap-2');
                 });
             }
             this.open = false;
@@ -135,6 +139,7 @@
                 <button type="button"
                         @click="
                             const confirmCb = onConfirm;
+                            const confirmBtn = $el;
                             if (form) {
                                 form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true }));
                                 form.querySelectorAll('[data-phone-input]').forEach(function (root) {
@@ -142,9 +147,20 @@
                                         window.syncSitePhoneInput(root);
                                     }
                                 });
-                                form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
+                                const submitter = form.querySelector('button[type=submit], input[type=submit]');
+                                if (typeof window.kfMarkBusy === 'function') {
+                                    if (submitter) window.kfMarkBusy(submitter);
+                                    window.kfMarkBusy(confirmBtn);
+                                    form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) {
+                                        if (btn !== submitter) btn.disabled = true;
+                                    });
+                                } else {
+                                    form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
+                                }
+                                form.dataset.loadingBound = '1';
                                 form.submit();
                             } else if (typeof confirmCb === 'function') {
+                                if (typeof window.kfMarkBusy === 'function') window.kfMarkBusy(confirmBtn);
                                 confirmCb();
                             }
                             open = false;

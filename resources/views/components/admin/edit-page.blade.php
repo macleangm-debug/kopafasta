@@ -51,14 +51,16 @@
 
     <div class="mt-6 bg-white rounded-2xl shadow-sm ring-1 ring-red-200/80 p-6">
         <h3 class="text-sm font-semibold text-red-700 mb-1">Danger zone</h3>
-        <p class="text-xs text-gray-500 mb-3">Deleting this record is permanent.</p>
+        <p class="text-xs text-gray-500 mb-3">
+            Empty partners are deleted permanently. Partners with tasks, payments, or assignments are deactivated instead (history kept, portal login disabled).
+        </p>
         <form method="POST" action="{{ $destroyAction }}"
               onsubmit="return confirm('{{ $deleteConfirm }}');">
             @csrf
             @method('DELETE')
             <button type="submit"
                     class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl shadow-sm transition">
-                Delete
+                Delete / deactivate partner
             </button>
         </form>
     </div>

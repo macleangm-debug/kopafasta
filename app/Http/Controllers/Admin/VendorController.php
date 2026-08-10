@@ -552,11 +552,20 @@ class VendorController extends ResourceController
     public function destroy($id)
     {
         $record = Vendor::findOrFail($id);
-        $this->auditAdminDeleted($record);
-        $record->delete();
+        $this->authorize('delete', $record);
+
+        $service = app(\App\Services\PartnerDeletionService::class);
+
+        if ($service->hasOperationalHistory($record)) {
+            $result = $service->deactivate($record, auth('admin')->user());
+            $this->auditAdmin('vendor.deactivated', $record->fresh() ?? $record);
+        } else {
+            $this->auditAdminDeleted($record);
+            $result = $service->hardDelete($record, auth('admin')->user());
+        }
 
         return redirect()
             ->route('admin.partners.all')
-            ->with('status', ucfirst($this->singular).' deleted.');
+            ->with('status', $result['message'] ?? ucfirst($this->singular).' removed.');
     }
 }

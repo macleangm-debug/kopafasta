@@ -30,7 +30,7 @@ class ValuationPartnerService
         return $this->matching->valuersForRegion($application->customer?->region);
     }
 
-    public function assign(LoanApplication $application, Vendor $valuer, User $actor, ?string $notes = null): ValuationAssignment
+    public function assign(LoanApplication $application, Vendor $valuer, ?User $actor = null, ?string $notes = null): ValuationAssignment
     {
         if ($valuer->category !== 'valuer' && ! $valuer->hasPartnerRole('valuer')) {
             throw ValidationException::withMessages([
@@ -101,7 +101,7 @@ class ValuationPartnerService
                 'vendor_task_id'      => $task->id,
                 'status'              => ValuationAssignment::STATUS_ASSIGNED,
                 'notes'               => $notes,
-                'assigned_by'         => $actor->id,
+                'assigned_by'         => $actor?->id,
                 'assigned_at'         => now(),
             ]);
 
@@ -109,6 +109,33 @@ class ValuationPartnerService
 
             return $assignment->fresh(['vendor', 'vendorTask', 'application.customer']);
         });
+    }
+
+    /**
+     * After valuation fee is paid, try to place the job with the nearest/suggested valuer.
+     * Failures are non-blocking — ops can still assign manually.
+     */
+    public function autoAssignIfPossible(LoanApplication $application, ?User $actor = null): ?ValuationAssignment
+    {
+        $open = ValuationAssignment::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])
+            ->exists();
+
+        if ($open) {
+            return null;
+        }
+
+        $valuer = $this->suggestValuer($application);
+        if (! $valuer) {
+            return null;
+        }
+
+        try {
+            return $this->assign($application, $valuer, $actor, 'Auto-assigned after valuation fee payment.');
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function complete(
