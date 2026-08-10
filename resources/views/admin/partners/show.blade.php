@@ -244,17 +244,19 @@
     <p class="text-xs text-gray-500 mb-3">
         Empty partners are deleted permanently. Partners with history are deactivated (portal login disabled).
     </p>
-    <form method="POST" action="{{ route('admin.partners.destroy', $record) }}" id="partner-delete-form-{{ $record->id }}">
+    <form method="POST" action="{{ route('admin.partners.destroy', $record) }}"
+          id="partner-delete-form-{{ $record->id }}"
+          x-data
+          @submit.prevent="window.confirmForm($el, {
+              title: @js('Remove this partner?'),
+              message: @js('Empty partners are deleted permanently. Partners with history are deactivated and portal login is disabled.'),
+              confirmLabel: @js('Delete / deactivate'),
+              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+              tone: 'warning',
+          })">
         @csrf
         @method('DELETE')
-        <button type="button"
-                @click="window.confirmForm($el.closest('form'), {
-                    title: @js('Remove this partner?'),
-                    message: @js('Empty partners are deleted permanently. Partners with history are deactivated and portal login is disabled.'),
-                    confirmLabel: @js('Delete / deactivate'),
-                    confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
-                    tone: 'warning',
-                })"
+        <button type="submit"
                 class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl shadow-sm transition">
             Delete / deactivate partner
         </button>

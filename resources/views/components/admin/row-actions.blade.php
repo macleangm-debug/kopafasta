@@ -26,17 +26,18 @@
         </a>
     @endif
     @if ($destroy)
-        <form method="POST" action="{{ $destroy }}" class="inline">
+        <form method="POST" action="{{ $destroy }}" class="inline"
+              x-data
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js($confirmTitle),
+                  message: @js($confirm),
+                  confirmLabel: @js($confirmLabel),
+                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                  tone: 'warning',
+              })">
             @csrf
             @method('DELETE')
-            <button type="button" title="Delete"
-                    @click="window.confirmForm($el.closest('form'), {
-                        title: @js($confirmTitle),
-                        message: @js($confirm),
-                        confirmLabel: @js($confirmLabel),
-                        confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
-                        tone: 'warning',
-                    })"
+            <button type="submit" title="Delete"
                     class="inline-flex items-center justify-center size-8 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition">
                 <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/>
