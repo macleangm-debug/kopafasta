@@ -20,7 +20,7 @@
         'Recovery markup %' => $record->recovery_markup_percent,
         'Address'   => ['value' => $record->address, 'wide' => true],
         'Created'   => $record->created_at?->format('Y-m-d H:i'),
-    ])" />
+    ])">
 
 @if ($affiliateStats ?? null)
     <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
@@ -244,19 +244,20 @@
     <p class="text-xs text-gray-500 mb-3">
         Empty partners are deleted permanently. Partners with history are deactivated (portal login disabled).
     </p>
-    <form method="POST" action="{{ route('admin.partners.destroy', $record) }}"
-          @submit.prevent="window.confirmForm($el, {
-              title: @js('Remove this partner?'),
-              message: @js('Empty partners are deleted. Partners with history are deactivated.'),
-              confirmLabel: @js('Delete / deactivate'),
-              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
-              tone: 'warning',
-          })">
+    <form method="POST" action="{{ route('admin.partners.destroy', $record) }}" id="partner-delete-form-{{ $record->id }}">
         @csrf
         @method('DELETE')
-        <button type="submit"
+        <button type="button"
+                @click="window.confirmForm($el.closest('form'), {
+                    title: @js('Remove this partner?'),
+                    message: @js('Empty partners are deleted permanently. Partners with history are deactivated and portal login is disabled.'),
+                    confirmLabel: @js('Delete / deactivate'),
+                    confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                    tone: 'warning',
+                })"
                 class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl shadow-sm transition">
             Delete / deactivate partner
         </button>
     </form>
 </div>
+</x-admin.show-page>
