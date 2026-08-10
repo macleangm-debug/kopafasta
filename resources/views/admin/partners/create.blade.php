@@ -52,15 +52,36 @@
                     window.showAdminFeedback?.({ tone: 'error', title: 'PIN mismatch', message: 'PIN and confirmation must match.' });
                     return;
                 }
-                const phone = this.form.querySelector('[name=\"phone\"]')?.value?.trim();
-                if (! phone) {
-                    window.showAdminFeedback?.({ tone: 'error', title: 'Phone required', message: 'Add a phone number in Contact before activating the account.' });
-                    return;
-                }
+            }
+
+            // Reveal wizard steps so HTML5 can focus invalid fields (they stay display:none otherwise).
+            const wizard = this.form.querySelector('.admin-wizard');
+            if (wizard) {
+                wizard.querySelectorAll('[data-step]').forEach((el) => {
+                    el.hidden = false;
+                    el.classList.remove('wizard-step-inactive', 'hidden');
+                    el.removeAttribute('aria-hidden');
+                    el.style.cssText = '';
+                });
+            }
+
+            const phone = (this.form.querySelector('[name="phone"]')?.value || '').trim();
+            if ((this.mode === 'activate_now' || this.mode === 'invite') && ! phone) {
+                window.showAdminFeedback?.({
+                    tone: 'error',
+                    title: 'Phone required',
+                    message: 'Add a phone number in Contact before creating this partner.',
+                });
+                this.open = false;
+                const form = this.form;
+                this.form = null;
+                // Let the wizard jump to the invalid Contact field.
+                queueMicrotask(() => form?.reportValidity());
+                return;
             }
 
             const setHidden = (name, value) => {
-                let el = this.form.querySelector(`[name=\"${name}\"]`);
+                let el = this.form.querySelector(`[name="${name}"]`);
                 if (! el) {
                     el = document.createElement('input');
                     el.type = 'hidden';
@@ -75,8 +96,32 @@
             setHidden('activation_pin', this.mode === 'activate_now' ? this.pin : '');
             setHidden('status', this.mode === 'activate_now' ? 'active' : 'inactive');
 
+            if (! this.form.checkValidity()) {
+                const form = this.form;
+                this.open = false;
+                this.form = null;
+                window.showAdminFeedback?.({
+                    tone: 'error',
+                    title: 'Form incomplete',
+                    message: 'Some required fields are missing. Fix them in the form, then try again.',
+                });
+                queueMicrotask(() => form?.reportValidity());
+                return;
+            }
+
+            const form = this.form;
+            const confirmBtn = this.$el?.querySelector?.('[data-partner-confirm-create]');
             this.open = false;
-            this.form.requestSubmit();
+            this.form = null;
+            if (confirmBtn && typeof window.kfMarkBusy === 'function') {
+                window.kfMarkBusy(confirmBtn);
+            }
+            // Native submit after validation passed.
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
         },
     }"
     x-on:admin-wizard-confirm-submit.window="openFor($event.detail.form)"
@@ -168,8 +213,8 @@
                             class="inline-flex justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white ring-1 ring-gray-200 hover:bg-gray-50">
                         Back to form
                     </button>
-                    <button type="button" @click="syncAndSubmit()"
-                            class="inline-flex justify-center px-5 py-2.5 rounded-xl text-sm font-bold text-brand bg-brand-gold hover:brightness-95 shadow-sm">
+                    <button type="button" data-partner-confirm-create @click="syncAndSubmit()"
+                            class="inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-brand bg-brand-gold hover:brightness-95 shadow-sm">
                         Confirm &amp; create
                     </button>
                 </div>
