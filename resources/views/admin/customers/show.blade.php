@@ -32,13 +32,7 @@
     :backUrl="route('admin.customers.index')"
     backLabel="All customers">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
-            {{ session('status') }}
-        </div>
-    @endif
-
-    @if ($customer->nida_locked_until && $customer->nida_locked_until->isFuture())
+@if ($customer->nida_locked_until && $customer->nida_locked_until->isFuture())
         <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-900 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <p class="font-semibold">NIDA verification locked</p>

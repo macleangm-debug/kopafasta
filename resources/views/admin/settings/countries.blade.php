@@ -1,11 +1,7 @@
 <x-admin.layout title="Country Settings" heading="Country Settings" subheading="Language, currency, ID format, phone prefix, grace rules, and loan policies per country">
     @include('admin.settings._tabs', ['active' => 'countries'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-6 flex flex-wrap gap-2">
+<div class="mb-6 flex flex-wrap gap-2">
         @foreach ($countries as $row)
             <a href="{{ route('admin.settings.countries', ['country' => $row['code']]) }}"
                class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ ($selected['code'] ?? '') === $row['code'] ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">

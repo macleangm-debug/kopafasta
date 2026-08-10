@@ -8,11 +8,7 @@
     :heading="'Recovery assignment #'.$assignment->id"
     :subheading="($assignment->vendor?->name ?? '—').' · '.display_label($assignment->partner_type, 'recovery_partner_type')">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-4">
+<div class="mb-4">
         <a href="{{ route('admin.recovery.assignments.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Recovery assignments</a>
     </div>
 

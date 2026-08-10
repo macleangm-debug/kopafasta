@@ -1,8 +1,6 @@
 <x-admin.layout title="Profile sections" heading="Profile builder" subheading="Configure profile sections without code changes">
     @include('admin.settings.engagement._nav', ['active' => 'profile-sections'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    <x-admin.index-toolbar route="admin.profile-sections" label="New section" />
+<x-admin.index-toolbar route="admin.profile-sections" label="New section" />
 
     <div class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
         <table class="min-w-full text-sm">

@@ -14,12 +14,6 @@
     :backUrl="$backUrl"
     :backLabel="$backLabel">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
-            {{ session('status') }}
-        </div>
-    @endif
-
     <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
         <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-6 py-5 text-white flex flex-wrap items-start justify-between gap-4">
             <div>

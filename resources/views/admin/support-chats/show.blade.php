@@ -1,9 +1,5 @@
 <x-admin.layout title="Support chat" heading="Conversation #{{ $supportConversation->id }}" subheading="Reply to borrower or assign a support agent">
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="grid lg:grid-cols-3 gap-6">
+<div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-4">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5 max-h-[32rem] overflow-y-auto space-y-3">
                 @forelse ($supportConversation->messages as $message)

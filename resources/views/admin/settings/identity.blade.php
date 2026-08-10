@@ -1,8 +1,6 @@
 <x-admin.layout title="Identity Verification" heading="Identity Verification" subheading="NIDA verification attempts, suspension, and DOB matching">
     @include('admin.settings._tabs', ['active' => 'identity'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    <form method="POST" action="{{ route('admin.settings.identity.save') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
+<form method="POST" action="{{ route('admin.settings.identity.save') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
         @csrf @method('PUT')
 
         <p class="text-sm text-gray-600">Borrowers must provide National ID and date of birth at registration. NIDA verification compares both against bureau records. After repeated failures, <strong>identity verification is paused</strong> for the configured period — the borrower can still sign in and complete other profile sections, but cannot verify NIDA or apply for loans until the pause ends or an admin clears the case.</p>

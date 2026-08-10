@@ -9,11 +9,7 @@
     :heading="'Collection case #'.$arrearCase->id"
     :subheading="($loan?->loan_number ?? '—').' · '.$name">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-4 flex flex-wrap gap-3">
+<div class="mb-4 flex flex-wrap gap-3">
         <a href="{{ route('admin.arrear-cases.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← All collection cases</a>
         @if ($loan)
             <a href="{{ route('admin.loans.show', $loan) }}" class="text-sm font-semibold text-gray-600 hover:text-gray-800">Loan profile</a>

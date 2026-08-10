@@ -3,11 +3,7 @@
     heading="Collection cases"
     subheading="Open arrears cases with follow-up history and assigned collectors">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
             <p class="text-[10px] uppercase tracking-wider text-gray-500">Open cases</p>
             <p class="text-2xl font-bold text-gray-900">{{ $counts['open'] }}</p>

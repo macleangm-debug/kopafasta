@@ -1,11 +1,7 @@
 <x-admin.layout title="Location master" heading="Location master" subheading="Manage wards used in borrower residence and next-of-kin address forms">
     @include('admin.settings._tabs', ['active' => 'locations'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-5 grid grid-cols-3 gap-3 max-w-xl">
+<div class="mb-5 grid grid-cols-3 gap-3 max-w-xl">
         <div class="bg-white rounded-lg ring-1 ring-gray-200 px-4 py-3">
             <div class="text-xs uppercase tracking-widest text-gray-500">Regions</div>
             <div class="text-xl font-semibold text-gray-900">{{ number_format($stats['regions']) }}</div>

@@ -3,19 +3,7 @@
     heading="Loan {{ $loan->loan_number }}"
     subheading="Disbursed {{ optional($loan->disbursement_date)->format('Y-m-d') ?? '—' }}">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
-            {{ session('status') }}
-        </div>
-    @endif
-
-    @if (session('error'))
-        <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">
-            {{ session('error') }}
-        </div>
-    @endif
-
-        @if (! empty($disbursementBlocking) && $loan->status === 'pending')
+@if (! empty($disbursementBlocking) && $loan->status === 'pending')
             <div class="mb-4 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
                 <p class="font-semibold">Disbursement blocked</p>
                 <ul class="mt-1 list-disc list-inside text-amber-800">

@@ -1,11 +1,7 @@
 <x-admin.layout title="Recovery Policy" heading="Recovery Policy" subheading="Timeline, recovery partner SLAs, repossession charges, and service partner rates">
     @include('admin.settings._tabs', ['active' => 'recovery'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    @php
+@php
         $initialTab = old('_tab', request('tab', 'timeline'));
         if (! in_array($initialTab, ['timeline', 'recovery', 'repossession', 'service'], true)) {
             $initialTab = 'timeline';

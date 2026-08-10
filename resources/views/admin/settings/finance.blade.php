@@ -1,11 +1,7 @@
 <x-admin.layout title="Finance defaults" heading="Finance defaults" subheading="GL accounts used for automatic journal posting">
     @include('admin.settings._tabs', ['active' => 'finance'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <form method="POST" action="{{ route('admin.settings.finance.save') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-4">
+<form method="POST" action="{{ route('admin.settings.finance.save') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-4">
         @csrf @method('PUT')
 
         <p class="text-sm text-gray-600">

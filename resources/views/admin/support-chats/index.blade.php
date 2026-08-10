@@ -1,9 +1,5 @@
 <x-admin.layout title="Support chats" heading="Live support chats" subheading="Borrower AI chat escalations and human-assist queue">
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-4 flex gap-3 text-sm">
+<div class="mb-4 flex gap-3 text-sm">
         <a href="{{ route('admin.settings.chatbot') }}" class="font-semibold text-brand hover:underline">Manage chatbot FAQs →</a>
     </div>
 

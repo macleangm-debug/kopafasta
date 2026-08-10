@@ -1,8 +1,6 @@
 <x-admin.layout title="Referral levels" heading="Referral levels" subheading="Bronze, Silver, Gold, Diamond tiers">
     @include('admin.settings.engagement._nav', ['active' => 'referral-levels'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    @include('admin.settings.engagement._guide', [
+@include('admin.settings.engagement._guide', [
         'title' => 'How referral levels work',
         'summary' => 'A member’s tier is based on how many successful referrals they have. The tier key (bronze, silver, gold, diamond) is what Underwriting boosts and the borrower referral page use. Changing min/max ranges moves members between tiers on the next page load — no batch job required.',
         'borrowerSees' => [

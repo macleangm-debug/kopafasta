@@ -9,14 +9,7 @@
     :heading="'Top-up request #'.$record->id"
     :subheading="$loan?->loan_number.' · '.$name">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ session('error') }}</div>
-    @endif
-
-    <div class="mb-4">
+<div class="mb-4">
         <a href="{{ route('admin.top-up-requests.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Back to top-up requests</a>
     </div>
 

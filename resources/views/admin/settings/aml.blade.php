@@ -1,8 +1,6 @@
 <x-admin.layout title="AML Settings" heading="AML Thresholds" subheading="Transaction monitoring & FIU reporting">
     @include('admin.settings._tabs', ['active' => 'aml'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    <form method="POST" action="{{ route('admin.settings.aml.save') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
+<form method="POST" action="{{ route('admin.settings.aml.save') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
         @csrf @method('PUT')
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

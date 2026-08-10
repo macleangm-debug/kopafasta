@@ -1,11 +1,7 @@
 <x-admin.layout title="Partner membership" heading="Partner membership" subheading="Yearly membership for non-affiliate partners — renewals and optional activation fees">
     @include('admin.settings._tabs', ['active' => 'partners'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <form method="POST" action="{{ route('admin.settings.partners.save') }}" class="space-y-6">
+<form method="POST" action="{{ route('admin.settings.partners.save') }}" class="space-y-6">
         @csrf @method('PUT')
 
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-6 space-y-4">

@@ -1,8 +1,6 @@
 <x-admin.layout title="Repayment streak" heading="Repayment streak" subheading="Reward consecutive on-time repayments with loyalty points">
     @include('admin.settings.engagement._nav', ['active' => 'repayment-streak'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    @php
+@php
         $defaults = config('gamification.repayment_streak.milestones', []);
         $rows = collect($values['milestones'] ?? $defaults)->map(function ($milestone, $index) use ($defaults) {
             if (is_array($milestone)) {

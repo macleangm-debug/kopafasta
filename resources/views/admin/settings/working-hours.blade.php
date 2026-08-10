@@ -1,10 +1,7 @@
 <x-admin.layout title="Working hours" heading="Working hours" subheading="Office hours and Tanzania public holidays used for SLAs">
     @include('admin.settings._tabs', ['active' => 'working-hours'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-    @if ($errors->any())
+@if ($errors->any())
         <div class="mb-4 rounded-lg bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-800">
             {{ $errors->first() }}
         </div>

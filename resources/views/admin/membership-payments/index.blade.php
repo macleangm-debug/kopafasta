@@ -3,13 +3,7 @@
     heading="Membership Payments"
     subheading="Review and approve bank transfer payments for registration and renewal">
 
-    @if (session('error'))
-        <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
-            {{ session('error') }}
-        </div>
-    @endif
-
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600">
             Borrowers who pay by bank transfer appear here until an admin verifies the transfer.
         </p>

@@ -4,11 +4,7 @@
     :backUrl="route('admin.notification-templates.index')"
     backLabel="All templates">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
+<div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
         <div class="p-6">
             <form method="POST" action="{{ route('admin.notification-templates.update', $record) }}" class="space-y-6">
                 @csrf

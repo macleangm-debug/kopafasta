@@ -3,14 +3,7 @@
     heading="Top-up requests"
     subheading="Review borrower loan top-up requests">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ session('error') }}</div>
-    @endif
-
-    <div class="mb-4 flex flex-wrap gap-2">
+<div class="mb-4 flex flex-wrap gap-2">
         @foreach ([
             'pending' => $counts['pending'].' pending',
             'approved' => 'Approved (awaiting disbursement)',

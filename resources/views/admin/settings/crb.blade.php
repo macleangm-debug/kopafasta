@@ -1,7 +1,6 @@
 <x-admin.layout title="CRB integration" heading="Credit Bureau (CRB)" subheading="D&amp;B Tanzania Live Request — NIDA verification and underwriting credit checks">
     @include('admin.settings._tabs', ['active' => 'crb'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-    @if ($errors->has('crb_test'))<div class="mb-4 rounded-lg bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-700">{{ $errors->first('crb_test') }}</div>@endif
+@if ($errors->has('crb_test'))<div class="mb-4 rounded-lg bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-700">{{ $errors->first('crb_test') }}</div>@endif
 
     <div class="mb-6 grid md:grid-cols-3 gap-4">
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">

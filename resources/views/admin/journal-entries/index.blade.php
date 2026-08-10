@@ -3,11 +3,7 @@
     heading="Journal Entries"
     subheading="System-posted general ledger entries">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
             <div class="text-xs uppercase tracking-wider text-gray-500">Total entries</div>
             <div class="text-2xl font-bold text-gray-900 mt-1">{{ format_number($entries->total()) }}</div>

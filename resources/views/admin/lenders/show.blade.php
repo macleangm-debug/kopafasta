@@ -10,11 +10,7 @@
         <a href="{{ route('admin.lenders.edit', $record) }}" class="ml-auto text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg">Edit</a>
     </div>
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 text-emerald-900 text-sm px-4 py-3 ring-1 ring-emerald-200">{{ session('status') }}</div>
-    @endif
-
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         @foreach ([
             'Capital contributed' => $metrics['capital_invested'],
             'Capital utilized' => $metrics['capital_utilized'],

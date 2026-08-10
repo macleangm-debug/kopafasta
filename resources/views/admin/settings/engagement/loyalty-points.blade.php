@@ -1,8 +1,6 @@
 <x-admin.layout title="Loyalty points" heading="Loyalty points" subheading="Earn points for actions, redeem for benefits">
     @include('admin.settings.engagement._nav', ['active' => 'loyalty-points'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    @php
+@php
         $actions = $values['actions'] ?? config('gamification.loyalty_points.actions', []);
         $penalties = $values['penalties'] ?? config('gamification.loyalty_points.penalties', []);
         $options = $values['redemption_options'] ?? config('gamification.loyalty_points.redemption_options', []);

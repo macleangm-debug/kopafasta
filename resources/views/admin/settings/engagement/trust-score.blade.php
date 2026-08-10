@@ -1,8 +1,6 @@
 <x-admin.layout title="Trust score" heading="Trust score" subheading="Star rating based on member behaviour">
     @include('admin.settings.engagement._nav', ['active' => 'trust-score'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    @include('admin.settings.engagement._guide', [
+@include('admin.settings.engagement._guide', [
         'title' => 'How trust score works',
         'summary' => 'Trust score is a 0–100% composite of member behaviour. Weights below should add up to about 100. The percent is shown as stars (max stars) and is split into 20% bands for underwriting boost steps. Raising profile_completion weight makes finishing the profile hub more valuable for loan terms.',
         'borrowerSees' => [

@@ -1,11 +1,7 @@
 <x-admin.layout title="Affiliate Settings" heading="Affiliate Settings" subheading="Promo code rules, defaults, and where affiliate discounts apply">
     @include('admin.settings._tabs', ['active' => 'affiliates'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <form method="POST" action="{{ route('admin.settings.affiliates.save') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
+<form method="POST" action="{{ route('admin.settings.affiliates.save') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
         @csrf @method('PUT')
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

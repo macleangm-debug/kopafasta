@@ -30,11 +30,7 @@
         ];
     @endphp
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    {{-- Letterhead --}}
+{{-- Letterhead --}}
     <div class="mb-5 -mt-2 rounded-2xl overflow-hidden ring-1 ring-brand/20 shadow-sm">
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white">
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">

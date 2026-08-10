@@ -1,11 +1,7 @@
 <x-admin.layout title="Transactional messaging" heading="Transactional messaging" subheading="Turn automated SMS, email, in-app and WhatsApp on or off per event">
     @include('admin.settings._tabs', ['active' => 'messaging'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-6 rounded-xl bg-brand text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
+<div class="mb-6 rounded-xl bg-brand text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
         <div>
             <p class="text-sm font-semibold">Edit message content</p>
             <p class="text-xs text-white/80 mt-1">Subject and body for each transactional SMS/email live in Notification templates (English + Kiswahili). Use personalization chips like <code class="text-brand-gold">@{{ name }}</code>.</p>

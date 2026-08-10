@@ -7,11 +7,7 @@
         <a href="{{ route('admin.compliance.aml-reports') }}" class="text-sm text-gray-600 hover:text-gray-900">&larr; Back to AML reports</a>
     </div>
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 text-emerald-800 text-sm px-4 py-2">{{ session('status') }}</div>
-    @endif
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Details --}}
         <div class="lg:col-span-2 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Activity details</h3>

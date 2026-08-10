@@ -1,11 +1,5 @@
 <x-admin.layout title="Credit Committee" heading="Credit Committee" subheading="Applications awaiting committee decision after analyst recommendation">
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
-            {{ session('status') }}
-        </div>
-    @endif
-
-    @include('admin.loan-applications._pipeline-tabs', ['active' => 'committee'])
+@include('admin.loan-applications._pipeline-tabs', ['active' => 'committee'])
 
     <div class="mb-4 rounded-xl bg-gradient-to-r from-amber-50 to-white ring-1 ring-amber-200 px-5 py-4 text-sm text-amber-950">
         <p class="font-semibold">Committee queue</p>

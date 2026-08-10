@@ -1,11 +1,5 @@
 <x-admin.layout title="New Applications" heading="New Applications" subheading="Freshly submitted applications">
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
-            {{ session('status') }}
-        </div>
-    @endif
-
-    <div class="flex items-center justify-end mb-4">
+<div class="flex items-center justify-end mb-4">
         <a href="{{ route('admin.loan-applications.create') }}"
            class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg shadow-sm transition">
             <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">

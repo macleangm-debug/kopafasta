@@ -1,11 +1,7 @@
 <x-admin.layout title="Asset lending" heading="Asset lending" subheading="Markup rules and marketplace policy">
     @include('admin.settings._tabs', ['active' => 'asset-lending'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <form method="POST" action="{{ route('admin.settings.asset-lending.save') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-6 mb-8">
+<form method="POST" action="{{ route('admin.settings.asset-lending.save') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-6 mb-8">
         @csrf @method('PUT')
 
         <div>

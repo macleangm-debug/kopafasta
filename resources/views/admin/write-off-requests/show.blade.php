@@ -10,10 +10,7 @@
     :heading="'Write-off request #'.$writeOffRequest->id"
     :subheading="($loan?->loan_number ?? '—').' · '.$name">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-    @if ($errors->any())
+@if ($errors->any())
         <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
     @endif
 

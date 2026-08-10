@@ -1,10 +1,6 @@
 <x-admin.layout title="Offer Settings" heading="Offer settings" subheading="Pilot acceptance flow and repayment commencement defaults">
     @include('admin.settings._tabs', ['active' => 'offer'])
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <form method="POST" action="{{ route('admin.settings.offer.save') }}" class="space-y-6">
+<form method="POST" action="{{ route('admin.settings.offer.save') }}" class="space-y-6">
         @csrf @method('PUT')
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">

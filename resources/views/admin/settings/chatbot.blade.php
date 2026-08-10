@@ -1,11 +1,7 @@
 <x-admin.layout title="Chatbot content" heading="Support chatbot" subheading="Automated answers shown in the AI assistant — add FAQs as you learn what borrowers ask most">
     @include('admin.settings._tabs', ['active' => 'chatbot'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <form method="POST" action="{{ route('admin.settings.chatbot.save') }}" class="space-y-6">
+<form method="POST" action="{{ route('admin.settings.chatbot.save') }}" class="space-y-6">
         @csrf @method('PUT')
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-2">

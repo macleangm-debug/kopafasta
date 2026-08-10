@@ -1,8 +1,6 @@
 <x-admin.layout title="Community milestones" heading="Community milestones" subheading="Rewards for helping others join">
     @include('admin.settings.engagement._nav', ['active' => 'milestones'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    @include('admin.settings.engagement._guide', [
+@include('admin.settings.engagement._guide', [
         'title' => 'How community milestones work',
         'summary' => 'These are campaign-style goals on the referrals experience (“Help 5 people join”). Target is the number of people helped; rewards lines are marketing copy shown to the member. They are separate from referral-level tiers and from referral progress milestones on the Referral levels page.',
         'borrowerSees' => [

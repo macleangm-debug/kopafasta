@@ -1,9 +1,5 @@
 <x-admin.layout title="Borrower Refunds" heading="Borrower Refunds" subheading="Auction surpluses and other refunds owed to borrowers">
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-4 flex flex-wrap gap-2">
+<div class="mb-4 flex flex-wrap gap-2">
         @foreach (['awaiting_payout' => 'Awaiting payout', 'pending' => 'Needs details', 'paid' => 'Paid', 'all' => 'All'] as $key => $label)
             <a href="{{ route('admin.borrower-refunds.index', $key === 'all' ? [] : ['status' => $key]) }}"
                class="px-3 py-1.5 rounded-md text-sm font-medium {{ $status === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">

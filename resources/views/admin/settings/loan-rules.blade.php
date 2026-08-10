@@ -1,8 +1,6 @@
 <x-admin.layout title="Loan Rules" heading="Loan Rules" subheading="Defaults applied to new loans">
     @include('admin.settings._tabs', ['active' => 'loan-rules'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    <form method="POST" action="{{ route('admin.settings.loan-rules.save') }}" class="space-y-6">
+<form method="POST" action="{{ route('admin.settings.loan-rules.save') }}" class="space-y-6">
         @csrf @method('PUT')
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">

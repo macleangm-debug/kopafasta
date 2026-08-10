@@ -4,11 +4,7 @@
     subheading="Map payment types and methods to bank or mobile money collection accounts">
     @include('admin.settings._tabs', ['active' => 'payment-accounts'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-6 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-5 py-4 text-sm text-gray-800 space-y-2">
+<div class="mb-6 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-5 py-4 text-sm text-gray-800 space-y-2">
         <p class="font-semibold text-brand">Collection channels (bank + mobile money)</p>
         <p class="text-xs text-gray-600">Borrowers repay via bank transfer or mobile money only. Create the PSP / collection mobile account once, then map it here. You do not need separate repayment-method catalogs.</p>
         <div class="flex flex-wrap gap-3 pt-1">

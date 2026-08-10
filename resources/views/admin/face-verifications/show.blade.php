@@ -7,11 +7,7 @@
         <a href="{{ route('admin.face-verifications.index') }}" class="text-sm text-brand hover:underline">← Back to queue</a>
     </div>
 
-    @if (session('error'))
-        <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ session('error') }}</div>
-    @endif
-
-    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5 mb-6">
+<div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5 mb-6">
         <dl class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div><dt class="text-gray-500">Phone</dt><dd class="font-medium">{{ $customer->phone ?? '—' }}</dd></div>
             <div><dt class="text-gray-500">NIDA</dt><dd class="font-medium font-mono">{{ $customer->national_id ?? '—' }}</dd></div>

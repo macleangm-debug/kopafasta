@@ -1,13 +1,7 @@
 <x-admin.layout title="Loan Products" heading="Loan Products" subheading="Credit products offered to customers">
     @include('admin.settings._tabs', ['active' => 'loan-products'])
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
-            {{ session('status') }}
-        </div>
-    @endif
-
-    <x-admin.index-toolbar route="admin.loan-products" label="New product" />
+<x-admin.index-toolbar route="admin.loan-products" label="New product" />
 
     @php
         $products = \App\Models\LoanProduct::with('rateTiers')->orderBy('code')->get();

@@ -1,8 +1,6 @@
 <x-admin.layout title="Notification center" heading="Notification center" subheading="Categories and referral leaderboard">
     @include('admin.settings.engagement._nav', ['active' => 'notifications'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    @php
+@php
         $cats = $values['categories'] ?? config('gamification.notifications.categories', []);
         $allCats = ['repayment', 'application', 'promotions', 'referral', 'membership'];
     @endphp

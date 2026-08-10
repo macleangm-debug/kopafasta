@@ -1,9 +1,5 @@
 <x-admin.layout title="Partner Applications" heading="Partner applications" subheading="Public partner enrollments awaiting review">
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <a href="{{ route('admin.partners.index') }}" class="text-sm font-semibold text-brand hover:underline">← Partners hub</a>
         <div class="flex flex-wrap gap-2 text-xs">
             @foreach ([

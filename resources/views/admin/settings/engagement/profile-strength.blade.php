@@ -1,8 +1,6 @@
 <x-admin.layout title="Profile strength" heading="Profile strength tiers" subheading="Bronze, Silver, Gold, Verified">
     @include('admin.settings.engagement._nav', ['active' => 'profile-strength'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    @include('admin.settings.engagement._guide', [
+@include('admin.settings.engagement._guide', [
         'title' => 'How profile strength works',
         'summary' => 'Profile strength is a label for the member’s profile completion percent (from Profile builder sections). It does not by itself change loan limits — trust score and underwriting boosts do. Use these bands for clear UX (“You’re Gold — almost Verified”).',
         'borrowerSees' => [

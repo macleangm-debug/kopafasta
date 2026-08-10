@@ -1,9 +1,6 @@
 <x-admin.layout title="SMS / Email Gateways" heading="SMS / Email communication" subheading="API credentials, Sender ID, and connection health">
     @include('admin.settings._tabs', ['active' => 'gateways'])
-    @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-    @if (session('sms_health'))
+@if (session('sms_health'))
         @php $health = session('sms_health'); @endphp
         <div class="mb-4 rounded-lg px-4 py-3 text-sm ring-1 {{ ($health['ok'] ?? false) ? 'bg-emerald-50 ring-emerald-200 text-emerald-800' : 'bg-rose-50 ring-rose-200 text-rose-800' }}">
             <p class="font-semibold">{{ ($health['ok'] ?? false) ? 'Connection healthy' : 'Connection failed' }}</p>

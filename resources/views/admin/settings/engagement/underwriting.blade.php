@@ -1,8 +1,6 @@
 <x-admin.layout title="Underwriting boosts" heading="Underwriting boosts" subheading="Referral level and trust score multipliers for limits, rates, and processing priority">
     @include('admin.settings.engagement._nav', ['active' => 'underwriting'])
-    @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
-
-    @php
+@php
         $referralLevels = $values['referral_level'] ?? config('gamification.underwriting_boosts.referral_level', []);
         $trust = $values['trust_score'] ?? config('gamification.underwriting_boosts.trust_score', []);
     @endphp
