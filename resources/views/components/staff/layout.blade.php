@@ -28,6 +28,17 @@
     <main class="max-w-5xl mx-auto px-4 py-8">
         {{ $slot }}
     </main>
+    <x-site.confirm-modal name="staff" />
+    <script>
+        window.confirmForm = (form, detail = {}) => {
+            const tone = detail.tone
+                || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
+            window.dispatchEvent(new CustomEvent('open-confirm-staff', {
+                detail: { form: form || null, tone, ...detail },
+            }));
+        };
+        window.confirmAction = (detail = {}) => window.confirmForm(null, detail);
+    </script>
     @vite('resources/js/alpine-init.js')
 </body>
 </html>

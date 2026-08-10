@@ -83,7 +83,13 @@
                                 @endif
                                 @if ($upload->status !== 'rejected')
                                     <form method="POST" action="{{ route('admin.loan-applications.documents.reject', [$record, $upload]) }}" class="inline"
-                                          onsubmit="return confirm('Reject this document? The borrower may need to re-upload.');">
+                                          @submit.prevent="window.confirmForm($el, {
+                                              title: @js('Reject this document?'),
+                                              message: @js('Reject this document? The borrower may need to re-upload.'),
+                                              confirmLabel: @js('Reject'),
+                                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                              tone: 'warning',
+                                          })">
                                         @csrf
                                         <button type="submit" class="text-xs font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">
                                             Reject
@@ -171,7 +177,13 @@
                                 @endif
                                 @if ($doc->status !== 'rejected')
                                     <form method="POST" action="{{ route('admin.loan-applications.documents.reject', [$record, $doc]) }}" class="inline"
-                                          onsubmit="return confirm('Reject this document?');">
+                                          @submit.prevent="window.confirmForm($el, {
+                                              title: @js('Reject this document?'),
+                                              message: @js('Reject this document?'),
+                                              confirmLabel: @js('Reject'),
+                                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                              tone: 'warning',
+                                          })">
                                         @csrf
                                         <button type="submit" class="text-xs font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">Reject</button>
                                     </form>

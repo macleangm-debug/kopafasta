@@ -61,7 +61,13 @@
             </p>
         @else
             <form method="POST" action="{{ route('admin.loans.write-off', $loan) }}" class="space-y-4 pt-4 border-t border-gray-100"
-                  onsubmit="return confirm('Write off {{ $loan->loan_number }}? This posts to the General Ledger and marks the loan written_off.');">
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js('Write off '.$loan->loan_number.'?'),
+                      message: @js('Write off '.$loan->loan_number.'? This posts to the General Ledger and marks the loan written_off.'),
+                      confirmLabel: @js('Write off loan'),
+                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                      tone: 'warning',
+                  })">
                 @csrf
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Amount to write off (TZS)</label>

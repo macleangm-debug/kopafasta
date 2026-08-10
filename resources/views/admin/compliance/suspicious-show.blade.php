@@ -73,7 +73,13 @@
             </form>
 
             <form method="POST" action="{{ route('admin.compliance.suspicious.sar', $activity) }}"
-                  onsubmit="return confirm('File a SAR and mark this activity as reported?');"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js('File a SAR?'),
+                      message: @js('File a SAR and mark this activity as reported?'),
+                      confirmLabel: @js('File SAR'),
+                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                      tone: 'warning',
+                  })"
                   class="bg-white rounded-xl shadow-sm ring-1 ring-red-200 p-6">
                 @csrf
                 <h3 class="text-sm font-semibold text-red-700 mb-2">File Suspicious Activity Report</h3>

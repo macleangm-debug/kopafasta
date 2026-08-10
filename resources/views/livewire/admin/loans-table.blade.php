@@ -115,7 +115,13 @@
                                 @endunless
                                 <form method="POST" action="{{ route('admin.loans.destroy', $loan) }}"
                                       class="inline"
-                                      onsubmit="return confirm('Delete loan {{ $loan->loan_number }}? This cannot be undone.');">
+                                      @submit.prevent="window.confirmForm($el, {
+                                          title: @js('Delete loan '.$loan->loan_number.'?'),
+                                          message: @js('Delete loan '.$loan->loan_number.'? This cannot be undone.'),
+                                          confirmLabel: @js('Delete loan'),
+                                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                          tone: 'warning',
+                                      })">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" title="Delete"

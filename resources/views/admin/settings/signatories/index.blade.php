@@ -52,7 +52,13 @@
                         <td class="px-5 py-3 text-right space-x-2">
                             <a href="{{ route('admin.settings.signatories.edit', $signatory) }}" class="text-brand hover:underline text-xs">Edit</a>
                             <form method="POST" action="{{ route('admin.settings.signatories.destroy', $signatory) }}" class="inline"
-                                  onsubmit="return confirm('Remove this signatory?');">
+                                  @submit.prevent="window.confirmForm($el, {
+                                      title: @js('Remove this signatory?'),
+                                      message: @js('Remove this signatory?'),
+                                      confirmLabel: @js('Delete'),
+                                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                      tone: 'warning',
+                                  })">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-600 hover:underline text-xs">Delete</button>
                             </form>

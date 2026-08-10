@@ -193,7 +193,13 @@
             </div>
             @if (app(\App\Services\CapitalPartnerAllocationService::class)->allocationStrategy() === 'manual')
                 <form method="POST" action="{{ route('admin.loans.clear-capital-allocation', $loan) }}"
-                      onsubmit="return confirm('Clear capital allocation and release partner funds?');">
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js('Clear capital allocation?'),
+                          message: @js('Clear capital allocation and release partner funds?'),
+                          confirmLabel: @js('Clear & re-assign'),
+                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                          tone: 'warning',
+                      })">
                     @csrf
                     <button type="submit" class="text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg ring-1 ring-red-200">
                         Clear & re-assign

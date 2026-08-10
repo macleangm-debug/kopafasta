@@ -154,7 +154,13 @@
             @if ($writeOffRequest->status === \App\Models\WriteOffRequest::STATUS_MANAGER_APPROVED && $service->canFinanceApprove($user) && $approvalRequired)
                 <form method="POST" action="{{ route('admin.write-off-requests.finance-approve', $writeOffRequest) }}"
                       class="bg-white rounded-xl ring-1 ring-red-200 p-5 space-y-3"
-                      onsubmit="return confirm('Execute write-off for {{ $loan?->loan_number }}? This posts to the General Ledger.');">
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js('Execute write-off?'),
+                          message: @js('Execute write-off for '.($loan?->loan_number ?? 'this loan').'? This posts to the General Ledger.'),
+                          confirmLabel: @js('Execute write-off'),
+                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                          tone: 'warning',
+                      })">
                     @csrf
                     <h3 class="text-sm font-semibold text-red-900">Finance — execute write-off</h3>
                     <textarea name="finance_notes" rows="3" placeholder="Optional finance notes"

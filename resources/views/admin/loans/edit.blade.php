@@ -24,7 +24,13 @@
         <h3 class="text-sm font-semibold text-red-700 mb-1">Danger zone</h3>
         <p class="text-xs text-gray-500 mb-3">Deleting this loan will remove its repayment schedules and history.</p>
         <form method="POST" action="{{ route('admin.loans.destroy', $loan) }}"
-              onsubmit="return confirm('Delete this loan? This cannot be undone.');">
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js('Delete this loan?'),
+                  message: @js('Delete this loan? This cannot be undone.'),
+                  confirmLabel: @js('Delete loan'),
+                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                  tone: 'warning',
+              })">
             @csrf
             @method('DELETE')
             <button type="submit"

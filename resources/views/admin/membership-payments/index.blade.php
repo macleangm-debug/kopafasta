@@ -79,7 +79,13 @@
                                 <div class="flex flex-col items-end gap-2">
                                     <form method="POST"
                                           action="{{ route('admin.membership-payments.approve', $payment) }}"
-                                          onsubmit="return confirm('Approve this payment and activate membership?')">
+                                          @submit.prevent="window.confirmForm($el, {
+                                              title: @js('Approve this payment?'),
+                                              message: @js('Approve this payment and activate membership?'),
+                                              confirmLabel: @js('Approve'),
+                                              confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                                              tone: 'confirm',
+                                          })">
                                         @csrf
                                         <button type="submit"
                                                 class="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
@@ -90,7 +96,13 @@
                                     <form method="POST"
                                           action="{{ route('admin.membership-payments.reject', $payment) }}"
                                           class="flex flex-col items-end gap-1 w-full max-w-xs"
-                                          onsubmit="return confirm('Reject this payment?')">
+                                          @submit.prevent="window.confirmForm($el, {
+                                              title: @js('Reject this payment?'),
+                                              message: @js('Reject this payment?'),
+                                              confirmLabel: @js('Reject'),
+                                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                              tone: 'warning',
+                                          })">
                                         @csrf
                                         <input type="text"
                                                name="notes"

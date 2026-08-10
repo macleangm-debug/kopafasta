@@ -245,7 +245,13 @@
         Empty partners are deleted permanently. Partners with history are deactivated (portal login disabled).
     </p>
     <form method="POST" action="{{ route('admin.partners.destroy', $record) }}"
-          onsubmit="return confirm('Remove this partner? Empty partners are deleted. Partners with history are deactivated.');">
+          @submit.prevent="window.confirmForm($el, {
+              title: @js('Remove this partner?'),
+              message: @js('Empty partners are deleted. Partners with history are deactivated.'),
+              confirmLabel: @js('Delete / deactivate'),
+              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+              tone: 'warning',
+          })">
         @csrf
         @method('DELETE')
         <button type="submit"

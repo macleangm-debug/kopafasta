@@ -29,8 +29,15 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">Notes</label>
                 <textarea name="notes" rows="2" maxlength="2000" class="w-full rounded-lg border-gray-300 text-sm">{{ old('notes') }}</textarea>
             </div>
-            <button type="submit" class="w-full text-sm font-semibold text-white bg-brand hover:bg-brand-light px-3 py-2 rounded-lg"
-                    onclick="return confirm('Record this auction settlement? This posts repayments and updates the loan balance.')">
+            <button type="button" class="w-full text-sm font-semibold text-white bg-brand hover:bg-brand-light px-3 py-2 rounded-lg"
+                    @click.prevent="window.confirmAction({
+                        title: @js('Record auction settlement?'),
+                        message: @js('Record this auction settlement? This posts repayments and updates the loan balance.'),
+                        confirmLabel: @js('Record settlement'),
+                        tone: 'confirm',
+                        confirmClass: 'bg-brand hover:bg-brand-light text-white',
+                        onConfirm: () => $el.closest('form').submit(),
+                    })">
                 Record auction settlement
             </button>
         </form>

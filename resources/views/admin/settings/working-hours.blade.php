@@ -73,7 +73,13 @@
                             <td class="px-4 py-2.5 text-gray-600">{{ $holiday->name_sw ?: '—' }}</td>
                             <td class="px-4 py-2.5 text-right">
                                 <form method="POST" action="{{ route('admin.settings.working-hours.holidays.destroy', $holiday) }}"
-                                      onsubmit="return confirm('Remove this holiday?')">
+                                      @submit.prevent="window.confirmForm($el, {
+                                          title: @js('Remove this holiday?'),
+                                          message: @js('Remove this holiday?'),
+                                          confirmLabel: @js('Remove'),
+                                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                          tone: 'warning',
+                                      })">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="text-xs font-semibold text-rose-700 hover:underline">Remove</button>
                                 </form>

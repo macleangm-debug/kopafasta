@@ -89,7 +89,13 @@
                         <td class="px-5 py-3 text-right space-x-2">
                             <a href="{{ route('admin.settings.locations.edit', $ward) }}" class="text-brand hover:underline text-xs">Edit</a>
                             <form method="POST" action="{{ route('admin.settings.locations.destroy', $ward) }}" class="inline"
-                                  onsubmit="return confirm('Remove this ward?');">
+                                  @submit.prevent="window.confirmForm($el, {
+                                      title: @js('Remove this ward?'),
+                                      message: @js('Remove this ward?'),
+                                      confirmLabel: @js('Delete'),
+                                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                      tone: 'warning',
+                                  })">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-600 hover:underline text-xs">Delete</button>
                             </form>

@@ -40,8 +40,14 @@
         <button type="button" class="mt-3 text-xs font-semibold text-amber-700" onclick="addRateTierRow()">+ Add tier</button>
         @if (! empty($record))
             <button type="button" class="mt-3 ml-3 text-xs font-semibold text-gray-700 hover:text-brand-light underline"
-                    form="regenerate-rate-tiers-{{ $record->id }}"
-                    onclick="return confirm('Replace all tiers with the default amount-band template for this product?');">
+                    @click.prevent="window.confirmAction({
+                        title: @js('Regenerate default tiers?'),
+                        message: @js('Replace all tiers with the default amount-band template for this product?'),
+                        confirmLabel: @js('Regenerate'),
+                        tone: 'warning',
+                        confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                        onConfirm: () => document.getElementById(@js('regenerate-rate-tiers-'.$record->id))?.submit(),
+                    })">
                 Regenerate default tiers
             </button>
         @endif
@@ -117,11 +123,17 @@
                     alert('At least one rate tier is required. Add a replacement tier before removing this one.');
                     return;
                 }
-                if (! confirm('Remove this rate tier? Borrowers in this amount band will use the next matching tier once saved.')) {
-                    return;
-                }
-                row.remove();
-                updateTierPreview();
+                window.confirmAction({
+                    title: 'Remove this rate tier?',
+                    message: 'Remove this rate tier? Borrowers in this amount band will use the next matching tier once saved.',
+                    confirmLabel: 'Remove',
+                    tone: 'warning',
+                    confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                    onConfirm: () => {
+                        row.remove();
+                        updateTierPreview();
+                    },
+                });
             });
             updateTierRowSummary(row);
         }

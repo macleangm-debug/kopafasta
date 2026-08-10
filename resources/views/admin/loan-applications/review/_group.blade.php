@@ -252,10 +252,18 @@
                     </form>
 
                     @if ($selectedMember['can_request_replacement'] ?? false)
-                        <form method="POST" action="{{ route('admin.loan-applications.request-group-member-replacement', [$record, $selectedMember['id']]) }}" class="space-y-2 border-t border-gray-100 pt-4">
+                        <form method="POST" action="{{ route('admin.loan-applications.request-group-member-replacement', [$record, $selectedMember['id']]) }}"
+                              class="space-y-2 border-t border-gray-100 pt-4"
+                              @submit.prevent="window.confirmForm($el, {
+                                  title: @js(__('admin.group_review.request_replacement')),
+                                  message: @js(__('admin.group_review.replacement_confirm')),
+                                  confirmLabel: @js(__('admin.group_review.request_replacement')),
+                                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                  tone: 'warning',
+                              })">
                             @csrf
                             <textarea name="reason" rows="2" class="w-full rounded-xl border-amber-200 text-sm" placeholder="{{ __('admin.group_review.replacement_reason_placeholder') }}"></textarea>
-                            <button type="submit" class="inline-flex text-sm font-semibold text-amber-800 underline" onclick="return confirm(@js(__('admin.group_review.replacement_confirm')))">
+                            <button type="submit" class="inline-flex text-sm font-semibold text-amber-800 underline">
                                 {{ __('admin.group_review.request_replacement') }}
                             </button>
                         </form>

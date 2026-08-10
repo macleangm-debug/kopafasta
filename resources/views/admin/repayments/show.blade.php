@@ -30,7 +30,13 @@
     @if ($canApprove)
         <div class="mt-4 flex justify-end">
             <form method="POST" action="{{ route('admin.repayments.approve', $record) }}"
-                  onsubmit="return confirm('Approve and post this repayment to the ledger?');">
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js('Approve this repayment?'),
+                      message: @js('Approve and post this repayment to the ledger?'),
+                      confirmLabel: @js('Approve & post'),
+                      confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                      tone: 'confirm',
+                  })">
                 @csrf
                 <button type="submit" class="inline-flex text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg">
                     Approve & post to ledger

@@ -123,7 +123,13 @@
             </dl>
             <div class="px-4 pb-4 flex flex-wrap items-center gap-2">
                 <form method="POST" action="{{ route('admin.loan-applications.offer.resend', $record) }}"
-                      onsubmit="return confirm('Resend the same offer to the borrower?');">
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js('Resend offer?'),
+                          message: @js('Resend the same offer to the borrower?'),
+                          confirmLabel: @js('Resend offer'),
+                          confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                          tone: 'confirm',
+                      })">
                     @csrf
                     <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg">
                         Resend offer
@@ -215,7 +221,13 @@
                     label="View offer summary" />
             @endif
             <form method="POST" action="{{ route('admin.loan-applications.agreement.generate', $record) }}"
-                  onsubmit="return confirm('{{ $offerDeclined ? 'Resend this offer to the borrower with the same terms?' : 'Regenerate the offer letter? The borrower will need to sign the new version.' }}');">
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js($offerDeclined ? 'Resend offer?' : 'Regenerate offer?'),
+                      message: @js($offerDeclined ? 'Resend this offer to the borrower with the same terms?' : 'Regenerate the offer letter? The borrower will need to sign the new version.'),
+                      confirmLabel: @js($offerDeclined ? 'Resend offer' : 'Regenerate offer'),
+                      confirmClass: 'bg-brand-gold hover:brightness-95 text-brand',
+                      tone: 'confirm',
+                  })">
                 @csrf
                 <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
                     {{ $offerDeclined ? 'Resend offer' : 'Regenerate offer' }}
@@ -268,7 +280,13 @@
                     :url="route('admin.loan-agreements.download', $contract)"
                     label="Preview contract PDF" />
                 <form method="POST" action="{{ route('admin.loan-applications.contract.generate', $record) }}"
-                      onsubmit="return confirm('Regenerate the loan contract? The borrower will need to sign the new version.');">
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js('Regenerate contract?'),
+                          message: @js('Regenerate the loan contract? The borrower will need to sign the new version.'),
+                          confirmLabel: @js('Regenerate contract'),
+                          confirmClass: 'bg-brand-gold hover:brightness-95 text-brand',
+                          tone: 'confirm',
+                      })">
                     @csrf
                     <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
                         Regenerate contract

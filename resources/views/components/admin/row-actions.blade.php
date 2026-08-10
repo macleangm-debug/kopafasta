@@ -3,6 +3,8 @@
     'edit' => null,
     'destroy' => null,
     'confirm' => 'Delete this record? This cannot be undone.',
+    'confirmTitle' => 'Delete this record?',
+    'confirmLabel' => 'Delete',
 ])
 
 <div class="inline-flex items-center gap-1">
@@ -25,7 +27,13 @@
     @endif
     @if ($destroy)
         <form method="POST" action="{{ $destroy }}" class="inline"
-              onsubmit="return confirm('{{ $confirm }}');">
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js($confirmTitle),
+                  message: @js($confirm),
+                  confirmLabel: @js($confirmLabel),
+                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                  tone: 'warning',
+              })">
             @csrf
             @method('DELETE')
             <button type="submit" title="Delete"
