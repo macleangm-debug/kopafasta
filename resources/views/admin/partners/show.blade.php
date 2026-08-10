@@ -240,26 +240,43 @@
 @endif
 
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-red-200/80 p-6">
-    <h3 class="text-sm font-semibold text-red-700 mb-1">Delete / deactivate partner</h3>
+    <h3 class="text-sm font-semibold text-red-700 mb-1">Danger zone</h3>
     <p class="text-xs text-gray-500 mb-3">
-        Empty partners are deleted permanently. Partners with history are deactivated (portal login disabled).
+        Delete permanently removes empty partners. Deactivate keeps history and disables portal login.
     </p>
-    <form method="POST" action="{{ route('admin.partners.destroy', $record) }}"
-          id="partner-delete-form-{{ $record->id }}"
-          x-data
-          @submit.prevent="window.confirmForm($el, {
-              title: @js('Remove this partner?'),
-              message: @js('Empty partners are deleted permanently. Partners with history are deactivated and portal login is disabled.'),
-              confirmLabel: @js('Delete / deactivate'),
-              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
-              tone: 'warning',
-          })">
-        @csrf
-        @method('DELETE')
-        <button type="submit"
-                class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl shadow-sm transition">
-            Delete / deactivate partner
-        </button>
-    </form>
+    <div class="flex flex-wrap items-center gap-3">
+        <form method="POST" action="{{ route('admin.partners.destroy', $record) }}"
+              id="partner-delete-form-{{ $record->id }}"
+              x-data
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js('Delete this partner?'),
+                  message: @js('This permanently deletes the partner. Partners with tasks, payments, or assignments cannot be deleted — use Deactivate instead.'),
+                  confirmLabel: @js('Delete'),
+                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                  tone: 'warning',
+              })">
+            @csrf
+            @method('DELETE')
+            <button type="submit"
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl shadow-sm transition">
+                Delete
+            </button>
+        </form>
+        <form method="POST" action="{{ route('admin.partners.deactivate', $record) }}"
+              x-data
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js('Deactivate this partner?'),
+                  message: @js('The partner will be suspended and portal login disabled. History is kept.'),
+                  confirmLabel: @js('Deactivate'),
+                  confirmClass: 'bg-amber-500 hover:bg-amber-600 text-white',
+                  tone: 'warning',
+              })">
+            @csrf
+            <button type="submit"
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 ring-1 ring-amber-300 px-4 py-2 rounded-xl shadow-sm transition">
+                Deactivate
+            </button>
+        </form>
+    </div>
 </div>
 </x-admin.show-page>

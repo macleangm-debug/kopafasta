@@ -556,16 +556,36 @@ class VendorController extends ResourceController
 
         $service = app(\App\Services\PartnerDeletionService::class);
 
-        if ($service->hasOperationalHistory($record)) {
-            $result = $service->deactivate($record, auth('admin')->user());
-            $this->auditAdmin('vendor.deactivated', $record->fresh() ?? $record);
-        } else {
-            $this->auditAdminDeleted($record);
+        try {
             $result = $service->hardDelete($record, auth('admin')->user());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $message = $e->validator->errors()->first()
+                ?: 'This partner has history. Deactivate instead of deleting.';
+
+            return redirect()
+                ->back()
+                ->with('error', $message);
         }
+
+        $this->auditAdminDeleted($record);
 
         return redirect()
             ->route('admin.partners.all')
-            ->with('status', $result['message'] ?? ucfirst($this->singular).' removed.');
+            ->with('status', $result['message'] ?? ucfirst($this->singular).' deleted.');
+    }
+
+    public function deactivate($id)
+    {
+        $record = Vendor::findOrFail($id);
+        $this->authorize('delete', $record);
+
+        $result = app(\App\Services\PartnerDeletionService::class)
+            ->deactivate($record, auth('admin')->user());
+
+        $this->auditAdmin('vendor.deactivated', $record->fresh() ?? $record);
+
+        return redirect()
+            ->route('admin.partners.all')
+            ->with('status', $result['message'] ?? 'Partner deactivated.');
     }
 }

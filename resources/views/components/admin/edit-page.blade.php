@@ -4,6 +4,7 @@
     'subheading' => null,
     'action',           // update URL (PUT)
     'destroyAction',    // destroy URL (DELETE)
+    'deactivateAction' => null, // optional deactivate URL (POST)
     'cancelUrl',
     'backUrl' => null,
     'backLabel' => 'Back',
@@ -12,6 +13,9 @@
     'deleteTitle' => 'Delete this record?',
     'deleteLabel' => 'Delete',
     'deleteHint' => 'Deleting this record is permanent.',
+    'deactivateTitle' => 'Deactivate this record?',
+    'deactivateConfirm' => 'Portal access will be disabled. History is kept.',
+    'deactivateLabel' => 'Deactivate',
     'enctype' => null,
 ])
 
@@ -55,21 +59,40 @@
     <div class="mt-6 bg-white rounded-2xl shadow-sm ring-1 ring-red-200/80 p-6">
         <h3 class="text-sm font-semibold text-red-700 mb-1">Danger zone</h3>
         <p class="text-xs text-gray-500 mb-3">{{ $deleteHint }}</p>
-        <form method="POST" action="{{ $destroyAction }}"
-              x-data
-              @submit.prevent="window.confirmForm($el, {
-                  title: @js($deleteTitle),
-                  message: @js($deleteConfirm),
-                  confirmLabel: @js($deleteLabel),
-                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
-                  tone: 'warning',
-              })">
-            @csrf
-            @method('DELETE')
-            <button type="submit"
-                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl shadow-sm transition">
-                {{ $deleteLabel }}
-            </button>
-        </form>
+        <div class="flex flex-wrap items-center gap-3">
+            <form method="POST" action="{{ $destroyAction }}"
+                  x-data
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js($deleteTitle),
+                      message: @js($deleteConfirm),
+                      confirmLabel: @js($deleteLabel),
+                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                      tone: 'warning',
+                  })">
+                @csrf
+                @method('DELETE')
+                <button type="submit"
+                        class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl shadow-sm transition">
+                    {{ $deleteLabel }}
+                </button>
+            </form>
+            @if ($deactivateAction)
+                <form method="POST" action="{{ $deactivateAction }}"
+                      x-data
+                      @submit.prevent="window.confirmForm($el, {
+                          title: @js($deactivateTitle),
+                          message: @js($deactivateConfirm),
+                          confirmLabel: @js($deactivateLabel),
+                          confirmClass: 'bg-amber-500 hover:bg-amber-600 text-white',
+                          tone: 'warning',
+                      })">
+                    @csrf
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 text-sm font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 ring-1 ring-amber-300 px-4 py-2 rounded-xl shadow-sm transition">
+                        {{ $deactivateLabel }}
+                    </button>
+                </form>
+            @endif
+        </div>
     </div>
 </x-admin.layout>

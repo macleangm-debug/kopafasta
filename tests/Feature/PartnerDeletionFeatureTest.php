@@ -69,4 +69,57 @@ class PartnerDeletionFeatureTest extends TestCase
         ]);
         $this->assertFalse((bool) $user->fresh()->is_active);
     }
+
+    public function test_explicit_deactivate_suspends_partner_with_history(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'vendor',
+            'is_active' => true,
+        ]);
+
+        $partner = Vendor::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Busy Partner',
+            'category' => 'valuer',
+            'status' => 'active',
+            'vendor_number' => 'PV-DEL-3',
+            'phone' => '255700000003',
+        ]);
+
+        PartnerTask::query()->create([
+            'partner_id' => $partner->id,
+            'task_type' => 'asset_valuation',
+            'status' => 'assigned',
+        ]);
+
+        $result = app(PartnerDeletionService::class)->deactivate($partner);
+
+        $this->assertSame('deactivated', $result['action']);
+        $this->assertDatabaseHas('partners', [
+            'id' => $partner->id,
+            'status' => 'suspended',
+        ]);
+        $this->assertFalse((bool) $user->fresh()->is_active);
+    }
+
+    public function test_hard_delete_rejects_partner_with_history(): void
+    {
+        $partner = Vendor::query()->create([
+            'name' => 'Busy Partner',
+            'category' => 'valuer',
+            'status' => 'active',
+            'vendor_number' => 'PV-DEL-4',
+            'phone' => '255700000004',
+        ]);
+
+        PartnerTask::query()->create([
+            'partner_id' => $partner->id,
+            'task_type' => 'asset_valuation',
+            'status' => 'assigned',
+        ]);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        app(PartnerDeletionService::class)->hardDelete($partner);
+    }
 }

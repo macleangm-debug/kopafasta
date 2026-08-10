@@ -19,6 +19,7 @@ return function (): void {
     Route::get('partners/{vendor}/edit', [VendorController::class, 'edit'])->name('partners.edit');
     Route::put('partners/{vendor}', [VendorController::class, 'update'])->name('partners.update');
     Route::delete('partners/{vendor}', [VendorController::class, 'destroy'])->name('partners.destroy');
+    Route::post('partners/{vendor}/deactivate', [VendorController::class, 'deactivate'])->name('partners.deactivate');
     Route::post('partners/{vendor}/affiliate-kyc/approve', [VendorController::class, 'approveAffiliateKyc'])->name('partners.affiliate-kyc.approve');
     Route::post('partners/{vendor}/affiliate-kyc/reject', [VendorController::class, 'rejectAffiliateKyc'])->name('partners.affiliate-kyc.reject');
     Route::post('partners/{vendor}/affiliate-lifecycle', [VendorController::class, 'updateAffiliateLifecycle'])->name('partners.affiliate-lifecycle.update');
