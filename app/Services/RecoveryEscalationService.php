@@ -68,13 +68,20 @@ class RecoveryEscalationService
             return null;
         }
 
-        $vendor = $this->partners
-            ->activePartnersForType($nextType)
-            ->sortBy(fn ($partner) => RecoveryAssignment::query()
-                ->where('partner_id', $partner->id)
-                ->whereIn('status', [RecoveryAssignment::STATUS_ASSIGNED, RecoveryAssignment::STATUS_IN_PROGRESS])
-                ->count())
-            ->first();
+        if (! app(PartnerAutoAssignPolicy::class)->enabledForRecovery($nextType)) {
+            $this->collectionActions->logForCase(
+                $arrearCase,
+                $actor,
+                'escalation',
+                'Recovery stage '.$this->policy->partnerTypeLabel($nextType).' skipped — auto-assign disabled for this partner type.',
+                'auto_assign_disabled',
+            );
+
+            return null;
+        }
+
+        $vendor = app(PartnerAutoAssignSelector::class)
+            ->pickRecovery($nextType, $this->partners->activePartnersForType($nextType));
 
         $nextLabel = $this->policy->partnerTypeLabel($nextType);
 

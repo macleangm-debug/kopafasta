@@ -31,7 +31,7 @@ class RecoveryAutoAssignmentService
 
     public function maybeAssignCallCenter(ArrearCase $case): ?RecoveryAssignment
     {
-        if (! $this->policy->autoAssignCallCenter()) {
+        if (! $this->policy->autoAssignCallCenter() || ! app(PartnerAutoAssignPolicy::class)->enabledForRecovery('call_center')) {
             return null;
         }
 
@@ -65,12 +65,10 @@ class RecoveryAutoAssignmentService
         }
 
         $vendor = $this->partners
-            ->activePartnersForType('call_center')
-            ->sortBy(fn ($partner) => RecoveryAssignment::query()
-                ->where('partner_id', $partner->id)
-                ->whereIn('status', [RecoveryAssignment::STATUS_ASSIGNED, RecoveryAssignment::STATUS_IN_PROGRESS])
-                ->count())
-            ->first();
+            ->activePartnersForType('call_center');
+
+        $vendor = app(PartnerAutoAssignSelector::class)
+            ->pickRecovery('call_center', $vendor);
 
         if (! $vendor) {
             $this->collectionActions->logForCase(

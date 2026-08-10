@@ -1,0 +1,115 @@
+<?php
+
+/**
+ * Defaults for partner auto-assignment (recovery + origination/service).
+ * Editable under Admin → Settings → Recovery Policy.
+ */
+return [
+    'strategies' => [
+        'least_load' => 'Least open roster',
+        'efficiency_balanced' => 'Efficiency + load balanced',
+        'round_robin' => 'Round robin (fair share)',
+    ],
+
+    'recovery' => [
+        'call_center' => [
+            'enabled' => true,
+            'strategy' => 'least_load',
+            'max_open' => null,
+            'require_region' => false,
+            'reassign_on_sla' => false,
+            'weight_load' => 70,
+            'weight_efficiency' => 20,
+            'weight_fairness' => 10,
+            'cold_start_rate' => 50,
+            'sla_days' => null, // uses recovery.sla_days.{type}
+        ],
+        'debt_collector' => [
+            'enabled' => true,
+            'strategy' => 'efficiency_balanced',
+            'max_open' => null,
+            'require_region' => false,
+            'reassign_on_sla' => false,
+            'weight_load' => 40,
+            'weight_efficiency' => 50,
+            'weight_fairness' => 10,
+            'cold_start_rate' => 50,
+            'sla_days' => null,
+        ],
+        'auctioneer' => [
+            'enabled' => true,
+            'strategy' => 'least_load',
+            'max_open' => null,
+            'require_region' => false,
+            'reassign_on_sla' => false,
+            'weight_load' => 60,
+            'weight_efficiency' => 30,
+            'weight_fairness' => 10,
+            'cold_start_rate' => 50,
+            'sla_days' => null,
+        ],
+        'legal_partner' => [
+            'enabled' => true,
+            'strategy' => 'least_load',
+            'max_open' => null,
+            'require_region' => false,
+            'reassign_on_sla' => false,
+            'weight_load' => 60,
+            'weight_efficiency' => 30,
+            'weight_fairness' => 10,
+            'cold_start_rate' => 50,
+            'sla_days' => null,
+        ],
+        'gps_partner' => [
+            'enabled' => true,
+            'strategy' => 'least_load',
+            'max_open' => null,
+            'require_region' => false,
+            'reassign_on_sla' => false,
+            'weight_load' => 70,
+            'weight_efficiency' => 20,
+            'weight_fairness' => 10,
+            'cold_start_rate' => 50,
+            'sla_days' => null,
+        ],
+    ],
+
+    'service' => [
+        'valuer' => [
+            'enabled' => true,
+            'strategy' => 'least_load',
+            'max_open' => null,
+            'require_region' => true,
+            'reassign_on_sla' => true,
+            'weight_load' => 60,
+            'weight_efficiency' => 30,
+            'weight_fairness' => 10,
+            'cold_start_rate' => 50,
+            'sla_days' => 5,
+        ],
+        'gps_installer' => [
+            'enabled' => true,
+            'strategy' => 'least_load',
+            'max_open' => null,
+            'require_region' => true,
+            'reassign_on_sla' => true,
+            'weight_load' => 60,
+            'weight_efficiency' => 30,
+            'weight_fairness' => 10,
+            'cold_start_rate' => 50,
+            'sla_days' => 5,
+        ],
+        'insurance' => [
+            'enabled' => true,
+            'strategy' => 'least_load',
+            'max_open' => null,
+            'require_region' => true,
+            'reassign_on_sla' => true,
+            'weight_load' => 60,
+            'weight_efficiency' => 30,
+            'weight_fairness' => 10,
+            'cold_start_rate' => 50,
+            'sla_days' => 3,
+        ],
+    ],
+];

@@ -94,9 +94,21 @@ class CollateralInsurancePartnerService
 
     public function suggestInsurer(LoanApplication $application): ?Vendor
     {
-        $application->loadMissing('customer');
+        if (! app(PartnerAutoAssignPolicy::class)->enabledForService('insurance')) {
+            $application->loadMissing('customer');
 
-        return $this->insurersForRegion($application->customer?->region)->first();
+            return $this->insurersForRegion($application->customer?->region)->first();
+        }
+
+        $application->loadMissing('customer');
+        $candidates = $this->insurersForRegion($application->customer?->region);
+        $settings = app(PartnerAutoAssignPolicy::class)->forServiceCategory('insurance');
+        if (($settings['require_region'] ?? true) && blank($application->customer?->region) === false) {
+            // insurersForRegion already region-filters; empty means no regional match.
+        }
+
+        return app(PartnerAutoAssignSelector::class)->pickService('insurance', $candidates)
+            ?? $candidates->first();
     }
 
     /**
@@ -151,13 +163,14 @@ class CollateralInsurancePartnerService
             $task = null;
             if ($partner) {
                 $partnerShare = (int) $quote['base_premium'];
+                $slaDays = app(PartnerAutoAssignPolicy::class)->slaDaysForService('insurance');
                 $task = VendorTask::create([
                     'vendor_id' => $partner->id,
                     'loan_id' => $application->loan_id,
                     'loan_application_id' => $application->id,
                     'task_type' => self::TASK_TYPE,
                     'status' => 'assigned',
-                    'due_at' => now()->addDays(max(1, app(UnderwritingSettingsService::class)->insuranceRenewalDecisionDays())),
+                    'due_at' => now()->addDays($slaDays),
                     'customer_name' => $customer?->legalDisplayName() ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                     'customer_phone' => $customer?->phone,
                     'vehicle_details' => $details ?: $asset->label,
@@ -197,8 +210,16 @@ class CollateralInsurancePartnerService
                             'customer' => $task->customer_name,
                             'asset' => $asset->label,
                             'premium' => format_money($partnerShare),
+                            '_fallback_subject' => 'New insurance cover task',
+                            '_fallback_body' => 'Insurance cover assigned. SLA '.$slaDays.' day(s).',
                         ],
                         route('site.partner.task', $task),
+                    );
+                    app(PartnerAssignmentNotifier::class)->notifyStaff(
+                        'Insurance assigned: '.$partner->name,
+                        'Cover task opened for application '.($application->application_number ?? '#'.$application->id).'.',
+                        route('admin.loan-applications.show', $application),
+                        'applications.view',
                     );
                 } catch (\Throwable) {
                     // Non-blocking: cover job remains assigned even if notice fails.

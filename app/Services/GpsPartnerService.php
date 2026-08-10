@@ -13,11 +13,16 @@ class GpsPartnerService
 {
     public function __construct(
         private readonly PartnerMatchingService $matching,
+        private readonly PartnerAutoAssignSelector $selector,
+        private readonly PartnerAutoAssignPolicy $autoAssign,
     ) {}
 
     public function suggestInstaller(LoanApplication $application): ?Vendor
     {
-        return $this->installersForApplication($application)->first();
+        $candidates = $this->installersForApplication($application);
+
+        return $this->selector->pickService('gps_installer', $candidates)
+            ?? $candidates->first();
     }
 
     /** @return \Illuminate\Support\Collection<int, Vendor> */
@@ -46,9 +51,15 @@ class GpsPartnerService
             return $regions === [] || in_array($region, $regions, true);
         });
 
-        return $matches->isNotEmpty()
-            ? $matches->sortBy('name')->values()
-            : $query->orderBy('name')->get();
+        if ($matches->isNotEmpty()) {
+            return $matches->sortBy('name')->values();
+        }
+
+        if ($this->autoAssign->forServiceCategory('gps_installer')['require_region'] ?? true) {
+            return collect();
+        }
+
+        return $query->orderBy('name')->get();
     }
 
     public function assign(LoanApplication $application, Vendor $installer, User $actor, ?string $notes = null): VendorTask
@@ -82,19 +93,62 @@ class GpsPartnerService
                 $customer->region ?? null,
             ])->filter()->implode(', '));
 
-            return VendorTask::create([
+            $slaDays = $this->autoAssign->slaDaysForService('gps_installer');
+
+            $task = VendorTask::create([
                 'vendor_id'           => $installer->id,
                 'loan_id'             => $application->loan_id,
                 'loan_application_id' => $application->id,
                 'task_type'           => 'gps_install',
                 'status'              => 'assigned',
-                'due_at'              => now()->addDays(3),
+                'due_at'              => now()->addDays($slaDays),
                 'customer_name'       => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'customer_phone'      => $customer->phone ?? null,
                 'vehicle_details'     => $asset?->title,
                 'location'            => $location ?: null,
                 'notes'               => $notes,
             ]);
+
+            app(PartnerAssignmentNotifier::class)->notifyAssigned($installer, 'GPS installation', [
+                'title' => 'New GPS install task',
+                'body' => 'GPS installation assigned for application '.($application->application_number ?? '#'.$application->id).'. SLA '.$slaDays.' day(s).',
+                'action_url' => '/partner/tasks',
+                'staff_permission' => 'applications.view',
+                'staff_url' => route('admin.loan-applications.show', $application),
+            ]);
+
+            return $task;
         });
+    }
+
+    public function autoAssignIfPossible(LoanApplication $application, ?User $actor = null): ?VendorTask
+    {
+        if (! $this->autoAssign->enabledForService('gps_installer')) {
+            return null;
+        }
+
+        $open = VendorTask::query()
+            ->where('loan_application_id', $application->id)
+            ->where('task_type', 'gps_install')
+            ->whereIn('status', ['assigned', 'in_progress'])
+            ->exists();
+
+        if ($open) {
+            return null;
+        }
+
+        $installer = $this->suggestInstaller($application);
+        if (! $installer || ! $actor) {
+            $actor = User::query()->whereIn('role', ['admin', 'super_admin'])->orderBy('id')->first();
+        }
+        if (! $installer || ! $actor) {
+            return null;
+        }
+
+        try {
+            return $this->assign($application, $installer, $actor, 'Auto-assigned GPS installer.');
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

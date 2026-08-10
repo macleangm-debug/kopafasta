@@ -140,7 +140,17 @@ class RecoveryAssignmentService
                 $assignment,
             );
 
-            return $assignment->fresh(['vendor', 'arrearCase.loan.customer', 'vendorTask']);
+            $fresh = $assignment->fresh(['vendor', 'arrearCase.loan.customer', 'vendorTask']);
+
+            app(PartnerAssignmentNotifier::class)->notifyAssigned($vendor, $this->policy->partnerTypeLabel($partnerType).' recovery', [
+                'title' => 'New recovery assignment',
+                'body' => 'Case assigned for loan '.($loan->loan_number ?? '#'.$loan->id).'. SLA '.$slaDays.' day(s).',
+                'action_url' => '/partner/recovery',
+                'staff_permission' => 'loans.view',
+                'staff_url' => route('admin.arrear-cases.show', $arrearCase),
+            ]);
+
+            return $fresh;
         });
     }
 

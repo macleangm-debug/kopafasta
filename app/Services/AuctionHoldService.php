@@ -229,14 +229,23 @@ class AuctionHoldService
             return null;
         }
 
-        $vendor = $this->preferredAuctioneerAfterRepossession($case)
-            ?? $this->partners
-                ->activePartnersForType('auctioneer')
-                ->sortBy(fn ($partner) => RecoveryAssignment::query()
-                    ->where('partner_id', $partner->id)
-                    ->whereIn('status', [RecoveryAssignment::STATUS_ASSIGNED, RecoveryAssignment::STATUS_IN_PROGRESS])
-                    ->count())
-                ->first();
+        $vendor = $this->preferredAuctioneerAfterRepossession($case);
+        if (! $vendor) {
+            if (! app(PartnerAutoAssignPolicy::class)->enabledForRecovery('auctioneer')) {
+                $this->collectionActions->logForCase(
+                    $case,
+                    $actor,
+                    'escalation',
+                    'Auction hold ended but auctioneer auto-assign is disabled — manual assignment required.',
+                    'auto_assign_disabled',
+                );
+
+                return null;
+            }
+
+            $vendor = app(PartnerAutoAssignSelector::class)
+                ->pickRecovery('auctioneer', $this->partners->activePartnersForType('auctioneer'));
+        }
 
         if (! $vendor) {
             $this->collectionActions->logForCase(

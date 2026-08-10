@@ -9,6 +9,11 @@ use Illuminate\Support\Collection;
 
 class PartnerMatchingService
 {
+    public function __construct(
+        private readonly PartnerAutoAssignSelector $selector,
+        private readonly PartnerAutoAssignPolicy $autoAssign,
+    ) {}
+
     /** @return Collection<int, Vendor> */
     public function valuersForRegion(?string $region): Collection
     {
@@ -36,6 +41,10 @@ class PartnerMatchingService
             return $matches->sortBy('name')->values();
         }
 
+        if ($this->autoAssign->forServiceCategory('valuer')['require_region'] ?? true) {
+            return collect();
+        }
+
         return $query->orderBy('name')->get();
     }
 
@@ -43,8 +52,10 @@ class PartnerMatchingService
     {
         $application->loadMissing('customer');
         $region = $application->customer?->region;
+        $candidates = $this->valuersForRegion($region);
 
-        return $this->valuersForRegion($region)->first();
+        return $this->selector->pickService('valuer', $candidates)
+            ?? $candidates->first();
     }
 
     /** @return list<string> */

@@ -1585,6 +1585,8 @@ class SettingsController extends Controller
             'has_markup'        => [],
             'repossession_charges' => Setting::get('repossession.charges') ?? [],
             'partner_defaults' => app(\App\Services\PartnerDefaultsService::class)->allDefaults(),
+            'auto_assign_recovery' => app(\App\Services\PartnerAutoAssignPolicy::class)->allRecoverySettings(),
+            'auto_assign_service' => app(\App\Services\PartnerAutoAssignPolicy::class)->allServiceSettings(),
         ];
 
         foreach ($types as $type => $meta) {
@@ -1711,6 +1713,11 @@ class SettingsController extends Controller
             }
         }
         app(\App\Services\PartnerDefaultsService::class)->saveFromRequest($partnerInput);
+
+        app(\App\Services\PartnerAutoAssignPolicy::class)->saveFromRequest(
+            $request->all(),
+            $request->boolean('auto_assign_call_center'),
+        );
 
         $tab = (string) $request->input('_tab', 'timeline');
         if (! in_array($tab, ['timeline', 'recovery', 'repossession', 'service'], true)) {

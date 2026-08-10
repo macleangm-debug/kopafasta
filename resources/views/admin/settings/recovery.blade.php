@@ -235,6 +235,25 @@
                     </div>
                 </template>
             </div>
+
+            <div class="mt-6 space-y-3">
+                <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950">
+                    <p class="font-semibold">Auto-assign rules (recovery)</p>
+                    <p class="text-xs mt-1 text-emerald-900/80">
+                        Per-type picking strategy, capacity, efficiency weights, and cold-start. Call center also respects the Timeline toggle.
+                        Debt collectors default to efficiency + load balanced using recovery KPIs.
+                    </p>
+                </div>
+                @foreach ($types as $type => $meta)
+                    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+                        <p class="text-sm font-semibold text-gray-900 mb-1">{{ $meta['label'] }}</p>
+                        <x-admin.auto-assign-settings
+                            :suffix="$type"
+                            :settings="$values['auto_assign_recovery'][$type] ?? []"
+                            :show-sla-days="false" />
+                    </div>
+                @endforeach
+            </div>
         </div>
 
         {{-- Tab 3: Repossession --}}
@@ -332,6 +351,11 @@
                             @endif
                         </div>
                     </div>
+
+                    <x-admin.auto-assign-settings
+                        :suffix="'svc_'.$category"
+                        :settings="$values['auto_assign_service'][$category] ?? []"
+                        :show-sla-days="true" />
                 </div>
             @endforeach
         </div>

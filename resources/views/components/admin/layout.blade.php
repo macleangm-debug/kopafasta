@@ -217,6 +217,16 @@
 
     $adminAlerts = app(\App\Services\AdminAlertService::class);
     $adminAlertItems = $adminAlerts->alerts();
+    $adminPersonalNotifications = collect();
+    if (\Illuminate\Support\Facades\Schema::hasColumn('notification_logs', 'user_id') && auth()->id()) {
+        $adminPersonalNotifications = \App\Models\NotificationLog::query()
+            ->where('user_id', auth()->id())
+            ->where('category', 'admin')
+            ->latest()
+            ->limit(8)
+            ->get();
+    }
+    $adminBellCount = $adminAlerts->unreadCount() + $adminPersonalNotifications->count();
 @endphp
 
 <div class="min-h-screen flex flex-col">
@@ -236,14 +246,33 @@
                 <details class="relative">
                     <summary class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100">
                         <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
-                        @if ($adminAlerts->unreadCount() > 0)
-                            <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $adminAlerts->unreadCount() > 9 ? '9+' : $adminAlerts->unreadCount() }}</span>
+                        @if ($adminBellCount > 0)
+                            <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $adminBellCount > 9 ? '9+' : $adminBellCount }}</span>
                         @endif
                     </summary>
-                    <div class="absolute right-0 top-full mt-2 w-96 rounded-2xl bg-white/95 shadow-xl ring-1 ring-brand/10 overflow-hidden z-50 backdrop-blur">
+                    <div class="absolute right-0 top-full mt-2 w-96 rounded-2xl bg-white/95 shadow-xl ring-1 ring-brand/10 overflow-hidden z-50 backdrop-blur max-h-[28rem] overflow-y-auto">
                         <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                             <p class="text-sm font-semibold text-gray-900">Admin alerts</p>
                         </div>
+                        @if ($adminPersonalNotifications->isNotEmpty())
+                            <div class="px-4 py-2 bg-brand-muted/40 border-b border-gray-100">
+                                <p class="text-[10px] font-bold uppercase tracking-widest text-brand">Assignments</p>
+                            </div>
+                            @foreach ($adminPersonalNotifications as $note)
+                                @php
+                                    $lines = preg_split("/\r\n|\n|\r/", (string) $note->message) ?: [];
+                                    $noteTitle = $lines[0] ?? 'Update';
+                                    $noteBody = trim(implode("\n", array_slice($lines, 1)));
+                                    $noteUrl = str_starts_with((string) $note->recipient, '/') ? $note->recipient : null;
+                                @endphp
+                                <a href="{{ $noteUrl ?: '#' }}" class="block px-4 py-3 hover:bg-brand-muted/30 border-b border-gray-50">
+                                    <p class="text-sm text-gray-800 font-medium">{{ $noteTitle }}</p>
+                                    @if ($noteBody !== '')
+                                        <p class="text-xs text-gray-500 mt-0.5">{{ \Illuminate\Support\Str::limit($noteBody, 120) }}</p>
+                                    @endif
+                                </a>
+                            @endforeach
+                        @endif
                         @forelse ($adminAlertItems as $alert)
                             <a href="{{ $alert['url'] }}" class="block px-4 py-3 hover:bg-brand-muted/30 border-b border-gray-50">
                                 <p class="text-[11px] font-bold uppercase tracking-widest text-brand">{{ $alert['group'] ?? 'Queue' }}</p>
@@ -251,7 +280,9 @@
                                 <p class="text-xs text-brand font-semibold mt-0.5">{{ $alert['count'] }} pending</p>
                             </a>
                         @empty
-                            <p class="px-4 py-8 text-sm text-gray-500 text-center">No pending alerts.</p>
+                            @if ($adminPersonalNotifications->isEmpty())
+                                <p class="px-4 py-8 text-sm text-gray-500 text-center">No pending alerts.</p>
+                            @endif
                         @endforelse
                     </div>
                 </details>

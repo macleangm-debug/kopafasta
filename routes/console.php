@@ -17,6 +17,7 @@ Schedule::command('security:expire-blocks')->hourly();
 Schedule::command('loans:mark-overdue')->dailyAt('00:30');
 Schedule::command('recovery:escalate-expired-slas')->hourly();
 Schedule::command('recovery:process-auction-holds')->hourly();
+Schedule::command('partners:reassign-expired-service-slas')->hourly();
 Schedule::command('loans:propose-write-offs')->dailyAt('02:00');
 Schedule::command('loans:accrue-late-fees')->dailyAt('01:00');
 Schedule::command('loans:send-reminders --overdue')->dailyAt('08:00');

@@ -79,13 +79,15 @@ class ValuationPartnerService
                 $customer->region ?? null,
             ])->filter()->implode(', '));
 
+            $slaDays = app(PartnerAutoAssignPolicy::class)->slaDaysForService('valuer');
+
             $task = VendorTask::create([
                 'vendor_id'       => $valuer->id,
                 'loan_id'         => $application->loan_id,
                 'loan_application_id' => $application->id,
                 'task_type'       => 'asset_valuation',
                 'status'          => 'assigned',
-                'due_at'          => now()->addDays(5),
+                'due_at'          => now()->addDays($slaDays),
                 'customer_name'   => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'customer_phone'  => $customer->phone ?? null,
                 'vehicle_details' => $assetDescription ?: null,
@@ -107,7 +109,17 @@ class ValuationPartnerService
 
             $asset->update(['valuation_status' => 'assigned']);
 
-            return $assignment->fresh(['vendor', 'vendorTask', 'application.customer']);
+            $fresh = $assignment->fresh(['vendor', 'vendorTask', 'application.customer']);
+
+            app(PartnerAssignmentNotifier::class)->notifyAssigned($valuer, 'Asset valuation', [
+                'title' => 'New valuation task',
+                'body' => 'Valuation assigned for application '.($application->application_number ?? '#'.$application->id).'. SLA '.$slaDays.' day(s).',
+                'action_url' => '/partner/tasks',
+                'staff_permission' => 'applications.view',
+                'staff_url' => route('admin.loan-applications.show', $application),
+            ]);
+
+            return $fresh;
         });
     }
 
@@ -117,6 +129,10 @@ class ValuationPartnerService
      */
     public function autoAssignIfPossible(LoanApplication $application, ?User $actor = null): ?ValuationAssignment
     {
+        if (! app(PartnerAutoAssignPolicy::class)->enabledForService('valuer')) {
+            return null;
+        }
+
         $open = ValuationAssignment::query()
             ->where('loan_application_id', $application->id)
             ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])
