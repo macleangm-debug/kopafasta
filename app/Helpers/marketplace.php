@@ -11,7 +11,14 @@ if (! function_exists('marketplace_photo_url')) {
             return $path;
         }
 
-        return asset('storage/'.ltrim($path, '/'));
+        $normalized = ltrim($path, '/');
+
+        // Public app assets (e.g. /images/marketplace/sewing.jpg), not storage disk paths.
+        if (str_starts_with($normalized, 'images/')) {
+            return asset($normalized);
+        }
+
+        return asset('storage/'.$normalized);
     }
 }
 

@@ -122,6 +122,7 @@ rm -f public/hot
 "$PHP_BIN" artisan db:seed --class=NotificationTemplateSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=KycDocumentTypeSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=MarketplaceAssetSeeder --force || true
+"$PHP_BIN" artisan marketplace:fix-photos || true
 "$PHP_BIN" artisan storage:link || true
 "$PHP_BIN" artisan optimize:clear
 "$PHP_BIN" artisan config:cache

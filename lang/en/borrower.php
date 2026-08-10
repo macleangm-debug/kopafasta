@@ -122,6 +122,7 @@ return [
         'engagement'    => 'Rewards & referrals',
         'loans'         => 'Loans',
         'marketplace'   => 'Asset marketplace',
+        'verify'        => 'Verify card',
         'payments'      => 'Payments',
         'refunds'       => 'Refunds',
         'notifications' => 'Notifications',

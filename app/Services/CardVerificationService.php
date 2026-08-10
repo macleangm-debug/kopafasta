@@ -28,9 +28,7 @@ class CardVerificationService
             'gps_installer' => 'site.card_verify.types.gps_installer',
             'insurance' => 'site.card_verify.types.insurance',
             'valuer' => 'site.card_verify.types.valuer',
-            'towing' => 'site.card_verify.types.towing',
             'auctioneer' => 'site.card_verify.types.auctioneer',
-            'capital' => 'site.card_verify.types.capital',
         ];
 
         $typeCodes = [
@@ -42,9 +40,7 @@ class CardVerificationService
             'gps_installer' => 'GI',
             'insurance' => 'IN',
             'valuer' => 'VL',
-            'towing' => 'TW',
             'auctioneer' => 'AU',
-            'capital' => 'CP',
         ];
 
         $types = [

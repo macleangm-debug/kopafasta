@@ -119,6 +119,7 @@ return [
     'engagement' => 'Zawadi na rufaa',
     'loans' => 'Mikopo',
     'marketplace' => 'Soko la mali',
+    'verify' => 'Thibitisha kadi',
     'payments' => 'Malipo',
     'notifications' => 'Arifa',
     'guarantor_notifications' => 'Arifa za mdhamini',

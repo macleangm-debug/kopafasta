@@ -6,6 +6,7 @@ return [
         'products'          => 'Bidhaa',
         'all_products'      => 'Bidhaa zote za mkopo',
         'marketplace'       => 'Soko la mali',
+        'verify'            => 'Thibitisha kadi',
         'affiliate'         => 'Wakala',
         'contact'           => 'Wasiliana',
         'log_in'            => 'Ingia',

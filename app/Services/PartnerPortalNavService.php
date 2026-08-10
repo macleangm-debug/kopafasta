@@ -20,6 +20,7 @@ class PartnerPortalNavService
             ['key' => 'calendar', 'label' => __('site.partner_portal.nav_calendar'), 'route' => 'site.partner.calendar', 'icon' => 'calendar'],
             ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.partner.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile', 'icon' => 'user'],
+            ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
             ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
         ];
 
@@ -30,6 +31,7 @@ class PartnerPortalNavService
                 ['key' => 'payments', 'label' => __('site.partner_portal.nav_payments'), 'route' => 'site.partner.payments', 'icon' => 'wallet'],
                 ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.partner.notifications', 'icon' => 'bell'],
                 ['key' => 'profile', 'label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile', 'icon' => 'user'],
+                ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
                 ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
             ];
 
@@ -75,7 +77,7 @@ class PartnerPortalNavService
             || array_intersect($vendor?->partnerRoles() ?? [], ['debt_collector', 'call_center', 'legal_partner', 'auctioneer', 'gps_installer']) !== []
         );
         if ($recoveryFocused) {
-            $priority = ['dashboard', 'recovery', 'recovery_wallet', 'tasks', 'payments', 'notifications', 'profile', 'support'];
+            $priority = ['dashboard', 'recovery', 'recovery_wallet', 'tasks', 'payments', 'notifications', 'profile', 'verify', 'support'];
             usort($nav, function (array $a, array $b) use ($priority) {
                 $ai = array_search($a['key'], $priority, true);
                 $bi = array_search($b['key'], $priority, true);
@@ -107,6 +109,7 @@ class PartnerPortalNavService
             ['key' => 'wallet', 'label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet', 'icon' => 'wallet'],
             ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.affiliate.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile', 'icon' => 'user'],
+            ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
         ];
     }
 
@@ -124,6 +127,7 @@ class PartnerPortalNavService
             ['key' => 'settlements', 'label' => __('site.supplier_portal.nav_settlements'), 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
             ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.supplier.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile', 'icon' => 'user'],
+            ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
         ];
     }
 
@@ -140,6 +144,7 @@ class PartnerPortalNavService
             ['key' => 'documents', 'label' => 'Reports', 'route' => 'site.investor.documents', 'icon' => 'folder'],
             ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'site.investor.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => 'Profile', 'route' => 'site.investor.profile', 'icon' => 'user'],
+            ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
             ['key' => 'support', 'label' => 'Support', 'route' => 'site.investor.support', 'icon' => 'help'],
         ];
     }
@@ -181,6 +186,7 @@ class PartnerPortalNavService
             'bell' => '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9zM10 21a2 2 0 0 0 4 0"/>',
             'help' => '<path d="M12 18v.01M9.1 9a3 3 0 1 1 4.4 3.4c-1 .6-1.5 1.2-1.5 2.6M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/>',
             'user' => '<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0"/>',
+            'shield' => '<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3zM9 12l2 2 4-4"/>',
             'users' => '<path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM3 21a7 7 0 0 1 14 0M22 11a3 3 0 1 0-3-3"/>',
             'layers' => '<path d="M12 3 2 8l10 5 10-5-10-5zM2 14l10 5 10-5M2 19l10 5 10-5"/>',
             'chart' => '<path d="M4 19V5M4 19h16M8 16V9M12 16V6M16 16v-4"/>',

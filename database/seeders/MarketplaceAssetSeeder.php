@@ -21,7 +21,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 45000000,
                 'supplier_deposit' => 9000000,
                 'weekly_installment' => 850000,
-                'photos' => ['https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/hilux.jpg'],
             ],
             [
                 'slug' => 'isuzu-dmax-2021',
@@ -32,7 +32,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 52000000,
                 'supplier_deposit' => 10400000,
                 'weekly_installment' => 980000,
-                'photos' => ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/dmax.jpg'],
             ],
             [
                 'slug' => 'tuk-tuk-passenger',
@@ -43,7 +43,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 8500000,
                 'supplier_deposit' => 1700000,
                 'weekly_installment' => 165000,
-                'photos' => ['https://images.unsplash.com/photo-1593941707882-a5bba14938b7?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/bajaj.jpg'],
             ],
             [
                 'slug' => 'motorcycle-delivery',
@@ -54,7 +54,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 3200000,
                 'supplier_deposit' => 640000,
                 'weekly_installment' => 62000,
-                'photos' => ['https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/motorcycle.jpg'],
             ],
             [
                 'slug' => 'solar-home-system',
@@ -65,7 +65,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 2800000,
                 'supplier_deposit' => 560000,
                 'weekly_installment' => 54000,
-                'photos' => ['https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/solar.jpg'],
             ],
             [
                 'slug' => 'pos-terminal-bundle',
@@ -76,7 +76,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 1200000,
                 'supplier_deposit' => 240000,
                 'weekly_installment' => 23000,
-                'photos' => ['https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/pos.jpg'],
             ],
             [
                 'slug' => 'industrial-sewing-machine',
@@ -87,7 +87,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 1800000,
                 'supplier_deposit' => 360000,
                 'weekly_installment' => 35000,
-                'photos' => ['https://images.unsplash.com/photo-1581091226825-a6a2a5a158ea?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/industrial-sewing.jpg'],
             ],
             [
                 'slug' => 'water-pump-set',
@@ -98,7 +98,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 950000,
                 'supplier_deposit' => 190000,
                 'weekly_installment' => 18500,
-                'photos' => ['https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/pump.jpg'],
             ],
             [
                 'slug' => 'smartphone-business',
@@ -109,7 +109,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 650000,
                 'supplier_deposit' => 130000,
                 'weekly_installment' => 12500,
-                'photos' => ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/phone.jpg'],
             ],
             [
                 'slug' => 'laptop-business',
@@ -120,7 +120,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 1400000,
                 'supplier_deposit' => 280000,
                 'weekly_installment' => 27000,
-                'photos' => ['https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/laptop.jpg'],
             ],
             [
                 'slug' => 'refrigerated-display',
@@ -131,7 +131,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 2200000,
                 'supplier_deposit' => 440000,
                 'weekly_installment' => 42000,
-                'photos' => ['https://images.unsplash.com/photo-1571171637578-41bc2dd41cd1?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/fridge.jpg'],
             ],
             [
                 'slug' => 'mini-bus-14-seater',
@@ -142,7 +142,29 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 68000000,
                 'supplier_deposit' => 13600000,
                 'weekly_installment' => 1280000,
-                'photos' => ['https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['/images/marketplace/minibus.jpg'],
+            ],
+            [
+                'slug' => 'commercial-sewing-machine',
+                'category' => 'equipment',
+                'title' => 'Commercial Sewing Machine',
+                'description' => 'Reliable sewing machine for small workshops and tailoring shops.',
+                'supplier_name' => 'Textile Works Ltd',
+                'asset_value' => 950000,
+                'supplier_deposit' => 190000,
+                'weekly_installment' => 18500,
+                'photos' => ['/images/marketplace/sewing.jpg'],
+            ],
+            [
+                'slug' => 'maize-milling-plant',
+                'category' => 'equipment',
+                'title' => 'Maize Milling Plant',
+                'description' => 'Complete milling setup for village and peri-urban flour businesses.',
+                'supplier_name' => 'AgriEquip TZ',
+                'asset_value' => 12500000,
+                'supplier_deposit' => 2500000,
+                'weekly_installment' => 240000,
+                'photos' => ['/images/marketplace/mill.jpg'],
             ],
         ];
     }

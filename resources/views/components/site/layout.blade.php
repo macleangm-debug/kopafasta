@@ -76,6 +76,7 @@
                 </div>
 
                 <a href="{{ route('site.marketplace') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.marketplace') }}</a>
+                <a href="{{ route('site.card.verify') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.verify') }}</a>
                 <a href="{{ route('site.affiliate') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.affiliate') }}</a>
             </nav>
 
@@ -123,6 +124,7 @@
                             </div>
                             <a href="{{ route('site.products') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.all_products') }}</a>
                             <a href="{{ route('site.marketplace') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.marketplace') }}</a>
+                            <a href="{{ route('site.card.verify') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.verify') }}</a>
                             <a href="{{ route('site.affiliate') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.affiliate') }}</a>
                             <a href="{{ route('site.how-it-works') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.how_it_works.title') }}</a>
                             @auth

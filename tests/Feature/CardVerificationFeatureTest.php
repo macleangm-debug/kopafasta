@@ -21,6 +21,8 @@ class CardVerificationFeatureTest extends TestCase
         $response->assertSeeText(__('site.card_verify.heading'));
         $response->assertSee('KPF-TZ-', false);
         $response->assertSee('PT-SP-TZ-', false);
+        $response->assertDontSee('PT-CP-TZ-', false);
+        $response->assertDontSee('PT-TW-TZ-', false);
         $response->assertSeeText(__('site.card_verify.number_hint'));
     }
 

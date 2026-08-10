@@ -6,6 +6,7 @@ return [
         'products'          => 'Products',
         'all_products'      => 'All loan products',
         'marketplace'       => 'Asset marketplace',
+        'verify'            => 'Verify card',
         'affiliate'         => 'Affiliates',
         'contact'           => 'Contact',
         'log_in'            => 'Log In',
