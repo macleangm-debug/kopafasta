@@ -47,6 +47,10 @@
                 $hero['secondary_cta_url'] = $cardUrl;
             }
         }
+
+        // Verify another Kopafasta card — stays inside the borrower account shell.
+        $hero['tertiary_cta_label'] = __('borrower.nav.verify');
+        $hero['tertiary_cta_url'] = route('site.borrower.verify');
     @endphp
 
     <x-site.borrower-dashboard-hero :hero="$hero" />

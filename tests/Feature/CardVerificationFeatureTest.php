@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureBorrowerPin;
 use App\Models\Customer;
 use App\Models\Partner;
 use App\Models\User;
@@ -118,5 +119,51 @@ class CardVerificationFeatureTest extends TestCase
         $this->get(route('site.short.member', ['memberNo' => 'KPF-TZ-CT99']))
             ->assertOk()
             ->assertSeeText(__('site.card_verify.verify_another'));
+    }
+
+    public function test_borrower_verify_stays_in_account_shell(): void
+    {
+        $this->withoutMiddleware(EnsureBorrowerPin::class);
+
+        $user = User::factory()->create(['role' => 'customer']);
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-CV-003',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Shell',
+            'last_name' => 'User',
+            'phone' => '255712340004',
+            'member_no' => 'KPF-TZ-SH01',
+            'membership_issued_at' => now()->subMonth(),
+            'membership_expires_at' => now()->addMonths(11),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.verify'))
+            ->assertOk()
+            ->assertSeeText(__('site.card_verify.heading'))
+            ->assertSee(route('site.borrower.verify.lookup'), false);
+
+        $target = User::factory()->create();
+        Customer::create([
+            'user_id' => $target->id,
+            'customer_number' => 'CU-CV-004',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Target',
+            'last_name' => 'Member',
+            'phone' => '255712340005',
+            'member_no' => 'KPF-TZ-TG22',
+            'membership_issued_at' => now()->subMonth(),
+            'membership_expires_at' => now()->addMonths(11),
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.verify.lookup'), [
+                'type' => 'member',
+                'number' => 'TG22',
+            ])
+            ->assertRedirect(route('site.borrower.verify.member', ['memberNo' => 'KPF-TZ-TG22']));
     }
 }

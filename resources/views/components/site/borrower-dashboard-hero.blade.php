@@ -86,6 +86,19 @@
                         {{ $hero['secondary_cta_label'] }}
                     </a>
                 @endif
+                @if (! empty($hero['tertiary_cta_url']) && ! empty($hero['tertiary_cta_label']))
+                    <a href="{{ $hero['tertiary_cta_url'] }}"
+                       class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-brand-gold/95 text-brand hover:brightness-95 shadow-sm ring-1 ring-brand-gold/40">
+                        {{ $hero['tertiary_cta_label'] }}
+                    </a>
+                @endif
+            </div>
+        @elseif (! empty($hero['tertiary_cta_url']) && ! empty($hero['tertiary_cta_label']))
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ $hero['tertiary_cta_url'] }}"
+                   class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
+                    {{ $hero['tertiary_cta_label'] }}
+                </a>
             </div>
         @endif
     </div>

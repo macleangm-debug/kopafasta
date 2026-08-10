@@ -243,6 +243,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/membership/renew',  [\App\Http\Controllers\Site\MembershipController::class, 'renew'])     ->name('membership.renew.post');
 
             Route::get('/borrower',                                [\App\Http\Controllers\Site\BorrowerController::class, 'dashboard'])    ->name('borrower.dashboard');
+            Route::get('/borrower/verify',                         [\App\Http\Controllers\Site\CardVerificationController::class, 'borrowerIndex'])->name('borrower.verify');
+            Route::post('/borrower/verify',                        [\App\Http\Controllers\Site\CardVerificationController::class, 'borrowerLookup'])->name('borrower.verify.lookup');
+            Route::get('/borrower/verify/member/{memberNo}',       [\App\Http\Controllers\Site\CardVerificationController::class, 'borrowerShowMember'])->name('borrower.verify.member');
+            Route::get('/borrower/verify/p/{partnerNo}',           [\App\Http\Controllers\Site\CardVerificationController::class, 'borrowerShowPartner'])->name('borrower.verify.partner');
             Route::get('/borrower/applications',                   [\App\Http\Controllers\Site\BorrowerController::class, 'applications']) ->name('borrower.applications');
             Route::get('/borrower/marketplace',                    [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'index'])->name('borrower.marketplace');
             Route::get('/borrower/marketplace/{assetId}',          [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'show'])->name('borrower.marketplace.show');

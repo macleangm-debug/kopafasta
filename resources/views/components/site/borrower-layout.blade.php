@@ -26,7 +26,6 @@
             ['key' => 'engagement',    'label' => __('borrower.nav.engagement'),    'route' => 'site.borrower.engagement',    'icon' => 'users'],
             ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
             ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
-            ['key' => 'verify',        'label' => __('borrower.nav.verify'),        'route' => 'site.card.verify',           'icon' => 'shield'],
             ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
             ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
             ['key' => 'settings',      'label' => __('borrower.nav.settings'),      'route' => 'site.borrower.settings',      'icon' => 'settings'],
@@ -116,16 +115,9 @@
 
         {{-- Topbar (desktop) --}}
         <header class="hidden lg:flex sticky top-0 z-40 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16">
-            <div class="flex items-center gap-4 min-w-0">
-                <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition shrink-0">
-                    ← {{ brand_name() }}
-                </a>
-                <a href="{{ route('site.card.verify') }}"
-                   class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-light transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon('shield') !!}</svg>
-                    {{ __('borrower.nav.verify') }}
-                </a>
-            </div>
+            <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition">
+                ← {{ brand_name() }}
+            </a>
             <div class="flex items-center gap-3">
                 <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <div class="relative" x-data="notificationBell()" x-init="load()">
@@ -204,9 +196,6 @@
                 <x-site.brand-mark size="sm" />
             </a>
             <div class="flex items-center gap-0.5 shrink-0">
-                <a href="{{ route('site.card.verify') }}" class="p-2 text-brand hover:text-brand-light" title="{{ __('borrower.nav.verify') }}" aria-label="{{ __('borrower.nav.verify') }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon('shield') !!}</svg>
-                </a>
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <div class="relative" x-data="notificationBell()" x-init="load()">
                     <button type="button" @click="toggle()" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
