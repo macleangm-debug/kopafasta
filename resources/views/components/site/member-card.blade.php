@@ -65,7 +65,7 @@
      x-data="memberCardActions(@js($memberNoRaw), @js($shareText), @js($verifyUrl), @js($whatsappUrl))">
 
     <div class="flex items-center justify-between gap-3">
-        <h2 class="min-w-0 text-xl sm:text-2xl font-bold tracking-tight text-gray-900">{{ __('borrower.membership.you_are_member') }}</h2>
+        <h2 class="min-w-0 text-xl sm:text-2xl font-bold tracking-tight text-gray-900">{{ __('borrower.membership.my_card') }}</h2>
         @if ($verifyUrl)
             <button type="button"
                     @click="shareMembership()"
