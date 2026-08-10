@@ -71,7 +71,8 @@
                 </div>
             @endif
 
-            <p class="text-center text-xs text-gray-400 mt-8">
+            <p class="text-center text-xs text-gray-400 mt-8 space-y-2">
+                <a href="{{ route('site.card.verify') }}" class="block text-brand font-semibold hover:underline">{{ __('site.card_verify.verify_another') }}</a>
                 <a href="{{ route('site.home') }}" class="text-brand font-semibold hover:underline">{{ brand_name() }}</a>
             </p>
         </div>

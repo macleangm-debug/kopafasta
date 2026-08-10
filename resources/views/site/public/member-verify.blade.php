@@ -100,10 +100,16 @@
                         <p class="text-[11px] uppercase tracking-[0.16em] text-brand-gold font-semibold">{{ __('site.member_verify.join_eyebrow') }}</p>
                         <h3 class="mt-1.5 text-lg font-bold tracking-tight">{{ __('site.member_verify.join_title') }}</h3>
                         <p class="mt-1.5 text-sm text-white/80">{{ __('site.member_verify.join_body') }}</p>
-                        <a href="{{ $joinUrl }}"
-                           class="mt-4 inline-flex items-center justify-center w-full sm:w-auto bg-brand-gold hover:brightness-95 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
-                            {{ __('site.member_verify.join_cta') }}
-                        </a>
+                        <div class="mt-4 flex flex-col sm:flex-row gap-2">
+                            <a href="{{ $joinUrl }}"
+                               class="inline-flex items-center justify-center w-full sm:w-auto bg-brand-gold hover:brightness-95 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
+                                {{ __('site.member_verify.join_cta') }}
+                            </a>
+                            <a href="{{ route('site.card.verify') }}"
+                               class="inline-flex items-center justify-center w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white font-bold px-5 py-2.5 rounded-xl text-sm ring-1 ring-white/25">
+                                {{ __('site.card_verify.verify_another') }}
+                            </a>
+                        </div>
                     </div>
                 </div>
             @elseif ($customer)
@@ -119,19 +125,31 @@
                     <p class="mt-4 text-sm text-white/80">{{ __('site.member_verify.inactive_body') }}</p>
                 </div>
 
-                <a href="{{ $joinUrl }}"
-                   class="inline-flex items-center justify-center w-full bg-brand-gold hover:brightness-95 text-brand font-bold px-5 py-3 rounded-xl text-sm shadow-sm">
-                    {{ __('site.member_verify.join_cta') }}
-                </a>
+                <div class="grid gap-2">
+                    <a href="{{ route('site.card.verify') }}"
+                       class="inline-flex items-center justify-center w-full bg-white hover:bg-brand-muted/40 text-brand font-bold px-5 py-3 rounded-xl text-sm ring-1 ring-brand/20 shadow-sm">
+                        {{ __('site.card_verify.verify_another') }}
+                    </a>
+                    <a href="{{ $joinUrl }}"
+                       class="inline-flex items-center justify-center w-full bg-brand-gold hover:brightness-95 text-brand font-bold px-5 py-3 rounded-xl text-sm shadow-sm">
+                        {{ __('site.member_verify.join_cta') }}
+                    </a>
+                </div>
             @else
                 <div class="rounded-[1.35rem] bg-white ring-1 ring-brand/10 shadow-sm p-8 text-center">
                     <div class="mx-auto mb-4 size-14 rounded-full bg-brand-muted text-brand grid place-items-center text-2xl font-bold" aria-hidden="true">?</div>
                     <h2 class="text-xl font-bold text-gray-900">{{ __('site.member_verify.not_found_title') }}</h2>
                     <p class="mt-2 text-sm text-gray-600">{{ __('site.member_verify.not_found_body', ['member' => $memberNo]) }}</p>
-                    <a href="{{ $joinUrl }}"
-                       class="mt-5 inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-bold px-5 py-2.5 rounded-xl text-sm">
-                        {{ __('site.member_verify.join_cta') }}
-                    </a>
+                    <div class="mt-5 grid gap-2">
+                        <a href="{{ route('site.card.verify') }}"
+                           class="inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-bold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('site.card_verify.verify_another') }}
+                        </a>
+                        <a href="{{ $joinUrl }}"
+                           class="inline-flex items-center justify-center bg-brand-muted text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('site.member_verify.join_cta') }}
+                        </a>
+                    </div>
                 </div>
             @endif
         </div>

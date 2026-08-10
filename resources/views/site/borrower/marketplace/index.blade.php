@@ -19,25 +19,17 @@
             </div>
             <span class="shrink-0 text-sm font-semibold text-brand" x-text="requestOpen ? '−' : '+'"></span>
         </button>
-        <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.borrower.marketplace.request') }}" enctype="multipart/form-data" class="px-6 pb-6 grid sm:grid-cols-2 gap-4 border-t border-gray-100/80 pt-4">
+        <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.borrower.marketplace.request') }}" enctype="multipart/form-data" class="px-6 pb-6 grid gap-4 border-t border-gray-100/80 pt-4">
             @csrf
-            <div class="sm:col-span-2">
+            <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.asset_name') }}</label>
                 <input name="asset_name" required value="{{ old('asset_name', $pendingRequest['asset_name'] ?? '') }}" placeholder="e.g. Toyota Hilux 2019" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.budget') }}</label>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" name="budget" value="{{ old('budget', $pendingRequest['budget'] ?? '') }}" data-money-input="0" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.tenure') }}</label>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" name="preferred_tenure_months" value="{{ old('preferred_tenure_months', $pendingRequest['preferred_tenure_months'] ?? '') }}" maxlength="3" placeholder="e.g. 24" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
-            </div>
-            <div class="sm:col-span-2">
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.photo') }}</label>
                 <input type="file" name="photo" accept="image/*" capture="environment" class="w-full text-sm">
             </div>
-            <div class="sm:col-span-2">
+            <div>
                 <button class="bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">{{ __('borrower.marketplace.submit_request') }}</button>
             </div>
         </form>

@@ -116,7 +116,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/marketplace', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicIndex'])->name('marketplace');
     Route::post('/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storePublicRequest'])->name('marketplace.request');
     Route::get('/marketplace/{assetId}', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicShow'])->name('marketplace.show');
+    Route::get('/verify', [\App\Http\Controllers\Site\CardVerificationController::class, 'index'])->name('card.verify');
+    Route::post('/verify', [\App\Http\Controllers\Site\CardVerificationController::class, 'lookup'])->name('card.verify.lookup');
     Route::get('/verify/member/{memberNo}', [\App\Http\Controllers\Site\MemberVerificationController::class, 'show'])->name('member.verify');
+    Route::get('/v/p/{partnerNo}', [\App\Http\Controllers\Site\CardVerificationController::class, 'showPartner'])->name('short.partner');
     Route::get('/v/{memberNo}', [\App\Http\Controllers\Site\MemberVerificationController::class, 'show'])->name('short.member');
     Route::get('/verify/affiliate', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'index'])->name('affiliate.verify.index');
     Route::post('/verify/affiliate', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'lookup'])->name('affiliate.verify.lookup');

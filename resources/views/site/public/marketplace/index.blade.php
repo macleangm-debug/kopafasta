@@ -34,24 +34,16 @@
                 </div>
                 <span class="shrink-0 text-sm font-semibold text-brand" x-text="requestOpen ? '−' : '+'"></span>
             </button>
-            <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.marketplace.request') }}" class="px-6 pb-6 grid sm:grid-cols-2 gap-4 border-t border-gray-100/80 pt-4">
+            <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.marketplace.request') }}" class="px-6 pb-6 grid gap-4 border-t border-gray-100/80 pt-4">
                 @csrf
-                <div class="sm:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+                <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand">
                     {{ __('borrower.marketplace.request_signup_hint') }}
                 </div>
-                <div class="sm:col-span-2">
+                <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.asset_name') }}</label>
                     <input name="asset_name" required placeholder="e.g. Toyota Hilux 2019" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.budget') }}</label>
-                    <input type="text" inputmode="numeric" name="budget" data-money-input="0" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.tenure') }}</label>
-                    <input type="text" inputmode="numeric" name="preferred_tenure_months" maxlength="3" placeholder="24" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
-                </div>
-                <div class="sm:col-span-2">
                     <button class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('borrower.marketplace.request_signup_cta') }}</button>
                 </div>
             </form>

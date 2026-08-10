@@ -309,10 +309,8 @@ class AssetMarketplaceController extends Controller
     public function storePublicRequest(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'asset_name'              => ['required', 'string', 'max:150'],
-            'description'             => ['nullable', 'string', 'max:2000'],
-            'budget'                  => ['nullable', 'numeric', 'min:0'],
-            'preferred_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
+            'asset_name'  => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $request->session()->put('pending_asset_request', $data);
@@ -320,19 +318,17 @@ class AssetMarketplaceController extends Controller
 
         return redirect()
             ->route('site.register.borrower')
-            ->with('status', __('borrower.marketplace.request_signup_hint'));
+            ->with('status', __('borrower.marketplace.request_signup_redirect'));
     }
 
     private function persistAssetRequest(Request $request, Customer $customer): RedirectResponse
     {
         $data = $request->validate([
-            'asset_name'              => ['required', 'string', 'max:150'],
-            'description'             => ['nullable', 'string', 'max:2000'],
-            'budget'                  => ['nullable', 'numeric', 'min:0'],
-            'preferred_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
-            'photo'                   => ['nullable', 'image', 'max:5120'],
-            'photos'                  => ['nullable', 'array'],
-            'photos.*'                => ['image', 'max:5120'],
+            'asset_name'  => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'photo'       => ['nullable', 'image', 'max:5120'],
+            'photos'      => ['nullable', 'array'],
+            'photos.*'    => ['image', 'max:5120'],
         ]);
 
         $path = $request->hasFile('photo')
@@ -350,8 +346,8 @@ class AssetMarketplaceController extends Controller
             'customer_id'             => $customer->id,
             'asset_name'              => $data['asset_name'],
             'description'             => $data['description'] ?? null,
-            'budget'                  => $data['budget'] ?? null,
-            'preferred_tenure_months' => $data['preferred_tenure_months'] ?? null,
+            'budget'                  => null,
+            'preferred_tenure_months' => null,
             'photo_path'              => $path,
             'additional_photos'       => $additional ?: null,
             'status'                  => 'sourcing',
