@@ -76,9 +76,8 @@
         }
      }">
 
-    <div class="flex items-center justify-between gap-3">
-        <h2 class="min-w-0 text-xl sm:text-2xl font-bold tracking-tight text-gray-900">{{ __('site.card_verify.my_card_title') }}</h2>
-        @if ($verifyUrl)
+    @if ($verifyUrl)
+        <div class="flex items-center justify-end">
             <button type="button"
                     @click="shareCard()"
                     class="shrink-0 inline-flex items-center justify-center size-11 rounded-xl bg-brand text-white hover:bg-brand/90 shadow-sm"
@@ -88,8 +87,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
                 </svg>
             </button>
-        @endif
-    </div>
+        </div>
+    @endif
 
     <div class="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_20px_50px_rgba(8,47,39,0.28)] p-5 sm:p-6 ring-1 ring-brand-gold/35">
         <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold pointer-events-none"></div>

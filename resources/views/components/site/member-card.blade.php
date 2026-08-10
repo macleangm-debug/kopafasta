@@ -64,9 +64,8 @@
 <div {{ $attributes->merge(['class' => 'space-y-5']) }}
      x-data="memberCardActions(@js($memberNoRaw), @js($shareText), @js($verifyUrl), @js($whatsappUrl))">
 
-    <div class="flex items-center justify-between gap-3">
-        <h2 class="min-w-0 text-xl sm:text-2xl font-bold tracking-tight text-gray-900">{{ __('borrower.membership.my_card') }}</h2>
-        @if ($verifyUrl)
+    @if ($verifyUrl)
+        <div class="flex items-center justify-end">
             <button type="button"
                     @click="shareMembership()"
                     class="shrink-0 inline-flex items-center justify-center size-11 rounded-xl bg-brand text-white hover:bg-brand/90 shadow-sm"
@@ -76,8 +75,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
                 </svg>
             </button>
-        @endif
-    </div>
+        </div>
+    @endif
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         {{-- Card face --}}
