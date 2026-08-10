@@ -92,7 +92,7 @@ class PartnerDeletionService
             return true;
         }
 
-        if (ValuationAssignment::query()->where('vendor_id', $partner->id)->exists()) {
+        if (ValuationAssignment::query()->where('partner_id', $partner->id)->exists()) {
             return true;
         }
 
