@@ -127,9 +127,11 @@ class GroupMemberProgressService
      *     added: int,
      *     verified: int,
      *     profiles_complete: int,
+     *     awaiting_acceptance: int,
      *     invitations_pending: int,
      *     pending: int,
      *     members: list<array<string, mixed>>,
+     *     can_continue: bool,
      *     can_submit: bool,
      *     summary: list<string>
      * }
@@ -151,17 +153,28 @@ class GroupMemberProgressService
         $added = $rows->count();
         $verified = $rows->where('status_key', 'kyc_complete')->count();
         $profilesComplete = $rows->whereIn('status_key', ['profile_complete', 'kyc_complete'])->count();
+        $awaitingAcceptance = $rows->whereIn('status_key', [
+            'invitation_sent',
+            'link_opened',
+            'pending_invitation',
+        ])->count();
+        // Pending invites + members still completing post-accept onboarding (shown in UI cards).
         $invitationsPending = $rows->whereIn('status_key', [
             'invitation_sent',
             'link_opened',
+            'pending_invitation',
             'registration_started',
             'registration_complete',
+            'account_registered',
             'profile_incomplete',
         ])->count();
         $pending = max(0, $targetCount - $added);
 
-        $canSubmit = $targetCount > 0
+        $canContinue = $targetCount > 0
             && $added === $targetCount
+            && $awaitingAcceptance === 0;
+
+        $canSubmit = $canContinue
             && $verified === $targetCount;
 
         $summary = [
@@ -176,9 +189,11 @@ class GroupMemberProgressService
             'added'                 => $added,
             'verified'              => $verified,
             'profiles_complete'     => $profilesComplete,
+            'awaiting_acceptance'   => $awaitingAcceptance,
             'invitations_pending'   => $invitationsPending,
             'pending'               => $pending,
             'members'               => $rows->all(),
+            'can_continue'          => $canContinue,
             'can_submit'            => $canSubmit,
             'summary'               => $summary,
         ];

@@ -5,21 +5,29 @@
     />
 
     <div x-show="requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5">
-        <button type="button"
-                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none') form.guarantor_mode = previousGuarantors.length ? 'previous' : 'internal'"
-                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
-            <span class="text-lg leading-none">+</span>
-            {{ __('borrower.apply.guarantor_fields.add_cta') }}
-        </button>
+        <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/15 px-5 py-6 sm:px-6">
+            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand">{{ __('borrower.apply.steps.guarantor') }}</p>
+            <h3 class="mt-1 text-lg font-bold text-gray-900">{{ __('borrower.apply.guarantor_fields.add_cta') }}</h3>
+            <p class="mt-1 text-sm text-gray-600 max-w-xl">{{ __('borrower.apply.guarantor_fields.add_intro') }}</p>
+            <button type="button"
+                    @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none') form.guarantor_mode = previousGuarantors.length ? 'previous' : 'internal'"
+                    class="mt-4 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
+                <span class="text-lg leading-none">+</span>
+                {{ __('borrower.apply.guarantor_fields.add_cta') }}
+            </button>
+        </div>
     </div>
 
-    <div x-show="!requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5 flex flex-wrap gap-3">
-        <button type="button"
-                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none') form.guarantor_mode = previousGuarantors.length ? 'previous' : 'internal'"
-                class="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
-            <span class="text-lg leading-none">+</span>
-            {{ __('borrower.apply.guarantor_fields.add_cta') }}
-        </button>
+    <div x-show="!requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5">
+        <div class="rounded-2xl bg-gradient-to-br from-brand-muted/40 to-white ring-1 ring-brand/10 px-5 py-5">
+            <p class="text-sm text-gray-600">{{ __('borrower.apply.guarantor_fields.optional_intro') }}</p>
+            <button type="button"
+                    @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none') form.guarantor_mode = previousGuarantors.length ? 'previous' : 'internal'"
+                    class="mt-3 inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 text-sm shadow-sm">
+                <span class="text-lg leading-none">+</span>
+                {{ __('borrower.apply.guarantor_fields.add_cta') }}
+            </button>
+        </div>
     </div>
 
     {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}
@@ -89,23 +97,28 @@
                 <button type="button" @click="addGuarantorOpen = false" class="text-gray-400 hover:text-gray-700 text-2xl leading-none px-1" aria-label="{{ __('borrower.profile.cancel') }}">×</button>
             </div>
 
-            <div x-show="previousGuarantors.length" x-cloak x-data="{ openPrev: false }" class="rounded-2xl bg-brand-muted/20 ring-1 ring-brand/10 overflow-hidden">
-                <button type="button"
-                        @click="openPrev = !openPrev"
-                        class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
-                    <span class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.previous_guarantor.title') }}</span>
-                    <svg class="w-4 h-4 text-gray-500 transition" :class="openPrev && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                </button>
-                <div x-show="openPrev" x-cloak class="px-4 pb-4 space-y-2">
-                    <select
-                        class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm bg-white"
-                        @change="if ($event.target.value) { selectPreviousGuarantor(Number($event.target.value)); $event.target.value = ''; }">
-                        <option value="">{{ __('borrower.apply.previous_guarantor.choose') }}</option>
-                        <template x-for="item in previousGuarantors" :key="item.id">
-                            <option :value="item.id" x-text="item.label"></option>
-                        </template>
-                    </select>
+            <div x-show="previousGuarantors.length" x-cloak class="rounded-2xl bg-brand-muted/20 ring-1 ring-brand/10 overflow-hidden">
+                <div class="px-4 py-3 border-b border-brand/10">
+                    <p class="text-sm font-bold text-gray-900">{{ __('borrower.apply.previous_guarantor.title') }}</p>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.apply.previous_guarantor.hint') }}</p>
                 </div>
+                <ul class="divide-y divide-brand/10">
+                    <template x-for="item in previousGuarantors" :key="item.id">
+                        <li>
+                            <button type="button"
+                                    @click="selectPreviousGuarantor(Number(item.id))"
+                                    :disabled="guarantorLookup.loading"
+                                    class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/80 transition disabled:opacity-60">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-semibold text-gray-900 truncate" x-text="item.label"></span>
+                                    <span class="block text-[11px] text-gray-500 mt-0.5" x-text="item.subtitle || item.phone || ''"></span>
+                                </span>
+                                <span class="shrink-0 text-xs font-bold text-brand">{{ __('borrower.apply.previous_guarantor.use_previous') }} →</span>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+                <p x-show="guarantorLookup.error" x-cloak class="px-4 py-2 text-xs text-rose-600" x-text="guarantorLookup.error"></p>
             </div>
 
             <div class="rounded-2xl ring-1 ring-gray-200 p-1.5 flex flex-wrap gap-1 bg-gray-50">

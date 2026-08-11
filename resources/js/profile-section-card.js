@@ -111,8 +111,9 @@ export function registerProfileSectionCard(Alpine) {
                 if (! this.open) {
                     this.open = false;
                 }
+                // Keep the complete tick — do not force Edit to appear (that caused overlap).
                 if (this.complete) {
-                    this.showEditAction = true;
+                    this.showEditAction = false;
                 }
             }
 

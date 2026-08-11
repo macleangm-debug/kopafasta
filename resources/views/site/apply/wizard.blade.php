@@ -208,6 +208,7 @@
                           'membersRequired' => __('borrower.apply.group.members_required'),
                           'lookupInvalidPhone' => __('borrower.apply.group.lookup_invalid_phone'),
                           'membersNotVerified' => __('borrower.apply.group.members_not_verified'),
+                          'memberConsentRequired' => __('borrower.apply.group.member_consent_required'),
                           'removeTitle' => __('borrower.apply.group_members.remove_title'),
                           'removeMessage' => __('borrower.apply.group_members.remove_message'),
                           'removeConfirm' => __('borrower.apply.group_members.remove'),

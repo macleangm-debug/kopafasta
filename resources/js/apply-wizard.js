@@ -482,10 +482,8 @@ export function applyWizard(config) {
                     }
                     if (this.effectiveFeeAmount() <= 0 || this.feeGateSatisfied()) {
                         this.feeGateOpen = false;
-                        // After fee payment, never leave the borrower on the pre-fee setup step.
-                        if (this.isPreFeeSetupStep(this.stepKey)) {
-                            this.goToStepKey(this.nextStepKeyAfterFee());
-                        }
+                        // Do NOT auto-skip setup steps (asset_details / quote / etc.) just because
+                        // the fee is zero or already paid — that jumped asset-backed apps to guarantor.
                         return;
                     }
                     if (onResume && ['processing', 'pending'].includes(this.applicationFeeState?.status || '')) {
@@ -1299,17 +1297,22 @@ export function applyWizard(config) {
                     const added = active.length;
                     const verified = active.filter(m => (m.status_key || '') === 'kyc_complete').length;
                     const profiles = active.filter(m => ['profile_complete', 'kyc_complete'].includes(m.status_key || '')).length;
+                    const awaitingAcceptance = active.filter(m => [
+                        'invitation_sent', 'link_opened', 'pending_invitation',
+                    ].includes(m.status_key || (m.invitation_id && m.role !== 'leader' ? 'invitation_sent' : ''))).length;
                     const invitationsPending = active.filter(m => [
-                        'invitation_sent', 'link_opened', 'registration_started', 'registration_complete',
-                        'account_registered', 'profile_incomplete', 'pending_invitation',
-                    ].includes(m.status_key || (m.invitation_id ? 'invitation_sent' : ''))).length;
+                        'invitation_sent', 'link_opened', 'pending_invitation', 'registration_started',
+                        'registration_complete', 'account_registered', 'profile_incomplete',
+                    ].includes(m.status_key || (m.invitation_id && m.role !== 'leader' ? 'invitation_sent' : ''))).length;
                     const tpl = this.i18n.groupProgress || {};
                     const fill = (text, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(':' + k, String(v)), text || '');
+                    const canContinue = target > 0 && added === target && awaitingAcceptance === 0;
                     return {
                         target,
                         added,
                         verified,
                         profiles_complete: profiles,
+                        awaiting_acceptance: awaitingAcceptance,
                         invitations_pending: invitationsPending,
                         pending: Math.max(0, target - added),
                         summary: [
@@ -1318,7 +1321,8 @@ export function applyWizard(config) {
                             fill(tpl.verified, { done: verified, target }),
                             fill(tpl.invitations_pending, { count: invitationsPending }),
                         ],
-                        can_submit: target > 0 && added === target && verified === target,
+                        can_continue: canContinue,
+                        can_submit: canContinue && verified === target,
                     };
                 },
 
@@ -2073,16 +2077,24 @@ export function applyWizard(config) {
                             };
                             return;
                         }
-                        this.form.guarantor_mode = 'internal';
+                        this.form.guarantor_mode = 'previous';
                         this.form.previous_guarantor_id = id;
-                        this.guarantorLookup = { ok: true, ...(data.lookup || {}) };
+                        this.guarantorLookup = { ok: true, loading: false, ...(data.lookup || {}) };
                         if (data.lookup?.member_no) {
                             this.form.internal_member_no = String(data.lookup.member_no).replace(/^KPF-TZ-/i, '');
+                        }
+                        if (data.lookup?.phone) {
+                            this.form.internal_guarantor_phone = String(data.lookup.phone).replace(/^\+?255/, '');
                         }
                         if (data.lookup?.name) {
                             this.form.internal_guarantor_name = data.lookup.name;
                         }
-                        this.addGuarantorOpen = false;
+                        // Keep the add panel open so the borrower sees the selected person,
+                        // then run the same validate path used for internal members when needed.
+                        this.addGuarantorOpen = true;
+                        if (typeof this.validateInternalGuarantor === 'function' && this.form.internal_member_no && this.form.internal_guarantor_phone) {
+                            await this.validateInternalGuarantor();
+                        }
                     } finally {
                         this.guarantorLookup.loading = false;
                     }
@@ -2226,7 +2238,8 @@ export function applyWizard(config) {
                         if (this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < this.groupAmountPerMemberMin())) return false;
                         const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
                         if (this.current && (total < this.current.min || total > this.current.max)) return false;
-                        return true;
+                        // Members must Accept before the standard loan wizard continues.
+                        return !! this.groupProgress().can_continue;
                     }
                     if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
                         if (! this.customerAssets?.length || ! this.selectedCustomerAssetIds()?.length) return false;
@@ -2936,6 +2949,10 @@ export function applyWizard(config) {
                         const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
                         if (this.current && (total < this.current.min || total > this.current.max)) {
                             showWizardFeedback(`Total group amount must be between ${this.formatTzs(this.current.min)} and ${this.formatTzs(this.current.max)}.`);
+                            return false;
+                        }
+                        if (! this.groupProgress().can_continue) {
+                            showWizardFeedback(this.i18n.group.memberConsentRequired || this.i18n.group.membersRequired);
                             return false;
                         }
                         this.syncGroupAmounts();

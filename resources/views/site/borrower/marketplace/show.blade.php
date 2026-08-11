@@ -30,33 +30,33 @@
             <p class="text-sm text-gray-800 mt-4 leading-relaxed">{{ $asset['description'] }}</p>
 
             <div class="grid grid-cols-2 gap-3 mt-6">
-                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200">
+                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200 min-h-[5.5rem]">
                     <p class="text-[11px] uppercase tracking-widest text-gray-700 font-semibold">{{ __('borrower.marketplace.asset_value') }}</p>
-                    <p class="text-lg font-bold text-gray-900 mt-1">{{ format_money($asset['asset_value'] ?? 0) }}</p>
+                    <p class="text-lg font-bold text-gray-900 mt-1 tabular-nums break-words">{{ format_money($asset['asset_value'] ?? 0) }}</p>
                 </div>
-                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200">
+                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200 min-h-[5.5rem]">
                     <p class="text-[11px] uppercase tracking-widest text-gray-700 font-semibold">{{ __('borrower.marketplace.deposit') }}</p>
-                    <p class="text-lg font-bold text-brand mt-1">{{ format_money($asset['deposit']) }}</p>
+                    <p class="text-lg font-bold text-brand mt-1 tabular-nums break-words">{{ format_money($asset['deposit']) }}</p>
                 </div>
-                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200">
+                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200 min-h-[5.5rem]">
                     <p class="text-[11px] uppercase tracking-widest text-gray-700 font-semibold">{{ __('borrower.marketplace.loan_amount') }}</p>
-                    <p class="text-lg font-bold text-gray-900 mt-1">{{ format_money($asset['remaining_loan'] ?? 0) }}</p>
+                    <p class="text-lg font-bold text-gray-900 mt-1 tabular-nums break-words">{{ format_money($asset['remaining_loan'] ?? 0) }}</p>
                 </div>
-                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200">
+                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200 min-h-[5.5rem]">
                     <p class="text-[11px] uppercase tracking-widest text-gray-700 font-semibold">{{ __('borrower.marketplace.weekly_installment') }}</p>
-                    <p class="text-lg font-bold text-gray-900 mt-1">{{ format_money($asset['weekly_installment']) }}</p>
+                    <p class="text-lg font-bold text-gray-900 mt-1 tabular-nums break-words">{{ format_money($asset['weekly_installment']) }}</p>
                 </div>
                 @if (! empty($asset['max_tenure_months']))
+                    @php $maxTenure = (int) $asset['max_tenure_months']; @endphp
                     <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 col-span-2">
-                        <p class="text-[11px] uppercase text-brand font-semibold">{{ __('borrower.marketplace.max_tenure') }}</p>
-                        <p class="text-lg font-bold text-gray-900 mt-1">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</p>
-                        <p class="text-xs text-gray-700 mt-1">{{ __('borrower.marketplace.tenure_adjust_hint') }}</p>
+                        <p class="text-[11px] uppercase text-brand font-semibold">{{ __('borrower.marketplace.duration_range_label') }}</p>
+                        <p class="text-lg font-bold text-gray-900 mt-1">
+                            {{ __('borrower.marketplace.duration_range', ['min' => 1, 'max' => $maxTenure]) }}
+                        </p>
+                        <p class="text-xs text-gray-600 mt-1">{{ __('borrower.marketplace.duration_choose_in_wizard') }}</p>
                     </div>
                 @endif
             </div>
-
-    <p class="mt-4 text-xs text-gray-700">{{ config('asset_marketplace.ownership_note') }}</p>
-    <p class="mt-2 text-xs text-gray-700">{{ __('borrower.marketplace.deposit_first_hint') }}</p>
 
             <div class="mt-6 flex flex-wrap gap-3" id="apply"
                  x-data

@@ -242,12 +242,39 @@ class LoanApplicationDraftService
     /** @return \Illuminate\Support\Collection<int, LoanApplicationDraft> */
     public function listForCustomer(Customer $customer): \Illuminate\Support\Collection
     {
+        $withdrawnProductIds = LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->where('status', 'withdrawn')
+            ->pluck('loan_product_id')
+            ->filter()
+            ->unique()
+            ->all();
+
+        $activeProductIds = LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled'])
+            ->pluck('loan_product_id')
+            ->filter()
+            ->unique()
+            ->all();
+
         return LoanApplicationDraft::query()
             ->where('customer_id', $customer->id)
             ->whereIn('phase', ['details', 'application'])
             ->with('product')
             ->orderByDesc('saved_at')
-            ->get();
+            ->get()
+            ->reject(function (LoanApplicationDraft $draft) use ($withdrawnProductIds, $activeProductIds) {
+                $productId = (int) $draft->loan_product_id;
+                if ($productId <= 0) {
+                    return false;
+                }
+                // Drop drafts for products whose only recent apps were withdrawn,
+                // unless there is still another active application for that product.
+                return in_array($productId, $withdrawnProductIds, true)
+                    && ! in_array($productId, $activeProductIds, true);
+            })
+            ->values();
     }
 
     /** @param array<string, mixed> $data */

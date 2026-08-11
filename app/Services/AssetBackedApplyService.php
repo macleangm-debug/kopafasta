@@ -54,6 +54,14 @@ class AssetBackedApplyService
                 ]);
             }
 
+            if (app(CustomerAssetService::class)->isPledgedToAnotherApplication($customerAsset)) {
+                throw ValidationException::withMessages([
+                    'customer_asset_ids' => __('borrower.apply.asset_details.asset_already_pledged', [
+                        'label' => $customerAsset->label,
+                    ]),
+                ]);
+            }
+
             if ($type === 'vehicle' && ! $customerAsset->hasComprehensiveInsurance()) {
                 throw ValidationException::withMessages([
                     'customer_asset_ids' => __('borrower.apply.asset_details.vehicle_insurance_required', [

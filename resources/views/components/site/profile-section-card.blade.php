@@ -75,45 +75,46 @@
         </button>
 
         @if ($useInline)
-            <div class="shrink-0 relative min-h-9 min-w-9 flex items-center justify-end">
-                {{-- Tick is server-visible for complete cards so a stale Alpine bundle cannot blank it. --}}
-                @if ($isComplete)
+            <div class="shrink-0 flex items-center justify-end min-h-9">
+                {{-- Exclusive controls: never render tick and Edit in the same frame --}}
+                <template x-if="typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick)">
                     <button type="button"
                             @click.stop="typeof revealEdit === 'function' ? revealEdit() : openEdit()"
-                            class="size-9 rounded-full place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 hover:ring-brand-gold/70 transition {{ $startWithTick ? 'grid' : 'hidden' }}"
-                            :class="(typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick)) ? 'grid' : 'hidden'"
+                            class="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-brand to-brand-light pl-1.5 pr-3 py-1.5 text-brand-gold shadow-sm shadow-brand/20 ring-1 ring-brand-gold/50 hover:ring-brand-gold transition"
                             title="{{ __('borrower.profile.section_complete_tap') }}"
                             aria-label="{{ __('borrower.profile.section_complete_tap') }}">
-                        <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-                        </svg>
+                        <span class="grid size-7 place-items-center rounded-full bg-white/15 ring-1 ring-white/25">
+                            <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                            </svg>
+                        </span>
+                        <span class="text-[11px] font-bold text-white/90 hidden sm:inline">{{ __('borrower.profile.section_complete') }}</span>
                     </button>
-                @endif
-
-                <button type="button"
-                        @click="open ? requestClose() : openEdit()"
-                        class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition {{ $startWithTick ? 'hidden' : '' }} {{ $isStale ? 'text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100' : 'text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800' }}"
-                        :class="(typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick))
-                            ? 'hidden'
-                            : (open
-                                ? 'inline-flex text-gray-700 ring-gray-200 bg-gray-50'
+                </template>
+                <template x-if="!(typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick))">
+                    <button type="button"
+                            @click="open ? requestClose() : openEdit()"
+                            class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition"
+                            :class="open
+                                ? 'text-gray-700 ring-gray-200 bg-gray-50'
                                 : (@js($isStale)
-                                    ? 'inline-flex text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100'
-                                    : 'inline-flex text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800'))">
-                    <span x-show="!open" class="inline-flex items-center gap-1.5">
-                        @if ($empty)
-                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                            <span>{{ $addLabel ?? __('borrower.profile.add_details') }}</span>
-                        @elseif ($isStale)
-                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
-                            <span>{{ __('borrower.profile.update_section') }}</span>
-                        @else
-                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
-                            <span>{{ __('borrower.profile.edit_section') }}</span>
-                        @endif
-                    </span>
-                    <span x-show="open" x-cloak>{{ __('borrower.profile.cancel_edit') }}</span>
-                </button>
+                                    ? 'text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100'
+                                    : 'text-brand ring-brand/20 bg-brand-muted/50 hover:bg-brand-muted')">
+                        <span x-show="!open" class="inline-flex items-center gap-1.5">
+                            @if ($empty)
+                                <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                                <span>{{ $addLabel ?? __('borrower.profile.add_details') }}</span>
+                            @elseif ($isStale)
+                                <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
+                                <span>{{ __('borrower.profile.update_section') }}</span>
+                            @else
+                                <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                <span>{{ __('borrower.profile.edit_section') }}</span>
+                            @endif
+                        </span>
+                        <span x-show="open" x-cloak>{{ __('borrower.profile.cancel_edit') }}</span>
+                    </button>
+                </template>
             </div>
         @elseif (! $editing && $editUrl)
             @if ($isComplete)

@@ -712,7 +712,12 @@ class CollateralSecureService
 
         return app(CustomerAssetService::class)->forCustomer(
             Customer::query()->findOrFail($ownerId)
-        );
+        )->reject(function (CustomerAsset $asset) use ($application) {
+            return app(CustomerAssetService::class)->isPledgedToAnotherApplication(
+                $asset,
+                (int) $application->id
+            );
+        })->values();
     }
 
     private function advanceAfterAsset(LoanApplication $application, array $state, CustomerAsset $asset): array

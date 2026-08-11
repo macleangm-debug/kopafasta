@@ -107,6 +107,22 @@ class CustomerAssetService
     }
 
     /**
+     * True when this profile asset is already linked to another non-terminal loan application.
+     */
+    public function isPledgedToAnotherApplication(CustomerAsset $asset, ?int $exceptApplicationId = null): bool
+    {
+        return \App\Models\LoanApplicationAsset::query()
+            ->where('customer_asset_id', $asset->id)
+            ->whereHas('application', function ($q) use ($exceptApplicationId): void {
+                $q->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled']);
+                if ($exceptApplicationId) {
+                    $q->where('id', '!=', $exceptApplicationId);
+                }
+            })
+            ->exists();
+    }
+
+    /**
      * Append additional gallery photos to an existing collateral (within a hard cap).
      *
      * @param  array<int, UploadedFile>  $photos

@@ -499,7 +499,6 @@ class AssetReservationService
         // Spine: apply → screen → approve → deposit → post-approval fees → GPS → insurance → registration → handover.
         $labels = [
             ['key' => 'start', 'label' => __('borrower.marketplace.steps.start'), 'phase' => 'apply'],
-            ['key' => 'application_fee', 'label' => __('borrower.marketplace.steps.application_fee'), 'phase' => 'apply'],
             ['key' => 'loan_application', 'label' => __('borrower.marketplace.steps.loan_application'), 'phase' => 'loan'],
             ['key' => 'loan_offer', 'label' => __('borrower.marketplace.steps.loan_offer'), 'phase' => 'loan'],
             ['key' => 'deposit', 'label' => __('borrower.marketplace.steps.deposit'), 'phase' => 'loan'],
@@ -616,9 +615,8 @@ class AssetReservationService
         }
 
         return match ($status) {
-            'application_started', 'interest_confirmed', 'viewing_completed', 'viewing_scheduled', 'reservation_fee_paid' => 'application_fee',
+            'application_started', 'interest_confirmed', 'viewing_completed', 'viewing_scheduled', 'reservation_fee_paid', 'application_submitted' => 'loan_application',
             'deposit_paid' => 'deposit',
-            'application_submitted' => 'loan_application',
             'approved' => 'deposit',
             'post_approval_fees_paid' => 'post_approval_fees',
             default => 'start',

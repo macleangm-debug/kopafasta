@@ -85,20 +85,22 @@
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="rounded-xl bg-brand-muted/60 px-3 py-2.5">
+            <div class="rounded-xl bg-brand-muted/60 px-3 py-2.5 min-h-[4.25rem] flex flex-col justify-center">
                 <p class="text-[10px] uppercase tracking-wide text-gray-500">{{ __('borrower.marketplace.deposit') }}</p>
-                <p class="font-bold text-brand tabular-nums mt-0.5">{{ format_money($asset['deposit'], false, 0) }}</p>
+                <p class="font-bold text-brand tabular-nums mt-0.5 break-words leading-snug">{{ format_money($asset['deposit'], false, 0) }}</p>
             </div>
-            <div class="rounded-xl bg-gray-50 px-3 py-2.5 ring-1 ring-gray-100">
+            <div class="rounded-xl bg-gray-50 px-3 py-2.5 ring-1 ring-gray-100 min-h-[4.25rem] flex flex-col justify-center">
                 <p class="text-[10px] uppercase tracking-wide text-gray-500">{{ __('borrower.marketplace.weekly_installment') }}</p>
-                <p class="font-bold text-gray-900 tabular-nums mt-0.5">{{ format_money($asset['weekly_installment'], false, 0) }}</p>
+                <p class="font-bold text-gray-900 tabular-nums mt-0.5 break-words leading-snug">{{ format_money($asset['weekly_installment'], false, 0) }}</p>
             </div>
         </div>
 
         @if (! empty($asset['max_tenure_months']))
-            <p class="text-[11px] text-gray-500">
-                {{ __('borrower.marketplace.max_tenure') }}: <span class="font-semibold text-gray-800">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</span>
+            <p class="text-[11px] text-gray-500 min-h-[1.25rem]">
+                {{ __('borrower.marketplace.duration_range', ['min' => 1, 'max' => (int) $asset['max_tenure_months']]) }}
             </p>
+        @else
+            <p class="text-[11px] text-transparent min-h-[1.25rem]" aria-hidden="true">—</p>
         @endif
 
         <a href="{{ $showUrl }}" class="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-4 py-2.5 transition-all">

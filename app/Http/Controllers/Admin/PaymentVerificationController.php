@@ -47,8 +47,23 @@ class PaymentVerificationController extends Controller
 
     public function show(CustomerPayment $payment): View
     {
-        $payment->load(['customer', 'bankAccount', 'mobileMoneyAccount', 'loan', 'loanProduct', 'journalEntry', 'verifier', 'source']);
-        $fundDestinations = app(\App\Services\PaymentFundDestinationService::class)->destinations($payment);
+        $payment->load([
+            'customer',
+            'bankAccount',
+            'mobileMoneyAccount',
+            'loan',
+            'loanProduct',
+            'journalEntry',
+            'verifier',
+            'source',
+        ]);
+
+        try {
+            $fundDestinations = app(\App\Services\PaymentFundDestinationService::class)->destinations($payment);
+        } catch (\Throwable $e) {
+            report($e);
+            $fundDestinations = [];
+        }
 
         return view('admin.payments.show', compact('payment', 'fundDestinations'));
     }

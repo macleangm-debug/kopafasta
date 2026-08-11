@@ -231,19 +231,40 @@
 @else
     <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/10">
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white">
-            <div class="flex flex-wrap items-center gap-2">
-                <p class="text-[11px] uppercase tracking-widest text-white/80 font-bold">{{ __('borrower.loan_profile.current_status') }}</p>
-                <span class="inline-flex text-xs font-bold rounded-full px-3 py-1 bg-white/15 text-white ring-1 ring-white/25">{{ $status['label'] ?? '—' }}</span>
-            </div>
-            <p class="text-xl sm:text-2xl font-extrabold mt-2 tracking-tight">
-                @if ($underwritingActions->isNotEmpty())
-                    {{ __('borrower.applications_list.documents_required') }}
-                @elseif (! empty($status['detail']))
-                    {{ $status['detail'] }}
-                @else
-                    {{ $next['label'] ?? __('borrower.loan_profile.next_actions.under_review') }}
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-[11px] uppercase tracking-widest text-white/80 font-bold">{{ __('borrower.loan_profile.current_status') }}</p>
+                        <span class="inline-flex text-xs font-bold rounded-full px-3 py-1 bg-white/15 text-white ring-1 ring-white/25">{{ $status['label'] ?? '—' }}</span>
+                    </div>
+                    <p class="text-xl sm:text-2xl font-extrabold mt-2 tracking-tight">
+                        @if ($underwritingActions->isNotEmpty())
+                            {{ __('borrower.applications_list.documents_required') }}
+                        @elseif (! empty($status['detail']))
+                            {{ $status['detail'] }}
+                        @elseif (($next['code'] ?? '') === 'add_guarantor')
+                            {{ __('borrower.loan_profile.next_actions.add_guarantor') }}
+                        @else
+                            {{ $next['label'] ?? __('borrower.loan_profile.next_actions.under_review') }}
+                        @endif
+                    </p>
+                </div>
+                @if ($canWithdrawApplication)
+                    <form method="POST" action="{{ route('site.borrower.application.withdraw', $application) }}" class="shrink-0"
+                          onsubmit="event.preventDefault(); confirmForm(this, {
+                              title: @js(__('borrower.policy.withdraw_confirm_title')),
+                              message: @js(__('borrower.policy.withdraw_confirm_body')),
+                              confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
+                              tone: 'warning',
+                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                          }); return false;">
+                        @csrf
+                        <button type="submit" class="inline-flex text-xs font-bold text-white/95 bg-white/10 ring-1 ring-white/30 hover:bg-red-500/90 hover:ring-red-300 px-3.5 py-2 rounded-xl transition">
+                            {{ __('borrower.loan_profile.actions.withdraw') }}
+                        </button>
+                    </form>
                 @endif
-            </p>
+            </div>
             @if (! empty($progress['is_loan_progress']))
                 <div class="mt-4 flex items-center gap-3 max-w-md">
                     <div class="flex-1 h-2 rounded-full bg-white/20 overflow-hidden">
@@ -288,29 +309,14 @@
                 </div>
             @endif
 
-            @if ($editGuarantorUrl && $guarantorSupplementOpen)
+            {{-- Secondary add-guarantor only when UW opened a supplement and the primary next action is NOT already add_guarantor --}}
+            @if ($editGuarantorUrl && $guarantorSupplementOpen && ($next['code'] ?? '') !== 'add_guarantor')
                 <div class="mt-4">
                     <a href="{{ $editGuarantorUrl }}"
                        class="inline-flex text-xs font-semibold text-brand bg-brand-muted/40 ring-1 ring-brand/20 hover:bg-brand-muted px-3 py-2 rounded-lg">
                         {{ __('borrower.guarantor_supplement.cta') }}
                     </a>
                 </div>
-            @endif
-
-            @if ($canWithdrawApplication)
-                <form method="POST" action="{{ route('site.borrower.application.withdraw', $application) }}" class="mt-5"
-                      onsubmit="event.preventDefault(); confirmForm(this, {
-                          title: @js(__('borrower.policy.withdraw_confirm_title')),
-                          message: @js(__('borrower.policy.withdraw_confirm_body')),
-                          confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
-                          tone: 'warning',
-                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
-                      }); return false;">
-                    @csrf
-                    <button type="submit" class="inline-flex text-sm font-semibold text-red-700 bg-white ring-1 ring-red-200 hover:bg-red-50 px-4 py-2.5 rounded-xl">
-                        {{ __('borrower.loan_profile.actions.withdraw') }}
-                    </button>
-                </form>
             @endif
         </div>
     </div>

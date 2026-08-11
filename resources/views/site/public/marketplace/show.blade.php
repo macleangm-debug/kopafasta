@@ -58,7 +58,10 @@
                         <h2 class="text-xs uppercase tracking-widest text-brand font-bold mb-3">{{ __('site.marketplace.specifications') }}</h2>
                         <dl class="space-y-2.5 text-sm">
                             @if (! empty($asset['max_tenure_months']))
-                                <div class="flex justify-between gap-3"><dt class="text-gray-700 font-medium">{{ __('borrower.marketplace.max_tenure') }}</dt><dd class="font-bold text-gray-900">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</dd></div>
+                                <div class="flex justify-between gap-3">
+                                    <dt class="text-gray-700 font-medium">{{ __('borrower.marketplace.duration_range_label') }}</dt>
+                                    <dd class="font-bold text-gray-900">{{ __('borrower.marketplace.duration_range', ['min' => 1, 'max' => (int) $asset['max_tenure_months']]) }}</dd>
+                                </div>
                             @endif
                             @if (! empty($asset['serial_number']))
                                 <div class="flex justify-between gap-3"><dt class="text-gray-700 font-medium">Serial</dt><dd class="font-mono text-xs font-semibold text-gray-900">{{ $asset['serial_number'] }}</dd></div>

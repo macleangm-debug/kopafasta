@@ -322,6 +322,12 @@ class BorrowerController extends Controller
             ->whereIn('status', ['pending', 'rejected', 'uploaded'])
             ->update(['status' => 'satisfied']);
 
+        // Wipe product draft so a new apply cannot resume the deleted application spine.
+        if ($application->loan_product_id) {
+            app(\App\Services\LoanApplicationDraftService::class)
+                ->clear($customer, (int) $application->loan_product_id);
+        }
+
         $this->auditBorrower('loan_application.withdrawn', $application, [
             'application_number' => $application->application_number,
         ]);

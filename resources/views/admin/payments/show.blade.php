@@ -15,8 +15,12 @@
                     <div class="sm:col-span-2">
                         <dt class="text-xs text-gray-500 uppercase">Who paid</dt>
                         <dd class="font-medium">
-                            {{ trim(($payment->customer->first_name ?? '').' '.($payment->customer->last_name ?? '')) }}
-                            <span class="text-gray-500 font-normal">· {{ $payment->customer->phone ?? '—' }}</span>
+                            @if ($payment->customer)
+                                {{ trim(($payment->customer->first_name ?? '').' '.($payment->customer->last_name ?? '')) ?: '—' }}
+                                <span class="text-gray-500 font-normal">· {{ $payment->customer->phone ?? '—' }}</span>
+                            @else
+                                —
+                            @endif
                         </dd>
                     </div>
                     <div>
