@@ -13,15 +13,24 @@
         'notifications'    => ['Notifications', 'admin.settings.engagement.notifications'],
         'profile-sections' => ['Profile builder', 'admin.profile-sections.index'],
     ];
+    $engagementHelpPage = 'engagement.'.($active === 'index' ? 'hub' : $active);
 @endphp
 
-@include('admin.settings._tabs', ['active' => 'engagement'])
+@include('admin.settings._tabs', [
+    'active' => 'engagement',
+    'showHelp' => false,
+])
 
-<nav class="mb-6 flex flex-wrap gap-2">
-    @foreach ($links as $key => [$label, $route])
-        <a href="{{ route($route) }}"
-           class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ $active === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
-            {{ $label }}
-        </a>
-    @endforeach
-</nav>
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <nav class="flex flex-wrap gap-2">
+        @foreach ($links as $key => [$label, $route])
+            <a href="{{ route($route) }}"
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ $active === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                {{ $label }}
+            </a>
+        @endforeach
+    </nav>
+    <div class="ml-auto shrink-0">
+        <x-admin.settings-help-drawer :page="$engagementHelpPage" />
+    </div>
+</div>

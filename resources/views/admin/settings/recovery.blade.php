@@ -1,5 +1,5 @@
 <x-admin.layout title="Recovery Policy" heading="Recovery Policy" subheading="Timeline, partner SLAs, repossession, service rates, and auto-assign & KPI rules">
-    @include('admin.settings._tabs', ['active' => 'recovery'])
+    @include('admin.settings._tabs', ['active' => 'recovery', 'showHelp' => false])
 
 @php
         $initialTab = old('_tab', request('tab', 'timeline'));
@@ -10,43 +10,64 @@
         $serviceTypeCount = count($partnerDefaults);
         $autoAssignBoards = $autoAssignBoards ?? [];
         $autoAssignBoardCount = count($autoAssignBoards);
+        $recoveryHelpPages = [
+            'timeline' => 'recovery.timeline',
+            'recovery' => 'recovery.partners',
+            'repossession' => 'recovery.repossession',
+            'service' => 'recovery.service',
+            'auto_assign' => 'recovery.auto_assign',
+        ];
     @endphp
 
     <form method="POST" action="{{ route('admin.settings.recovery.save') }}" class="space-y-5"
-          x-data="{ tab: @js($initialTab) }"
+          x-data="{
+              tab: @js($initialTab),
+              setTab(next) {
+                  this.tab = next;
+                  this.$dispatch('settings-help-set', { ns: 'recovery', key: next });
+              }
+          }"
           @submit="document.getElementById('recovery_active_tab').value = tab">
         @csrf @method('PUT')
         <input type="hidden" name="_tab" id="recovery_active_tab" value="{{ $initialTab }}">
 
-        <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
-            <button type="button" @click="tab = 'timeline'"
-                    :class="tab === 'timeline' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
-                    class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
-                1. Timeline
-            </button>
-            <button type="button" @click="tab = 'recovery'"
-                    :class="tab === 'recovery' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
-                    class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
-                2. Recovery partners
-                <span class="ml-1 text-[11px] opacity-80">({{ $recoveryTypeCount }})</span>
-            </button>
-            <button type="button" @click="tab = 'repossession'"
-                    :class="tab === 'repossession' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
-                    class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
-                3. Repossession
-            </button>
-            <button type="button" @click="tab = 'service'"
-                    :class="tab === 'service' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
-                    class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
-                4. Service rates
-                <span class="ml-1 text-[11px] opacity-80">({{ $serviceTypeCount }})</span>
-            </button>
-            <button type="button" @click="tab = 'auto_assign'"
-                    :class="tab === 'auto_assign' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
-                    class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
-                5. Auto-assign &amp; KPIs
-                <span class="ml-1 text-[11px] opacity-80">({{ $autoAssignBoardCount }})</span>
-            </button>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3">
+            <div class="flex flex-wrap gap-2">
+                <button type="button" @click="setTab('timeline')"
+                        :class="tab === 'timeline' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
+                        class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
+                    1. Timeline
+                </button>
+                <button type="button" @click="setTab('recovery')"
+                        :class="tab === 'recovery' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
+                        class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
+                    2. Recovery partners
+                    <span class="ml-1 text-[11px] opacity-80">({{ $recoveryTypeCount }})</span>
+                </button>
+                <button type="button" @click="setTab('repossession')"
+                        :class="tab === 'repossession' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
+                        class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
+                    3. Repossession
+                </button>
+                <button type="button" @click="setTab('service')"
+                        :class="tab === 'service' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
+                        class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
+                    4. Service rates
+                    <span class="ml-1 text-[11px] opacity-80">({{ $serviceTypeCount }})</span>
+                </button>
+                <button type="button" @click="setTab('auto_assign')"
+                        :class="tab === 'auto_assign' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
+                        class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
+                    5. Auto-assign &amp; KPIs
+                    <span class="ml-1 text-[11px] opacity-80">({{ $autoAssignBoardCount }})</span>
+                </button>
+            </div>
+            <div class="ml-auto shrink-0">
+                <x-admin.settings-help-drawer
+                    ns="recovery"
+                    :pages="$recoveryHelpPages"
+                    :initial-key="$initialTab" />
+            </div>
         </div>
 
         {{-- Tab 1: Timeline --}}
@@ -112,7 +133,7 @@
                 <p class="text-xs mt-1 text-sky-900/80">
                     Drag cards to set priority (1 = first). Escalation follows Call Center → Debt Collector → Auctioneer → Legal;
                     GPS is for tracking. Insurance and Valuation use the
-                    <button type="button" class="font-semibold underline" @click="tab = 'service'">Service rates</button> tab.
+                    <button type="button" class="font-semibold underline" @click="setTab('service')">Service rates</button> tab.
                 </p>
             </div>
 

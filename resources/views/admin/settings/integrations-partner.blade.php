@@ -3,11 +3,20 @@
     :heading="$partner['label']"
     :subheading="$partner['description'] ?? 'Partner configuration and usage'"
 >
-    @include('admin.settings._tabs', ['active' => 'integrations'])
+    @include('admin.settings._tabs', [
+    'active' => 'integrations',
+    'showHelp' => false,
+])
+
+@php
+    $integrationHelpPage = $tab === 'usage'
+        ? 'integrations.partner.usage'
+        : 'integrations.partner.configuration';
+@endphp
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <a href="{{ route('admin.settings.integrations') }}" class="text-sm font-semibold text-brand hover:underline">← Integrations hub</a>
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             @if (($partner['status'] ?? '') === 'available')
                 <form method="POST" action="{{ route('admin.settings.integrations.health') }}">
                     @csrf
@@ -59,15 +68,20 @@
         </div>
     </div>
 
-    <div class="mb-6 flex gap-2 border-b border-gray-200">
-        <a href="{{ route('admin.settings.integrations.partner', ['partner' => $partnerKey, 'tab' => 'configuration']) }}"
-           class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px {{ $tab === 'configuration' ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-800' }}">
-            Configuration
-        </a>
-        <a href="{{ route('admin.settings.integrations.partner', ['partner' => $partnerKey, 'tab' => 'usage']) }}"
-           class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px {{ $tab === 'usage' ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-800' }}">
-            Usage &amp; billing
-        </a>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200">
+        <div class="flex gap-2">
+            <a href="{{ route('admin.settings.integrations.partner', ['partner' => $partnerKey, 'tab' => 'configuration']) }}"
+               class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px {{ $tab === 'configuration' ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-800' }}">
+                Configuration
+            </a>
+            <a href="{{ route('admin.settings.integrations.partner', ['partner' => $partnerKey, 'tab' => 'usage']) }}"
+               class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px {{ $tab === 'usage' ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-800' }}">
+                Usage &amp; billing
+            </a>
+        </div>
+        <div class="ml-auto shrink-0 pb-2">
+            <x-admin.settings-help-drawer :page="$integrationHelpPage" />
+        </div>
     </div>
 
     @if ($tab === 'configuration')
