@@ -202,7 +202,7 @@ class AuctionHoldService
 
     public function assignAuctioneer(ArrearCase $case, User $actor): ?RecoveryAssignment
     {
-        $case->loadMissing('loan.product', 'loan.application.collateralAsset');
+        $case->loadMissing('loan.product', 'loan.application.collateralAsset', 'loan.customer');
         $loan = $case->loan;
 
         if (! $loan || ! $this->policy->partnerTypeAppliesToLoan('auctioneer', $loan)) {
@@ -229,7 +229,12 @@ class AuctionHoldService
             return null;
         }
 
+        $region = $loan->customer?->region;
         $vendor = $this->preferredAuctioneerAfterRepossession($case);
+        if ($vendor && ! app(PartnerRegionCoverage::class)->covers($vendor, $region)
+            && (bool) (app(PartnerAutoAssignPolicy::class)->forRecoveryType('auctioneer')['require_region'] ?? true)) {
+            $vendor = null;
+        }
         if (! $vendor) {
             if (! app(PartnerAutoAssignPolicy::class)->enabledForRecovery('auctioneer')) {
                 $this->collectionActions->logForCase(
@@ -244,7 +249,7 @@ class AuctionHoldService
             }
 
             $vendor = app(PartnerAutoAssignSelector::class)
-                ->pickRecovery('auctioneer', $this->partners->activePartnersForType('auctioneer'));
+                ->pickRecovery('auctioneer', $this->partners->activePartnersForTypeInRegion('auctioneer', $region));
         }
 
         if (! $vendor) {

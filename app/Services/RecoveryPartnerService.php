@@ -109,4 +109,18 @@ class RecoveryPartnerService
             ->orderBy('name')
             ->get();
     }
+
+    /**
+     * Active partners for a recovery type filtered by borrower region (nationwide or listed).
+     *
+     * @return Collection<int, Vendor>
+     */
+    public function activePartnersForTypeInRegion(string $partnerType, ?string $region): Collection
+    {
+        $all = $this->activePartnersForType($partnerType);
+        $settings = app(PartnerAutoAssignPolicy::class)->forRecoveryType($partnerType);
+        $requireRegion = (bool) ($settings['require_region'] ?? false);
+
+        return app(PartnerRegionCoverage::class)->filterAvailable($all, $region, $requireRegion);
+    }
 }

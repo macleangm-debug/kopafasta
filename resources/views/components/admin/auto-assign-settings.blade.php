@@ -92,6 +92,6 @@
         </label>
     </div>
     <p class="text-[11px] text-gray-500">
-        Eligibility: active partners only, under max open roster. Efficiency uses recovery KPIs for recovery types, and task completion rate for valuer / GPS / insurance. New partners use cold-start %.
+        Eligibility: active partners only, under max open roster, covering the borrower region (nationwide or listed regions — empty region lists do not match). Efficiency uses recovery KPIs for recovery types, and task completion rate for valuer / GPS / insurance. New partners use cold-start %. Call centers are usually nationwide.
     </p>
 </div>

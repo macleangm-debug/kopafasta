@@ -44,7 +44,7 @@ class RecoveryEscalationService
             return null;
         }
 
-        $arrearCase->loadMissing('loan.product', 'loan.application.collateralAsset');
+        $arrearCase->loadMissing('loan.product', 'loan.application.collateralAsset', 'loan.customer');
         $loan = $arrearCase->loan;
         if (! $loan || ! $this->policy->partnerTypeAppliesToLoan($nextType, $loan)) {
             $this->collectionActions->logForCase(
@@ -80,8 +80,9 @@ class RecoveryEscalationService
             return null;
         }
 
+        $region = $loan->customer?->region;
         $vendor = app(PartnerAutoAssignSelector::class)
-            ->pickRecovery($nextType, $this->partners->activePartnersForType($nextType));
+            ->pickRecovery($nextType, $this->partners->activePartnersForTypeInRegion($nextType, $region));
 
         $nextLabel = $this->policy->partnerTypeLabel($nextType);
 

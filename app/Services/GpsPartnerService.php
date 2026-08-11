@@ -15,6 +15,7 @@ class GpsPartnerService
         private readonly PartnerMatchingService $matching,
         private readonly PartnerAutoAssignSelector $selector,
         private readonly PartnerAutoAssignPolicy $autoAssign,
+        private readonly PartnerRegionCoverage $coverage,
     ) {}
 
     public function suggestInstaller(LoanApplication $application): ?Vendor
@@ -31,35 +32,17 @@ class GpsPartnerService
         $application->loadMissing('customer');
         $region = $application->customer?->region;
 
-        $query = Vendor::query()
+        $all = Vendor::query()
             ->where('status', 'active')
             ->where(function ($q): void {
                 $q->where('category', 'gps_installer')->orWhere('roles', 'like', '%"gps_installer"%');
-            });
+            })
+            ->orderBy('name')
+            ->get();
 
-        if (blank($region)) {
-            return $query->orderBy('name')->get();
-        }
+        $requireRegion = (bool) ($this->autoAssign->forServiceCategory('gps_installer')['require_region'] ?? true);
 
-        $matches = $query->get()->filter(function (Vendor $vendor) use ($region): bool {
-            if (($vendor->coverage_type ?? 'regions') === 'nationwide') {
-                return true;
-            }
-
-            $regions = $vendor->regions ?? [];
-
-            return $regions === [] || in_array($region, $regions, true);
-        });
-
-        if ($matches->isNotEmpty()) {
-            return $matches->sortBy('name')->values();
-        }
-
-        if ($this->autoAssign->forServiceCategory('gps_installer')['require_region'] ?? true) {
-            return collect();
-        }
-
-        return $query->orderBy('name')->get();
+        return $this->coverage->filterAvailable($all, $region, $requireRegion);
     }
 
     public function assign(LoanApplication $application, Vendor $installer, User $actor, ?string $notes = null): VendorTask

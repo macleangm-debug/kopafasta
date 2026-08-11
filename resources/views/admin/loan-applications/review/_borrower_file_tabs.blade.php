@@ -30,6 +30,8 @@
         ['activity', 'Activity'],
         ['documents', 'Documents'],
         ['collateral', 'Collateral'],
+        ['partners-available', 'Partners available'],
+        ['partners-unavailable', 'Partners unavailable'],
     ];
     if ($groupReview ?? null) {
         $borrowerTabs[] = ['group', 'Group'];
@@ -156,6 +158,20 @@
                         'bg-amber-100 text-amber-900' => $defaultTab !== $key,
                     ])>{{ $openDocRequestCount }}</span>
                 @endif
+                @if ($person === 'borrower' && $key === 'partners-available' && isset($partnerAvailability))
+                    <span @class([
+                        'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
+                        'bg-white/20 text-white' => $defaultTab === $key,
+                        'bg-emerald-100 text-emerald-900' => $defaultTab !== $key,
+                    ])>{{ $partnerAvailability['counts']['available'] ?? 0 }}</span>
+                @endif
+                @if ($person === 'borrower' && $key === 'partners-unavailable' && isset($partnerAvailability))
+                    <span @class([
+                        'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
+                        'bg-white/20 text-white' => $defaultTab === $key,
+                        'bg-amber-100 text-amber-900' => $defaultTab !== $key,
+                    ])>{{ $partnerAvailability['counts']['unavailable'] ?? 0 }}</span>
+                @endif
             </a>
         @endforeach
     </div>
@@ -220,6 +236,16 @@
                     'selectedGuarantor' => $selectedGuarantor ?? null,
                 ])
             </div>
+        @elseif ($person === 'borrower' && $defaultTab === 'partners-available')
+            @include('admin.loan-applications.review._partner_availability', [
+                'partnerAvailability' => $partnerAvailability ?? null,
+                'mode' => 'available',
+            ])
+        @elseif ($person === 'borrower' && $defaultTab === 'partners-unavailable')
+            @include('admin.loan-applications.review._partner_availability', [
+                'partnerAvailability' => $partnerAvailability ?? null,
+                'mode' => 'unavailable',
+            ])
         @elseif ($defaultTab === 'group' && ($groupReview ?? null))
             @include('admin.loan-applications.review._group')
         @endif

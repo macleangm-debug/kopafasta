@@ -65,46 +65,26 @@ class CollateralInsurancePartnerService
     /** @return \Illuminate\Support\Collection<int, Vendor> */
     public function insurersForRegion(?string $region)
     {
-        $query = Vendor::query()
+        $all = Vendor::query()
             ->where('status', 'active')
             ->where(function ($q): void {
                 $q->where('category', 'insurance')->orWhere('roles', 'like', '%"insurance"%');
-            });
+            })
+            ->orderBy('name')
+            ->get();
 
-        if (blank($region)) {
-            return $query->orderBy('name')->get();
-        }
+        $requireRegion = (bool) (app(PartnerAutoAssignPolicy::class)->forServiceCategory('insurance')['require_region'] ?? true);
 
-        $matches = $query->get()->filter(function (Vendor $vendor) use ($region): bool {
-            if (($vendor->coverage_type ?? 'regions') === 'nationwide') {
-                return true;
-            }
-
-            $regions = $vendor->regions ?? [];
-
-            return $regions === [] || in_array($region, $regions, true);
-        });
-
-        if ($matches->isNotEmpty()) {
-            return $matches->sortBy('name')->values();
-        }
-
-        return $query->orderBy('name')->get();
+        return app(PartnerRegionCoverage::class)->filterAvailable($all, $region, $requireRegion);
     }
 
     public function suggestInsurer(LoanApplication $application): ?Vendor
     {
-        if (! app(PartnerAutoAssignPolicy::class)->enabledForService('insurance')) {
-            $application->loadMissing('customer');
-
-            return $this->insurersForRegion($application->customer?->region)->first();
-        }
-
         $application->loadMissing('customer');
         $candidates = $this->insurersForRegion($application->customer?->region);
-        $settings = app(PartnerAutoAssignPolicy::class)->forServiceCategory('insurance');
-        if (($settings['require_region'] ?? true) && blank($application->customer?->region) === false) {
-            // insurersForRegion already region-filters; empty means no regional match.
+
+        if (! app(PartnerAutoAssignPolicy::class)->enabledForService('insurance')) {
+            return $candidates->first();
         }
 
         return app(PartnerAutoAssignSelector::class)->pickService('insurance', $candidates)

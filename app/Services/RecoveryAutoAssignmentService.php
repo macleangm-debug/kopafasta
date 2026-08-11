@@ -43,7 +43,7 @@ class RecoveryAutoAssignmentService
             return null;
         }
 
-        $case->loadMissing('loan.product', 'loan.application.collateralAsset');
+        $case->loadMissing('loan.product', 'loan.application.collateralAsset', 'loan.customer');
         $loan = $case->loan;
         if (! $loan || ! $this->policy->partnerTypeAppliesToLoan('call_center', $loan)) {
             return null;
@@ -64,11 +64,9 @@ class RecoveryAutoAssignmentService
             return null;
         }
 
-        $vendor = $this->partners
-            ->activePartnersForType('call_center');
-
+        $region = $loan->customer?->region;
         $vendor = app(PartnerAutoAssignSelector::class)
-            ->pickRecovery('call_center', $vendor);
+            ->pickRecovery('call_center', $this->partners->activePartnersForTypeInRegion('call_center', $region));
 
         if (! $vendor) {
             $this->collectionActions->logForCase(

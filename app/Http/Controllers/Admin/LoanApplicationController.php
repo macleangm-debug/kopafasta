@@ -224,6 +224,7 @@ class LoanApplicationController extends ResourceController
 
         $gpsInstallers = app(\App\Services\GpsPartnerService::class)->installersForApplication($record);
         $suggestedGpsInstaller = app(\App\Services\GpsPartnerService::class)->suggestInstaller($record);
+        $partnerAvailability = app(\App\Services\ScreeningPartnerAvailabilityService::class)->forApplication($record);
         $groupReview = app(\App\Services\GroupLoanReviewService::class)->dossier($record);
 
         $underwritingDeptId = \App\Models\Department::query()->where('code', 'UND')->value('id');
@@ -262,6 +263,7 @@ class LoanApplicationController extends ResourceController
             'externalLenders',
             'gpsInstallers',
             'suggestedGpsInstaller',
+            'partnerAvailability',
             'groupReview',
             'assignableAnalysts',
         ));
