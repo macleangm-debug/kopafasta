@@ -400,6 +400,10 @@ return [
             'subtitle' => 'Financed amount is fixed (asset value − deposit). Choose tenure up to the supplier maximum.',
             'financed_amount' => 'Financed amount',
             'max_hint' => 'Maximum',
+            'installment_preview' => 'Estimated installment',
+            'weekly_hint' => 'Weekly repayment (updates with duration)',
+            'monthly_hint' => 'Monthly repayment (updates with duration)',
+            'installment_changes_hint' => 'Shorter tenure raises the installment; longer tenure lowers it.',
         ],
         'purposes' => [
             'business_expansion' => 'Business expansion',

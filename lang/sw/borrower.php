@@ -984,6 +984,10 @@ return [
       'subtitle' => 'Thamani ya mali, amana na masharti ya muuzaji yamefungwa kwa mali hii.',
       'financed_amount' => 'Kiasi kinachofadhiliwa',
       'max_hint' => 'Kiwango cha juu',
+      'installment_preview' => 'Makadirio ya malipo',
+      'weekly_hint' => 'Malipo ya kila wiki (hubadilika na muda)',
+      'monthly_hint' => 'Malipo ya kila mwezi (hubadilika na muda)',
+      'installment_changes_hint' => 'Muda mfupi huongeza malipo; muda mrefu huyapunguza.',
 ],
     'purposes' =>
 [

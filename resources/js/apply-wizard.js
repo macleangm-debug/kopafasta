@@ -283,7 +283,10 @@ export function applyWizard(config) {
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
                     this.$watch('form.requested_tenure_months', () => {
-                        if (this.phase === 'application') this.scheduleDraftSave();
+                        if (this.phase === 'application') {
+                            this.updateQuote();
+                            this.scheduleDraftSave();
+                        }
                     });
                     this.$watch('form.purpose', (value, oldValue) => {
                         const next = this.normalizePurposeKey(value);
@@ -1174,6 +1177,7 @@ export function applyWizard(config) {
                         this.step = viewStep;
                         this.updateQuote();
                         this.syncStepKey();
+                        this.clampToIncompleteSetup();
                         this.enforceStepRequirements(this.isResume);
                         if (this.stepKey === 'review' || this.stepKey === 'signature' || this.stepKey === 'submit') {
                             this.refreshReview(this.formRoot());
@@ -1721,7 +1725,9 @@ export function applyWizard(config) {
                     this.form.purpose = this.assetApplication.purpose || 'asset_financing';
                     this.phase = 'application';
                     this.step = 0;
+                    this.furthestStep = 0;
                     this.syncStepKey();
+                    this.updateQuote();
                     this.loadReadiness(p.id);
                 },
 
@@ -1770,6 +1776,7 @@ export function applyWizard(config) {
                             this.readiness = data;
                             if (this.phase === 'application' && this.current && ! this.resumeLoading) {
                                 this.rebuildSteps();
+                                this.clampToIncompleteSetup();
                                 this.enforceStepRequirements(this.isResume);
                                 this.syncStepKey();
                             }
@@ -1832,8 +1839,62 @@ export function applyWizard(config) {
                     this.step = 0;
                     this.furthestStep = 0;
                     this.syncStepKey();
+                    this.clampToIncompleteSetup();
                     await this.persistDraft(true);
                     this.scrollWizardIntoView();
+                },
+
+                /**
+                 * Stale drafts (fee=0 auto-skip era) often resume on guarantor.
+                 * Keep the borrower on the first incomplete setup step instead.
+                 */
+                clampToIncompleteSetup() {
+                    if (this.supplementMode || this.isEditHop()) return;
+                    const keys = (this.steps || []).map(s => s.key);
+                    let forced = null;
+
+                    if (this.isGroupProduct(this.current)) {
+                        const name = (this.group?.name || '').trim();
+                        const target = this.groupTargetCount();
+                        const members = Array.isArray(this.group?.members) ? this.group.members : [];
+                        const purpose = (this.group?.purpose || this.form.purpose || '').trim();
+                        const amount = Number(this.group?.amount_per_member || 0);
+                        if (! name || ! target || ! purpose || amount < this.groupAmountPerMemberMin()) {
+                            forced = 'group_setup';
+                        } else if (members.length < target) {
+                            forced = 'group_members';
+                        }
+                    } else if (this.isAssetBackedProduct(this.current)) {
+                        const ids = this.selectedCustomerAssetIds?.() || [];
+                        const amount = Number(this.form.requested_amount || 0);
+                        const purpose = (this.form.purpose || '').trim();
+                        const tenure = Number(this.form.requested_tenure_months || 0);
+                        if (! ids.length || amount < (this.current?.min || 1000) || ! purpose || tenure < 1) {
+                            forced = 'asset_details';
+                        }
+                    } else if (this.isMarketplaceProduct(this.current)) {
+                        const amount = Number(this.form.requested_amount || 0);
+                        const tenure = Number(this.form.requested_tenure_months || 0);
+                        if (amount < 1000 || tenure < 1) {
+                            forced = 'asset_tenure';
+                        }
+                    } else if (this.hasStep('quote')) {
+                        const amount = Number(this.form.requested_amount || 0);
+                        const purpose = (this.form.purpose || '').trim();
+                        const tenure = Number(this.form.requested_tenure_months || 0);
+                        if (amount < (this.current?.min || 1000) || ! purpose || tenure < 1) {
+                            forced = 'quote';
+                        }
+                    }
+
+                    if (! forced || ! keys.includes(forced)) return;
+                    const forcedIndex = keys.indexOf(forced);
+                    const currentIndex = Math.max(0, keys.indexOf(this.stepKey));
+                    if (forcedIndex < currentIndex || ! this.stepKey || ['guarantor', 'review', 'submit', 'signature'].includes(this.stepKey)) {
+                        this.step = forcedIndex;
+                        this.furthestStep = Math.min(this.furthestStep || 0, forcedIndex);
+                        this.syncStepKey();
+                    }
                 },
 
                 withStepIcon(step) {

@@ -222,6 +222,7 @@ class ApplyController extends Controller
             $assetValue = (float) ($asset->asset_value ?: max($deposit * 1.4, $deposit));
             $remainingLoan = max(0, round($assetValue - $deposit, 2));
             $tenure = effective_marketplace_asset_max_tenure($asset);
+            $photoUrls = marketplace_photo_urls($asset->photos ?? []);
 
             $assetApplication = [
                 'asset_title'        => $asset->title,
@@ -231,7 +232,11 @@ class ApplyController extends Controller
                 'remaining_loan'     => $remainingLoan,
                 'weekly_installment' => (float) $asset->weekly_installment,
                 'max_tenure_months'  => $tenure,
+                'min_tenure_months'  => 1,
                 'purpose'            => 'asset_financing',
+                'photo_url'          => $photoUrls[0] ?? null,
+                'photos'             => $photoUrls,
+                'category'           => $asset->category,
             ];
         }
 

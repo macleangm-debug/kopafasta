@@ -66,6 +66,7 @@ class LoanApplicationDraftService
         }
 
         $resumeIndex = $this->resolveWizardStepIndex($wizardSteps, $stepKey, $step);
+        $resumeIndex = $this->clampResumeIndexToIncompleteSetup($wizardSteps, $resumeIndex, $payload, $product);
         $resumeStep = $wizardSteps[$resumeIndex] ?? null;
 
         return [
@@ -74,6 +75,75 @@ class LoanApplicationDraftService
             'step'     => $resumeIndex,
             'reason'   => null,
         ];
+    }
+
+    /**
+     * Never resume past incomplete product setup (e.g. stale drafts left on guarantor
+     * when the application fee was zero / already paid).
+     *
+     * @param  \Illuminate\Support\Collection<int, array{key: string}>  $wizardSteps
+     * @param  array<string, mixed>  $payload
+     */
+    private function clampResumeIndexToIncompleteSetup(
+        \Illuminate\Support\Collection $wizardSteps,
+        int $resumeIndex,
+        array $payload,
+        LoanProduct $product,
+    ): int {
+        $form = is_array($payload['form'] ?? null) ? $payload['form'] : [];
+        $group = is_array($payload['group'] ?? null) ? $payload['group'] : [];
+        $forcedKey = null;
+
+        if (is_group_loan_product($product)) {
+            $name = trim((string) ($group['name'] ?? ''));
+            $target = (int) ($group['target_member_count'] ?? 0);
+            $members = is_array($group['members'] ?? null) ? $group['members'] : [];
+            $purpose = trim((string) ($group['purpose'] ?? $form['purpose'] ?? ''));
+            $amountPerMember = (float) ($group['amount_per_member'] ?? 0);
+
+            if ($name === '' || $target < 1 || $purpose === '' || $amountPerMember < 1000) {
+                $forcedKey = 'group_setup';
+            } elseif (count($members) < $target) {
+                $forcedKey = 'group_members';
+            }
+        } elseif (strtoupper((string) $product->code) === 'AB') {
+            $assetIds = $form['customer_asset_ids'] ?? null;
+            if (! is_array($assetIds) || $assetIds === []) {
+                $single = (int) ($form['customer_asset_id'] ?? 0);
+                $assetIds = $single > 0 ? [$single] : [];
+            }
+            $amount = (float) ($form['requested_amount'] ?? 0);
+            $purpose = trim((string) ($form['purpose'] ?? ''));
+            $tenure = (int) ($form['requested_tenure_months'] ?? 0);
+
+            if ($assetIds === [] || $amount < 1000 || $purpose === '' || $tenure < 1) {
+                $forcedKey = 'asset_details';
+            }
+        } elseif (is_marketplace_loan_product($product->code)) {
+            $amount = (float) ($form['requested_amount'] ?? 0);
+            $tenure = (int) ($form['requested_tenure_months'] ?? 0);
+            if ($amount < 1000 || $tenure < 1) {
+                $forcedKey = 'asset_tenure';
+            }
+        } else {
+            $amount = (float) ($form['requested_amount'] ?? 0);
+            $purpose = trim((string) ($form['purpose'] ?? ''));
+            $tenure = (int) ($form['requested_tenure_months'] ?? 0);
+            if ($amount < 1000 || $purpose === '' || $tenure < 1) {
+                $forcedKey = 'quote';
+            }
+        }
+
+        if (! $forcedKey) {
+            return $resumeIndex;
+        }
+
+        $forcedIndex = $wizardSteps->search(fn (array $step) => ($step['key'] ?? '') === $forcedKey);
+        if ($forcedIndex === false) {
+            return 0;
+        }
+
+        return min($resumeIndex, (int) $forcedIndex);
     }
 
     /** @return array<string, mixed> */
