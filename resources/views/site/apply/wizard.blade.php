@@ -25,12 +25,7 @@
         @endif
 
         {{-- Incomplete profile is gated on the Submit step (modal + inline hint), not a duplicate top banner. --}}
-
-                @if ($reservation ?? null)
-            <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
-                {{ __('borrower.apply.asset_reservation', ['asset' => $reservation->asset?->title, 'amount' => format_number($reservation->deposit_amount)]) }}
-            </div>
-        @endif
+        {{-- Asset context lives in the tenure step / product summary — no amber deposit banner. --}}
 
         @php
             $wizardProducts = $products;

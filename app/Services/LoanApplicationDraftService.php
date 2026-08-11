@@ -98,13 +98,18 @@ class LoanApplicationDraftService
             $name = trim((string) ($group['name'] ?? ''));
             $target = (int) ($group['target_member_count'] ?? 0);
             $members = is_array($group['members'] ?? null) ? $group['members'] : [];
-            $purpose = trim((string) ($group['purpose'] ?? $form['purpose'] ?? ''));
-            $amountPerMember = (float) ($group['amount_per_member'] ?? 0);
 
-            if ($name === '' || $target < 1 || $purpose === '' || $amountPerMember < 1000) {
+            if ($name === '' || $target < 1) {
                 $forcedKey = 'group_setup';
             } elseif (count($members) < $target) {
                 $forcedKey = 'group_members';
+            } else {
+                $amountPerMember = (float) ($group['amount_per_member'] ?? 0);
+                $purpose = trim((string) ($group['purpose'] ?? $form['purpose'] ?? ''));
+                $tenure = (int) ($form['requested_tenure_months'] ?? 0);
+                if ($amountPerMember < 1000 || $purpose === '' || $tenure < 1) {
+                    $forcedKey = 'quote';
+                }
             }
         } elseif (strtoupper((string) $product->code) === 'AB') {
             $assetIds = $form['customer_asset_ids'] ?? null;

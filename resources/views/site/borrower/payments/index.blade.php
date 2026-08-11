@@ -78,13 +78,7 @@
         />
     @endif
 
-    <x-site.page-loading-shell>
-        <x-slot:skeleton>
-            <x-site.skeleton-card :lines="6" class="mb-4" />
-            <x-site.skeleton-card :lines="4" />
-        </x-slot:skeleton>
-
-        @if ($entries->isNotEmpty() || $hasLoans)
+    @if ($entries->isNotEmpty() || $hasLoans)
             <div class="mb-8 grid gap-px overflow-hidden rounded-2xl bg-brand/10 ring-1 ring-brand/10 sm:grid-cols-3">
                 <div class="bg-gradient-to-b from-brand-muted/40 to-white px-5 py-5">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.summary_verified') }}</p>
@@ -191,6 +185,5 @@
                 </div>
             @endif
         </section>
-    </x-site.page-loading-shell>
 
 </x-site.borrower-layout>

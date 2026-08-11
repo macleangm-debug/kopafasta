@@ -1,5 +1,5 @@
-{{-- Group loan wizard steps --}}
-<div x-show="stepKey === 'group_setup'" class="p-6 sm:p-8">
+{{-- Group setup (pre-spine): name + size only. Amount / tenure / purpose live on the quote spine step. --}}
+<div x-show="stepKey === 'group_setup' && ! $data.feeGateOpen" class="p-6 sm:p-8" data-wizard-step="group_setup">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.group_setup')"
         :title="__('borrower.apply.group_setup.title')"
@@ -7,14 +7,16 @@
     />
 
     <template x-if="current">
-        <div class="space-y-6">
-            <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/15 space-y-5">
+        <div class="space-y-5">
+            <div class="rounded-2xl bg-white ring-1 ring-brand/15 p-5 sm:p-6 space-y-6">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('borrower.apply.group_setup.name') }}</label>
                     <input type="text" x-model="group.name" maxlength="150"
                            placeholder="{{ __('borrower.apply.group_setup.name_placeholder') }}"
-                           class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand">
+                           @input="scheduleDraftSave()"
+                           class="w-full rounded-xl border-0 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-brand">
                 </div>
+
                 <div>
                     <div class="flex items-end justify-between gap-3 mb-3">
                         <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.group_setup.member_count') }}</label>
@@ -23,7 +25,7 @@
                     <input type="range"
                            x-model.number="group.target_member_count"
                            :min="groupLimits.min" :max="groupLimits.max" step="1"
-                           @change="clampGroupAmountPerMember(); syncGroupAmounts(); refreshApplicationFeeQuote()"
+                           @change="refreshApplicationFeeQuote(); scheduleDraftSave()"
                            class="w-full accent-brand h-2 rounded-full">
                     <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
                         <span x-text="groupLimits.min"></span>
@@ -31,97 +33,8 @@
                     </div>
                     <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.group_setup.member_count_hint', ['min' => ($groupMemberLimits['min'] ?? 3), 'max' => ($groupMemberLimits['max'] ?? 10)]) }}</p>
                 </div>
-                <div>
-                    <div class="flex items-end justify-between gap-3 mb-3">
-                        <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.group_setup.amount_per_member') }}</label>
-                        <span class="text-lg font-extrabold text-brand tabular-nums" x-text="formatTzs(group.amount_per_member || 0)"></span>
-                    </div>
-                    <input type="range"
-                           :min="groupAmountPerMemberMin()" :max="groupAmountPerMemberMax()" step="1000"
-                           x-model.number="group.amount_per_member"
-                           @input="syncGroupAmounts()"
-                           class="w-full accent-brand h-2 rounded-full">
-                    <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
-                        <span x-text="formatTzs(groupAmountPerMemberMin())"></span>
-                        <span x-text="formatTzs(groupAmountPerMemberMax())"></span>
-                    </div>
-                    <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.group_setup.amount_per_member_hint') }}</p>
-                </div>
-                <div>
-                    <div x-show="group.purpose && !purposeEditing && !purposeNeedsDetail()" x-cloak class="space-y-2">
-                        <div class="flex items-center justify-between gap-3">
-                            <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.group_setup.purpose') }}</p>
-                            <button type="button"
-                                    @click="purposeEditing = true"
-                                    class="text-xs font-semibold text-brand hover:underline shrink-0">
-                                {{ __('borrower.apply.quote.change_purpose') }}
-                            </button>
-                        </div>
-                        <p class="text-base font-bold text-gray-900"
-                           x-text="purposeLabels[group.purpose] || group.purpose"></p>
-                        <p x-show="isOtherPurpose(group.purpose) && form.purpose_other"
-                           class="text-sm text-gray-600"
-                           x-text="form.purpose_other"></p>
-                    </div>
-                    <div x-show="!group.purpose || purposeEditing || purposeNeedsDetail()" x-cloak>
-                        <x-site.sheet-select
-                            model="group.purpose"
-                            setter="setGroupPurpose"
-                            :label="__('borrower.apply.group_setup.purpose')"
-                            :options="$loanPurposes"
-                            :placeholder="__('borrower.apply.quote.select_purpose')"
-                        />
-                        <div x-show="isOtherPurpose(group.purpose)" x-cloak class="mt-4">
-                            <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
-                            <input type="text"
-                                   x-model="form.purpose_other"
-                                   @input="syncPurposeHidden(); scheduleDraftSave()"
-                                   maxlength="120"
-                                   class="kf-field"
-                                   :required="isOtherPurpose(group.purpose)"
-                                   placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
-                            <button type="button"
-                                    x-show="form.purpose_other && String(form.purpose_other).trim()"
-                                    x-cloak
-                                    @click="purposeEditing = false; scheduleDraftSave()"
-                                    class="mt-3 inline-flex text-xs font-semibold text-brand hover:underline">
-                                {{ __('borrower.apply.quote.purpose_other_done') }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
-
-            <div class="glass-card overflow-hidden ring-1 ring-brand/15">
-                <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-4 border-b border-brand/10">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.group_setup.tenure') }}</p>
-                </div>
-                <div class="p-5 sm:p-6 space-y-4">
-                    <div class="flex items-end justify-between gap-3">
-                        <span class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.group_setup.tenure') }}</span>
-                        <span class="text-lg font-extrabold text-brand tabular-nums">
-                            <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}
-                        </span>
-                    </div>
-                    <div class="flex flex-wrap gap-2" x-show="(current.tenure_options || []).length">
-                        <template x-for="months in (current.tenure_options || [])" :key="months">
-                            <button type="button"
-                                    @click="selectGroupTenure(months)"
-                                    class="rounded-full px-4 py-2 text-sm font-semibold ring-1 transition"
-                                    :class="Number(form.requested_tenure_months) === Number(months) ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:ring-brand/40'">
-                                <span x-text="months"></span> {{ __('borrower.apply.quote.months') }}
-                            </button>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-            <div class="glass-card rounded-2xl ring-1 ring-brand/20 bg-gradient-to-br from-brand-muted/40 to-white p-5 text-sm">
-                <div class="flex justify-between gap-3 items-center">
-                    <span class="text-gray-700 font-medium">{{ __('borrower.apply.group_setup.total_preview') }}</span>
-                    <span class="text-xl font-extrabold text-brand tabular-nums" x-text="formatTzs(groupTotalAmount())"></span>
-                </div>
-            </div>
+            <p class="text-sm text-gray-600">{{ __('borrower.apply.group_setup.next_invite_hint') }}</p>
         </div>
     </template>
 </div>

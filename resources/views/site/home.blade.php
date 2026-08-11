@@ -16,7 +16,7 @@
     @endif
 
     {{-- MARKETPLACE --}}
-    <section class="premium-gradient py-14 lg:py-18 border-y border-gray-100/80" x-data="{ ready: false }" x-init="requestAnimationFrame(() => ready = true)">
+    <section class="premium-gradient py-14 lg:py-18 border-y border-gray-100/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
                 <div>
@@ -26,29 +26,18 @@
                 <a href="{{ route('site.marketplace') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('site.marketplace.view_all') }} →</a>
             </div>
             @if (! empty($featuredAssets))
-                <div class="relative min-h-[280px]">
-                    <div x-show="!ready" class="overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
-                        <div class="flex gap-5 w-max">
-                            @for ($i = 0; $i < 3; $i++)
-                                <div class="snap-start shrink-0 w-[min(320px,calc(100vw-2rem))]">
-                                    <x-site.skeleton-card />
-                                </div>
-                            @endfor
-                        </div>
-                    </div>
-                    <div x-show="ready" x-cloak class="overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
-                        <div class="flex gap-5 w-max">
-                            @foreach ($featuredAssets as $asset)
-                                <div class="snap-start shrink-0 w-[min(320px,calc(100vw-2rem))]">
-                                    @include('site.marketplace._asset-card', [
-                                        'asset' => $asset,
-                                        'categories' => $marketplaceCategories,
-                                        'showUrl' => route('site.marketplace.show', $asset['id']),
-                                        'authenticated' => false,
-                                    ])
-                                </div>
-                            @endforeach
-                        </div>
+                <div class="overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
+                    <div class="flex gap-5 w-max">
+                        @foreach ($featuredAssets as $asset)
+                            <div class="snap-start shrink-0 w-[min(320px,calc(100vw-2rem))]">
+                                @include('site.marketplace._asset-card', [
+                                    'asset' => $asset,
+                                    'categories' => $marketplaceCategories,
+                                    'showUrl' => route('site.marketplace.show', $asset['id']),
+                                    'authenticated' => false,
+                                ])
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             @endif

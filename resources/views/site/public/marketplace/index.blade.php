@@ -65,22 +65,15 @@
                 <p class="text-sm mt-2">{{ __('borrower.marketplace.empty_desc') }}</p>
             </div>
         @else
-            <div x-data="{ ready: false }" x-init="requestAnimationFrame(() => ready = true)">
-                <div x-show="!ready" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    @for ($i = 0; $i < min(6, $assets->count()); $i++)
-                        <x-site.skeleton-card />
-                    @endfor
-                </div>
-                <div x-show="ready" x-cloak class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    @foreach ($assets as $asset)
-                        @include('site.marketplace._asset-card', [
-                            'asset' => $asset,
-                            'categories' => $categories,
-                            'showUrl' => route('site.marketplace.show', $asset['id']),
-                            'authenticated' => false,
-                        ])
-                    @endforeach
-                </div>
+            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                @foreach ($assets as $asset)
+                    @include('site.marketplace._asset-card', [
+                        'asset' => $asset,
+                        'categories' => $categories,
+                        'showUrl' => route('site.marketplace.show', $asset['id']),
+                        'authenticated' => false,
+                    ])
+                @endforeach
             </div>
         @endif
     </div>

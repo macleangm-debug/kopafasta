@@ -75,33 +75,52 @@
             @if ($editQuoteUrl || $editGuarantorUrl)
                 <div class="mt-4 space-y-3">
                     @if ($isDraft && $draft = ($profile['draft'] ?? null))
+                        @php
+                            $isAssetLendingDraft = filled($draft->asset_reservation_id)
+                                || is_marketplace_loan_product($draft->product?->code ?? $profile['product']['code'] ?? null);
+                        @endphp
                         <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white"
                              x-data="{ open: {{ $errors->has('requested_amount') || $errors->has('requested_tenure_months') ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open"
                                     class="w-full px-4 py-3 flex items-center justify-between gap-3 text-left">
                                 <div>
-                                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.actions.edit_quote') }}</p>
+                                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">
+                                        {{ $isAssetLendingDraft
+                                            ? __('borrower.loan_profile.actions.edit_tenure')
+                                            : __('borrower.loan_profile.actions.edit_quote') }}
+                                    </p>
                                     <p class="text-sm text-gray-700 mt-0.5">
                                         {{ format_money((float) ($profile['summary']['requested_amount'] ?? 0)) }}
                                         · {{ __('borrower.applications_list.tenure_months', ['count' => (int) ($profile['summary']['requested_tenure'] ?? 0)]) }}
                                     </p>
                                 </div>
                                 <span class="text-xs font-bold text-brand bg-brand-gold/80 px-3 py-1.5 rounded-lg"
-                                      x-text="open ? @js(__('borrower.apply.complete_editing')) : @js(__('borrower.apply.edit'))"></span>
+                                      x-text="open ? @js(__('borrower.profile.cancel')) : @js(__('borrower.apply.edit'))"></span>
                             </button>
                             <div x-show="open" x-cloak class="px-4 pb-4 border-t border-brand/10 pt-3">
                                 <form method="POST" action="{{ route('site.borrower.draft.amount', $draft) }}" class="space-y-3">
                                     @csrf
                                     <div class="grid sm:grid-cols-2 gap-3">
-                                        <x-site.numeric-input
-                                            name="requested_amount"
-                                            :label="__('borrower.applications_list.amount')"
-                                            :value="old('requested_amount', $profile['summary']['requested_amount'] ?? '')"
-                                            :money="true"
-                                            :decimals="0"
-                                            :required="true"
-                                            class="w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-sm px-3.5 py-2.5"
-                                        />
+                                        @if ($isAssetLendingDraft)
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.applications_list.amount') }}</label>
+                                                <p class="w-full rounded-xl bg-gray-50 ring-1 ring-gray-200 text-sm px-3.5 py-2.5 tabular-nums font-semibold text-gray-900">
+                                                    {{ format_money((float) ($profile['summary']['requested_amount'] ?? 0)) }}
+                                                </p>
+                                                <input type="hidden" name="requested_amount" value="{{ old('requested_amount', $profile['summary']['requested_amount'] ?? '') }}">
+                                                <p class="mt-1 text-[11px] text-gray-500">{{ __('borrower.loan_profile.actions.amount_fixed_asset') }}</p>
+                                            </div>
+                                        @else
+                                            <x-site.numeric-input
+                                                name="requested_amount"
+                                                :label="__('borrower.applications_list.amount')"
+                                                :value="old('requested_amount', $profile['summary']['requested_amount'] ?? '')"
+                                                :money="true"
+                                                :decimals="0"
+                                                :required="true"
+                                                class="w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-sm px-3.5 py-2.5"
+                                            />
+                                        @endif
                                         <div>
                                             <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.applications_list.tenure') }}</label>
                                             <input type="number" name="requested_tenure_months" required min="1" max="120"

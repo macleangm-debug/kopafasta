@@ -6,15 +6,7 @@
         :subtitle="__('borrower.rewards.subtitle')"
     />
 
-    <x-site.page-loading-shell>
-        <x-slot:skeleton>
-            <div class="grid gap-6 lg:grid-cols-3">
-                <x-site.skeleton-card :lines="6" class="lg:col-span-2" />
-                <x-site.skeleton-card :lines="4" />
-            </div>
-        </x-slot:skeleton>
-
-        <div class="grid gap-6 lg:grid-cols-3">
+    <div class="grid gap-6 lg:grid-cols-3">
             @php
                 $pointsBalance = $balance;
                 $redeemRoute = route('site.borrower.rewards.redeem');
@@ -149,5 +141,4 @@
                 @endif
             </aside>
         </div>
-    </x-site.page-loading-shell>
 </x-site.borrower-layout>

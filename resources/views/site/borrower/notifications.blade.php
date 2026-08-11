@@ -43,13 +43,6 @@
         @endforeach
     </div>
 
-    <x-site.page-loading-shell>
-        <x-slot:skeleton>
-            @for ($i = 0; $i < 4; $i++)
-                <x-site.skeleton-card :lines="3" class="mb-3" />
-            @endfor
-        </x-slot:skeleton>
-
     @unless ($hasItems)
         <x-site.empty-state icon="🔔" :title="__('borrower.notifications.empty')" />
     @else
@@ -67,7 +60,5 @@
             @endforeach
         </div>
     @endunless
-
-    </x-site.page-loading-shell>
 
 </x-site.borrower-layout>

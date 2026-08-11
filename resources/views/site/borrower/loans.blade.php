@@ -108,16 +108,6 @@
 
 
 
-    <x-site.page-loading-shell>
-        <x-slot:skeleton>
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-                @for ($i = 0; $i < 4; $i++)
-                    <x-site.skeleton-card :lines="2" />
-                @endfor
-            </div>
-            <x-site.skeleton-card :lines="5" />
-        </x-slot:skeleton>
-
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         @foreach ([
             ['key' => 'applications', 'label' => __('borrower.loans_page.summary_applications'), 'value' => $loanSummary['applications'], 'tone' => 'brand', 'icon' => '📋', 'tab' => 'applications'],
@@ -186,7 +176,5 @@
             'viewMode' => $viewMode ?? 'cards',
         ])
     @endif
-
-    </x-site.page-loading-shell>
 
 </x-site.borrower-layout>

@@ -6,14 +6,6 @@
         :subtitle="__('borrower.referrals.rewards_subtitle')"
     />
 
-    <x-site.page-loading-shell>
-        <x-slot:skeleton>
-            <div class="grid gap-6 lg:grid-cols-3">
-                <x-site.skeleton-card :lines="8" class="lg:col-span-2" />
-                <x-site.skeleton-card :lines="4" />
-            </div>
-        </x-slot:skeleton>
-
     @php
         $current = (int) ($progress['current'] ?? 0);
         $target = max(1, (int) ($progress['target'] ?? 5));
@@ -126,7 +118,5 @@
             </div>
         </section>
     @endif
-
-    </x-site.page-loading-shell>
 
 </x-site.borrower-layout>

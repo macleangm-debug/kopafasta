@@ -1,5 +1,5 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.loan_products_page.title'))" active="loans" content-width="wide">
-    <div x-data="loanProductsPage()" x-cloak>
+    <div x-data="loanProductsPage()">
         <section class="relative overflow-hidden rounded-2xl premium-gradient border border-gray-100/80 mb-8">
             <div class="px-6 sm:px-8 py-8 sm:py-10">
                 <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ brand_name() }} {{ __('borrower.apply.smart_application') }}</p>

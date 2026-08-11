@@ -277,6 +277,12 @@ export function applyWizard(config) {
                             // Keep purpose locked when set — but force edit open if "other" still needs detail.
                             this.purposeEditing = this.purposeNeedsDetail();
                         }
+                        if (key === 'quote' && this.isGroupProduct(this.current)) {
+                            if (! this.group.amount_per_member) {
+                                this.group.amount_per_member = this.groupAmountPerMemberMin();
+                            }
+                            this.syncGroupAmounts();
+                        }
                     });
                     this.$watch('steps', () => this.syncStepKey());
                     this.$watch('form.requested_amount', () => {
@@ -601,7 +607,10 @@ export function applyWizard(config) {
                 },
 
                 purposeNeedsDetail() {
-                    return this.isOtherPurpose(this.form.purpose)
+                    const purpose = this.isGroupProduct(this.current)
+                        ? (this.group.purpose || this.form.purpose)
+                        : this.form.purpose;
+                    return this.isOtherPurpose(purpose)
                         && ! String(this.form.purpose_other || '').trim();
                 },
 
@@ -1723,7 +1732,8 @@ export function applyWizard(config) {
                     this.assetTenureMin = minTenure;
                     this.assetTenureMax = maxTenure;
                     this.form.purpose = this.assetApplication.purpose || 'asset_financing';
-                    this.phase = 'application';
+                    // Confirm asset on the details phase first, then enter the standard wizard spine.
+                    this.phase = 'details';
                     this.step = 0;
                     this.furthestStep = 0;
                     this.syncStepKey();
@@ -1857,12 +1867,17 @@ export function applyWizard(config) {
                         const name = (this.group?.name || '').trim();
                         const target = this.groupTargetCount();
                         const members = Array.isArray(this.group?.members) ? this.group.members : [];
-                        const purpose = (this.group?.purpose || this.form.purpose || '').trim();
-                        const amount = Number(this.group?.amount_per_member || 0);
-                        if (! name || ! target || ! purpose || amount < this.groupAmountPerMemberMin()) {
+                        if (! name || ! target) {
                             forced = 'group_setup';
                         } else if (members.length < target) {
                             forced = 'group_members';
+                        } else {
+                            const amount = Number(this.group?.amount_per_member || 0);
+                            const purpose = (this.group?.purpose || this.form.purpose || '').trim();
+                            const tenure = Number(this.form.requested_tenure_months || 0);
+                            if (amount < this.groupAmountPerMemberMin() || ! purpose || tenure < 1) {
+                                forced = 'quote';
+                            }
                         }
                     } else if (this.isAssetBackedProduct(this.current)) {
                         const ids = this.selectedCustomerAssetIds?.() || [];
@@ -1917,6 +1932,7 @@ export function applyWizard(config) {
                         if (this.isGroupProduct(this.current)) {
                             steps.push({ key: 'group_setup', label: stepLabels.group_setup || this.i18n.steps.group_setup });
                             steps.push({ key: 'group_members', label: stepLabels.group_members || this.i18n.steps.group_members });
+                            steps.push({ key: 'quote', label: stepLabels.quote });
                         } else if (this.isAssetBackedProduct(this.current)) {
                             steps.push({ key: 'asset_details', label: stepLabels.asset_details || this.i18n.steps.asset_details });
                         } else if (! this.isMarketplaceProduct(this.current)) {
@@ -2044,7 +2060,10 @@ export function applyWizard(config) {
                     if (! this.current) return;
                     const rate = this.resolveMonthlyRate(this.current, this.form.requested_amount);
                     const months = this.form.requested_tenure_months;
-                    const principal = this.form.requested_amount;
+                    // Group installments are quoted per member; total loan is shown separately.
+                    const principal = this.isGroupProduct(this.current)
+                        ? Number(this.group.amount_per_member || 0)
+                        : this.form.requested_amount;
                     const cadence = this.repaymentCadence();
                     const method = this.interestMethod();
                     const monthly = method === 'flat'
@@ -2280,6 +2299,13 @@ export function applyWizard(config) {
                         return true;
                     }
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
+                        if (this.isGroupProduct(this.current)) {
+                            if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) return false;
+                            if (! this.group.purpose) return false;
+                            if (this.purposeNeedsDetail()) return false;
+                            if (! this.form.requested_tenure_months) return false;
+                            return true;
+                        }
                         if (! this.form.purpose) return false;
                         if (this.purposeNeedsDetail()) return false;
                         if (! this.quoteProductQuestionsReady()) return false;
@@ -2288,19 +2314,12 @@ export function applyWizard(config) {
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         const count = this.groupTargetCount();
                         return !!(this.group.name || '').trim()
-                            && count >= this.groupLimits.min && count <= this.groupLimits.max
-                            && Number(this.group.amount_per_member) >= this.groupAmountPerMemberMin()
-                            && !! this.group.purpose
-                            && ! this.purposeNeedsDetail();
+                            && count >= this.groupLimits.min && count <= this.groupLimits.max;
                     }
                     if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
                         const target = this.groupTargetCount();
-                        if (this.group.members.length !== target) return false;
-                        if (this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < this.groupAmountPerMemberMin())) return false;
-                        const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
-                        if (this.current && (total < this.current.min || total > this.current.max)) return false;
-                        // Members must Accept before the standard loan wizard continues.
-                        return !! this.groupProgress().can_continue;
+                        // Amount is set later on the quote spine step.
+                        return this.group.members.length === target;
                     }
                     if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
                         if (! this.customerAssets?.length || ! this.selectedCustomerAssetIds()?.length) return false;
@@ -2955,18 +2974,40 @@ export function applyWizard(config) {
                 async validateStep() {
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
                         this.syncQuoteFormFromDom();
-                        if (! this.form.purpose) {
-                            showWizardFeedback(this.i18n.alerts.selectPurpose);
-                            return false;
-                        }
-                        if (this.purposeNeedsDetail()) {
-                            this.purposeEditing = true;
-                            showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
-                            return false;
-                        }
-                        if (! this.quoteProductQuestionsReady()) {
-                            showWizardFeedback(this.i18n.productQuestions?.complete || this.i18n.alerts?.productQuestionsRequired || 'Complete the loan details on this step before continuing.');
-                            return false;
+                        if (this.isGroupProduct(this.current)) {
+                            if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) {
+                                showWizardFeedback(this.i18n.group.amountRequired);
+                                return false;
+                            }
+                            if (! this.group.purpose) {
+                                showWizardFeedback(this.i18n.group.purposeRequired);
+                                return false;
+                            }
+                            if (this.purposeNeedsDetail()) {
+                                this.purposeEditing = true;
+                                showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
+                                return false;
+                            }
+                            if (! this.form.requested_tenure_months) {
+                                showWizardFeedback(this.i18n.assetDetails?.tenureRequired || 'Select a repayment period.');
+                                return false;
+                            }
+                            this.syncGroupAmounts();
+                            this.form.purpose = this.normalizePurposeKey(this.group.purpose);
+                        } else {
+                            if (! this.form.purpose) {
+                                showWizardFeedback(this.i18n.alerts.selectPurpose);
+                                return false;
+                            }
+                            if (this.purposeNeedsDetail()) {
+                                this.purposeEditing = true;
+                                showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
+                                return false;
+                            }
+                            if (! this.quoteProductQuestionsReady()) {
+                                showWizardFeedback(this.i18n.productQuestions?.complete || this.i18n.alerts?.productQuestionsRequired || 'Complete the loan details on this step before continuing.');
+                                return false;
+                            }
                         }
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
@@ -2979,21 +3020,9 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.group.memberCountRange);
                             return false;
                         }
-                        if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) {
-                            showWizardFeedback(this.i18n.group.amountRequired);
-                            return false;
+                        if (! this.group.amount_per_member) {
+                            this.group.amount_per_member = this.groupAmountPerMemberMin();
                         }
-                        if (! this.group.purpose) {
-                            showWizardFeedback(this.i18n.group.purposeRequired);
-                            return false;
-                        }
-                        if (this.purposeNeedsDetail()) {
-                            this.purposeEditing = true;
-                            showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
-                            return false;
-                        }
-                        this.syncGroupAmounts();
-                        this.form.purpose = this.normalizePurposeKey(this.group.purpose);
                     }
                     if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
                         await this.refreshGroupMemberStatuses();
@@ -3002,19 +3031,8 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.group.membersRequired);
                             return false;
                         }
-                        const invalidAmount = this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < this.groupAmountPerMemberMin());
-                        if (invalidAmount) {
-                            showWizardFeedback(this.i18n.group.amountRequired);
-                            return false;
-                        }
-                        const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
-                        if (this.current && (total < this.current.min || total > this.current.max)) {
-                            showWizardFeedback(`Total group amount must be between ${this.formatTzs(this.current.min)} and ${this.formatTzs(this.current.max)}.`);
-                            return false;
-                        }
-                        if (! this.groupProgress().can_continue) {
-                            showWizardFeedback(this.i18n.group.memberConsentRequired || this.i18n.group.membersRequired);
-                            return false;
+                        if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) {
+                            this.group.amount_per_member = this.groupAmountPerMemberMin();
                         }
                         this.syncGroupAmounts();
                     }

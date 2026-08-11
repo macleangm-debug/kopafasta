@@ -242,29 +242,47 @@ class BorrowerController extends Controller
         $product = $draft->product ?? \App\Models\LoanProduct::find($draft->loan_product_id);
         abort_unless($product, 404);
 
+        $isAssetLending = filled($draft->asset_reservation_id) || is_marketplace_loan_product($product->code);
+
         $request->merge([
             'requested_amount' => \App\Support\MoneyFormat::toNumber($request->input('requested_amount')),
         ]);
 
         $data = $request->validate([
-            'requested_amount' => ['required', 'numeric', 'min:1000'],
+            'requested_amount' => [$isAssetLending ? 'nullable' : 'required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:120'],
             'purpose' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $amount = (float) $data['requested_amount'];
-        $min = (float) ($product->min_amount ?? 0);
-        $max = (float) ($product->max_amount ?? PHP_FLOAT_MAX);
-        if ($amount < $min || $amount > $max) {
-            return back()->withErrors([
-                'requested_amount' => 'Amount must be between '.format_number($min).' and '.format_number($max).'.',
-            ]);
-        }
-
         $payload = $draft->payload ?? [];
         $form = (array) ($payload['form'] ?? []);
+
+        if ($isAssetLending) {
+            // Financed amount is fixed from the marketplace asset — tenure only.
+            $amount = (float) ($form['requested_amount'] ?? 0);
+            if ($amount < 1000) {
+                $amount = (float) ($data['requested_amount'] ?? 0);
+            }
+            $maxTenure = (int) (
+                $payload['asset_application']['max_tenure_months']
+                ?? $product->tenure_max_months
+                ?? 120
+            );
+            $tenure = min(max(1, (int) $data['requested_tenure_months']), max(1, $maxTenure));
+        } else {
+            $amount = (float) $data['requested_amount'];
+            $min = (float) ($product->min_amount ?? 0);
+            $max = (float) ($product->max_amount ?? PHP_FLOAT_MAX);
+            if ($amount < $min || $amount > $max) {
+                return back()->withErrors([
+                    'requested_amount' => 'Amount must be between '.format_number($min).' and '.format_number($max).'.',
+                ]);
+            }
+            $tenure = (int) $data['requested_tenure_months'];
+        }
+
         $form['requested_amount'] = $amount;
-        $form['requested_tenure_months'] = (int) $data['requested_tenure_months'];
+        $form['requested_tenure_months'] = $tenure;
         if (array_key_exists('purpose', $data) && $data['purpose'] !== null && $data['purpose'] !== '') {
             $form['purpose'] = $data['purpose'];
         }

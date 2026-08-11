@@ -1,10 +1,10 @@
-@props(['delay' => 120])
+{{--
+  Server-rendered pages are already complete — do not delay-reveal behind a skeleton.
+  An artificial ready timeout made empty states flicker (skeleton “list” → real empty).
+  Skeleton slot is accepted for backwards compatibility but ignored.
+--}}
+@props([])
 
-<div x-data="{ ready: false }" x-init="setTimeout(() => ready = true, {{ (int) $delay }})">
-    <div x-show="!ready" x-transition.opacity.duration.150ms>
-        {{ $skeleton ?? '' }}
-    </div>
-    <div x-show="ready" x-cloak x-transition.opacity.duration.200ms>
-        {{ $slot }}
-    </div>
+<div {{ $attributes }}>
+    {{ $slot }}
 </div>

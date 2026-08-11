@@ -48,23 +48,16 @@
     @if ($assets->isEmpty())
         <x-site.empty-state icon="🏷️" :title="__('borrower.marketplace.empty_title')" :description="__('borrower.marketplace.empty_desc')" />
     @else
-        <div x-data="{ ready: false }" x-init="requestAnimationFrame(() => ready = true)">
-            <div x-show="!ready" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                @for ($i = 0; $i < min(6, $assets->count()); $i++)
-                    <x-site.skeleton-card />
-                @endfor
-            </div>
-            <div x-show="ready" x-cloak class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                @foreach ($assets as $asset)
-                    @include('site.marketplace._asset-card', [
-                        'asset' => $asset,
-                        'categories' => $categories,
-                        'showUrl' => route('site.borrower.marketplace.show', $asset['id']),
-                        'applyUrl' => route('site.borrower.marketplace.show', $asset['id']).'#apply',
-                        'authenticated' => true,
-                    ])
-                @endforeach
-            </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            @foreach ($assets as $asset)
+                @include('site.marketplace._asset-card', [
+                    'asset' => $asset,
+                    'categories' => $categories,
+                    'showUrl' => route('site.borrower.marketplace.show', $asset['id']),
+                    'applyUrl' => route('site.borrower.marketplace.show', $asset['id']).'#apply',
+                    'authenticated' => true,
+                ])
+            @endforeach
         </div>
     @endif
 
