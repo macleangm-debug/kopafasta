@@ -138,9 +138,11 @@ class GroupMemberProgressService
      */
     public function summarize(array $members, int $targetCount): array
     {
-        $rows = collect($members)->map(function (array $member) {
+        $faces = app(FaceVerificationService::class);
+        $rows = collect($members)->map(function (array $member) use ($faces) {
             $status = $this->resolveMemberStatus($member);
             $profile = $this->profileCompletionForMember($member);
+            $customer = $this->resolveCustomer($member);
 
             return array_merge($member, [
                 'status_key'       => $status['key'],
@@ -148,7 +150,8 @@ class GroupMemberProgressService
                 'status_complete'  => $status['complete'],
                 'profile_percent'  => $profile['percent'],
                 'profile_sections' => $profile['sections'],
-                // Kept for older clients; wizard now uses profile_percent / profile_sections.
+                'avatar_url'       => $customer ? $faces->avatarUrl($customer) : ($member['avatar_url'] ?? null),
+                // Kept for older clients; wizard uses profile_percent; sections belong on loan views.
                 'progress_steps'   => [],
             ]);
         })->reject(fn (array $member) => in_array($member['status_key'] ?? '', ['declined', 'expired'], true))

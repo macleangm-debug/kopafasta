@@ -99,6 +99,20 @@ class FaceVerificationService
         ];
     }
 
+    /** Public avatar for lists — prefers a non-rejected front capture. */
+    public function avatarUrl(Customer $customer): ?string
+    {
+        $photos = $this->latestByAngle($customer, true);
+        $photo = $photos->get('front')
+            ?? $photos->first(fn (FaceVerification $row) => ($row->status ?? '') !== 'rejected' && filled($row->file_path));
+
+        if (! $photo || ($photo->status ?? '') === 'rejected' || ! filled($photo->file_path)) {
+            return null;
+        }
+
+        return asset('storage/'.$photo->file_path);
+    }
+
     public function upload(Customer $customer, string $angle, UploadedFile $file): FaceVerification
     {
         if (! in_array($angle, $this->requiredAngleKeysFor($customer), true)) {

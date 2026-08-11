@@ -464,6 +464,7 @@ class ApplyController extends Controller
             ->with('leaderCustomerId', $customer->id)
             ->with('leaderName', $customer->full_name)
             ->with('leaderPhone', $customer->phone)
+            ->with('leaderAvatarUrl', app(FaceVerificationService::class)->avatarUrl($customer))
             ->with('engagementBoosts', app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer))
             ->with('qualificationLimit', (int) app(\App\Services\BorrowerCreditLimitService::class)->availableAmount($customer))
             ->with('processingSla', app(\App\Services\UnderwritingSettingsService::class)->loanReviewSlaLabel($customer));
@@ -615,6 +616,7 @@ class ApplyController extends Controller
                 'phone'       => $member->phone,
                 'label'       => $result['label'],
                 'status_key'  => 'profile_incomplete',
+                'avatar_url'  => app(FaceVerificationService::class)->avatarUrl($member),
             ]);
         }
 
@@ -633,6 +635,7 @@ class ApplyController extends Controller
             'invitation_id' => $share['invitation_id'],
             'status_key'    => $share['status_key'],
             'share'         => $share,
+            'avatar_url'    => app(FaceVerificationService::class)->avatarUrl($member),
         ]);
     }
 
@@ -699,6 +702,19 @@ class ApplyController extends Controller
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
         $group = is_array($data['group'] ?? null) ? $data['group'] : [];
         $groups = app(GroupLendingService::class);
+        $guarantors = app(GuarantorInvitationService::class);
+        $normalizedPhone = $guarantors->normalizePhone($data['phone']);
+        if ($existingMember = $guarantors->findMemberCustomerByPhone($normalizedPhone)) {
+            $existingName = trim(($existingMember->first_name ?? '').' '.($existingMember->last_name ?? ''));
+
+            return response()->json([
+                'ok'      => false,
+                'code'    => 'already_member',
+                'message' => __('borrower.apply.group.lookup_is_member', ['name' => $existingName]),
+                'name'    => $existingName,
+                'phone'   => $existingMember->phone ?: $normalizedPhone,
+            ], 422);
+        }
 
         $context = [
             'group_name'              => $group['name'] ?? null,
@@ -798,6 +814,13 @@ class ApplyController extends Controller
             $row['profile_percent'] = $profile['percent'];
             $row['profile_sections'] = $profile['sections'];
             $row['progress_steps'] = [];
+            $customerId = (int) ($row['customer_id'] ?? 0);
+            if ($customerId > 0) {
+                $avatarCustomer = Customer::find($customerId);
+                $row['avatar_url'] = $avatarCustomer
+                    ? app(FaceVerificationService::class)->avatarUrl($avatarCustomer)
+                    : null;
+            }
 
             return $row;
         })->filter()->values();

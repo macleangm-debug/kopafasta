@@ -30,7 +30,17 @@
                         </div>
                         <div>
                             <dt class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.purpose') }}</dt>
-                            <dd class="font-semibold mt-1">{{ $group_purpose ?: '—' }}</dd>
+                            <dd class="font-semibold mt-1">
+                                @php
+                                    $purposeKey = (string) ($group_purpose ?? '');
+                                    $purposeLabel = $purposeKey !== ''
+                                        ? (__('borrower.apply.purposes.'.$purposeKey) !== 'borrower.apply.purposes.'.$purposeKey
+                                            ? __('borrower.apply.purposes.'.$purposeKey)
+                                            : $purposeKey)
+                                        : '';
+                                @endphp
+                                {{ $purposeLabel !== '' ? $purposeLabel : '—' }}
+                            </dd>
                         </div>
                         <div>
                             <dt class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.amount_per_member') }}</dt>

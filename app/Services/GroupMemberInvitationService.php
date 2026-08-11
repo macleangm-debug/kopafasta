@@ -301,6 +301,7 @@ class GroupMemberInvitationService
             'invitation_id' => $share['invitation_id'],
             'status_key'    => $share['status_key'],
             'share'         => $share,
+            'avatar_url'    => app(FaceVerificationService::class)->avatarUrl($member),
         ];
     }
 

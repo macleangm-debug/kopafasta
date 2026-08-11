@@ -66,6 +66,7 @@ export function applyWizard(config) {
                 leaderCustomerId: config.leaderCustomerId || null,
                 leaderName: config.leaderName || '',
                 leaderPhone: config.leaderPhone || '',
+                leaderAvatarUrl: config.leaderAvatarUrl || null,
                 group: config.savedDraft?.group || { name: '', purpose: '', target_member_count: null, amount_per_member: 0, members: [] },
                 groupMemberMode: 'internal',
                 addMemberOpen: false,
@@ -116,6 +117,8 @@ export function applyWizard(config) {
                 showProfileGateModal: false,
                 showProfileReadyModal: false,
                 showMembershipGateModal: false,
+                showAlreadyMemberModal: false,
+                alreadyMemberModal: { name: '', phone: '' },
                 openProfileGateOnLoad: !!(config.openProfileGateOnLoad),
                 openProfileReadyOnLoad: !!(config.openProfileReadyOnLoad),
                 isResume: !! config.isResume,
@@ -1235,6 +1238,14 @@ export function applyWizard(config) {
                     }
                     const exists = this.group.members.some(m => Number(m.customer_id) === Number(this.leaderCustomerId));
                     if (exists) {
+                        this.group.members = this.group.members.map((m) => {
+                            if (Number(m.customer_id) !== Number(this.leaderCustomerId)) return m;
+                            return {
+                                ...m,
+                                role: 'leader',
+                                avatar_url: m.avatar_url || this.leaderAvatarUrl || null,
+                            };
+                        });
                         this.syncGroupAmounts();
                         return;
                     }
@@ -1244,6 +1255,7 @@ export function applyWizard(config) {
                         phone: this.leaderPhone,
                         role: 'leader',
                         requested_amount: this.group.amount_per_member,
+                        avatar_url: this.leaderAvatarUrl || null,
                     }];
                     this.syncGroupAmounts();
                 },
@@ -1449,6 +1461,10 @@ export function applyWizard(config) {
                         });
                         const data = await res.json();
                         if (! res.ok || ! data.ok) {
+                            if (data.code === 'already_member') {
+                                this.openAlreadyMemberModal(data);
+                                return;
+                            }
                             this.groupLookupError = data.message || this.i18n.group.lookupNotFound;
                             return;
                         }
@@ -1461,6 +1477,7 @@ export function applyWizard(config) {
                             requested_amount: this.group.amount_per_member,
                             status_key: 'invitation_sent',
                             share: data.share || null,
+                            avatar_url: data.avatar_url || null,
                             _open: true,
                         });
                         this.groupExternal = { first_name: '', last_name: '', phone: '' };
@@ -1473,6 +1490,31 @@ export function applyWizard(config) {
                     } finally {
                         this.groupInviteLoading = false;
                     }
+                },
+
+                openAlreadyMemberModal(data = {}) {
+                    this.groupLookupError = '';
+                    this.alreadyMemberModal = {
+                        name: data.name || '',
+                        phone: String(data.phone || this.groupExternal.phone || '').replace(/\D/g, ''),
+                    };
+                    this.showAlreadyMemberModal = true;
+                },
+
+                dismissAlreadyMemberModal() {
+                    this.showAlreadyMemberModal = false;
+                    this.alreadyMemberModal = { name: '', phone: '' };
+                },
+
+                switchToMemberSearchFromModal() {
+                    const phone = String(this.alreadyMemberModal?.phone || this.groupExternal.phone || '').replace(/\D/g, '');
+                    this.dismissAlreadyMemberModal();
+                    this.groupMemberMode = 'internal';
+                    this.groupLookupError = '';
+                    this.groupMemberLookup = { ok: false, label: '', error: '', data: null };
+                    this.groupLookupPhone = phone;
+                    this.groupExternal = { first_name: '', last_name: '', phone: '' };
+                    this.addMemberOpen = true;
                 },
 
                 updateGroupTotal() {
@@ -1537,6 +1579,7 @@ export function applyWizard(config) {
                             role: 'member',
                             requested_amount: this.group.amount_per_member,
                             status_key: data.status_key || 'profile_incomplete',
+                            avatar_url: data.avatar_url || null,
                         });
                         this.updateGroupTotal();
                         await this.persistDraft(true);
@@ -1651,6 +1694,7 @@ export function applyWizard(config) {
                             requested_amount: this.group.amount_per_member,
                             status_key: confirmed.status_key || 'profile_incomplete',
                             share: confirmed.share || null,
+                            avatar_url: confirmed.avatar_url || data.avatar_url || null,
                             _open: false,
                         });
                         this.groupLookupMemberNo = '';

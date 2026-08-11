@@ -145,10 +145,12 @@
                     <button type="button"
                             class="w-full text-left p-4 sm:p-5"
                             :class="member.role === 'leader' ? 'bg-gradient-to-r from-brand-muted/50 to-white' : 'bg-white'"
-                            @click="member._open = !member._open">
+                            @click="member.role !== 'leader' && (member._open = !member._open)">
                         <div class="flex flex-wrap items-center gap-3">
-                            <div class="size-12 rounded-2xl bg-brand text-white grid place-items-center text-base font-bold shrink-0 shadow-sm shadow-brand/20"
-                                 x-text="(member.name || '?').trim().charAt(0).toUpperCase()"></div>
+                            <div class="size-12 rounded-2xl bg-brand text-white grid place-items-center text-base font-bold shrink-0 shadow-sm shadow-brand/20 overflow-hidden">
+                                <img x-show="member.avatar_url" x-cloak :src="member.avatar_url" :alt="member.name || ''" class="size-full object-cover">
+                                <span x-show="!member.avatar_url" x-text="(member.name || '?').trim().charAt(0).toUpperCase()"></span>
+                            </div>
                             <div class="min-w-0 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <p class="font-bold text-sm sm:text-base text-gray-900 truncate" x-text="member.name"></p>
@@ -167,7 +169,7 @@
                                 <p class="text-xs font-semibold" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></p>
                                 <p class="text-sm font-extrabold tabular-nums text-gray-900 mt-0.5" x-text="formatTzs(member.requested_amount)"></p>
                             </div>
-                            <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="member._open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                            <svg x-show="member.role !== 'leader'" class="w-4 h-4 text-gray-400 shrink-0 transition" :class="member._open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                         </div>
                         <div class="mt-3 pl-0 sm:pl-15">
                             <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500 mb-1">
@@ -181,28 +183,8 @@
                             </div>
                         </div>
                     </button>
-                    <div x-show="member._open" x-cloak class="px-4 sm:px-5 pb-5 pt-0 border-t border-gray-100 space-y-4">
-                        <div class="pt-4" x-show="(member.profile_sections || []).length">
-                            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('borrower.apply.group_members.readiness_title') }}</p>
-                            <div class="space-y-2">
-                                <template x-for="section in (member.profile_sections || [])" :key="section.key">
-                                    <div class="flex items-center justify-between gap-3 rounded-2xl px-3.5 py-2.5 ring-1"
-                                          :class="section.complete ? 'bg-emerald-50/80 ring-emerald-100' : 'bg-gray-50 ring-gray-100'">
-                                        <span class="text-sm font-medium text-gray-800" x-text="section.label"></span>
-                                        <span class="text-[11px] font-bold uppercase tracking-wider"
-                                              :class="section.complete ? 'text-emerald-700' : 'text-amber-700'"
-                                              x-text="section.complete
-                                                  ? @js(__('borrower.apply.group_members.readiness_done'))
-                                                  : @js(__('borrower.apply.group_members.readiness_pending'))"></span>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                        <p x-show="!(member.profile_sections || []).length" class="pt-4 text-sm text-gray-500">
-                            {{ __('borrower.apply.group_members.awaiting_registration_hint') }}
-                        </p>
-
-                        <div x-show="member.role !== 'leader'" class="flex flex-wrap items-start justify-between gap-3 pt-1">
+                    <div x-show="member._open && member.role !== 'leader'" x-cloak class="px-4 sm:px-5 pb-5 pt-4 border-t border-gray-100 space-y-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
                             <div x-show="member.share?.short_url || member.share?.invitation_url || member.share?.whatsapp_url"
                                  x-cloak x-data="{ inviteOpen: false, copied: false }" class="space-y-3 min-w-0 flex-1">
                                 <button type="button" @click="inviteOpen = !inviteOpen"
