@@ -107,7 +107,11 @@ class CustomerDossierService
             'loans'            => $customer->loans->sortByDesc('created_at')->values(),
             'payments'         => $customer->payments()->with('loan')->latest()->limit(20)->get(),
             'notifications'    => $customer->notificationLogs()->latest()->limit(20)->get(),
-            'guarantor_invitations' => $customer->guarantorInvitations()->with('application')->latest()->limit(20)->get(),
+            'guarantor_invitations' => $customer->guarantorInvitations()
+                ->with(['application.product', 'guarantorCustomer', 'customerGuarantor.guarantor'])
+                ->latest()
+                ->limit(20)
+                ->get(),
             'activity_label'   => activity_type_label($customer->activity_type) ?? $customer->activity_type,
             'income_label'     => income_range_label($customer->income_range) ?? $customer->income_range,
             'pending_documents'=> $documents->whereIn('status', ['pending', 'pending_review'])->count(),
