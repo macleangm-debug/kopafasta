@@ -794,7 +794,10 @@ class ApplyController extends Controller
                 }
             }
 
-            $row['progress_steps'] = $progress->stepsForMemberRow($row);
+            $profile = $progress->profileCompletionForMember($row);
+            $row['profile_percent'] = $profile['percent'];
+            $row['profile_sections'] = $profile['sections'];
+            $row['progress_steps'] = [];
 
             return $row;
         })->filter()->values();
@@ -811,7 +814,7 @@ class ApplyController extends Controller
 
         return response()->json([
             'ok'                 => true,
-            'members'            => $members,
+            'members'            => $summary['members'] ?? $members->all(),
             'summary'            => $summary,
             'application_status' => $applicationStatus,
             'scoring'            => $scoring,

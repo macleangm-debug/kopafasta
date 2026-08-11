@@ -140,12 +140,16 @@ class GroupMemberProgressService
     {
         $rows = collect($members)->map(function (array $member) {
             $status = $this->resolveMemberStatus($member);
+            $profile = $this->profileCompletionForMember($member);
 
             return array_merge($member, [
-                'status_key'      => $status['key'],
-                'status_label'    => $status['label'],
-                'status_complete' => $status['complete'],
-                'progress_steps'  => $this->stepsForMemberRow($member),
+                'status_key'       => $status['key'],
+                'status_label'     => $status['label'],
+                'status_complete'  => $status['complete'],
+                'profile_percent'  => $profile['percent'],
+                'profile_sections' => $profile['sections'],
+                // Kept for older clients; wizard now uses profile_percent / profile_sections.
+                'progress_steps'   => [],
             ]);
         })->reject(fn (array $member) => in_array($member['status_key'] ?? '', ['declined', 'expired'], true))
             ->values();
@@ -169,18 +173,22 @@ class GroupMemberProgressService
             'profile_incomplete',
         ])->count();
         $pending = max(0, $targetCount - $added);
+        $avgProfilePercent = $added > 0
+            ? (int) round($rows->avg(fn (array $row) => (int) ($row['profile_percent'] ?? 0)))
+            : 0;
 
         $canContinue = $targetCount > 0
             && $added === $targetCount
             && $awaitingAcceptance === 0;
 
+        // Group submit gates on profile completion — not a separate verification step.
         $canSubmit = $canContinue
-            && $verified === $targetCount;
+            && $profilesComplete === $targetCount;
 
         $summary = [
             __('borrower.apply.group.progress.added', ['added' => $added, 'target' => $targetCount]),
             __('borrower.apply.group.progress.profiles', ['done' => $profilesComplete, 'target' => $targetCount]),
-            __('borrower.apply.group.progress.verified', ['done' => $verified, 'target' => $targetCount]),
+            __('borrower.apply.group.progress.avg_completion', ['percent' => $avgProfilePercent]),
             __('borrower.apply.group.progress.invitations_pending', ['count' => $invitationsPending]),
         ];
 
@@ -189,6 +197,7 @@ class GroupMemberProgressService
             'added'                 => $added,
             'verified'              => $verified,
             'profiles_complete'     => $profilesComplete,
+            'avg_profile_percent'   => $avgProfilePercent,
             'awaiting_acceptance'   => $awaitingAcceptance,
             'invitations_pending'   => $invitationsPending,
             'pending'               => $pending,
@@ -199,56 +208,54 @@ class GroupMemberProgressService
         ];
     }
 
-    /** @return list<array{key: string, label: string, complete: bool, pending: bool}> */
-    public function stepsForMemberRow(array $memberRow): array
+    /**
+     * @param  array<string, mixed>  $memberRow
+     * @return array{percent: int, sections: list<array{key: string, label: string, complete: bool}>}
+     */
+    public function profileCompletionForMember(array $memberRow): array
     {
-        $customer = null;
+        $customer = $this->resolveCustomer($memberRow);
+        if (! $customer) {
+            return ['percent' => 0, 'sections' => []];
+        }
+
+        $calculated = app(ProfileCompletionService::class)->calculate($customer);
+
+        return [
+            'percent'  => (int) ($calculated['percent'] ?? 0),
+            'sections' => collect($calculated['sections'] ?? [])
+                ->map(fn (array $section) => [
+                    'key'      => (string) ($section['key'] ?? ''),
+                    'label'    => (string) ($section['label'] ?? ''),
+                    'complete' => (bool) ($section['complete'] ?? false),
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /** @param  array<string, mixed>  $memberRow */
+    private function resolveCustomer(array $memberRow): ?Customer
+    {
         $invitationId = (int) ($memberRow['invitation_id'] ?? 0);
         if ($invitationId > 0) {
             $invitation = GroupMemberInvitation::find($invitationId);
             if ($invitation?->customer_id) {
-                $customer = Customer::find($invitation->customer_id);
+                return Customer::find($invitation->customer_id);
             }
         }
-        if (! $customer && filled($memberRow['customer_id'] ?? null)) {
-            $customer = Customer::find((int) $memberRow['customer_id']);
+        if (filled($memberRow['customer_id'] ?? null)) {
+            return Customer::find((int) $memberRow['customer_id']);
         }
 
-        if (! $customer) {
-            return [
-                $this->step('profile', false),
-                $this->step('documents', false),
-                $this->step('verification', false),
-            ];
-        }
-
-        $requirements = app(ApplicationRequirementsService::class)->checklist($customer);
-        $profileComplete = app(ProfileCompletionService::class)->isFullyComplete($customer);
-        $itemRows = collect($requirements['items'] ?? []);
-        $documentsComplete = $itemRows
-            ->filter(fn (array $item) => in_array($item['key'] ?? '', ['documents', 'supporting_documents', 'income_proof'], true)
-                || str_contains((string) ($item['key'] ?? ''), 'document'))
-            ->every(fn (array $item) => (bool) ($item['complete'] ?? false));
-        if ($itemRows->isEmpty()) {
-            $documentsComplete = $profileComplete;
-        }
-
-        return [
-            $this->step('profile', $profileComplete),
-            $this->step('documents', $documentsComplete),
-            $this->step('verification', (bool) ($requirements['can_apply'] ?? false)),
-        ];
+        return null;
     }
 
-    /** @return array{key: string, label: string, complete: bool, pending: bool} */
-    private function step(string $key, bool $complete): array
+    /** @return list<array{key: string, label: string, complete: bool, pending: bool}> */
+    public function stepsForMemberRow(array $memberRow): array
     {
-        return [
-            'key'      => $key,
-            'label'    => __('borrower.apply.group.progress_step.'.$key),
-            'complete' => $complete,
-            'pending'  => ! $complete,
-        ];
+        // Legacy checklist removed from the borrower wizard — profile % is the source of truth.
+        return [];
     }
 
     /** @return array{key: string, label: string, complete: bool} */

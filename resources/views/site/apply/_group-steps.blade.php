@@ -86,11 +86,12 @@
 </div>
 
 <div x-show="stepKey === 'group_members' && ! $data.feeGateOpen" class="p-6 sm:p-8">
-    <x-site.wizard-step-header
-        :eyebrow="__('borrower.apply.steps.group_members')"
-        :title="__('borrower.apply.group_members.title')"
-        :subtitle="__('borrower.apply.group_members.subtitle')"
-    />
+    <div class="mb-6">
+        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.apply.steps.group_members') }}</p>
+        <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-gray-900"
+            x-text="group.name || @js(__('borrower.apply.group_members.title'))"></h2>
+        <p class="mt-1 text-sm text-gray-600">{{ __('borrower.apply.group_members.subtitle') }}</p>
+    </div>
 
     <div class="rounded-3xl overflow-hidden ring-1 ring-brand/12 bg-white shadow-sm mb-6">
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-5 sm:px-6">
@@ -107,15 +108,21 @@
                     <p class="text-[10px] uppercase tracking-widest text-white/70 mt-1">{{ __('borrower.apply.group.progress.added_label') }}</p>
                 </div>
             </div>
+            <div class="mt-4">
+                <div class="flex items-center justify-between gap-3 text-xs text-white/80 mb-1.5">
+                    <span>{{ __('borrower.apply.group.progress.avg_completion_label') }}</span>
+                    <span class="font-bold tabular-nums" x-text="(groupProgress().avg_profile_percent ?? 0) + '%'"></span>
+                </div>
+                <div class="h-2 rounded-full bg-white/15 overflow-hidden">
+                    <div class="h-full rounded-full bg-brand-gold transition-all duration-500"
+                         :style="'width:' + Math.max(0, Math.min(100, groupProgress().avg_profile_percent ?? 0)) + '%'"></div>
+                </div>
+            </div>
         </div>
-        <div class="grid grid-cols-3 divide-x divide-brand/10">
+        <div class="grid grid-cols-2 divide-x divide-brand/10">
             <div class="px-3 py-3.5 text-center">
                 <p class="text-lg font-extrabold text-brand tabular-nums" x-text="(groupProgress().profiles_complete ?? 0) + '/' + groupProgress().target"></p>
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 mt-1">{{ __('borrower.apply.group.progress.profiles_label') }}</p>
-            </div>
-            <div class="px-3 py-3.5 text-center">
-                <p class="text-lg font-extrabold text-brand tabular-nums" x-text="groupProgress().verified + '/' + groupProgress().target"></p>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 mt-1">{{ __('borrower.apply.group.progress.verified_label') }}</p>
             </div>
             <div class="px-3 py-3.5 text-center">
                 <p class="text-lg font-extrabold text-amber-600 tabular-nums" x-text="groupProgress().invitations_pending ?? 0"></p>
@@ -136,50 +143,64 @@
                 <div class="rounded-3xl overflow-hidden ring-1 bg-white shadow-sm transition"
                      :class="member.role === 'leader' ? 'ring-brand/25' : 'ring-gray-200/90'">
                     <button type="button"
-                            class="w-full text-left p-4 sm:p-5 flex flex-wrap items-center gap-3"
+                            class="w-full text-left p-4 sm:p-5"
                             :class="member.role === 'leader' ? 'bg-gradient-to-r from-brand-muted/50 to-white' : 'bg-white'"
                             @click="member._open = !member._open">
-                        <div class="size-12 rounded-2xl bg-brand text-white grid place-items-center text-base font-bold shrink-0 shadow-sm shadow-brand/20"
-                             x-text="(member.name || '?').trim().charAt(0).toUpperCase()"></div>
-                        <div class="min-w-0 flex-1">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <p class="font-bold text-sm sm:text-base text-gray-900 truncate" x-text="member.name"></p>
-                                <span x-show="member.role === 'leader'"
-                                      class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                                    {{ __('borrower.apply.group_members.leader_badge') }}
-                                </span>
-                                <span x-show="member.role !== 'leader'"
-                                      class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                                    {{ __('borrower.apply.group_members.member_badge') }}
-                                </span>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="size-12 rounded-2xl bg-brand text-white grid place-items-center text-base font-bold shrink-0 shadow-sm shadow-brand/20"
+                                 x-text="(member.name || '?').trim().charAt(0).toUpperCase()"></div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <p class="font-bold text-sm sm:text-base text-gray-900 truncate" x-text="member.name"></p>
+                                    <span x-show="member.role === 'leader'"
+                                          class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                        {{ __('borrower.apply.group_members.leader_badge') }}
+                                    </span>
+                                    <span x-show="member.role !== 'leader'"
+                                          class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                        {{ __('borrower.apply.group_members.member_badge') }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-0.5" x-text="member.phone"></p>
                             </div>
-                            <p class="text-xs text-gray-500 mt-0.5" x-text="member.phone"></p>
+                            <div class="text-right shrink-0">
+                                <p class="text-xs font-semibold" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></p>
+                                <p class="text-sm font-extrabold tabular-nums text-gray-900 mt-0.5" x-text="formatTzs(member.requested_amount)"></p>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="member._open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                         </div>
-                        <span class="text-xs font-semibold shrink-0" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></span>
-                        <span class="text-sm font-extrabold tabular-nums text-gray-900 shrink-0" x-text="formatTzs(member.requested_amount)"></span>
-                        <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="member._open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                        <div class="mt-3 pl-0 sm:pl-15">
+                            <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500 mb-1">
+                                <span>{{ __('borrower.apply.group.profile_completion') }}</span>
+                                <span class="font-bold tabular-nums text-brand" x-text="(member.profile_percent ?? 0) + '%'"></span>
+                            </div>
+                            <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-500"
+                                     :class="(member.profile_percent ?? 0) >= 100 ? 'bg-emerald-500' : 'bg-brand'"
+                                     :style="'width:' + Math.max(0, Math.min(100, member.profile_percent ?? 0)) + '%'"></div>
+                            </div>
+                        </div>
                     </button>
                     <div x-show="member._open" x-cloak class="px-4 sm:px-5 pb-5 pt-0 border-t border-gray-100 space-y-4">
-                        <div class="pt-4" x-show="(member.progress_steps || []).length">
+                        <div class="pt-4" x-show="(member.profile_sections || []).length">
                             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('borrower.apply.group_members.readiness_title') }}</p>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <template x-for="step in (member.progress_steps || [])" :key="step.key">
-                                    <div class="rounded-2xl px-3.5 py-3 text-sm font-semibold ring-1 flex items-center gap-2.5"
-                                          :class="step.complete ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-amber-50/70 text-amber-950 ring-amber-200/80'">
-                                        <span class="size-6 rounded-full grid place-items-center text-xs shrink-0 font-bold"
-                                              :class="step.complete ? 'bg-emerald-600 text-white' : 'bg-white ring-1 ring-amber-300 text-amber-700'"
-                                              x-text="step.complete ? '✓' : '○'"></span>
-                                        <span class="leading-tight">
-                                            <span class="block" x-text="step.label"></span>
-                                            <span class="block text-[11px] font-medium opacity-70"
-                                                  x-text="step.complete
-                                                      ? @js(__('borrower.apply.group_members.readiness_done'))
-                                                      : @js(__('borrower.apply.group_members.readiness_pending'))"></span>
-                                        </span>
+                            <div class="space-y-2">
+                                <template x-for="section in (member.profile_sections || [])" :key="section.key">
+                                    <div class="flex items-center justify-between gap-3 rounded-2xl px-3.5 py-2.5 ring-1"
+                                          :class="section.complete ? 'bg-emerald-50/80 ring-emerald-100' : 'bg-gray-50 ring-gray-100'">
+                                        <span class="text-sm font-medium text-gray-800" x-text="section.label"></span>
+                                        <span class="text-[11px] font-bold uppercase tracking-wider"
+                                              :class="section.complete ? 'text-emerald-700' : 'text-amber-700'"
+                                              x-text="section.complete
+                                                  ? @js(__('borrower.apply.group_members.readiness_done'))
+                                                  : @js(__('borrower.apply.group_members.readiness_pending'))"></span>
                                     </div>
                                 </template>
                             </div>
                         </div>
+                        <p x-show="!(member.profile_sections || []).length" class="pt-4 text-sm text-gray-500">
+                            {{ __('borrower.apply.group_members.awaiting_registration_hint') }}
+                        </p>
 
                         <div x-show="member.role !== 'leader'" class="flex flex-wrap items-start justify-between gap-3 pt-1">
                             <div x-show="member.share?.short_url || member.share?.invitation_url || member.share?.whatsapp_url"

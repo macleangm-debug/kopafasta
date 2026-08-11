@@ -243,6 +243,7 @@
                           'added' => __('borrower.apply.group.progress.added'),
                           'profiles' => __('borrower.apply.group.progress.profiles'),
                           'verified' => __('borrower.apply.group.progress.verified'),
+                          'avg_completion' => __('borrower.apply.group.progress.avg_completion'),
                           'invitations_pending' => __('borrower.apply.group.progress.invitations_pending'),
                       ],
                       'groupScoringRiskBand' => [

@@ -1327,22 +1327,26 @@ export function applyWizard(config) {
                     const tpl = this.i18n.groupProgress || {};
                     const fill = (text, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(':' + k, String(v)), text || '');
                     const canContinue = target > 0 && added === target && awaitingAcceptance === 0;
+                    const avg = added > 0
+                        ? Math.round(active.reduce((sum, m) => sum + Number(m.profile_percent || 0), 0) / added)
+                        : 0;
                     return {
                         target,
                         added,
                         verified,
                         profiles_complete: profiles,
+                        avg_profile_percent: avg,
                         awaiting_acceptance: awaitingAcceptance,
                         invitations_pending: invitationsPending,
                         pending: Math.max(0, target - added),
                         summary: [
                             fill(tpl.added, { added, target }),
                             fill(tpl.profiles, { done: profiles, target }),
-                            fill(tpl.verified, { done: verified, target }),
+                            fill(tpl.avg_completion, { percent: avg }),
                             fill(tpl.invitations_pending, { count: invitationsPending }),
                         ],
                         can_continue: canContinue,
-                        can_submit: canContinue && verified === target,
+                        can_submit: canContinue && profiles === target,
                     };
                 },
 

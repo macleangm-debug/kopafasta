@@ -80,7 +80,7 @@
                 </section>
 
                 <section class="bg-white rounded-2xl border border-gray-200 p-6">
-                    <h2 class="font-semibold text-gray-900 mb-4">{{ __('borrower.apply.group_members.title') }}</h2>
+                    <h2 class="font-semibold text-gray-900 mb-4">{{ $group_name ?: __('borrower.apply.group_members.title') }}</h2>
                     <div class="space-y-2 mb-4">
                         @foreach ($progress['summary'] ?? [] as $line)
                             <p class="text-sm text-gray-600">{{ $line }}</p>
