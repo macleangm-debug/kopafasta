@@ -1,5 +1,5 @@
-{{-- Asset-backed collateral step --}}
-<div x-show="stepKey === 'asset_details'" class="p-6 sm:p-8">
+{{-- Asset-backed collateral step — hide while fee gate is open (same as IL quote). --}}
+<div x-show="stepKey === 'asset_details' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.asset_details')"
         :title="__('borrower.apply.asset_details.title')"

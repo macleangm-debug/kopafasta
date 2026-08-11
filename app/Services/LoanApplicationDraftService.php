@@ -66,7 +66,7 @@ class LoanApplicationDraftService
         }
 
         $resumeIndex = $this->resolveWizardStepIndex($wizardSteps, $stepKey, $step);
-        $resumeIndex = $this->clampResumeIndexToIncompleteSetup($wizardSteps, $resumeIndex, $payload, $product);
+        $resumeIndex = $this->clampResumeIndexToIncompleteSetup($wizardSteps, $resumeIndex, $payload, $product, $customer);
         $resumeStep = $wizardSteps[$resumeIndex] ?? null;
 
         return [
@@ -89,6 +89,7 @@ class LoanApplicationDraftService
         int $resumeIndex,
         array $payload,
         LoanProduct $product,
+        ?Customer $customer = null,
     ): int {
         $form = is_array($payload['form'] ?? null) ? $payload['form'] : [];
         $group = is_array($payload['group'] ?? null) ? $payload['group'] : [];
@@ -101,13 +102,14 @@ class LoanApplicationDraftService
 
             if ($name === '' || $target < 1) {
                 $forcedKey = 'group_setup';
+            } elseif (trim((string) ($group['purpose'] ?? $form['purpose'] ?? '')) === '') {
+                $forcedKey = 'group_setup';
             } elseif (count($members) < $target) {
                 $forcedKey = 'group_members';
             } else {
                 $amountPerMember = (float) ($group['amount_per_member'] ?? 0);
-                $purpose = trim((string) ($group['purpose'] ?? $form['purpose'] ?? ''));
                 $tenure = (int) ($form['requested_tenure_months'] ?? 0);
-                if ($amountPerMember < 1000 || $purpose === '' || $tenure < 1) {
+                if ($amountPerMember < 1000 || $tenure < 1) {
                     $forcedKey = 'quote';
                 }
             }
@@ -139,16 +141,36 @@ class LoanApplicationDraftService
             }
         }
 
-        if (! $forcedKey) {
-            return $resumeIndex;
+        if ($forcedKey) {
+            $forcedIndex = $wizardSteps->search(fn (array $step) => ($step['key'] ?? '') === $forcedKey);
+            if ($forcedIndex === false) {
+                return 0;
+            }
+            $resumeIndex = min($resumeIndex, (int) $forcedIndex);
         }
 
-        $forcedIndex = $wizardSteps->search(fn (array $step) => ($step['key'] ?? '') === $forcedKey);
-        if ($forcedIndex === false) {
-            return 0;
+        // Unpaid application fee: do not resume on guarantor/review/submit.
+        // Land on the last setup step so the wizard opens the shared fee → payments.show gate (IL path).
+        if ($customer) {
+            $quoted = quoted_application_fee($customer, $product);
+            $fee = $payload['application_fee'] ?? null;
+            $feeDue = $quoted > 0
+                && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, $quoted);
+            if ($feeDue) {
+                $setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members'];
+                $lastSetupIndex = null;
+                foreach ($wizardSteps as $i => $step) {
+                    if (in_array($step['key'] ?? '', $setupKeys, true)) {
+                        $lastSetupIndex = (int) $i;
+                    }
+                }
+                if ($lastSetupIndex !== null && $resumeIndex > $lastSetupIndex) {
+                    return $lastSetupIndex;
+                }
+            }
         }
 
-        return min($resumeIndex, (int) $forcedIndex);
+        return $resumeIndex;
     }
 
     /** @return array<string, mixed> */

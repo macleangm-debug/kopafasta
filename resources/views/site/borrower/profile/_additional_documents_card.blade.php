@@ -51,6 +51,7 @@
                       docType: @js(old('additional_document_type', '')),
                       uploading: false,
                       ready: false,
+                      pickerOpen: false,
                       options: @js($optionMap),
                       refreshReady() {
                           this.ready = !!this.docType && (window.KopaFastaForm?.isComplete(this.$el, { onlyVisible: true }) ?? false);
@@ -77,8 +78,32 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.profile.additional_document_type') }}</label>
-                    <select x-model="docType"
-                            class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3.5 py-3 text-sm bg-white">
+                    <div class="lg:hidden">
+                        <button type="button" @click="pickerOpen = true"
+                                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                            <span class="flex-1 text-left truncate"
+                                  x-text="docType && options[docType] ? options[docType].label : @js(__('borrower.profile.additional_document_type_placeholder'))"></span>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                        </button>
+                        <x-site.bottom-sheet :title="__('borrower.profile.additional_document_type')" open="pickerOpen">
+                            <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                                <button type="button" @click="docType = ''; pickerOpen = false; refreshReady()"
+                                        class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50"
+                                        :class="!docType ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
+                                    {{ __('borrower.profile.additional_document_type_placeholder') }}
+                                </button>
+                                @foreach ($optionalItems as $item)
+                                    <button type="button" @click="docType = @js($item['key']); pickerOpen = false; refreshReady()"
+                                            class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                            :class="docType === @js($item['key']) ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
+                                        {{ $item['label'] }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </x-site.bottom-sheet>
+                    </div>
+                    <select x-model="docType" @change="refreshReady()"
+                            class="hidden lg:block w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3.5 py-3 text-sm bg-white">
                         <option value="">{{ __('borrower.profile.additional_document_type_placeholder') }}</option>
                         @foreach ($optionalItems as $item)
                             <option value="{{ $item['key'] }}">{{ $item['label'] }}</option>

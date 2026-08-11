@@ -880,6 +880,13 @@ export function applyWizard(config) {
                         console.warn('application fee quote failed', e);
                     } finally {
                         this.syncFeePaidState();
+                        // Quote may arrive after resume landed on guarantor — open the same IL fee gate.
+                        if (! this.supplementMode && ! this.isEditHop()
+                            && ! this.feeGateSatisfied()
+                            && this.needsFeeGateBefore(this.stepKey)) {
+                            this.feeGateOpen = true;
+                            this.enterApplicationFeeStep();
+                        }
                     }
                 },
 
@@ -1441,7 +1448,7 @@ export function applyWizard(config) {
                             this.groupLookupError = data.message || this.i18n.group.lookupNotFound;
                             return;
                         }
-                        this.groupExternalInvite = data.share;
+                        this.groupExternalInvite = null;
                         this.group.members.push({
                             invitation_id: data.invitation_id || data.share?.invitation_id,
                             name: data.name,
@@ -1455,7 +1462,7 @@ export function applyWizard(config) {
                         this.groupExternal = { first_name: '', last_name: '', phone: '' };
                         this.syncGroupAmounts();
                         this.groupProgressSummary = null;
-                        // Keep panel open so share via WhatsApp / copy is visible (guarantor-style).
+                        this.closeAddMemberPanel();
                         await this.persistDraft(true);
                     } catch (e) {
                         this.groupLookupError = this.i18n.group.lookupNotFound;
@@ -2314,7 +2321,9 @@ export function applyWizard(config) {
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         const count = this.groupTargetCount();
                         return !!(this.group.name || '').trim()
-                            && count >= this.groupLimits.min && count <= this.groupLimits.max;
+                            && count >= this.groupLimits.min && count <= this.groupLimits.max
+                            && !!(this.group.purpose || '').trim()
+                            && ! this.purposeNeedsDetail();
                     }
                     if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
                         const target = this.groupTargetCount();
@@ -3020,6 +3029,16 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.group.memberCountRange);
                             return false;
                         }
+                        if (! this.group.purpose) {
+                            showWizardFeedback(this.i18n.group.purposeRequired);
+                            return false;
+                        }
+                        if (this.purposeNeedsDetail()) {
+                            this.purposeEditing = true;
+                            showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
+                            return false;
+                        }
+                        this.form.purpose = this.normalizePurposeKey(this.group.purpose);
                         if (! this.group.amount_per_member) {
                             this.group.amount_per_member = this.groupAmountPerMemberMin();
                         }

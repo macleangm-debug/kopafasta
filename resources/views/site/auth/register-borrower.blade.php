@@ -170,7 +170,7 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.mobile') }}</label>
                                     <div class="flex gap-2">
                                         <span class="inline-flex items-center px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-brand tabular-nums shrink-0" x-text="activeCountry.prefix"></span>
-                                        <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone"
+                                        <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only data-digits-allow-spaces="1" name="local_phone" x-model="form.local_phone"
                                                @input="onPhoneInput()"
                                                autocomplete="tel-national"
                                                autocapitalize="off" autocorrect="off" spellcheck="false"
@@ -200,7 +200,8 @@
                                                    class="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                                             <div class="flex gap-2">
                                                 <span class="inline-flex items-center px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold" x-text="activeCountry.prefix"></span>
-                                                <input type="tel" inputmode="numeric" name="waitlist_local_phone" x-model="waitlist_local_phone" placeholder="712 345 678"
+                                                <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only name="waitlist_local_phone" x-model="waitlist_local_phone" placeholder="712 345 678"
+                                                       @input="waitlist_local_phone = String(waitlist_local_phone || '').replace(/\D/g, '')"
                                                        class="flex-1 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                                             </div>
                                             <input type="hidden" name="phone" :value="waitlist_local_phone ? activeCountry.prefix.replace(/\D/g, '') + waitlist_local_phone.replace(/\D/g, '').replace(/^0+/, '') : ''">

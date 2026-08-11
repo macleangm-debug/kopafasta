@@ -130,7 +130,9 @@
                             <input type="text" x-model="member_no" placeholder="ABC12345" class="flex-1 border-0 px-3 py-2 text-sm font-mono focus:ring-0">
                         </div>
                         <div class="flex gap-2">
-                        <input type="tel" x-model="phone" placeholder="{{ __('borrower.apply.group_members.lookup_phone') }}" class="flex-1 rounded-lg border-gray-300 text-sm">
+                        <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only x-model="phone" placeholder="{{ __('borrower.apply.group_members.lookup_phone') }}"
+                               @input="phone = String(phone || '').replace(/\D/g, '')"
+                               class="flex-1 rounded-lg border-gray-300 text-sm">
                         <button type="button" @click="replaceInternal()" :disabled="loading"
                                 class="shrink-0 rounded-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 text-xs disabled:opacity-50">
                             {{ __('borrower.apply.group.replacement_add') }}
@@ -141,7 +143,9 @@
                     <div x-show="mode === 'external'" class="grid sm:grid-cols-2 gap-2">
                         <input type="text" x-model="first_name" placeholder="{{ __('borrower.profile.fields.first_name') }}" class="rounded-lg border-gray-300 text-sm">
                         <input type="text" x-model="last_name" placeholder="{{ __('borrower.profile.fields.last_name') }}" class="rounded-lg border-gray-300 text-sm">
-                        <input type="tel" x-model="phone" placeholder="{{ __('borrower.profile.fields.phone') }}" class="rounded-lg border-gray-300 text-sm sm:col-span-2">
+                        <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only x-model="phone" placeholder="{{ __('borrower.profile.fields.phone') }}"
+                               @input="phone = String(phone || '').replace(/\D/g, '')"
+                               class="rounded-lg border-gray-300 text-sm sm:col-span-2">
                         <button type="button" @click="replaceExternal()" :disabled="loading"
                                 class="sm:col-span-2 rounded-full bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 text-xs disabled:opacity-50">
                             {{ __('borrower.apply.group.replacement_send_invite') }}

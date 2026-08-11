@@ -32,7 +32,8 @@
                 <option value="{{ $country['prefix'] }}">{{ $country['emoji'] }} {{ $country['prefix'] }}</option>
             @endforeach
         </select>
-        <input type="tel" inputmode="numeric" x-model="local" placeholder="712 345 678"
+        <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only x-model="local" placeholder="712 345 678"
+               @input="local = String(local || '').replace(/\D/g, '')"
                @if ($required) required @endif
                class="flex-1 rounded-lg border-gray-300 text-sm focus:border-brand focus:ring-brand @error($name) border-red-400 @enderror">
     </div>

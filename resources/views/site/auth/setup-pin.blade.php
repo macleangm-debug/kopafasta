@@ -1,8 +1,9 @@
-{{-- Create PIN + enroll recovery answers (system picks 3 random questions) --}}
-<x-site.layout :auth="true" :title="brand_title(__('site.auth.pin_recovery.setup_title'))">
+{{-- Create PIN, then enroll recovery answers on a separate step. --}}
+<x-site.layout :auth="true" :title="brand_title($phase === 'questions' ? __('site.auth.pin_recovery.recovery_only_title') : __('site.auth.pin_recovery.setup_title'))">
     @php
         $needsPin = $needsPin ?? true;
         $questions = $questions ?? [];
+        $phase = $phase ?? ($needsPin ? 'pin' : 'questions');
     @endphp
     <section class="min-h-full grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
@@ -20,20 +21,17 @@
             <div class="w-full max-w-md">
                 <a href="{{ route('site.home') }}" class="lg:hidden inline-block mb-6"><x-site.brand-mark size="md" /></a>
                 <div class="glass-card p-8 sm:p-10">
-                    <h1 class="text-2xl font-bold text-gray-900">
-                        {{ $needsPin ? __('site.auth.pin_recovery.setup_title') : __('site.auth.pin_recovery.recovery_only_title') }}
-                    </h1>
-                    <p class="mt-1 text-sm text-gray-600">
-                        {{ $needsPin ? __('site.auth.pin_recovery.setup_body') : __('site.auth.pin_recovery.recovery_only_body') }}
-                    </p>
+                    @if ($phase === 'pin')
+                        <h1 class="text-2xl font-bold text-gray-900">{{ __('site.auth.pin_recovery.setup_title') }}</h1>
+                        <p class="mt-1 text-sm text-gray-600">{{ __('site.auth.pin_recovery.setup_pin_only_body') }}</p>
 
-                    <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off">
-                        @csrf
+                        <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off">
+                            @csrf
+                            <input type="hidden" name="phase" value="pin">
 
-                        @if ($needsPin)
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.pin_label') }}</label>
-                                <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" required autocomplete="new-password"
+                                <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" data-digits-only required autocomplete="new-password"
                                        class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-center text-lg tracking-[0.5em] font-mono outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                                 @error('pin')
                                     <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>
@@ -41,57 +39,71 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.pin_recovery.confirm_pin') }}</label>
-                                <input type="password" name="pin_confirmation" inputmode="numeric" maxlength="4" pattern="\d{4}" required autocomplete="new-password"
+                                <input type="password" name="pin_confirmation" inputmode="numeric" maxlength="4" pattern="\d{4}" data-digits-only required autocomplete="new-password"
                                        class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-center text-lg tracking-[0.5em] font-mono outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                             </div>
-                        @endif
 
-                        <div class="pt-2 border-t border-gray-100 space-y-4">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('site.auth.pin_recovery.enroll_questions_label') }}</p>
-                            @foreach ($questions as $index => $question)
-                                <div>
-                                    <div class="flex items-start justify-between gap-3 mb-1.5">
-                                        <label class="block text-sm font-medium text-gray-700">
-                                            <span class="text-xs font-semibold text-brand mr-1">{{ $index + 1 }}.</span>
-                                            {{ $question['prompt'] }}
-                                        </label>
-                                        <button
-                                            type="submit"
-                                            formaction="{{ route('site.borrower.setup-pin.swap') }}"
-                                            formmethod="post"
-                                            name="index"
-                                            value="{{ $index }}"
-                                            formnovalidate
-                                            class="shrink-0 text-xs font-semibold text-brand hover:underline"
+                            <p class="text-xs text-gray-500">{{ __('site.auth.pin_recovery.setup_pin_only_hint') }}</p>
+                            <button class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3.5 rounded-xl text-sm shadow-sm">
+                                {{ __('site.auth.pin_recovery.setup_pin_only_cta') }}
+                            </button>
+                        </form>
+                    @else
+                        <h1 class="text-2xl font-bold text-gray-900">{{ __('site.auth.pin_recovery.recovery_only_title') }}</h1>
+                        <p class="mt-1 text-sm text-gray-600">{{ __('site.auth.pin_recovery.recovery_only_body') }}</p>
+
+                        <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off">
+                            @csrf
+                            <input type="hidden" name="phase" value="questions">
+
+                            <div class="space-y-4">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('site.auth.pin_recovery.enroll_questions_label') }}</p>
+                                @foreach ($questions as $index => $question)
+                                    <div>
+                                        <div class="flex items-start justify-between gap-3 mb-1.5">
+                                            <label class="block text-sm font-medium text-gray-700">
+                                                <span class="text-xs font-semibold text-brand mr-1">{{ $index + 1 }}.</span>
+                                                {{ $question['prompt'] }}
+                                            </label>
+                                            <button
+                                                type="submit"
+                                                formaction="{{ route('site.borrower.setup-pin.swap') }}"
+                                                formmethod="post"
+                                                name="index"
+                                                value="{{ $index }}"
+                                                formnovalidate
+                                                class="shrink-0 text-xs font-semibold text-brand hover:underline"
+                                            >
+                                                {{ __('site.auth.pin_recovery.change_question') }}
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            name="answers[{{ $question['key'] }}]"
+                                            value="{{ old('answers.'.$question['key']) }}"
+                                            required
+                                            autocomplete="off"
+                                            @if (($question['input'] ?? '') === 'digits')
+                                                inputmode="numeric"
+                                                data-digits-only
+                                                maxlength="{{ $question['digits'] ?? 4 }}"
+                                                pattern="{{ '\\d{'.($question['digits'] ?? 4).'}' }}"
+                                            @endif
+                                            class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10"
                                         >
-                                            {{ __('site.auth.pin_recovery.change_question') }}
-                                        </button>
+                                        @error('answers.'.$question['key'])
+                                            <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>
+                                        @enderror
                                     </div>
-                                    <input
-                                        type="text"
-                                        name="answers[{{ $question['key'] }}]"
-                                        value="{{ old('answers.'.$question['key']) }}"
-                                        required
-                                        autocomplete="off"
-                                        @if (($question['input'] ?? '') === 'digits')
-                                            inputmode="numeric"
-                                            maxlength="{{ $question['digits'] ?? 4 }}"
-                                            pattern="{{ '\\d{'.($question['digits'] ?? 4).'}' }}"
-                                        @endif
-                                        class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10"
-                                    >
-                                    @error('answers.'.$question['key'])
-                                        <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                            @endforeach
-                        </div>
+                                @endforeach
+                            </div>
 
-                        <p class="text-xs text-gray-500">{{ __('site.auth.pin_recovery.setup_hint') }}</p>
-                        <button class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3.5 rounded-xl text-sm shadow-sm">
-                            {{ $needsPin ? __('site.auth.pin_recovery.setup_cta') : __('site.auth.pin_recovery.recovery_only_cta') }}
-                        </button>
-                    </form>
+                            <p class="text-xs text-gray-500">{{ __('site.auth.pin_recovery.setup_hint') }}</p>
+                            <button class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3.5 rounded-xl text-sm shadow-sm">
+                                {{ __('site.auth.pin_recovery.recovery_only_cta') }}
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>

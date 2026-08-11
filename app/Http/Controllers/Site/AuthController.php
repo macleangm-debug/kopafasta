@@ -269,6 +269,7 @@ class AuthController extends Controller
 
         return view('site.auth.setup-pin', [
             'needsPin' => $needsPin,
+            'phase' => $needsPin ? 'pin' : 'questions',
             'questions' => $recovery->questionsForKeys($keys),
         ]);
     }
@@ -279,6 +280,27 @@ class AuthController extends Controller
         abort_unless($user && $user->role === 'borrower', 403);
 
         $needsPin = ! $this->pins->hasPin($user);
+        $needsRecovery = ! $recovery->hasEnrolledAnswers($user);
+        $phase = (string) $request->input('phase', $needsPin ? 'pin' : 'questions');
+
+        if ($phase === 'pin') {
+            abort_unless($needsPin, 403);
+            $data = $request->validate([
+                'pin' => ['required', 'string', new FourDigitPin, 'confirmed'],
+            ]);
+            $this->pins->setPin($user, $data['pin']);
+
+            if (! $needsRecovery) {
+                $request->session()->forget('pin_setup_question_keys');
+
+                return $this->redirectAfterPinSetup($request, $user);
+            }
+
+            return redirect()->route('site.borrower.setup-pin')
+                ->with('status', __('site.auth.pin_recovery.setup_pin_saved'));
+        }
+
+        abort_unless($needsRecovery, 403);
         $keys = session('pin_setup_question_keys', []);
         if (! is_array($keys) || count($keys) < (int) config('pin_recovery.questions_to_ask', 3)) {
             return redirect()->route('site.borrower.setup-pin')
@@ -291,9 +313,6 @@ class AuthController extends Controller
         foreach ($keys as $key) {
             $rules["answers.$key"] = ['required', 'string', 'max:120'];
         }
-        if ($needsPin) {
-            $rules['pin'] = ['required', 'string', new FourDigitPin, 'confirmed'];
-        }
 
         $data = $request->validate($rules);
 
@@ -301,12 +320,13 @@ class AuthController extends Controller
             fn ($key) => [$key => (string) ($data['answers'][$key] ?? '')]
         )->all());
 
-        if ($needsPin) {
-            $this->pins->setPin($user, $data['pin']);
-        }
-
         $request->session()->forget('pin_setup_question_keys');
 
+        return $this->redirectAfterPinSetup($request, $user);
+    }
+
+    private function redirectAfterPinSetup(Request $request, $user): RedirectResponse
+    {
         if ($user->customer && ($guarantorRedirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer))) {
             return $guarantorRedirect;
         }

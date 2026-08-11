@@ -106,11 +106,11 @@
                 @endforeach
             </select>
         @endif
-        <input type="tel" inputmode="numeric" x-model="local" data-phone-local
+        <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only x-model="local" data-phone-local
                placeholder="712 345 678"
                autocomplete="{{ $lockedCountry ? 'off' : 'tel-national' }}"
                name="{{ $name }}_local"
-               @input="syncHidden()"
+               @input="local = String(local || '').replace(/\D/g, ''); syncHidden()"
                @if ($requiredWhen) data-required-when="{{ $requiredWhen }}" @endif
                @if ($required) required @endif
                @if ($form) form="{{ $form }}" @endif

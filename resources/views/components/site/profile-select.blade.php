@@ -34,6 +34,9 @@
         </label>
     @endif
 
+    {{-- Submitted value (works on both mobile bottom-sheet and desktop select). --}}
+    <input type="hidden" name="{{ $name }}" :value="selected" @if ($required) required @endif>
+
     <div class="lg:hidden">
         <button type="button" @click="pickerOpen = true"
                 class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
@@ -51,9 +54,9 @@
                     </button>
                 @endif
                 @foreach ($optionsList as $key => $optionLabel)
-                    <button type="button" @click="pick(@js($key))"
+                    <button type="button" @click="pick(@js((string) $key))"
                             class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
-                            :class="selected === @js($key) ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
+                            :class="selected === @js((string) $key) ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
                         {{ $optionLabel }}
                     </button>
                 @endforeach
@@ -61,13 +64,14 @@
         </x-site.bottom-sheet>
     </div>
 
-    <select name="{{ $name }}" x-model="selected" @if($required) required @endif
-            class="w-full {{ $selectClass }} max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden">
+    {{-- Desktop only — UI control; value is submitted via the hidden input. --}}
+    <select x-model="selected" @if($required) required @endif
+            class="hidden lg:block w-full {{ $selectClass }}">
         @if (! $required)
             <option value="">{{ $placeholder }}</option>
         @endif
         @foreach ($optionsList as $key => $optionLabel)
-            <option value="{{ $key }}" @selected($selected === (string) $key)>{{ $optionLabel }}</option>
+            <option value="{{ $key }}" @selected((string) $selected === (string) $key)>{{ $optionLabel }}</option>
         @endforeach
     </select>
 </div>

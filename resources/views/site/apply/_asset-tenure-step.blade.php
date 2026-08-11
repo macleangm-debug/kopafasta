@@ -1,5 +1,5 @@
-{{-- Marketplace asset tenure step --}}
-<div x-show="stepKey === 'asset_tenure'" class="p-6 sm:p-8">
+{{-- Marketplace asset tenure step — hide while fee gate is open (same as IL quote). --}}
+<div x-show="stepKey === 'asset_tenure' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.asset_tenure')"
         :title="__('borrower.apply.asset_tenure.title')"
@@ -77,11 +77,6 @@
                     <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('borrower.apply.asset_tenure.installment_preview') }}</p>
                     <p class="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tabular-nums tracking-tight"
                        x-text="formatTzs(displayInstallmentAmount())"></p>
-                    <p class="mt-1 text-xs text-gray-600"
-                       x-text="repaymentCadence() === 'weekly'
-                           ? @js(__('borrower.apply.asset_tenure.weekly_hint'))
-                           : @js(__('borrower.apply.asset_tenure.monthly_hint'))"></p>
-                    <p class="mt-3 text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.apply.asset_tenure.installment_changes_hint') }}</p>
                 </div>
             </div>
         </div>

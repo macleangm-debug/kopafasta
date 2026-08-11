@@ -149,7 +149,9 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('borrower.profile.fields.phone') }}</label>
                     <div class="flex rounded-xl ring-1 overflow-hidden bg-white" :class="guarantorErrors.internal_guarantor_phone ? 'ring-rose-400' : 'ring-gray-200'">
                         <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
-                        <input name="internal_guarantor_phone" x-model="form.internal_guarantor_phone" @input="delete guarantorErrors.internal_guarantor_phone; guarantorLookup.ok = false" inputmode="numeric" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                        <input name="internal_guarantor_phone" x-model="form.internal_guarantor_phone" data-digits-only inputmode="numeric" pattern="[0-9]*" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off"
+                               @input="form.internal_guarantor_phone = String(form.internal_guarantor_phone || '').replace(/\D/g, ''); delete guarantorErrors.internal_guarantor_phone; guarantorLookup.ok = false"
+                               class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
                     </div>
                     <p x-show="guarantorErrors.internal_guarantor_phone" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_guarantor_phone"></p>
                 </div>
@@ -234,7 +236,9 @@
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }} <span class="text-rose-500">*</span></label>
                     <div class="flex rounded-xl ring-1 overflow-hidden bg-white" :class="guarantorErrors.external_phone ? 'ring-rose-400' : 'ring-gray-200'">
                         <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
-                        <input name="external_phone" x-model="form.external_phone" @input="delete guarantorErrors.external_phone; invalidateExternalInvite()" inputmode="numeric" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                        <input name="external_phone" x-model="form.external_phone" data-digits-only inputmode="numeric" pattern="[0-9]*" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off"
+                               @input="form.external_phone = String(form.external_phone || '').replace(/\D/g, ''); delete guarantorErrors.external_phone; invalidateExternalInvite()"
+                               class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
                     </div>
                     <p x-show="guarantorErrors.external_phone" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_phone"></p>
                 </div>
