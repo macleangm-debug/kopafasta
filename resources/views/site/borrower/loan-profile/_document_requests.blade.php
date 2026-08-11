@@ -28,83 +28,66 @@
 
     <div id="documents"
          class="mb-6"
-         x-data="{
-             tab: @js($defaultTab),
-             requestedOpen: true,
-             submittedOpen: true,
-             setTab(name) {
-                 this.tab = name;
-                 if (name === 'requested') this.requestedOpen = true;
-                 if (name === 'submitted') this.submittedOpen = true;
-             }
-         }">
-        {{-- Tab rail (same idea as apply review pages) --}}
-        <nav class="mb-3 rounded-2xl bg-white/95 ring-1 ring-brand/10 px-2 py-3 shadow-sm"
+         x-data="{ tab: @js($defaultTab) }">
+        {{-- Segmented control: action vs receipt --}}
+        <div class="mb-4 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-brand/10"
+             role="tablist"
              aria-label="{{ __('borrower.loan_profile.documents_tabs_nav') }}">
-            <ol class="grid grid-cols-2 gap-2 items-stretch">
-                <li class="min-w-0">
-                    <button type="button"
-                            @click="setTab('requested')"
-                            class="group flex flex-col items-center gap-1.5 w-full focus:outline-none">
-                        <span class="size-8 rounded-full grid place-items-center text-xs font-bold transition ring-2"
-                              :class="tab === 'requested'
-                                  ? 'bg-brand text-white ring-brand shadow-sm'
-                                  : 'bg-white text-gray-400 ring-gray-200 group-hover:ring-brand/40 group-hover:text-brand'">
-                            <span x-text="'{{ $openDocCount }}'"></span>
+            <div class="grid grid-cols-2 gap-1">
+                <button type="button"
+                        role="tab"
+                        @click="tab = 'requested'"
+                        :aria-selected="tab === 'requested'"
+                        :class="tab === 'requested'
+                            ? 'bg-brand text-white shadow-sm'
+                            : 'bg-transparent text-gray-600 hover:bg-brand-muted/40 hover:text-brand'"
+                        class="relative flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition">
+                    <span>{{ __('borrower.loan_profile.documents_tab_requested') }}</span>
+                    @if ($openDocCount > 0)
+                        <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
+                              :class="tab === 'requested' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900'">
+                            {{ $openDocCount }}
                         </span>
-                        <span class="text-[10px] uppercase tracking-widest font-semibold transition text-center"
-                              :class="tab === 'requested' ? 'text-brand' : 'text-gray-400'">
-                            {{ __('borrower.loan_profile.documents_tab_requested') }}
-                            @if ($openDocCount > 0)
-                                <span class="tabular-nums">({{ $openDocCount }})</span>
-                            @endif
+                    @endif
+                </button>
+                <button type="button"
+                        role="tab"
+                        @click="tab = 'submitted'"
+                        :aria-selected="tab === 'submitted'"
+                        :class="tab === 'submitted'
+                            ? 'bg-brand text-white shadow-sm'
+                            : 'bg-transparent text-gray-600 hover:bg-brand-muted/40 hover:text-brand'"
+                        class="relative flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition">
+                    <span>{{ __('borrower.loan_profile.documents_tab_submitted') }}</span>
+                    @if ($submittedCount > 0)
+                        <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
+                              :class="tab === 'submitted' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'">
+                            {{ $submittedCount }}
                         </span>
-                    </button>
-                </li>
-                <li class="min-w-0">
-                    <button type="button"
-                            @click="setTab('submitted')"
-                            class="group flex flex-col items-center gap-1.5 w-full focus:outline-none">
-                        <span class="size-8 rounded-full grid place-items-center text-xs font-bold transition ring-2"
-                              :class="tab === 'submitted'
-                                  ? 'bg-brand text-white ring-brand shadow-sm'
-                                  : ({{ $submittedCount }} > 0
-                                      ? 'bg-emerald-500 text-white ring-emerald-500'
-                                      : 'bg-white text-gray-400 ring-gray-200 group-hover:ring-brand/40 group-hover:text-brand')">
-                            @if ($submittedCount > 0 && $openDocCount === 0)
-                                ✓
-                            @else
-                                {{ $submittedCount }}
-                            @endif
-                        </span>
-                        <span class="text-[10px] uppercase tracking-widest font-semibold transition text-center"
-                              :class="tab === 'submitted' ? 'text-brand' : 'text-gray-400'">
-                            {{ __('borrower.loan_profile.documents_tab_submitted') }}
-                            @if ($submittedCount > 0)
-                                <span class="tabular-nums">({{ $submittedCount }})</span>
-                            @endif
-                        </span>
-                    </button>
-                </li>
-            </ol>
-        </nav>
+                    @endif
+                </button>
+            </div>
+        </div>
 
-        {{-- Requested (collapsible) --}}
-        <div x-show="tab === 'requested'" x-cloak class="glass-card overflow-hidden ring-1 ring-amber-200/80">
-            <button type="button"
-                    @click="requestedOpen = !requestedOpen"
-                    class="w-full text-left px-4 sm:px-5 py-4 border-b border-amber-100 bg-amber-50/80 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div class="min-w-0">
-                    <h2 class="font-semibold text-amber-950">{{ __('borrower.loan_profile.documents_collapsed') }}</h2>
-                    <p class="text-xs text-amber-900/80 mt-0.5">
-                        @if ($openDocCount > 0)
-                            {{ __('borrower.loan_profile.documents_open_count', ['count' => $openDocCount]) }}
-                        @else
-                            {{ __('borrower.loan_profile.documents_requested_empty') }}
-                        @endif
-                    </p>
-                </div>
-                <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0 w-full sm:w-auto">
+        {{-- REQUESTED: do this now --}}
+        <div x-show="tab === 'requested'" x-cloak role="tabpanel" class="space-y-3">
+            <div class="rounded-2xl bg-gradient-to-br from-amber-50 via-white to-white px-4 py-3.5 ring-1 ring-amber-200/80 sm:px-5">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-800">
+                            {{ __('borrower.loan_profile.documents_action_eyebrow') }}
+                        </p>
+                        <h2 class="mt-0.5 text-base font-bold text-amber-950">
+                            {{ __('borrower.loan_profile.documents_collapsed') }}
+                        </h2>
+                        <p class="mt-0.5 text-xs text-amber-900/75">
+                            @if ($openDocCount > 0)
+                                {{ __('borrower.loan_profile.documents_open_count', ['count' => $openDocCount]) }}
+                            @else
+                                {{ __('borrower.loan_profile.documents_requested_empty') }}
+                            @endif
+                        </p>
+                    </div>
                     @if ($headerDueAt && $openDocCount > 0)
                         <x-site.deadline-badge
                             :days-left="$headerDaysLeft"
@@ -113,152 +96,182 @@
                             :label="$headerDueExpired ? __('borrower.loan_profile.document_deadline_expired') : null"
                             :urgent="$headerDaysLeft !== null && $headerDaysLeft <= 2"
                             :expired="$headerDueExpired"
-                            class="flex-1 sm:flex-none"
+                            class="shrink-0"
                         />
                     @endif
-                    <svg class="size-5 text-amber-800 transition shrink-0" :class="requestedOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
                 </div>
-            </button>
+            </div>
 
-            <div x-show="requestedOpen" x-collapse>
-                @if ($actionDocs->isEmpty())
-                    <p class="px-5 py-6 text-sm text-gray-600">{{ __('borrower.loan_profile.documents_requested_empty') }}</p>
-                @else
-                    <ul class="divide-y divide-amber-100">
-                        @foreach ($actionDocs as $docReq)
-                            @php
-                                $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
-                                $profileUrl = $docSvc->borrowerActionUrl($docReq);
-                                $reqBadge = $docReq->status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-sky-100 text-sky-700';
-                                $reqLabel = $docReq->status === 'rejected'
-                                    ? __('borrower.application.request_status_rejected')
-                                    : __('borrower.application.request_status_pending');
-                                $displayDocs = $customer
-                                    ? $docSvc->displayDocumentsForRequest($docReq, $customer)
-                                    : $docReq->uploads;
-                            @endphp
-                            <li id="request-{{ $docReq->id }}" class="p-5 bg-white scroll-mt-24">
-                                <div class="flex items-start justify-between gap-3 mb-2 flex-wrap">
-                                    <div class="min-w-0">
+            @if ($actionDocs->isEmpty())
+                <div class="rounded-2xl bg-white px-5 py-8 text-center ring-1 ring-brand/10">
+                    <p class="text-sm font-semibold text-gray-900">{{ __('borrower.loan_profile.documents_requested_empty') }}</p>
+                    @if ($submittedCount > 0)
+                        <button type="button"
+                                @click="tab = 'submitted'"
+                                class="mt-3 text-sm font-semibold text-brand hover:underline">
+                            {{ __('borrower.loan_profile.documents_view_submitted') }}
+                        </button>
+                    @endif
+                </div>
+            @else
+                <ul class="space-y-3">
+                    @foreach ($actionDocs as $docReq)
+                        @php
+                            $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
+                            $profileUrl = $docSvc->borrowerActionUrl($docReq);
+                            $isRejected = $docReq->status === 'rejected';
+                            $displayDocs = $customer
+                                ? $docSvc->displayDocumentsForRequest($docReq, $customer)
+                                : $docReq->uploads;
+                            $thumbDocs = collect($displayDocs)->filter(fn ($u) => filled($u->file_path ?? null))->values();
+                        @endphp
+                        <li id="request-{{ $docReq->id }}"
+                            @class([
+                                'scroll-mt-24 overflow-hidden rounded-2xl bg-white shadow-sm ring-1',
+                                'ring-red-200' => $isRejected,
+                                'ring-brand/10' => ! $isRejected,
+                            ])>
+                            <div class="border-b border-gray-100 px-4 py-4 sm:px-5">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
-                                            <span class="text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5 {{ $profileGuided ? 'bg-brand-muted text-brand' : 'bg-gray-100 text-gray-600' }}">
-                                                {{ $profileGuided ? __('borrower.loan_profile.document_source_profile') : __('borrower.loan_profile.document_source_loan') }}
+                                            <h3 class="text-base font-bold text-gray-900">{{ $docReq->label }}</h3>
+                                            <span @class([
+                                                'rounded-full px-2.5 py-0.5 text-[11px] font-bold',
+                                                'bg-red-100 text-red-800' => $isRejected,
+                                                'bg-amber-100 text-amber-900' => ! $isRejected,
+                                            ])>
+                                                {{ $isRejected
+                                                    ? __('borrower.application.request_status_rejected')
+                                                    : __('borrower.loan_profile.documents_status_action') }}
                                             </span>
                                         </div>
-                                        @if ($docReq->instructions)
-                                            <p class="text-sm text-gray-600 mt-1.5">{{ $docReq->instructions }}</p>
-                                        @endif
-                                        @if ($docReq->admin_notes && $docReq->status === 'rejected')
-                                            <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
-                                        @endif
+                                        <p class="mt-1 text-[11px] font-medium text-gray-500">
+                                            {{ $profileGuided
+                                                ? __('borrower.loan_profile.document_source_profile_hint')
+                                                : __('borrower.loan_profile.document_source_loan_hint') }}
+                                        </p>
                                     </div>
-                                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $reqLabel }}</span>
                                 </div>
 
-                                @if ($displayDocs->isNotEmpty())
-                                    <div class="flex flex-wrap gap-2 mt-3 mb-3">
-                                        @foreach ($displayDocs as $upload)
-                                            @if ($upload->file_path)
-                                                <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
-                                            @endif
-                                        @endforeach
-                                    </div>
+                                @if ($docReq->instructions)
+                                    <p class="mt-3 text-sm leading-relaxed text-gray-700">{{ $docReq->instructions }}</p>
                                 @endif
 
-                                @if ($docReq->needsBorrowerAction())
-                                    <div class="mt-4">
-                                        @if ($profileGuided)
-                                            <a href="{{ $profileUrl }}"
-                                               class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-                                                {{ __('borrower.loan_profile.document_go_to_profile') }}
-                                            </a>
-                                        @else
-                                            <form method="POST"
-                                                  action="{{ route('site.borrower.application.document-requests.store', [$application, $docReq]) }}"
-                                                  enctype="multipart/form-data"
-                                                  class="space-y-4">
-                                                @csrf
-                                                <x-site.multi-page-document-upload
-                                                    name="files"
-                                                    :input-host-id="'doc-req-pages-'.$docReq->id"
-                                                    :max-pages="12"
-                                                />
-                                                @if ($docReq->type === 'clarification')
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.document_upload.your_response') }}</label>
-                                                        <textarea name="response" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('borrower.document_upload.response_placeholder') }}"></textarea>
-                                                    </div>
-                                                @endif
-                                                <button type="submit"
-                                                        class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-3 rounded-xl text-sm">
-                                                    {{ __('borrower.document_upload.submit') }}
-                                                </button>
-                                            </form>
-                                        @endif
+                                @if ($docReq->admin_notes && $isRejected)
+                                    <p class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 ring-1 ring-red-200">
+                                        {{ $docReq->admin_notes }}
+                                    </p>
+                                @endif
+
+                                @if ($thumbDocs->isNotEmpty())
+                                    <div class="mt-3">
+                                        <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                                            {{ __('borrower.loan_profile.documents_previous_files') }}
+                                        </p>
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach ($thumbDocs as $upload)
+                                                <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
+                                            @endforeach
+                                        </div>
                                     </div>
                                 @endif
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </div>
+                            </div>
+
+                            @if ($docReq->needsBorrowerAction())
+                                <div class="bg-gray-50/80 px-4 py-4 sm:px-5">
+                                    @if ($profileGuided)
+                                        <a href="{{ $profileUrl }}"
+                                           class="inline-flex w-full items-center justify-center rounded-xl bg-brand-gold px-4 py-3 text-sm font-bold text-brand shadow-sm hover:brightness-95 sm:w-auto">
+                                            {{ __('borrower.loan_profile.document_go_to_profile') }}
+                                        </a>
+                                    @else
+                                        <form method="POST"
+                                              action="{{ route('site.borrower.application.document-requests.store', [$application, $docReq]) }}"
+                                              enctype="multipart/form-data"
+                                              class="space-y-4">
+                                            @csrf
+                                            <x-site.multi-page-document-upload
+                                                name="files"
+                                                :input-host-id="'doc-req-pages-'.$docReq->id"
+                                                :max-pages="12"
+                                            />
+                                            @if ($docReq->type === 'clarification')
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-semibold text-gray-600">{{ __('borrower.document_upload.your_response') }}</label>
+                                                    <textarea name="response" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('borrower.document_upload.response_placeholder') }}"></textarea>
+                                                </div>
+                                            @endif
+                                            <button type="submit"
+                                                    class="w-full rounded-xl bg-brand-gold px-4 py-3 text-sm font-bold text-brand shadow-sm hover:brightness-95">
+                                                {{ __('borrower.document_upload.submit') }}
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
 
-        {{-- Submitted (collapsible) — profile-linked + loan-linked --}}
-        <div x-show="tab === 'submitted'" x-cloak class="glass-card overflow-hidden ring-1 ring-brand/10">
-            <button type="button"
-                    @click="submittedOpen = !submittedOpen"
-                    class="w-full text-left px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-brand-muted/40 to-white flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.documents_submitted_eyebrow') }}</p>
-                    <h2 class="font-semibold text-gray-900 mt-0.5">{{ __('borrower.loan_profile.documents_submitted_title') }}</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.loan_profile.documents_submitted_hint') }}</p>
+        {{-- SUBMITTED: quiet receipt --}}
+        <div x-show="tab === 'submitted'" x-cloak role="tabpanel">
+            <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
+                <div class="border-b border-gray-100 bg-gradient-to-r from-brand-muted/35 to-white px-4 py-4 sm:px-5">
+                    <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand">
+                        {{ __('borrower.loan_profile.documents_submitted_eyebrow') }}
+                    </p>
+                    <h2 class="mt-0.5 text-base font-bold text-gray-900">
+                        {{ __('borrower.loan_profile.documents_submitted_title') }}
+                    </h2>
+                    <p class="mt-0.5 text-xs text-gray-500">
+                        {{ __('borrower.loan_profile.documents_submitted_hint') }}
+                    </p>
                 </div>
-                <svg class="size-5 text-gray-500 transition shrink-0 mt-1" :class="submittedOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
-            </button>
 
-            <div x-show="submittedOpen" x-collapse>
                 @if ($submittedDocs->isEmpty())
-                    <p class="px-5 py-6 text-sm text-gray-600">{{ __('borrower.loan_profile.documents_submitted_empty') }}</p>
+                    <p class="px-5 py-8 text-center text-sm text-gray-600">
+                        {{ __('borrower.loan_profile.documents_submitted_empty') }}
+                    </p>
                 @else
                     <ul class="divide-y divide-gray-100">
                         @foreach ($submittedDocs as $docReq)
                             @php
-                                $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
                                 $displayDocs = $customer
                                     ? $docSvc->displayDocumentsForRequest($docReq, $customer)
                                     : $docReq->uploads;
-                                $statusBadge = $docReq->status === 'satisfied'
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : 'bg-sky-100 text-sky-800';
-                                $statusLabel = $docReq->status === 'satisfied'
-                                    ? __('borrower.application.request_status_completed')
-                                    : __('borrower.application.request_status_uploaded');
+                                $thumbDocs = collect($displayDocs)->filter(fn ($u) => filled($u->file_path ?? null))->values();
+                                $isAccepted = $docReq->status === 'satisfied';
+                                $statusLabel = $isAccepted
+                                    ? __('borrower.loan_profile.documents_status_accepted')
+                                    : __('borrower.loan_profile.documents_status_received');
                             @endphp
-                            <li class="px-5 py-4">
-                                <div class="flex flex-wrap items-start justify-between gap-3">
+                            <li class="px-4 py-3.5 sm:px-5">
+                                <div class="flex items-start gap-3">
+                                    <span @class([
+                                        'mt-0.5 grid size-8 shrink-0 place-items-center rounded-full text-sm font-bold',
+                                        'bg-emerald-100 text-emerald-700' => $isAccepted,
+                                        'bg-sky-100 text-sky-700' => ! $isAccepted,
+                                    ]) aria-hidden="true">✓</span>
                                     <div class="min-w-0 flex-1">
-                                        <div class="flex flex-wrap items-center gap-2">
+                                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                                             <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
-                                            <span class="text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5 {{ $profileGuided ? 'bg-brand-muted text-brand' : 'bg-gray-100 text-gray-600' }}">
-                                                {{ $profileGuided ? __('borrower.loan_profile.document_source_profile') : __('borrower.loan_profile.document_source_loan') }}
+                                            <span @class([
+                                                'rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                                'bg-emerald-50 text-emerald-800' => $isAccepted,
+                                                'bg-sky-50 text-sky-800' => ! $isAccepted,
+                                            ])>
+                                                {{ $statusLabel }}
                                             </span>
-                                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusBadge }}">{{ $statusLabel }}</span>
                                         </div>
-                                        @if ($docReq->instructions)
-                                            <p class="text-sm text-gray-500 mt-1">{{ $docReq->instructions }}</p>
-                                        @endif
-                                        @if ($displayDocs->isNotEmpty())
-                                            <div class="flex flex-wrap gap-2 mt-3">
-                                                @foreach ($displayDocs as $upload)
-                                                    @if ($upload->file_path)
-                                                        <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
-                                                    @endif
+                                        @if ($thumbDocs->isNotEmpty())
+                                            <div class="mt-2.5 flex flex-wrap gap-2">
+                                                @foreach ($thumbDocs as $upload)
+                                                    <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
                                                 @endforeach
                                             </div>
-                                        @else
-                                            <p class="text-xs text-gray-500 mt-2">{{ __('borrower.loan_profile.document_files_on_profile') }}</p>
                                         @endif
                                     </div>
                                 </div>
