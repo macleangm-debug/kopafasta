@@ -25,12 +25,13 @@ class GroupMemberApplicationService
         $draftPayload = $invitation->draft?->payload ?? [];
         $groupPayload = is_array($draftPayload['group'] ?? null) ? $draftPayload['group'] : [];
 
-        $amountPerMember = (float) ($invitation->amount_per_member
-            ?? $groupPayload['amount_per_member']
+        $amountPerMember = (float) ($groupPayload['amount_per_member']
+            ?? $invitation->amount_per_member
             ?? 0);
-        $tenure = (int) ($invitation->requested_tenure_months
-            ?? ($draftPayload['form']['requested_tenure_months'] ?? 0)
-            ?? ($groupPayload['requested_tenure_months'] ?? 0));
+        $tenure = (int) ($draftPayload['form']['requested_tenure_months']
+            ?? $groupPayload['requested_tenure_months']
+            ?? $invitation->requested_tenure_months
+            ?? 0);
         $product = $invitation->product;
         $cadence = $invitation->repayment_cadence
             ?? ($product ? $this->groups->effectiveRepaymentCadence($product) : 'weekly');
@@ -44,6 +45,7 @@ class GroupMemberApplicationService
         $members = $this->memberRowsForInvitation($invitation, $groupPayload);
         $target = (int) ($groupPayload['target_member_count'] ?? max(1, $members->count()));
         $summary = $this->progress->summarize($members->all(), $target);
+        $quoteReady = $amountPerMember > 0 && $tenure > 0;
 
         return [
             'invitation'         => $invitation,
@@ -57,12 +59,13 @@ class GroupMemberApplicationService
             'invitation_reason'  => $invitation->invitation_reason,
             'amount_per_member'  => $amountPerMember,
             'tenure_months'      => $tenure,
+            'quote_ready'        => $quoteReady,
             'cadence'            => $cadence,
             'cadence_label'      => $cadence === 'weekly'
                 ? __('borrower.apply.group_setup.weekly_repayment')
                 : __('borrower.apply.group_setup.monthly_repayment'),
             'installment_preview'=> $installmentPreview,
-            'members'            => $members->all(),
+            'members'            => $summary['members'] ?? $members->all(),
             'progress'           => $summary,
             'can_finalize'       => app(GroupMemberOnboardingService::class)->canFinalize($member, $invitation),
             'onboarding_url'     => route('site.group-member.onboarding'),

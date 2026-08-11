@@ -421,7 +421,7 @@ class LoanApplicationDraftService
             $draftReference = app(ReferenceNumberService::class)->applicationReference($product);
         }
 
-        return LoanApplicationDraft::updateOrCreate(
+        $draft = LoanApplicationDraft::updateOrCreate(
             [
                 'customer_id'     => $customer->id,
                 'loan_product_id' => (int) $productId,
@@ -435,6 +435,18 @@ class LoanApplicationDraftService
                 'saved_at'             => now(),
             ],
         );
+
+        if ($product && app(GroupLendingService::class)->isGroupProduct($product) && is_array($payload['group'] ?? null)) {
+            app(GroupMemberInvitationService::class)->syncDraftContextForLeader(
+                $customer,
+                $product,
+                $draft,
+                $payload['group'],
+                is_array($payload['form'] ?? null) ? $payload['form'] : [],
+            );
+        }
+
+        return $draft;
     }
 
     /** @param array<string, mixed> $feeState */

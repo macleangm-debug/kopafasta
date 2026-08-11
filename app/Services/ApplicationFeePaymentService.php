@@ -28,8 +28,13 @@ class ApplicationFeePaymentService
         ?string $affiliateCode = null,
     ): array {
         $groups = app(GroupLendingService::class);
-        if ($groups->isGroupProduct($product) && $groupMemberCount) {
-            $base = (float) $groups->quotedApplicationFee($customer, $product, $groupMemberCount);
+        if ($groups->isGroupProduct($product)) {
+            // Always resolve roster size so payments.show charges fee × members (settings hub).
+            if (! $groupMemberCount || $groupMemberCount < 1) {
+                $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+                $groupMemberCount = $groups->memberCountFromPayload($draft?->payload['group'] ?? null);
+            }
+            $base = (float) $groups->quotedApplicationFee($customer, $product, max(1, $groupMemberCount));
         } else {
             $base = (float) quoted_origination_fee($customer, $product);
         }
@@ -222,13 +227,20 @@ class ApplicationFeePaymentService
 
         $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
         $nextStep = $this->nextStepAfterApplicationFee($customer, $product, is_array($draftPayload) ? $draftPayload : null);
+        $groups = app(GroupLendingService::class);
+        $resolvedMemberCount = $groups->isGroupProduct($product)
+            ? max(1, (int) ($groupMemberCount ?: $groups->memberCountFromPayload(is_array($draftPayload) ? ($draftPayload['group'] ?? null) : null)))
+            : null;
 
         $applyContext = [
             'loan_product_id' => $product->id,
             'use_wallet' => $useWallet,
             'promo_code' => $effectivePromo,
             'affiliate_code' => $effectiveAffiliate,
-            'group_member_count' => $groupMemberCount,
+            'group_member_count' => $resolvedMemberCount,
+            'group_fee_breakdown' => $resolvedMemberCount
+                ? $groups->applicationFeeBreakdown($customer, $product, $resolvedMemberCount)
+                : null,
             'next_step_key' => $nextStep,
             'return_url' => $this->resumeUrlAfterFee($customer, $product, is_array($draftPayload) ? $draftPayload : null, $nextStep),
             'settled' => ! $awaitsPsp,
@@ -315,6 +327,10 @@ class ApplicationFeePaymentService
 
         $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
         $nextStep = $this->nextStepAfterApplicationFee($customer, $product, is_array($draftPayload) ? $draftPayload : null);
+        $groups = app(GroupLendingService::class);
+        $resolvedMemberCount = $groups->isGroupProduct($product)
+            ? max(1, (int) ($groupMemberCount ?: $groups->memberCountFromPayload(is_array($draftPayload) ? ($draftPayload['group'] ?? null) : null)))
+            : null;
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
@@ -329,7 +345,10 @@ class ApplicationFeePaymentService
                 'use_wallet' => $useWallet,
                 'promo_code' => $effectivePromo,
                 'affiliate_code' => $effectiveAffiliate,
-                'group_member_count' => $groupMemberCount,
+                'group_member_count' => $resolvedMemberCount,
+                'group_fee_breakdown' => $resolvedMemberCount
+                    ? $groups->applicationFeeBreakdown($customer, $product, $resolvedMemberCount)
+                    : null,
                 'next_step_key' => $nextStep,
                 'return_url' => $this->resumeUrlAfterFee($customer, $product, is_array($draftPayload) ? $draftPayload : null, $nextStep),
                 'settled' => $autoVerify,

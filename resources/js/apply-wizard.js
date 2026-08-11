@@ -909,6 +909,9 @@ export function applyWizard(config) {
                     this.feePaying = true;
                     this.feeNotice = null;
                     try {
+                        // Persist group roster size before opening payments.show so fee × members is locked.
+                        await this.persistDraft(true);
+                        await this.refreshApplicationFeeQuote();
                         const feeCode = this.feePromoCode
                             ? String(this.feePromoCode).trim().toUpperCase()
                             : null;
@@ -920,6 +923,9 @@ export function applyWizard(config) {
                             affiliate_code: feeCode,
                             redeem_loyalty: !!(this.feeRedeemLoyalty && this.feeLoyaltyOption?.can_redeem),
                             loyalty_option_key: this.feeLoyaltyOption?.key || null,
+                            member_count: this.isGroupProduct(this.current)
+                                ? Math.max(1, this.groupTargetCount())
+                                : undefined,
                         };
                         const res = await fetch(this.applicationFeePayUrl, {
                             method: 'POST',
@@ -1306,6 +1312,20 @@ export function applyWizard(config) {
                 selectGroupTenure(months) {
                     this.form.requested_tenure_months = Number(months);
                     this.updateQuote();
+                },
+
+                groupTenureOptionIndex() {
+                    const options = this.current?.tenure_options || [];
+                    if (! options.length) return 0;
+                    const idx = options.findIndex((months) => Number(months) === Number(this.form.requested_tenure_months));
+                    return idx >= 0 ? idx : 0;
+                },
+
+                selectGroupTenureByIndex(index) {
+                    const options = this.current?.tenure_options || [];
+                    const months = options[Number(index)];
+                    if (months == null) return;
+                    this.selectGroupTenure(months);
                 },
 
                 syncGroupAmounts() {
@@ -3378,6 +3398,13 @@ export function applyWizard(config) {
                             return;
                         }
                         const nextKey = this.steps[this.step + 1]?.key;
+                        // Refresh fee quote before leaving setup so group (and IL) always hit
+                        // the shared payments.show gate when a fee is due.
+                        if (! this.supplementMode && ! this.isEditHop() && nextKey
+                            && ['guarantor', 'product_questions', 'review', 'signature', 'submit'].includes(nextKey)
+                            && ! this.feeGateSatisfied()) {
+                            await this.refreshApplicationFeeQuote();
+                        }
                         if (! this.supplementMode && nextKey && this.needsFeeGateBefore(nextKey)) {
                             this.feeGateOpen = true;
                             this.enterApplicationFeeStep();

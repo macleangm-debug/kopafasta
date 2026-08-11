@@ -1068,13 +1068,17 @@ class ApplyController extends Controller
             'affiliate_code'  => ['nullable', 'string', 'max:40'],
             'redeem_loyalty'  => ['nullable', 'boolean'],
             'loyalty_option_key' => ['nullable', 'string', 'max:64'],
+            'member_count'    => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
         $draft = $drafts->find($customer, $product->id);
         $groups = app(GroupLendingService::class);
         $memberCount = $groups->isGroupProduct($product)
-            ? $groups->memberCountFromPayload($draft?->payload['group'] ?? null)
+            ? max(
+                1,
+                (int) ($data['member_count'] ?? 0) ?: $groups->memberCountFromPayload($draft?->payload['group'] ?? null)
+            )
             : 1;
 
         $loyaltyRedeemed = false;

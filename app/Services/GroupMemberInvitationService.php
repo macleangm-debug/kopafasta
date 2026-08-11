@@ -306,6 +306,49 @@ class GroupMemberInvitationService
     }
 
     /**
+     * Push latest draft group quote fields onto open invitations so invitees see amount/tenure
+     * once the leader reaches the loan details step.
+     *
+     * @param  array<string, mixed>  $groupPayload
+     * @param  array<string, mixed>  $formPayload
+     */
+    public function syncDraftContextForLeader(
+        Customer $leader,
+        LoanProduct $product,
+        LoanApplicationDraft $draft,
+        array $groupPayload,
+        array $formPayload = [],
+    ): void {
+        $amount = (float) ($groupPayload['amount_per_member'] ?? 0);
+        $tenure = (int) ($formPayload['requested_tenure_months']
+            ?? $groupPayload['requested_tenure_months']
+            ?? 0);
+        $purpose = $groupPayload['purpose'] ?? null;
+        $name = $groupPayload['name'] ?? null;
+        $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($product);
+
+        $updates = array_filter([
+            'draft_id'                => $draft->id,
+            'draft_reference'         => $draft->draft_reference,
+            'group_name'              => filled($name) ? (string) $name : null,
+            'group_purpose'           => filled($purpose) ? (string) $purpose : null,
+            'amount_per_member'       => $amount > 0 ? $amount : null,
+            'requested_tenure_months' => $tenure > 0 ? $tenure : null,
+            'repayment_cadence'       => $cadence,
+        ], fn ($value) => $value !== null);
+
+        if ($updates === []) {
+            return;
+        }
+
+        GroupMemberInvitation::query()
+            ->where('leader_customer_id', $leader->id)
+            ->where('loan_product_id', $product->id)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->update($updates);
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $memberRows
      * @return list<array{customer_id: int, role?: string, requested_amount?: float, invitation_id?: int}>
      */

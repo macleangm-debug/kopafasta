@@ -123,15 +123,19 @@
                             <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}
                         </span>
                     </div>
-                    <div x-show="isGroupProduct(current) && (current.tenure_options || []).length" x-cloak class="flex flex-wrap gap-2">
-                        <template x-for="months in (current.tenure_options || [])" :key="'gq-' + months">
-                            <button type="button"
-                                    @click="selectGroupTenure(months); scheduleDraftSave()"
-                                    class="rounded-full px-4 py-2 text-sm font-semibold ring-1 transition"
-                                    :class="Number(form.requested_tenure_months) === Number(months) ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:ring-brand/40'">
-                                <span x-text="months"></span> {{ __('borrower.apply.quote.months') }}
-                            </button>
-                        </template>
+                    <div x-show="isGroupProduct(current) && (current.tenure_options || []).length" x-cloak>
+                        <input type="range"
+                               :min="0"
+                               :max="Math.max(0, (current.tenure_options || []).length - 1)"
+                               step="1"
+                               :value="groupTenureOptionIndex()"
+                               @input="selectGroupTenureByIndex($event.target.value); scheduleDraftSave()"
+                               class="w-full accent-brand h-2 rounded-full">
+                        <div class="flex justify-between gap-2 text-xs text-gray-500 mt-2 tabular-nums">
+                            <template x-for="months in (current.tenure_options || [])" :key="'gq-label-' + months">
+                                <span x-text="months + ' ' + @js(__('borrower.apply.browse.months_short'))"></span>
+                            </template>
+                        </div>
                     </div>
                     <div x-show="!isGroupProduct(current) || !(current.tenure_options || []).length">
                         <input type="range"
