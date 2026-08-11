@@ -1,13 +1,15 @@
-<x-admin.layout title="Recovery Policy" heading="Recovery Policy" subheading="Timeline, recovery partner SLAs, repossession charges, and service partner rates">
+<x-admin.layout title="Recovery Policy" heading="Recovery Policy" subheading="Timeline, partner SLAs, repossession, service rates, and auto-assign & KPI rules">
     @include('admin.settings._tabs', ['active' => 'recovery'])
 
 @php
         $initialTab = old('_tab', request('tab', 'timeline'));
-        if (! in_array($initialTab, ['timeline', 'recovery', 'repossession', 'service'], true)) {
+        if (! in_array($initialTab, ['timeline', 'recovery', 'repossession', 'service', 'auto_assign'], true)) {
             $initialTab = 'timeline';
         }
         $recoveryTypeCount = count($types);
         $serviceTypeCount = count($partnerDefaults);
+        $autoAssignBoards = $autoAssignBoards ?? [];
+        $autoAssignBoardCount = count($autoAssignBoards);
     @endphp
 
     <form method="POST" action="{{ route('admin.settings.recovery.save') }}" class="space-y-5"
@@ -38,6 +40,12 @@
                     class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
                 4. Service rates
                 <span class="ml-1 text-[11px] opacity-80">({{ $serviceTypeCount }})</span>
+            </button>
+            <button type="button" @click="tab = 'auto_assign'"
+                    :class="tab === 'auto_assign' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
+                    class="px-3.5 py-2 rounded-xl text-sm font-semibold ring-1 transition">
+                5. Auto-assign &amp; KPIs
+                <span class="ml-1 text-[11px] opacity-80">({{ $autoAssignBoardCount }})</span>
             </button>
         </div>
 
@@ -235,25 +243,6 @@
                     </div>
                 </template>
             </div>
-
-            <div class="mt-6 space-y-3">
-                <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950">
-                    <p class="font-semibold">Auto-assign rules (recovery)</p>
-                    <p class="text-xs mt-1 text-emerald-900/80">
-                        Per-type picking strategy, capacity, efficiency weights, and cold-start. Call center also respects the Timeline toggle.
-                        Debt collectors default to efficiency + load balanced using recovery KPIs.
-                    </p>
-                </div>
-                @foreach ($types as $type => $meta)
-                    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
-                        <p class="text-sm font-semibold text-gray-900 mb-1">{{ $meta['label'] }}</p>
-                        <x-admin.auto-assign-settings
-                            :suffix="$type"
-                            :settings="$values['auto_assign_recovery'][$type] ?? []"
-                            :show-sla-days="false" />
-                    </div>
-                @endforeach
-            </div>
         </div>
 
         {{-- Tab 3: Repossession --}}
@@ -351,11 +340,133 @@
                             @endif
                         </div>
                     </div>
+                </div>
+            @endforeach
+        </div>
 
-                    <x-admin.auto-assign-settings
-                        :suffix="'svc_'.$category"
-                        :settings="$values['auto_assign_service'][$category] ?? []"
-                        :show-sla-days="true" />
+        {{-- Tab 5: Auto-assign & KPIs --}}
+        <div x-show="tab === 'auto_assign'" x-cloak class="space-y-4">
+            <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950">
+                <p class="font-semibold">Auto-assign &amp; KPI rules</p>
+                <p class="text-xs mt-1 text-emerald-900/80">
+                    Configure how each partner type is picked. Each card lists the active partners this rule applies to,
+                    plus their coverage and (for recovery) live KPI snapshot. Nationwide partners cover every region.
+                </p>
+            </div>
+
+            @foreach ($autoAssignBoards as $board)
+                @php $settings = $board['settings'] ?? []; @endphp
+                <div class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
+                    <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-brand-muted/40 to-white flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest font-bold text-brand">
+                                {{ ($board['group'] ?? '') === 'service' ? 'Service / origination' : 'Recovery' }}
+                            </p>
+                            <h3 class="text-base font-bold text-gray-900 mt-0.5">{{ $board['label'] }}</h3>
+                            <p class="text-xs text-gray-500 mt-1">{{ $board['kpi_source'] }}</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span @class([
+                                'inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold',
+                                'bg-emerald-100 text-emerald-800' => $settings['enabled'] ?? false,
+                                'bg-gray-100 text-gray-600' => ! ($settings['enabled'] ?? false),
+                            ])>
+                                {{ ($settings['enabled'] ?? false) ? 'Auto-assign on' : 'Auto-assign off' }}
+                            </span>
+                            <span class="inline-flex items-center rounded-full bg-white ring-1 ring-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
+                                {{ $board['strategy_label'] }}
+                            </span>
+                            <span class="inline-flex items-center rounded-full bg-white ring-1 ring-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
+                                {{ $board['partner_count'] }} partner{{ $board['partner_count'] === 1 ? '' : 's' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="p-5 space-y-4">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Max open</p>
+                                <p class="font-semibold text-gray-900 mt-0.5">{{ $settings['max_open'] ?? 'No limit' }}</p>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Cold-start %</p>
+                                <p class="font-semibold text-gray-900 mt-0.5">{{ $settings['cold_start_rate'] ?? 50 }}</p>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Region match</p>
+                                <p class="font-semibold text-gray-900 mt-0.5">{{ ($settings['require_region'] ?? false) ? 'Required' : 'Soft' }}</p>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                                    {{ ($board['show_sla_days'] ?? false) ? 'Task SLA days' : 'Reassign on SLA' }}
+                                </p>
+                                <p class="font-semibold text-gray-900 mt-0.5">
+                                    @if ($board['show_sla_days'] ?? false)
+                                        {{ $settings['sla_days'] ?? '—' }}
+                                    @else
+                                        {{ ($settings['reassign_on_sla'] ?? false) ? 'Yes' : 'No' }}
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl bg-brand-muted/25 ring-1 ring-brand/10 px-4 py-3 text-xs text-gray-700">
+                            Weights — load {{ $settings['weight_load'] ?? 0 }} · efficiency {{ $settings['weight_efficiency'] ?? 0 }} · fairness {{ $settings['weight_fairness'] ?? 0 }}
+                            @if ($board['show_sla_days'] ?? false)
+                                · Reassign if SLA missed: {{ ($settings['reassign_on_sla'] ?? false) ? 'Yes' : 'No' }}
+                            @endif
+                        </div>
+
+                        <div>
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                <p class="text-xs font-bold uppercase tracking-widest text-brand">Applies to these partners</p>
+                                <a href="{{ $board['create_url'] }}" class="text-xs font-semibold text-brand hover:underline">Add partner →</a>
+                            </div>
+                            @if (($board['partner_count'] ?? 0) > 0)
+                                <ul class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-200 overflow-hidden">
+                                    @foreach ($board['partners'] as $partner)
+                                        <li class="px-4 py-3 bg-white flex flex-wrap items-start justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-semibold text-gray-900 truncate">{{ $partner['name'] }}</p>
+                                                <p class="text-xs text-gray-500 mt-0.5">
+                                                    @if ($partner['number'])
+                                                        <span class="font-mono">{{ $partner['number'] }}</span>
+                                                        <span class="text-gray-300">·</span>
+                                                    @endif
+                                                    {{ $partner['phone'] ?: 'No phone' }}
+                                                    <span class="text-gray-300">·</span>
+                                                    <span @class([
+                                                        'font-semibold' => ($partner['coverage_type'] ?? '') === 'nationwide',
+                                                        'text-emerald-700' => ($partner['coverage_type'] ?? '') === 'nationwide',
+                                                    ])>{{ $partner['coverage'] }}</span>
+                                                </p>
+                                                @if (! empty($partner['kpi']))
+                                                    <p class="text-[11px] text-gray-500 mt-1">
+                                                        Open {{ $partner['kpi']['open'] }}
+                                                        · Recovery {{ $partner['kpi']['recovery_rate'] }}%
+                                                        · SLA breaches {{ $partner['kpi']['sla_breaches'] }}
+                                                    </p>
+                                                @endif
+                                            </div>
+                                            <div class="flex items-center gap-2 shrink-0">
+                                                <a href="{{ $partner['show_url'] }}" class="text-xs font-semibold text-brand hover:underline">View</a>
+                                                <a href="{{ $partner['edit_url'] }}" class="text-xs font-semibold text-gray-600 hover:underline">Edit</a>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+                                    No active partners of this type yet. Enroll one so auto-assign has someone to pick.
+                                </div>
+                            @endif
+                        </div>
+
+                        <x-admin.auto-assign-settings
+                            :suffix="$board['suffix']"
+                            :settings="$settings"
+                            :show-sla-days="$board['show_sla_days']" />
+                    </div>
                 </div>
             @endforeach
         </div>

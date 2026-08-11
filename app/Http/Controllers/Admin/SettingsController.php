@@ -1607,8 +1607,9 @@ class SettingsController extends Controller
             ->all();
 
         $partnerDefaults = $values['partner_defaults'];
+        $autoAssignBoards = app(\App\Services\PartnerAutoAssignOverviewService::class)->boards();
 
-        return view('admin.settings.recovery', compact('values', 'types', 'partnerDefaults'));
+        return view('admin.settings.recovery', compact('values', 'types', 'partnerDefaults', 'autoAssignBoards'));
     }
 
     public function saveRecovery(Request $request)
@@ -1720,7 +1721,7 @@ class SettingsController extends Controller
         );
 
         $tab = (string) $request->input('_tab', 'timeline');
-        if (! in_array($tab, ['timeline', 'recovery', 'repossession', 'service'], true)) {
+        if (! in_array($tab, ['timeline', 'recovery', 'repossession', 'service', 'auto_assign'], true)) {
             $tab = 'timeline';
         }
 
