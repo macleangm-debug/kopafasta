@@ -53,6 +53,7 @@
             @endforeach
         </div>
         <div class="flex items-center gap-3">
+            <x-admin.settings-help-drawer :page="$active" />
             <div class="relative">
                 <input type="search"
                        x-model="q"

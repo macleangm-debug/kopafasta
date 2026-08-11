@@ -349,8 +349,8 @@
             <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950">
                 <p class="font-semibold">Auto-assign &amp; KPI rules</p>
                 <p class="text-xs mt-1 text-emerald-900/80">
-                    Configure how each partner type is picked. Each card lists the active partners this rule applies to,
-                    plus their coverage and (for recovery) live KPI snapshot. Nationwide partners cover every region.
+                    Rules only — who gets work is decided from active partners of each type (managed under Partners).
+                    Click Edit on a card to change values, then save this page. Open Page guide for term meanings.
                 </p>
             </div>
 
@@ -373,95 +373,14 @@
                             ])>
                                 {{ ($settings['enabled'] ?? false) ? 'Auto-assign on' : 'Auto-assign off' }}
                             </span>
-                            <span class="inline-flex items-center rounded-full bg-white ring-1 ring-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
-                                {{ $board['strategy_label'] }}
-                            </span>
-                            <span class="inline-flex items-center rounded-full bg-white ring-1 ring-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
-                                {{ $board['partner_count'] }} partner{{ $board['partner_count'] === 1 ? '' : 's' }}
-                            </span>
+                            <a href="{{ $board['create_url'] }}"
+                               class="inline-flex items-center rounded-full bg-white ring-1 ring-gray-200 px-2.5 py-1 text-[11px] font-semibold text-brand hover:bg-brand-muted/40">
+                                {{ $board['partner_count'] }} partner{{ $board['partner_count'] === 1 ? '' : 's' }} · manage →
+                            </a>
                         </div>
                     </div>
 
-                    <div class="p-5 space-y-4">
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
-                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Max open</p>
-                                <p class="font-semibold text-gray-900 mt-0.5">{{ $settings['max_open'] ?? 'No limit' }}</p>
-                            </div>
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
-                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Cold-start %</p>
-                                <p class="font-semibold text-gray-900 mt-0.5">{{ $settings['cold_start_rate'] ?? 50 }}</p>
-                            </div>
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
-                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Region match</p>
-                                <p class="font-semibold text-gray-900 mt-0.5">{{ ($settings['require_region'] ?? false) ? 'Required' : 'Soft' }}</p>
-                            </div>
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
-                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                                    {{ ($board['show_sla_days'] ?? false) ? 'Task SLA days' : 'Reassign on SLA' }}
-                                </p>
-                                <p class="font-semibold text-gray-900 mt-0.5">
-                                    @if ($board['show_sla_days'] ?? false)
-                                        {{ $settings['sla_days'] ?? '—' }}
-                                    @else
-                                        {{ ($settings['reassign_on_sla'] ?? false) ? 'Yes' : 'No' }}
-                                    @endif
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="rounded-xl bg-brand-muted/25 ring-1 ring-brand/10 px-4 py-3 text-xs text-gray-700">
-                            Weights — load {{ $settings['weight_load'] ?? 0 }} · efficiency {{ $settings['weight_efficiency'] ?? 0 }} · fairness {{ $settings['weight_fairness'] ?? 0 }}
-                            @if ($board['show_sla_days'] ?? false)
-                                · Reassign if SLA missed: {{ ($settings['reassign_on_sla'] ?? false) ? 'Yes' : 'No' }}
-                            @endif
-                        </div>
-
-                        <div>
-                            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                <p class="text-xs font-bold uppercase tracking-widest text-brand">Applies to these partners</p>
-                                <a href="{{ $board['create_url'] }}" class="text-xs font-semibold text-brand hover:underline">Add partner →</a>
-                            </div>
-                            @if (($board['partner_count'] ?? 0) > 0)
-                                <ul class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-200 overflow-hidden">
-                                    @foreach ($board['partners'] as $partner)
-                                        <li class="px-4 py-3 bg-white flex flex-wrap items-start justify-between gap-3">
-                                            <div class="min-w-0">
-                                                <p class="text-sm font-semibold text-gray-900 truncate">{{ $partner['name'] }}</p>
-                                                <p class="text-xs text-gray-500 mt-0.5">
-                                                    @if ($partner['number'])
-                                                        <span class="font-mono">{{ $partner['number'] }}</span>
-                                                        <span class="text-gray-300">·</span>
-                                                    @endif
-                                                    {{ $partner['phone'] ?: 'No phone' }}
-                                                    <span class="text-gray-300">·</span>
-                                                    <span @class([
-                                                        'font-semibold' => ($partner['coverage_type'] ?? '') === 'nationwide',
-                                                        'text-emerald-700' => ($partner['coverage_type'] ?? '') === 'nationwide',
-                                                    ])>{{ $partner['coverage'] }}</span>
-                                                </p>
-                                                @if (! empty($partner['kpi']))
-                                                    <p class="text-[11px] text-gray-500 mt-1">
-                                                        Open {{ $partner['kpi']['open'] }}
-                                                        · Recovery {{ $partner['kpi']['recovery_rate'] }}%
-                                                        · SLA breaches {{ $partner['kpi']['sla_breaches'] }}
-                                                    </p>
-                                                @endif
-                                            </div>
-                                            <div class="flex items-center gap-2 shrink-0">
-                                                <a href="{{ $partner['show_url'] }}" class="text-xs font-semibold text-brand hover:underline">View</a>
-                                                <a href="{{ $partner['edit_url'] }}" class="text-xs font-semibold text-gray-600 hover:underline">Edit</a>
-                                            </div>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            @else
-                                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
-                                    No active partners of this type yet. Enroll one so auto-assign has someone to pick.
-                                </div>
-                            @endif
-                        </div>
-
+                    <div class="p-5">
                         <x-admin.auto-assign-settings
                             :suffix="$board['suffix']"
                             :settings="$settings"

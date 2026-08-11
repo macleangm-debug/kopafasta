@@ -3,10 +3,13 @@
 @endphp
 
 <x-admin.layout title="Settings hub" heading="Settings hub" subheading="Configure the platform by area — one clear place for every setting">
-    <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-6 text-white ring-1 ring-brand/20 shadow-sm">
-        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
-        <p class="text-xl font-bold mt-1 tracking-tight">Configure once, reuse everywhere</p>
-        <p class="text-sm text-white/80 mt-2 max-w-2xl">Lending, identity, finance, growth, partners, and communications — grouped so any team member can find the right control.</p>
+    <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-6 text-white ring-1 ring-brand/20 shadow-sm flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
+            <p class="text-xl font-bold mt-1 tracking-tight">Configure once, reuse everywhere</p>
+            <p class="text-sm text-white/80 mt-2 max-w-2xl">Lending, identity, finance, growth, partners, and communications — grouped so any team member can find the right control. On each settings page, use <span class="text-brand-gold font-semibold">Page guide</span> for what to set and what it affects.</p>
+        </div>
+        <x-admin.settings-help-drawer page="hub" />
     </div>
     <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
         @foreach ($groups as $groupName => $links)
