@@ -32,23 +32,34 @@
                 $affPass = (bool) ($afford['pass'] ?? false);
                 $affWarn = ($afford['verdict'] ?? '') === 'warn';
             @endphp
-            <span @class([
-                'inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold ring-1',
-                'bg-emerald-100 text-emerald-900 ring-emerald-200' => $affPass && ! $affWarn,
-                'bg-amber-100 text-amber-900 ring-amber-200' => $affWarn,
-                'bg-rose-100 text-rose-900 ring-rose-200' => ! $affPass && ! $affWarn,
-            ])>
-                @if ($affPass && ! $affWarn)
-                    Pass
-                @elseif ($affWarn)
-                    Near limit
-                @else
-                    Fail
-                @endif
-            </span>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide bg-sky-100 text-sky-900 ring-1 ring-sky-200">
+                    System calculated
+                </span>
+                <span @class([
+                    'inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold ring-1',
+                    'bg-emerald-100 text-emerald-900 ring-emerald-200' => $affPass && ! $affWarn,
+                    'bg-amber-100 text-amber-900 ring-amber-200' => $affWarn,
+                    'bg-rose-100 text-rose-900 ring-rose-200' => ! $affPass && ! $affWarn,
+                ])>
+                    @if ($affPass && ! $affWarn)
+                        Pass
+                    @elseif ($affWarn)
+                        Near limit
+                    @else
+                        Fail
+                    @endif
+                </span>
+            </div>
         @endif
     </div>
     <div class="p-5">
+        @if (! empty($afford))
+            <p class="text-xs text-gray-600 mb-4 rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                <span class="font-semibold text-gray-800">System</span> ran the one-third income rule.
+                Your job is to confirm the income evidence is real, then Pass / Fail the matching checklist item under Capacity → Pass / Fail checks.
+            </p>
+        @endif
         @if (empty($afford))
             <p class="text-sm text-gray-500">
                 @if ($isGuarantor)

@@ -58,6 +58,9 @@
                             @if ($item['evidence']['hint'] ?? null)
                                 <p class="text-[11px] text-gray-500 mt-0.5">{{ $item['evidence']['hint'] }}</p>
                             @endif
+                            @if (($item['verdict'] ?? null) === null && (! empty($item['evidence']['photos']) || ! empty($item['evidence']['rows']) || ! empty($item['evidence']['compare'])))
+                                <p class="text-[11px] font-semibold text-amber-700 mt-0.5">Evidence is ready — still record Pass, Fail, or N/A, then Save.</p>
+                            @endif
                             @if ($mismatchCount > 0)
                                 <p class="text-[11px] font-semibold text-amber-700 mt-0.5">{{ $mismatchCount }} difference{{ $mismatchCount === 1 ? '' : 's' }} vs CRB — expand to compare</p>
                             @endif

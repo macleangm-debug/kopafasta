@@ -511,12 +511,27 @@ class ScreeningChecklistService
             return $row;
         }
         $source = (string) ($suggestion['source'] ?? '');
+        $existing = $this->normalizeVerdict($row);
+        $existingSource = (string) ($row['source'] ?? '');
+
+        // system_skip = human must decide. If a prior system auto-verdict is stale (e.g. photos
+        // arrived after a photos_missing Fail), clear it so the item reopens for review.
         if ($source === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
+            if ($existing !== null && in_array($existingSource, ['system', 'auto_na'], true)) {
+                return [
+                    'verdict' => null,
+                    'checked' => false,
+                    'source' => null,
+                    'fail_reason_code' => null,
+                    'fail_reason_custom' => null,
+                    'at' => null,
+                    'by' => null,
+                ];
+            }
+
             return $row;
         }
 
-        $existing = $this->normalizeVerdict($row);
-        $existingSource = (string) ($row['source'] ?? '');
         $humanLocked = $existing !== null && ! in_array($existingSource, ['system', 'auto_na', ''], true);
         if ($humanLocked) {
             return $row;
@@ -845,6 +860,10 @@ class ScreeningChecklistService
 
         $gSug = $review['guarantor_suggestion'] ?? [];
         $collateral = data_get($application->screening_payload, 'collateral_secure', []);
+        $anomalies = $review['anomalies'] ?? null;
+        if (! is_array($anomalies)) {
+            $anomalies = app(UnderwritingAnomalyService::class)->forApplication($application, $review);
+        }
 
         return [
             'customer' => $customer,
@@ -855,6 +874,7 @@ class ScreeningChecklistService
             'documents' => $docs,
             'guarantor_suggestion' => $gSug,
             'collateral_secure' => $collateral,
+            'anomalies' => $anomalies,
             'application' => $application,
         ];
     }
@@ -1031,11 +1051,22 @@ class ScreeningChecklistService
 
             case 'crb_loans':
                 $history = collect($crb['loan_history'] ?? [])->take(5);
+                $aff = (array) ($ctx['affordability'] ?? []);
+                $proposed = (float) ($aff['proposed_installment'] ?? $aff['new_emi'] ?? 0);
+                $capacity = (float) ($aff['available_capacity'] ?? 0);
+                $existingOblig = (float) ($aff['existing_obligations'] ?? 0);
+                $crbOut = (float) ($crb['outstanding_balance'] ?? 0);
+                $affVerdict = strtolower((string) ($aff['verdict'] ?? (($aff['pass'] ?? null) === true ? 'pass' : (($aff['pass'] ?? null) === false ? 'fail' : ''))));
                 $rows = [
                     ['label' => 'Loans at other institutions', 'value' => (string) ($crb['existing_loans'] ?? $history->count() ?: '0')],
-                    ['label' => 'Outstanding', 'value' => isset($crb['outstanding_balance']) ? format_money((float) $crb['outstanding_balance']) : '—'],
+                    ['label' => 'CRB outstanding', 'value' => $crbOut > 0 ? format_money($crbOut) : '—'],
+                    ['label' => 'Profile existing obligations (EMI)', 'value' => $existingOblig > 0 ? format_money($existingOblig) : '—'],
+                    ['label' => 'Proposed KopaFasta instalment', 'value' => $proposed > 0 ? format_money($proposed) : '—'],
+                    ['label' => 'Available capacity', 'value' => $capacity > 0 || array_key_exists('available_capacity', $aff) ? format_money($capacity) : '—'],
+                    ['label' => 'Affordability verdict', 'value' => $affVerdict !== '' ? strtoupper($affVerdict) : '—'],
                     ['label' => 'Delinquencies', 'value' => (string) ($crb['delinquencies'] ?? '—')],
                     ['label' => 'CRB recommendation', 'value' => strtoupper((string) ($crb['recommendation'] ?? '—'))],
+                    ['label' => 'Bank / M-Pesa statements', 'value' => 'Capacity → Documents (filter Missing / To verify) · also Personal → Activity income check'],
                 ];
                 foreach ($history as $loan) {
                     $rows[] = [
@@ -1043,7 +1074,36 @@ class ScreeningChecklistService
                         'value' => trim(($loan['status'] ?? '').' · '.($loan['balance'] ?? $loan['amount'] ?? '')),
                     ];
                 }
-                $hint = 'Check exposure at other microfinances / lenders. System shows CRB fields — you decide Pass / Fail.';
+                $hint = 'High risk if capacity cannot carry this loan on top of other-institution debt. Affordability already folds in declared obligations — confirm CRB exposure matches, then Pass/Fail.';
+                break;
+
+            case 'anomalies':
+                $flags = collect($ctx['anomalies'] ?? [])->values();
+                $critical = $flags->where('severity', 'critical')->count();
+                $warning = $flags->where('severity', 'warning')->count();
+                $rows = [
+                    ['label' => 'Critical flags', 'value' => (string) $critical],
+                    ['label' => 'Warning flags', 'value' => (string) $warning],
+                    ['label' => 'Where listed', 'value' => 'Review flags strip at the top of the checklist workspace'],
+                ];
+                foreach ($flags->take(8) as $flag) {
+                    $rows[] = [
+                        'label' => strtoupper((string) ($flag['severity'] ?? 'info')).' · '.((string) ($flag['title'] ?? 'Flag')),
+                        'value' => (string) ($flag['detail'] ?? '—'),
+                    ];
+                }
+                $hint = $critical + $warning > 0
+                    ? 'Read each flag above (and the Review flags strip). Pass only after you addressed them in notes / decision rationale — or Fail if they kill the file.'
+                    : 'No critical/warning flags right now. Pass if you are comfortable; re-check if new CRB/docs arrive.';
+                break;
+
+            case 'recommendation_gate':
+                $rows = [
+                    ['label' => 'What this means', 'value' => 'Your attestation that this subject is ready for Decision / committee'],
+                    ['label' => 'Does not auto-submit', 'value' => 'Pass here does not record the recommendation — open Decision to submit Approve / Reject / Counter'],
+                    ['label' => 'When to Pass', 'value' => 'Other checklist items on this subject are decided and high-risk fails are handled'],
+                ];
+                $hint = 'This is a final “ready” checkbox for the screener — not the committee decision itself.';
                 break;
 
             case 'residence':

@@ -68,6 +68,7 @@
     class="space-y-3"
     x-data="{
         docsOpen: @js($docsOpenByDefault),
+        missingOpen: false,
         filter: @js($defaultFilter),
         openId: null,
         match(bucket) {
@@ -76,44 +77,49 @@
             return this.filter === bucket;
         }
     }">
-    {{-- Always-visible missing list (not hidden by Alpine filter) --}}
+    {{-- Compact missing count — expand only when needed --}}
     @if ($missingRows->isNotEmpty())
-        <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 p-3.5 space-y-2">
-            <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 overflow-hidden">
+            <button type="button"
+                    class="w-full px-3.5 py-3 flex flex-wrap items-center justify-between gap-2 text-left hover:bg-rose-100/50 transition"
+                    @click="missingOpen = !missingOpen"
+                    :aria-expanded="missingOpen.toString()">
                 <p class="text-sm font-bold text-rose-900">
                     {{ $missingRows->count() }} missing document{{ $missingRows->count() === 1 ? '' : 's' }}
+                    <span class="font-medium text-rose-800/80">· tap to
+                        <span x-text="missingOpen ? 'hide names' : 'see names'"></span>
+                    </span>
                 </p>
+                <span class="text-[11px] font-semibold text-rose-800">
+                    @if ($verifyRows->isNotEmpty() || $rejectedRows->isNotEmpty())
+                        Also {{ $verifyRows->count() }} to verify
+                        @if ($rejectedRows->isNotEmpty()) · {{ $rejectedRows->count() }} rejected @endif
+                    @else
+                        Required
+                    @endif
+                </span>
+            </button>
+            <div x-show="missingOpen" x-cloak class="px-3.5 pb-3.5 border-t border-rose-200/80">
+                <ul class="grid sm:grid-cols-2 gap-1.5 pt-3">
+                    @foreach ($missingRows as $row)
+                        <li class="flex items-start gap-2 text-sm text-rose-900">
+                            <span class="mt-1.5 size-1.5 rounded-full bg-rose-500 shrink-0"></span>
+                            <span>
+                                <span class="font-semibold">{{ $row['req']->name }}</span>
+                                @if ($row['req']->is_required)
+                                    <span class="text-[10px] uppercase tracking-wide text-rose-700/80 font-bold ml-1">Required</span>
+                                @endif
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
                 <button type="button"
                         @click="docsOpen = true; filter = 'missing'; openId = null"
-                        class="text-[11px] font-semibold text-rose-800 underline underline-offset-2">
-                    Show in list ↓
+                        class="mt-3 text-[11px] font-semibold text-rose-800 underline underline-offset-2">
+                    Open missing in document list ↓
                 </button>
+                <p class="text-[11px] text-rose-800/80 mt-2">Your action: request these below, or wait for the borrower to upload, then verify.</p>
             </div>
-            <ul class="grid sm:grid-cols-2 gap-1.5">
-                @foreach ($missingRows as $row)
-                    <li class="flex items-start gap-2 text-sm text-rose-900">
-                        <span class="mt-1.5 size-1.5 rounded-full bg-rose-500 shrink-0"></span>
-                        <span>
-                            <span class="font-semibold">{{ $row['req']->name }}</span>
-                            @if ($row['req']->is_required)
-                                <span class="text-[10px] uppercase tracking-wide text-rose-700/80 font-bold ml-1">Required</span>
-                            @endif
-                        </span>
-                    </li>
-                @endforeach
-            </ul>
-            @if ($verifyRows->isNotEmpty() || $rejectedRows->isNotEmpty())
-                <p class="text-[11px] text-rose-800/80 pt-1 border-t border-rose-200/80">
-                    Also waiting:
-                    @if ($verifyRows->isNotEmpty())
-                        <span class="font-semibold">{{ $verifyRows->count() }} to verify</span>
-                    @endif
-                    @if ($verifyRows->isNotEmpty() && $rejectedRows->isNotEmpty()) · @endif
-                    @if ($rejectedRows->isNotEmpty())
-                        <span class="font-semibold">{{ $rejectedRows->count() }} rejected</span>
-                    @endif
-                </p>
-            @endif
         </div>
     @elseif ($counts['action'] > 0)
         <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3.5 py-3 text-sm text-amber-950">
@@ -122,6 +128,12 @@
             @if ($counts['rejected'] > 0)
                 · {{ $counts['rejected'] }} rejected
             @endif
+            <span class="block text-[11px] mt-1 font-medium">Your action: open each “To verify” row and Verify or Reject.</span>
+        </div>
+    @else
+        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-3.5 py-3 text-sm text-emerald-950">
+            <span class="font-bold">No missing required uploads</span>
+            <span class="block text-[11px] mt-1 font-medium">Your action: confirm Documents Pass / Fail on the Checks tab, or request extras below if needed.</span>
         </div>
     @endif
 

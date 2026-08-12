@@ -86,6 +86,7 @@
     if ($requestPhase !== '' && isset($phases[$requestPhase])) {
         $defaultPhase = $requestPhase;
     }
+    $isGroupFile = collect($groupReview['members'] ?? [])->isNotEmpty();
     $defaultCapacityTab = (string) request('capacity_tab', 'checks');
     if (! in_array($defaultCapacityTab, ['checks', 'documents', 'affordability', 'crb'], true)) {
         $defaultCapacityTab = 'checks';
@@ -94,19 +95,21 @@
     if (! in_array($defaultSecurityTab, ['checks', 'group', 'wrapup'], true)) {
         $defaultSecurityTab = 'checks';
     }
+    if ($defaultSecurityTab === 'group' && ! $isGroupFile) {
+        $defaultSecurityTab = 'checks';
+    }
     $requestOpenGroup = (string) request('open_group', '');
     if ($requestOpenGroup !== '') {
         $defaultOpenGroup = $requestOpenGroup;
     }
     $requestOpenItem = (string) request('open_item', '');
 
-    $isGroupFile = collect($groupReview['members'] ?? [])->isNotEmpty();
     $phaseHints = [
-        'person' => 'Identity, face, residence, activity — Pass / Fail only',
-        'capacity' => 'Checklist → Documents → Affordability → CRB',
+        'person' => 'Your job: Pass / Fail each Personal check (identity, face, residence, activity).',
+        'capacity' => 'Your job: Pass / Fail capacity checks, then verify documents, confirm affordability & CRB.',
         'security' => $isGroupFile
-            ? 'Collateral / wrap-up checks → Group → Close'
-            : 'Collateral / wrap-up checks → Close',
+            ? 'Your job: Pass / Fail security checks, review the group, then close the wrap-up.'
+            : 'Your job: Pass / Fail security checks, then close the wrap-up (Group review only appears on group loans).',
     ];
 @endphp
 

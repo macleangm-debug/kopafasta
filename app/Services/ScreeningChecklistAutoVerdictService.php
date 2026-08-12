@@ -63,11 +63,14 @@ class ScreeningChecklistAutoVerdictService
         // Affordability / income
         $out['activity_income.income_evidence'] = $this->affordability($afford);
 
-        // Credit wrap-up CRB (borrower / guarantor / member variants)
-        $crbWrap = $this->crbWrap($crb);
+        // Credit wrap-up CRB (borrower / guarantor / member variants) — includes capacity vs external debt
+        $crbWrap = $this->crbWrap($crb, $afford);
         $out['credit_file.crb_reviewed'] = $crbWrap;
         $out['guarantor_wrap.crb_reviewed'] = $crbWrap;
         $out['member_wrap.crb_reviewed'] = $crbWrap;
+
+        $out['credit_file.risk_flags_addressed'] = $this->riskFlagsAddressed($context);
+        $out['credit_file.recommendation_ready'] = ['verdict' => '', 'source' => 'system_skip'];
 
         // Collateral — handled elsewhere as auto_na when not applicable
         if (! $collateralApplies) {
@@ -259,12 +262,22 @@ class ScreeningChecklistAutoVerdictService
         return ['verdict' => '', 'source' => 'system_skip'];
     }
 
-    /** @param  array<string, mixed>  $crb */
-    private function crbWrap(array $crb): array
+    /**
+     * @param  array<string, mixed>  $crb
+     * @param  array<string, mixed>  $afford
+     */
+    private function crbWrap(array $crb, array $afford = []): array
     {
         $rec = strtolower((string) ($crb['recommendation'] ?? ''));
         $delinq = (int) ($crb['delinquencies'] ?? 0);
-        if ($rec === '' && ($crb['score'] ?? null) === null) {
+        $affVerdict = strtolower((string) ($afford['verdict'] ?? ''));
+        if ($affVerdict === '' && array_key_exists('pass', $afford)) {
+            $affVerdict = ($afford['pass'] ?? false) ? 'pass' : 'fail';
+        }
+        $externalLoans = (int) ($crb['existing_loans'] ?? 0);
+        $crbOut = (float) ($crb['outstanding_balance'] ?? 0);
+
+        if ($rec === '' && ($crb['score'] ?? null) === null && $externalLoans < 1 && $crbOut <= 0) {
             return ['verdict' => '', 'source' => 'system_skip'];
         }
         if ($delinq > 0) {
@@ -273,11 +286,40 @@ class ScreeningChecklistAutoVerdictService
         if ($rec === 'reject') {
             return ['verdict' => 'fail', 'fail_reason_code' => 'high_exposure', 'source' => 'system'];
         }
+        // Cannot carry this loan given capacity — especially dangerous with other-institution debt.
+        if ($affVerdict === 'fail' && ($externalLoans > 0 || $crbOut > 0 || $rec === 'refer')) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'cannot_repay_with_external', 'source' => 'system'];
+        }
+        if ($affVerdict === 'fail') {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'cannot_repay_with_external', 'source' => 'system'];
+        }
         if (in_array($rec, ['approve', 'refer'], true) || ($crb['score'] ?? null) !== null) {
+            // Refer or external debt still needs human eyes — do not auto-pass.
+            if ($rec === 'refer' || $externalLoans > 0 || $crbOut > 0) {
+                return ['verdict' => '', 'source' => 'system_skip'];
+            }
+
             return ['verdict' => 'pass', 'source' => 'system'];
         }
 
         return ['verdict' => '', 'source' => 'system_skip'];
+    }
+
+    /** @param  array<string, mixed>  $ctx */
+    private function riskFlagsAddressed(array $ctx): array
+    {
+        $flags = collect($ctx['anomalies'] ?? []);
+        $critical = $flags->where('severity', 'critical')->count();
+        $warning = $flags->where('severity', 'warning')->count();
+        if ($critical > 0) {
+            // Human must explicitly Pass (with notes) or Fail — never auto-pass critical flags.
+            return ['verdict' => '', 'source' => 'system_skip'];
+        }
+        if ($warning > 0) {
+            return ['verdict' => '', 'source' => 'system_skip'];
+        }
+
+        return ['verdict' => 'pass', 'source' => 'system'];
     }
 
     /** @param  array<string, mixed>  $ctx */

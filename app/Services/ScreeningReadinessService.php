@@ -88,9 +88,13 @@ class ScreeningReadinessService
 
                     if ($verdict === null) {
                         if (count($nextSteps) < 12) {
+                            $hasEvidence = ! empty($item['evidence']['photos'])
+                                || ! empty($item['evidence']['rows'])
+                                || ! empty($item['evidence']['compare']);
                             $nextSteps[] = [
-                                'label' => $item['label'] ?? 'Checklist item',
-                                'detail' => $subjectLabel.' · '.($group['phase_label'] ?? $group['label'] ?? 'Checklist'),
+                                'label' => ($hasEvidence ? 'Confirm Pass/Fail · ' : 'Still open · ').($item['label'] ?? 'Checklist item'),
+                                'detail' => $subjectLabel.' · '.($group['phase_label'] ?? $group['label'] ?? 'Checklist')
+                                    .($hasEvidence ? ' — evidence is ready; you still must record Pass, Fail, or N/A and Save' : ''),
                                 'href' => $href,
                                 'tone' => $risk === 'critical' ? 'critical' : 'open',
                             ];
@@ -100,10 +104,12 @@ class ScreeningReadinessService
                             $criticalFailCount++;
                             $criticalFails[] = ($item['label'] ?? 'Check').' ('.$subjectLabel.')';
                         }
+                        // Only surface fails that still need attention (not already "handled" as a next step forever).
+                        // Keep them visible so screeners can revisit / override.
                         if (count($nextSteps) < 12) {
                             $nextSteps[] = [
                                 'label' => 'Fail · '.($item['label'] ?? 'Checklist item'),
-                                'detail' => $subjectLabel.($item['fail_reason_label'] ?? null ? ' — '.$item['fail_reason_label'] : ''),
+                                'detail' => $subjectLabel.(! empty($item['fail_reason_label']) ? ' — '.$item['fail_reason_label'] : ' — override or keep Fail, then Save'),
                                 'href' => $href,
                                 'tone' => $risk === 'critical' ? 'critical' : 'fail',
                             ];

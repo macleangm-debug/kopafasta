@@ -322,12 +322,13 @@ return [
                 'fail_reasons' => [
                     'high_exposure' => 'Too much exposure at other institutions',
                     'delinquencies' => 'Active delinquencies on CRB',
+                    'cannot_repay_with_external' => 'Cannot service this loan plus other-institution debt',
                     'custom' => 'Other (write reason)',
                 ],
             ],
             'risk_flags_addressed' => [
                 'label' => 'Risk flags / anomalies addressed in notes',
-                'evidence' => 'generic',
+                'evidence' => 'anomalies',
                 'risk' => 'critical',
                 'fail_reasons' => [
                     'flags_unaddressed' => 'Critical flags not addressed',
@@ -336,7 +337,7 @@ return [
             ],
             'recommendation_ready' => [
                 'label' => 'Screening recommendation ready for committee',
-                'evidence' => 'generic',
+                'evidence' => 'recommendation_gate',
                 'fail_reasons' => [
                     'not_ready' => 'File not ready for committee',
                     'custom' => 'Other (write reason)',

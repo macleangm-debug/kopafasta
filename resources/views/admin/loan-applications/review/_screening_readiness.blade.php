@@ -36,7 +36,7 @@
 
 <div id="screening-readiness"
      class="rounded-2xl overflow-hidden shadow-sm ring-1 {{ $shell }} bg-gradient-to-br text-white scroll-mt-24"
-     x-data="{ openNext: @js(! ($readiness['ready'] ?? false)) }">
+     x-data="{ openNext: false }">
     <div class="px-5 py-4 sm:px-6 sm:py-5 flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
