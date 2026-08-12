@@ -88,6 +88,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/loans/product/{code}', [\App\Http\Controllers\Site\PageController::class, 'product'])->name('product');
     Route::get('/how-it-works',     [\App\Http\Controllers\Site\PageController::class, 'howItWorks'])->name('how-it-works');
     Route::get('/about',            [\App\Http\Controllers\Site\PageController::class, 'about'])->name('about');
+    Route::get('/about/founding-story', [\App\Http\Controllers\Site\PageController::class, 'aboutFounding'])->name('about.founding');
+    Route::get('/about/trust',      [\App\Http\Controllers\Site\PageController::class, 'aboutTrust'])->name('about.trust');
+    Route::get('/about/impact',     [\App\Http\Controllers\Site\PageController::class, 'aboutImpact'])->name('about.impact');
+    Route::get('/about/roadmap',    [\App\Http\Controllers\Site\PageController::class, 'aboutRoadmap'])->name('about.roadmap');
     Route::get('/faq',              [\App\Http\Controllers\Site\PageController::class, 'faq'])->name('faq');
     Route::get('/legal',            [\App\Http\Controllers\Site\PageController::class, 'legalIndex'])->name('legal');
     Route::get('/legal/terms',      [\App\Http\Controllers\Site\PageController::class, 'terms'])->name('legal.terms');

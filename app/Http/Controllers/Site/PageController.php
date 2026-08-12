@@ -81,6 +81,27 @@ class PageController extends Controller
     {
         return view('site.about');
     }
+
+    public function aboutFounding(): View
+    {
+        return view('site.about.founding');
+    }
+
+    public function aboutTrust(): View
+    {
+        return view('site.about.trust');
+    }
+
+    public function aboutImpact(): View
+    {
+        return view('site.about.impact');
+    }
+
+    public function aboutRoadmap(): View
+    {
+        return view('site.about.roadmap');
+    }
+
     public function faq(): View { return view('site.faq'); }
     public function invest(): View { return view('site.invest'); }
     public function capitalPartners(): View { return view('site.capital-partners'); }

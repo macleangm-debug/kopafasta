@@ -363,7 +363,7 @@
             <input type="hidden" name="nok_region" value="{{ old('nok_region', $customer->nok_region) }}">
             <input type="hidden" name="nok_district" value="{{ old('nok_district', $customer->nok_district) }}">
             <input type="hidden" name="activity_type" value="{{ old('activity_type', $customer->activity_type ?? $customer->employment_type) }}">
-            <input type="hidden" name="income_range" value="{{ old('income_range', $customer->income_range) }}">
+            <input type="hidden" name="income_range" value="{{ old('income_range', normalize_income_range_key($customer->income_range) ?? $customer->income_range) }}">
             @if ($assetApplication ?? null)
                 <input type="hidden" name="requested_amount" value="{{ old('requested_amount', $assetApplication['remaining_loan']) }}">
                 <input type="hidden" name="requested_tenure_months" value="{{ old('requested_tenure_months', $assetApplication['max_tenure_months']) }}">

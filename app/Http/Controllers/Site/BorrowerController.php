@@ -1856,6 +1856,12 @@ class BorrowerController extends Controller
             $contractPages = array_values(array_filter($request->file('employment_contract_pages', []) ?? []));
             $needsContract = $employed && ! $hasContract && ! $request->hasFile('employment_contract') && $contractPages === [];
 
+            if ($request->filled('income_range')) {
+                $request->merge([
+                    'income_range' => normalize_income_range_key((string) $request->input('income_range')),
+                ]);
+            }
+
             $data = $request->validate([
                 'activity_type'    => ['required', 'string', 'max:40'],
                 'activity_details' => ['nullable', 'array'],
@@ -1871,12 +1877,14 @@ class BorrowerController extends Controller
                 'employment_contract_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
+            $incomeKey = normalize_income_range_key($data['income_range']) ?? $data['income_range'];
+
             $customer->fill([
                 'activity_type'    => $data['activity_type'],
                 'activity_details' => $data['activity_details'] ?? [],
                 'employment_type'  => $data['activity_type'],
-                'income_range'     => $data['income_range'],
-                'monthly_income'   => config('income_ranges.'.$data['income_range'].'.midpoint'),
+                'income_range'     => $incomeKey,
+                'monthly_income'   => config('income_ranges.'.$incomeKey.'.midpoint'),
             ])->save();
 
             $this->persistProfileDocumentUpload(
@@ -2599,6 +2607,12 @@ class BorrowerController extends Controller
 
         $staleBefore = $freshness->sectionsDueForRefresh($customer);
 
+        if ($request->filled('income_range')) {
+            $request->merge([
+                'income_range' => normalize_income_range_key((string) $request->input('income_range')),
+            ]);
+        }
+
         $data = $request->validate([
             'residence_unchanged' => ['nullable', 'boolean'],
             'region'           => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:100'],
@@ -2636,12 +2650,13 @@ class BorrowerController extends Controller
         }
 
         if (in_array('activity', $staleBefore, true)) {
+            $incomeKey = normalize_income_range_key($data['income_range'] ?? null) ?? ($data['income_range'] ?? null);
             $customer->fill([
                 'activity_type'   => $data['activity_type'],
                 'activity_details'=> $data['activity_details'] ?? [],
                 'employment_type' => $data['activity_type'],
-                'income_range'    => $data['income_range'],
-                'monthly_income'  => config('income_ranges.'.$data['income_range'].'.midpoint'),
+                'income_range'    => $incomeKey,
+                'monthly_income'  => $incomeKey ? config('income_ranges.'.$incomeKey.'.midpoint') : $customer->monthly_income,
             ]);
         }
 

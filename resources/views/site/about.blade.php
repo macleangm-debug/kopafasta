@@ -26,8 +26,28 @@
         </div>
     </section>
 
+    @include('site.about._nav', ['active' => 'overview'])
+
+    {{-- Story links --}}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            @foreach ([
+                ['founding', 'site.about.founding', '📖'],
+                ['trust', 'site.about.trust', '🛡️'],
+                ['impact', 'site.about.impact', '✨'],
+                ['roadmap', 'site.about.roadmap', '🗺️'],
+            ] as [$key, $route, $icon])
+                <a href="{{ route($route) }}" class="group rounded-2xl border border-slate-200 bg-white p-5 hover:border-brand hover:shadow-lg transition">
+                    <span class="text-2xl">{{ $icon }}</span>
+                    <p class="mt-3 font-bold text-slate-900 group-hover:text-brand transition">{{ __('site.about.nav.'.$key) }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ __('site.about.nav.'.$key.'_hint') }}</p>
+                </a>
+            @endforeach
+        </div>
+    </section>
+
     {{-- MISSION --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
         <div class="grid lg:grid-cols-12 gap-10 items-start">
             <div class="lg:col-span-5">
                 <p class="text-xs uppercase tracking-widest text-brand mb-2">{{ __('site.about.mission_eyebrow') }}</p>
@@ -128,11 +148,10 @@
             <h2 class="text-3xl font-bold tracking-tight text-slate-900 max-w-2xl">{{ __('site.about.next_title') }}</h2>
             <p class="mt-4 text-slate-600 max-w-2xl leading-relaxed">{{ __('site.about.next_body') }}</p>
             <div class="mt-8 grid sm:grid-cols-2 gap-4">
-                @foreach (__('site.about.next_topics') as $topic)
-                    <div class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-4 py-3 text-sm text-slate-700">
-                        {{ $topic }}
-                    </div>
-                @endforeach
+                <a href="{{ route('site.about.founding') }}" class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-4 py-3 text-sm font-semibold text-brand hover:ring-brand transition">{{ __('site.about.nav.founding') }} →</a>
+                <a href="{{ route('site.about.trust') }}" class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-4 py-3 text-sm font-semibold text-brand hover:ring-brand transition">{{ __('site.about.nav.trust') }} →</a>
+                <a href="{{ route('site.about.impact') }}" class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-4 py-3 text-sm font-semibold text-brand hover:ring-brand transition">{{ __('site.about.nav.impact') }} →</a>
+                <a href="{{ route('site.about.roadmap') }}" class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-4 py-3 text-sm font-semibold text-brand hover:ring-brand transition">{{ __('site.about.nav.roadmap') }} →</a>
             </div>
             <div class="mt-10 flex flex-wrap gap-3">
                 <a href="mailto:{{ brand('support_email') }}" class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 rounded-xl transition shadow-md">

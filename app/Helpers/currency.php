@@ -48,12 +48,38 @@ if (! function_exists('format_money')) {
     }
 }
 
+if (! function_exists('normalize_income_range_key')) {
+    /**
+     * Map legacy income-range keys to canonical selectable config keys.
+     */
+    function normalize_income_range_key(?string $key): ?string
+    {
+        if ($key === null || $key === '') {
+            return $key;
+        }
+
+        $aliases = [
+            '1m_plus' => '1m_5m',
+            'above_1m' => '1m_5m',
+            'below_100k' => '100k_300k',
+        ];
+
+        $normalized = $aliases[$key] ?? $key;
+
+        return array_key_exists($normalized, config('income_ranges', []))
+            ? $normalized
+            : $key;
+    }
+}
+
 if (! function_exists('format_income_range')) {
     function format_income_range(?string $key): string
     {
         if (! $key) {
             return '—';
         }
+
+        $key = normalize_income_range_key($key) ?? $key;
 
         return income_range_label($key) ?? $key;
     }

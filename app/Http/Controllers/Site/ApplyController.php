@@ -1534,6 +1534,16 @@ class ApplyController extends Controller
 
         $this->mergeDraftIntoSubmitRequest($request, $draft);
 
+        if ($request->filled('income_range')) {
+            $request->merge([
+                'income_range' => normalize_income_range_key((string) $request->input('income_range')),
+            ]);
+        } elseif ($customer?->income_range) {
+            $request->merge([
+                'income_range' => normalize_income_range_key((string) $customer->income_range),
+            ]);
+        }
+
         // Underwriting asked for another guarantor — attach to existing application only.
         if ($request->filled('supplement_application_id')) {
             return $this->submitGuarantorSupplement($request, $customer, $guarantors, $faces, $freshness, $requirements);
@@ -1942,8 +1952,8 @@ class ApplyController extends Controller
                 ? $data['activity_details']
                 : ($customer->activity_details ?? []),
             'employment_type' => $data['activity_type'],
-            'income_range'    => $data['income_range'],
-            'monthly_income'  => config('income_ranges.'.$data['income_range'].'.midpoint'),
+            'income_range'    => normalize_income_range_key($data['income_range']) ?? $data['income_range'],
+            'monthly_income'  => config('income_ranges.'.(normalize_income_range_key($data['income_range']) ?? $data['income_range']).'.midpoint'),
             'onboarded_at'    => $customer->onboarded_at ?: now(),
         ])->save();
 

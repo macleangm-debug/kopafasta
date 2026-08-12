@@ -82,7 +82,7 @@
                     <x-site.activity-fields
                         :activity-type="old('activity_type', $customer->activity_type ?? $customer->employment_type)"
                         :activity-details="old('activity_details', $customer->activity_details ?? [])"
-                        :income-range="old('income_range', $customer->income_range)"
+                        :income-range="old('income_range', normalize_income_range_key($customer->income_range) ?? $customer->income_range)"
                         :employment-contract="$employmentContract ?? null"
                         :grouped-sections="true"
                     />
