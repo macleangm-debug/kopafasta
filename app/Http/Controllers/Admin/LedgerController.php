@@ -10,6 +10,7 @@ use App\Models\MembershipHistory;
 use App\Models\PartnerPayment;
 use App\Models\PartnerSettlement;
 use App\Models\Repayment;
+use App\Services\MoneyMovementSummaryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,7 +18,7 @@ use Illuminate\View\View;
 class LedgerController extends Controller
 {
     /** Unified money ledger: inbound (direction=in) and outbound (direction=out). */
-    public function payments(Request $request): View
+    public function payments(Request $request, MoneyMovementSummaryService $moneySummary): View
     {
         $direction = $request->string('direction', 'in')->toString();
         if (! in_array($direction, ['in', 'out'], true)) {
@@ -124,23 +125,16 @@ class LedgerController extends Controller
                 ->withQueryString();
         }
 
-        $inCount = CustomerPayment::query()->count();
-        $inAmount = (float) CustomerPayment::query()->sum('amount');
-        $outPartnerAmount = (float) PartnerPayment::query()->sum('amount');
-        $outCapitalAmount = (float) CapitalWithdrawalRequest::query()->sum('amount');
-        $outDisbursementAmount = (float) Disbursement::query()->sum('amount');
-        $outCount = PartnerPayment::query()->count()
-            + CapitalWithdrawalRequest::query()->count()
-            + PartnerSettlement::query()->count()
-            + Disbursement::query()->count();
+        $incomingComplete = $moneySummary->completeIncoming();
+        $outgoingComplete = $moneySummary->completeOutgoing();
 
         $counts = [
-            'in_count' => $inCount,
-            'in_amount' => $inAmount,
-            'out_count' => $outCount,
-            'out_amount' => $outPartnerAmount + $outCapitalAmount + $outDisbursementAmount,
-            'all' => $inCount,
-            'pending' => CustomerPayment::pending()->count(),
+            'in_count' => $incomingComplete['count'],
+            'in_amount' => $incomingComplete['amount'],
+            'out_count' => $outgoingComplete['count'],
+            'out_amount' => $outgoingComplete['amount'],
+            'all' => CustomerPayment::query()->count(),
+            'pending' => CustomerPayment::awaitingBankVerification()->count(),
             'membership_pending' => MembershipHistory::query()->pending()->count(),
             'repayments_pending' => Repayment::query()->whereNull('approved_at')->where('status', 'pending')->count(),
             'partners_pending' => PartnerPayment::query()->where('status', 'pending')->count(),

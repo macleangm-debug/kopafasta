@@ -10,6 +10,7 @@
         <table class="min-w-full text-sm">
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
+                    <th class="px-4 py-3">Date</th>
                     <th class="px-4 py-3">Invoice</th>
                     <th class="px-4 py-3">Partner</th>
                     <th class="px-4 py-3">Source</th>
@@ -20,7 +21,12 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse ($payments as $payment)
+                    @php $when = $payment->paid_at ?? $payment->approved_at ?? $payment->created_at; @endphp
                     <tr>
+                        <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                            <p class="font-semibold text-gray-900">{{ format_app_date($when) }}</p>
+                            <p class="tabular-nums text-gray-500 mt-0.5">{{ format_app_datetime($when, 'H:i') }}</p>
+                        </td>
                         <td class="px-4 py-3 font-medium">{{ $payment->invoice_number }}</td>
                         <td class="px-4 py-3">{{ $payment->vendor?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $payment->description ?? str_replace('_', ' ', $payment->source_type ?? '—') }}</td>
@@ -42,7 +48,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-10 text-center text-gray-500">No partner payments found.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-10 text-center text-gray-500">No partner payments found.</td></tr>
                 @endforelse
             </tbody>
         </table>

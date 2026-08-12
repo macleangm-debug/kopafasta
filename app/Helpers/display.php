@@ -1,11 +1,47 @@
 <?php
 
 use App\Services\DisplayLabelService;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
 
 if (! function_exists('display_label')) {
     function display_label(?string $value, ?string $group = null): string
     {
         return app(DisplayLabelService::class)->label($value, $group);
+    }
+}
+
+if (! function_exists('app_display_timezone')) {
+    function app_display_timezone(): string
+    {
+        return (string) (config('app.display_timezone')
+            ?: config('country.timezone')
+            ?: 'Africa/Dar_es_Salaam');
+    }
+}
+
+if (! function_exists('format_app_datetime')) {
+    /**
+     * Format a stored timestamp in the local display timezone (default EAT).
+     */
+    function format_app_datetime(\DateTimeInterface|string|null $value, string $format = 'd M Y H:i'): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        $dt = $value instanceof CarbonInterface
+            ? $value->copy()
+            : Carbon::parse($value);
+
+        return $dt->timezone(app_display_timezone())->format($format);
+    }
+}
+
+if (! function_exists('format_app_date')) {
+    function format_app_date(\DateTimeInterface|string|null $value, string $format = 'd M Y'): string
+    {
+        return format_app_datetime($value, $format);
     }
 }
 

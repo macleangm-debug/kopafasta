@@ -167,7 +167,7 @@
                         <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Look for</p>
                         <ul class="mt-2 space-y-1.5 text-sm text-gray-700">
                             <li class="flex gap-2"><span class="text-emerald-700 font-bold">·</span> Amount {{ format_money($payment->amount) }}</li>
-                            <li class="flex gap-2"><span class="text-emerald-700 font-bold">·</span> Date around {{ $payment->payment_date?->format('d M Y') ?? $payment->created_at?->format('d M Y') ?? '—' }}</li>
+                            <li class="flex gap-2"><span class="text-emerald-700 font-bold">·</span> Date around {{ format_app_datetime($payment->adminOccurredAt()) }}</li>
                             <li class="flex gap-2"><span class="text-emerald-700 font-bold">·</span> Payer {{ $payerName }}@if($payment->mobile_number) ({{ $payment->mobile_number }})@endif</li>
                             <li class="flex gap-2"><span class="text-emerald-700 font-bold">·</span> Ref {{ $payment->reference }}</li>
                         </ul>

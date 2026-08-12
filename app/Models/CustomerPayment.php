@@ -252,6 +252,12 @@ class CustomerPayment extends Model
         return $query->whereIn('status', ['awaiting_payment', 'pending_verification', 'clarification_requested', 'processing']);
     }
 
+    /** Best timestamp for admin lists: when money cleared, else when the row was created. */
+    public function adminOccurredAt(): ?\Carbon\CarbonInterface
+    {
+        return $this->verified_at ?? $this->paid_at ?? $this->created_at;
+    }
+
     /** Completed money in — PSP-approved mobile or admin-verified bank. */
     public function scopeComplete($query)
     {

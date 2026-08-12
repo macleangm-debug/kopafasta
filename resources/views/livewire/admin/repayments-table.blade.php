@@ -1,16 +1,21 @@
 <div>
 <x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="Search reference, loan #, channel…">
     <x-slot:headers>
+        <x-admin.th :sort="$sort" :direction="$direction" col="paid_at"    label="Date" />
         <x-admin.th :sort="$sort" :direction="$direction" col="reference"  label="Reference" />
         <x-admin.th :sort="$sort" :direction="$direction" col="loan_id"    label="Loan" />
         <x-admin.th :sort="$sort" :direction="$direction" col="amount"     label="Amount" />
         <x-admin.th :sort="$sort" :direction="$direction" col="channel"    label="Channel" />
         <x-admin.th :sort="$sort" :direction="$direction" col="status"     label="Status" />
-        <x-admin.th :sort="$sort" :direction="$direction" col="paid_at"    label="Paid at" />
     </x-slot:headers>
     <x-slot:rows>
         @forelse ($rows as $r)
+            @php $when = $r->paid_at ?? $r->created_at; @endphp
             <tr class="hover:bg-gray-50">
+                <td class="px-5 py-3 text-xs text-gray-600 whitespace-nowrap">
+                    <p class="font-semibold text-gray-900">{{ format_app_date($when) }}</p>
+                    <p class="tabular-nums text-gray-500 mt-0.5">{{ format_app_datetime($when, 'H:i') }}</p>
+                </td>
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->reference ?? '—' }}</td>
                 <td class="px-5 py-3">
                     <div class="font-medium">{{ $r->loan?->loan_number ?? '—' }}</div>
@@ -27,9 +32,6 @@
                         'reversed'  => 'bg-red-100 text-red-800',
                         'pending'   => 'bg-amber-100 text-amber-800',
                     ]" />
-                </td>
-                <td class="px-5 py-3 text-gray-500">
-                    {{ optional($r->paid_at ?? $r->created_at)->format('Y-m-d H:i') }}
                 </td>
             </tr>
         @empty

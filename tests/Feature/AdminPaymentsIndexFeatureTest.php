@@ -98,11 +98,13 @@ class AdminPaymentsIndexFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('Payments', $html);
-        $this->assertStringContainsString('Complete', $html);
+        $this->assertStringContainsString('Incoming · complete', $html);
+        $this->assertStringContainsString('Outgoing · complete', $html);
         $this->assertStringContainsString('Awaiting bank verify', $html);
         $this->assertStringContainsString($complete->reference, $html);
         $this->assertStringContainsString('Application Fee', $html);
         $this->assertStringContainsString('Asset Lending Loan', $html);
+        $this->assertMatchesRegularExpression('/Incoming · complete[\s\S]*?5[,.]?000/', $html);
         $this->assertStringNotContainsString($inflight->reference, $html);
         $this->assertStringNotContainsString($bankPending->reference, $html);
 

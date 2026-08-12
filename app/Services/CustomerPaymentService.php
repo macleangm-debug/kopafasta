@@ -244,7 +244,7 @@ class CustomerPaymentService
                 'proof_path'              => $proofPath,
                 'proof_original_name'     => $proofName,
                 'paid_at'                 => $autoVerify || (! $isBank && ! $usePayIn && ! $liveGateway) ? now() : null,
-                'payment_date'            => $data['payment_date'] ?? ($isBank ? now()->toDateString() : null),
+                'payment_date'            => $data['payment_date'] ?? ($isBank ? now(app_display_timezone())->toDateString() : null),
                 'source_type'             => isset($data['source']) ? $data['source']::class : null,
                 'source_id'               => ($data['source'] ?? null)?->getKey(),
                 'loan_id'                 => $loan?->id,
@@ -485,7 +485,7 @@ class CustomerPaymentService
                 'switched_at' => now()->toIso8601String(),
             ]),
             'payment_instructions' => $instructions,
-            'payment_date' => now()->toDateString(),
+            'payment_date' => now(app_display_timezone())->toDateString(),
         ]);
 
         $this->notifyBankStatus($payment->fresh(['customer']), 'bank_payment_pending');

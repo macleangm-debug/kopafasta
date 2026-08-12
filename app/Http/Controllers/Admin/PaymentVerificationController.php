@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerPayment;
 use App\Services\CustomerPaymentService;
+use App\Services\MoneyMovementSummaryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,9 +14,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PaymentVerificationController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, MoneyMovementSummaryService $moneySummary): View
     {
-        // Main Payments = complete only. Bank queue is a separate tab.
+        // Collections desk = money in. Default list = complete only; bank queue is a separate tab.
         $status = $request->query('status', 'complete');
         if (! in_array($status, ['complete', 'awaiting_bank', 'rejected', 'all'], true)) {
             // Legacy links: pending → bank queue; verified → complete.
@@ -46,8 +47,14 @@ class PaymentVerificationController extends Controller
 
         $payments = $query->paginate(25)->withQueryString();
 
+        $incomingComplete = $moneySummary->completeIncoming();
+        $outgoingComplete = $moneySummary->completeOutgoing();
+
         $counts = [
-            'complete' => CustomerPayment::complete()->count(),
+            'complete' => $incomingComplete['count'],
+            'complete_amount' => $incomingComplete['amount'],
+            'outgoing_complete' => $outgoingComplete['count'],
+            'outgoing_complete_amount' => $outgoingComplete['amount'],
             'awaiting_bank' => CustomerPayment::awaitingBankVerification()->count(),
             'rejected' => CustomerPayment::where('status', 'rejected')->count(),
             'verified_today' => CustomerPayment::query()

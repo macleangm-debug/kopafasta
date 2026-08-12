@@ -42,7 +42,8 @@
                         @endphp
                         <tr class="hover:bg-gray-50 align-top">
                             <td class="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
-                                {{ optional($payment->created_at)->format('Y-m-d H:i') }}
+                                <p class="font-semibold text-gray-900">{{ format_app_date($payment->created_at) }}</p>
+                                <p class="tabular-nums mt-0.5">{{ format_app_datetime($payment->created_at, 'H:i') }}</p>
                             </td>
                             <td class="px-5 py-3">
                                 <div class="font-medium text-gray-900">{{ $name ?: '—' }}</div>
@@ -151,7 +152,10 @@
                                 $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
                             @endphp
                             <tr class="hover:bg-gray-50">
-                                <td class="px-5 py-2 text-xs text-gray-500">{{ optional($payment->updated_at)->format('Y-m-d H:i') }}</td>
+                                <td class="px-5 py-2 text-xs text-gray-500 whitespace-nowrap">
+                                    <p class="font-semibold text-gray-900">{{ format_app_date($payment->updated_at) }}</p>
+                                    <p class="tabular-nums mt-0.5">{{ format_app_datetime($payment->updated_at, 'H:i') }}</p>
+                                </td>
                                 <td class="px-5 py-2">{{ $name ?: '—' }}</td>
                                 <td class="px-5 py-2 font-mono text-xs">{{ $payment->payment_reference }}</td>
                                 <td class="px-5 py-2">

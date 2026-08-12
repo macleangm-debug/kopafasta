@@ -14,25 +14,25 @@
                 <div class="mt-4 inline-flex rounded-xl bg-white/10 p-1 ring-1 ring-white/20">
                     <a href="{{ route('admin.payments.ledger', ['direction' => 'in', 'tab' => 'all']) }}"
                        class="px-4 py-2 rounded-lg text-sm font-semibold {{ $direction === 'in' ? 'bg-brand-gold text-brand' : 'text-white/85 hover:bg-white/10' }}">
-                        Incoming
+                        Incoming complete
                         <span class="ml-1 tabular-nums opacity-80">({{ $counts['in_count'] }})</span>
                     </a>
                     <a href="{{ route('admin.payments.ledger', ['direction' => 'out', 'tab' => 'partners']) }}"
                        class="px-4 py-2 rounded-lg text-sm font-semibold {{ $direction === 'out' ? 'bg-brand-gold text-brand' : 'text-white/85 hover:bg-white/10' }}">
-                        Outgoing
+                        Outgoing complete
                         <span class="ml-1 tabular-nums opacity-80">({{ $counts['out_count'] }})</span>
                     </a>
                 </div>
             </div>
             <div class="bg-white px-6 py-4 grid sm:grid-cols-4 gap-3">
                 @if ($direction === 'in')
-                    <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3">
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Incoming total</p>
-                        <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ $counts['in_count'] }}</p>
-                        <p class="text-xs text-gray-500 mt-0.5 tabular-nums">{{ format_money((float) $counts['in_amount']) }}</p>
+                    <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-3">
+                        <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Incoming · complete</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ format_money((float) $counts['in_amount']) }}</p>
+                        <p class="text-xs text-gray-500 mt-0.5 tabular-nums">{{ number_format($counts['in_count']) }} payments</p>
                     </div>
                     <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-3">
-                        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Pending verify</p>
+                        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Awaiting bank</p>
                         <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ $counts['pending'] }}</p>
                     </div>
                     <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3">
@@ -45,9 +45,9 @@
                     </div>
                 @else
                     <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3">
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Outgoing total</p>
-                        <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ $counts['out_count'] }}</p>
-                        <p class="text-xs text-gray-500 mt-0.5 tabular-nums">{{ format_money((float) $counts['out_amount']) }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Outgoing · complete</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ format_money((float) $counts['out_amount']) }}</p>
+                        <p class="text-xs text-gray-500 mt-0.5 tabular-nums">{{ number_format($counts['out_count']) }} payouts</p>
                     </div>
                     <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-3">
                         <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Partner payouts pending</p>
@@ -117,13 +117,13 @@
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                             <tr>
+                                <th class="px-5 py-3">Date</th>
                                 <th class="px-5 py-3">Reference</th>
                                 <th class="px-5 py-3">Borrower</th>
                                 <th class="px-5 py-3">Type</th>
                                 <th class="px-5 py-3">Amount</th>
                                 <th class="px-5 py-3">Status</th>
                                 <th class="px-5 py-3">Journal</th>
-                                <th class="px-5 py-3">Date</th>
                                 <th class="px-5 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -132,8 +132,13 @@
                                 @php
                                     $customer = $payment->customer;
                                     $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+                                    $when = $payment->adminOccurredAt();
                                 @endphp
                                 <tr class="hover:bg-gray-50">
+                                    <td class="px-5 py-3 text-xs text-gray-600 whitespace-nowrap">
+                                        <p class="font-semibold text-gray-900">{{ format_app_date($when) }}</p>
+                                        <p class="tabular-nums text-gray-500 mt-0.5">{{ format_app_datetime($when, 'H:i') }}</p>
+                                    </td>
                                     <td class="px-5 py-3 font-mono text-xs font-semibold">
                                         <a href="{{ route('admin.payments.show', $payment) }}" class="text-brand hover:text-brand-light">{{ $payment->reference }}</a>
                                     </td>
@@ -157,7 +162,6 @@
                                             —
                                         @endif
                                     </td>
-                                    <td class="px-5 py-3 text-gray-500">{{ $payment->created_at?->format('d M Y') }}</td>
                                     <td class="px-5 py-3 text-right">
                                         <a href="{{ route('admin.payments.show', $payment) }}" class="text-xs font-semibold text-brand hover:text-brand-light">Open →</a>
                                     </td>

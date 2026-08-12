@@ -7,23 +7,27 @@
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                 <tr>
+                    <th class="px-5 py-2 text-left">Date</th>
                     <th class="px-5 py-2 text-left">Reference</th>
                     <th class="px-5 py-2 text-left">Type</th>
                     <th class="px-5 py-2 text-left">Amount</th>
                     <th class="px-5 py-2 text-left">Status</th>
-                    <th class="px-5 py-2 text-left">Date</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse ($dossier['payments'] as $payment)
+                    @php $when = $payment->adminOccurredAt(); @endphp
                     <tr>
+                        <td class="px-5 py-3 text-xs text-gray-600 whitespace-nowrap">
+                            <p class="font-semibold text-gray-900">{{ format_app_date($when) }}</p>
+                            <p class="tabular-nums text-gray-500 mt-0.5">{{ format_app_datetime($when, 'H:i') }}</p>
+                        </td>
                         <td class="px-5 py-3 font-mono text-xs">
                             <a href="{{ route('admin.payments.show', $payment) }}" class="text-brand hover:text-brand-light">{{ $payment->reference }}</a>
                         </td>
                         <td class="px-5 py-3">{{ $payment->typeLabel() }}</td>
                         <td class="px-5 py-3 font-medium">{{ format_money($payment->amount) }}</td>
                         <td class="px-5 py-3">{{ $payment->statusLabel() }}</td>
-                        <td class="px-5 py-3 text-gray-500">{{ ($payment->payment_date ?? $payment->created_at)?->format('d M Y') }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="5" class="px-5 py-8 text-center text-gray-500">No payments recorded yet.</td></tr>

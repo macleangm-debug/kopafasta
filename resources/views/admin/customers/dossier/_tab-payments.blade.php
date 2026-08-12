@@ -8,7 +8,7 @@
         <div>
             <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand">Money movement</p>
             <h4 class="text-base font-bold text-gray-900 mt-0.5">Payments</h4>
-            <p class="text-xs text-gray-500 mt-0.5">Amount and status are separate columns. Times use {{ config('app.timezone') }}.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Amount and status are separate columns. Times are East Africa ({{ app_display_timezone() }}).</p>
         </div>
 
         <div class="overflow-x-auto rounded-2xl ring-1 ring-brand/10 bg-white shadow-sm">
@@ -34,7 +34,7 @@
                 <tbody class="divide-y divide-gray-100">
                     @foreach ($dossier['payments'] as $payment)
                         @php
-                            $when = $payment->created_at?->timezone(config('app.timezone'));
+                            $when = $payment->adminOccurredAt();
                             $status = (string) ($payment->status ?? '');
                             $statusTone = match (true) {
                                 in_array($status, ['completed', 'success', 'successful', 'paid', 'verified'], true) => 'bg-emerald-100 text-emerald-800',
@@ -44,8 +44,8 @@
                         @endphp
                         <tr class="hover:bg-brand-muted/20 transition">
                             <td class="px-3 py-3.5 align-top">
-                                <p class="font-semibold text-gray-900 leading-tight">{{ $when?->format('d M Y') ?? '—' }}</p>
-                                <p class="text-xs text-gray-500 tabular-nums mt-0.5">{{ $when?->format('H:i:s') ?? '' }}</p>
+                                <p class="font-semibold text-gray-900 leading-tight">{{ format_app_date($when) }}</p>
+                                <p class="text-xs text-gray-500 tabular-nums mt-0.5">{{ format_app_datetime($when, 'H:i') }}</p>
                             </td>
                             <td class="px-3 py-3.5 align-top font-mono text-xs text-gray-700 break-all">{{ $payment->reference }}</td>
                             <td class="px-3 py-3.5 align-top text-gray-700 break-words">

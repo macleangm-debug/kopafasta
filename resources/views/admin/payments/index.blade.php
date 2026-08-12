@@ -3,44 +3,69 @@
     <section class="mb-6">
         <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-6 text-white">
-                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Money in</p>
+                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Collections desk</p>
                 <h1 class="text-2xl sm:text-3xl font-bold mt-1">Payments</h1>
                 <p class="text-sm text-white/75 mt-2 max-w-2xl">
-                    Completed payments only — mobile money confirmed by the PSP, and bank deposits after staff verification.
-                    Bank transfers waiting for a match live on the verification tab.
+                    This page is money in only — completed borrower payments and bank deposits waiting for a match.
+                    Money out (payouts and disbursements) lives on the Money ledger.
                 </p>
+                <div class="mt-4 flex flex-wrap gap-3">
+                    <a href="{{ route('admin.payments.ledger', ['direction' => 'in', 'status' => 'verified']) }}"
+                       class="inline-flex items-center rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/25 hover:bg-white/15">
+                        Money ledger · Incoming →
+                    </a>
+                    <a href="{{ route('admin.payments.ledger', ['direction' => 'out']) }}"
+                       class="inline-flex items-center rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/25 hover:bg-white/15">
+                        Money ledger · Outgoing →
+                    </a>
+                </div>
             </div>
-            <div class="bg-white px-6 py-5 grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+
+            {{-- Primary money totals: complete in vs complete out --}}
+            <div class="bg-white px-6 py-5 grid sm:grid-cols-2 gap-4 border-b border-gray-100">
                 <a href="{{ route('admin.payments.index', ['status' => 'complete']) }}"
-                   class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4 hover:ring-emerald-200 transition">
-                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Complete</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['complete']) }}</p>
+                   class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-5 py-4 hover:ring-emerald-200 transition {{ $status === 'complete' ? 'ring-2 ring-emerald-300' : '' }}">
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Incoming · complete</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ format_money((float) ($counts['complete_amount'] ?? 0)) }}</p>
+                    <p class="text-xs text-gray-500 mt-1 tabular-nums">{{ number_format($counts['complete']) }} payments · list below</p>
                 </a>
+                <a href="{{ route('admin.payments.ledger', ['direction' => 'out']) }}"
+                   class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 px-5 py-4 hover:ring-brand/30 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Outgoing · complete</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ format_money((float) ($counts['outgoing_complete_amount'] ?? 0)) }}</p>
+                    <p class="text-xs text-gray-500 mt-1 tabular-nums">{{ number_format($counts['outgoing_complete'] ?? 0) }} payouts · open Money ledger →</p>
+                </a>
+            </div>
+
+            {{-- Action / health counters for this desk --}}
+            <div class="bg-white px-6 py-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <a href="{{ route('admin.payments.index', ['status' => 'awaiting_bank']) }}"
-                   class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4 hover:ring-amber-200 transition">
+                   class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-3 hover:ring-amber-200 transition {{ $status === 'awaiting_bank' ? 'ring-2 ring-amber-300' : '' }}">
                     <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Awaiting bank verify</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['awaiting_bank']) }}</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ number_format($counts['awaiting_bank']) }}</p>
+                    <p class="text-xs text-amber-900/70 mt-0.5">Staff action needed</p>
                 </a>
-                <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-4">
+                <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3">
                     <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">Completed today</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['verified_today'] ?? 0) }}</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ number_format($counts['verified_today'] ?? 0) }}</p>
                 </div>
                 <a href="{{ route('admin.payments.index', ['status' => 'rejected']) }}"
-                   class="rounded-xl bg-rose-50 ring-1 ring-rose-100 px-4 py-4 hover:ring-rose-200 transition">
+                   class="rounded-xl bg-rose-50 ring-1 ring-rose-100 px-4 py-3 hover:ring-rose-200 transition {{ $status === 'rejected' ? 'ring-2 ring-rose-300' : '' }}">
                     <p class="text-[10px] uppercase tracking-widest text-rose-800 font-semibold">Rejected</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['rejected']) }}</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ number_format($counts['rejected']) }}</p>
                 </a>
-                <div class="rounded-xl {{ ($counts['missing_journal'] ?? 0) > 0 ? 'bg-rose-50 ring-rose-100' : 'bg-gray-50 ring-gray-100' }} ring-1 px-4 py-4">
+                <div class="rounded-xl {{ ($counts['missing_journal'] ?? 0) > 0 ? 'bg-rose-50 ring-rose-100' : 'bg-gray-50 ring-gray-100' }} ring-1 px-4 py-3">
                     <p class="text-[10px] uppercase tracking-widest {{ ($counts['missing_journal'] ?? 0) > 0 ? 'text-rose-800' : 'text-gray-600' }} font-semibold">Missing journal</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['missing_journal'] ?? 0) }}</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ number_format($counts['missing_journal'] ?? 0) }}</p>
                 </div>
             </div>
         </div>
     </section>
 
     <div class="mb-4 flex flex-wrap gap-2 items-center">
+        <span class="text-[11px] uppercase tracking-widest text-gray-400 font-semibold mr-1">List</span>
         @foreach ([
-            'complete' => 'Complete',
+            'complete' => 'Incoming complete',
             'awaiting_bank' => ($counts['awaiting_bank'] ?? 0).' awaiting bank',
             'rejected' => 'Rejected',
             'all' => 'All (incl. in-flight)',
@@ -62,11 +87,11 @@
 
     @if ($status === 'awaiting_bank')
         <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
-            Bank deposits only — match proof to your account, then verify to post the ledger. Mobile money is confirmed by the PSP and appears under Complete automatically.
+            Bank deposits only — match proof to your collection account, then verify to post the ledger. Mobile money is confirmed by the PSP and appears under Incoming complete automatically.
         </div>
     @elseif ($status === 'complete')
         <div class="mb-4 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand">
-            Showing completed payments (PSP-approved mobile + verified bank). Application fees such as Asset Lending show here once the payment is complete.
+            Showing completed money in (PSP-approved mobile + verified bank). Application fees such as Asset Lending appear here once the payment is complete.
         </div>
     @endif
 
@@ -91,13 +116,13 @@
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
+                        <th class="px-5 py-3">Date</th>
                         <th class="px-5 py-3">Reference</th>
                         <th class="px-5 py-3">Borrower</th>
                         <th class="px-5 py-3">Type &amp; context</th>
                         <th class="px-5 py-3">Method</th>
                         <th class="px-5 py-3">Amount</th>
                         <th class="px-5 py-3">Status</th>
-                        <th class="px-5 py-3">Date</th>
                         <th class="px-5 py-3 text-right">Actions</th>
                     </tr>
                 </thead>
@@ -111,6 +136,10 @@
                                 && in_array($payment->status, ['pending_verification', 'clarification_requested'], true);
                         @endphp
                         <tr class="hover:bg-gray-50 align-top">
+                            <td class="px-5 py-3 text-xs text-gray-600 whitespace-nowrap">
+                                <p class="font-semibold text-gray-900">{{ format_app_date($payment->adminOccurredAt()) }}</p>
+                                <p class="tabular-nums text-gray-500 mt-0.5">{{ format_app_datetime($payment->adminOccurredAt(), 'H:i') }}</p>
+                            </td>
                             <td class="px-5 py-3 font-mono text-xs font-semibold">
                                 <a href="{{ route('admin.payments.show', $payment) }}" class="text-brand hover:text-brand-light">
                                     {{ $payment->reference }}
@@ -181,9 +210,6 @@
                                 <span class="rounded px-2 py-0.5 text-xs font-medium {{ $badge }}">
                                     {{ $payment->statusLabel() }}
                                 </span>
-                            </td>
-                            <td class="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
-                                {{ ($payment->verified_at ?? $payment->payment_date ?? $payment->created_at)?->format('d-M-Y H:i') }}
                             </td>
                             <td class="px-5 py-3 text-right">
                                 <a href="{{ route('admin.payments.show', $payment) }}"
