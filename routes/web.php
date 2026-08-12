@@ -937,6 +937,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings/payin/health',     [SettingsController::class, 'payinHealth'])   ->name('settings.payin.health');
         Route::get('settings/messaging',        [SettingsController::class, 'messaging'])     ->name('settings.messaging');
         Route::put('settings/messaging',        [SettingsController::class, 'saveMessaging'])->name('settings.messaging.save');
+        Route::get('settings/group-notifications', [SettingsController::class, 'groupNotifications'])->name('settings.group-notifications');
+        Route::put('settings/group-notifications', [SettingsController::class, 'saveGroupNotifications'])->name('settings.group-notifications.save');
         Route::get('settings/kyc',              [SettingsController::class, 'kyc'])           ->name('settings.kyc');
         Route::put('settings/kyc',              [SettingsController::class, 'saveKyc'])       ->name('settings.kyc.save');
         Route::get('settings/crb',              [SettingsController::class, 'crb'])           ->name('settings.crb');

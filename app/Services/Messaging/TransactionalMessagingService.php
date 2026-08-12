@@ -245,7 +245,7 @@ class TransactionalMessagingService
                 fn ($ch) => is_string($ch) && isset(MessagingCatalog::CHANNELS[$ch])
             ));
             $events[$code] = [
-                'enabled' => (bool) ($row['enabled'] ?? false),
+                'enabled' => filter_var($row['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'channels' => $eventChannels !== [] ? $eventChannels : $event['default_channels'],
             ];
         }
@@ -276,5 +276,64 @@ class TransactionalMessagingService
             'groups' => MessagingCatalog::GROUPS,
             'channel_labels' => MessagingCatalog::CHANNELS,
         ];
+    }
+
+    /**
+     * Form payload for the Group notifications settings page (group events only).
+     *
+     * @return array<string, mixed>
+     */
+    public function groupFormValues(): array
+    {
+        $this->ensureDefaults();
+
+        $catalog = collect(MessagingCatalog::events())
+            ->where('group', 'group')
+            ->values()
+            ->all();
+
+        return [
+            'events' => Setting::get(self::SETTING_EVENTS, []),
+            'catalog' => $catalog,
+            'channel_labels' => MessagingCatalog::CHANNELS,
+            'globally_enabled' => $this->isGloballyEnabled(),
+            'channel_flags' => $this->channelFlags(),
+        ];
+    }
+
+    /**
+     * Persist only group lending event toggles — merge into messaging.events
+     * so other transactional events are left untouched.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function saveGroupEvents(array $data): void
+    {
+        $this->ensureDefaults();
+
+        $events = Setting::get(self::SETTING_EVENTS, []);
+        if (! is_array($events)) {
+            $events = [];
+        }
+
+        foreach (MessagingCatalog::events() as $event) {
+            if (($event['group'] ?? null) !== 'group') {
+                continue;
+            }
+
+            $code = $event['code'];
+            $row = $data['events'][$code] ?? [];
+            $eventChannels = array_values(array_filter(
+                (array) ($row['channels'] ?? $event['default_channels']),
+                fn ($ch) => is_string($ch) && isset(MessagingCatalog::CHANNELS[$ch])
+            ));
+
+            $events[$code] = [
+                'enabled' => filter_var($row['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'channels' => $eventChannels !== [] ? $eventChannels : $event['default_channels'],
+            ];
+        }
+
+        Setting::set(self::SETTING_EVENTS, $events);
     }
 }

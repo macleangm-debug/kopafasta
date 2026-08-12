@@ -111,7 +111,7 @@ class GroupLoanNotificationService
             $leader,
             $inAppMessage,
             'group_loan',
-            'group_contract_declined',
+            'group_contract_member_declined',
             $inAppTitle,
             $applicationUrl,
             __('borrower.apply.group.replacement_view_cta'),

@@ -71,6 +71,7 @@ return [
     ],
     'Communications' => [
         ['Transactional messaging', 'admin.settings.messaging', 'messaging'],
+        ['Group notifications', 'admin.settings.group-notifications', 'group-notifications', 'group lending consent contract signature'],
         ['Notification templates', 'admin.notification-templates.index', 'notification-templates'],
         ['Chatbot', 'admin.settings.chatbot', 'chatbot'],
     ],

@@ -77,7 +77,10 @@ class PageController extends Controller
     }
 
     public function howItWorks(): View { return view('site.how-it-works'); }
-    public function about(): View { return view('site.about'); }
+    public function about(): View
+    {
+        return view('site.about');
+    }
     public function faq(): View { return view('site.faq'); }
     public function invest(): View { return view('site.invest'); }
     public function capitalPartners(): View { return view('site.capital-partners'); }

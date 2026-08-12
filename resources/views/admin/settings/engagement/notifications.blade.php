@@ -2,14 +2,14 @@
     @include('admin.settings.engagement._nav', ['active' => 'notifications'])
 @php
         $cats = $values['categories'] ?? config('gamification.notifications.categories', []);
-        $allCats = ['repayment', 'application', 'promotions', 'referral', 'membership'];
+        $allCats = ['repayment', 'application', 'promotions', 'referral', 'membership', 'group_loan'];
     @endphp
 
     @include('admin.settings.engagement._guide', [
         'title' => 'How engagement notifications work',
         'summary' => 'Category checkboxes control which notification types are emphasised in the member notification center filters. The referral leaderboard settings control the public/top-referrers list on the referrals tab — not loan underwriting.',
         'borrowerSees' => [
-            'Notifications page: category chips (repayment, application, promotions, referral, membership).',
+            'Notifications page: category chips (repayment, application, promotions, referral, membership, group loan).',
             'Referrals tab: optional top-N leaderboard with masked or full names.',
         ],
         'fields' => [
@@ -20,6 +20,7 @@
         ],
         'tips' => [
             'Keep promotions enabled if you send loyalty / campaign in-app messages.',
+            'Enable Group loan so leaders and members can filter group-application notices in the inbox.',
             'Guarantor inbox is separate from these categories — it uses the guarantor notification templates.',
         ],
     ])
@@ -32,7 +33,7 @@
                 @foreach ($allCats as $cat)
                     <label class="flex items-center gap-2 text-sm">
                         <input type="checkbox" name="categories[]" value="{{ $cat }}" @checked(in_array($cat, $cats, true))>
-                        {{ ucfirst($cat) }}
+                        {{ $cat === 'group_loan' ? 'Group loan' : ucfirst($cat) }}
                     </label>
                 @endforeach
             </div>

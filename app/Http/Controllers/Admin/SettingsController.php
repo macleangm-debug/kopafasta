@@ -709,6 +709,23 @@ class SettingsController extends Controller
         return back()->with('status', 'Transactional messaging settings saved.');
     }
 
+    // ---------------- Group notifications ----------------
+    public function groupNotifications(\App\Services\Messaging\TransactionalMessagingService $messaging)
+    {
+        return view('admin.settings.group-notifications', $messaging->groupFormValues());
+    }
+
+    public function saveGroupNotifications(Request $request, \App\Services\Messaging\TransactionalMessagingService $messaging)
+    {
+        $data = $request->validate([
+            'events' => ['nullable', 'array'],
+        ]);
+
+        $messaging->saveGroupEvents($data);
+
+        return back()->with('status', 'Group notification settings saved.');
+    }
+
     // ---------------- KYC requirements ----------------
     public function kyc()
     {

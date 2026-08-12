@@ -231,6 +231,122 @@ return [
             ['title' => 'Msaada wa binadamu', 'body' => 'Timu yetu na msaidizi wa AI wanapatikana kukuongoza kila hatua.', 'icon' => '💬'],
         ],
     ],
+
+    'about' => [
+        'title' => 'Kuhusu sisi',
+        'meta_description' => 'kopafasta inafanya microfinance kuwa rahisi — ujumuishaji wa kifedha Afrika Mashariki na Kati, na daraja kwa washirika wa miradi wanaotaka mtaji ufike kwa watu wanaohitaji.',
+        'eyebrow' => 'Kuhusu kopafasta',
+        'hero_title' => 'Kufanya microfinance kuwa njia rahisi zaidi ya ',
+        'hero_accent' => 'ujumuishaji wa kifedha.',
+        'hero_body' => 'Tunajenga mikopo ya simu ambayo watu wa kawaida wanaweza kuelewa, kuomba, na kulipa — ili mtaji usonge kwa kasi ya maisha halisi, si karatasi.',
+        'cta_products' => 'Chunguza bidhaa',
+        'cta_partners' => 'Shirikiana nasi',
+        'mission_eyebrow' => 'Dhamira yetu',
+        'mission_title' => 'Ujumuishaji kwanza. Ugumu kando.',
+        'mission_lead' => 'kopafasta ipo kufanya ukopaji kuwa wa haki, uwazi, na ufikikaji — kwa wafanyabiashara, wakulima, kaya, na washirika wanaowafadhili.',
+        'mission_body' => 'Tangu siku ya kwanza Tanzania tumezingatia bei wazi, uthibitisho wa utambulisho wa kiwango cha benki, na mwongozo unaofanya kazi kwenye simu watu tayari wanazitumia. Lengo ni rahisi: kuondoa kikwazo kati ya mtaji na jamii zinazounda thamani.',
+        'pillars' => [
+            [
+                'icon' => '📱',
+                'title' => 'Mikopo ya simu',
+                'body' => 'Omba, fuatilia, na lipa kutoka simu. Viwango na ada vinaonyeshwa kabla ya kusaini.',
+            ],
+            [
+                'icon' => '🌍',
+                'title' => 'Imeundwa kwa ujumuishaji',
+                'body' => 'Bidhaa na safari zilizoundwa kwa watu ambao kwa muda mrefu hawakupata huduma za kifedha za kawaida.',
+            ],
+            [
+                'icon' => '🤝',
+                'title' => 'Washirika kama daraja',
+                'body' => 'Tunaunganisha mtaji wa miradi na wakopaji sahihi — kwa uchunguzi, utoaji, na mifumo ya malipo tayari.',
+            ],
+        ],
+        'expansion_eyebrow' => 'Tunakoelekea',
+        'expansion_title' => 'Kutoka Tanzania hadi Afrika Mashariki na Kati.',
+        'expansion_body' => 'Tunafanya kazi Tanzania leo, na tunapanuka kwa uangalifu Afrika Mashariki na Kati — masoko ambapo pesa za simu ni sehemu ya maisha ya kila siku, na ambapo mikopo yenye uwajibikaji inaweza kufungua ukuaji.',
+        'expansion_regions' => [
+            [
+                'label' => 'Leo',
+                'title' => 'Tanzania',
+                'body' => 'Soko letu la nyumbani: bidhaa za wakopaji, mikopo ya vikundi, fedha za mali, na mifumo ya washirika.',
+            ],
+            [
+                'label' => 'Ifuatayo',
+                'title' => 'Afrika Mashariki',
+                'body' => 'Kuongeza ufikiaji ambapo pochi za simu na mazingira ya SME yako tayari kwa mikopo yenye uwazi.',
+            ],
+            [
+                'label' => 'Upeo',
+                'title' => 'Afrika ya Kati',
+                'body' => 'Kujenga modeli ile ile ya ujumuishaji na washirika wa ndani na programu zinazotegemea miradi.',
+            ],
+        ],
+        'partners_eyebrow' => 'Tunashirikiana na nani',
+        'partners_title' => 'Ikiwa mradi wako unalenga kugusa maisha ya Waafrika, tunaweza kusaidia mtaji ufike.',
+        'partners_body' => 'Tunatafuta mashirika yanayoendesha programu zinazoweka fedha kazini kwa watu halisi — wakulima, wafanyabiashara, biashara za wanawake, vijana, na miradi ya jamii. kopafasta inakuwa daraja: mamlaka yako, uchunguzi wetu, KYC, utoaji, na ukusanyaji.',
+        'conduit_eyebrow' => 'Ufadhili wa msingi wa miradi',
+        'conduit_title' => 'Wewe unagharamia lengo. Sisi tunawafikia watu.',
+        'conduit_body' => 'Fikiria kampuni au foundation inayotaka kufadhili wakulima wadogo, au programu kama microfinance ya aina ya Basman inayohitaji uwasilishaji wa mwisho wa kuegemea. Badala ya kujenga mfumo kamili wa ukopaji, unashirikiana nasi — na tunaelekeza mtaji kupitia bidhaa, vikundi, na safari za malipo ambazo wakopaji tayari wanazielewa.',
+        'conduit_points' => [
+            'Bainisha sehemu (wakulima, wafanyabiashara, wanawake, vijana, eneo).',
+            'Sisi tunaanzisha na kuchunguza kwa bei wazi na udhibiti wa utambulisho.',
+            'Toa na kusanya kupitia pesa za simu au benki na ripoti wazi.',
+            'Endelea karibu na athari: nani alifadhiliwa, wapi, na jinsi malipo yanavyoendelea.',
+        ],
+        'partner_examples' => [
+            [
+                'title' => 'Programu za kilimo na maisha',
+                'body' => 'Mikopo ya msimu na mtaji wa kazi kwa wakulima na wanaohusika kwenye mnyororo wa thamani — kama madimbwi ya miradi yenye sifa wazi.',
+            ],
+            [
+                'title' => 'Fedha za athari na mtaji wa dhamira',
+                'body' => 'Weka mtaji wa programu kupitia kitabu chetu kwa ripoti zinazolingana na mamlaka yako, si sanduku jeusi.',
+            ],
+            [
+                'title' => 'Washirika wa huduma na mtaji',
+                'body' => 'Kutoka washirika wa urejesho na uthamini hadi mtaji wa taasisi — jukwaa moja, viwango vilivyoshirikiwa.',
+            ],
+        ],
+        'serve_eyebrow' => 'Tunawahudumia nani',
+        'serve_title' => 'Jukwaa moja. Njia nyingi za mtaji.',
+        'audiences' => [
+            [
+                'icon' => '👤',
+                'title' => 'Wakopaji',
+                'body' => 'Watu binafsi na vikundi wanaohitaji mikopo ya haraka na yenye uwazi bila msongamano.',
+            ],
+            [
+                'icon' => '🏪',
+                'title' => 'Wajasiriamali',
+                'body' => 'Wafanyabiashara na SME wanaofadhili stock, zana, na ukuaji kwa malipo wazi.',
+            ],
+            [
+                'icon' => '🏗️',
+                'title' => 'Washirika wa miradi',
+                'body' => 'Mashirika yanayotaka mtaji ufikie jamii wanazohudumia.',
+            ],
+            [
+                'icon' => '🏦',
+                'title' => 'Washirika wa mtaji',
+                'body' => 'Taasisi zinazotafuta mfiduo wa nidhamu kwa mikopo yenye tija Afrika.',
+            ],
+        ],
+        'next_eyebrow' => 'Hadithi ya chapa — bado inaendelea',
+        'next_title' => 'Tunaweza kuongeza nini baadaye kuweka kopafasta wazi.',
+        'next_body' => 'Ukurasa huu ni nyumbani ya chapa inayoendelea. Tunavyokua, tunaweza kuimarisha hadithi kwa vipengele vinavyofanya kopafasta ijulikane — bila kugeuza ukurasa wa kwanza kuwa brosha.',
+        'next_topics' => [
+            'Hadithi ya kuanzishwa na uongozi (waliunda nani, na kwa nini)',
+            'Leseni, utawala, na ishara za uaminifu',
+            'Vipimo vya athari (watu waliofadhiliwa, maeneo, ubora wa malipo)',
+            'Orodha za kusubiri nchi na ramani ya uzinduzi',
+            'Programu za miradi zilizoitwa na masomo ya kesi',
+            'Ajira na utamaduni kwa wanaotaka kujenga ujumuishaji',
+        ],
+        'cta_contact' => 'Wasiliana nasi',
+        'cta_capital' => 'Programu ya washirika wa mtaji',
+    ],
+
     'marketplace' => [
         'title'              => 'Soko la mali',
         'subtitle'           => 'Pata magari, vifaa na zaidi kwa amana na malipo ya kila wiki.',

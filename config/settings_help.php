@@ -251,6 +251,11 @@ return [
         'summary' => 'Which SMS/email/WhatsApp notices are enabled for system events.',
         'where' => 'Borrower and partner notifications across the product.',
     ],
+    'group-notifications' => [
+        'title' => 'Group notifications',
+        'summary' => 'Enable or disable group-loan SMS and in-app notices for leaders and members (invites, screening feedback, contract signatures).',
+        'where' => 'Group loan apply flow, member onboarding, underwriting feedback, and contract signing.',
+    ],
     'gateways' => [
         'title' => 'SMS / Email gateways',
         'summary' => 'Provider credentials and connection health for outbound messaging.',

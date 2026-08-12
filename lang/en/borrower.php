@@ -3813,6 +3813,7 @@ return [
             'promotions' => 'Promotions',
             'referral' => 'Referral',
             'membership' => 'Membership',
+            'group_loan' => 'Group loan',
             'payment' => 'Payment',
             'kyc' => 'Profile',
             'document' => 'Document',

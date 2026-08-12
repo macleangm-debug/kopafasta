@@ -1456,7 +1456,12 @@ export function applyWizard(config) {
                         return this.verifiedLegalName || this.borrowerSignature?.signer_name || '—';
                     }
                     const member = this.groupSigCurrentMember();
-                    return member?.name || member?.label || member?.phone || this.verifiedLegalName || '—';
+                    return member?.full_name
+                        || member?.name
+                        || member?.label
+                        || member?.phone
+                        || this.verifiedLegalName
+                        || '—';
                 },
 
                 groupScoringRiskBandLabel(band) {
@@ -3490,6 +3495,9 @@ export function applyWizard(config) {
                         if (this.stepKey === 'submit') {
                             this.resigningOnSubmit = ! this.borrowerSignature?.signature_data;
                             this.$nextTick(() => this.syncSubmitPayload(this.formRoot()));
+                            if (this.isGroupProduct(this.current)) {
+                                this.refreshGroupMemberStatuses();
+                            }
                         }
                         this.scrollWizardIntoView();
                     } finally {

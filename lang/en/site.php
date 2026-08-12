@@ -232,6 +232,122 @@ return [
             ['title' => 'Human support when you need it', 'body' => 'Our support team and AI assistant are available to guide you through every step.', 'icon' => '💬'],
         ],
     ],
+
+    'about' => [
+        'title' => 'About us',
+        'meta_description' => 'kopafasta makes microfinance simple — financial inclusion across East and Central Africa, and a conduit for project partners who want capital to reach the people who need it.',
+        'eyebrow' => 'About kopafasta',
+        'hero_title' => 'Making microfinance the easiest path to ',
+        'hero_accent' => 'financial inclusion.',
+        'hero_body' => 'We build mobile-first credit that ordinary people can understand, apply for, and repay — so capital moves at the pace of real life, not paperwork.',
+        'cta_products' => 'Explore products',
+        'cta_partners' => 'Partner with us',
+        'mission_eyebrow' => 'Our purpose',
+        'mission_title' => 'Inclusion first. Complexity out of the way.',
+        'mission_lead' => 'kopafasta exists to make borrowing fair, transparent, and reachable — for traders, farmers, households, and the partners who fund them.',
+        'mission_body' => 'From day one in Tanzania we have focused on clear pricing, bank-grade identity checks, and a guided experience that works on the phones people already use. The goal is simple: remove friction between capital and the communities that create value.',
+        'pillars' => [
+            [
+                'icon' => '📱',
+                'title' => 'Mobile-first credit',
+                'body' => 'Apply, track, and repay from a phone. Rates and fees are shown before anyone signs.',
+            ],
+            [
+                'icon' => '🌍',
+                'title' => 'Built for inclusion',
+                'body' => 'Products and journeys designed for people historically underserved by traditional finance.',
+            ],
+            [
+                'icon' => '🤝',
+                'title' => 'Partners as conduits',
+                'body' => 'We connect project capital to the right borrowers — with underwriting, disbursement, and repayment rails ready.',
+            ],
+        ],
+        'expansion_eyebrow' => 'Where we are going',
+        'expansion_title' => 'From Tanzania to East & Central Africa.',
+        'expansion_body' => 'We are live in Tanzania today, and expanding carefully across East and Central Africa — markets where mobile money is already part of daily life, and where responsible credit can unlock productive growth.',
+        'expansion_regions' => [
+            [
+                'label' => 'Today',
+                'title' => 'Tanzania',
+                'body' => 'Our home market: borrower products, group lending, asset finance, and partner rails.',
+            ],
+            [
+                'label' => 'Next',
+                'title' => 'East Africa',
+                'body' => 'Deepening reach where mobile wallets and SME ecosystems are ready for transparent credit.',
+            ],
+            [
+                'label' => 'Horizon',
+                'title' => 'Central Africa',
+                'body' => 'Building the same inclusion-first model with local partners and project-backed programmes.',
+            ],
+        ],
+        'partners_eyebrow' => 'Who we partner with',
+        'partners_title' => 'If your project aims to touch African lives, we can help capital arrive.',
+        'partners_body' => 'We look for organisations running programmes that put money to work for real people — farmers, traders, women-led enterprises, youth livelihoods, and community projects. kopafasta becomes the conduit: your mandate, our origination, KYC, disbursement, and collection stack.',
+        'conduit_eyebrow' => 'Project-based funding',
+        'conduit_title' => 'You fund the purpose. We reach the people.',
+        'conduit_body' => 'Imagine a company or foundation that wants to finance smallholder farmers, or a programme like Basman-style microfinance that needs trusted last-mile delivery. Instead of building a full lending stack, you partner with us — and we route capital through products, groups, and repayment journeys borrowers already understand.',
+        'conduit_points' => [
+            'Define the segment (farmers, traders, women, youth, geographic corridor).',
+            'We originate and screen with transparent pricing and identity controls.',
+            'Disburse and collect on mobile money or bank rails with clear reporting.',
+            'Stay close to impact: who was funded, where, and how repayment is tracking.',
+        ],
+        'partner_examples' => [
+            [
+                'title' => 'Agri & livelihood programmes',
+                'body' => 'Seasonal and working-capital credit for farmers and value-chain actors — structured as project pools with clear eligibility.',
+            ],
+            [
+                'title' => 'Impact funds & mission capital',
+                'body' => 'Deploy programme capital through our book with reporting that matches your mandate, not a black box.',
+            ],
+            [
+                'title' => 'Service & capital partners',
+                'body' => 'From recovery and valuation partners to institutional capital — one platform, shared standards.',
+            ],
+        ],
+        'serve_eyebrow' => 'Who we serve',
+        'serve_title' => 'One platform. Many paths to capital.',
+        'audiences' => [
+            [
+                'icon' => '👤',
+                'title' => 'Borrowers',
+                'body' => 'Individuals and groups who need fast, transparent credit without the maze.',
+            ],
+            [
+                'icon' => '🏪',
+                'title' => 'Entrepreneurs',
+                'body' => 'Traders and SMEs financing stock, tools, and growth with clear instalments.',
+            ],
+            [
+                'icon' => '🏗️',
+                'title' => 'Project partners',
+                'body' => 'Organisations that want capital to land with the communities they serve.',
+            ],
+            [
+                'icon' => '🏦',
+                'title' => 'Capital partners',
+                'body' => 'Institutions seeking disciplined exposure to productive African credit.',
+            ],
+        ],
+        'next_eyebrow' => 'Brand story — still shaping',
+        'next_title' => 'What we can add next to position kopafasta clearly.',
+        'next_body' => 'This page is a living brand home. As we grow, we can deepen the story with the pieces that make kopafasta unmistakable — without turning the homepage into a brochure.',
+        'next_topics' => [
+            'Founding story & leadership (who built this, and why)',
+            'Licensing, governance, and trust signals',
+            'Impact metrics (people funded, regions, repayment quality)',
+            'Country waitlists and launch roadmap',
+            'Named project programmes and case studies',
+            'Careers and culture for people who want to build inclusion',
+        ],
+        'cta_contact' => 'Talk to us',
+        'cta_capital' => 'Capital partner programme',
+    ],
+
     'marketplace' => [
         'title'              => 'Asset marketplace',
         'subtitle'           => 'Finance vehicles, equipment and more with transparent deposits and weekly instalments.',

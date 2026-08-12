@@ -44,7 +44,7 @@
                         @click="groupSigSlide = groupRosterAbsoluteIndex(localIndex)">
                         <div class="min-w-0">
                             <p class="text-sm font-semibold text-gray-900 truncate"
-                               x-text="member.name || member.label || member.phone || ('#' + (groupRosterAbsoluteIndex(localIndex) + 1))"></p>
+                               x-text="member.full_name || member.name || member.label || member.phone || ('#' + (groupRosterAbsoluteIndex(localIndex) + 1))"></p>
                             <p class="text-xs mt-0.5" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></p>
                         </div>
                         <span class="shrink-0 size-8 rounded-full grid place-items-center ring-1"

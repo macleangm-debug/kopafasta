@@ -142,7 +142,7 @@ return [
     ],
 
     'notifications' => [
-        'categories' => ['repayment', 'application', 'promotions', 'referral', 'membership'],
+        'categories' => ['repayment', 'application', 'promotions', 'referral', 'membership', 'group_loan'],
         'date_groups' => ['today', 'yesterday', 'earlier'],
     ],
 
