@@ -205,7 +205,48 @@ class PartnerSettlementService
                     app(RecoveryCommissionWalletService::class)->syncAssignmentCommissionPaid($payment->fresh());
                 });
 
+            $this->postSettlementJournal($settlement->fresh());
+
             return $settlement->refresh();
         });
+    }
+
+    private function postSettlementJournal(PartnerSettlement $settlement): void
+    {
+        $amount = round((float) $settlement->total_amount, 2);
+        if ($amount <= 0) {
+            return;
+        }
+
+        $already = \App\Models\JournalEntry::query()
+            ->where('source_type', PartnerSettlement::class)
+            ->where('source_id', $settlement->id)
+            ->where('status', 'posted')
+            ->exists();
+        if ($already) {
+            return;
+        }
+
+        $ledger = app(LedgerService::class);
+        $payableId = $ledger->recoveryPartnerPayableAccountId() ?? $ledger->supplierPayableAccountId();
+        $cashId = $ledger->cashAccountId();
+        if (! $payableId || ! $cashId) {
+            \Illuminate\Support\Facades\Log::warning('Partner settlement paid without GL accounts', [
+                'settlement_id' => $settlement->id,
+            ]);
+
+            return;
+        }
+
+        $ledger->post(
+            [
+                ['account_id' => $payableId, 'debit' => $amount, 'credit' => 0, 'description' => 'Partner settlement'],
+                ['account_id' => $cashId, 'debit' => 0, 'credit' => $amount, 'description' => 'Cash/bank'],
+            ],
+            'Partner settlement '.$settlement->reference,
+            $settlement,
+            now()->toDateString(),
+            'Settlement batch marked paid',
+        );
     }
 }

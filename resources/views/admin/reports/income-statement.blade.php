@@ -1,4 +1,4 @@
-<x-admin.layout title="Income Statement" heading="Income Statement" :subheading="'Year-to-date · '.now()->startOfYear()->format('M Y').' – '.now()->format('M Y')">
+<x-admin.layout title="Income Statement" heading="Income Statement" :subheading="'Year-to-date · '.now()->startOfYear()->format('M Y').' – '.now()->format('M Y').(($fromGl ?? false) ? ' · from general ledger' : ' · from operations (no posted journals yet)')">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Income</h3>

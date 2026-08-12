@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomerPayment;
-use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\Disbursement;
 use App\Models\Expense;
@@ -32,9 +31,30 @@ class FinanceReportsController extends Controller
     }
 
     // -------- Income statement --------
-    public function incomeStatement()
+    public function incomeStatement(GeneralLedgerService $ledger)
     {
         $start = now()->startOfYear();
+        $end = now()->endOfDay();
+        $fromGl = $ledger->hasPostedActivity($start, $end);
+
+        if ($fromGl) {
+            $incomeRows = $ledger->periodActivityByType('income', $start, $end);
+            $expenseRows = $ledger->periodActivityByType('expense', $start, $end);
+            $totalIncome = (float) $incomeRows->sum('amount');
+            $totalExpense = (float) $expenseRows->sum('amount');
+            $net = $totalIncome - $totalExpense;
+
+            $interestIncome = (float) $incomeRows->filter(fn ($r) => str_contains(strtolower($r->name), 'interest'))->sum('amount');
+            $penaltyIncome = (float) $incomeRows->filter(fn ($r) => str_contains(strtolower($r->name), 'penalt'))->sum('amount');
+            $feeIncome = (float) $incomeRows->filter(fn ($r) => str_contains(strtolower($r->name), 'fee') || str_contains(strtolower($r->name), 'commission'))->sum('amount');
+            $otherIncome = round($totalIncome - $interestIncome - $penaltyIncome - $feeIncome, 2);
+            $expenses = $expenseRows->mapWithKeys(fn ($r) => [$r->code.' · '.$r->name => $r->amount]);
+
+            return view('admin.reports.income-statement', compact(
+                'interestIncome', 'penaltyIncome', 'feeIncome', 'otherIncome', 'totalIncome',
+                'expenses', 'totalExpense', 'net', 'fromGl'
+            ));
+        }
 
         $interestIncome = (float) Repayment::where('paid_at', '>=', $start)->sum('interest_component');
         $penaltyIncome  = (float) Repayment::where('paid_at', '>=', $start)->sum('penalty_component');
@@ -54,10 +74,11 @@ class FinanceReportsController extends Controller
 
         $totalExpense = (float) $expenses->sum();
         $net = $totalIncome - $totalExpense;
+        $fromGl = false;
 
         return view('admin.reports.income-statement', compact(
             'interestIncome', 'penaltyIncome', 'feeIncome', 'otherIncome', 'totalIncome',
-            'expenses', 'totalExpense', 'net'
+            'expenses', 'totalExpense', 'net', 'fromGl'
         ));
     }
 
@@ -92,9 +113,20 @@ class FinanceReportsController extends Controller
     }
 
     // -------- Cash flow --------
-    public function cashFlow()
+    public function cashFlow(GeneralLedgerService $ledger)
     {
         $start = now()->startOfMonth();
+        $end = now()->endOfDay();
+        $glCash = $ledger->cashMovements($start, $end);
+
+        if ($glCash['from_gl'] && $ledger->hasPostedActivity($start, $end)) {
+            $inflows = $glCash['inflows'];
+            $outflows = $glCash['outflows'];
+            $net = $glCash['net'];
+            $fromGl = true;
+
+            return view('admin.reports.cash-flow', compact('inflows', 'outflows', 'net', 'fromGl'));
+        }
 
         $inflows  = (float) Repayment::where('paid_at', '>=', $start)->sum('amount')
                   + (float) CustomerPayment::query()
@@ -106,8 +138,9 @@ class FinanceReportsController extends Controller
                   + (float) Expense::where('expense_date', '>=', $start)->where('status', 'paid')->sum('amount');
 
         $net = $inflows - $outflows;
+        $fromGl = false;
 
-        return view('admin.reports.cash-flow', compact('inflows', 'outflows', 'net'));
+        return view('admin.reports.cash-flow', compact('inflows', 'outflows', 'net', 'fromGl'));
     }
 
     // -------- NPL (Non-Performing Loans) report --------
@@ -194,10 +227,11 @@ class FinanceReportsController extends Controller
     }
 
     // -------- Financial overview --------
-    public function financialOverview()
+    public function financialOverview(GeneralLedgerService $ledger)
     {
         $start = now()->startOfYear();
         $monthStart = now()->startOfMonth();
+        $end = now()->endOfDay();
 
         $portfolioOutstanding = (float) Loan::whereIn('status', ['active','arrears','restructured'])->sum('outstanding_balance');
         $activeLoanCount      = Loan::whereIn('status', ['active','arrears','restructured'])->count();
@@ -208,6 +242,19 @@ class FinanceReportsController extends Controller
         $expensesYtd          = (float) Expense::where('expense_date', '>=', $start)->sum('amount');
         $netIncomeYtd         = ($interestYtd + $penaltyYtd) - $expensesYtd;
 
+        if ($ledger->hasPostedActivity($start, $end)) {
+            $glIncome = (float) $ledger->periodActivityByType('income', $start, $end)->sum('amount');
+            $glExpense = (float) $ledger->periodActivityByType('expense', $start, $end)->sum('amount');
+            $interestYtd = (float) $ledger->periodActivityByType('income', $start, $end)
+                ->filter(fn ($r) => str_contains(strtolower($r->name), 'interest'))
+                ->sum('amount') ?: $interestYtd;
+            $penaltyYtd = (float) $ledger->periodActivityByType('income', $start, $end)
+                ->filter(fn ($r) => str_contains(strtolower($r->name), 'penalt'))
+                ->sum('amount') ?: $penaltyYtd;
+            $expensesYtd = $glExpense ?: $expensesYtd;
+            $netIncomeYtd = $glIncome - $glExpense;
+        }
+
         $disbursedMonth       = (float) Disbursement::where('released_at', '>=', $monthStart)->sum('amount');
         $repaidMonth          = (float) Repayment::where('paid_at', '>=', $monthStart)->sum('amount');
 
@@ -217,11 +264,16 @@ class FinanceReportsController extends Controller
         $totalCustomers       = Customer::count();
         $activeCustomers      = Customer::whereHas('loans', fn ($q) => $q->whereIn('status', ['active','arrears','restructured']))->count();
 
+        $cashGl = $ledger->cashMovements($start, $end);
+        $cashPosition = $cashGl['from_gl'] && $ledger->hasPostedActivity($start, $end)
+            ? $cashGl['net']
+            : ($repaidYtd - $disbursedYtd - $expensesYtd);
+
         return view('admin.reports.financial-overview', compact(
             'portfolioOutstanding', 'activeLoanCount', 'disbursedYtd', 'repaidYtd',
             'interestYtd', 'penaltyYtd', 'expensesYtd', 'netIncomeYtd',
             'disbursedMonth', 'repaidMonth', 'writtenOffYtd',
-            'totalCustomers', 'activeCustomers'
+            'totalCustomers', 'activeCustomers', 'cashPosition'
         ));
     }
 }

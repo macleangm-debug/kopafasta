@@ -47,6 +47,8 @@ class CapitalPartnerCapitalService
                 $actor,
             );
 
+            $this->postCapitalCashJournal($lender, $amount, 'deposit', 'Capital deposit · '.$lender->name);
+
             $this->audit->log($actor, 'capital_partner.capital_deposit', $lender, $before, $this->audit->snapshot($lender, ['credit_limit', 'available_balance']));
         });
     }
@@ -153,6 +155,8 @@ class CapitalPartnerCapitalService
                 $actor,
             );
 
+            $this->postCapitalCashJournal($lender, $amount, 'withdrawal', 'Capital withdrawal · '.$lender->name);
+
             $request->update([
                 'status'       => 'approved',
                 'admin_notes'  => $adminNotes,
@@ -240,5 +244,38 @@ class CapitalPartnerCapitalService
             'processed_at'     => now(),
             'created_by'       => $actor?->id,
         ]);
+    }
+
+    /**
+     * Deposit: Dr cash, Cr capital partner pool.
+     * Withdrawal: Dr capital partner pool, Cr cash.
+     */
+    protected function postCapitalCashJournal(Lender $lender, float $amount, string $kind, string $description): void
+    {
+        $amount = round($amount, 2);
+        if ($amount <= 0) {
+            return;
+        }
+
+        $ledger = app(LedgerService::class);
+        $cashId = $ledger->cashAccountId();
+        $poolId = $ledger->capitalPartnerPoolAccountId();
+        if (! $cashId || ! $poolId) {
+            return;
+        }
+
+        if ($kind === 'deposit') {
+            $lines = [
+                ['account_id' => $cashId, 'debit' => $amount, 'credit' => 0, 'description' => 'Cash received'],
+                ['account_id' => $poolId, 'debit' => 0, 'credit' => $amount, 'description' => 'Due to capital partner'],
+            ];
+        } else {
+            $lines = [
+                ['account_id' => $poolId, 'debit' => $amount, 'credit' => 0, 'description' => 'Capital partner payout'],
+                ['account_id' => $cashId, 'debit' => 0, 'credit' => $amount, 'description' => 'Cash paid'],
+            ];
+        }
+
+        $ledger->post($lines, $description, $lender, now()->toDateString());
     }
 }

@@ -226,6 +226,9 @@ class ScreeningChecklistService
             : User::query()->whereIn('id', $userIds)->pluck('name', 'id');
 
         $context = $this->evidenceContext($application, $person, $guarantorLinkId, $memberId, $review, $groupReview);
+        $kind = $this->kindFromSubject($subject);
+        $systemSuggestions = app(ScreeningChecklistAutoVerdictService::class)
+            ->suggest($application, $kind, $context);
 
         $groups = [];
         $decided = 0;
@@ -240,7 +243,10 @@ class ScreeningChecklistService
                 $meta = $this->normalizeItemMeta($meta);
                 $fullKey = $groupKey.'.'.$itemKey;
                 $row = (array) ($checkedMap[$fullKey] ?? []);
+                $suggestion = $systemSuggestions[$fullKey] ?? null;
+                $row = $this->applySystemSuggestion($row, $suggestion);
                 [$verdict, $autoNa] = $this->resolveItemVerdict((string) $groupKey, $row, $collateralApplies);
+                $isSystem = in_array(($row['source'] ?? null), ['system', 'auto_na'], true) && $verdict !== null;
                 $total++;
                 if ($verdict !== null) {
                     $decided++;
@@ -269,13 +275,14 @@ class ScreeningChecklistService
                     'fail_reasons' => $meta['fail_reasons'],
                     'verdict' => $verdict,
                     'auto_na' => $autoNa,
+                    'system_checked' => $isSystem,
                     'checked' => $verdict === 'pass' || $verdict === 'na',
                     'fail_reason_code' => $autoNa ? null : ($row['fail_reason_code'] ?? null),
                     'fail_reason_custom' => $autoNa ? null : ($row['fail_reason_custom'] ?? null),
                     'fail_reason_label' => $autoNa ? null : $this->failReasonLabel($meta['fail_reasons'], $row),
                     'at' => $autoNa ? null : ($row['at'] ?? null),
                     'by' => $autoNa ? null : $by,
-                    'by_name' => $autoNa ? null : ($by ? ($names[$by] ?? null) : null),
+                    'by_name' => $isSystem ? 'System' : ($autoNa ? null : ($by ? ($names[$by] ?? null) : null)),
                 ];
             }
             if ($items === []) {
@@ -434,6 +441,7 @@ class ScreeningChecklistService
             }
 
             $this->syncCollateralAutoNa($application, $items, $validKeys, $actor);
+            $this->syncSystemVerdicts($application, $items, $validKeys, $person, $guarantorLinkId, $memberId);
 
             // Full replace mode: if form posted all keys with verdicts (including empty clear)
             if (($checks['__replace_all'] ?? false) === true) {
@@ -478,6 +486,41 @@ class ScreeningChecklistService
             'label' => (string) ($meta['label'] ?? 'Check'),
             'evidence' => (string) ($meta['evidence'] ?? 'generic'),
             'fail_reasons' => (array) ($meta['fail_reasons'] ?? ['custom' => 'Other (write reason)']),
+        ];
+    }
+
+    /**
+     * Apply system suggestion when the item has no human verdict yet (or was previously system-set).
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array{verdict?: string, fail_reason_code?: string|null, source?: string}|null  $suggestion
+     * @return array<string, mixed>
+     */
+    private function applySystemSuggestion(array $row, ?array $suggestion): array
+    {
+        if ($suggestion === null) {
+            return $row;
+        }
+        $source = (string) ($suggestion['source'] ?? '');
+        if ($source === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
+            return $row;
+        }
+
+        $existing = $this->normalizeVerdict($row);
+        $existingSource = (string) ($row['source'] ?? '');
+        $humanLocked = $existing !== null && ! in_array($existingSource, ['system', 'auto_na', ''], true);
+        if ($humanLocked) {
+            return $row;
+        }
+
+        return [
+            'verdict' => $suggestion['verdict'],
+            'checked' => in_array($suggestion['verdict'], ['pass', 'na'], true),
+            'source' => $source === 'auto_na' ? 'auto_na' : 'system',
+            'fail_reason_code' => $suggestion['fail_reason_code'] ?? null,
+            'fail_reason_custom' => null,
+            'at' => $row['at'] ?? now()->toIso8601String(),
+            'by' => $row['by'] ?? null,
         ];
     }
 
@@ -565,6 +608,47 @@ class ScreeningChecklistService
         }
 
         return [$stored, false];
+    }
+
+    /**
+     * Persist system Pass/Fail for undecided items (does not override human verdicts).
+     *
+     * @param  array<string, mixed>  $items
+     * @param  list<string>  $validKeys
+     */
+    private function syncSystemVerdicts(
+        LoanApplication $application,
+        array &$items,
+        array $validKeys,
+        string $person,
+        ?int $guarantorLinkId,
+        ?int $memberId,
+    ): void {
+        $context = $this->evidenceContext($application, $person, $guarantorLinkId, $memberId, null, null);
+        $kind = $this->kindFromSubject($this->subjectKey($person, $guarantorLinkId, $memberId));
+        $suggestions = app(ScreeningChecklistAutoVerdictService::class)->suggest($application, $kind, $context);
+
+        foreach ($validKeys as $key) {
+            $suggestion = $suggestions[$key] ?? null;
+            if ($suggestion === null || ($suggestion['source'] ?? '') === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
+                continue;
+            }
+            $current = (array) ($items[$key] ?? []);
+            $existing = $this->normalizeVerdict($current);
+            $existingSource = (string) ($current['source'] ?? '');
+            if ($existing !== null && ! in_array($existingSource, ['system', 'auto_na', ''], true)) {
+                continue;
+            }
+            $items[$key] = [
+                'verdict' => $suggestion['verdict'],
+                'checked' => in_array($suggestion['verdict'], ['pass', 'na'], true),
+                'source' => ($suggestion['source'] ?? '') === 'auto_na' ? 'auto_na' : 'system',
+                'fail_reason_code' => $suggestion['fail_reason_code'] ?? null,
+                'fail_reason_custom' => null,
+                'at' => now()->toIso8601String(),
+                'by' => null,
+            ];
+        }
     }
 
     /**
@@ -905,7 +989,13 @@ class ScreeningChecklistService
                     ['label' => 'District', 'value' => (string) ($customer?->district ?: '—')],
                     ['label' => 'Ward', 'value' => (string) ($customer?->ward ?: '—')],
                     ['label' => 'Street / address', 'value' => (string) ($customer?->street_address ?? $customer?->address ?? '—')],
+                    ['label' => 'LGO / letter signatory', 'value' => (string) ($customer?->lga_officer_name ?: '—')],
+                    ['label' => 'Signatory position', 'value' => (string) ($customer?->lga_officer_position ?: '—')],
+                    ['label' => 'Signatory phone', 'value' => (string) ($customer?->lga_officer_phone ?: '—')],
                 ];
+                $hint = filled($customer?->lga_officer_phone)
+                    ? 'Call the signatory phone to confirm the residence letter if needed.'
+                    : 'Residence letter signatory phone is missing — borrower must add LGO officer phone.';
                 break;
 
             case 'activity':

@@ -119,40 +119,44 @@ class PartnerPayoutRequestService
     {
         abort_unless(in_array($request->status, ['pending', 'approved'], true), 422, 'Request cannot be marked paid.');
 
-        $payload = [
-            'status'      => 'paid',
-            'reviewed_by' => $actor?->id ?? $request->reviewed_by,
-            'reviewed_at' => now(),
-        ];
-        if (Schema::hasColumn('partner_payout_requests', 'paid_at')) {
-            $payload['paid_at'] = now();
-        }
+        $request = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $actor) {
+            $payload = [
+                'status'      => 'paid',
+                'reviewed_by' => $actor?->id ?? $request->reviewed_by,
+                'reviewed_at' => now(),
+            ];
+            if (Schema::hasColumn('partner_payout_requests', 'paid_at')) {
+                $payload['paid_at'] = now();
+            }
 
-        $request->update($payload);
+            $request->update($payload);
 
-        // Mark matching approved commission lines as paid up to the request amount.
-        $sourceType = $request->source_type ?? $request->wallet_type ?? null;
-        if ($sourceType) {
-            $remaining = (float) $request->amount;
-            PartnerPayment::query()
-                ->where('partner_id', $request->partner_id)
-                ->where('source_type', $sourceType)
-                ->where('status', 'approved')
-                ->orderBy('id')
-                ->get()
-                ->each(function (PartnerPayment $payment) use (&$remaining): void {
-                    if ($remaining <= 0) {
-                        return;
-                    }
-                    $payment->update(array_filter([
-                        'status'  => 'paid',
-                        'paid_at' => Schema::hasColumn($payment->getTable(), 'paid_at') ? now() : null,
-                    ]));
-                    $remaining -= (float) $payment->amount;
-                });
-        }
+            // Mark matching approved commission lines as paid up to the request amount.
+            $sourceType = $request->source_type ?? $request->wallet_type ?? null;
+            if ($sourceType) {
+                $remaining = (float) $request->amount;
+                PartnerPayment::query()
+                    ->where('partner_id', $request->partner_id)
+                    ->where('source_type', $sourceType)
+                    ->where('status', 'approved')
+                    ->orderBy('id')
+                    ->get()
+                    ->each(function (PartnerPayment $payment) use (&$remaining): void {
+                        if ($remaining <= 0) {
+                            return;
+                        }
+                        $payment->update(array_filter([
+                            'status'  => 'paid',
+                            'paid_at' => Schema::hasColumn($payment->getTable(), 'paid_at') ? now() : null,
+                        ]));
+                        $remaining -= (float) $payment->amount;
+                    });
+            }
 
-        $request = $request->fresh();
+            $this->postPayoutJournal($request->fresh());
+
+            return $request->fresh();
+        });
 
         $partner = $this->resolvePartner($request);
         if ($partner) {
@@ -174,6 +178,51 @@ class PartnerPayoutRequestService
         }
 
         return $request;
+    }
+
+    private function postPayoutJournal(PartnerPayoutRequest $request): void
+    {
+        $amount = round((float) $request->amount, 2);
+        if ($amount <= 0) {
+            return;
+        }
+
+        $already = \App\Models\JournalEntry::query()
+            ->where('source_type', PartnerPayoutRequest::class)
+            ->where('source_id', $request->id)
+            ->where('status', 'posted')
+            ->exists();
+        if ($already) {
+            return;
+        }
+
+        $ledger = app(LedgerService::class);
+        $payableId = $ledger->recoveryPartnerPayableAccountId();
+        $cashId = $ledger->cashAccountId();
+        if (! $payableId || ! $cashId) {
+            Log::warning('Partner payout paid without GL accounts configured', ['request_id' => $request->id]);
+
+            return;
+        }
+
+        try {
+            $ledger->post(
+                [
+                    ['account_id' => $payableId, 'debit' => $amount, 'credit' => 0, 'description' => 'Partner payout'],
+                    ['account_id' => $cashId, 'debit' => 0, 'credit' => $amount, 'description' => 'Cash/bank'],
+                ],
+                'Partner payout #'.$request->id,
+                $request,
+                now()->toDateString(),
+                'Partner payout request marked paid',
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to post partner payout journal', [
+                'request_id' => $request->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     private function resolvePartner(PartnerPayoutRequest $request): ?Vendor

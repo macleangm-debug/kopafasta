@@ -79,4 +79,89 @@ class GeneralLedgerService
 
         return $account ? $this->signedBalance($account, $asOf) : 0.0;
     }
+
+    /**
+     * Period activity by account type (income / expense), signed as natural balance.
+     *
+     * @return Collection<int, object{code: string, name: string, type: string, amount: float}>
+     */
+    public function periodActivityByType(string $type, ?Carbon $from = null, ?Carbon $to = null): Collection
+    {
+        $from = $from ?? now()->startOfYear();
+        $to = $to ?? now()->endOfDay();
+
+        return ChartOfAccount::query()
+            ->where('is_active', true)
+            ->where('type', $type)
+            ->orderBy('code')
+            ->get()
+            ->map(function (ChartOfAccount $account) use ($from, $to) {
+                $query = JournalEntryLine::query()
+                    ->where('chart_of_account_id', $account->id)
+                    ->whereHas('entry', function ($q) use ($from, $to) {
+                        $q->where('status', 'posted')
+                            ->whereDate('entry_date', '>=', $from->toDateString())
+                            ->whereDate('entry_date', '<=', $to->toDateString());
+                    });
+
+                $debits = (float) (clone $query)->sum('debit');
+                $credits = (float) (clone $query)->sum('credit');
+                $amount = in_array($type, ['asset', 'expense'], true)
+                    ? round($debits - $credits, 2)
+                    : round($credits - $debits, 2);
+
+                return (object) [
+                    'code'   => $account->code,
+                    'name'   => $account->name,
+                    'type'   => $account->type,
+                    'amount' => $amount,
+                ];
+            })
+            ->filter(fn ($row) => abs($row->amount) >= 0.01)
+            ->values();
+    }
+
+    /** Cash inflows / outflows from the configured cash GL account for a period. */
+    public function cashMovements(?Carbon $from = null, ?Carbon $to = null): array
+    {
+        $from = $from ?? now()->startOfMonth();
+        $to = $to ?? now()->endOfDay();
+        $cashId = app(LedgerService::class)->cashAccountId();
+        if (! $cashId) {
+            return ['inflows' => 0.0, 'outflows' => 0.0, 'net' => 0.0, 'from_gl' => false];
+        }
+
+        $query = JournalEntryLine::query()
+            ->where('chart_of_account_id', $cashId)
+            ->whereHas('entry', function ($q) use ($from, $to) {
+                $q->where('status', 'posted')
+                    ->whereDate('entry_date', '>=', $from->toDateString())
+                    ->whereDate('entry_date', '<=', $to->toDateString());
+            });
+
+        $inflows = round((float) (clone $query)->sum('debit'), 2);
+        $outflows = round((float) (clone $query)->sum('credit'), 2);
+
+        return [
+            'inflows'  => $inflows,
+            'outflows' => $outflows,
+            'net'      => round($inflows - $outflows, 2),
+            'from_gl'  => true,
+        ];
+    }
+
+    public function hasPostedActivity(?Carbon $from = null, ?Carbon $to = null): bool
+    {
+        $q = JournalEntryLine::query()->whereHas('entry', function ($q) use ($from, $to) {
+            $q->where('status', 'posted');
+            if ($from) {
+                $q->whereDate('entry_date', '>=', $from->toDateString());
+            }
+            if ($to) {
+                $q->whereDate('entry_date', '<=', $to->toDateString());
+            }
+        });
+
+        return $q->exists();
+    }
 }

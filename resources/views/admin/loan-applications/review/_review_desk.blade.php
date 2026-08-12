@@ -172,6 +172,9 @@
                                         <button type="button" class="text-left min-w-0 flex-1" @click="open = !open">
                                             <p class="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
                                                 <span>{{ $item['label'] }}</span>
+                                                @if ($item['system_checked'] ?? false)
+                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-sky-100 text-sky-900 ring-1 ring-sky-200">System</span>
+                                                @endif
                                                 <svg class="size-3.5 text-gray-400 transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                             </p>
                                             @if ($item['evidence']['hint'] ?? null)

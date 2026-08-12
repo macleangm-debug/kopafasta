@@ -556,6 +556,13 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         Route::get('/', DashboardController::class)->middleware('console')->name('dashboard');
 
+        Route::get('hubs/customers', [\App\Http\Controllers\Admin\ConsoleHubController::class, 'customers'])
+            ->name('hubs.customers');
+        Route::get('hubs/payments', [\App\Http\Controllers\Admin\ConsoleHubController::class, 'payments'])
+            ->name('hubs.payments');
+        Route::get('hubs/field-assignments', [\App\Http\Controllers\Admin\ConsoleHubController::class, 'fieldAssignments'])
+            ->name('hubs.field-assignments');
+
         // Applications
         Route::view('loan-applications/pipeline/under-review',  'admin.loan-applications.pipeline-under-review') ->name('loan-applications.pipeline.under-review');
         Route::view('loan-applications/pipeline/system-sorted', 'admin.loan-applications.pipeline-system-sorted')->name('loan-applications.pipeline.system-sorted');

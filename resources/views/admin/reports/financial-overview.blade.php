@@ -53,9 +53,8 @@
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Cash position (YTD net)</div>
-            @php($cash = $repaidYtd - $disbursedYtd - $expensesYtd)
-            <div class="mt-2 text-2xl font-bold {{ $cash >= 0 ? 'text-emerald-600' : 'text-rose-600' }} font-mono">{{ format_number($cash, 2) }}</div>
-            <div class="text-xs text-gray-500 mt-1">Repayments − disbursements − expenses</div>
+            <div class="mt-2 text-2xl font-bold {{ $cashPosition >= 0 ? 'text-emerald-600' : 'text-rose-600' }} font-mono">{{ format_number($cashPosition, 2) }}</div>
+            <div class="text-xs text-gray-500 mt-1">From cash GL when journals exist; otherwise repayments − disbursements − expenses</div>
         </div>
     </div>
 </x-admin.layout>
