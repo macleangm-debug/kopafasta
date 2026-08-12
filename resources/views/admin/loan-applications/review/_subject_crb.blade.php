@@ -41,12 +41,13 @@
     };
 @endphp
 
-<section class="rounded-2xl ring-1 ring-brand/10 bg-white overflow-hidden">
+<section class="rounded-2xl ring-1 ring-brand/10 bg-white overflow-hidden"
+         x-data="{ crbTab: 'summary' }">
     <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white flex flex-wrap items-start justify-between gap-3">
         <div>
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $isGuarantor ? 'Guarantor' : ($isMember ? 'Member' : 'Borrower') }} · CRB</p>
             <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Credit bureau report</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Pulled after affordability / capacity pass — summaries first, then complete detail.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Use the segments below — start on Summary, then dig into identity / credit / accounts only if needed.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <span class="inline-flex text-xs font-bold rounded-full px-3 py-1 bg-brand-muted text-brand ring-1 ring-brand/15 uppercase">
@@ -63,7 +64,26 @@
         </div>
     </div>
 
+    <div class="px-5 pt-4 flex flex-wrap gap-1.5 border-b border-gray-100 pb-3">
+        @foreach ([
+            'summary' => 'Summary',
+            'identity' => 'Identity',
+            'credit' => 'Credit behaviour',
+            'accounts' => 'Accounts',
+        ] as $tabKey => $tabLabel)
+            <button type="button"
+                    @click="crbTab = @js($tabKey)"
+                    :class="crbTab === @js($tabKey)
+                        ? 'bg-brand text-white ring-brand'
+                        : 'bg-white text-gray-700 ring-gray-200 hover:bg-brand-muted/40'"
+                    class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ring-1 transition">
+                {{ $tabLabel }}
+            </button>
+        @endforeach
+    </div>
+
     <div class="p-5 space-y-8">
+        <div x-show="crbTab === 'summary'" class="space-y-8">
         <p class="text-sm text-gray-700">{{ $explain['summary'] ?? 'No CRB explanation available.' }}</p>
 
         {{-- Quick decision strip --}}
@@ -141,8 +161,10 @@
                 @endif
             </div>
         @endif
+        </div>{{-- /summary --}}
 
         {{-- Personal / identity --}}
+        <div x-show="crbTab === 'identity'" x-cloak class="space-y-8">
         <div>
             <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Personal &amp; identity</h3>
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
@@ -259,8 +281,10 @@
                 @endif
             </div>
         </div>
+        </div>{{-- /identity --}}
 
         {{-- Credit behaviour overview --}}
+        <div x-show="crbTab === 'credit'" x-cloak class="space-y-8">
         <div>
             <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Credit behaviour overview</h3>
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-4">
@@ -333,8 +357,10 @@
                 </div>
             @endif
         </div>
+        </div>{{-- /credit --}}
 
         {{-- Open / closed facilities --}}
+        <div x-show="crbTab === 'accounts'" x-cloak class="space-y-8">
         <div>
             <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Open accounts</h3>
             @if ($openAccounts->isEmpty())
@@ -471,5 +497,6 @@
                 </ul>
             </div>
         @endif
+        </div>{{-- /accounts --}}
     </div>
 </section>

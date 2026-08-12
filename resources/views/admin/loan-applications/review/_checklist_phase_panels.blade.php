@@ -1,4 +1,5 @@
-{{-- Review surfaces that used to live under Profiles — kept on the checklist to avoid duplication. --}}
+{{-- Review surfaces that used to live under Profiles — kept on the checklist to avoid duplication.
+     Expects: $phase (person|capacity|security), optional $section (documents|affordability|crb|group|wrapup). --}}
 @php
     $panelPerson = $deskPerson ?? 'borrower';
     $panelG = $deskG ?? null;
@@ -7,6 +8,7 @@
     $panelGuarantor = null;
     $panelMember = null;
     $isGroupFile = collect($groupReview['members'] ?? [])->isNotEmpty();
+    $section = $section ?? null;
 
     if ($panelPerson === 'guarantor' && $panelG) {
         $panelGuarantor = collect($review['guarantors'] ?? [])->first(fn ($row) => (int) ($row['link_id'] ?? 0) === (int) $panelG);
@@ -53,11 +55,11 @@
     };
 @endphp
 
-@if ($phaseKey === 'capacity')
-    <div id="checklist-documents" class="scroll-mt-24 space-y-4 rounded-2xl bg-white ring-1 ring-brand/10 p-4 sm:p-5">
+@if ($phaseKey === 'capacity' && ($section === null || $section === 'documents'))
+    <div id="checklist-documents" class="scroll-mt-24 space-y-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Evidence library</p>
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Evidence</p>
                 <h4 class="text-sm font-bold text-gray-900 mt-0.5">Documents · {{ $subjectLabel }}</h4>
                 <p class="text-xs text-gray-500 mt-0.5">
                     @if ($panelPerson === 'member')
@@ -84,8 +86,10 @@
 
         @include('admin.loan-applications.review._document-requests')
     </div>
+@endif
 
-    <div class="space-y-4">
+@if ($phaseKey === 'capacity' && ($section === null || $section === 'affordability'))
+    <div id="checklist-affordability" class="scroll-mt-24 space-y-4">
         @include('admin.loan-applications.review._subject_affordability', [
             'review' => $panelSubjectReview,
             'affordability' => $panelSubjectReview['affordability'] ?? ($affordability ?? ($review['affordability'] ?? null)),
@@ -97,11 +101,16 @@
                 'single' => true,
             ])
         @endif
+    </div>
+@endif
+
+@if ($phaseKey === 'capacity' && ($section === null || $section === 'crb'))
+    <div id="checklist-crb" class="scroll-mt-24 space-y-4">
         @include('admin.loan-applications.review._subject_crb', ['review' => $panelSubjectReview])
     </div>
 @endif
 
-@if ($phaseKey === 'security')
+@if ($phaseKey === 'security' && ($section === null || $section === 'group'))
     @if ($panelPerson === 'borrower' && $isGroupFile)
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 sm:p-5 space-y-3">
             <div>
@@ -112,8 +121,9 @@
             @include('admin.loan-applications.review._group')
         </div>
     @endif
+@endif
 
-    {{-- Wrap-up strip: wires CRB snapshot next to Pass/Fail wrap-up groups --}}
+@if ($phaseKey === 'security' && ($section === null || $section === 'wrapup'))
     @php
         $wrapCrb = $panelSubjectReview['crb'] ?? ($review['crb'] ?? []);
         if ($panelPerson === 'guarantor' && $panelGuarantor) {
@@ -135,13 +145,9 @@
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Close the file</p>
                 <h4 class="text-sm font-bold text-gray-900 mt-0.5">{{ $wrapTitle }} · {{ $subjectLabel }}</h4>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Use the Pass / Fail items above, then confirm CRB exposure here before you move to Decision.
+                    Confirm CRB exposure here, then mark wrap-up Pass / Fail under the Checks sub-tab before Decision.
                 </p>
             </div>
-            <a href="#checklist-documents"
-               class="text-[11px] font-semibold text-brand hover:underline">
-                Back to documents ↑
-            </a>
         </div>
         <div class="grid sm:grid-cols-4 gap-2">
             <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-2.5">
@@ -164,8 +170,7 @@
             </div>
         </div>
         <p class="text-[11px] text-gray-500">
-            Full CRB detail sits in <span class="font-semibold text-gray-700">Capacity and evidence</span>.
-            Mark wrap-up Pass / Fail in the accordion above this card.
+            Full CRB detail is under <span class="font-semibold text-gray-700">Capacity → CRB</span>.
         </p>
     </div>
 @endif
