@@ -253,9 +253,13 @@
             <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="p-5 sm:p-6 space-y-5">
                 @csrf
                 @php
-                    $groupMembersForRequest = collect($groupReview['members'] ?? [])
-                        ->filter(fn ($m) => ($m['role'] ?? '') !== 'leader')
-                        ->values();
+                    $groupMembersForRequest = collect($groupReview['members'] ?? [])->values();
+                    $defaultRequestSubject = 'borrower';
+                    if (request('review_person') === 'member' && (int) request('review_m', 0) > 0) {
+                        $defaultRequestSubject = 'member:'.(int) request('review_m');
+                    } elseif (old('request_subject')) {
+                        $defaultRequestSubject = (string) old('request_subject');
+                    }
                 @endphp
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
@@ -278,18 +282,25 @@
                     </div>
                 </div>
 
-                @if ($groupMembersForRequest->isNotEmpty() || ! empty($groupReview['members']))
+                @if ($groupMembersForRequest->isNotEmpty())
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Request for</label>
-                        <select name="request_subject" class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
-                            <option value="borrower" @selected(old('request_subject', 'borrower') === 'borrower')>Leader / borrower</option>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Request for <span class="text-red-500">*</span></label>
+                        <select name="request_subject" required class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
                             @foreach ($groupMembersForRequest as $member)
-                                @php $memberValue = 'member:'.($member['id'] ?? ''); @endphp
-                                <option value="{{ $memberValue }}" @selected(old('request_subject') === $memberValue)>
-                                    {{ $member['name'] ?? 'Member' }}{{ ! empty($member['customer_number']) ? ' · '.$member['customer_number'] : '' }}
+                                @php
+                                    $isLeader = ($member['role'] ?? '') === 'leader';
+                                    $memberValue = $isLeader ? 'borrower' : ('member:'.($member['id'] ?? ''));
+                                    $memberLabel = ($isLeader ? 'Leader · ' : 'Member · ').($member['name'] ?? 'Member');
+                                    if (! empty($member['customer_number'])) {
+                                        $memberLabel .= ' · '.$member['customer_number'];
+                                    }
+                                @endphp
+                                <option value="{{ $memberValue }}" @selected($defaultRequestSubject === $memberValue)>
+                                    {{ $memberLabel }}
                                 </option>
                             @endforeach
                         </select>
+                        <p class="mt-1 text-[11px] text-gray-500">Income / profile requests clear and replace that member’s existing profile file.</p>
                         @error('request_subject')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror

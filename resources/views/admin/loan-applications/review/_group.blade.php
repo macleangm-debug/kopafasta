@@ -1,5 +1,7 @@
 @if ($groupReview ?? null)
-    <div id="review-group" class="rounded-2xl ring-1 ring-brand/15 bg-white overflow-hidden shadow-sm">
+    <div id="review-group"
+         class="rounded-2xl ring-1 ring-brand/15 bg-white overflow-hidden shadow-sm"
+         x-data="{ groupPanel: @js(request('m') ? 'members' : 'overview') }">
         <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/50 to-white">
             <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Group loan</p>
             <div class="flex flex-wrap items-start justify-between gap-3 mt-0.5">
@@ -23,7 +25,31 @@
                     </span>
                 @endif
             </div>
+            <div class="mt-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Group review panels">
+                @foreach ([
+                    'overview' => 'Overview',
+                    'members' => 'Members',
+                    'feedback' => 'Feedback',
+                    'signatures' => 'Signatures',
+                ] as $gKey => $gLabel)
+                    <button type="button"
+                            role="tab"
+                            @click="groupPanel = @js($gKey)"
+                            :aria-selected="(groupPanel === @js($gKey)).toString()"
+                            :class="groupPanel === @js($gKey)
+                                ? 'bg-brand text-white ring-brand shadow-sm'
+                                : 'bg-white text-gray-700 ring-gray-200 hover:bg-brand-muted/40'"
+                            class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ring-1 transition">
+                        {{ $gLabel }}
+                    </button>
+                @endforeach
+            </div>
+            <p class="text-[11px] text-gray-500 mt-2">
+                Subject chips at the top (Leader / Member) are separate checklists — marking Pass/Fail on one person never writes onto another.
+            </p>
         </div>
+
+        <div x-show="groupPanel === 'overview'" role="tabpanel" class="space-y-0">
         @if ($groupReview['scoring'] ?? null)
             @php $scoring = $groupReview['scoring']; @endphp
             <div class="px-5 py-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm border-b border-gray-100">
@@ -56,20 +82,6 @@
             <div class="rounded-xl bg-white ring-1 ring-gray-100 px-3 py-2.5"><span class="text-gray-500 block text-[10px] uppercase tracking-widest font-semibold">{{ __('admin.group_review.per_member') }}</span><span class="font-semibold text-gray-900">{{ format_money($groupReview['amount_per_member']) }}</span></div>
             <div class="rounded-xl bg-white ring-1 ring-gray-100 px-3 py-2.5"><span class="text-gray-500 block text-[10px] uppercase tracking-widest font-semibold">{{ __('admin.group_review.total_amount') }}</span><span class="font-semibold text-gray-900">{{ format_money($groupReview['total_amount']) }}</span></div>
         </div>
-
-        @if (filled($groupReview['leader_feedback'] ?? null))
-            <div class="px-5 py-4 border-b border-gray-100 bg-amber-50 text-sm">
-                <p class="text-xs uppercase tracking-widest text-amber-800 font-semibold mb-1">{{ __('admin.group_review.leader_feedback_heading') }}</p>
-                <p class="text-gray-800 whitespace-pre-wrap">{{ $groupReview['leader_feedback'] }}</p>
-            </div>
-        @endif
-
-        <form method="POST" action="{{ route('admin.loan-applications.group-feedback', $record) }}" class="px-5 py-4 border-b border-gray-100 space-y-3">
-            @csrf
-            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('admin.group_review.leader_feedback_label') }}</label>
-            <textarea name="leader_feedback" rows="3" class="w-full rounded-lg border-gray-200 text-sm" placeholder="{{ __('admin.group_review.leader_feedback_placeholder') }}">{{ old('leader_feedback', $groupReview['leader_feedback'] ?? '') }}</textarea>
-            <button type="submit" class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">{{ __('admin.group_review.save_group_feedback') }}</button>
-        </form>
 
         @if ($groupReview['payout_queue'] ?? null)
             @php $payout = $groupReview['payout_queue']; @endphp
@@ -120,6 +132,13 @@
             </div>
         @endif
 
+        <div class="px-5 py-4 border-t border-gray-100">
+            <p class="text-xs text-gray-500">{{ __('admin.group_review.automated_only_hint') }}</p>
+        </div>
+
+        </div>
+
+        <div x-show="groupPanel === 'members'" x-cloak role="tabpanel">
         <div class="px-5 py-4 border-b border-gray-100 space-y-4">
             @php
                 $members = collect($groupReview['members'] ?? []);
@@ -275,10 +294,26 @@
             @endif
         </div>
 
-        <div class="px-5 py-4 border-t border-gray-100">
-            <p class="text-xs text-gray-500">{{ __('admin.group_review.automated_only_hint') }}</p>
         </div>
 
+        <div x-show="groupPanel === 'feedback'" x-cloak role="tabpanel">
+        @if (filled($groupReview['leader_feedback'] ?? null))
+            <div class="px-5 py-4 border-b border-gray-100 bg-amber-50 text-sm">
+                <p class="text-xs uppercase tracking-widest text-amber-800 font-semibold mb-1">{{ __('admin.group_review.leader_feedback_heading') }}</p>
+                <p class="text-gray-800 whitespace-pre-wrap">{{ $groupReview['leader_feedback'] }}</p>
+            </div>
+        @endif
+
+        <form method="POST" action="{{ route('admin.loan-applications.group-feedback', $record) }}" class="px-5 py-4 border-b border-gray-100 space-y-3">
+            @csrf
+            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('admin.group_review.leader_feedback_label') }}</label>
+            <textarea name="leader_feedback" rows="3" class="w-full rounded-lg border-gray-200 text-sm" placeholder="{{ __('admin.group_review.leader_feedback_placeholder') }}">{{ old('leader_feedback', $groupReview['leader_feedback'] ?? '') }}</textarea>
+            <button type="submit" class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">{{ __('admin.group_review.save_group_feedback') }}</button>
+        </form>
+
+        </div>
+
+        <div x-show="groupPanel === 'signatures'" x-cloak role="tabpanel">
         @if ($groupReview['membership_signatures'] ?? null)
             @php $membershipSigs = $groupReview['membership_signatures']; @endphp
             <div class="px-5 py-4 border-t border-gray-100 space-y-4"
@@ -419,5 +454,6 @@
                 </div>
             </div>
         @endif
+        </div>
     </div>
 @endif

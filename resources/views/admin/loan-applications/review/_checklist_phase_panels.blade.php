@@ -57,11 +57,12 @@
 
 @if ($phaseKey === 'capacity' && ($section === null || $section === 'documents'))
     <div id="checklist-documents" class="scroll-mt-24 space-y-4">
-        <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3">
-            <p class="text-[10px] uppercase tracking-[0.18em] text-sky-800 font-bold">Your job on this tab</p>
-            <p class="text-sm text-sky-950 mt-1 font-semibold">
-                1) Verify uploads waiting for review · 2) Request anything still missing · 3) Pass / Fail the Documents checks under Capacity → Pass / Fail checks
+        <div class="rounded-xl bg-gradient-to-r from-brand-muted/70 to-white ring-1 ring-brand/15 px-4 py-3">
+            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Your job on this tab</p>
+            <p class="text-sm text-gray-900 mt-1 font-semibold">
+                1) Check open document requests (gold strip) · 2) Verify uploads by category · 3) Pass / Fail Documents under Capacity → Pass / Fail checks
             </p>
+            <p class="text-[11px] text-gray-500 mt-1">Same Documents view for screening and committee — committee sprints critical areas from Decision.</p>
         </div>
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -86,11 +87,10 @@
 
         @if (in_array($panelPerson, ['guarantor', 'member'], true))
             @include('admin.loan-applications.review._subject_documents', ['review' => $panelSubjectReview])
+            @include('admin.loan-applications.review._document-requests')
         @else
             @include('admin.loan-applications.review._documents', ['review' => $panelSubjectReview])
         @endif
-
-        @include('admin.loan-applications.review._document-requests')
     </div>
 @endif
 
@@ -99,7 +99,7 @@
         <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3">
             <p class="text-[10px] uppercase tracking-[0.18em] text-sky-800 font-bold">Your job on this tab</p>
             <p class="text-sm text-sky-950 mt-1 font-semibold">
-                Read the system math, then Pass / Fail “Verify income evidence against affordability” under Capacity → Pass / Fail checks. If it fails, lean Reject or Counter on Decision.
+                Read the system math, then Pass / Fail “Match financial statements to profile monthly revenue” under Capacity → Pass / Fail checks (Gate 2). If statements do not support declared revenue, Fail that gate before other checklist work.
             </p>
         </div>
         @include('admin.loan-applications.review._subject_affordability', [
@@ -121,7 +121,7 @@
         <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3">
             <p class="text-[10px] uppercase tracking-[0.18em] text-sky-800 font-bold">Your job on this tab</p>
             <p class="text-sm text-sky-950 mt-1 font-semibold">
-                Start on Summary for red flags, then Pass / Fail “CRB report reviewed” under Security → Pass / Fail checks. CRB has no portrait — face compare stays on Personal.
+                View-only bureau data — start on Summary for red flags, then Pass / Fail “CRB report reviewed” under Security → Pass / Fail checks. Face compare stays on Personal (CRB has no portrait).
             </p>
         </div>
         @include('admin.loan-applications.review._subject_crb', ['review' => $panelSubjectReview])
@@ -134,17 +134,10 @@
             <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-sky-800 font-bold">Your job on this tab</p>
                 <p class="text-sm text-sky-950 mt-1 font-semibold">
-                    Review member completion / scores, write leader feedback if needed, then Pass / Fail group-related checks under Security → Pass / Fail checks.
+                    Use Overview / Members / Feedback / Signatures below. Subject chips at the top are separate checklists — then Pass / Fail group checks under Security → Pass / Fail checks.
                 </p>
             </div>
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 sm:p-5 space-y-3">
-                <div>
-                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Group loan</p>
-                    <h4 class="text-sm font-bold text-gray-900 mt-0.5">Group review</h4>
-                    <p class="text-xs text-gray-500 mt-0.5">Roster, scoring, and feedback — reviewed once on the leader subject.</p>
-                </div>
-                @include('admin.loan-applications.review._group')
-            </div>
+            @include('admin.loan-applications.review._group')
         </div>
     @endif
 @endif

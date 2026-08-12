@@ -82,38 +82,41 @@ class ScreeningReadinessService
                 foreach ($group['items'] ?? [] as $item) {
                     $verdict = $item['verdict'] ?? null;
                     $risk = (string) ($item['risk'] ?? 'normal');
+                    $gate = (string) ($item['gate'] ?? '');
+                    $isIncomeGate = $gate === 'statements_vs_declared'
+                        || ($item['key'] ?? '') === 'activity_income.income_evidence';
                     $subjectLabel = trim(($subject['label'] ?? 'Subject').' · '.($subject['sublabel'] ?? ''));
                     $phase = (string) ($group['phase'] ?? 'person');
                     $href = $this->checklistHref($application, $subject, $phase, (string) ($group['key'] ?? ''), (string) ($item['key'] ?? ''));
 
                     if ($verdict === null) {
-                        if (count($nextSteps) < 12) {
-                            $hasEvidence = ! empty($item['evidence']['photos'])
-                                || ! empty($item['evidence']['rows'])
-                                || ! empty($item['evidence']['compare']);
-                            $nextSteps[] = [
-                                'label' => ($hasEvidence ? 'Confirm Pass/Fail · ' : 'Still open · ').($item['label'] ?? 'Checklist item'),
-                                'detail' => $subjectLabel.' · '.($group['phase_label'] ?? $group['label'] ?? 'Checklist')
-                                    .($hasEvidence ? ' — evidence is ready; you still must record Pass, Fail, or N/A and Save' : ''),
-                                'href' => $href,
-                                'tone' => $risk === 'critical' ? 'critical' : 'open',
-                            ];
-                        }
+                        $hasEvidence = ! empty($item['evidence']['photos'])
+                            || ! empty($item['evidence']['rows'])
+                            || ! empty($item['evidence']['compare']);
+                        $nextSteps[] = [
+                            'label' => $isIncomeGate
+                                ? 'Gate 2 · Match statements to profile monthly revenue'
+                                : (($hasEvidence ? 'Confirm Pass/Fail · ' : 'Still open · ').($item['label'] ?? 'Checklist item')),
+                            'detail' => $isIncomeGate
+                                ? $subjectLabel.' · Capacity — do bank / mobile-money statements support declared monthly revenue? Do this before other checklist work.'
+                                : ($subjectLabel.' · '.($group['phase_label'] ?? $group['label'] ?? 'Checklist')
+                                    .($hasEvidence ? ' — evidence is ready; you still must record Pass, Fail, or N/A and Save' : '')),
+                            'href' => $href,
+                            'tone' => $isIncomeGate ? 'gate' : ($risk === 'critical' ? 'critical' : 'open'),
+                            'gate' => $isIncomeGate ? 'statements_vs_declared' : null,
+                        ];
                     } elseif ($verdict === 'fail') {
                         if ($risk === 'critical') {
                             $criticalFailCount++;
                             $criticalFails[] = ($item['label'] ?? 'Check').' ('.$subjectLabel.')';
                         }
-                        // Only surface fails that still need attention (not already "handled" as a next step forever).
-                        // Keep them visible so screeners can revisit / override.
-                        if (count($nextSteps) < 12) {
-                            $nextSteps[] = [
-                                'label' => 'Fail · '.($item['label'] ?? 'Checklist item'),
-                                'detail' => $subjectLabel.(! empty($item['fail_reason_label']) ? ' — '.$item['fail_reason_label'] : ' — override or keep Fail, then Save'),
-                                'href' => $href,
-                                'tone' => $risk === 'critical' ? 'critical' : 'fail',
-                            ];
-                        }
+                        $nextSteps[] = [
+                            'label' => ($isIncomeGate ? 'Gate 2 Fail · ' : 'Fail · ').($item['label'] ?? 'Checklist item'),
+                            'detail' => $subjectLabel.(! empty($item['fail_reason_label']) ? ' — '.$item['fail_reason_label'] : ' — override or keep Fail, then Save'),
+                            'href' => $href,
+                            'tone' => $isIncomeGate ? 'gate' : ($risk === 'critical' ? 'critical' : 'fail'),
+                            'gate' => $isIncomeGate ? 'statements_vs_declared' : null,
+                        ];
                     }
                 }
             }
@@ -207,12 +210,24 @@ class ScreeningReadinessService
             'counter' => 'Lean Counter-offer / Refer',
         ];
 
-        // Prefer critical / open actions first.
+        // Prefer Gate 2 (statements vs declared revenue), then critical / open actions.
         usort($nextSteps, function ($a, $b) {
-            $rank = ['critical' => 0, 'fail' => 1, 'open' => 2];
+            $rank = ['gate' => 0, 'critical' => 1, 'fail' => 2, 'open' => 3];
 
             return ($rank[$a['tone'] ?? 'open'] ?? 9) <=> ($rank[$b['tone'] ?? 'open'] ?? 9);
         });
+
+        $incomeGateStep = collect($nextSteps)->firstWhere('gate', 'statements_vs_declared');
+        $incomeGateOpen = $incomeGateStep !== null;
+
+        // Keep Gate 2 first even after slicing the list for the UI.
+        if ($incomeGateStep !== null) {
+            $nextSteps = array_values(array_filter(
+                $nextSteps,
+                fn ($step) => ($step['gate'] ?? null) !== 'statements_vs_declared'
+            ));
+            array_unshift($nextSteps, $incomeGateStep);
+        }
 
         return [
             'ready' => $ready,
@@ -235,6 +250,8 @@ class ScreeningReadinessService
             'checklist_failed' => $checklistFailed,
             'subjects_incomplete' => count($incomplete),
             'subjects_total' => count($subjects),
+            'income_gate_open' => $incomeGateOpen,
+            'income_gate_href' => $incomeGateOpen ? (string) ($incomeGateStep['href'] ?? '') : null,
             'na_note' => 'N/A counts as reviewed and does not Fail the file — use it when the check truly does not apply (for example collateral on a clean group loan). It still moves the checklist forward.',
         ];
     }

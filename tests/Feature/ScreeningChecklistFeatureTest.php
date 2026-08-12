@@ -18,7 +18,7 @@ class ScreeningChecklistFeatureTest extends TestCase
     private function staff(string $role = 'admin'): User
     {
         $branch = Branch::create([
-            'code' => 'SC'.random_int(10, 99),
+            'code' => 'SC'.random_int(1000, 9999),
             'name' => 'Screening Checklist Branch',
             'region' => 'Dar',
             'is_active' => true,
@@ -145,5 +145,69 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertFalse($vm['can_edit']);
         $this->assertNotEmpty($vm['groups']);
         $this->assertGreaterThan(0, $vm['total']);
+    }
+
+    public function test_group_member_checklist_progress_is_isolated_per_member(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $svc = app(ScreeningChecklistService::class);
+
+        $svc->save($app, $admin, [
+            'identity' => [
+                'nida_vs_dob' => ['verdict' => 'pass'],
+                'face_vs_nida' => [
+                    'verdict' => 'fail',
+                    'fail_reason_code' => 'face_mismatch',
+                ],
+            ],
+        ], 'borrower');
+
+        $svc->save($app->fresh(), $admin, [
+            'identity' => [
+                'nida_vs_dob' => ['verdict' => 'pass'],
+            ],
+        ], 'member', null, 10);
+
+        $svc->save($app->fresh(), $admin, [
+            'identity' => [
+                'nida_vs_dob' => [
+                    'verdict' => 'fail',
+                    'fail_reason_code' => 'nida_dob_mismatch',
+                ],
+            ],
+        ], 'member', null, 11);
+
+        $app->refresh();
+        $member10 = (array) data_get($app->screening_payload, 'screening_checklist.by_subject.member:10.items', []);
+        $member11 = (array) data_get($app->screening_payload, 'screening_checklist.by_subject.member:11.items', []);
+        $borrower = (array) data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+
+        $this->assertSame('pass', $member10['identity.nida_vs_dob']['verdict'] ?? null);
+        $this->assertSame('fail', $member11['identity.nida_vs_dob']['verdict'] ?? null);
+        $this->assertSame('fail', $borrower['identity.face_vs_nida']['verdict'] ?? null);
+
+        $groupReview = [
+            'members' => [
+                ['id' => 1, 'role' => 'leader', 'name' => 'Leader', 'customer_id' => $app->customer_id, 'file' => []],
+                ['id' => 10, 'role' => 'member', 'name' => 'Member A', 'customer_id' => $app->customer_id, 'file' => []],
+                ['id' => 11, 'role' => 'member', 'name' => 'Member B', 'customer_id' => $app->customer_id, 'file' => []],
+            ],
+        ];
+
+        $subjects = collect($svc->deskSubjects($app, ['customer' => $app->customer], $groupReview, $admin));
+        $memberA = $subjects->firstWhere('key', 'member:10');
+        $memberB = $subjects->firstWhere('key', 'member:11');
+        $leader = $subjects->firstWhere('key', 'borrower');
+
+        $this->assertNotNull($memberA);
+        $this->assertNotNull($memberB);
+        $this->assertNotNull($leader);
+        // Same decided count is fine — both members have nida decided — but fails must differ,
+        // and neither member chip may mirror the leader's borrower checklist totals.
+        $this->assertNotSame($memberA['failed'], $memberB['failed']);
+        $this->assertGreaterThan(0, (int) $memberB['failed']);
+        $this->assertNotSame($leader['total'], $memberA['total']);
+        $this->assertGreaterThan(0, (int) $memberA['total']);
     }
 }

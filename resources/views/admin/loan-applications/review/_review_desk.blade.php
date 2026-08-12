@@ -72,8 +72,26 @@
         return $ia <=> $ib;
     });
 
-    $firstOpenGroup = collect($desk['groups'] ?? [])
-        ->first(fn ($g) => ! ($g['complete'] ?? false));
+    $incomeGateGroup = collect($desk['groups'] ?? [])
+        ->first(function ($g) {
+            if (($g['key'] ?? '') !== 'activity_income') {
+                return false;
+            }
+            foreach ($g['items'] ?? [] as $item) {
+                if (($item['key'] ?? '') === 'activity_income.income_evidence' && ($item['verdict'] ?? null) === null) {
+                    return true;
+                }
+                if (($item['gate'] ?? null) === 'statements_vs_declared' && ($item['verdict'] ?? null) === null) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+
+    // Gate 2 (statements vs declared revenue) opens Capacity before Personal when still undecided.
+    $firstOpenGroup = $incomeGateGroup
+        ?? collect($desk['groups'] ?? [])->first(fn ($g) => ! ($g['complete'] ?? false));
     if (! $firstOpenGroup) {
         $firstOpenGroup = collect($desk['groups'] ?? [])->first();
     }
@@ -106,7 +124,7 @@
 
     $phaseHints = [
         'person' => 'Your job: Pass / Fail each Personal check (identity, face, residence, activity).',
-        'capacity' => 'Your job: Pass / Fail capacity checks, then verify documents, confirm affordability & CRB.',
+        'capacity' => 'Gate 2 first: match statements to profile monthly revenue, then Pass / Fail other capacity checks, documents, affordability & CRB.',
         'security' => $isGroupFile
             ? 'Your job: Pass / Fail security checks, review the group, then close the wrap-up.'
             : 'Your job: Pass / Fail security checks, then close the wrap-up (Group review only appears on group loans).',

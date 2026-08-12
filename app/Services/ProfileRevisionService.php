@@ -18,10 +18,16 @@ class ProfileRevisionService
         'Signature Not Visible'          => ['signature'],
     ];
 
-    public function applyForDocumentRequest(LoanApplication $application, LoanApplicationDocumentRequest $request): void
+    public function applyForDocumentRequest(LoanApplication $application, LoanApplicationDocumentRequest $request, bool $notify = true): void
     {
         $application->loadMissing('customer');
-        $customer = $application->customer;
+        $request->loadMissing(['subjectCustomer', 'groupMember.customer']);
+
+        // Clear/revise the subject profile (group member / guarantor), never the wrong person.
+        $customer = $request->subjectCustomer
+            ?? $request->groupMember?->customer
+            ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
+            ?? $application->customer;
         if (! $customer) {
             return;
         }
@@ -35,14 +41,16 @@ class ProfileRevisionService
         }
 
         $this->markRevisionRequired($customer->fresh(), $targets);
-        $this->notifyBorrower($application, $request);
+        if ($notify) {
+            $this->notifyBorrower($application, $request, $customer);
+        }
     }
 
     /** @param  list<string>  $labels */
-    public function applyForLabels(LoanApplication $application, array $labels): void
+    public function applyForLabels(LoanApplication $application, array $labels, ?Customer $customer = null): void
     {
         $application->loadMissing('customer');
-        $customer = $application->customer;
+        $customer = $customer ?? $application->customer;
         if (! $customer) {
             return;
         }
@@ -230,28 +238,30 @@ class ProfileRevisionService
         $customer->update(['activity_details' => $details]);
     }
 
-    private function notifyBorrower(LoanApplication $application, LoanApplicationDocumentRequest $request): void
+    private function notifyBorrower(LoanApplication $application, LoanApplicationDocumentRequest $request, ?Customer $customer = null): void
     {
-        $customer = $application->customer;
+        $customer = $customer ?? $application->customer;
         if (! $customer) {
             return;
         }
 
         $actionUrl = $this->actionUrlForTargets($this->targetsForLabel((string) $request->label));
+        $locale = $customer->user?->locale ?? app()->getLocale();
+        $label = app(ApplicationDocumentRequestService::class)->localizedLabel((string) $request->label, $locale);
 
         $params = [
-            'label' => $request->label,
+            'label' => $label,
             'application' => $application->application_number,
         ];
 
         app(NotificationService::class)->notifyInApp(
             $customer,
-            __('borrower.notifications.profile_revision_body', $params),
+            __('borrower.notifications.profile_revision_body', $params, $locale),
             'profile_revision',
             'profile_revision_requested',
-            __('borrower.notifications.profile_revision_title'),
+            __('borrower.notifications.profile_revision_title', [], $locale),
             $actionUrl,
-            __('borrower.notifications.profile_revision_cta'),
+            __('borrower.notifications.profile_revision_cta', [], $locale),
             [
                 'title_key' => 'borrower.notifications.profile_revision_title',
                 'body_key'  => 'borrower.notifications.profile_revision_body',

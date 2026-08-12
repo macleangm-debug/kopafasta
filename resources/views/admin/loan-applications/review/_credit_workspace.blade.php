@@ -98,7 +98,7 @@
             <h2 class="text-lg font-bold text-gray-900 mt-0.5">What you need to decide</h2>
             <p class="text-sm text-gray-500 mt-0.5">
                 {{ $isCommitteeStage
-                    ? 'Review the checklist and profiles, then record the committee decision.'
+                    ? 'Sprint critical areas on the same evidence screening used, change anything that needs a reason, then record the committee decision.'
                     : ($isGroupLoan
                         ? 'Review the leader and each member on the checklist, then record your recommendation.'
                         : 'Review CRB, affordability and the borrower file — then submit your credit recommendation.') }}
@@ -637,6 +637,10 @@
             @else
                 @if ($isCommitteeStage)
                     @include('admin.loan-applications.review._committee_inputs')
+                    @include('admin.loan-applications.review._committee_sprint', [
+                        'screeningReadiness' => $screeningReadiness ?? null,
+                        'documentRequests' => $documentRequests ?? ($review['document_requests'] ?? []),
+                    ])
                 @endif
 
                 <div id="review-action-zone" class="scroll-mt-24">

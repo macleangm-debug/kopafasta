@@ -23,10 +23,11 @@
         'warn' => 'bg-amber-100 text-amber-950',
         default => 'bg-white/20 text-white',
     };
+    $isCommitteeStage = ($record->current_stage ?? null) === 'pre_approval';
     $decisionUrl = route('admin.loan-applications.show', [
         'loan_application' => $record,
         'workspace' => 'decision',
-    ]).'#review-recommendation';
+    ]).($isCommitteeStage ? '#committee-sprint' : '#review-recommendation');
     $checklistUrl = route('admin.loan-applications.show', [
         'loan_application' => $record,
         'workspace' => 'checklist',
@@ -40,7 +41,9 @@
     <div class="px-5 py-4 sm:px-6 sm:py-5 flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-white/70">Screening readiness</p>
+                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-white/70">
+                    {{ $isCommitteeStage ? 'Committee readiness' : 'Screening readiness' }}
+                </p>
                 <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold {{ $badge }}">
                     {{ $readiness['suggestion_label'] }}
                 </span>
@@ -52,6 +55,22 @@
             </div>
             <h3 class="text-lg sm:text-xl font-bold mt-1.5 tracking-tight">{{ $readiness['headline'] }}</h3>
             <p class="text-sm text-white/85 mt-1 max-w-3xl">{{ $readiness['detail'] }}</p>
+
+            @if (! empty($readiness['income_gate_open']))
+                <div class="mt-3 max-w-3xl rounded-xl bg-brand-gold/20 ring-1 ring-brand-gold/40 px-3.5 py-2.5">
+                    <p class="text-[10px] uppercase tracking-[0.18em] font-bold text-brand-gold">Gate 2 · Start here</p>
+                    <p class="text-sm font-semibold mt-0.5">
+                        Match financial statements to the monthly revenue on the profile before other checklist work.
+                        (Gate 1 is capacity auto-reject — this file already cleared that.)
+                    </p>
+                    @if (filled($readiness['income_gate_href'] ?? null))
+                        <a href="{{ $readiness['income_gate_href'] }}"
+                           class="inline-flex mt-2 text-xs font-bold text-brand-gold hover:underline">
+                            Open statements vs revenue →
+                        </a>
+                    @endif
+                </div>
+            @endif
 
             <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
                 <span class="rounded-lg bg-white/10 px-2.5 py-1 tabular-nums">
@@ -94,7 +113,15 @@
         </div>
 
         <div class="flex flex-col sm:items-end gap-2 shrink-0">
-            @if ($readiness['ready'] ?? false)
+            @if ($isCommitteeStage)
+                <a href="{{ $decisionUrl }}"
+                   class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold text-sm px-4 py-2.5 hover:brightness-95 shadow-sm">
+                    Sprint critical areas →
+                </a>
+                <p class="text-[11px] text-white/70 sm:text-right max-w-[14rem]">
+                    Same evidence as screening — change only what needs a reason, then decide.
+                </p>
+            @elseif ($readiness['ready'] ?? false)
                 <a href="{{ $decisionUrl }}"
                    class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold text-sm px-4 py-2.5 hover:brightness-95 shadow-sm">
                     Go to Decision →
@@ -132,6 +159,7 @@
                 @foreach ($nextSteps as $step)
                     @php
                         $stepTone = match ($step['tone'] ?? 'open') {
+                            'gate' => 'bg-brand-gold text-brand ring-brand-gold/50',
                             'critical' => 'bg-rose-100 text-rose-950 ring-rose-200',
                             'fail' => 'bg-amber-100 text-amber-950 ring-amber-200',
                             default => 'bg-white/95 text-slate-900 ring-white/40',

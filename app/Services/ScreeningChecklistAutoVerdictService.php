@@ -60,8 +60,9 @@ class ScreeningChecklistAutoVerdictService
             ];
         }
 
-        // Affordability / income
-        $out['activity_income.income_evidence'] = $this->affordability($afford);
+        // Gate 2: statements vs declared monthly revenue (human). Capacity auto-reject is Gate 1.
+        $out['activity_income.income_evidence'] = $this->statementsVsDeclaredIncome($context);
+        $out['activity_income.bank_or_mobile_money'] = $this->statementsPresent($context);
 
         // Credit wrap-up CRB (borrower / guarantor / member variants) — includes capacity vs external debt
         $crbWrap = $this->crbWrap($crb, $afford);
@@ -243,6 +244,46 @@ class ScreeningChecklistAutoVerdictService
     }
 
     /** @param  array<string, mixed>  $afford */
+    /**
+     * Gate 2 — after capacity auto-reject. System only flags missing statements;
+     * matching declared monthly revenue stays a human Pass/Fail.
+     *
+     * @param  array<string, mixed>  $ctx
+     * @return array{verdict: string, fail_reason_code?: string|null, source: string}
+     */
+    private function statementsVsDeclaredIncome(array $ctx): array
+    {
+        $statements = (array) ($ctx['income_statements'] ?? []);
+        $hasFiles = collect($statements)->contains(fn ($row) => filled($row['url'] ?? null) || filled($row['file_path'] ?? null));
+        $declared = (float) ($ctx['declared_monthly_income'] ?? 0);
+        $hasDeclared = $declared > 0 || filled($ctx['declared_income_label'] ?? null);
+
+        if (! $hasFiles) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'statements_missing', 'source' => 'system'];
+        }
+        if (! $hasDeclared) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'income_insufficient', 'source' => 'system'];
+        }
+
+        return ['verdict' => '', 'source' => 'system_skip'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $ctx
+     * @return array{verdict: string, fail_reason_code?: string|null, source: string}
+     */
+    private function statementsPresent(array $ctx): array
+    {
+        $statements = (array) ($ctx['income_statements'] ?? []);
+        $hasFiles = collect($statements)->contains(fn ($row) => filled($row['url'] ?? null) || filled($row['file_path'] ?? null));
+        if (! $hasFiles) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'statements_missing', 'source' => 'system'];
+        }
+
+        // Patterns / anomalies after the revenue match — human judgment.
+        return ['verdict' => '', 'source' => 'system_skip'];
+    }
+
     private function affordability(array $afford): array
     {
         $verdict = strtolower((string) ($afford['verdict'] ?? ''));

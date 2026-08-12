@@ -173,6 +173,19 @@ return [
         'phase_label' => '2 · Capacity and evidence',
         'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
+            // Gate 2 (after capacity auto-reject): human must confirm statements support profile revenue.
+            'income_evidence' => [
+                'label' => 'Match financial statements to profile monthly revenue',
+                'evidence' => 'income_statements',
+                'risk' => 'critical',
+                'gate' => 'statements_vs_declared',
+                'fail_reasons' => [
+                    'statements_missing' => 'Bank / mobile-money statements missing',
+                    'revenue_mismatch' => 'Statement cashflow does not support declared monthly revenue',
+                    'income_insufficient' => 'Income evidence insufficient for the claimed revenue',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
             'activity_plausible' => [
                 'label' => 'Review stated business / employment activity',
                 'evidence' => 'activity',
@@ -182,19 +195,9 @@ return [
                     'custom' => 'Other (write reason)',
                 ],
             ],
-            'income_evidence' => [
-                'label' => 'Verify income evidence against affordability',
-                'evidence' => 'affordability',
-                'risk' => 'critical',
-                'fail_reasons' => [
-                    'income_insufficient' => 'Income evidence insufficient',
-                    'affordance_fail' => 'Does not support proposed repayment',
-                    'custom' => 'Other (write reason)',
-                ],
-            ],
             'bank_or_mobile_money' => [
-                'label' => 'Review bank / mobile-money statement patterns',
-                'evidence' => 'documents',
+                'label' => 'Review statement patterns (after revenue match)',
+                'evidence' => 'income_statements',
                 'fail_reasons' => [
                     'statements_missing' => 'Statements missing',
                     'irregular_pattern' => 'Irregular or concerning patterns',

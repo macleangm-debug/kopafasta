@@ -2007,6 +2007,13 @@ class BorrowerController extends Controller
             $details = $customer->activity_details ?? [];
             if ($request->filled('income_proof_method')) {
                 $details['income_proof_method'] = $request->input('income_proof_method');
+                // Choosing bank or mobile money keeps only that primary statement on the profile.
+                $docs = app(\App\Services\ProfileDocumentService::class);
+                if ($details['income_proof_method'] === 'bank_statement') {
+                    $docs->deleteProfileDocument($customer, 'mobile_money_statement');
+                } elseif ($details['income_proof_method'] === 'mobile_money_statement') {
+                    $docs->deleteProfileDocument($customer, 'bank_statement');
+                }
             }
             foreach (['income_account_provider', 'income_account_number', 'income_account_name'] as $detailKey) {
                 if ($detailKey === 'income_account_name') {
@@ -3177,6 +3184,15 @@ class BorrowerController extends Controller
             ]);
         }
 
+        // Replace existing profile file for this type (screening requests expect a clean swap).
+        $existing = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->where('document_type_id', $type->id)
+            ->whereNull('loan_application_id')
+            ->latest()
+            ->first();
+        $oldPath = $existing?->file_path;
+
         $path = $single
             ? $single->store("customer/{$customer->id}/documents", 'public')
             : app(DocumentPageMerger::class)->merge($pageFiles, $customer->id, $documentCode);
@@ -3200,6 +3216,10 @@ class BorrowerController extends Controller
                 ])),
             ]
         );
+
+        if ($oldPath && $oldPath !== $path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPath);
+        }
 
         try {
             app(\App\Services\MemberEngagementRewardService::class)->afterDocumentUploaded($customer, $documentCode);

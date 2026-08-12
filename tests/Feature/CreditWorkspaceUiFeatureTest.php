@@ -152,10 +152,15 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Capacity and evidence', $documents);
         $this->assertStringContainsString('Security and close', $documents);
         $this->assertStringContainsString('Pass / Fail checks', $documents);
-        $this->assertStringContainsString('Application documents', $documents);
+        $this->assertStringContainsString('Application evidence', $documents);
         $this->assertStringContainsString('Needs action', $documents);
         $this->assertStringContainsString('Borrower document library', $documents);
         $this->assertStringContainsString('Request documents', $documents);
+        $this->assertStringContainsString('Checklist', $documents);
+        $this->assertStringContainsString('Requests', $documents);
+        $this->assertStringContainsString('Library', $documents);
+        $this->assertStringContainsString('Grouped by category', $documents);
+        $this->assertStringContainsString('Document requests', $documents);
         $this->assertStringContainsString('Affordability', $documents);
         $this->assertStringContainsString('Credit file wrap-up', $documents);
         $this->assertStringContainsString('Close the file', $documents);
@@ -163,7 +168,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Not ready to decide yet', $documents);
         $this->assertStringContainsString('Where to go next', $documents);
         $this->assertStringContainsString('Hold — finish checklist', $documents);
-        $this->assertStringContainsString('Continue checklist', $documents);
+        $this->assertStringContainsString('Open Gate 2 · Statements vs revenue', $documents);
+        $this->assertStringContainsString('Gate 2', $documents);
+        $this->assertStringContainsString('Match financial statements to profile monthly revenue', $documents);
         $this->assertStringNotContainsString('Partners for this file', $documents);
         $this->assertStringNotContainsString('Return for documents', $documents);
 
@@ -176,11 +183,17 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Committee workspace', $committee);
+        $this->assertStringContainsString('Sprint critical areas on the same evidence', $committee);
+        $this->assertStringContainsString('Committee sprint', $committee);
+        $this->assertStringContainsString('Critical areas — not a full re-screen', $committee);
+        $this->assertStringContainsString('Change with reason', $committee);
         $this->assertStringContainsString('Record the committee decision', $committee);
         $this->assertStringContainsString('Validate screening', $committee);
         $this->assertStringContainsString('Reason for approval', $committee);
         $this->assertStringContainsString('Rejection reasons', $committee);
         $this->assertStringContainsString('Borrower CRB · Guarantor · Screening', $committee);
+        $this->assertStringContainsString('Committee readiness', $committee);
+        $this->assertStringContainsString('Sprint critical areas →', $committee);
 
         $checklistFlags = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))

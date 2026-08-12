@@ -47,7 +47,7 @@
         <div>
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $isGuarantor ? 'Guarantor' : ($isMember ? 'Member' : 'Borrower') }} · CRB</p>
             <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Credit bureau report</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Use the segments below — start on Summary, then dig into identity / credit / accounts only if needed.</p>
+            <p class="text-xs text-gray-500 mt-0.5">View-only bureau data — start on Summary, then dig into identity / credit / accounts only if needed. Pass / Fail lives under Security checks.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <span class="inline-flex text-xs font-bold rounded-full px-3 py-1 bg-brand-muted text-brand ring-1 ring-brand/15 uppercase">

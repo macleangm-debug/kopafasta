@@ -41,9 +41,16 @@
                         mode="multi"
                         :label="$item['label']"
                         :input-host-id="'income-view-'.($item['key'] ?? $loop->index)"
-                        :read-only="true"
+                        :read-only="false"
                     />
                 @endforeach
+                @unless ($incomeProofEmployed)
+                    <button type="button"
+                            @click="open = true; step = 1; incomeMethod = ''"
+                            class="text-sm font-semibold text-brand hover:underline">
+                        {{ __('borrower.profile.income_change_method') }}
+                    </button>
+                @endunless
             </div>
         @else
             <p class="text-sm text-gray-600">{{ __('borrower.profile.income_statement_card_hint') }}</p>

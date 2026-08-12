@@ -820,13 +820,57 @@ class LoanApplicationController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
-        $data = $request->validate(['notes' => ['nullable', 'string', 'max:500']]);
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:500'],
+            'request_again' => ['nullable', 'boolean'],
+            'request_again_label' => ['nullable', 'string', 'max:160'],
+        ]);
         $review->reject($document, $loan_application, auth()->user(), $data['notes'] ?? null);
 
+        $status = 'Document rejected.';
+        if ($request->boolean('request_again') && auth()->user()?->hasPermission('applications.request_documents')) {
+            $label = trim((string) ($data['request_again_label'] ?? ''));
+            if ($label === '') {
+                $label = $document->documentType?->name
+                    ?: $document->original_name
+                    ?: 'Replacement document';
+            }
+            $instructions = filled($data['notes'] ?? null)
+                ? 'Previous upload rejected: '.$data['notes']
+                : null;
+            $subjectKind = 'borrower';
+            $subjectCustomerId = null;
+            $loanGroupMemberId = null;
+            $reviewPerson = (string) $request->input('review_person', 'borrower');
+            if ($reviewPerson === 'member' && (int) $request->input('review_m', 0) > 0) {
+                $subjectKind = 'member';
+                $loanGroupMemberId = (int) $request->input('review_m');
+            } elseif ($reviewPerson === 'guarantor' && (int) $request->input('review_g', 0) > 0) {
+                // Guarantor link id is not customer id — resolve from review context when present.
+                $subjectKind = 'borrower';
+            }
+            app(\App\Services\ApplicationDocumentRequestService::class)->create(
+                $loan_application,
+                auth()->user(),
+                $label,
+                $instructions,
+                null,
+                'document',
+                $subjectKind,
+                $subjectCustomerId,
+                $loanGroupMemberId,
+            );
+            $status = 'Document rejected and a new request was sent to the borrower.';
+        }
+
         return redirect()
-            ->route("{$this->routePrefix}.show", $loan_application)
-            ->with('status', 'Document rejected.')
-            ->withFragment('review-documents');
+            ->route("{$this->routePrefix}.show", array_filter([
+                'loan_application' => $loan_application,
+                'workspace' => 'checklist',
+                'capacity_tab' => 'documents',
+            ]))
+            ->with('status', $status)
+            ->withFragment('checklist-documents');
     }
 
     public function createLoan(LoanApplication $loan_application, LoanOriginationService $origination): RedirectResponse

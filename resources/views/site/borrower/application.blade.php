@@ -166,13 +166,29 @@
                     <li class="p-5">
                         <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
                             <div>
-                                <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
+                                <p class="font-semibold text-gray-900">
+                                    {{ app(\App\Services\ApplicationDocumentRequestService::class)->localizedLabel((string) $docReq->label) }}
+                                </p>
+                                @if (($docReq->subject_kind ?? 'borrower') === 'member')
+                                    @php
+                                        $reqMemberName = $docReq->subjectCustomer?->full_name
+                                            ?? $docReq->groupMember?->customer?->full_name
+                                            ?? __('borrower.notifications.document_request_member_fallback');
+                                    @endphp
+                                    <p class="text-xs font-semibold text-brand mt-0.5">
+                                        {{ __('borrower.application.request_for_member', ['name' => $reqMemberName]) }}
+                                    </p>
+                                @endif
                                 <p class="text-xs text-gray-500 mt-0.5">
                                     {{ $requestTypes[$docReq->type] ?? ucfirst($docReq->type) }}
                                     @if ($docReq->due_at) · {{ __('borrower.application.due_date', ['date' => $docReq->due_at->format('d M Y')]) }} @endif
                                 </p>
-                                @if ($docReq->instructions)
-                                    <p class="text-sm text-gray-600 mt-2">{{ $docReq->instructions }}</p>
+                                @php
+                                    $reqInstructions = app(\App\Services\ApplicationDocumentRequestService::class)
+                                        ->localizedInstructions((string) $docReq->label, $docReq->instructions);
+                                @endphp
+                                @if ($reqInstructions)
+                                    <p class="text-sm text-gray-600 mt-2">{{ $reqInstructions }}</p>
                                 @endif
                                 @if ($docReq->admin_notes && $docReq->status === 'rejected')
                                     <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>

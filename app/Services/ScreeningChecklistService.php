@@ -74,7 +74,7 @@ class ScreeningChecklistService
             $leaderMemberId = (int) ($leader['id'] ?? 0);
 
             // Leader is the applicant — one chip using the full borrower checklist (not duplicated).
-            $leaderVm = $this->viewModel($application, $actor, 'borrower');
+            $leaderVm = $this->viewModel($application, $actor, 'borrower', null, null, $review, $groupReview);
             $subjects[] = [
                 'key' => 'borrower',
                 'person' => 'borrower',
@@ -99,7 +99,8 @@ class ScreeningChecklistService
                     continue;
                 }
 
-                $vm = $this->viewModel($application, $actor, 'member', null, $mId);
+                // Pass groupReview so each member gets their own evidence / auto-verdicts (not identical chips).
+                $vm = $this->viewModel($application, $actor, 'member', null, $mId, $review, $groupReview);
                 $subjects[] = [
                     'key' => 'member:'.$mId,
                     'person' => 'member',
@@ -115,7 +116,7 @@ class ScreeningChecklistService
                 ];
             }
         } else {
-            $borrowerVm = $this->viewModel($application, $actor, 'borrower');
+            $borrowerVm = $this->viewModel($application, $actor, 'borrower', null, null, $review, $groupReview);
             $subjects[] = [
                 'key' => 'borrower',
                 'person' => 'borrower',
@@ -139,7 +140,7 @@ class ScreeningChecklistService
             if ($gId < 1) {
                 continue;
             }
-            $vm = $this->viewModel($application, $actor, 'guarantor', $gId);
+            $vm = $this->viewModel($application, $actor, 'guarantor', $gId, null, $review, $groupReview);
             $subjects[] = [
                 'key' => 'guarantor:'.$gId,
                 'person' => 'guarantor',
@@ -264,6 +265,7 @@ class ScreeningChecklistService
                     'group_key' => $groupKey,
                     'label' => $meta['label'],
                     'risk' => $meta['risk'] ?? 'normal',
+                    'gate' => $meta['gate'] ?? null,
                     'evidence_type' => $meta['evidence'],
                     'evidence' => $autoNa
                         ? [
@@ -495,6 +497,7 @@ class ScreeningChecklistService
             'evidence' => (string) ($meta['evidence'] ?? 'generic'),
             'fail_reasons' => (array) ($meta['fail_reasons'] ?? ['custom' => 'Other (write reason)']),
             'risk' => $risk,
+            'gate' => isset($meta['gate']) ? (string) $meta['gate'] : null,
         ];
     }
 
@@ -532,7 +535,7 @@ class ScreeningChecklistService
             return $row;
         }
 
-        $humanLocked = $existing !== null && ! in_array($existingSource, ['system', 'auto_na', ''], true);
+        $humanLocked = $existing !== null && ! in_array($existingSource, ['system', 'auto_na'], true);
         if ($humanLocked) {
             return $row;
         }
@@ -660,7 +663,7 @@ class ScreeningChecklistService
             $current = (array) ($items[$key] ?? []);
             $existing = $this->normalizeVerdict($current);
             $existingSource = (string) ($current['source'] ?? '');
-            if ($existing !== null && ! in_array($existingSource, ['system', 'auto_na', ''], true)) {
+            if ($existing !== null && ! in_array($existingSource, ['system', 'auto_na'], true)) {
                 continue;
             }
             $items[$key] = [
@@ -829,41 +832,94 @@ class ScreeningChecklistService
             ];
         }
 
+        // Guarantor / member chips must never inherit the leader/borrower file — that made every
+        // member show the same Pass/Fail progress (e.g. identical 6/20).
         if ($person === 'guarantor' && $guarantorLinkId) {
+            $facePhotos = [];
+            $nidaPhoto = null;
+            $afford = [];
+            $docs = [
+                'required' => 0,
+                'satisfied' => 0,
+                'uploaded' => 0,
+                'progress' => 0,
+                'missing' => [],
+                'files' => [],
+                'id_files' => [],
+            ];
+            $crb = [];
+
             $row = collect($review['guarantors'] ?? [])->first(
                 fn ($g) => (int) ($g['link_id'] ?? 0) === $guarantorLinkId
             );
             if ($row) {
-                $file = $row['file'] ?? [];
+                $file = is_array($row['file'] ?? null) ? $row['file'] : [];
                 $customer = $row['customer'] ?? ($file['customer'] ?? $customer);
-                $crb = $row['crb'] ?? ($file['crb'] ?? $crb);
-                $facePhotos = $file['face_photos'] ?? $facePhotos;
-                $nidaPhoto = $file['nida_photo_path'] ?? $nidaPhoto;
-                $afford = $file['affordability'] ?? ($row['affordability'] ?? $afford);
+                $crb = $row['crb'] ?? ($file['crb'] ?? []);
+                $facePhotos = $file['face_photos'] ?? [];
+                $nidaPhoto = $file['nida_photo_path'] ?? null;
+                $afford = $file['affordability'] ?? ($row['affordability'] ?? []);
+                $docs['id_files'] = $this->idFilesFromSubjectFile($file);
             }
         }
 
-        if ($person === 'member' && $memberId && $groupReview) {
+        if ($person === 'member' && $memberId) {
+            $facePhotos = [];
+            $nidaPhoto = null;
+            $afford = [];
+            $docs = [
+                'required' => 0,
+                'satisfied' => 0,
+                'uploaded' => 0,
+                'progress' => 0,
+                'missing' => [],
+                'files' => [],
+                'id_files' => [],
+            ];
+            $crb = [];
+
+            if (! is_array($groupReview) || empty($groupReview['members'])) {
+                $groupReview = app(GroupLoanReviewService::class)->dossier($application);
+            }
+
             $member = collect($groupReview['members'] ?? [])->first(
                 fn ($m) => (int) ($m['id'] ?? 0) === $memberId
             );
             if ($member) {
                 $customer = Customer::query()->find($member['customer_id'] ?? 0) ?? $customer;
+                $file = (array) ($member['file'] ?? []);
+                if ($file === [] && $customer) {
+                    $file = app(LoanApplicationReviewService::class)->subjectFileForCustomer($customer);
+                }
+                $facePhotos = $file['face_photos'] ?? [];
+                $nidaPhoto = $file['nida_photo_path'] ?? null;
+                $afford = $file['affordability'] ?? [];
+                $docs['id_files'] = $this->idFilesFromSubjectFile($file);
                 $crb = [
-                    'score' => $member['crb_score'] ?? null,
-                    'recommendation' => $member['crb_status'] ?? null,
-                    'existing_loans' => $member['existing_loans'] ?? null,
-                    'loan_history' => $member['loan_history'] ?? [],
+                    'score' => $member['crb_score'] ?? ($file['crb']['score'] ?? null),
+                    'recommendation' => $member['crb_recommendation'] ?? $member['crb_status'] ?? ($file['crb']['recommendation'] ?? null),
+                    'existing_loans' => $member['crb_existing_loans'] ?? $member['existing_loans'] ?? ($file['crb']['existing_loans'] ?? null),
+                    'outstanding_balance' => $member['crb_outstanding'] ?? ($file['crb']['outstanding_balance'] ?? null),
+                    'delinquencies' => $member['crb_delinquencies'] ?? ($file['crb']['delinquencies'] ?? null),
+                    'loan_history' => $member['loan_history'] ?? ($file['crb']['loan_history'] ?? []),
+                    'personal' => $file['crb']['personal'] ?? [],
                 ];
             }
         }
 
         $gSug = $review['guarantor_suggestion'] ?? [];
         $collateral = data_get($application->screening_payload, 'collateral_secure', []);
-        $anomalies = $review['anomalies'] ?? null;
-        if (! is_array($anomalies)) {
-            $anomalies = app(UnderwritingAnomalyService::class)->forApplication($application, $review);
+        if (in_array($person, ['guarantor', 'member'], true)) {
+            $anomalies = [];
+            $gSug = [];
+        } else {
+            $anomalies = $review['anomalies'] ?? null;
+            if (! is_array($anomalies)) {
+                $anomalies = app(UnderwritingAnomalyService::class)->forApplication($application, $review);
+            }
         }
+
+        [$declaredIncome, $declaredIncomeLabel, $incomeStatements] = $this->incomeStatementEvidence($customer);
 
         return [
             'customer' => $customer,
@@ -872,11 +928,80 @@ class ScreeningChecklistService
             'nida_photo_path' => $nidaPhoto,
             'affordability' => $afford,
             'documents' => $docs,
+            'declared_monthly_income' => $declaredIncome,
+            'declared_income_label' => $declaredIncomeLabel,
+            'income_statements' => $incomeStatements,
             'guarantor_suggestion' => $gSug,
             'collateral_secure' => $collateral,
             'anomalies' => $anomalies,
             'application' => $application,
         ];
+    }
+
+    /**
+     * Declared profile revenue + bank / mobile-money statement files for Gate 2.
+     *
+     * @return array{0: float, 1: ?string, 2: list<array{label: string, url: string, status: ?string}>}
+     */
+    private function incomeStatementEvidence(?Customer $customer): array
+    {
+        if (! $customer) {
+            return [0.0, null, []];
+        }
+
+        $declared = (float) ($customer->monthly_income ?? 0);
+        if ($declared <= 0 && filled($customer->income_range)) {
+            $declared = (float) (config('income_ranges.'.$customer->income_range.'.midpoint') ?? 0);
+        }
+        $label = income_range_label($customer->income_range)
+            ?? ($declared > 0 ? format_money($declared).'/mo' : null);
+
+        $statements = [];
+        $codes = ['bank_statement', 'mobile_money_statement', 'mpesa_statement', 'salary_slip'];
+        $uploads = app(ProfileDocumentService::class)->latestByCodes($customer, $codes);
+        foreach ($codes as $code) {
+            $doc = $uploads->get($code);
+            if (! $doc || ! filled($doc->file_path ?? null)) {
+                continue;
+            }
+            $statements[] = [
+                'label' => match ($code) {
+                    'bank_statement' => 'Bank statement',
+                    'mobile_money_statement', 'mpesa_statement' => 'Mobile money statement',
+                    'salary_slip' => 'Salary slip',
+                    default => (string) ($doc->documentType?->name ?? 'Income document'),
+                },
+                'url' => asset('storage/'.$doc->file_path),
+                'status' => $doc->status ?? null,
+                'file_path' => $doc->file_path,
+            ];
+        }
+
+        return [$declared, $label, $statements];
+    }
+
+    /**
+     * @param  array<string, mixed>  $file
+     * @return list<array{label: string, url: string}>
+     */
+    private function idFilesFromSubjectFile(array $file): array
+    {
+        $idFiles = [];
+        foreach (collect($file['id_documents'] ?? []) as $code => $doc) {
+            $path = is_object($doc) ? ($doc->file_path ?? null) : (is_array($doc) ? ($doc['file_path'] ?? null) : null);
+            if (! is_string($path) || ! filled($path)) {
+                continue;
+            }
+            $label = is_object($doc)
+                ? ($doc->documentType->name ?? (is_string($code) ? ucfirst(str_replace('_', ' ', $code)) : 'ID'))
+                : ($doc['label'] ?? 'ID');
+            $idFiles[] = [
+                'label' => (string) $label,
+                'url' => asset('storage/'.$path),
+            ];
+        }
+
+        return $idFiles;
     }
 
     /**
@@ -1169,6 +1294,30 @@ class ScreeningChecklistService
                     ['label' => 'How confirmed', 'value' => 'System runs affordability math; you judge income evidence quality'],
                 ];
                 $hint = 'System calculates capacity vs proposed installment. Confirm the underlying income evidence yourself.';
+                break;
+
+            case 'income_statements':
+                $declared = (float) ($ctx['declared_monthly_income'] ?? 0);
+                $declaredLabel = (string) ($ctx['declared_income_label'] ?? '');
+                $statements = collect($ctx['income_statements'] ?? []);
+                $rows = [
+                    ['label' => 'Profile monthly revenue', 'value' => $declaredLabel !== ''
+                        ? $declaredLabel.($declared > 0 ? ' · ~'.format_money($declared) : '')
+                        : ($declared > 0 ? format_money($declared).'/mo' : '— not declared')],
+                    ['label' => 'Statements on file', 'value' => (string) $statements->count()],
+                    ['label' => 'Your gate', 'value' => 'Do statement inflows support this declared monthly revenue? (Gate 2 after capacity auto-reject)'],
+                ];
+                foreach ($statements->take(8) as $file) {
+                    if (! empty($file['url'])) {
+                        $photos[] = [
+                            'label' => trim(($file['label'] ?? 'Statement').(isset($file['status']) ? ' · '.$file['status'] : '')),
+                            'url' => (string) $file['url'],
+                        ];
+                    }
+                }
+                $hint = $photos === []
+                    ? 'No bank / mobile-money statements on the profile yet — request them before Pass, or Fail as missing.'
+                    : 'Open each statement and judge whether cashflow supports the profile monthly revenue. Pass only when it matches.';
                 break;
 
             case 'id_docs':

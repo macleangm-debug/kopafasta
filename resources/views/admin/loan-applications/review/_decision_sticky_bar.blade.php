@@ -8,15 +8,22 @@
     $readiness = $screeningReadiness ?? null;
     $ready = is_array($readiness) ? (bool) ($readiness['ready'] ?? false) : false;
     $suggestionLabel = is_array($readiness) ? (string) ($readiness['suggestion_label'] ?? '') : '';
+    $nextStep = is_array($readiness) ? (($readiness['next_steps'][0] ?? null)) : null;
+    $incomeGateOpen = is_array($readiness) && ! empty($readiness['income_gate_open']);
+    $continueHref = is_array($nextStep) && filled($nextStep['href'] ?? null)
+        ? (string) $nextStep['href']
+        : (route('admin.loan-applications.show', [
+            'loan_application' => $record,
+            'workspace' => 'checklist',
+        ]).'#review-desk');
+    $continueLabel = $incomeGateOpen
+        ? 'Open Gate 2 · Statements vs revenue'
+        : 'Continue checklist';
 
     $decisionPanelUrl = route('admin.loan-applications.show', [
         'loan_application' => $record,
         'workspace' => 'decision',
     ]).'#review-recommendation';
-    $checklistUrl = route('admin.loan-applications.show', [
-        'loan_application' => $record,
-        'workspace' => 'checklist',
-    ]).'#review-desk';
 
     // Show sticky on checklist when guiding next step; on decision when recording.
     $showScreeningSticky = $isScreeningSticky && $canReview && empty($recType)
@@ -32,7 +39,9 @@
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Screening team · Guided next step</p>
                         <p class="text-sm font-bold mt-0.5 truncate">
-                            @if (! $ready)
+                            @if (! $ready && $incomeGateOpen)
+                                Gate 2 — match financial statements to profile monthly revenue first
+                            @elseif (! $ready)
                                 Finish the checklist before recording a decision
                             @elseif ($workspace !== 'decision')
                                 Ready — {{ $suggestionLabel !== '' ? $suggestionLabel : 'open Decision' }}
@@ -43,9 +52,9 @@
                     </div>
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
                         @if (! $ready)
-                            <a href="{{ $checklistUrl }}"
+                            <a href="{{ $continueHref }}"
                                class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
-                                Continue checklist
+                                {{ $continueLabel }}
                             </a>
                         @elseif ($workspace !== 'decision')
                             <a href="{{ $decisionPanelUrl }}"

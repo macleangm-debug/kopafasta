@@ -229,6 +229,44 @@ class ApplicationDocumentRequestService
 
     public function __construct(private readonly NotificationService $notifier) {}
 
+    /**
+     * Borrower-facing label for a stored (English) preset / custom request label.
+     */
+    public function localizedLabel(string $label, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        $key = 'borrower.document_request_presets.labels.'.$label;
+        $translated = __($key, [], $locale);
+
+        return $translated !== $key ? $translated : $label;
+    }
+
+    /**
+     * Borrower-facing instructions. Custom admin text is kept as written;
+     * preset English defaults are translated for the customer's locale.
+     */
+    public function localizedInstructions(string $label, ?string $instructions, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        $instructions = trim((string) $instructions);
+        $englishDefault = self::presetInstructions()[$label] ?? null;
+
+        if ($instructions === '' || ($englishDefault !== null && $instructions === $englishDefault)) {
+            $key = 'borrower.document_request_presets.instructions.'.$label;
+            $translated = __($key, [], $locale);
+            if ($translated !== $key) {
+                return $translated;
+            }
+            if ($englishDefault) {
+                return $englishDefault;
+            }
+
+            return (string) __('borrower.document_request_presets.default_instructions', [], $locale);
+        }
+
+        return $instructions;
+    }
+
     public function create(
         LoanApplication $application,
         User $requester,
@@ -320,8 +358,11 @@ class ApplicationDocumentRequestService
         $this->syncApplicationStatus($application);
 
         if ($created->isNotEmpty()) {
+            $revision = app(ProfileRevisionService::class);
+            foreach ($created as $request) {
+                $revision->applyForDocumentRequest($application, $request, notify: false);
+            }
             $this->notifyBorrowerBatch($application->loadMissing('customer'), $created);
-            app(ProfileRevisionService::class)->applyForLabels($application, $labels);
         }
 
         return $created;
@@ -389,49 +430,79 @@ class ApplicationDocumentRequestService
         bool $forLeader = false,
     ): void {
         $uploadUrl = $this->borrowerActionUrl($request);
-        $instructions = $request->instructions ?: 'Please upload the requested item.';
+        $locale = $customer->user?->locale
+            ?? $customer->preferred_locale
+            ?? $customer->locale
+            ?? app()->getLocale();
+        $label = $this->localizedLabel((string) $request->label, $locale);
+        $instructions = $this->localizedInstructions(
+            (string) $request->label,
+            $request->instructions,
+            $locale,
+        );
         $cta = $this->isProfileGuidedRequest($request)
-            ? __('borrower.notifications.profile_revision_cta')
-            : __('borrower.notifications.document_request_cta');
+            ? __('borrower.notifications.profile_revision_cta', [], $locale)
+            : __('borrower.notifications.document_request_cta', [], $locale);
 
-        $subjectName = $request->subjectCustomer?->first_name
+        $subjectName = $request->subjectCustomer?->full_name
+            ?? $request->groupMember?->customer?->full_name
+            ?? $request->subjectCustomer?->first_name
             ?? $request->groupMember?->customer?->first_name
-            ?? 'a group member';
+            ?? __('borrower.notifications.document_request_member_fallback', [], $locale);
+
+        $instructionText = $forLeader
+            ? __('borrower.notifications.document_request_for_member', [
+                'member' => $subjectName,
+                'instructions' => $instructions,
+            ], $locale)
+            : $instructions;
 
         $fallbackBody = $forLeader
-            ? "Hi {$customer->first_name}, underwriting requested \"{$request->label}\" from {$subjectName} for application {$application->application_number}. Open: {$uploadUrl}"
-            : "Hi {$customer->first_name}, underwriting needs \"{$request->label}\" for application {$application->application_number}. Open: {$uploadUrl}";
+            ? __('borrower.notifications.document_request_sms_leader', [
+                'name' => $customer->first_name ?? 'Customer',
+                'label' => $label,
+                'member' => $subjectName,
+                'application' => $application->application_number,
+                'url' => $uploadUrl,
+            ], $locale)
+            : __('borrower.notifications.document_request_sms', [
+                'name' => $customer->first_name ?? 'Customer',
+                'label' => $label,
+                'application' => $application->application_number,
+                'url' => $uploadUrl,
+            ], $locale);
 
         $this->notifier->notifyCustomer($customer, 'application_document_request', [
             'name'               => $customer->first_name ?? 'Customer',
             'application_number' => $application->application_number,
-            'label'              => $request->label,
-            'instructions'       => $forLeader
-                ? "Requested from {$subjectName}: {$instructions}"
-                : $instructions,
-            'due_date'           => optional($request->due_at)->format('d M Y') ?? 'as soon as possible',
+            'label'              => $label,
+            'instructions'       => $instructionText,
+            'due_date'           => optional($request->due_at)->format('d M Y')
+                ?? __('borrower.notifications.document_request_due_asap', [], $locale),
             'upload_url'         => $uploadUrl,
+            '_locale'            => $locale,
             '_fallback_body'     => $fallbackBody,
             '_fallback_subject'  => $forLeader
-                ? 'Document requested from a group member'
-                : 'Document requested for your loan application',
+                ? __('borrower.notifications.document_request_subject_leader', [], $locale)
+                : __('borrower.notifications.document_request_subject', [], $locale),
         ]);
 
         if ($inApp) {
             $params = [
                 'application' => $application->application_number,
-                'label' => $request->label,
+                'label' => $label,
             ];
             $body = $forLeader
-                ? __('borrower.notifications.document_request_body', $params).' ('.$subjectName.')'
-                : __('borrower.notifications.document_request_body', $params);
+                ? __('borrower.notifications.document_request_body', $params, $locale)
+                    .' ('.$subjectName.')'
+                : __('borrower.notifications.document_request_body', $params, $locale);
 
             $this->notifier->notifyInApp(
                 $customer,
                 $body,
                 'document_request',
                 'application_document_request',
-                __('borrower.notifications.document_request_title'),
+                __('borrower.notifications.document_request_title', [], $locale),
                 $uploadUrl,
                 $cta,
                 [
@@ -483,9 +554,16 @@ class ApplicationDocumentRequestService
                 continue;
             }
 
+            $locale = $customer->user?->locale
+                ?? $customer->preferred_locale
+                ?? $customer->locale
+                ?? app()->getLocale();
             $unique = $customerRequests->unique('id')->values();
             $count = $unique->count();
-            $labels = $unique->pluck('label')->take(3)->implode(', ');
+            $labels = $unique
+                ->take(3)
+                ->map(fn ($req) => $this->localizedLabel((string) $req->label, $locale))
+                ->implode(', ');
             $suffix = $count > 3 ? '…' : '';
 
             $this->notifier->notifyInApp(
@@ -494,12 +572,12 @@ class ApplicationDocumentRequestService
                     'application' => $application->application_number,
                     'count' => $count,
                     'labels' => $labels.$suffix,
-                ]),
+                ], $locale),
                 'document_request',
                 'application_document_request',
-                __('borrower.notifications.document_request_title'),
+                __('borrower.notifications.document_request_title', [], $locale),
                 $uploadUrl,
-                __('borrower.notifications.document_request_cta'),
+                __('borrower.notifications.document_request_cta', [], $locale),
                 [
                     'title_key' => 'borrower.notifications.document_request_title',
                     'body_key'  => 'borrower.notifications.document_request_batch_body',
