@@ -1389,7 +1389,54 @@ export function applyWizard(config) {
 
                 memberStatusClass(member) {
                     const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'profile_incomplete');
-                    return key === 'kyc_complete' ? 'text-emerald-700' : 'text-brand';
+                    if (key === 'kyc_complete' || member.signed) return 'text-emerald-700';
+                    if (key === 'awaiting_signature') return 'text-amber-800';
+                    return 'text-brand';
+                },
+
+                groupRosterPageSize: 5,
+                groupRosterPage: 0,
+                groupSigSlide: 0,
+
+                groupRosterPages() {
+                    const n = (this.group?.members || []).length;
+                    return Math.max(1, Math.ceil(n / this.groupRosterPageSize));
+                },
+
+                groupRosterPageMembers() {
+                    const start = this.groupRosterPage * this.groupRosterPageSize;
+                    return (this.group?.members || []).slice(start, start + this.groupRosterPageSize);
+                },
+
+                groupRosterAbsoluteIndex(localIndex) {
+                    return (this.groupRosterPage * this.groupRosterPageSize) + localIndex;
+                },
+
+                groupRosterPrevPage() {
+                    this.groupRosterPage = Math.max(0, this.groupRosterPage - 1);
+                },
+
+                groupRosterNextPage() {
+                    this.groupRosterPage = Math.min(this.groupRosterPages() - 1, this.groupRosterPage + 1);
+                },
+
+                groupSigPrev() {
+                    const n = (this.group?.members || []).length;
+                    if (! n) return;
+                    this.groupSigSlide = (this.groupSigSlide - 1 + n) % n;
+                },
+
+                groupSigNext() {
+                    const n = (this.group?.members || []).length;
+                    if (! n) return;
+                    this.groupSigSlide = (this.groupSigSlide + 1) % n;
+                },
+
+                syncGroupSignatureUi() {
+                    const n = (this.group?.members || []).length;
+                    const pages = Math.max(1, Math.ceil(n / this.groupRosterPageSize));
+                    if (this.groupRosterPage >= pages) this.groupRosterPage = Math.max(0, pages - 1);
+                    if (this.groupSigSlide >= n) this.groupSigSlide = Math.max(0, n - 1);
                 },
 
                 groupScoringRiskBandLabel(band) {
@@ -1427,6 +1474,7 @@ export function applyWizard(config) {
                             const beforeCount = this.group.members.length;
                             if (Array.isArray(data.members)) {
                                 this.group.members = data.members;
+                                this.syncGroupSignatureUi();
                             }
                             if (data.summary) {
                                 this.groupProgressSummary = data.summary;

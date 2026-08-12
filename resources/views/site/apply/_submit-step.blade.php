@@ -24,37 +24,113 @@
         <p class="mt-1 text-sky-800">{{ __('borrower.apply.submit_step.supplement_hint') }}</p>
     </div>
 
-    {{-- Group members: signature / readiness roster (leader still signs below) --}}
+    {{-- Group members: readiness roster (5 per page) + signature carousel --}}
     <section x-show="isGroupProduct(current) && (group.members || []).length" x-cloak
-             class="mb-6 rounded-3xl overflow-hidden ring-1 ring-brand/15 bg-white shadow-sm">
-        <div class="px-5 sm:px-6 py-4 bg-gradient-to-r from-brand-muted/50 to-white border-b border-brand/10">
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.submit_step.group_signatures_title') }}</p>
-            <p class="text-sm text-gray-600 mt-1">{{ __('borrower.apply.submit_step.group_signatures_hint') }}</p>
+             class="mb-6 space-y-4">
+        <div class="rounded-3xl overflow-hidden ring-1 ring-brand/15 bg-white shadow-sm">
+            <div class="px-5 sm:px-6 py-4 bg-gradient-to-r from-brand-muted/50 to-white border-b border-brand/10 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.submit_step.group_signatures_title') }}</p>
+                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.apply.submit_step.group_signatures_hint') }}</p>
+                </div>
+                <p class="text-xs font-semibold text-gray-500 tabular-nums"
+                   x-show="groupRosterPages() > 1"
+                   x-cloak
+                   x-text="(groupRosterPage + 1) + ' / ' + groupRosterPages()"></p>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                <template x-for="(member, localIndex) in groupRosterPageMembers()" :key="'sig-m-' + groupRosterAbsoluteIndex(localIndex) + '-' + (member.customer_id || member.invitation_id || localIndex)">
+                    <li class="px-5 sm:px-6 py-3.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-brand-muted/20"
+                        @click="groupSigSlide = groupRosterAbsoluteIndex(localIndex)">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900 truncate"
+                               x-text="member.name || member.label || member.phone || ('#' + (groupRosterAbsoluteIndex(localIndex) + 1))"></p>
+                            <p class="text-xs mt-0.5" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></p>
+                        </div>
+                        <span class="shrink-0 size-8 rounded-full grid place-items-center ring-1"
+                              :class="(member.status_key || '') === 'kyc_complete' || member.signed
+                                  ? 'bg-brand text-brand-gold ring-brand-gold/40'
+                                  : 'bg-amber-50 text-amber-700 ring-amber-200'">
+                            <template x-if="(member.status_key || '') === 'kyc_complete' || member.signed">
+                                <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                                </svg>
+                            </template>
+                            <template x-if="(member.status_key || '') !== 'kyc_complete' && ! member.signed">
+                                <span class="text-[10px] font-bold" x-text="groupRosterAbsoluteIndex(localIndex) + 1"></span>
+                            </template>
+                        </span>
+                    </li>
+                </template>
+            </ul>
+            <div x-show="groupRosterPages() > 1" x-cloak class="px-5 sm:px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-3">
+                <button type="button" @click="groupRosterPrevPage()" class="text-xs font-semibold text-brand hover:underline disabled:opacity-40"
+                        :disabled="groupRosterPage === 0">← {{ __('borrower.apply.group.signature_carousel_prev') }}</button>
+                <div class="flex gap-1.5">
+                    <template x-for="p in groupRosterPages()" :key="'roster-dot-' + p">
+                        <button type="button" @click="groupRosterPage = p - 1" class="size-2 rounded-full"
+                                :class="groupRosterPage === (p - 1) ? 'bg-brand' : 'bg-gray-300'"></button>
+                    </template>
+                </div>
+                <button type="button" @click="groupRosterNextPage()" class="text-xs font-semibold text-brand hover:underline disabled:opacity-40"
+                        :disabled="groupRosterPage >= groupRosterPages() - 1">{{ __('borrower.apply.group.signature_carousel_next') }} →</button>
+            </div>
         </div>
-        <ul class="divide-y divide-gray-100">
-            <template x-for="(member, index) in (group.members || [])" :key="'sig-m-' + index + '-' + (member.customer_id || member.invitation_id || index)">
-                <li class="px-5 sm:px-6 py-3.5 flex items-center justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-sm font-semibold text-gray-900 truncate"
-                           x-text="member.name || member.label || member.phone || ('#' + (index + 1))"></p>
-                        <p class="text-xs mt-0.5" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></p>
+
+        <div class="rounded-3xl overflow-hidden ring-1 ring-brand/15 bg-white shadow-sm">
+            <div class="px-5 sm:px-6 py-4 border-b border-brand/10 flex items-end justify-between gap-3">
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.group.signature_carousel_title') }}</p>
+                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.apply.group.signature_carousel_hint') }}</p>
+                </div>
+                <p class="text-xs font-semibold text-gray-500 tabular-nums"
+                   x-text="((group.members || []).length ? (groupSigSlide + 1) : 0) + ' / ' + (group.members || []).length"></p>
+            </div>
+            <div class="px-5 sm:px-6 py-5 space-y-4">
+                <template x-for="(member, index) in (group.members || [])" :key="'carousel-' + index + '-' + (member.customer_id || member.invitation_id || index)">
+                    <div x-show="groupSigSlide === index" x-cloak class="space-y-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-base font-bold text-gray-900 truncate"
+                                   x-text="member.name || member.label || member.phone || ('#' + (index + 1))"></p>
+                                <p class="text-xs text-gray-500 mt-0.5 capitalize"
+                                   x-text="(member.role === 'leader' ? @js(__('borrower.apply.group_members.leader_badge')) : @js(__('borrower.apply.group_members.member_badge')))"></p>
+                            </div>
+                            <span class="shrink-0 inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold ring-1"
+                                  :class="member.signed || (member.status_key || '') === 'kyc_complete'
+                                      ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+                                      : 'bg-amber-50 text-amber-900 ring-amber-200'"
+                                  x-text="member.signed
+                                      ? @js(__('borrower.apply.group.signature_carousel_signed'))
+                                      : ((member.role === 'leader' && member.signature_data)
+                                          ? @js(__('borrower.apply.group.signature_carousel_leader_pending'))
+                                          : @js(__('borrower.apply.group.signature_carousel_waiting')))"></span>
+                        </div>
+                        <div class="rounded-2xl bg-[linear-gradient(180deg,#f8faf9_0%,#ffffff_55%)] ring-1 ring-brand/10 min-h-[10rem] grid place-items-center px-4 py-6">
+                            <template x-if="member.signature_data">
+                                <img :src="member.signature_data" alt="" class="max-h-28 w-auto max-w-full object-contain">
+                            </template>
+                            <template x-if="! member.signature_data">
+                                <div class="text-center space-y-2 px-4">
+                                    <p class="text-sm font-semibold text-amber-950">{{ __('borrower.apply.group.signature_carousel_waiting') }}</p>
+                                    <p class="text-xs text-amber-900/80">{{ __('borrower.apply.group.signature_carousel_waiting_hint') }}</p>
+                                </div>
+                            </template>
+                        </div>
                     </div>
-                    <span class="shrink-0 size-8 rounded-full grid place-items-center ring-1"
-                          :class="(member.status_key || '') === 'kyc_complete'
-                              ? 'bg-brand text-brand-gold ring-brand-gold/40'
-                              : 'bg-amber-50 text-amber-700 ring-amber-200'">
-                        <template x-if="(member.status_key || '') === 'kyc_complete'">
-                            <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-                            </svg>
+                </template>
+                <div x-show="(group.members || []).length > 1" x-cloak class="flex items-center justify-between gap-3">
+                    <button type="button" @click="groupSigPrev()" class="text-xs font-semibold text-brand hover:underline">← {{ __('borrower.apply.group.signature_carousel_prev') }}</button>
+                    <div class="flex gap-1.5 flex-wrap justify-center max-w-[14rem]">
+                        <template x-for="(member, index) in (group.members || [])" :key="'sig-dot-' + index">
+                            <button type="button" @click="groupSigSlide = index" class="size-2 rounded-full"
+                                    :class="groupSigSlide === index ? 'bg-brand' : (member.signed ? 'bg-emerald-400' : 'bg-gray-300')"></button>
                         </template>
-                        <template x-if="(member.status_key || '') !== 'kyc_complete'">
-                            <span class="text-[10px] font-bold" x-text="index + 1"></span>
-                        </template>
-                    </span>
-                </li>
-            </template>
-        </ul>
+                    </div>
+                    <button type="button" @click="groupSigNext()" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.apply.group.signature_carousel_next') }} →</button>
+                </div>
+            </div>
+        </div>
     </section>
 
     {{-- Guarantor: live status + progress on submit --}}

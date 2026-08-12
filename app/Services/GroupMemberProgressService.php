@@ -141,10 +141,33 @@ class GroupMemberProgressService
     public function summarize(array $members, int $targetCount): array
     {
         $faces = app(FaceVerificationService::class);
-        $rows = collect($members)->map(function (array $member) use ($faces) {
+        $signatures = app(GroupMemberSignatureService::class);
+        $borrowerSignatures = app(BorrowerSignatureService::class);
+        $rows = collect($members)->map(function (array $member) use ($faces, $signatures, $borrowerSignatures) {
             $status = $this->resolveMemberStatus($member);
             $profile = $this->profileCompletionForMember($member);
             $customer = $this->resolveCustomer($member);
+            $invitationId = (int) ($member['invitation_id'] ?? 0);
+            $invitation = $invitationId > 0 ? GroupMemberInvitation::query()->find($invitationId) : null;
+
+            $signatureData = null;
+            $signed = false;
+            $signedAt = null;
+            $signerName = null;
+
+            if ($invitation && $signatures->hasSignature($invitation)) {
+                $signed = true;
+                $signatureData = $invitation->member_signature_data;
+                $signerName = $invitation->member_signer_name;
+                $signedAt = optional($invitation->member_signed_at)?->toIso8601String();
+            } elseif (($member['role'] ?? '') === 'leader' && $customer) {
+                $profileSig = $borrowerSignatures->profileSignature($customer);
+                if ($profileSig) {
+                    $signatureData = $profileSig['signature_data'];
+                    $signerName = $profileSig['signer_name'];
+                    $signedAt = $profileSig['signed_at'];
+                }
+            }
 
             return array_merge($member, [
                 'status_key'       => $status['key'],
@@ -153,6 +176,10 @@ class GroupMemberProgressService
                 'profile_percent'  => $profile['percent'],
                 'profile_sections' => $profile['sections'],
                 'avatar_url'       => $customer ? $faces->avatarUrl($customer) : ($member['avatar_url'] ?? null),
+                'signed'           => $signed,
+                'signature_data'   => $signatureData,
+                'signer_name'      => $signerName,
+                'signed_at'        => $signedAt,
                 // Kept for older clients; wizard uses profile_percent; sections belong on loan views.
                 'progress_steps'   => [],
             ]);
