@@ -4,12 +4,11 @@
         <p class="text-xs text-gray-600 mt-1">Starts at 100. These deductions are what currently drive the score on the application review page — not the free-text rules below.</p>
         <ul class="mt-3 grid sm:grid-cols-2 gap-2 text-xs text-gray-800">
             <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">Profile below threshold → −15 (−5 more if under 90%)</li>
-            <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">NIDA not verified → −20</li>
-            <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">Face pending / rejected → −10 / −25</li>
             <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">Affordability fail / warn → −30 / −12</li>
             <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">Required documents incomplete → −10</li>
             <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">Guarantor required & not approved → −12</li>
             <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">Overdue instalments → −8 each (max −25)</li>
+            <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">CRB reject / refer → −20 / −8</li>
             <li class="rounded-lg bg-white/80 ring-1 ring-brand/10 px-3 py-2">Bands: ≥75 Approve · ≥50 Refer · else Reject</li>
         </ul>
         <p class="text-xs text-gray-500 mt-3">Eligible loan amount is separate: income × multiplier, repayment history, membership, trust/referral boosts, and profile completion (<code>LoanQualificationService</code>).</p>

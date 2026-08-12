@@ -6,6 +6,10 @@
     $canReview = auth()->user()?->hasPermission('applications.review');
     $showScreeningSticky = $isScreeningSticky && $canReview && empty($recType);
     $showCommitteeSticky = $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty();
+    $decisionPanelUrl = route('admin.loan-applications.show', [
+        'loan_application' => $record,
+        'workspace' => 'decision',
+    ]).'#review-recommendation';
 @endphp
 
 @if ($showScreeningSticky || $showCommitteeSticky)
@@ -15,12 +19,12 @@
                 @if ($showScreeningSticky)
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Screening team · Decision desk</p>
-                        <p class="text-sm font-bold mt-0.5 truncate">Approve, Reject, or Counter-offer — then push to committee</p>
+                        <p class="text-sm font-bold mt-0.5 truncate">Approve, Reject, or Counter-offer — from this checklist or the Decision tab</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
-                        <a href="#review-recommendation"
+                        <a href="{{ $decisionPanelUrl }}"
                            class="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2 ring-1 ring-white/20 transition">
-                            Open panel
+                            Open Decision tab
                         </a>
                         <button type="button"
                                 data-open-dialog="recommend-{{ $record->id }}"
@@ -34,7 +38,7 @@
                         <p class="text-sm font-bold mt-0.5 truncate">Validate screening or record a different decision</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
-                        <a href="#review-recommendation"
+                        <a href="{{ $decisionPanelUrl }}"
                            class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
                             Go to decision
                         </a>

@@ -77,6 +77,7 @@
                         </a>
                     @endif
                 @else
+                    {{-- Submitted applications: view / next-action only — never "Continue application". --}}
                     <a href="{{ $row['action_url'] }}" @class([
                         'inline-flex font-semibold px-4 py-2 rounded-xl text-sm',
                         'bg-brand-gold hover:brightness-95 text-brand' => ($row['status'] ?? '') === 'awaiting_valuation_fee',

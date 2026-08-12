@@ -623,25 +623,8 @@ class LoanApplicationReviewService
             $factors[] = 'Profile incomplete under 90% (−5)';
         }
 
-        if (! $this->nida->isVerified($customer)) {
-            $score -= 20;
-            $factors[] = 'NIDA not verified (−20)';
-        }
-
-        $faceDeduction = match ($customer->face_verification_status) {
-            'verified' => 0,
-            'pending'  => 10,
-            'rejected' => 25,
-            default    => 15,
-        };
-        $score -= $faceDeduction;
-        if ($faceDeduction > 0) {
-            $factors[] = match ($customer->face_verification_status) {
-                'pending'  => 'Face verification awaiting review (−10)',
-                'rejected' => 'Face verification rejected (−25)',
-                default    => 'Face photos incomplete (−15)',
-            };
-        }
+        // Identity photos are reviewed on the screening desk (compare + re-upload) —
+        // do not score NIDA/face "verification procedure" status here.
 
         $affordDeduction = match ($affordability['verdict'] ?? 'pass') {
             'fail' => 30,

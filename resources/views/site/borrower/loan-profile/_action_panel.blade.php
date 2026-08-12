@@ -318,15 +318,23 @@
                         </button>
                     </form>
                 </div>
-            @elseif (! empty($next['url']) && $underwritingActions->isEmpty() && ! in_array($next['code'] ?? '', ['under_review', 'awaiting_guarantor', 'view_application', 'documents_resubmitted'], true))
+            @elseif (! empty($next['url']) && $underwritingActions->isEmpty() && ! in_array($next['code'] ?? '', array_filter([
+                'under_review',
+                'awaiting_guarantor',
+                'view_application',
+                'documents_resubmitted',
+                // Submitted apps must never show a wizard "Continue application" CTA.
+                ! empty($application) ? 'continue_application' : null,
+                ! empty($application) ? 'continue_form' : null,
+            ]), true))
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
                         <p class="text-[11px] uppercase tracking-widest text-gray-500 font-bold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>
-                        <p class="text-base font-extrabold text-gray-900">{{ $next['label'] ?? __('borrower.loan_profile.next_actions.continue_form') }}</p>
+                        <p class="text-base font-extrabold text-gray-900">{{ $next['label'] ?? (__('borrower.applications_list.view')) }}</p>
                     </div>
                     <a href="{{ $next['url'] }}"
                        class="inline-flex items-center justify-center font-extrabold px-6 py-3 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                        {{ $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form') }}
+                        {{ $next['button_label'] ?? __('borrower.applications_list.view') }}
                     </a>
                 </div>
             @endif

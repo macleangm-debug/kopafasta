@@ -305,8 +305,8 @@ return [
                 'body' => 'Deploy programme capital through our book with reporting that matches your mandate, not a black box.',
             ],
             [
-                'title' => 'Service & capital partners',
-                'body' => 'From recovery and valuation partners to institutional capital — one platform, shared standards.',
+                'title' => 'Service partners',
+                'body' => 'Recovery, valuation, GPS, insurance, and field partners — one platform, shared standards.',
             ],
         ],
         'serve_eyebrow' => 'Who we serve',
@@ -327,11 +327,6 @@ return [
                 'title' => 'Project partners',
                 'body' => 'Organisations that want capital to land with the communities they serve.',
             ],
-            [
-                'icon' => '🏦',
-                'title' => 'Capital partners',
-                'body' => 'Institutions seeking disciplined exposure to productive African credit.',
-            ],
         ],
         'nav' => [
             'label' => 'About kopafasta',
@@ -349,7 +344,7 @@ return [
         'next_title' => 'Explore the brand story.',
         'next_body' => 'Founding, trust, impact, and our expansion roadmap live here — so the homepage stays simple while the story stays strong.',
         'cta_contact' => 'Talk to us',
-        'cta_capital' => 'Capital partner programme',
+        'cta_capital' => 'Partner with us',
 
         'founding' => [
             'title' => 'Founding story',

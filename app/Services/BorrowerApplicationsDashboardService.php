@@ -26,12 +26,24 @@ class BorrowerApplicationsDashboardService
     {
         $items = [];
 
-        $submittedReferences = LoanApplication::query()
+        $submitted = LoanApplication::query()
             ->where('customer_id', $customer->id)
-            ->pluck('application_number');
+            ->get(['application_number', 'loan_product_id', 'status']);
+
+        $submittedReferences = $submitted->pluck('application_number')->filter();
+        $submittedProductIds = $submitted
+            ->reject(fn ($app) => in_array((string) $app->status, ['draft', 'withdrawn', 'rejected'], true))
+            ->pluck('loan_product_id')
+            ->filter()
+            ->unique();
 
         foreach ($this->drafts->listForCustomer($customer) as $draft) {
             if ($draft->draft_reference && $submittedReferences->contains($draft->draft_reference)) {
+                continue;
+            }
+
+            // Hide orphan drafts once the same product already has a live application.
+            if ($draft->loan_product_id && $submittedProductIds->contains((int) $draft->loan_product_id)) {
                 continue;
             }
 

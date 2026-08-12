@@ -78,13 +78,21 @@ class CreditWorkspaceUiFeatureTest extends TestCase
                 ->assertOk()
                 ->getContent();
 
-            $this->assertStringContainsString('Profile sections', $html);
             $this->assertStringContainsString('Facility summary', $html);
             $this->assertStringContainsString('Risk score', $html);
             $this->assertStringContainsString('Borrower CRB', $html);
             $this->assertStringContainsString('Open guarantor file', $html);
-            $this->assertStringContainsString('tab=face', $html);
-            $this->assertStringContainsString('person=guarantor', $html);
+            $this->assertStringContainsString('Review checklist', $html);
+            $this->assertStringContainsString('workspace=profiles', $html);
+            $this->assertStringContainsString('workspace=decision', $html);
+
+            $profiles = $this->actingAs($admin, 'admin')
+                ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'profiles']))
+                ->assertOk()
+                ->getContent();
+            $this->assertStringContainsString('Profile sections', $profiles);
+            $this->assertStringContainsString('tab=face', $profiles);
+            $this->assertStringContainsString('person=guarantor', $profiles);
         }
 
         $app = $this->application($admin, 'screening');
@@ -136,8 +144,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('person=borrower', $screening);
         $this->assertStringContainsString('Open guarantor file', $screening);
 
+        $committeeApp = $this->application($admin, 'pre_approval');
         $committee = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $this->application($admin, 'pre_approval')))
+            ->get(route('admin.loan-applications.show', ['loan_application' => $committeeApp, 'workspace' => 'decision']))
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Committee workspace', $committee);

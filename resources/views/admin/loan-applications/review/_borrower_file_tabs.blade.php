@@ -61,6 +61,7 @@
     $tabUrl = function (string $key) use ($record, $person, $selectedGuarantor) {
         $params = [
             'loan_application' => $record,
+            'workspace' => 'profiles',
             'tab' => $key,
             'person' => $person,
         ];
@@ -74,6 +75,7 @@
     $personUrl = function (string $who, ?int $linkId = null) use ($record) {
         $params = [
             'loan_application' => $record,
+            'workspace' => 'profiles',
             'person' => $who,
             'tab' => 'affordability',
         ];

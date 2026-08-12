@@ -57,14 +57,10 @@ class UnderwritingAnomalyService
         }
 
         if ($customer) {
+            // Identity is reviewed on the screening desk (photo compare + re-upload requests).
+            // Do not flag NIDA/face "verification procedure" status here.
             if (($customer->nida_verification_status ?? '') === 'name_mismatch') {
                 $anomalies[] = $this->item('nida_mismatch', 'critical', 'NIDA name mismatch', 'Registered name does not match NIDA — confirm identity before approving.');
-            } elseif (! in_array($customer->nida_verification_status ?? '', ['verified'], true)) {
-                $anomalies[] = $this->item('nida_unverified', 'warning', 'NIDA not verified', 'Identity verification is incomplete.');
-            }
-
-            if (! in_array($customer->face_verification_status ?? '', ['verified'], true)) {
-                $anomalies[] = $this->item('face_unverified', 'warning', 'Face verification incomplete', 'Front-face vs ID comparison is not approved yet.');
             }
 
             if ((int) ($profile['percent'] ?? 0) < 100) {

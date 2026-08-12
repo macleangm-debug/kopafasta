@@ -304,8 +304,8 @@ return [
                 'body' => 'Weka mtaji wa programu kupitia kitabu chetu kwa ripoti zinazolingana na mamlaka yako, si sanduku jeusi.',
             ],
             [
-                'title' => 'Washirika wa huduma na mtaji',
-                'body' => 'Kutoka washirika wa urejesho na uthamini hadi mtaji wa taasisi — jukwaa moja, viwango vilivyoshirikiwa.',
+                'title' => 'Washirika wa huduma',
+                'body' => 'Urejesho, uthamini, GPS, bima, na washirika wa uwanjani — jukwaa moja, viwango vilivyoshirikiwa.',
             ],
         ],
         'serve_eyebrow' => 'Tunawahudumia nani',
@@ -326,11 +326,6 @@ return [
                 'title' => 'Washirika wa miradi',
                 'body' => 'Mashirika yanayotaka mtaji ufikie jamii wanazohudumia.',
             ],
-            [
-                'icon' => '🏦',
-                'title' => 'Washirika wa mtaji',
-                'body' => 'Taasisi zinazotafuta mfiduo wa nidhamu kwa mikopo yenye tija Afrika.',
-            ],
         ],
         'nav' => [
             'label' => 'Kuhusu kopafasta',
@@ -348,7 +343,7 @@ return [
         'next_title' => 'Chunguza hadithi ya chapa.',
         'next_body' => 'Kuanzishwa, uaminifu, athari, na ramani ya upanuzi viko hapa — ili ukurasa wa kwanza ubaki rahisi huku hadithi ikiwa thabiti.',
         'cta_contact' => 'Wasiliana nasi',
-        'cta_capital' => 'Programu ya washirika wa mtaji',
+        'cta_capital' => 'Shirikiana nasi',
 
         'founding' => [
             'title' => 'Hadithi ya kuanzishwa',

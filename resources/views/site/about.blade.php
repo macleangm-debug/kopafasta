@@ -157,8 +157,8 @@
                 <a href="mailto:{{ brand('support_email') }}" class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 rounded-xl transition shadow-md">
                     {{ __('site.about.cta_contact') }}
                 </a>
-                <a href="{{ route('site.capital-partners') }}" class="inline-flex items-center gap-2 bg-white ring-1 ring-slate-200 hover:ring-brand text-brand font-semibold px-6 py-3 rounded-xl transition">
-                    {{ __('site.about.cta_capital') }}
+                <a href="{{ route('site.partners') }}" class="inline-flex items-center gap-2 bg-white ring-1 ring-slate-200 hover:ring-brand text-brand font-semibold px-6 py-3 rounded-xl transition">
+                    {{ __('site.about.cta_partners') }}
                 </a>
             </div>
         </div>

@@ -12,6 +12,12 @@
     $affordWarn = ($afford['verdict'] ?? '') === 'warn';
     $crbRec = strtolower((string) ($crb['recommendation'] ?? ''));
     $riskBand = $risk['band'] ?? 'high';
+    $isGroupLoan = is_array($groupReview ?? null) && ! empty($groupReview);
+    $groupMembers = collect($groupReview['members'] ?? []);
+    $groupScoring = $groupReview['scoring'] ?? null;
+    $groupVerified = (int) ($groupReview['verified_count'] ?? $groupMembers->where('kyc_complete', true)->count());
+    $groupMemberCount = (int) ($groupReview['member_count'] ?? $groupMembers->count());
+    $groupTarget = (int) ($groupReview['target_member_count'] ?? $groupMemberCount);
 
     $crbTone = match ($crbRec) {
         'approve' => ['card' => 'from-emerald-600 to-emerald-800', 'badge' => 'bg-emerald-100 text-emerald-900'],
@@ -24,10 +30,37 @@
         'medium' => 'bg-amber-50 text-amber-950 ring-amber-200',
         default => 'bg-rose-50 text-rose-900 ring-rose-200',
     };
+
+    // Deep-links: profile ?tab=… opens Profiles; review desk subject switches stay on Checklist.
+    $workspace = request('workspace');
+    if (! in_array($workspace, ['checklist', 'profiles', 'decision'], true)) {
+        if (request()->has('tab') || (request('person') === 'guarantor' && request()->filled('g'))) {
+            $workspace = 'profiles';
+        } elseif (request()->has('review_person') || request()->has('review_m') || request()->has('review_g')) {
+            $workspace = 'checklist';
+        } else {
+            $workspace = 'checklist';
+        }
+    }
+
+    $workspaceUrl = function (string $key) use ($record) {
+        $params = array_filter([
+            'loan_application' => $record,
+            'workspace' => $key,
+            'person' => request('person'),
+            'tab' => $key === 'profiles' ? (request('tab') ?: 'affordability') : null,
+            'g' => request('g'),
+            'review_person' => $key === 'checklist' ? request('review_person') : null,
+            'review_g' => $key === 'checklist' ? request('review_g') : null,
+            'review_m' => $key === 'checklist' ? request('review_m') : null,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        return route('admin.loan-applications.show', $params).'#credit-workspace';
+    };
 @endphp
 
 {{-- ── Decision deck ─────────────────────────────────────────────── --}}
-<section class="space-y-4 mb-6">
+<section id="credit-workspace" class="space-y-4 mb-6 scroll-mt-24">
     @php
         $anomalies = $underwritingAnomalies
             ?? app(\App\Services\UnderwritingAnomalyService::class)->forApplication($record, $review);
@@ -48,12 +81,17 @@
         <div>
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">
                 {{ $isCommitteeStage ? 'Committee workspace' : 'Screening workspace' }}
+                @if ($isGroupLoan)
+                    · Group loan
+                @endif
             </p>
             <h2 class="text-lg font-bold text-gray-900 mt-0.5">What you need to decide</h2>
             <p class="text-sm text-gray-500 mt-0.5">
                 {{ $isCommitteeStage
-                    ? 'Review the analyst recommendation, CRB and affordability — then record the committee decision.'
-                    : 'Review CRB, affordability and the borrower file — then submit your credit recommendation.' }}
+                    ? 'Review the checklist and profiles, then record the committee decision.'
+                    : ($isGroupLoan
+                        ? 'Review the leader and each member on the checklist, then record your recommendation.'
+                        : 'Review CRB, affordability and the borrower file — then submit your credit recommendation.') }}
             </p>
         </div>
         @if ($isScreeningStage || $isCommitteeStage)
@@ -83,7 +121,7 @@
         @endif
     </div>
 
-    {{-- Facility + risk + borrower CRB + guarantor --}}
+    {{-- Facility + risk + borrower/leader CRB + guarantor/roster --}}
     @php
         $gSug = $review['guarantor_suggestion'] ?? [];
         $gRec = strtolower((string) ($gSug['recommendation'] ?? ''));
@@ -95,6 +133,7 @@
             'not_required' => ['card' => 'from-slate-500 to-slate-700', 'badge' => 'bg-white/20 text-white'],
             default => ['card' => 'from-brand to-brand-light', 'badge' => 'bg-white/20 text-white'],
         };
+        $showRosterCard = $isGroupLoan && in_array($gRec, ['not_required', ''], true);
     @endphp
     <div class="grid lg:grid-cols-12 gap-4">
         <div class="lg:col-span-3 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
@@ -123,20 +162,49 @@
                     <p class="text-[10px] uppercase tracking-widest text-gray-500">Submitted</p>
                     <p class="font-semibold text-gray-900 mt-0.5">{{ optional($record->submitted_at)->format('d M Y') ?? '—' }}</p>
                 </div>
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500">Member</p>
-                    <p class="font-semibold text-gray-900 mt-0.5 font-mono text-xs">{{ $customer->member_no ?? '—' }}</p>
-                </div>
+                @if ($isGroupLoan)
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500">Members</p>
+                        <p class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $groupMemberCount }} / {{ $groupTarget }}</p>
+                    </div>
+                    <div class="col-span-2">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500">Leader</p>
+                        <p class="font-semibold text-gray-900 mt-0.5 truncate">{{ $groupReview['leader'] ?? $customer->full_name }}</p>
+                    </div>
+                    @if (($groupReview['amount_per_member'] ?? 0) > 0)
+                        <div class="col-span-2">
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500">Per member</p>
+                            <p class="font-semibold text-gray-900 mt-0.5">{{ format_money((float) $groupReview['amount_per_member']) }}</p>
+                        </div>
+                    @endif
+                @else
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500">Member</p>
+                        <p class="font-semibold text-gray-900 mt-0.5 font-mono text-xs">{{ $customer->member_no ?? '—' }}</p>
+                    </div>
+                @endif
             </div>
         </div>
 
         <div class="lg:col-span-3 rounded-2xl ring-1 p-5 {{ $riskTone }} shadow-sm">
-            <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">Risk score</p>
+            <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">
+                {{ $isGroupLoan ? 'Group risk score' : 'Risk score' }}
+            </p>
             <div class="flex items-end gap-1.5 mt-2">
-                <span class="text-4xl font-bold leading-none tabular-nums">{{ $risk['score'] ?? '—' }}</span>
+                <span class="text-4xl font-bold leading-none tabular-nums">
+                    {{ $isGroupLoan && isset($groupScoring['group_risk_score'])
+                        ? $groupScoring['group_risk_score']
+                        : ($risk['score'] ?? '—') }}
+                </span>
                 <span class="text-sm font-semibold pb-1 opacity-70">/100</span>
             </div>
-            <p class="text-sm font-bold mt-2">{{ $risk['label'] ?? '—' }}</p>
+            <p class="text-sm font-bold mt-2">
+                @if ($isGroupLoan && ! empty($groupScoring['risk_band']))
+                    {{ __('admin.group_review.scoring.risk_band.'.$groupScoring['risk_band']) }}
+                @else
+                    {{ $risk['label'] ?? '—' }}
+                @endif
+            </p>
             <p class="text-xs mt-2 opacity-90">
                 System: <span class="font-bold uppercase">{{ $risk['recommendation'] ?? '—' }}</span>
             </p>
@@ -153,7 +221,12 @@
                 </ul>
             @endif
             <p class="mt-2 text-[10px] opacity-70 leading-snug">
-                Includes borrower CRB and guarantor CRB/profile. ≥75 approve · ≥50 refer · below 50 reject.
+                @if ($isGroupLoan)
+                    Group file: roster completion, leader CRB, docs. Identity photos are compared on the checklist.
+                @else
+                    Includes borrower CRB and guarantor CRB/profile. Identity photos are compared on the checklist — not scored as a separate procedure.
+                @endif
+                ≥75 approve · ≥50 refer · below 50 reject.
             </p>
         </div>
 
@@ -161,7 +234,9 @@
             <div class="px-5 py-5">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Borrower CRB</p>
+                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">
+                            {{ $isGroupLoan ? 'Leader CRB' : 'Borrower CRB' }}
+                        </p>
                         <p class="text-2xl font-bold mt-1 uppercase tracking-tight">{{ $crbRec !== '' ? $crbRec : '—' }}</p>
                     </div>
                     <span class="inline-flex text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 {{ $crbTone['badge'] }}">
@@ -200,179 +275,231 @@
                         </p>
                     </div>
                 </div>
-                <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'person' => 'borrower', 'tab' => 'crb']) }}#borrower-file"
+                <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'profiles', 'person' => 'borrower', 'tab' => 'crb']) }}#borrower-file"
                    class="mt-3 inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
-                    Full borrower CRB →
+                    Full {{ $isGroupLoan ? 'leader' : 'borrower' }} CRB →
                 </a>
             </div>
         </div>
 
-        <div class="lg:col-span-3 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br {{ $gTone['card'] }} text-white">
-            <div class="px-5 py-5">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Guarantor</p>
-                        <p class="text-2xl font-bold mt-1 uppercase tracking-tight">
-                            @if ($gRec === 'not_required')
-                                N/A
-                            @elseif ($gRec === 'pending_profile')
-                                Profile
-                            @elseif ($gRec === 'missing')
-                                Missing
-                            @elseif ($gRec !== '')
-                                {{ $gRec }}
-                            @else
-                                —
-                            @endif
-                        </p>
+        @if ($showRosterCard)
+            <div class="lg:col-span-3 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br from-indigo-600 to-indigo-900 text-white">
+                <div class="px-5 py-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Group roster</p>
+                            <p class="text-2xl font-bold mt-1 tracking-tight tabular-nums">{{ $groupMemberCount }}/{{ $groupTarget }}</p>
+                        </div>
+                        <span class="inline-flex text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 bg-white/20 text-white">
+                            {{ $groupVerified }} ready
+                        </span>
                     </div>
-                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 {{ $gTone['badge'] }}">
-                        @if (! empty($gSug['score'])) Score {{ $gSug['score'] }}
-                        @elseif (! empty($gSug['profile_percent'])) {{ (int) $gSug['profile_percent'] }}%
-                        @else {{ $gSug['label'] ?? '—' }}
-                        @endif
-                    </span>
-                </div>
-                @if (! empty($gSug['name']))
-                    <p class="text-xs text-white/70 mt-2 truncate">{{ $gSug['name'] }}</p>
-                @endif
-                <p class="text-sm text-white/85 mt-3 leading-relaxed">{{ $gSug['summary'] ?? 'No guarantor signal yet.' }}</p>
-
-                @php
-                    $gAfford = $gSug['affordability'] ?? null;
-                    $gAffordVerdict = strtolower((string) ($gAfford['verdict'] ?? ''));
-                    $gExternalLoans = (int) ($gSug['existing_loans'] ?? 0);
-                    $gOutstanding = (float) ($gSug['outstanding_balance'] ?? 0);
-                @endphp
-                <div class="mt-4 grid grid-cols-2 gap-2">
-                    <div class="rounded-xl bg-white/10 px-3 py-2.5">
-                        <p class="text-[10px] uppercase tracking-wider text-white/60">Affordability</p>
-                        <p class="text-sm font-bold mt-0.5 uppercase">
-                            @if ($gRec === 'pending_profile' || $gRec === 'missing' || $gRec === 'not_required')
-                                —
-                            @elseif ($gAffordVerdict === 'pass') Pass
-                            @elseif ($gAffordVerdict === 'warn') Near limit
-                            @elseif ($gAffordVerdict === 'fail') Fail
-                            @else {{ $gAfford['status_label'] ?? '—' }}
-                            @endif
-                        </p>
-                        <p class="text-[11px] text-white/75 mt-0.5 truncate">
-                            {{ $gAfford['status_label'] ?? 'Capacity vs proposed EMI' }}
-                        </p>
+                    <p class="text-sm text-white/85 mt-3 leading-relaxed">
+                        {{ $groupVerified }} of {{ $groupMemberCount }} members have complete profiles for underwriting.
+                    </p>
+                    <div class="mt-4 grid grid-cols-2 gap-2">
+                        <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                            <p class="text-[10px] uppercase tracking-wider text-white/60">Completion</p>
+                            <p class="text-sm font-bold mt-0.5">
+                                {{ isset($groupScoring['member_completion_percent'])
+                                    ? number_format((float) $groupScoring['member_completion_percent'], 0).'%'
+                                    : ($groupMemberCount > 0 ? round(($groupVerified / $groupMemberCount) * 100).'%' : '—') }}
+                            </p>
+                            <p class="text-[11px] text-white/75 mt-0.5 truncate">Member readiness</p>
+                        </div>
+                        <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                            <p class="text-[10px] uppercase tracking-wider text-white/60">Avg credit</p>
+                            <p class="text-sm font-bold mt-0.5">
+                                {{ isset($groupScoring['average_credit_score']) ? number_format((float) $groupScoring['average_credit_score'], 0) : '—' }}
+                            </p>
+                            <p class="text-[11px] text-white/75 mt-0.5 truncate">Across checked members</p>
+                        </div>
                     </div>
-                    <div class="rounded-xl bg-white/10 px-3 py-2.5">
-                        <p class="text-[10px] uppercase tracking-wider text-white/60">Other institutions</p>
-                        <p class="text-sm font-bold mt-0.5">
-                            @if ($gRec === 'pending_profile' || $gRec === 'missing')
-                                —
-                            @else
-                                {{ $gExternalLoans }} loan{{ $gExternalLoans === 1 ? '' : 's' }}
-                            @endif
-                        </p>
-                        <p class="text-[11px] text-white/75 mt-0.5 truncate">
-                            @if ($gOutstanding > 0)
-                                Outst. {{ format_money($gOutstanding) }}
-                            @elseif ($gRec === 'pending_profile' || $gRec === 'missing')
-                                Finish profile for CRB
-                            @else
-                                No outstanding reported
-                            @endif
-                        </p>
-                    </div>
-                </div>
-                <div class="mt-3 flex flex-wrap gap-2">
-                    <a href="{{ route('admin.loan-applications.show', [
-                            'loan_application' => $record,
-                            'person' => 'guarantor',
-                            'tab' => 'affordability',
-                            'g' => $gSug['link_id'] ?? null,
-                        ]) }}#borrower-file"
-                       class="inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
-                        Open guarantor file →
+                    <a href="{{ $workspaceUrl('checklist') }}"
+                       class="mt-3 inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
+                        Review members on checklist →
                     </a>
                 </div>
             </div>
+        @else
+            <div class="lg:col-span-3 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br {{ $gTone['card'] }} text-white">
+                <div class="px-5 py-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Guarantor</p>
+                            <p class="text-2xl font-bold mt-1 uppercase tracking-tight">
+                                @if ($gRec === 'not_required')
+                                    N/A
+                                @elseif ($gRec === 'pending_profile')
+                                    Profile
+                                @elseif ($gRec === 'missing')
+                                    Missing
+                                @elseif ($gRec !== '')
+                                    {{ $gRec }}
+                                @else
+                                    —
+                                @endif
+                            </p>
+                        </div>
+                        <span class="inline-flex text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 {{ $gTone['badge'] }}">
+                            @if (! empty($gSug['score'])) Score {{ $gSug['score'] }}
+                            @elseif (! empty($gSug['profile_percent'])) {{ (int) $gSug['profile_percent'] }}%
+                            @else {{ $gSug['label'] ?? '—' }}
+                            @endif
+                        </span>
+                    </div>
+                    @if (! empty($gSug['name']))
+                        <p class="text-xs text-white/70 mt-2 truncate">{{ $gSug['name'] }}</p>
+                    @endif
+                    <p class="text-sm text-white/85 mt-3 leading-relaxed">{{ $gSug['summary'] ?? 'No guarantor signal yet.' }}</p>
+
+                    @php
+                        $gAfford = $gSug['affordability'] ?? null;
+                        $gAffordVerdict = strtolower((string) ($gAfford['verdict'] ?? ''));
+                        $gExternalLoans = (int) ($gSug['existing_loans'] ?? 0);
+                        $gOutstanding = (float) ($gSug['outstanding_balance'] ?? 0);
+                    @endphp
+                    <div class="mt-4 grid grid-cols-2 gap-2">
+                        <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                            <p class="text-[10px] uppercase tracking-wider text-white/60">Affordability</p>
+                            <p class="text-sm font-bold mt-0.5 uppercase">
+                                @if ($gRec === 'pending_profile' || $gRec === 'missing' || $gRec === 'not_required')
+                                    —
+                                @elseif ($gAffordVerdict === 'pass') Pass
+                                @elseif ($gAffordVerdict === 'warn') Near limit
+                                @elseif ($gAffordVerdict === 'fail') Fail
+                                @else {{ $gAfford['status_label'] ?? '—' }}
+                                @endif
+                            </p>
+                            <p class="text-[11px] text-white/75 mt-0.5 truncate">
+                                {{ $gAfford['status_label'] ?? 'Capacity vs proposed EMI' }}
+                            </p>
+                        </div>
+                        <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                            <p class="text-[10px] uppercase tracking-wider text-white/60">Other institutions</p>
+                            <p class="text-sm font-bold mt-0.5">
+                                @if ($gRec === 'pending_profile' || $gRec === 'missing')
+                                    —
+                                @else
+                                    {{ $gExternalLoans }} loan{{ $gExternalLoans === 1 ? '' : 's' }}
+                                @endif
+                            </p>
+                            <p class="text-[11px] text-white/75 mt-0.5 truncate">
+                                @if ($gOutstanding > 0)
+                                    Outst. {{ format_money($gOutstanding) }}
+                                @elseif ($gRec === 'pending_profile' || $gRec === 'missing')
+                                    Finish profile for CRB
+                                @else
+                                    No outstanding reported
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <a href="{{ route('admin.loan-applications.show', [
+                                'loan_application' => $record,
+                                'workspace' => 'profiles',
+                                'person' => 'guarantor',
+                                'tab' => 'affordability',
+                                'g' => $gSug['link_id'] ?? null,
+                            ]) }}#borrower-file"
+                           class="inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
+                            Open guarantor file →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endif
+    </div>
+
+    {{-- Top workspace tabs --}}
+    <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+        <nav class="flex gap-1 overflow-x-auto px-2 pt-2 border-b border-gray-100" aria-label="Screening workspace">
+            @foreach ([
+                'checklist' => 'Review checklist',
+                'profiles' => 'Profiles',
+                'decision' => 'Decision',
+            ] as $key => $label)
+                <a href="{{ $workspaceUrl($key) }}"
+                   @class([
+                       'shrink-0 px-4 py-3 text-sm font-semibold rounded-t-xl border-b-2 transition',
+                       'border-brand text-brand bg-brand-muted/40' => $workspace === $key,
+                       'border-transparent text-gray-600 hover:text-brand hover:bg-gray-50' => $workspace !== $key,
+                   ])
+                   @if ($workspace === $key) aria-current="page" @endif>
+                    {{ $label }}
+                    @if ($key === 'decision' && ($anomalyCounts['critical'] ?? 0) + ($anomalyCounts['warning'] ?? 0) > 0)
+                        <span class="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-amber-100 text-amber-950 text-[10px] font-bold">
+                            {{ ($anomalyCounts['critical'] ?? 0) + ($anomalyCounts['warning'] ?? 0) }}
+                        </span>
+                    @endif
+                </a>
+            @endforeach
+        </nav>
+
+        <div class="p-4 sm:p-5 space-y-4">
+            @if ($workspace === 'checklist')
+                @include('admin.loan-applications.review._review_desk')
+
+                {{-- Decisions stay available on the checklist tab --}}
+                <div id="review-action-zone" class="scroll-mt-24">
+                    @include('admin.loan-applications.review._recommendation')
+                </div>
+            @elseif ($workspace === 'profiles')
+                @include('admin.loan-applications.review._borrower_file_tabs')
+            @else
+                @if (! empty($anomalies))
+                    <details open class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden group">
+                        <summary class="cursor-pointer list-none px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                            <div class="min-w-0">
+                                <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Decision guidance</p>
+                                <p class="text-sm font-bold text-gray-900 mt-0.5">
+                                    {{ count($anomalies) }} flag{{ count($anomalies) === 1 ? '' : 's' }}
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                @if (($anomalyCounts['critical'] ?? 0) > 0)
+                                    <span class="rounded-full bg-rose-100 text-rose-900 ring-1 ring-rose-200 px-2.5 py-1 text-[11px] font-bold">
+                                        {{ $anomalyCounts['critical'] }} critical
+                                    </span>
+                                @endif
+                                @if (($anomalyCounts['warning'] ?? 0) > 0)
+                                    <span class="rounded-full bg-amber-100 text-amber-950 ring-1 ring-amber-200 px-2.5 py-1 text-[11px] font-bold">
+                                        {{ $anomalyCounts['warning'] }} warning
+                                    </span>
+                                @endif
+                                @if (($anomalyCounts['info'] ?? 0) > 0)
+                                    <span class="rounded-full bg-sky-100 text-sky-950 ring-1 ring-sky-200 px-2.5 py-1 text-[11px] font-bold">
+                                        {{ $anomalyCounts['info'] }} info
+                                    </span>
+                                @endif
+                            </div>
+                        </summary>
+                        <ul class="divide-y divide-gray-100 border-t border-gray-100 max-h-72 overflow-y-auto">
+                            @foreach ($anomalies as $anomaly)
+                                <li class="px-5 py-2.5 flex gap-3 {{ $anomalyTone[$anomaly['severity']] ?? 'bg-gray-50' }}">
+                                    <span class="mt-1.5 size-2 rounded-full shrink-0 {{ $anomalyDot[$anomaly['severity']] ?? 'bg-gray-400' }}"></span>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-sm font-semibold">{{ $anomaly['title'] }}</p>
+                                        <p class="text-xs mt-0.5 opacity-80">{{ $anomaly['detail'] }}</p>
+                                    </div>
+                                    <span class="ml-auto shrink-0 text-[10px] uppercase tracking-wider font-semibold opacity-70">{{ $anomaly['severity'] }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </details>
+                @endif
+
+                @if ($isCommitteeStage)
+                    @include('admin.loan-applications.review._committee_inputs')
+                @endif
+
+                <div id="review-action-zone" class="scroll-mt-24">
+                    @include('admin.loan-applications.review._recommendation')
+                </div>
+            @endif
         </div>
     </div>
-
-    @if (! empty($anomalies))
-        <details class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden group">
-            <summary class="cursor-pointer list-none px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                <div class="min-w-0">
-                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Decision guidance</p>
-                    <p class="text-sm font-bold text-gray-900 mt-0.5">
-                        {{ count($anomalies) }} flag{{ count($anomalies) === 1 ? '' : 's' }} under the cards
-                    </p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    @if (($anomalyCounts['critical'] ?? 0) > 0)
-                        <span class="rounded-full bg-rose-100 text-rose-900 ring-1 ring-rose-200 px-2.5 py-1 text-[11px] font-bold">
-                            {{ $anomalyCounts['critical'] }} critical
-                        </span>
-                    @endif
-                    @if (($anomalyCounts['warning'] ?? 0) > 0)
-                        <span class="rounded-full bg-amber-100 text-amber-950 ring-1 ring-amber-200 px-2.5 py-1 text-[11px] font-bold">
-                            {{ $anomalyCounts['warning'] }} warning
-                        </span>
-                    @endif
-                    @if (($anomalyCounts['info'] ?? 0) > 0)
-                        <span class="rounded-full bg-sky-100 text-sky-950 ring-1 ring-sky-200 px-2.5 py-1 text-[11px] font-bold">
-                            {{ $anomalyCounts['info'] }} info
-                        </span>
-                    @endif
-                    <span class="text-[11px] text-gray-500 group-open:hidden">Tap to expand</span>
-                    <span class="text-[11px] text-gray-500 hidden group-open:inline">Tap to collapse</span>
-                </div>
-            </summary>
-            <ul class="divide-y divide-gray-100 border-t border-gray-100 max-h-72 overflow-y-auto">
-                @foreach ($anomalies as $anomaly)
-                    <li class="px-5 py-2.5 flex gap-3 {{ $anomalyTone[$anomaly['severity']] ?? 'bg-gray-50' }}">
-                        <span class="mt-1.5 size-2 rounded-full shrink-0 {{ $anomalyDot[$anomaly['severity']] ?? 'bg-gray-400' }}"></span>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-sm font-semibold">{{ $anomaly['title'] }}</p>
-                            <p class="text-xs mt-0.5 opacity-80">{{ $anomaly['detail'] }}</p>
-                        </div>
-                        <span class="ml-auto shrink-0 text-[10px] uppercase tracking-wider font-semibold opacity-70">{{ $anomaly['severity'] }}</span>
-                    </li>
-                @endforeach
-            </ul>
-        </details>
-    @endif
-
-    {{-- Clear jump to screening / committee decision (same pattern both stages) --}}
-    @if ($isScreeningStage || $isCommitteeStage)
-        <a href="#review-recommendation"
-           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-gold px-5 py-4 text-brand shadow-sm ring-1 ring-brand/20 hover:brightness-95 transition">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">
-                    {{ $isCommitteeStage ? 'Credit committee' : 'Screening team' }}
-                </p>
-                <p class="text-sm font-bold mt-0.5">
-                    {{ $isCommitteeStage
-                        ? 'Validate screening or record a different decision with reasons'
-                        : 'Record the screening decision — Approve / Reject / Counter (if enabled)' }}
-                </p>
-            </div>
-            <span class="inline-flex items-center gap-1.5 text-sm font-bold shrink-0">
-                {{ $isCommitteeStage ? 'Go to decision' : 'Go to decision' }}
-                <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M7 5l5 5-5 5"/></svg>
-            </span>
-        </a>
-    @endif
-
-    {{-- Committee: dual CRB + screening recommendation --}}
-    @if ($isCommitteeStage)
-        @include('admin.loan-applications.review._committee_inputs')
-    @endif
-
-    @include('admin.loan-applications.review._review_desk')
-
-    {{-- Primary decision zone — same placement for screening and committee --}}
-    <div id="review-action-zone" class="scroll-mt-24">
-        @include('admin.loan-applications.review._recommendation')
-    </div>
 </section>
-
-@include('admin.loan-applications.review._borrower_file_tabs')
 
 @include('admin.loan-applications.review._decision_sticky_bar')

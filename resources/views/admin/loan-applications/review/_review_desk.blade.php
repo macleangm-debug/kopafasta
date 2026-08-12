@@ -33,6 +33,7 @@
     $subjectUrl = function (array $s) use ($record) {
         return route('admin.loan-applications.show', array_filter([
             'loan_application' => $record,
+            'workspace' => 'checklist',
             'review_person' => $s['person'],
             'review_g' => $s['g'],
             'review_m' => $s['m'],
@@ -46,7 +47,7 @@
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Assisted review</p>
             <h3 class="text-base font-bold text-gray-900 mt-0.5">Review checklist</h3>
             <p class="text-xs text-gray-500 mt-0.5">
-                Evidence in place — mark Pass or Fail. Fail needs a reason. Committee can only read what screening recorded.
+                Sections collapse when done. Use Pass remaining for clean groups — Fail still needs a reason. Committee only sees what you record.
             </p>
         </div>
         <div class="rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-2.5 text-right">
@@ -96,12 +97,49 @@
                     <input type="hidden" name="m" value="{{ $deskM }}">
                 @endif
 
+                @php $firstIncompleteKey = collect($desk['groups'] ?? [])->first(fn ($g) => ! ($g['complete'] ?? false))['key'] ?? null; @endphp
                 @foreach ($desk['groups'] ?? [] as $group)
-                    <div class="rounded-2xl ring-1 ring-gray-100 overflow-hidden">
-                        <div class="px-4 py-3 bg-gradient-to-r from-brand-muted/30 to-white border-b border-gray-100">
-                            <h4 class="text-sm font-bold text-gray-900">{{ $group['label'] }}</h4>
+                    @php
+                        $groupOpen = ($group['key'] ?? null) === $firstIncompleteKey
+                            || (($group['failed'] ?? 0) > 0 && ! ($group['complete'] ?? false));
+                    @endphp
+                    <div class="rounded-2xl ring-1 ring-gray-100 overflow-hidden"
+                         x-data="{
+                             open: {{ $groupOpen ? 'true' : 'false' }},
+                             passRemaining() {
+                                 this.$refs.items?.querySelectorAll('[data-checklist-item]').forEach((el) => {
+                                     const data = Alpine.$data(el);
+                                     if (data && ! data.verdict) {
+                                         data.verdict = 'pass';
+                                         data.open = false;
+                                     }
+                                 });
+                             }
+                         }">
+                        <div class="px-4 py-3 bg-gradient-to-r from-brand-muted/30 to-white border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                            <button type="button" class="text-left min-w-0 flex-1" @click="open = !open">
+                                <h4 class="text-sm font-bold text-gray-900 inline-flex items-center gap-2">
+                                    <svg class="size-3.5 text-gray-400 transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                    <span>{{ $group['label'] }}</span>
+                                </h4>
+                                <p class="text-[11px] text-gray-500 mt-0.5 tabular-nums">
+                                    {{ $group['decided'] ?? 0 }}/{{ $group['total'] ?? count($group['items'] ?? []) }} reviewed
+                                    @if (($group['failed'] ?? 0) > 0)
+                                        · <span class="text-rose-700 font-semibold">{{ $group['failed'] }} fail</span>
+                                    @elseif ($group['complete'] ?? false)
+                                        · <span class="text-emerald-700 font-semibold">Done</span>
+                                    @endif
+                                </p>
+                            </button>
+                            @if ($canEdit && ! ($group['complete'] ?? false))
+                                <button type="button"
+                                        @click.stop="passRemaining(); open = true"
+                                        class="shrink-0 text-[11px] font-bold text-brand bg-white ring-1 ring-brand/20 hover:bg-brand-muted/50 px-2.5 py-1.5 rounded-lg">
+                                    Pass remaining
+                                </button>
+                            @endif
                         </div>
-                        <ul class="divide-y divide-gray-50">
+                        <ul x-show="open" x-cloak x-ref="items" class="divide-y divide-gray-50">
                             @foreach ($group['items'] as $item)
                                 @php
                                     [$ig, $ik] = array_pad(explode('.', $item['key'], 2), 2, '');
@@ -111,7 +149,7 @@
                                     $mismatchCount = collect($compareRows)->where('status', 'mismatch')->count();
                                     $checklistOpen = ($item['verdict'] ?? null) === null || $mismatchCount > 0;
                                 @endphp
-                                <li class="p-4"
+                                <li class="p-4" data-checklist-item
                                     x-data="{
                                         verdict: @js($item['verdict'] ?? ''),
                                         reason: @js($item['fail_reason_code'] ?? ''),
@@ -154,13 +192,34 @@
 
                                     <div x-show="open" x-cloak class="mt-3 space-y-3">
                                         @if (! empty($item['evidence']['photos']))
-                                            <div class="flex gap-2 overflow-x-auto pb-1">
+                                            <div class="flex gap-2 overflow-x-auto pb-1"
+                                                 x-data="{
+                                                     lightbox: null,
+                                                     open(url, label) { this.lightbox = { url, label } },
+                                                     close() { this.lightbox = null }
+                                                 }">
                                                 @foreach ($item['evidence']['photos'] as $photo)
-                                                    <a href="{{ $photo['url'] }}" target="_blank" rel="noopener"
-                                                       class="shrink-0 w-20 h-20 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50">
+                                                    <button type="button"
+                                                            @click="open(@js($photo['url']), @js($photo['label'] ?? 'Photo'))"
+                                                            class="shrink-0 w-20 h-20 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50 hover:ring-brand transition text-left">
                                                         <img src="{{ $photo['url'] }}" alt="{{ $photo['label'] }}" class="w-full h-full object-cover">
-                                                    </a>
+                                                    </button>
                                                 @endforeach
+                                                <div x-show="lightbox" x-cloak
+                                                     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+                                                     @keydown.escape.window="close()"
+                                                     @click.self="close()">
+                                                    <div class="relative max-w-4xl w-full max-h-[90vh] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/20">
+                                                        <button type="button" @click="close()"
+                                                                class="absolute top-3 right-3 z-10 rounded-full bg-black/60 text-white text-sm font-bold px-3 py-1.5 hover:bg-black/80">
+                                                            Close
+                                                        </button>
+                                                        <img :src="lightbox?.url" :alt="lightbox?.label || 'Photo'"
+                                                             class="w-full max-h-[90vh] object-contain bg-black">
+                                                        <p class="absolute bottom-0 inset-x-0 px-4 py-2 text-xs text-white/90 bg-gradient-to-t from-black/80 to-transparent"
+                                                           x-text="lightbox?.label"></p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         @endif
                                         @if (! empty($item['evidence']['compare']))
@@ -242,11 +301,18 @@
         @else
             <div class="space-y-4">
                 @foreach ($desk['groups'] ?? [] as $group)
-                    <div class="rounded-2xl ring-1 ring-gray-100 overflow-hidden">
-                        <div class="px-4 py-3 bg-slate-50 border-b border-gray-100">
-                            <h4 class="text-sm font-bold text-gray-900">{{ $group['label'] }}</h4>
-                        </div>
-                        <ul class="divide-y divide-gray-50">
+                    <div class="rounded-2xl ring-1 ring-gray-100 overflow-hidden"
+                         x-data="{ open: {{ ($group['complete'] ?? false) ? 'false' : 'true' }} }">
+                        <button type="button" class="w-full px-4 py-3 bg-slate-50 border-b border-gray-100 text-left" @click="open = !open">
+                            <h4 class="text-sm font-bold text-gray-900 inline-flex items-center gap-2">
+                                <svg class="size-3.5 text-gray-400 transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                <span>{{ $group['label'] }}</span>
+                            </h4>
+                            <p class="text-[11px] text-gray-500 mt-0.5 tabular-nums">
+                                {{ $group['decided'] ?? 0 }}/{{ $group['total'] ?? count($group['items'] ?? []) }} reviewed
+                            </p>
+                        </button>
+                        <ul x-show="open" x-cloak class="divide-y divide-gray-50">
                             @foreach ($group['items'] as $item)
                                 <li class="p-4">
                                     <div class="flex items-start gap-3">

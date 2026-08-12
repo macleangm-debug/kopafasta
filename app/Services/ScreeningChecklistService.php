@@ -66,21 +66,70 @@ class ScreeningChecklistService
     public function deskSubjects(LoanApplication $application, array $review, ?array $groupReview = null, ?User $actor = null): array
     {
         $subjects = [];
+        $isGroup = is_array($groupReview) && ! empty($groupReview['members']);
 
-        $borrowerVm = $this->viewModel($application, $actor, 'borrower');
-        $subjects[] = [
-            'key' => 'borrower',
-            'person' => 'borrower',
-            'g' => null,
-            'm' => null,
-            'label' => 'Borrower',
-            'sublabel' => $review['customer']->full_name ?? null,
-            'percent' => $borrowerVm['percent'],
-            'done' => $borrowerVm['decided'],
-            'total' => $borrowerVm['total'],
-            'complete' => $borrowerVm['percent'] >= 100,
-            'failed' => $borrowerVm['failed'],
-        ];
+        if ($isGroup) {
+            $members = collect($groupReview['members'] ?? []);
+            $leader = $members->first(fn (array $m) => ($m['role'] ?? '') === 'leader');
+            $leaderMemberId = (int) ($leader['id'] ?? 0);
+
+            // Leader is the applicant — one chip using the full borrower checklist (not duplicated).
+            $leaderVm = $this->viewModel($application, $actor, 'borrower');
+            $subjects[] = [
+                'key' => 'borrower',
+                'person' => 'borrower',
+                'g' => null,
+                'm' => null,
+                'label' => 'Leader',
+                'sublabel' => $leader['name'] ?? ($review['customer']->full_name ?? null),
+                'percent' => $leaderVm['percent'],
+                'done' => $leaderVm['decided'],
+                'total' => $leaderVm['total'],
+                'complete' => $leaderVm['percent'] >= 100,
+                'failed' => $leaderVm['failed'],
+            ];
+
+            foreach ($members as $member) {
+                $mId = (int) ($member['id'] ?? 0);
+                if ($mId < 1) {
+                    continue;
+                }
+                // Skip the leader row — already covered above.
+                if ($mId === $leaderMemberId || ($member['role'] ?? '') === 'leader') {
+                    continue;
+                }
+
+                $vm = $this->viewModel($application, $actor, 'member', null, $mId);
+                $subjects[] = [
+                    'key' => 'member:'.$mId,
+                    'person' => 'member',
+                    'g' => null,
+                    'm' => $mId,
+                    'label' => 'Member',
+                    'sublabel' => $member['name'] ?? null,
+                    'percent' => $vm['percent'],
+                    'done' => $vm['decided'],
+                    'total' => $vm['total'],
+                    'complete' => $vm['percent'] >= 100,
+                    'failed' => $vm['failed'],
+                ];
+            }
+        } else {
+            $borrowerVm = $this->viewModel($application, $actor, 'borrower');
+            $subjects[] = [
+                'key' => 'borrower',
+                'person' => 'borrower',
+                'g' => null,
+                'm' => null,
+                'label' => 'Borrower',
+                'sublabel' => $review['customer']->full_name ?? null,
+                'percent' => $borrowerVm['percent'],
+                'done' => $borrowerVm['decided'],
+                'total' => $borrowerVm['total'],
+                'complete' => $borrowerVm['percent'] >= 100,
+                'failed' => $borrowerVm['failed'],
+            ];
+        }
 
         foreach (collect($review['guarantors'] ?? []) as $row) {
             if (($row['status'] ?? '') === 'rejected' && ! ($row['profile_complete'] ?? false)) {
@@ -98,27 +147,6 @@ class ScreeningChecklistService
                 'm' => null,
                 'label' => 'Guarantor',
                 'sublabel' => $row['name'] ?? null,
-                'percent' => $vm['percent'],
-                'done' => $vm['decided'],
-                'total' => $vm['total'],
-                'complete' => $vm['percent'] >= 100,
-                'failed' => $vm['failed'],
-            ];
-        }
-
-        foreach (collect($groupReview['members'] ?? []) as $member) {
-            $mId = (int) ($member['id'] ?? 0);
-            if ($mId < 1) {
-                continue;
-            }
-            $vm = $this->viewModel($application, $actor, 'member', null, $mId);
-            $subjects[] = [
-                'key' => 'member:'.$mId,
-                'person' => 'member',
-                'g' => null,
-                'm' => $mId,
-                'label' => ucfirst((string) ($member['role'] ?? 'Member')),
-                'sublabel' => $member['name'] ?? null,
                 'percent' => $vm['percent'],
                 'done' => $vm['decided'],
                 'total' => $vm['total'],
@@ -204,6 +232,7 @@ class ScreeningChecklistService
         $passed = 0;
         $failed = 0;
         $total = 0;
+        $collateralApplies = $this->collateralReviewApplies($application);
 
         foreach ($this->catalog($subject) as $groupKey => $group) {
             $items = [];
@@ -211,7 +240,7 @@ class ScreeningChecklistService
                 $meta = $this->normalizeItemMeta($meta);
                 $fullKey = $groupKey.'.'.$itemKey;
                 $row = (array) ($checkedMap[$fullKey] ?? []);
-                $verdict = $this->normalizeVerdict($row);
+                [$verdict, $autoNa] = $this->resolveItemVerdict((string) $groupKey, $row, $collateralApplies);
                 $total++;
                 if ($verdict !== null) {
                     $decided++;
@@ -229,25 +258,39 @@ class ScreeningChecklistService
                     'group_key' => $groupKey,
                     'label' => $meta['label'],
                     'evidence_type' => $meta['evidence'],
-                    'evidence' => $this->buildEvidence($meta['evidence'], $context),
+                    'evidence' => $autoNa
+                        ? [
+                            'hint' => 'Auto N/A — this loan is not on an asset / collateral path. Items reopen if screening moves it to an asset.',
+                            'rows' => [],
+                            'photos' => [],
+                            'compare' => [],
+                        ]
+                        : $this->buildEvidence($meta['evidence'], $context),
                     'fail_reasons' => $meta['fail_reasons'],
                     'verdict' => $verdict,
+                    'auto_na' => $autoNa,
                     'checked' => $verdict === 'pass' || $verdict === 'na',
-                    'fail_reason_code' => $row['fail_reason_code'] ?? null,
-                    'fail_reason_custom' => $row['fail_reason_custom'] ?? null,
-                    'fail_reason_label' => $this->failReasonLabel($meta['fail_reasons'], $row),
-                    'at' => $row['at'] ?? null,
-                    'by' => $by,
-                    'by_name' => $by ? ($names[$by] ?? null) : null,
+                    'fail_reason_code' => $autoNa ? null : ($row['fail_reason_code'] ?? null),
+                    'fail_reason_custom' => $autoNa ? null : ($row['fail_reason_custom'] ?? null),
+                    'fail_reason_label' => $autoNa ? null : $this->failReasonLabel($meta['fail_reasons'], $row),
+                    'at' => $autoNa ? null : ($row['at'] ?? null),
+                    'by' => $autoNa ? null : $by,
+                    'by_name' => $autoNa ? null : ($by ? ($names[$by] ?? null) : null),
                 ];
             }
             if ($items === []) {
                 continue;
             }
+            $groupDecided = collect($items)->whereNotNull('verdict')->count();
+            $groupFailed = collect($items)->where('verdict', 'fail')->count();
             $groups[] = [
                 'key' => (string) $groupKey,
                 'label' => (string) ($group['label'] ?? ucfirst(str_replace('_', ' ', (string) $groupKey))),
                 'items' => $items,
+                'decided' => $groupDecided,
+                'total' => count($items),
+                'failed' => $groupFailed,
+                'complete' => $groupDecided === count($items) && count($items) > 0,
             ];
         }
 
@@ -372,7 +415,7 @@ class ScreeningChecklistService
                         'by' => $actor->id,
                     ];
                 } else {
-                    $items[$key] = [
+                    $entry = [
                         'verdict' => $verdict,
                         'checked' => $verdict === 'pass' || $verdict === 'na',
                         'fail_reason_code' => null,
@@ -380,8 +423,15 @@ class ScreeningChecklistService
                         'at' => now()->toIso8601String(),
                         'by' => $actor->id,
                     ];
+                    // Tag auto N/A on collateral when the loan is not on an asset path.
+                    if (str_starts_with($key, 'collateral.') && $verdict === 'na' && ! $this->collateralReviewApplies($application)) {
+                        $entry['source'] = 'auto_na';
+                    }
+                    $items[$key] = $entry;
                 }
             }
+
+            $this->syncCollateralAutoNa($application, $items, $validKeys, $actor);
 
             // Full replace mode: if form posted all keys with verdicts (including empty clear)
             if (($checks['__replace_all'] ?? false) === true) {
@@ -442,6 +492,116 @@ class ScreeningChecklistService
         }
 
         return null;
+    }
+
+    /**
+     * Collateral checklist applies when the product is asset-backed, collateral is already
+     * attached, or screening has moved the file onto the secure-with-asset path.
+     */
+    public function collateralReviewApplies(LoanApplication $application): bool
+    {
+        $application->loadMissing(['product', 'collateralAssets']);
+
+        $product = $application->product;
+        if ($product) {
+            if ((bool) $product->requires_collateral) {
+                return true;
+            }
+
+            $category = strtolower((string) ($product->category ?? ''));
+            if (in_array($category, ['asset_finance', 'asset_lending'], true)) {
+                return true;
+            }
+
+            $assetCode = strtoupper((string) config('asset_marketplace.asset_loan_product_code', 'AL'));
+            if (strtoupper((string) ($product->code ?? '')) === $assetCode) {
+                return true;
+            }
+        }
+
+        if ($application->collateralAssets->isNotEmpty()) {
+            return true;
+        }
+
+        $secure = app(CollateralSecureService::class)->state($application);
+        if (! is_array($secure)) {
+            return false;
+        }
+
+        // Rejected / expired secure attempts fall back to non-asset (auto N/A again).
+        return ! in_array((string) ($secure['status'] ?? ''), [
+            CollateralSecureService::STATUS_REJECTED,
+            CollateralSecureService::STATUS_EXPIRED,
+        ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array{0: ?string, 1: bool} [verdict, auto_na]
+     */
+    private function resolveItemVerdict(string $groupKey, array $row, bool $collateralApplies): array
+    {
+        $stored = $this->normalizeVerdict($row);
+        $isAutoNa = ($row['source'] ?? null) === 'auto_na';
+
+        if ($groupKey !== 'collateral') {
+            return [$stored, false];
+        }
+
+        if (! $collateralApplies) {
+            // Non-asset loans: auto N/A unless a reviewer already recorded pass/fail.
+            if (in_array($stored, ['pass', 'fail'], true)) {
+                return [$stored, false];
+            }
+
+            return ['na', true];
+        }
+
+        // Asset path: clear stale auto-N/A so collateral checks reopen for review.
+        if ($isAutoNa && $stored === 'na') {
+            return [null, false];
+        }
+
+        return [$stored, false];
+    }
+
+    /**
+     * Keep collateral auto-N/A in sync with whether the loan is on an asset path.
+     *
+     * @param  array<string, mixed>  $items
+     * @param  list<string>  $validKeys
+     */
+    private function syncCollateralAutoNa(LoanApplication $application, array &$items, array $validKeys, User $actor): void
+    {
+        $applies = $this->collateralReviewApplies($application);
+
+        foreach ($validKeys as $key) {
+            if (! str_starts_with($key, 'collateral.')) {
+                continue;
+            }
+
+            if (! $applies) {
+                $current = (array) ($items[$key] ?? []);
+                $verdict = $this->normalizeVerdict($current);
+                if (in_array($verdict, ['pass', 'fail'], true)) {
+                    continue;
+                }
+                $items[$key] = [
+                    'verdict' => 'na',
+                    'checked' => true,
+                    'source' => 'auto_na',
+                    'fail_reason_code' => null,
+                    'fail_reason_custom' => null,
+                    'at' => now()->toIso8601String(),
+                    'by' => $actor->id,
+                ];
+                continue;
+            }
+
+            if (($items[$key]['source'] ?? null) === 'auto_na') {
+                unset($items[$key]);
+            }
+        }
     }
 
     /**
