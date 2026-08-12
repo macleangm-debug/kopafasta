@@ -30,6 +30,13 @@ return [
         'replacement_confirm'      => 'Omba mbadala wa mwanachama huyu? Kiongozi wa kikundi ataarifiwa.',
         'refresh_crb'              => 'Sasisha CRB kwa wanachama wote',
         'contract_signatures'      => 'Saini za mkataba',
+        'membership_signatures'    => 'Saini za idhini ya ombi',
+        'membership_signatures_hint' => 'Kila mwanachama anathibitisha kwa saini ya wasifu. Inasubiri inamaanisha bado hajathibitisha.',
+        'membership_signatures_count' => ':signed / :total wamethibitisha',
+        'membership_signature_signed' => 'Imethibitishwa',
+        'membership_signature_waiting' => 'Inasubiri saini',
+        'signature_prev'           => 'Iliyotangulia',
+        'signature_next'           => 'Ifuatayo',
         'auto_refresh'             => 'Husasishwa kiotomatiki',
         'col_signed_at'            => 'Imesainiwa',
         'underwriting_status'      => [

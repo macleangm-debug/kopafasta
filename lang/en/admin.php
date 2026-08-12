@@ -123,6 +123,13 @@ return [
         'refresh_crb'              => 'Refresh CRB for all members',
         'automated_only_hint'      => 'CRB checks run automatically. Manual refresh is disabled to control enquiry costs.',
         'contract_signatures'      => 'Contract signatures',
+        'membership_signatures'    => 'Application consent signatures',
+        'membership_signatures_hint' => 'Each member confirms with their profile signature. Waiting means they have not confirmed yet.',
+        'membership_signatures_count' => ':signed / :total confirmed',
+        'membership_signature_signed' => 'Confirmed',
+        'membership_signature_waiting' => 'Waiting for signature',
+        'signature_prev'           => 'Previous',
+        'signature_next'           => 'Next',
         'auto_refresh'             => 'Auto-refreshes',
         'col_signed_at'            => 'Signed at',
         'underwriting_status'      => [

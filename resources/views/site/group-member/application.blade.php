@@ -53,40 +53,17 @@
                                 <dd class="font-semibold mt-1 text-gray-900">{{ $tenure_months }} {{ __('borrower.apply.quote.months') }}</dd>
                             </div>
                             <div class="px-5 sm:px-6 py-4">
-                                <dt class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.repayment_cadence') }}</dt>
-                                <dd class="font-semibold mt-1 text-gray-900">{{ $cadence_label }}</dd>
+                                <dt class="text-xs text-gray-500">{{ $installment_label ?? __('borrower.apply.group_setup.weekly_installment_label') }}</dt>
+                                <dd class="font-extrabold mt-1 tabular-nums text-brand">
+                                    {{ ($installment_amount ?? 0) > 0 ? format_money($installment_amount) : '—' }}
+                                </dd>
+                                <p class="text-[11px] text-gray-500 mt-1">{{ __('borrower.apply.group_setup.installment_after_disbursement_note') }}</p>
                             </div>
                         </dl>
                         @if ($invitation_reason)
                             <div class="mx-5 sm:mx-6 mb-5 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3 text-sm">
                                 <p class="text-[10px] font-semibold uppercase tracking-widest text-brand mb-1">{{ __('borrower.apply.group.invitation_reason') }}</p>
                                 <p class="text-gray-800 leading-relaxed">{{ $invitation_reason }}</p>
-                            </div>
-                        @endif
-                        @if (! empty($installment_preview))
-                            <div class="px-5 sm:px-6 pb-6">
-                                <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-3">{{ __('borrower.apply.group.your_repayment_preview') }}</p>
-                                <div class="overflow-x-auto rounded-2xl ring-1 ring-gray-200">
-                                    <table class="min-w-full text-sm">
-                                        <thead class="bg-gray-50 text-[10px] uppercase tracking-widest text-gray-500">
-                                            <tr>
-                                                <th class="text-left px-3 py-2.5">#</th>
-                                                <th class="text-left px-3 py-2.5">{{ __('borrower.apply.review_step.col_due_date') }}</th>
-                                                <th class="text-right px-3 py-2.5">{{ __('borrower.apply.review_step.col_total') }}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-gray-100">
-                                            @foreach (array_slice($installment_preview, 0, 4) as $row)
-                                                <tr>
-                                                    <td class="px-3 py-2.5">{{ $row['installment_number'] ?? '' }}</td>
-                                                    <td class="px-3 py-2.5">{{ $row['due_date'] ?? '' }}</td>
-                                                    <td class="px-3 py-2.5 text-right font-semibold tabular-nums">{{ format_money($row['total_due'] ?? 0) }}</td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-2">{{ __('borrower.apply.group.per_member_schedule_note') }}</p>
                             </div>
                         @endif
                     @else

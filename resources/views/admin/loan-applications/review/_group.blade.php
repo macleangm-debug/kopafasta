@@ -276,6 +276,76 @@
             <p class="text-xs text-gray-500">{{ __('admin.group_review.automated_only_hint') }}</p>
         </div>
 
+        @if ($groupReview['membership_signatures'] ?? null)
+            @php $membershipSigs = $groupReview['membership_signatures']; @endphp
+            <div class="px-5 py-4 border-t border-gray-100 space-y-4"
+                 x-data="{
+                    slide: 0,
+                    total: {{ max(1, count($membershipSigs['members'] ?? [])) }},
+                    next() { this.slide = (this.slide + 1) % this.total },
+                    prev() { this.slide = (this.slide - 1 + this.total) % this.total },
+                 }">
+                <div class="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('admin.group_review.membership_signatures') }}</h4>
+                        <p class="text-sm text-gray-600 mt-1">{{ __('admin.group_review.membership_signatures_hint') }}</p>
+                    </div>
+                    <p class="text-xs font-semibold tabular-nums {{ ($membershipSigs['all_signed'] ?? false) ? 'text-emerald-700' : 'text-amber-800' }}">
+                        {{ __('admin.group_review.membership_signatures_count', [
+                            'signed' => $membershipSigs['signed_count'] ?? 0,
+                            'total' => $membershipSigs['total'] ?? 0,
+                        ]) }}
+                    </p>
+                </div>
+
+                <div class="relative">
+                    @foreach ($membershipSigs['members'] ?? [] as $index => $sigMember)
+                        <div x-show="slide === {{ $index }}" x-cloak class="rounded-2xl ring-1 ring-gray-200 bg-white overflow-hidden">
+                            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-gray-900 truncate">{{ $sigMember['name'] }}</p>
+                                    <p class="text-[11px] text-gray-500 capitalize mt-0.5">{{ $sigMember['role'] ?? 'member' }}</p>
+                                </div>
+                                <span @class([
+                                    'inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold',
+                                    'bg-emerald-100 text-emerald-800' => ! empty($sigMember['signed']),
+                                    'bg-amber-100 text-amber-900' => empty($sigMember['signed']),
+                                ])>
+                                    {{ $sigMember['status_label'] }}
+                                </span>
+                            </div>
+                            <div class="px-4 py-6 min-h-[9rem] grid place-items-center bg-slate-50">
+                                @if (! empty($sigMember['signature_data']))
+                                    <img src="{{ $sigMember['signature_data'] }}" alt="" class="max-h-28 w-auto max-w-full object-contain">
+                                    @if (! empty($sigMember['signed_at']))
+                                        <p class="mt-3 text-[11px] text-gray-500">
+                                            {{ __('admin.group_review.col_signed_at') }}:
+                                            {{ \Illuminate\Support\Carbon::parse($sigMember['signed_at'])->timezone(config('app.timezone'))->format('d M Y, H:i') }}
+                                        </p>
+                                    @endif
+                                @else
+                                    <p class="text-sm font-semibold text-amber-900">{{ __('admin.group_review.membership_signature_waiting') }}</p>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                @if (count($membershipSigs['members'] ?? []) > 1)
+                    <div class="flex items-center justify-between gap-3">
+                        <button type="button" @click="prev()" class="text-xs font-semibold text-brand hover:underline">← {{ __('admin.group_review.signature_prev') }}</button>
+                        <div class="flex gap-1.5">
+                            @foreach ($membershipSigs['members'] ?? [] as $index => $sigMember)
+                                <button type="button" @click="slide = {{ $index }}" class="size-2 rounded-full"
+                                        :class="slide === {{ $index }} ? 'bg-brand' : 'bg-gray-300'"></button>
+                            @endforeach
+                        </div>
+                        <button type="button" @click="next()" class="text-xs font-semibold text-brand hover:underline">{{ __('admin.group_review.signature_next') }} →</button>
+                    </div>
+                @endif
+            </div>
+        @endif
+
         @if ($groupReview['contract_signatures'] ?? null)
             <div id="group-contract-signatures" class="px-5 py-4 border-t border-gray-100"
                  x-data="{

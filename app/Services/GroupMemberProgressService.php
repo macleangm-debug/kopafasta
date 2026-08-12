@@ -18,6 +18,7 @@ class GroupMemberProgressService
             'registration_complete' => __('borrower.apply.group.status.registration_complete'),
             'account_registered'    => __('borrower.apply.group.status.account_registered'),
             'profile_complete'      => __('borrower.apply.group.status.profile_complete'),
+            'awaiting_signature'    => __('borrower.apply.group.status.awaiting_signature'),
             'kyc_complete'          => __('borrower.apply.group.status.kyc_complete'),
             'profile_incomplete'    => __('borrower.apply.group.status.profile_incomplete'),
             'declined'              => __('borrower.apply.group.status.declined'),
@@ -68,14 +69,15 @@ class GroupMemberProgressService
 
             if ($customer) {
                 $base = $this->statusFromCustomer($customer);
-                if ($base['key'] === 'kyc_complete'
-                    && $invitation->status === 'completed'
-                    && app(GroupMemberSignatureService::class)->hasSignature($invitation)) {
-                    return $this->wrapStatus('kyc_complete', true);
-                }
+                $signed = $invitation->status === 'completed'
+                    && app(GroupMemberSignatureService::class)->hasSignature($invitation);
 
-                if ($base['key'] === 'profile_complete' && $invitation->status !== 'completed') {
-                    return $this->wrapStatus('profile_complete');
+                if (in_array($base['key'], ['kyc_complete', 'profile_complete'], true)) {
+                    if ($signed) {
+                        return $this->wrapStatus('kyc_complete', true);
+                    }
+
+                    return $this->wrapStatus('awaiting_signature');
                 }
 
                 if ($base['key'] === 'profile_incomplete') {
@@ -159,7 +161,11 @@ class GroupMemberProgressService
 
         $added = $rows->count();
         $verified = $rows->where('status_key', 'kyc_complete')->count();
-        $profilesComplete = $rows->whereIn('status_key', ['profile_complete', 'kyc_complete'])->count();
+        $profilesComplete = $rows->whereIn('status_key', [
+            'profile_complete',
+            'awaiting_signature',
+            'kyc_complete',
+        ])->count();
         $awaitingAcceptance = $rows->whereIn('status_key', [
             'invitation_sent',
             'link_opened',
@@ -174,6 +180,7 @@ class GroupMemberProgressService
             'registration_complete',
             'account_registered',
             'profile_incomplete',
+            'awaiting_signature',
         ])->count();
         $pending = max(0, $targetCount - $added);
         $avgProfilePercent = $added > 0
@@ -184,9 +191,20 @@ class GroupMemberProgressService
             && $added === $targetCount
             && $awaitingAcceptance === 0;
 
-        // Group submit gates on profile completion — not a separate verification step.
+        // Submit requires every invited member to confirm membership (profile signature stamp).
+        // Leader confirms with their signature on the submit step.
+        $nonLeaders = $rows->reject(fn (array $row) => ($row['role'] ?? '') === 'leader');
+        $membersSigned = $nonLeaders->every(fn (array $row) => ($row['status_key'] ?? '') === 'kyc_complete');
+        $leader = $rows->first(fn (array $row) => ($row['role'] ?? '') === 'leader');
+        $leaderReady = ! $leader || in_array($leader['status_key'] ?? '', [
+            'kyc_complete',
+            'awaiting_signature',
+            'profile_complete',
+        ], true);
         $canSubmit = $canContinue
-            && $profilesComplete === $targetCount;
+            && $profilesComplete === $targetCount
+            && $membersSigned
+            && $leaderReady;
 
         $summary = [
             __('borrower.apply.group.progress.added', ['added' => $added, 'target' => $targetCount]),

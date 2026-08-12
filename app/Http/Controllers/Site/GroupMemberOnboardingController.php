@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
+use App\Services\BorrowerSignatureService;
+use App\Services\GroupMemberApplicationService;
 use App\Services\GroupMemberOnboardingService;
 use App\Services\GroupMemberSignatureService;
 use Illuminate\Http\RedirectResponse;
@@ -14,8 +16,13 @@ class GroupMemberOnboardingController extends Controller
 {
     use AuditsActions;
 
-    public function show(Request $request, GroupMemberOnboardingService $onboarding): View|RedirectResponse
-    {
+    public function show(
+        Request $request,
+        GroupMemberOnboardingService $onboarding,
+        GroupMemberApplicationService $applications,
+        GroupMemberSignatureService $signatures,
+        BorrowerSignatureService $borrowerSignatures,
+    ): View|RedirectResponse {
         $customer = $request->user()?->customer;
         if (! $customer) {
             return redirect()->route('site.borrower.dashboard');
@@ -32,7 +39,22 @@ class GroupMemberOnboardingController extends Controller
                 ->with('warning', __('borrower.apply.group.complete_profile_first'));
         }
 
-        return view('site.group-member.onboarding', compact('invitation', 'customer'));
+        $view = $applications->buildViewModel($invitation, $customer);
+        $profileSignature = $borrowerSignatures->profileSignature($customer);
+        if (! $profileSignature) {
+            return redirect()->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
+                ->with('warning', __('borrower.apply.group.profile_signature_required'));
+        }
+
+        $carousel = $signatures->carouselForDraftMembers($view['members'] ?? [], $customer);
+
+        return view('site.group-member.onboarding', [
+            'invitation' => $invitation,
+            'customer' => $customer,
+            'profileSignature' => $profileSignature,
+            'signatureCarousel' => $carousel,
+            'group_name' => $view['group_name'] ?? $invitation->group_name,
+        ]);
     }
 
     public function complete(
@@ -46,25 +68,23 @@ class GroupMemberOnboardingController extends Controller
         $invitation = $onboarding->resolveInvitation($request, $customer);
         abort_unless($invitation, 404);
 
-        $data = $request->validate([
-            'signer_name'    => ['required', 'string', 'max:120'],
-            'signature_data' => ['required', 'string', 'starts_with:data:image/png;base64,'],
-            'consent'        => ['accepted'],
+        $request->validate([
+            'consent' => ['accepted'],
         ]);
 
         try {
-            $signatures->recordForInvitation(
-                $invitation,
-                $data['signer_name'],
-                $data['signature_data'],
-            );
+            $signatures->confirmFromProfile($invitation, $customer);
             $onboarding->finalize($invitation->fresh(), $customer, $request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
+                ->with('warning', $e->errors()['signature_data'][0] ?? __('borrower.apply.group.profile_signature_required'));
         } catch (\InvalidArgumentException $e) {
             return redirect()->route('site.borrower.dashboard')->with('error', $e->getMessage());
         }
 
         $this->auditBorrower('group_member_onboarding.completed', $invitation, [
             'leader_customer_id' => $invitation->leader_customer_id,
+            'signature_source' => 'profile',
         ]);
 
         return redirect()->route('site.borrower.dashboard')

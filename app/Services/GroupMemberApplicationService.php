@@ -38,14 +38,20 @@ class GroupMemberApplicationService
         $rate = (float) ($product?->interest_rate ?? 0);
 
         $installmentPreview = [];
+        $installmentAmount = null;
         if ($amountPerMember > 0 && $tenure > 0 && $product) {
-            $installmentPreview = $this->schedules->preview($amountPerMember, $rate, $tenure, $cadence);
+            // Pre-disbursement: amounts only — calendar dates appear after payout.
+            $installmentPreview = $this->schedules->previewEstimate($amountPerMember, $rate, $tenure, $cadence);
+            $installmentAmount = (float) ($installmentPreview[0]['total_due'] ?? 0);
         }
 
         $members = $this->memberRowsForInvitation($invitation, $groupPayload);
         $target = (int) ($groupPayload['target_member_count'] ?? max(1, $members->count()));
         $summary = $this->progress->summarize($members->all(), $target);
         $quoteReady = $amountPerMember > 0 && $tenure > 0;
+        $installmentLabel = $cadence === 'weekly'
+            ? __('borrower.apply.group_setup.weekly_installment_label')
+            : __('borrower.apply.group_setup.monthly_installment_label');
 
         return [
             'invitation'         => $invitation,
@@ -64,6 +70,8 @@ class GroupMemberApplicationService
             'cadence_label'      => $cadence === 'weekly'
                 ? __('borrower.apply.group_setup.weekly_repayment')
                 : __('borrower.apply.group_setup.monthly_repayment'),
+            'installment_amount' => $installmentAmount,
+            'installment_label'  => $installmentLabel,
             'installment_preview'=> $installmentPreview,
             'members'            => $summary['members'] ?? $members->all(),
             'progress'           => $summary,
