@@ -24,9 +24,9 @@
         <p class="mt-1 text-sky-800">{{ __('borrower.apply.submit_step.supplement_hint') }}</p>
     </div>
 
-    {{-- Group members: readiness roster (5 per page) + signature carousel --}}
+    {{-- Group members: readiness roster only (5 per page). Signatures live in one card below. --}}
     <section x-show="isGroupProduct(current) && (group.members || []).length" x-cloak
-             class="mb-6 space-y-4">
+             class="mb-6">
         <div class="rounded-3xl overflow-hidden ring-1 ring-brand/15 bg-white shadow-sm">
             <div class="px-5 sm:px-6 py-4 bg-gradient-to-r from-brand-muted/50 to-white border-b border-brand/10 flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -76,61 +76,6 @@
                         :disabled="groupRosterPage >= groupRosterPages() - 1">{{ __('borrower.apply.group.signature_carousel_next') }} →</button>
             </div>
         </div>
-
-        <div class="rounded-3xl overflow-hidden ring-1 ring-brand/15 bg-white shadow-sm">
-            <div class="px-5 sm:px-6 py-4 border-b border-brand/10 flex items-end justify-between gap-3">
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.group.signature_carousel_title') }}</p>
-                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.apply.group.signature_carousel_hint') }}</p>
-                </div>
-                <p class="text-xs font-semibold text-gray-500 tabular-nums"
-                   x-text="((group.members || []).length ? (groupSigSlide + 1) : 0) + ' / ' + (group.members || []).length"></p>
-            </div>
-            <div class="px-5 sm:px-6 py-5 space-y-4">
-                <template x-for="(member, index) in (group.members || [])" :key="'carousel-' + index + '-' + (member.customer_id || member.invitation_id || index)">
-                    <div x-show="groupSigSlide === index" x-cloak class="space-y-3">
-                        <div class="flex items-center justify-between gap-3">
-                            <div class="min-w-0">
-                                <p class="text-base font-bold text-gray-900 truncate"
-                                   x-text="member.name || member.label || member.phone || ('#' + (index + 1))"></p>
-                                <p class="text-xs text-gray-500 mt-0.5 capitalize"
-                                   x-text="(member.role === 'leader' ? @js(__('borrower.apply.group_members.leader_badge')) : @js(__('borrower.apply.group_members.member_badge')))"></p>
-                            </div>
-                            <span class="shrink-0 inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold ring-1"
-                                  :class="member.signed || (member.status_key || '') === 'kyc_complete'
-                                      ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
-                                      : 'bg-amber-50 text-amber-900 ring-amber-200'"
-                                  x-text="member.signed
-                                      ? @js(__('borrower.apply.group.signature_carousel_signed'))
-                                      : ((member.role === 'leader' && member.signature_data)
-                                          ? @js(__('borrower.apply.group.signature_carousel_leader_pending'))
-                                          : @js(__('borrower.apply.group.signature_carousel_waiting')))"></span>
-                        </div>
-                        <div class="rounded-2xl bg-[linear-gradient(180deg,#f8faf9_0%,#ffffff_55%)] ring-1 ring-brand/10 min-h-[10rem] grid place-items-center px-4 py-6">
-                            <template x-if="member.signature_data">
-                                <img :src="member.signature_data" alt="" class="max-h-28 w-auto max-w-full object-contain">
-                            </template>
-                            <template x-if="! member.signature_data">
-                                <div class="text-center space-y-2 px-4">
-                                    <p class="text-sm font-semibold text-amber-950">{{ __('borrower.apply.group.signature_carousel_waiting') }}</p>
-                                    <p class="text-xs text-amber-900/80">{{ __('borrower.apply.group.signature_carousel_waiting_hint') }}</p>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                </template>
-                <div x-show="(group.members || []).length > 1" x-cloak class="flex items-center justify-between gap-3">
-                    <button type="button" @click="groupSigPrev()" class="text-xs font-semibold text-brand hover:underline">← {{ __('borrower.apply.group.signature_carousel_prev') }}</button>
-                    <div class="flex gap-1.5 flex-wrap justify-center max-w-[14rem]">
-                        <template x-for="(member, index) in (group.members || [])" :key="'sig-dot-' + index">
-                            <button type="button" @click="groupSigSlide = index" class="size-2 rounded-full"
-                                    :class="groupSigSlide === index ? 'bg-brand' : (member.signed ? 'bg-emerald-400' : 'bg-gray-300')"></button>
-                        </template>
-                    </div>
-                    <button type="button" @click="groupSigNext()" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.apply.group.signature_carousel_next') }} →</button>
-                </div>
-            </div>
-        </div>
     </section>
 
     {{-- Guarantor: live status + progress on submit --}}
@@ -170,7 +115,7 @@
         </ol>
     </section>
 
-    {{-- Premium signature surface (leader / individual borrower) --}}
+    {{-- One signature card: for groups, name/signature carousel; leader confirms here --}}
     <section class="relative overflow-hidden rounded-3xl ring-1 ring-brand/15 bg-white shadow-lg shadow-brand/10 mb-2"
              x-show="!supplementMode"
              x-cloak>
@@ -178,49 +123,89 @@
         <div class="absolute inset-x-0 top-0 h-28 opacity-20" style="background-image: radial-gradient(circle at 15% 20%, #fff 0, transparent 40%), radial-gradient(circle at 85% 0%, #f5c842 0, transparent 35%);" aria-hidden="true"></div>
 
         <div class="relative px-5 sm:px-7 pt-6 pb-2">
-            <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">{{ __('borrower.apply.signature_draw_label') }}</p>
-            <p class="mt-2 text-xl sm:text-2xl font-bold text-white tracking-tight"
-               x-text="verifiedLegalName || borrowerSignature?.signer_name || '—'"></p>
-            <p x-show="identityVerified" x-cloak
-               class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold bg-white/15 text-white px-2.5 py-1 rounded-lg">
-                <span aria-hidden="true">✓</span> {{ __('borrower.apply.signature_verified') }}
-            </p>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">{{ __('borrower.apply.signature_draw_label') }}</p>
+                    <p class="mt-2 text-xl sm:text-2xl font-bold text-white tracking-tight truncate"
+                       x-text="groupSigSlideName()"></p>
+                    <p x-show="identityVerified || (isGroupProduct(current) && groupSigCurrentMember()?.signed)" x-cloak
+                       class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold bg-white/15 text-white px-2.5 py-1 rounded-lg">
+                        <span aria-hidden="true">✓</span>
+                        <span x-text="isGroupProduct(current) && ! groupSigIsLeaderSlide()
+                            ? @js(__('borrower.apply.group.signature_carousel_signed'))
+                            : @js(__('borrower.apply.signature_verified'))"></span>
+                    </p>
+                </div>
+                <p x-show="isGroupProduct(current) && (group.members || []).length > 1" x-cloak
+                   class="shrink-0 text-xs font-semibold text-white/80 tabular-nums"
+                   x-text="(groupSigSlide + 1) + ' / ' + (group.members || []).length"></p>
+            </div>
         </div>
 
         <div class="relative mx-4 sm:mx-6 mb-5 -mt-1 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-            <div class="px-4 sm:px-5 pt-4 pb-3 border-b border-gray-100">
-                <label class="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox"
-                           name="borrower_consent"
-                           value="1"
-                           x-model="declarationAccepted"
-                           @change="persistDeclaration()"
-                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
-                    <span class="leading-snug">{{ __('borrower.apply.signature_consent', ['brand' => brand_name()]) }}</span>
-                </label>
-            </div>
-
-            <div class="p-4 sm:p-5"
-                 :class="declarationAccepted ? '' : 'opacity-55 pointer-events-none'">
-                <div x-show="borrowerSignature?.signature_data && !resigningOnSubmit" x-cloak>
-                    <div class="rounded-2xl bg-[linear-gradient(180deg,#f8faf9_0%,#ffffff_55%)] ring-1 ring-brand/10 px-3 py-4 min-h-[9rem] grid place-items-center">
-                        <img :src="borrowerSignature.signature_data"
-                             alt=""
-                             class="max-h-28 w-auto max-w-full object-contain">
-                    </div>
+            {{-- Leader / individual: consent + own signature --}}
+            <div x-show="! isGroupProduct(current) || groupSigIsLeaderSlide()" x-cloak>
+                <div class="px-4 sm:px-5 pt-4 pb-3 border-b border-gray-100">
+                    <label class="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox"
+                               name="borrower_consent"
+                               value="1"
+                               x-model="declarationAccepted"
+                               @change="persistDeclaration()"
+                               class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
+                        <span class="leading-snug">{{ __('borrower.apply.signature_consent', ['brand' => brand_name()]) }}</span>
+                    </label>
                 </div>
 
-                <template x-if="!borrowerSignature?.signature_data || resigningOnSubmit">
-                    <div>
-                        <x-site.signature-pad
-                            :default-name="$verifiedLegalName"
-                            :readonly-name="true"
-                            :verified="$identityVerified"
-                            :include-in-form="false"
-                            compact
-                            hide-clear />
+                <div class="p-4 sm:p-5"
+                     :class="declarationAccepted ? '' : 'opacity-55 pointer-events-none'">
+                    <div x-show="borrowerSignature?.signature_data && !resigningOnSubmit" x-cloak>
+                        <div class="rounded-2xl bg-[linear-gradient(180deg,#f8faf9_0%,#ffffff_55%)] ring-1 ring-brand/10 px-3 py-4 min-h-[9rem] grid place-items-center">
+                            <img :src="borrowerSignature.signature_data"
+                                 alt=""
+                                 class="max-h-28 w-auto max-w-full object-contain">
+                        </div>
                     </div>
-                </template>
+
+                    <template x-if="!borrowerSignature?.signature_data || resigningOnSubmit">
+                        <div>
+                            <x-site.signature-pad
+                                :default-name="$verifiedLegalName"
+                                :readonly-name="true"
+                                :verified="$identityVerified"
+                                :include-in-form="false"
+                                compact
+                                hide-clear />
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            {{-- Other group members: read-only signed / waiting --}}
+            <div x-show="isGroupProduct(current) && ! groupSigIsLeaderSlide()" x-cloak class="p-4 sm:p-5">
+                <div class="rounded-2xl bg-[linear-gradient(180deg,#f8faf9_0%,#ffffff_55%)] ring-1 ring-brand/10 px-3 py-5 min-h-[9rem] grid place-items-center">
+                    <template x-if="groupSigCurrentMember()?.signature_data">
+                        <img :src="groupSigCurrentMember().signature_data" alt="" class="max-h-28 w-auto max-w-full object-contain">
+                    </template>
+                    <template x-if="! groupSigCurrentMember()?.signature_data">
+                        <div class="text-center space-y-2 px-4">
+                            <p class="text-sm font-semibold text-amber-950">{{ __('borrower.apply.group.signature_carousel_waiting') }}</p>
+                            <p class="text-xs text-amber-900/80">{{ __('borrower.apply.group.signature_carousel_waiting_hint') }}</p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="isGroupProduct(current) && (group.members || []).length > 1" x-cloak
+                 class="px-4 sm:px-5 pb-4 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                <button type="button" @click="groupSigPrev()" class="text-xs font-semibold text-brand hover:underline">← {{ __('borrower.apply.group.signature_carousel_prev') }}</button>
+                <div class="flex gap-1.5 flex-wrap justify-center max-w-[14rem]">
+                    <template x-for="(member, index) in (group.members || [])" :key="'sig-dot-' + index">
+                        <button type="button" @click="groupSigSlide = index" class="size-2 rounded-full"
+                                :class="groupSigSlide === index ? 'bg-brand' : (member.signed || member.role === 'leader' ? 'bg-emerald-400' : 'bg-gray-300')"></button>
+                    </template>
+                </div>
+                <button type="button" @click="groupSigNext()" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.apply.group.signature_carousel_next') }} →</button>
             </div>
         </div>
     </section>
@@ -229,3 +214,4 @@
     <input type="hidden" name="signer_name" data-submit-signer>
     <input type="hidden" name="consent" value="1">
 </div>
+

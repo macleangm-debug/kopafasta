@@ -1439,6 +1439,26 @@ export function applyWizard(config) {
                     if (this.groupSigSlide >= n) this.groupSigSlide = Math.max(0, n - 1);
                 },
 
+                groupSigCurrentMember() {
+                    const members = this.group?.members || [];
+                    if (! members.length) return null;
+                    return members[this.groupSigSlide] || members[0] || null;
+                },
+
+                groupSigIsLeaderSlide() {
+                    if (! this.isGroupProduct(this.current)) return true;
+                    const member = this.groupSigCurrentMember();
+                    return ! member || (member.role || '') === 'leader';
+                },
+
+                groupSigSlideName() {
+                    if (! this.isGroupProduct(this.current)) {
+                        return this.verifiedLegalName || this.borrowerSignature?.signer_name || '—';
+                    }
+                    const member = this.groupSigCurrentMember();
+                    return member?.name || member?.label || member?.phone || this.verifiedLegalName || '—';
+                },
+
                 groupScoringRiskBandLabel(band) {
                     return this.i18n.groupScoringRiskBand?.[band] || band || '';
                 },

@@ -146,7 +146,7 @@
                             class="w-full text-left p-4 sm:p-5"
                             :class="member.role === 'leader' ? 'bg-gradient-to-r from-brand-muted/50 to-white' : 'bg-white'"
                             @click="member.role !== 'leader' && (member._open = !member._open)">
-                        <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-start gap-3">
                             <div class="size-12 rounded-2xl bg-brand text-white grid place-items-center text-base font-bold shrink-0 shadow-sm shadow-brand/20 overflow-hidden">
                                 <img x-show="member.avatar_url" x-cloak :src="member.avatar_url" :alt="member.name || ''" class="size-full object-cover">
                                 <span x-show="!member.avatar_url" x-text="(member.name || '?').trim().charAt(0).toUpperCase()"></span>
@@ -165,18 +165,18 @@
                                 </div>
                                 <p class="text-xs text-gray-500 mt-0.5" x-text="member.phone"></p>
                             </div>
-                            <div class="text-right shrink-0">
-                                <p class="text-xs font-semibold" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></p>
+                            <div class="text-right shrink-0 w-[7.5rem]">
+                                <p class="text-xs font-semibold leading-snug" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></p>
                                 <p class="text-sm font-extrabold tabular-nums text-gray-900 mt-0.5" x-text="formatTzs(member.requested_amount)"></p>
                             </div>
-                            <svg x-show="member.role !== 'leader'" class="w-4 h-4 text-gray-400 shrink-0 transition" :class="member._open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                            <svg x-show="member.role !== 'leader'" class="w-4 h-4 text-gray-400 shrink-0 mt-1 transition" :class="member._open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                         </div>
-                        <div class="mt-3 pl-0 sm:pl-15">
+                        <div class="mt-3">
                             <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500 mb-1">
                                 <span>{{ __('borrower.apply.group.profile_completion') }}</span>
                                 <span class="font-bold tabular-nums text-brand" x-text="(member.profile_percent ?? 0) + '%'"></span>
                             </div>
-                            <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                            <div class="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
                                 <div class="h-full rounded-full transition-all duration-500"
                                      :class="(member.profile_percent ?? 0) >= 100 ? 'bg-emerald-500' : 'bg-brand'"
                                      :style="'width:' + Math.max(0, Math.min(100, member.profile_percent ?? 0)) + '%'"></div>

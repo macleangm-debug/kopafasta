@@ -184,15 +184,17 @@
     @endif
 
     @if ($isDraft && $missingRequirements->isNotEmpty())
-        <div id="requested-actions" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
-            <div class="bg-gradient-to-r from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
+        <div id="requested-actions" class="mb-6 overflow-hidden rounded-3xl ring-1 ring-amber-200 bg-gradient-to-br from-amber-50 via-white to-white shadow-sm">
+            <div class="px-5 py-4 border-b border-amber-100/80">
+                <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
+                <p class="mt-1.5 text-sm text-amber-950/90 leading-relaxed">{{ __('borrower.loan_profile.missing_requirements_hint') }}</p>
             </div>
-            <div class="px-5 py-4 flex flex-wrap gap-2">
+            <div class="px-5 py-4 space-y-2">
                 @foreach ($missingRequirements as $item)
                     <a href="{{ $item['upload_url'] ?? $completeProfileUrl }}"
-                       class="inline-flex items-center gap-1.5 rounded-full bg-brand-muted/50 ring-1 ring-brand/15 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand-muted">
-                        <span>{{ $item['label'] ?? '—' }}</span>
+                       class="flex items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-amber-200/80 hover:ring-brand/30 hover:bg-brand-muted/20 px-4 py-3 transition">
+                        <span class="text-sm font-semibold text-gray-900">{{ $item['label'] ?? '—' }}</span>
+                        <span class="text-xs font-bold text-brand shrink-0">{{ __('borrower.loan_profile.complete_profile') }} →</span>
                     </a>
                 @endforeach
             </div>

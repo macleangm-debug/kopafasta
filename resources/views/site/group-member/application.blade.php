@@ -111,43 +111,45 @@
                                 $avatarUrl = $row['avatar_url'] ?? null;
                                 $isLeader = ($row['role'] ?? '') === 'leader';
                             @endphp
-                            <li class="px-5 sm:px-6 py-4 flex flex-wrap items-center gap-3">
-                                <div class="size-11 rounded-2xl bg-brand text-white grid place-items-center text-sm font-bold shrink-0 overflow-hidden">
-                                    @if ($avatarUrl)
-                                        <img src="{{ $avatarUrl }}" alt="" class="size-full object-cover">
-                                    @else
-                                        {{ strtoupper(mb_substr((string) ($row['name'] ?? '?'), 0, 1)) }}
-                                    @endif
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <p class="font-semibold text-sm text-gray-900 truncate">{{ $row['name'] ?? '—' }}</p>
-                                        @if ($isLeader)
-                                            <span class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                                                {{ __('borrower.apply.group_members.leader_badge') }}
-                                            </span>
+                            <li class="px-5 sm:px-6 py-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="size-11 rounded-2xl bg-brand text-white grid place-items-center text-sm font-bold shrink-0 overflow-hidden">
+                                        @if ($avatarUrl)
+                                            <img src="{{ $avatarUrl }}" alt="" class="size-full object-cover">
                                         @else
-                                            <span class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                                                {{ __('borrower.apply.group_members.member_badge') }}
-                                            </span>
+                                            {{ strtoupper(mb_substr((string) ($row['name'] ?? '?'), 0, 1)) }}
                                         @endif
                                     </div>
-                                    <p class="text-xs text-gray-500 mt-0.5">{{ $row['phone'] ?? '' }}</p>
-                                    <div class="mt-2 max-w-xs">
-                                        <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500 mb-1">
-                                            <span>{{ __('borrower.apply.group.profile_completion') }}</span>
-                                            <span class="font-bold tabular-nums text-brand">{{ $percent }}%</span>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="font-semibold text-sm text-gray-900 truncate">{{ $row['name'] ?? '—' }}</p>
+                                            @if ($isLeader)
+                                                <span class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                                    {{ __('borrower.apply.group_members.leader_badge') }}
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                                    {{ __('borrower.apply.group_members.member_badge') }}
+                                                </span>
+                                            @endif
                                         </div>
-                                        <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                                            <div @class([
-                                                'h-full rounded-full',
-                                                'bg-emerald-500' => $percent >= 100,
-                                                'bg-brand' => $percent < 100,
-                                            ]) style="width: {{ max(0, min(100, $percent)) }}%"></div>
-                                        </div>
+                                        <p class="text-xs text-gray-500 mt-0.5">{{ $row['phone'] ?? '' }}</p>
+                                    </div>
+                                    <span class="text-xs font-semibold text-gray-700 shrink-0 w-[7.5rem] text-right leading-snug">{{ $row['status_label'] ?? '—' }}</span>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500 mb-1">
+                                        <span>{{ __('borrower.apply.group.profile_completion') }}</span>
+                                        <span class="font-bold tabular-nums text-brand">{{ $percent }}%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                                        <div @class([
+                                            'h-full rounded-full',
+                                            'bg-emerald-500' => $percent >= 100,
+                                            'bg-brand' => $percent < 100,
+                                        ]) style="width: {{ max(0, min(100, $percent)) }}%"></div>
                                     </div>
                                 </div>
-                                <span class="text-xs font-semibold text-gray-700 shrink-0">{{ $row['status_label'] ?? '—' }}</span>
                             </li>
                         @empty
                             <li class="px-5 sm:px-6 py-8 text-sm text-gray-500">{{ __('borrower.apply.group.no_members_listed') }}</li>

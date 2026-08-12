@@ -79,25 +79,28 @@
                             $isAssetLendingDraft = filled($draft->asset_reservation_id)
                                 || is_marketplace_loan_product($draft->product?->code ?? $profile['product']['code'] ?? null);
                         @endphp
-                        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white"
+                        <div class="rounded-3xl overflow-hidden ring-1 ring-brand/20 bg-gradient-to-br from-brand via-brand to-brand-light text-white shadow-md shadow-brand/15"
                              x-data="{ open: {{ $errors->has('requested_amount') || $errors->has('requested_tenure_months') ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open"
-                                    class="w-full px-4 py-3 flex items-center justify-between gap-3 text-left">
-                                <div>
-                                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">
+                                    class="w-full px-5 py-5 flex items-center justify-between gap-4 text-left">
+                                <div class="min-w-0">
+                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">
                                         {{ $isAssetLendingDraft
                                             ? __('borrower.loan_profile.actions.edit_tenure')
                                             : __('borrower.loan_profile.actions.edit_quote') }}
                                     </p>
-                                    <p class="text-sm text-gray-700 mt-0.5">
+                                    <p class="mt-2 text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight">
                                         {{ format_money((float) ($profile['summary']['requested_amount'] ?? 0)) }}
-                                        · {{ __('borrower.applications_list.tenure_months', ['count' => (int) ($profile['summary']['requested_tenure'] ?? 0)]) }}
                                     </p>
+                                    <p class="mt-1 text-sm font-semibold text-white/85">
+                                        {{ __('borrower.applications_list.tenure_months', ['count' => (int) ($profile['summary']['requested_tenure'] ?? 0)]) }}
+                                    </p>
+                                    <p class="mt-2 text-xs text-white/70">{{ __('borrower.loan_profile.actions.edit_quote_hint') }}</p>
                                 </div>
-                                <span class="text-xs font-bold text-brand bg-brand-gold/80 px-3 py-1.5 rounded-lg"
+                                <span class="shrink-0 text-xs font-bold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl shadow-sm"
                                       x-text="open ? @js(__('borrower.profile.cancel')) : @js(__('borrower.apply.edit'))"></span>
                             </button>
-                            <div x-show="open" x-cloak class="px-4 pb-4 border-t border-brand/10 pt-3">
+                            <div x-show="open" x-cloak class="px-5 pb-5 border-t border-white/15 pt-4 bg-white text-gray-900">
                                 <form method="POST" action="{{ route('site.borrower.draft.amount', $draft) }}" class="space-y-3">
                                     @csrf
                                     <div class="grid sm:grid-cols-2 gap-3">
