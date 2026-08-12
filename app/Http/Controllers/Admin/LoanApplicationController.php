@@ -188,7 +188,7 @@ class LoanApplicationController extends ResourceController
             ->latest('id')
             ->first();
 
-        $documentRequests = \App\Models\LoanApplicationDocumentRequest::with(['uploads', 'requester'])
+        $documentRequests = \App\Models\LoanApplicationDocumentRequest::with(['uploads', 'requester', 'subjectCustomer', 'groupMember.customer'])
             ->where('loan_application_id', $record->id)
             ->latest()
             ->get();

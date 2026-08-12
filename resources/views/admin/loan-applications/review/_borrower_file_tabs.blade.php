@@ -1,7 +1,12 @@
 @php
     $guarantorRows = collect($review['guarantors'] ?? []);
+    $memberRows = collect($groupReview['members'] ?? []);
+    $isGroupLoan = $memberRows->isNotEmpty();
     $person = request('person', 'borrower');
-    if (! in_array($person, ['borrower', 'guarantor'], true)) {
+    if (! in_array($person, ['borrower', 'guarantor', 'member'], true)) {
+        $person = 'borrower';
+    }
+    if ($person === 'member' && ! $isGroupLoan) {
         $person = 'borrower';
     }
 
@@ -13,6 +18,17 @@
             ?? $guarantorRows->first(fn ($row) => ($row['status'] ?? '') !== 'rejected')
             ?? $guarantorRows->first();
         if (! $selectedGuarantor) {
+            $person = 'borrower';
+        }
+    }
+
+    $selectedMember = null;
+    if ($person === 'member') {
+        $mId = (int) request('m', 0);
+        $selectedMember = $memberRows->first(fn ($row) => (int) ($row['id'] ?? 0) === $mId)
+            ?? $memberRows->first(fn ($row) => ($row['role'] ?? '') !== 'leader')
+            ?? $memberRows->first();
+        if (! $selectedMember) {
             $person = 'borrower';
         }
     }
@@ -33,10 +49,10 @@
         ['partners-available', 'Partners available'],
         ['partners-unavailable', 'Partners unavailable'],
     ];
-    if ($groupReview ?? null) {
+    if ($isGroupLoan) {
         $borrowerTabs[] = ['group', 'Group'];
     }
-    $guarantorTabs = [
+    $memberTabs = [
         ['affordability', 'Affordability'],
         ['crb', 'CRB'],
         ['personal', 'Personal'],
@@ -46,7 +62,11 @@
         ['documents', 'Documents'],
         ['collateral', 'Collateral'],
     ];
-    $profileTabs = $person === 'guarantor' ? $guarantorTabs : $borrowerTabs;
+    $guarantorTabs = $memberTabs;
+    $profileTabs = match ($person) {
+        'guarantor', 'member' => $person === 'guarantor' ? $guarantorTabs : $memberTabs,
+        default => $borrowerTabs,
+    };
     $allowedTabs = array_column($profileTabs, 0);
     if (! in_array($defaultTab, $allowedTabs, true)) {
         $defaultTab = 'affordability';
@@ -58,7 +78,7 @@
             + collect($groupedDocumentRequests['uploaded'] ?? [])->count();
     }
 
-    $tabUrl = function (string $key) use ($record, $person, $selectedGuarantor) {
+    $tabUrl = function (string $key) use ($record, $person, $selectedGuarantor, $selectedMember) {
         $params = [
             'loan_application' => $record,
             'workspace' => 'profiles',
@@ -67,6 +87,9 @@
         ];
         if ($person === 'guarantor' && $selectedGuarantor) {
             $params['g'] = $selectedGuarantor['link_id'];
+        }
+        if ($person === 'member' && $selectedMember) {
+            $params['m'] = $selectedMember['id'];
         }
 
         return route('admin.loan-applications.show', $params).'#borrower-file';
@@ -82,6 +105,9 @@
         if ($who === 'guarantor' && $linkId) {
             $params['g'] = $linkId;
         }
+        if ($who === 'member' && $linkId) {
+            $params['m'] = $linkId;
+        }
 
         return route('admin.loan-applications.show', $params).'#borrower-file';
     };
@@ -94,6 +120,32 @@
         $subjectReview['is_guarantor_subject'] = true;
         $subjectReview['guarantor_row'] = $selectedGuarantor;
     }
+    if ($person === 'member' && $selectedMember) {
+        if (! empty($selectedMember['file'])) {
+            $subjectReview = array_merge($review, $selectedMember['file']);
+        } elseif (! empty($selectedMember['customer_id'])) {
+            $memberCustomer = \App\Models\Customer::query()->find($selectedMember['customer_id']);
+            if ($memberCustomer) {
+                $subjectReview = array_merge(
+                    $review,
+                    app(\App\Services\LoanApplicationReviewService::class)->subjectFileForCustomer($memberCustomer)
+                );
+            }
+        }
+        $subjectReview['is_member_subject'] = true;
+        $subjectReview['member_row'] = $selectedMember;
+        $subjectReview['crb'] = [
+            'score' => $selectedMember['crb_score'] ?? null,
+            'recommendation' => $selectedMember['crb_recommendation'] ?? null,
+            'existing_loans' => $selectedMember['crb_existing_loans'] ?? null,
+            'outstanding_balance' => $selectedMember['crb_outstanding'] ?? null,
+            'delinquencies' => $selectedMember['crb_delinquencies'] ?? null,
+            'summary' => $selectedMember['crb_summary'] ?? null,
+            'checked_at' => $selectedMember['crb_checked_at'] ?? null,
+        ];
+    }
+
+    $leaderCustomerId = (int) ($review['customer']->id ?? $record->customer_id ?? 0);
 @endphp
 
 {{-- Server-rendered: person switcher + section tabs --}}
@@ -102,7 +154,11 @@
         <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Credit file</p>
         <h3 class="text-base font-bold text-gray-900 mt-0.5">Profile sections</h3>
         <p class="text-xs text-gray-500 mt-0.5">
-            Review the borrower and guarantor the same way — the guarantor must be able to carry the loan if the borrower fails.
+            @if ($isGroupLoan)
+                Open each group member the same way as the checklist — leader, members, then guarantors.
+            @else
+                Review the borrower and guarantor the same way — the guarantor must be able to carry the loan if the borrower fails.
+            @endif
         </p>
 
         <div class="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="File subject">
@@ -112,9 +168,31 @@
                    'bg-brand text-white ring-brand shadow-sm' => $person === 'borrower',
                    'bg-white text-gray-700 ring-gray-200 hover:bg-brand-muted/40' => $person !== 'borrower',
                ])>
-                Borrower
+                {{ $isGroupLoan ? 'Leader' : 'Borrower' }}
                 <span class="opacity-80 font-normal truncate max-w-[10rem]">{{ $review['customer']->full_name ?? '' }}</span>
             </a>
+
+            @if ($isGroupLoan)
+                @foreach ($memberRows->filter(fn ($row) => (int) ($row['customer_id'] ?? 0) !== $leaderCustomerId) as $mRow)
+                    <a href="{{ $personUrl('member', (int) $mRow['id']) }}"
+                       @class([
+                           'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition ring-1',
+                           'bg-brand text-white ring-brand shadow-sm' => $person === 'member' && (int) ($selectedMember['id'] ?? 0) === (int) $mRow['id'],
+                           'bg-white text-gray-700 ring-gray-200 hover:bg-brand-muted/40' => ! ($person === 'member' && (int) ($selectedMember['id'] ?? 0) === (int) $mRow['id']),
+                       ])>
+                        Member
+                        <span class="opacity-80 font-normal truncate max-w-[10rem]">{{ $mRow['name'] ?? '—' }}</span>
+                        @if ($mRow['profile_complete'] ?? $mRow['kyc_complete'] ?? false)
+                            <span @class([
+                                'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                                'bg-white/20' => $person === 'member' && (int) ($selectedMember['id'] ?? 0) === (int) $mRow['id'],
+                                'bg-emerald-100 text-emerald-800' => ! ($person === 'member' && (int) ($selectedMember['id'] ?? 0) === (int) $mRow['id']),
+                            ])>Ready</span>
+                        @endif
+                    </a>
+                @endforeach
+            @endif
+
             @forelse ($guarantorRows->filter(fn ($row) => ($row['status'] ?? '') !== 'rejected' || ($row['profile_complete'] ?? false)) as $gRow)
                 <a href="{{ $personUrl('guarantor', (int) $gRow['link_id']) }}"
                    @class([
@@ -187,6 +265,13 @@
                     Use Affordability / CRB for status while waiting.
                 </p>
             </div>
+        @elseif ($person === 'member' && $selectedMember && empty($selectedMember['file']) && empty($subjectReview['customer'] ?? null) && ! in_array($defaultTab, ['affordability', 'crb'], true))
+            <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                <p class="text-sm font-semibold text-amber-950">Member profile not complete yet</p>
+                <p class="text-xs text-amber-900/90 mt-1">
+                    Personal, face, residence, activity, documents and collateral unlock after the member finishes onboarding.
+                </p>
+            </div>
         @elseif ($defaultTab === 'affordability')
             @include('admin.loan-applications.review._subject_affordability', [
                 'review' => $subjectReview,
@@ -215,7 +300,7 @@
             @include('admin.loan-applications.review._profile_activity', ['review' => $subjectReview])
         @elseif ($defaultTab === 'documents')
             <div class="space-y-5">
-                @if ($person === 'guarantor')
+                @if (in_array($person, ['guarantor', 'member'], true))
                     @include('admin.loan-applications.review._subject_documents', ['review' => $subjectReview])
                 @else
                     @include('admin.loan-applications.review._documents')

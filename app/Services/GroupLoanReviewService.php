@@ -44,6 +44,11 @@ class GroupLoanReviewService
             }
             $crbExplain = app(CrbCreditCheckService::class)->recommendationExplanation($crbSummary);
 
+            $file = null;
+            if ($customer && (bool) ($requirements['can_apply'] ?? false)) {
+                $file = app(LoanApplicationReviewService::class)->subjectFileForCustomer($customer);
+            }
+
             return [
                 'id'                    => $member->id,
                 'role'                  => $member->role,
@@ -56,6 +61,7 @@ class GroupLoanReviewService
                 'status_key'            => $status['key'],
                 'status_label'          => $status['label'],
                 'kyc_complete'          => (bool) ($requirements['can_apply'] ?? false),
+                'profile_complete'      => (bool) ($requirements['can_apply'] ?? false),
                 'crb_score'             => $memberCrb['score'] ?? $crbSummary['score'] ?? $latestCrb?->score,
                 'crb_status'            => $memberCrb['error'] ?? ($latestCrb || ($crbSummary['score'] ?? null) !== null ? 'checked' : 'Not checked'),
                 'crb_recommendation'    => strtolower((string) ($crbSummary['recommendation'] ?? '')),
@@ -76,6 +82,7 @@ class GroupLoanReviewService
                 'can_request_replacement'   => ! $member->isLeader()
                     && ($member->member_status ?? 'active') === 'active'
                     && ($member->underwriting_status ?? 'pending') !== 'replacement_requested',
+                'file'                  => $file,
             ];
         })->values();
 

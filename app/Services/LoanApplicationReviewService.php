@@ -469,6 +469,16 @@ class LoanApplicationReviewService
     }
 
     /**
+     * Borrower-equivalent dossier slice for a guarantor / group member Customer.
+     *
+     * @return array<string, mixed>
+     */
+    public function subjectFileForCustomer(Customer $customer): array
+    {
+        return $this->subjectFile($customer);
+    }
+
+    /**
      * Borrower-equivalent dossier slice for a guarantor Customer (profile sections + face + docs).
      *
      * @return array<string, mixed>

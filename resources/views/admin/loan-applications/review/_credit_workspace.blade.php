@@ -50,6 +50,7 @@
             'person' => request('person'),
             'tab' => $key === 'profiles' ? (request('tab') ?: 'affordability') : null,
             'g' => request('g'),
+            'm' => request('m'),
             'review_person' => $key === 'checklist' ? request('review_person') : null,
             'review_g' => $key === 'checklist' ? request('review_g') : null,
             'review_m' => $key === 'checklist' ? request('review_m') : null,

@@ -81,11 +81,16 @@ class CustomerProfileReadOnlyFeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.payments.ledger'))
             ->assertOk()
-            ->assertSee('Payments ledger');
+            ->assertSee('Money ledger');
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.payouts.ledger'))
+            ->assertRedirect(route('admin.payments.ledger', ['direction' => 'out']));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.payments.ledger', ['direction' => 'out']))
             ->assertOk()
-            ->assertSee('Payout ledger');
+            ->assertSee('Money ledger')
+            ->assertSee('Outgoing');
     }
 }

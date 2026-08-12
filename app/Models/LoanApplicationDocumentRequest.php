@@ -25,6 +25,21 @@ class LoanApplicationDocumentRequest extends Model
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
     }
 
+    public function subjectCustomer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'subject_customer_id');
+    }
+
+    public function uploadedByCustomer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'uploaded_by_customer_id');
+    }
+
+    public function groupMember(): BelongsTo
+    {
+        return $this->belongsTo(LoanGroupMember::class, 'loan_group_member_id');
+    }
+
     public function requester(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requested_by');

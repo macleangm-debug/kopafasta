@@ -236,17 +236,29 @@ class ApplicationDocumentRequestService
         ?string $instructions = null,
         ?\DateTimeInterface $dueAt = null,
         string $type = 'document',
+        string $subjectKind = 'borrower',
+        ?int $subjectCustomerId = null,
+        ?int $loanGroupMemberId = null,
     ): LoanApplicationDocumentRequest {
         $instructions ??= self::presetInstructions()[$label] ?? null;
+        [$subjectKind, $subjectCustomerId, $loanGroupMemberId] = $this->resolveSubject(
+            $application,
+            $subjectKind,
+            $subjectCustomerId,
+            $loanGroupMemberId,
+        );
 
         $request = LoanApplicationDocumentRequest::create([
-            'loan_application_id' => $application->id,
-            'requested_by'        => $requester->id,
-            'type'                => $type,
-            'label'               => $label,
-            'instructions'        => $instructions,
-            'status'              => 'pending',
-            'due_at'              => $dueAt,
+            'loan_application_id'   => $application->id,
+            'subject_kind'          => $subjectKind,
+            'subject_customer_id'   => $subjectCustomerId,
+            'loan_group_member_id'  => $loanGroupMemberId,
+            'requested_by'          => $requester->id,
+            'type'                  => $type,
+            'label'                 => $label,
+            'instructions'          => $instructions,
+            'status'                => 'pending',
+            'due_at'                => $dueAt,
         ]);
 
         $this->syncApplicationStatus($application->fresh());
@@ -267,6 +279,9 @@ class ApplicationDocumentRequestService
         ?string $instructions = null,
         ?\DateTimeInterface $dueAt = null,
         string $type = 'document',
+        string $subjectKind = 'borrower',
+        ?int $subjectCustomerId = null,
+        ?int $loanGroupMemberId = null,
     ): Collection {
         $labels = collect($labels)
             ->map(fn ($label) => trim((string) $label))
@@ -275,17 +290,27 @@ class ApplicationDocumentRequestService
             ->values()
             ->all();
 
+        [$subjectKind, $subjectCustomerId, $loanGroupMemberId] = $this->resolveSubject(
+            $application,
+            $subjectKind,
+            $subjectCustomerId,
+            $loanGroupMemberId,
+        );
+
         $created = collect();
 
         foreach ($labels as $label) {
             $request = LoanApplicationDocumentRequest::create([
-                'loan_application_id' => $application->id,
-                'requested_by'        => $requester->id,
-                'type'                => $type,
-                'label'               => $label,
-                'instructions'        => $instructions ?: (self::presetInstructions()[$label] ?? null),
-                'status'              => 'pending',
-                'due_at'              => $dueAt,
+                'loan_application_id'  => $application->id,
+                'subject_kind'         => $subjectKind,
+                'subject_customer_id'  => $subjectCustomerId,
+                'loan_group_member_id' => $loanGroupMemberId,
+                'requested_by'         => $requester->id,
+                'type'                 => $type,
+                'label'                => $label,
+                'instructions'         => $instructions ?: (self::presetInstructions()[$label] ?? null),
+                'status'               => 'pending',
+                'due_at'               => $dueAt,
             ]);
             $created->push($request);
             $this->notifyBorrower($request, inApp: false);
@@ -302,30 +327,94 @@ class ApplicationDocumentRequestService
         return $created;
     }
 
+    /**
+     * @return array{0: string, 1: ?int, 2: ?int}
+     */
+    private function resolveSubject(
+        LoanApplication $application,
+        string $subjectKind = 'borrower',
+        ?int $subjectCustomerId = null,
+        ?int $loanGroupMemberId = null,
+    ): array {
+        if ($subjectKind === 'member') {
+            $application->loadMissing('loanGroup.members');
+            $member = $application->loanGroup?->members->firstWhere('id', $loanGroupMemberId);
+            if (! $member) {
+                throw new \InvalidArgumentException('Selected group member was not found on this application.');
+            }
+
+            return ['member', $member->customer_id ? (int) $member->customer_id : null, (int) $member->id];
+        }
+
+        if ($subjectKind === 'guarantor' && $subjectCustomerId) {
+            return ['guarantor', $subjectCustomerId, null];
+        }
+
+        return ['borrower', $application->customer_id ? (int) $application->customer_id : null, null];
+    }
+
     public function notifyBorrower(LoanApplicationDocumentRequest $request, bool $inApp = true): void
     {
-        $application = $request->application()->with('customer')->first();
-        $customer = $application?->customer;
-
-        if (! $customer) {
+        $application = $request->application()->with(['customer', 'loanGroup'])->first();
+        if (! $application) {
             return;
         }
 
+        $request->loadMissing(['subjectCustomer', 'groupMember.customer']);
+
+        $subject = $request->subjectCustomer
+            ?? ($request->subject_customer_id ? Customer::find($request->subject_customer_id) : null)
+            ?? $application->customer;
+
+        if ($subject) {
+            $this->notifyDocumentRequestCustomer($subject, $application, $request, $inApp, forLeader: false);
+        }
+
+        $leader = $application->customer;
+        if (
+            $request->subject_kind === 'member'
+            && $subject
+            && $leader
+            && (int) $leader->id !== (int) $subject->id
+        ) {
+            $this->notifyDocumentRequestCustomer($leader, $application, $request, $inApp, forLeader: true);
+        }
+    }
+
+    private function notifyDocumentRequestCustomer(
+        Customer $customer,
+        LoanApplication $application,
+        LoanApplicationDocumentRequest $request,
+        bool $inApp = true,
+        bool $forLeader = false,
+    ): void {
         $uploadUrl = $this->borrowerActionUrl($request);
         $instructions = $request->instructions ?: 'Please upload the requested item.';
         $cta = $this->isProfileGuidedRequest($request)
             ? __('borrower.notifications.profile_revision_cta')
             : __('borrower.notifications.document_request_cta');
 
+        $subjectName = $request->subjectCustomer?->first_name
+            ?? $request->groupMember?->customer?->first_name
+            ?? 'a group member';
+
+        $fallbackBody = $forLeader
+            ? "Hi {$customer->first_name}, underwriting requested \"{$request->label}\" from {$subjectName} for application {$application->application_number}. Open: {$uploadUrl}"
+            : "Hi {$customer->first_name}, underwriting needs \"{$request->label}\" for application {$application->application_number}. Open: {$uploadUrl}";
+
         $this->notifier->notifyCustomer($customer, 'application_document_request', [
             'name'               => $customer->first_name ?? 'Customer',
             'application_number' => $application->application_number,
             'label'              => $request->label,
-            'instructions'       => $instructions,
+            'instructions'       => $forLeader
+                ? "Requested from {$subjectName}: {$instructions}"
+                : $instructions,
             'due_date'           => optional($request->due_at)->format('d M Y') ?? 'as soon as possible',
             'upload_url'         => $uploadUrl,
-            '_fallback_body'     => "Hi {$customer->first_name}, underwriting needs \"{$request->label}\" for application {$application->application_number}. Open: {$uploadUrl}",
-            '_fallback_subject'  => 'Document requested for your loan application',
+            '_fallback_body'     => $fallbackBody,
+            '_fallback_subject'  => $forLeader
+                ? 'Document requested from a group member'
+                : 'Document requested for your loan application',
         ]);
 
         if ($inApp) {
@@ -333,9 +422,13 @@ class ApplicationDocumentRequestService
                 'application' => $application->application_number,
                 'label' => $request->label,
             ];
+            $body = $forLeader
+                ? __('borrower.notifications.document_request_body', $params).' ('.$subjectName.')'
+                : __('borrower.notifications.document_request_body', $params);
+
             $this->notifier->notifyInApp(
                 $customer,
-                __('borrower.notifications.document_request_body', $params),
+                $body,
                 'document_request',
                 'application_document_request',
                 __('borrower.notifications.document_request_title'),
@@ -353,39 +446,71 @@ class ApplicationDocumentRequestService
     /** @param  Collection<int, LoanApplicationDocumentRequest>  $requests */
     private function notifyBorrowerBatch(LoanApplication $application, Collection $requests): void
     {
-        $customer = $application->customer;
+        $application->loadMissing('customer');
+        $leader = $application->customer;
+        $uploadUrl = route('site.borrower.application', $application);
 
-        if (! $customer) {
-            return;
+        /** @var array<int, Collection<int, LoanApplicationDocumentRequest>> $byCustomerId */
+        $byCustomerId = [];
+
+        foreach ($requests as $req) {
+            $subjectId = (int) ($req->subject_customer_id ?: $application->customer_id);
+            if ($subjectId > 0) {
+                $byCustomerId[$subjectId] ??= collect();
+                $byCustomerId[$subjectId]->push($req);
+            }
+
+            if (
+                $req->subject_kind === 'member'
+                && $leader
+                && (int) $leader->id !== $subjectId
+            ) {
+                $byCustomerId[(int) $leader->id] ??= collect();
+                $byCustomerId[(int) $leader->id]->push($req);
+            }
         }
 
-        $uploadUrl = route('site.borrower.application', $application);
-        $count = $requests->count();
-        $labels = $requests->pluck('label')->take(3)->implode(', ');
-        $suffix = $count > 3 ? '…' : '';
+        if ($byCustomerId === [] && $leader) {
+            $byCustomerId[(int) $leader->id] = $requests;
+        }
 
-        $this->notifier->notifyInApp(
-            $customer,
-            __('borrower.notifications.document_request_batch_body', [
-                'application' => $application->application_number,
-                'count' => $count,
-                'labels' => $labels.$suffix,
-            ]),
-            'document_request',
-            'application_document_request',
-            __('borrower.notifications.document_request_title'),
-            $uploadUrl,
-            __('borrower.notifications.document_request_cta'),
-            [
-                'title_key' => 'borrower.notifications.document_request_title',
-                'body_key'  => 'borrower.notifications.document_request_batch_body',
-                'params'    => [
+        foreach ($byCustomerId as $customerId => $customerRequests) {
+            $customer = ((int) $leader?->id === (int) $customerId)
+                ? $leader
+                : Customer::find($customerId);
+
+            if (! $customer) {
+                continue;
+            }
+
+            $unique = $customerRequests->unique('id')->values();
+            $count = $unique->count();
+            $labels = $unique->pluck('label')->take(3)->implode(', ');
+            $suffix = $count > 3 ? '…' : '';
+
+            $this->notifier->notifyInApp(
+                $customer,
+                __('borrower.notifications.document_request_batch_body', [
                     'application' => $application->application_number,
                     'count' => $count,
                     'labels' => $labels.$suffix,
+                ]),
+                'document_request',
+                'application_document_request',
+                __('borrower.notifications.document_request_title'),
+                $uploadUrl,
+                __('borrower.notifications.document_request_cta'),
+                [
+                    'title_key' => 'borrower.notifications.document_request_title',
+                    'body_key'  => 'borrower.notifications.document_request_batch_body',
+                    'params'    => [
+                        'application' => $application->application_number,
+                        'count' => $count,
+                        'labels' => $labels.$suffix,
+                    ],
                 ],
-            ],
-        );
+            );
+        }
     }
 
     /**
@@ -393,21 +518,27 @@ class ApplicationDocumentRequestService
      */
     public function recordUploads(
         LoanApplicationDocumentRequest $request,
-        Customer $customer,
+        Customer $actor,
         array $files,
+        ?Customer $subjectCustomer = null,
     ): Collection {
         $application = $request->application;
+        $documentCustomerId = (int) (
+            $request->subject_customer_id
+            ?? $subjectCustomer?->id
+            ?? $actor->id
+        );
 
         $stored = collect();
 
         foreach ($files as $file) {
             $path = $file->store(
-                "borrower/{$customer->id}/applications/{$application->id}/requests/{$request->id}",
+                "borrower/{$documentCustomerId}/applications/{$application->id}/requests/{$request->id}",
                 'public'
             );
 
             $stored->push(CustomerDocument::create([
-                'customer_id'                          => $customer->id,
+                'customer_id'                          => $documentCustomerId,
                 'loan_application_id'                  => $application->id,
                 'loan_application_document_request_id' => $request->id,
                 'document_type_id'                     => null,
@@ -417,8 +548,9 @@ class ApplicationDocumentRequestService
         }
 
         $request->update([
-            'status'      => 'uploaded',
-            'admin_notes' => null,
+            'status'                   => 'uploaded',
+            'admin_notes'              => null,
+            'uploaded_by_customer_id'  => $actor->id,
         ]);
 
         $this->syncApplicationStatus($application->fresh());
@@ -554,11 +686,51 @@ class ApplicationDocumentRequestService
     public function openRequestsForCustomer(Customer $customer): Collection
     {
         return LoanApplicationDocumentRequest::query()
-            ->whereHas('application', fn ($q) => $q->where('customer_id', $customer->id))
+            ->where(function ($q) use ($customer) {
+                $q->where('subject_customer_id', $customer->id)
+                    ->orWhere(function ($inner) use ($customer) {
+                        $inner->whereNull('subject_customer_id')
+                            ->whereHas('application', fn ($aq) => $aq->where('customer_id', $customer->id));
+                    })
+                    ->orWhere(function ($inner) use ($customer) {
+                        $inner->where('subject_kind', 'member')
+                            ->whereHas('application', fn ($aq) => $aq->where('customer_id', $customer->id));
+                    });
+            })
             ->whereIn('status', ['pending', 'rejected'])
-            ->with(['application.product'])
+            ->with(['application.product', 'subjectCustomer'])
             ->latest()
             ->get();
+    }
+
+    public function customerCanViewApplication(Customer $customer, LoanApplication $application): bool
+    {
+        if ((int) $application->customer_id === (int) $customer->id) {
+            return true;
+        }
+
+        $application->loadMissing('loanGroup.members');
+
+        return (bool) $application->loanGroup?->members->contains(
+            fn ($member) => (int) $member->customer_id === (int) $customer->id
+                && ($member->member_status ?? 'active') === 'active'
+        );
+    }
+
+    public function customerCanFulfillRequest(Customer $customer, LoanApplicationDocumentRequest $request): bool
+    {
+        $request->loadMissing('application');
+
+        if ($request->subject_customer_id) {
+            if ((int) $request->subject_customer_id === (int) $customer->id) {
+                return true;
+            }
+        } elseif ((int) $request->application?->customer_id === (int) $customer->id) {
+            return true;
+        }
+
+        return $request->subject_kind === 'member'
+            && (int) $request->application?->customer_id === (int) $customer->id;
     }
 
     public function pendingReviewCount(): int

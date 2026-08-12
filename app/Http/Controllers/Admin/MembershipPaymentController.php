@@ -7,26 +7,15 @@ use App\Models\MembershipHistory;
 use App\Services\MembershipService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class MembershipPaymentController extends Controller
 {
-    public function index(): View
+    public function index(): RedirectResponse
     {
-        $pending = MembershipHistory::query()
-            ->pending()
-            ->with(['customer', 'actor'])
-            ->latest()
-            ->paginate(25);
-
-        $recent = MembershipHistory::query()
-            ->whereIn('event', ['payment_approved', 'payment_rejected'])
-            ->with(['customer', 'actor'])
-            ->latest()
-            ->limit(15)
-            ->get();
-
-        return view('admin.membership-payments.index', compact('pending', 'recent'));
+        return redirect()->route('admin.payments.ledger', [
+            'direction' => 'in',
+            'tab' => 'membership',
+        ]);
     }
 
     public function approve(MembershipHistory $membershipHistory, MembershipService $service): RedirectResponse

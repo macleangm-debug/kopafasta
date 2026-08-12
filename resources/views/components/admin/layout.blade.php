@@ -66,7 +66,7 @@
             ['Verify payments',       'admin.payments.index'],
             ['Payments ledger',       'admin.payments.ledger'],
             ['Loan repayments',       'admin.repayments.index'],
-            ['Membership & renewals', 'admin.membership-payments.index'],
+            ['Membership & renewals', 'admin.payments.ledger', null, ['tab' => 'membership']],
         ], ['finance.operations', 'membership.approve_payments', 'loans.view']],
         ['Field & recovery', 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7', [
             ['Recovery assignments', 'admin.recovery.assignments.index'],
@@ -93,7 +93,7 @@
             ['Loan allocations',   'admin.lender-investments.index'],
             ['— Ledgers —', '__group__'],
             ['Payments ledger',           'admin.payments.ledger',              'finance.operations'],
-            ['Payout ledger',             'admin.payouts.ledger',               'finance.operations'],
+            ['Payout ledger',             'admin.payments.ledger',              'finance.operations', ['direction' => 'out']],
             ['Operational expenses',      'admin.expenses.index',               'finance.operations'],
             ['Journal Entries',           'admin.journal-entries.index',        'finance.operations'],
             ['Reconciliations',           'admin.reconciliations.index',        'finance.operations'],
@@ -365,8 +365,22 @@
                                             {{ trim($item[0], ' —') }}
                                         </div>
                                     @else
-                                        @php $itemActive = $currentRoute === $item[1]; @endphp
-                                        <a href="{{ route($item[1]) }}"
+                                        @php
+                                            $itemRoute = $item[1];
+                                            $itemQuery = is_array($item[3] ?? null) ? $item[3] : [];
+                                            $itemActive = $currentRoute === $itemRoute;
+                                            if ($itemActive && $itemQuery !== []) {
+                                                foreach ($itemQuery as $qKey => $qVal) {
+                                                    if ((string) request($qKey, '') !== (string) $qVal) {
+                                                        $itemActive = false;
+                                                        break;
+                                                    }
+                                                }
+                                            } elseif ($itemActive && $itemRoute === 'admin.payments.ledger' && request('direction') === 'out' && ! isset($itemQuery['direction'])) {
+                                                $itemActive = false;
+                                            }
+                                        @endphp
+                                        <a href="{{ route($itemRoute, $itemQuery) }}"
                                            class="block px-4 py-2 text-sm transition
                                                   {{ $itemActive
                                                        ? 'bg-brand-muted text-brand font-semibold'

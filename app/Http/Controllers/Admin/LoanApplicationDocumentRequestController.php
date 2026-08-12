@@ -20,14 +20,18 @@ class LoanApplicationDocumentRequestController extends Controller
         ApplicationDocumentRequestService $service,
     ): RedirectResponse {
         $data = $request->validate([
-            'type'         => ['required', 'in:document,clarification'],
-            'label'        => ['nullable', 'string', 'max:120'],
-            'labels'       => ['nullable', 'array'],
-            'labels.*'     => ['string', 'max:120'],
-            'presets'      => ['nullable', 'array'],
-            'presets.*'    => ['string', 'max:120'],
-            'instructions' => ['nullable', 'string', 'max:2000'],
-            'due_at'       => ['nullable', 'date', 'after_or_equal:today'],
+            'type'                 => ['required', 'in:document,clarification'],
+            'label'                => ['nullable', 'string', 'max:120'],
+            'labels'               => ['nullable', 'array'],
+            'labels.*'             => ['string', 'max:120'],
+            'presets'              => ['nullable', 'array'],
+            'presets.*'            => ['string', 'max:120'],
+            'instructions'         => ['nullable', 'string', 'max:2000'],
+            'due_at'               => ['nullable', 'date', 'after_or_equal:today'],
+            'subject_kind'         => ['nullable', 'in:borrower,member,guarantor'],
+            'subject_customer_id'  => ['nullable', 'integer'],
+            'loan_group_member_id' => ['nullable', 'integer'],
+            'request_subject'      => ['nullable', 'string', 'max:64'],
         ]);
 
         $labels = collect($data['labels'] ?? [])
@@ -43,44 +47,73 @@ class LoanApplicationDocumentRequestController extends Controller
             return back()->withErrors(['label' => 'Select or enter at least one document to request.'])->withInput();
         }
 
+        $subjectKind = $data['subject_kind'] ?? 'borrower';
+        $subjectCustomerId = isset($data['subject_customer_id']) ? (int) $data['subject_customer_id'] : null;
+        $loanGroupMemberId = isset($data['loan_group_member_id']) ? (int) $data['loan_group_member_id'] : null;
+
+        if (! empty($data['request_subject'])) {
+            if ($data['request_subject'] === 'borrower') {
+                $subjectKind = 'borrower';
+                $loanGroupMemberId = null;
+            } elseif (str_starts_with($data['request_subject'], 'member:')) {
+                $subjectKind = 'member';
+                $loanGroupMemberId = (int) substr($data['request_subject'], strlen('member:'));
+            } elseif (str_starts_with($data['request_subject'], 'guarantor:')) {
+                $subjectKind = 'guarantor';
+                $subjectCustomerId = (int) substr($data['request_subject'], strlen('guarantor:'));
+            }
+        }
+
         $dueAt = isset($data['due_at'])
             ? new \DateTimeImmutable($data['due_at'])
             : now()->addDays(app(\App\Services\UnderwritingSettingsService::class)->documentRequestDefaultDueDays());
 
-        if (count($labels) === 1) {
-            $docRequest = $service->create(
+        try {
+            if (count($labels) === 1) {
+                $docRequest = $service->create(
+                    $loanApplication,
+                    $request->user(),
+                    $labels[0],
+                    $data['instructions'] ?? null,
+                    $dueAt,
+                    $data['type'],
+                    $subjectKind,
+                    $subjectCustomerId,
+                    $loanGroupMemberId,
+                );
+
+                $this->auditAdmin('admin.loan_applications.document_request_created', $loanApplication, [
+                    'request_id' => $docRequest->id,
+                    'label'      => $labels[0],
+                    'type'       => $data['type'],
+                    'subject_kind' => $subjectKind,
+                ]);
+
+                return redirect()
+                    ->route('admin.loan-applications.show', $loanApplication)
+                    ->with('status', 'Document request sent to borrower.');
+            }
+
+            $created = $service->createMany(
                 $loanApplication,
                 $request->user(),
-                $labels[0],
+                $labels,
                 $data['instructions'] ?? null,
                 $dueAt,
                 $data['type'],
+                $subjectKind,
+                $subjectCustomerId,
+                $loanGroupMemberId,
             );
-
-            $this->auditAdmin('admin.loan_applications.document_request_created', $loanApplication, [
-                'request_id' => $docRequest->id,
-                'label'      => $labels[0],
-                'type'       => $data['type'],
-            ]);
-
-            return redirect()
-                ->route('admin.loan-applications.show', $loanApplication)
-                ->with('status', 'Document request sent to borrower.');
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['request_subject' => $e->getMessage()])->withInput();
         }
-
-        $created = $service->createMany(
-            $loanApplication,
-            $request->user(),
-            $labels,
-            $data['instructions'] ?? null,
-            $dueAt,
-            $data['type'],
-        );
 
         $this->auditAdmin('admin.loan_applications.document_requests_created', $loanApplication, [
             'count'  => $created->count(),
             'labels' => $created->pluck('label')->all(),
             'type'   => $data['type'],
+            'subject_kind' => $subjectKind,
         ]);
 
         return redirect()

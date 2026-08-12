@@ -304,7 +304,8 @@ class BorrowerController extends Controller
     public function application(LoanApplication $application): View
     {
         $customer = $this->customer();
-        abort_if($application->customer_id !== $customer->id, 404);
+        $docRequests = app(\App\Services\ApplicationDocumentRequestService::class);
+        abort_unless($docRequests->customerCanViewApplication($customer, $application), 404);
 
         app(\App\Services\ProfileRevisionService::class)->ensureClearedForOpenRequests($application);
         $profile = app(\App\Services\LoanApplicationProfileService::class)->forApplication($customer->fresh(), $application);
@@ -639,8 +640,9 @@ class BorrowerController extends Controller
         ApplicationDocumentRequestService $docRequests,
     ): RedirectResponse {
         $customer = $this->customer();
-        abort_if($application->customer_id !== $customer->id, 404);
+        abort_unless($docRequests->customerCanViewApplication($customer, $application), 404);
         abort_if($documentRequest->loan_application_id !== $application->id, 404);
+        abort_unless($docRequests->customerCanFulfillRequest($customer, $documentRequest), 403);
 
         if (! $documentRequest->needsBorrowerAction()) {
             return back()->withErrors(['upload' => 'This request is no longer open for uploads.']);
@@ -673,7 +675,10 @@ class BorrowerController extends Controller
                 'file'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
-            $docRequests->recordUploads($documentRequest, $customer, $files);
+            $subject = $documentRequest->subject_customer_id
+                ? \App\Models\Customer::find($documentRequest->subject_customer_id)
+                : null;
+            $docRequests->recordUploads($documentRequest, $customer, $files, $subject);
         }
 
         $this->auditBorrower('application.document_request_uploaded', $application, [
