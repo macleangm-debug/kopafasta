@@ -76,6 +76,15 @@
             'info' => 'bg-sky-500',
         ];
         $anomalyCounts = collect($anomalies)->countBy(fn ($a) => $a['severity'] ?? 'info');
+        $screeningReadiness = ($isScreeningStage || $isCommitteeStage)
+            ? app(\App\Services\ScreeningReadinessService::class)->forApplication(
+                $record,
+                $review,
+                $groupReview ?? null,
+                is_array($anomalies) ? $anomalies : $anomalies->all(),
+                auth()->user(),
+            )
+            : null;
     @endphp
 
     <div class="flex flex-wrap items-end justify-between gap-3">
@@ -121,6 +130,12 @@
             </details>
         @endif
     </div>
+
+    @if (is_array($screeningReadiness ?? null))
+        @include('admin.loan-applications.review._screening_readiness', [
+            'screeningReadiness' => $screeningReadiness,
+        ])
+    @endif
 
     {{-- Facility + risk + borrower/leader CRB + guarantor/roster --}}
     @php
@@ -632,4 +647,7 @@
     </div>
 </section>
 
-@include('admin.loan-applications.review._decision_sticky_bar', ['workspace' => $workspace])
+@include('admin.loan-applications.review._decision_sticky_bar', [
+    'workspace' => $workspace,
+    'screeningReadiness' => $screeningReadiness ?? null,
+])

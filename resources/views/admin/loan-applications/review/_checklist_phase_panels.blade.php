@@ -6,6 +6,7 @@
     $panelSubjectReview = $review;
     $panelGuarantor = null;
     $panelMember = null;
+    $isGroupFile = collect($groupReview['members'] ?? [])->isNotEmpty();
 
     if ($panelPerson === 'guarantor' && $panelG) {
         $panelGuarantor = collect($review['guarantors'] ?? [])->first(fn ($row) => (int) ($row['link_id'] ?? 0) === (int) $panelG);
@@ -45,22 +46,40 @@
     }
 
     $phaseKey = $phase ?? '';
+    $subjectLabel = match ($panelPerson) {
+        'guarantor' => $panelGuarantor['name'] ?? 'Guarantor',
+        'member' => $panelMember['name'] ?? 'Group member',
+        default => $review['customer']->full_name ?? 'Borrower / leader',
+    };
 @endphp
 
 @if ($phaseKey === 'capacity')
     <div id="checklist-documents" class="scroll-mt-24 space-y-4 rounded-2xl bg-white ring-1 ring-brand/10 p-4 sm:p-5">
-        <div>
-            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Evidence library</p>
-            <h4 class="text-sm font-bold text-gray-900 mt-0.5">Documents to review</h4>
-            <p class="text-xs text-gray-500 mt-0.5">
-                Application uploads for this loan first, then the profile document library. Request follow-ups here — not under Profiles.
-            </p>
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Evidence library</p>
+                <h4 class="text-sm font-bold text-gray-900 mt-0.5">Documents · {{ $subjectLabel }}</h4>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    @if ($panelPerson === 'member')
+                        Profile documents for this group member only. Loan product uploads stay on the leader / application subject.
+                    @elseif ($panelPerson === 'guarantor')
+                        Profile documents for this guarantor. Application product uploads stay on the borrower file.
+                    @elseif ($isGroupFile)
+                        Application uploads for this group loan, then the leader’s profile library.
+                    @else
+                        Application uploads for this loan first, then the borrower profile library.
+                    @endif
+                </p>
+            </div>
+            <span class="inline-flex rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 px-2.5 py-1 text-[11px] font-bold">
+                {{ ucfirst($panelPerson) }}
+            </span>
         </div>
 
         @if (in_array($panelPerson, ['guarantor', 'member'], true))
             @include('admin.loan-applications.review._subject_documents', ['review' => $panelSubjectReview])
         @else
-            @include('admin.loan-applications.review._documents')
+            @include('admin.loan-applications.review._documents', ['review' => $panelSubjectReview])
         @endif
 
         @include('admin.loan-applications.review._document-requests')
@@ -83,32 +102,70 @@
 @endif
 
 @if ($phaseKey === 'security')
-    @if ($panelPerson === 'borrower' && isset($partnerAvailability))
-        <div class="space-y-4 rounded-2xl bg-white ring-1 ring-brand/10 p-4 sm:p-5">
-            <div>
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Field coverage</p>
-                <h4 class="text-sm font-bold text-gray-900 mt-0.5">Partners for this file</h4>
-                <p class="text-xs text-gray-500 mt-0.5">Available vs unavailable partners for collateral / field work in the borrower region.</p>
-            </div>
-            @include('admin.loan-applications.review._partner_availability', [
-                'partnerAvailability' => $partnerAvailability,
-                'mode' => 'available',
-            ])
-            @include('admin.loan-applications.review._partner_availability', [
-                'partnerAvailability' => $partnerAvailability,
-                'mode' => 'unavailable',
-            ])
-        </div>
-    @endif
-
-    @if ($panelPerson === 'borrower' && ! empty($groupReview['members'] ?? null))
+    @if ($panelPerson === 'borrower' && $isGroupFile)
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 sm:p-5 space-y-3">
             <div>
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Group loan</p>
                 <h4 class="text-sm font-bold text-gray-900 mt-0.5">Group review</h4>
-                <p class="text-xs text-gray-500 mt-0.5">Roster, scoring, and feedback — reviewed once on the leader/borrower subject.</p>
+                <p class="text-xs text-gray-500 mt-0.5">Roster, scoring, and feedback — reviewed once on the leader subject.</p>
             </div>
             @include('admin.loan-applications.review._group')
         </div>
     @endif
+
+    {{-- Wrap-up strip: wires CRB snapshot next to Pass/Fail wrap-up groups --}}
+    @php
+        $wrapCrb = $panelSubjectReview['crb'] ?? ($review['crb'] ?? []);
+        if ($panelPerson === 'guarantor' && $panelGuarantor) {
+            $wrapCrb = $panelGuarantor['crb'] ?? $wrapCrb;
+        }
+        $wrapRec = strtoupper((string) ($wrapCrb['recommendation'] ?? '—'));
+        $wrapScore = $wrapCrb['score'] ?? '—';
+        $wrapLoans = (int) ($wrapCrb['existing_loans'] ?? 0);
+        $wrapOut = (float) ($wrapCrb['outstanding_balance'] ?? 0);
+        $wrapTitle = match ($panelPerson) {
+            'guarantor' => 'Guarantor wrap-up',
+            'member' => 'Member wrap-up',
+            default => 'Credit file wrap-up',
+        };
+    @endphp
+    <div id="checklist-wrap-up" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/15 p-4 sm:p-5 space-y-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Close the file</p>
+                <h4 class="text-sm font-bold text-gray-900 mt-0.5">{{ $wrapTitle }} · {{ $subjectLabel }}</h4>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Use the Pass / Fail items above, then confirm CRB exposure here before you move to Decision.
+                </p>
+            </div>
+            <a href="#checklist-documents"
+               class="text-[11px] font-semibold text-brand hover:underline">
+                Back to documents ↑
+            </a>
+        </div>
+        <div class="grid sm:grid-cols-4 gap-2">
+            <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-2.5">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">CRB</p>
+                <p class="text-sm font-bold text-gray-900 mt-0.5 uppercase">{{ $wrapRec }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2.5">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Score</p>
+                <p class="text-sm font-bold text-gray-900 mt-0.5 tabular-nums">{{ $wrapScore }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2.5">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Other loans</p>
+                <p class="text-sm font-bold text-gray-900 mt-0.5 tabular-nums">{{ $wrapLoans }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2.5">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Outstanding</p>
+                <p class="text-sm font-bold text-gray-900 mt-0.5 tabular-nums">
+                    {{ $wrapOut > 0 ? format_money($wrapOut) : '—' }}
+                </p>
+            </div>
+        </div>
+        <p class="text-[11px] text-gray-500">
+            Full CRB detail sits in <span class="font-semibold text-gray-700">Capacity and evidence</span>.
+            Mark wrap-up Pass / Fail in the accordion above this card.
+        </p>
+    </div>
 @endif

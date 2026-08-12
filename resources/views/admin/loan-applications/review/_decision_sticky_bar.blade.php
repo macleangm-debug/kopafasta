@@ -5,13 +5,23 @@
     $recType = data_get($review, 'recommendation.type');
     $canReview = auth()->user()?->hasPermission('applications.review');
     $workspace = $workspace ?? request('workspace', 'checklist');
-    // Decision desk lives on the Decision tab — do not cover the checklist.
-    $showScreeningSticky = $isScreeningSticky && $canReview && empty($recType) && $workspace === 'decision';
-    $showCommitteeSticky = $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty() && $workspace === 'decision';
+    $readiness = $screeningReadiness ?? null;
+    $ready = is_array($readiness) ? (bool) ($readiness['ready'] ?? false) : false;
+    $suggestionLabel = is_array($readiness) ? (string) ($readiness['suggestion_label'] ?? '') : '';
+
     $decisionPanelUrl = route('admin.loan-applications.show', [
         'loan_application' => $record,
         'workspace' => 'decision',
     ]).'#review-recommendation';
+    $checklistUrl = route('admin.loan-applications.show', [
+        'loan_application' => $record,
+        'workspace' => 'checklist',
+    ]).'#review-desk';
+
+    // Show sticky on checklist when guiding next step; on decision when recording.
+    $showScreeningSticky = $isScreeningSticky && $canReview && empty($recType)
+        && in_array($workspace, ['checklist', 'decision'], true);
+    $showCommitteeSticky = $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty() && $workspace === 'decision';
 @endphp
 
 @if ($showScreeningSticky || $showCommitteeSticky)
@@ -20,19 +30,35 @@
             <div class="rounded-2xl bg-brand text-white shadow-2xl ring-1 ring-brand-gold/40 px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
                 @if ($showScreeningSticky)
                     <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Screening team · Decision desk</p>
-                        <p class="text-sm font-bold mt-0.5 truncate">Approve, Reject, or Counter-offer from this Decision tab</p>
+                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Screening team · Guided next step</p>
+                        <p class="text-sm font-bold mt-0.5 truncate">
+                            @if (! $ready)
+                                Finish the checklist before recording a decision
+                            @elseif ($workspace !== 'decision')
+                                Ready — {{ $suggestionLabel !== '' ? $suggestionLabel : 'open Decision' }}
+                            @else
+                                Record {{ $suggestionLabel !== '' ? $suggestionLabel : 'your recommendation' }} on this Decision tab
+                            @endif
+                        </p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
-                        <a href="{{ $decisionPanelUrl }}"
-                           class="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2 ring-1 ring-white/20 transition">
-                            Open Decision tab
-                        </a>
-                        <button type="button"
-                                data-open-dialog="recommend-{{ $record->id }}"
-                                class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
-                            Record decision
-                        </button>
+                        @if (! $ready)
+                            <a href="{{ $checklistUrl }}"
+                               class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
+                                Continue checklist
+                            </a>
+                        @elseif ($workspace !== 'decision')
+                            <a href="{{ $decisionPanelUrl }}"
+                               class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
+                                Go to Decision
+                            </a>
+                        @else
+                            <button type="button"
+                                    data-open-dialog="recommend-{{ $record->id }}"
+                                    class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
+                                Record decision
+                            </button>
+                        @endif
                     </div>
                 @else
                     <div class="min-w-0">

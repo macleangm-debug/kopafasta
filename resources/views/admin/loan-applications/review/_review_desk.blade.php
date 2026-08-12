@@ -61,6 +61,13 @@
 
         return $ia <=> $ib;
     });
+
+    $firstOpenGroup = collect($desk['groups'] ?? [])
+        ->first(fn ($g) => ! ($g['complete'] ?? false));
+    if (! $firstOpenGroup) {
+        $firstOpenGroup = collect($desk['groups'] ?? [])->first();
+    }
+    $defaultOpenGroup = (string) ($firstOpenGroup['key'] ?? '');
 @endphp
 
 <section id="review-desk" class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden scroll-mt-24">
@@ -69,10 +76,14 @@
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Assisted review</p>
             <h3 class="text-base font-bold text-gray-900 mt-0.5">Review checklist</h3>
             <p class="text-xs text-gray-500 mt-0.5">
-                Three review cards: <span class="font-semibold text-gray-700">Personal in place</span>,
+                Same three cards for every product: <span class="font-semibold text-gray-700">Personal in place</span>,
                 <span class="font-semibold text-gray-700">Capacity and evidence</span> (docs + affordability + CRB),
-                then <span class="font-semibold text-gray-700">Security and close</span> (collateral, partners, group).
-                Profiles stay for raw dossier fields only.
+                then <span class="font-semibold text-gray-700">Security and close</span>
+                (collateral only when the product needs it
+                @if (! empty($groupReview['members'] ?? null))
+                    · group review
+                @endif
+                · wrap-up). Subjects and evidence adapt to the loan product.
             </p>
         </div>
         <div class="rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-2.5 text-right">
@@ -124,7 +135,7 @@
 
                 <div class="space-y-5"
                      x-data="{
-                         openGroup: null,
+                         openGroup: @js($defaultOpenGroup !== '' ? $defaultOpenGroup : null),
                          openItem: null,
                          toggleGroup(key) {
                              this.openGroup = this.openGroup === key ? null : key;

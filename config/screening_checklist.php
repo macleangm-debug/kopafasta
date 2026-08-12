@@ -373,7 +373,7 @@ return [
         'subjects' => ['member'],
         'items' => [
             'crb_reviewed' => [
-                'label' => 'Member CRB reviewed',
+                'label' => 'Member CRB reviewed — other institutions / loans',
                 'evidence' => 'crb_loans',
                 'fail_reasons' => [
                     'high_exposure' => 'Member exposure too high',
@@ -381,8 +381,16 @@ return [
                     'custom' => 'Other (write reason)',
                 ],
             ],
+            'docs_ok' => [
+                'label' => 'Member identity / income documents acceptable',
+                'evidence' => 'documents',
+                'fail_reasons' => [
+                    'docs_weak' => 'Documents unclear or incomplete',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
             'file_ready' => [
-                'label' => 'Member file ready',
+                'label' => 'Member file ready for group decision',
                 'evidence' => 'generic',
                 'fail_reasons' => [
                     'not_ready' => 'Member file not ready',
