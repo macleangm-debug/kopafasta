@@ -163,7 +163,7 @@
                                     {{ __('borrower.profile.person_with_asset') }} <span class="text-red-500">*</span>
                                 </label>
                                 <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.person_with_asset_hint') }}</p>
-                                <x-site.single-image-document-upload name="person_photo" :required="true" />
+                                <x-site.single-image-document-upload name="person_photo" :required="true" facing="user" />
                             </div>
                             <div class="rounded-xl ring-1 ring-gray-200 p-4">
                                 <label class="text-xs font-semibold text-gray-700 mb-3 block">

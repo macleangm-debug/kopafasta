@@ -2,13 +2,14 @@
     'name' => 'document',
     'inputHostId' => null,
     'labels' => [],
-    'facing' => 'user', // user = selfie, environment = document / rear camera
+    'facing' => 'environment', // environment = docs (front+back); user = selfie (front only)
     'required' => false,
 ])
 
 @php
     $hostId = $inputHostId ?? ('single-image-'.md5($name));
-    $facingMode = in_array($facing, ['user', 'environment'], true) ? $facing : 'user';
+    $facingMode = in_array($facing, ['user', 'environment'], true) ? $facing : 'environment';
+    $lockFront = $facingMode === 'user'; // facial/selfie captures stay front-camera only
     $labelDefaults = [
         'uploadImage' => __('borrower.profile.upload_image'),
         'captureImage' => __('borrower.profile.capture_image'),
@@ -24,7 +25,7 @@
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
 
-<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode))">
+<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront))">
     {{-- Gate helper: filled when a preview exists --}}
     <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
 
@@ -71,7 +72,7 @@
                    :class="facingMode === 'user' ? 'mirror' : ''"></video>
             <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">
                 <div class="flex items-center gap-2 max-w-lg mx-auto">
-                    <button type="button" @click="toggleFacing()"
+                    <button type="button" x-show="!lockFront" x-cloak @click="toggleFacing()"
                             class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3.5 py-3.5 ring-1 ring-white/30 min-w-[7.5rem]"
                             x-text="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera"></button>
                     <button type="button" @click="captureImage()"
@@ -99,12 +100,13 @@
     @endpush
     @push('scripts')
     <script>
-        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'user') {
+        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'environment', lockFront = false) {
             return {
                 labels: labels || {},
                 fieldName,
                 hostId,
-                facingMode: facingMode || 'user',
+                facingMode: lockFront ? 'user' : (facingMode || 'environment'),
+                lockFront: !!lockFront,
                 cameraOpen: false,
                 cameraNotice: null,
                 stream: null,
@@ -140,6 +142,7 @@
                     }
                 },
                 async toggleFacing() {
+                    if (this.lockFront) return;
                     this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
                     this.stopStream();
                     try {
@@ -156,11 +159,17 @@
                     }
                 },
                 async requestCameraStream(facing) {
-                    const attempts = [
-                        { video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-                        { video: { facingMode: facing }, audio: false },
-                        { video: true, audio: false },
-                    ];
+                    const attempts = this.lockFront
+                        ? [
+                            { video: { facingMode: { exact: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                            { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                            { video: { facingMode: 'user' }, audio: false },
+                        ]
+                        : [
+                            { video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                            { video: { facingMode: facing }, audio: false },
+                            { video: true, audio: false },
+                        ];
                     let lastError;
                     for (const constraints of attempts) {
                         try { return await navigator.mediaDevices.getUserMedia(constraints); }

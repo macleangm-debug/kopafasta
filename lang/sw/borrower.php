@@ -2139,6 +2139,7 @@ return [
     'add_picture' => 'Ongeza picha',
     'use_front_camera' => 'Kamera ya mbele',
     'use_back_camera' => 'Kamera ya nyuma',
+    'selfie_front_only' => 'Kamera ya mbele tu kwa picha za uso.',
     'upload_photo' => 'Pakia picha',
     'capture_photo' => 'Piga picha',
     'update_document' => 'Sasisha hati',

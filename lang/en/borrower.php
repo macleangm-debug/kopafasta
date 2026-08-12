@@ -2006,6 +2006,7 @@ return [
         'add_picture' => 'Add picture',
         'use_front_camera' => 'Front camera',
         'use_back_camera' => 'Back camera',
+        'selfie_front_only' => 'Front camera only for facial photos.',
         'upload_photo' => 'Upload photo',
         'capture_photo' => 'Capture photo',
         'update_document' => 'Update document',

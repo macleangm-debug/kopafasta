@@ -119,6 +119,7 @@
                 :name="$fieldName"
                 :input-host-id="$hostId"
                 :labels="$labels"
+                facing="environment"
                 :required="$required"
             />
         @else
