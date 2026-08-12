@@ -134,6 +134,9 @@ class PartnerApplicationController extends Controller
             'doc_national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_other' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'collection_conduct_accepted' => ['accepted'],
+        ], [
+            'collection_conduct_accepted.accepted' => __('site.partner_apply.conduct_required'),
         ]);
 
         $category = $enrollment->normalizeCategory($data['partner_category']);

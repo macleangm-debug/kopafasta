@@ -150,6 +150,11 @@ class TransactionalMessagingService
             return true;
         }
 
+        // BoT critical receipts/OTP cannot be disabled from admin event toggles.
+        if ($config['critical']) {
+            return true;
+        }
+
         return $config['enabled'];
     }
 
@@ -167,6 +172,14 @@ class TransactionalMessagingService
         $config = $this->eventConfig($code);
         $wanted = $config['channels'] ?? ['sms'];
         $flags = $this->channelFlags();
+
+        // Critical receipts always keep SMS when the SMS channel is globally on.
+        if (($config['critical'] ?? false) && $this->channelEnabled('sms') && ! in_array('sms', $wanted, true)) {
+            $wanted[] = 'sms';
+        }
+        if (($config['critical'] ?? false) && $this->channelEnabled('in_app') && ! in_array('in_app', $wanted, true)) {
+            $wanted[] = 'in_app';
+        }
 
         return array_values(array_filter(
             $wanted,

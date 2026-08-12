@@ -61,10 +61,13 @@ class LoanDisbursementNotificationService
                 $customer,
                 'loan_disbursed',
                 [
+                    'name'              => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Customer',
                     'reference'         => $loan->loan_number,
+                    'loan_number'       => $loan->loan_number,
                     'amount'            => format_money((float) $loan->principal_amount),
                     'disbursement_date' => optional($loan->disbursement_date)->format('d M Y') ?? now()->format('d M Y'),
                     'first_repayment'   => optional($firstRepayment?->due_date)->format('d M Y') ?? '—',
+                    'due_date'          => optional($firstRepayment?->due_date)->format('d M Y') ?? '—',
                     '_fallback_body'    => $message,
                     '_fallback_subject' => $title,
                 ],

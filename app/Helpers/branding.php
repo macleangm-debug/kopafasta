@@ -105,6 +105,14 @@ if (! function_exists('brand_name')) {
     }
 }
 
+if (! function_exists('brand_legal_name')) {
+    /** Licensed institution name for BoT OTP / transactional SMS and disclosures. */
+    function brand_legal_name(): string
+    {
+        return (string) brand('legal_name', brand_name());
+    }
+}
+
 if (! function_exists('brand_title')) {
     function brand_title(string $page): string
     {

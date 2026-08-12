@@ -19,6 +19,16 @@
             @csrf
             <input type="hidden" name="token" value="{{ $token }}">
             <p class="text-sm text-gray-600">Confirm activation to open your portal. You will create a 4-digit PIN next.</p>
+
+            <label class="flex items-start gap-3 rounded-xl bg-amber-50 ring-1 ring-amber-100 px-3.5 py-3 text-sm text-gray-800 cursor-pointer">
+                <input type="checkbox" name="collection_conduct_accepted" value="1" required
+                       class="mt-1 size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                <span>
+                    <span class="font-semibold text-gray-900">{{ __('site.partner_apply.conduct_title') }}</span>
+                    <span class="block mt-1 text-xs text-gray-600 leading-relaxed">{{ __('site.partner_apply.conduct_body') }}</span>
+                </span>
+            </label>
+
             <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3 rounded-xl text-sm">
                 Activate account
             </button>

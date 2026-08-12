@@ -25,6 +25,8 @@ class NotificationService
      */
     public function sendSms(string $phone, string $message, ?Customer $customer = null, ?string $templateCode = null): NotificationLog
     {
+        $message = $this->ensureLicensedSmsIdentity($message);
+
         if (! $this->messaging->channelEnabled('sms')
             || ($templateCode && ! $this->messaging->eventEnabled($templateCode))) {
             return $this->skippedLog('sms', $phone, $message, $customer, $templateCode);
@@ -117,6 +119,8 @@ class NotificationService
             return;
         }
 
+        $vars = $this->withIdentityVars($vars);
+
         $tpl = NotificationTemplate::resolveActive(
             $templateCode,
             $vars['_locale']
@@ -127,11 +131,13 @@ class NotificationService
         );
 
         $body = $tpl ? $this->render($tpl->body, $vars) : ($vars['_fallback_body'] ?? '');
-        $subject = $tpl ? $this->render((string) $tpl->subject, $vars) : ($vars['_fallback_subject'] ?? brand_name());
+        $subject = $tpl ? $this->render((string) $tpl->subject, $vars) : ($vars['_fallback_subject'] ?? brand_legal_name());
 
         if (! $body) {
             return;
         }
+
+        $body = $this->ensureLicensedSmsIdentity($body);
 
         $allowed = $this->messaging->allowedChannelsFor($templateCode);
         if ($allowed === []) {
@@ -314,9 +320,53 @@ class NotificationService
     {
         $out = $template;
         foreach ($vars as $k => $v) {
+            if (! is_scalar($v) && $v !== null) {
+                continue;
+            }
             $out = str_replace(['{{ '.$k.' }}', '{{'.$k.'}}'], (string) $v, $out);
         }
 
         return $out;
+    }
+
+    /** @param  array<string, mixed>  $vars
+     *  @return array<string, mixed>
+     */
+    private function withIdentityVars(array $vars): array
+    {
+        $legal = brand_legal_name();
+        $defaults = [
+            'brand' => $legal,
+            'legal_name' => $legal,
+            'app_name' => brand_name(),
+        ];
+
+        // Alias common disbursement/receipt placeholders so templates and callers stay aligned.
+        if (isset($vars['reference']) && ! isset($vars['loan_number'])) {
+            $defaults['loan_number'] = $vars['reference'];
+        }
+        if (isset($vars['first_repayment']) && ! isset($vars['due_date'])) {
+            $defaults['due_date'] = $vars['first_repayment'];
+        }
+        if (isset($vars['loan_number']) && ! isset($vars['reference'])) {
+            $defaults['reference'] = $vars['loan_number'];
+        }
+
+        return $vars + $defaults;
+    }
+
+    /** Ensure OTP / transactional SMS bodies name the licensed institution. */
+    private function ensureLicensedSmsIdentity(string $message): string
+    {
+        $legal = trim(brand_legal_name());
+        if ($legal === '' || $message === '') {
+            return $message;
+        }
+
+        if (stripos($message, $legal) !== false) {
+            return $message;
+        }
+
+        return rtrim($message).' — '.$legal;
     }
 }

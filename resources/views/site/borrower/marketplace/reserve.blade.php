@@ -116,6 +116,7 @@
                 'amount' => format_number($reservation->deposit_amount),
                 'days' => $depositDeadlineDays,
             ]) }}</p>
+            <p class="mt-2 text-xs text-gray-500">{{ __('borrower.marketplace.deposit_not_savings', ['brand' => brand_legal_name()]) }}</p>
             @include('site.borrower.marketplace._reservation-payment-form', [
                 'step' => 'deposit',
                 'amount' => $reservation->deposit_amount,

@@ -176,7 +176,7 @@ class RepaymentPostingService
                 'loan_number' => $loan->loan_number,
                 'amount' => $amount,
                 'balance' => $balance,
-                '_fallback_body' => "Congratulations {$name}! Loan {$loan->loan_number} is fully repaid and closed. — ".brand_name(),
+                '_fallback_body' => "Congratulations {$name}! Loan {$loan->loan_number} is fully repaid and closed. — ".brand_legal_name(),
                 '_fallback_subject' => 'Loan settled',
             ]);
 
@@ -192,7 +192,7 @@ class RepaymentPostingService
             'next_amount' => $nextAmount,
             '_fallback_body' => "Hi {$name}, we received {$amount} for loan {$loan->loan_number}. Remaining balance: {$balance}."
                 .($nextDue !== '—' ? " Next installment: {$nextAmount} due {$nextDue}." : '')
-                .' — '.brand_name(),
+                .' — '.brand_legal_name(),
             '_fallback_subject' => 'Payment received',
         ]);
     }

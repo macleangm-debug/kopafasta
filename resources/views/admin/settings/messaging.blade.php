@@ -17,7 +17,7 @@
         <ul class="list-disc pl-5 space-y-1 text-sky-800">
             <li><strong>SMS:</strong> Unitxt credentials under Settings → SMS / Email (provider <code class="text-xs">unitxt</code>, Sender ID + API key).</li>
             <li><strong>Email:</strong> Configure Laravel mail in <code class="text-xs">.env</code> (or SMTP fields on the gateways page).</li>
-            <li><strong>OTP:</strong> Keep PIN reset and agreement OTP events enabled — they are marked critical.</li>
+            <li><strong>OTP & e-receipts:</strong> PIN/agreement OTP, loan disbursed, and payment received are marked critical — they cannot be turned off while messaging is enabled.</li>
             <li><strong>WhatsApp:</strong> Optional. Leave off until you have a Business API URL + token; messages log only while provider is <code class="text-xs">log</code>.</li>
             <li><strong>Message copy:</strong> Use the button above — do not edit wording on this page.</li>
             <li><strong>Scheduler:</strong> Server cron must run <code class="text-xs">php artisan schedule:run</code> every minute for repayment/membership reminders.</li>
@@ -107,9 +107,10 @@
                         <div class="px-6 py-4 grid lg:grid-cols-12 gap-3 items-start">
                             <div class="lg:col-span-5">
                                 <label class="flex items-start gap-2 text-sm">
-                                    <input type="hidden" name="events[{{ $code }}][enabled]" value="0">
+                                    <input type="hidden" name="events[{{ $code }}][enabled]" value="{{ $event['critical'] ? '1' : '0' }}">
                                     <input type="checkbox" name="events[{{ $code }}][enabled]" value="1"
-                                           @checked(! empty($row['enabled']))
+                                           @checked($event['critical'] || ! empty($row['enabled']))
+                                           @disabled($event['critical'])
                                            class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
                                     <span>
                                         <span class="font-medium text-gray-900">{{ $event['name'] }}</span>

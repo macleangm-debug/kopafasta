@@ -9,7 +9,7 @@ class NotificationTemplateSeeder extends Seeder
 {
     public function run(): void
     {
-        $brand = brand_name();
+        $brand = brand_legal_name();
 
         $templates = [
             [

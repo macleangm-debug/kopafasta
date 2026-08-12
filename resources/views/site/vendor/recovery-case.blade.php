@@ -61,6 +61,14 @@
         </div>
     </div>
 
+    @if ($isOpen)
+        <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-3 text-sm text-amber-950">
+            <p class="font-semibold">{{ __('site.partner_apply.conduct_title') }}</p>
+            <p class="mt-1 text-xs leading-relaxed">{{ __('site.partner_apply.conduct_body') }}</p>
+            <p class="mt-2 text-xs text-amber-800">Reminders stay in-app only. Do not message unrelated contacts or shame the borrower publicly.</p>
+        </div>
+    @endif
+
     @if ($slaBreached && $isOpen)
         <div class="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
             <p class="font-semibold">SLA breached</p>

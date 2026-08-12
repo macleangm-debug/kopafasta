@@ -112,6 +112,7 @@ class PartnerActivationService
 
         $validated = validator($data, [
             'pin' => ['nullable', 'digits:4'],
+            'collection_conduct_accepted' => ['accepted'],
         ])->validate();
 
         $password = Str::password(32);
@@ -156,11 +157,16 @@ class PartnerActivationService
             app(PinService::class)->setPin($user, $validated['pin']);
         }
 
+        $meta = is_array($vendor->metadata) ? $vendor->metadata : [];
+        $meta['collection_conduct_accepted_at'] = now()->toIso8601String();
+        $meta['collection_conduct_version'] = 'bot-2024-5.1f';
+
         $vendor->update([
             'user_id'           => $user->id,
             'activated_at'      => now(),
             'activation_token'  => null,
             'status'            => 'active',
+            'metadata'          => $meta,
         ]);
 
         return $user;

@@ -208,9 +208,10 @@ class LoanAgreementController extends Controller
 
         $customer = $this->customerOrFail($application);
         if ($customer->phone) {
+            $legal = brand_legal_name();
             $this->notifier->sendSms(
                 $customer->phone,
-                "Your Kopa Fasta loan-agreement signing code is {$code}. It expires in 10 minutes. Do not share.",
+                "Your {$legal} loan-agreement signing code is {$code}. It expires in 10 minutes. Do not share.",
                 $customer,
                 'agreement_otp'
             );
@@ -241,9 +242,10 @@ class LoanAgreementController extends Controller
 
         $customer = $this->customerOrFail($application);
         if ($customer->phone) {
+            $legal = brand_legal_name();
             $this->notifier->sendSms(
                 $customer->phone,
-                "Your Kopa Fasta loan contract signing code is {$code}. It expires in 10 minutes. Do not share.",
+                "Your {$legal} loan contract signing code is {$code}. It expires in 10 minutes. Do not share.",
                 $customer,
                 'contract_otp'
             );
