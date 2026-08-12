@@ -19,6 +19,8 @@
         </a>
     </div>
 
+    @include('site.home._lno-disclosure', ['centered' => true])
+
     @guest
         <p class="mt-4 text-sm text-gray-500">
             <a href="{{ route('site.login') }}" class="text-brand font-semibold hover:underline">{{ __('site.nav.log_in') }}</a>

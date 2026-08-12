@@ -59,6 +59,7 @@ class PublicProductPresentationService
                 'post_approval_lines' => $postApproval['lines'],
                 'post_approval_detail' => $postApproval['detail'],
             ],
+            'penalties' => $this->penalties($product),
             'documents' => $this->documents($product),
             'product_specific' => $this->productSpecific($code),
             'processing_time' => config("loan_product_apply.processing_time.{$code}")
@@ -209,6 +210,32 @@ class PublicProductPresentationService
             'total' => round($total, 2),
             'detail' => $detail,
             'lines' => $lines,
+        ];
+    }
+
+    /** @return array{grace_days: int, rate_percent: float, basis: string, basis_label: string, cap_percent: float} */
+    private function penalties(LoanProduct $product): array
+    {
+        $defaults = LoanPenaltyPolicy::defaultsForProduct($product);
+        $basis = (string) ($defaults['penalty_basis'] ?? 'per_day');
+        $basisLabel = match ($basis) {
+            'per_month' => __('site.product_detail.penalty_basis_per_month'),
+            'one_time' => __('site.product_detail.penalty_basis_one_time'),
+            default => __('site.product_detail.penalty_basis_per_day'),
+        };
+
+        $cap = (float) (
+            (\App\Models\Setting::group('loan')['penalty_cap_percent'] ?? null)
+            ?? LoanPenaltyPolicy::BOT_MAX_PENALTY_CAP_PERCENT
+        );
+        $cap = min(LoanPenaltyPolicy::BOT_MAX_PENALTY_CAP_PERCENT, max(0, $cap));
+
+        return [
+            'grace_days' => (int) ($defaults['default_grace_days'] ?? 7),
+            'rate_percent' => (float) ($defaults['penalty_rate_percent'] ?? LoanPenaltyPolicy::DEFAULT_PENALTY_RATE_PERCENT_PER_DAY),
+            'basis' => $basis,
+            'basis_label' => $basisLabel,
+            'cap_percent' => $cap,
         ];
     }
 }

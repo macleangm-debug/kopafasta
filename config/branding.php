@@ -15,4 +15,6 @@ return [
     'support_email' => env('BRAND_SUPPORT_EMAIL', 'hello@kopafasta.com'),
     'support_phone' => env('BRAND_SUPPORT_PHONE', '+255 700 000 000'),
     'support_whatsapp' => env('BRAND_SUPPORT_WHATSAPP', '255700000000'),
+    // Short SMS Sender ID (carrier-registered). Must match the licensed institution name used in BoT filings.
+    'sms_sender_id' => env('BRAND_SMS_SENDER_ID', 'KOPAFASTA'),
 ];

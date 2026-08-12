@@ -24,7 +24,7 @@ return [
     'KE' => [
         'name'               => 'Kenya',
         'emoji'              => '🇰🇪',
-        'active'             => true,
+        'active'             => false,
         'language'           => 'sw',
         'currency'           => 'KES',
         'timezone'           => 'Africa/Nairobi',
@@ -41,7 +41,7 @@ return [
     'UG' => [
         'name'               => 'Uganda',
         'emoji'              => '🇺🇬',
-        'active'             => true,
+        'active'             => false,
         'language'           => 'en',
         'currency'           => 'UGX',
         'timezone'           => 'Africa/Kampala',

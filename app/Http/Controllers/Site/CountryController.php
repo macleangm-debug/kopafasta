@@ -19,6 +19,11 @@ class CountryController extends Controller
             return back();
         }
 
+        $profile = $countries->forCode($code);
+        if (! ($profile['active'] ?? false)) {
+            return back()->with('warning', __('site.locale.country_coming_soon', ['country' => $profile['name'] ?? $code]));
+        }
+
         $request->session()->put('country', $code);
 
         if ($code !== 'TZ') {

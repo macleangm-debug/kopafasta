@@ -62,6 +62,25 @@
                         <dt class="text-gray-500">{{ __('site.product_detail.post_approval_fees') }}</dt>
                         <dd class="font-semibold tabular-nums">{{ format_money($p['fees']['post_approval_total']) }}</dd>
                     </div>
+                    @if (! empty($p['penalties']))
+                        <div class="pt-3 mt-1 border-t border-gray-100 space-y-3">
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-gray-500">{{ __('site.product_detail.late_penalty') }}</dt>
+                                <dd class="font-semibold tabular-nums text-right">
+                                    {{ rtrim(rtrim(number_format((float) $p['penalties']['rate_percent'], 2, '.', ''), '0'), '.') }}%
+                                    <span class="block text-[11px] font-normal text-gray-500">{{ $p['penalties']['basis_label'] }}</span>
+                                </dd>
+                            </div>
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-gray-500">{{ __('site.product_detail.grace_period') }}</dt>
+                                <dd class="font-semibold tabular-nums">{{ __('site.product_detail.grace_days', ['days' => $p['penalties']['grace_days']]) }}</dd>
+                            </div>
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-gray-500">{{ __('site.product_detail.penalty_cap') }}</dt>
+                                <dd class="font-semibold tabular-nums">{{ rtrim(rtrim(number_format((float) $p['penalties']['cap_percent'], 2, '.', ''), '0'), '.') }}%</dd>
+                            </div>
+                        </div>
+                    @endif
                 </dl>
                 @if (! empty($p['rate_disclosure']))
                     <ul class="mt-4 pt-4 border-t border-gray-100 space-y-1 text-xs text-gray-600 max-w-xl">

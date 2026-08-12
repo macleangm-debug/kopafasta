@@ -88,11 +88,24 @@ class SmsManager
 
             return [
                 'provider'   => $rows['gateway.sms_provider']   ?? null,
-                'sender_id'  => $rows['gateway.sms_sender_id']  ?? null,
+                'sender_id'  => $this->resolveSenderId($rows['gateway.sms_sender_id'] ?? null),
                 'api_key'    => $rows['gateway.sms_api_key']    ?? null,
                 'api_secret' => $rows['gateway.sms_api_secret'] ?? null,
                 'endpoint'   => $rows['gateway.sms_endpoint']   ?? null,
             ];
         });
+    }
+
+    /**
+     * Prefer admin-configured Sender ID; fall back to branded short ID for BoT-aligned OTP/txn messages.
+     */
+    private function resolveSenderId(?string $configured): string
+    {
+        $configured = trim((string) $configured);
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', (string) brand('sms_sender_id', 'KOPAFASTA')) ?: 'KOPAFASTA', 0, 11));
     }
 }

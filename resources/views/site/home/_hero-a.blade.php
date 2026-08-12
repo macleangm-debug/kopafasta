@@ -19,6 +19,7 @@
                 {{ __('site.hero.learn_more') }}
             </a>
         </div>
+        @include('site.home._lno-disclosure')
         @guest
             <p class="mt-5 text-sm text-gray-500">
                 {{ __('site.hero.login_cta') }}

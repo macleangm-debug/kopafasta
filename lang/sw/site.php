@@ -589,6 +589,8 @@ return [
         'feedback'           => 'Tuma maoni',
         'terms'              => 'Masharti',
         'privacy'            => 'Faragha',
+        'ownership'          => 'Jukwaa hili la Mikopo Digitals linamilikiwa au linaendeshwa na :legal_name',
+        'complaints_heading' => 'Malalamiko na maswali',
     ],
     'auth' => [
         'welcome_back'       => 'Karibu tena',
@@ -707,6 +709,7 @@ return [
         'swahili'            => 'Kiswahili',
         'country'            => 'Nchi',
         'language'           => 'Lugha',
+        'country_coming_soon' => ':country bado haipatikani kwa huluki hii ya mikopo ya kidijitali iliyoidhinishwa.',
     ],
     'help_hub' => [
         'title'          => 'Msaada na maoni',
@@ -843,6 +846,13 @@ return [
         'processing_time'    => 'Muda wa uchakataji',
         'application_fee'    => 'Ada ya maombi',
         'post_approval_fees' => 'Ada baada ya idhini',
+        'late_penalty'       => 'Adhabu ya kuchelewa kulipa',
+        'grace_period'       => 'Kipindi cha neema baada ya kushindwa',
+        'penalty_cap'        => 'Kikomo cha adhabu (BoT)',
+        'penalty_basis_per_day' => 'kwa siku juu ya kiasi kilichochelewa',
+        'penalty_basis_per_month' => 'kwa mwezi juu ya kiasi kilichochelewa',
+        'penalty_basis_one_time' => 'mara moja juu ya kiasi kilichochelewa',
+        'grace_days'         => 'siku :days',
         'audience' => ['default' => 'Imeundwa kwa wakopaji wa :type wanaohitaji ufadhili rahisi na wazi kupitia simu.'],
         'benefits' => [
             'no_collateral'    => 'Hakuna dhamana inayohitajika kwa viwango vinavyostahili',

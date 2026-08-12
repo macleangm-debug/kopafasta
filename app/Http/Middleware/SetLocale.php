@@ -11,6 +11,14 @@ class SetLocale
     /** @param \Closure(Request): Response $next */
     public function handle(Request $request, Closure $next): Response
     {
+        $countries = app(\App\Services\CountrySettingsService::class);
+        if ($countries->tanzaniaOnlyMode()) {
+            $sessionCountry = strtoupper((string) $request->session()->get('country', 'TZ'));
+            if ($sessionCountry !== 'TZ') {
+                $request->session()->put('country', 'TZ');
+            }
+        }
+
         $locale = $request->session()->get('locale');
 
         // Tanzania-first product: Kiswahili is the default until the visitor picks English.

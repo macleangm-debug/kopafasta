@@ -44,13 +44,18 @@ class CountrySettingsService
             };
         }
 
+        $currency = strtoupper((string) ($merged['currency'] ?? 'TZS'));
+        if ($this->tanzaniaOnlyMode()) {
+            $currency = 'TZS';
+        }
+
         return [
             'code'                => $code,
             'name'                => (string) ($merged['name'] ?? $code),
             'emoji'               => $emoji,
-            'active'              => filter_var($merged['active'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            'active'              => $this->isActiveForLending($code, filter_var($merged['active'] ?? true, FILTER_VALIDATE_BOOLEAN)),
             'language'            => in_array($language, ['en', 'sw'], true) ? $language : 'en',
-            'currency'            => strtoupper((string) ($merged['currency'] ?? 'TZS')),
+            'currency'            => $currency,
             'timezone'            => (string) ($merged['timezone'] ?? 'Africa/Dar_es_Salaam'),
             'phone_prefix'        => (string) ($merged['phone_prefix'] ?? '+255'),
             'national_id_label'   => (string) ($merged['national_id_label'] ?? 'National ID'),
@@ -67,10 +72,38 @@ class CountrySettingsService
         ];
     }
 
+    /**
+     * BoT digital lending LNO: licensed Tier 2 entity serves United Republic of Tanzania only.
+     * Set DIGITAL_LENDING_TZ_ONLY=false to re-open other markets later.
+     */
+    public function tanzaniaOnlyMode(): bool
+    {
+        return filter_var(env('DIGITAL_LENDING_TZ_ONLY', true), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    private function isActiveForLending(string $code, bool $configuredActive): bool
+    {
+        if ($this->tanzaniaOnlyMode() && strtoupper($code) !== 'TZ') {
+            return false;
+        }
+
+        return $configuredActive;
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function activeCountries(): array
+    {
+        return collect($this->codes())
+            ->map(fn (string $code) => $this->forCode($code))
+            ->filter(fn (array $c) => (bool) ($c['active'] ?? false))
+            ->values()
+            ->all();
+    }
+
     /** @return list<array<string, mixed>> */
     public function forRegistration(): array
     {
-        return collect($this->codes())
+        $rows = collect($this->codes())
             ->map(fn (string $code) => $this->forCode($code))
             ->map(fn (array $c) => [
                 'code'    => $c['code'],
@@ -79,9 +112,13 @@ class CountrySettingsService
                 'emoji'   => $c['emoji'],
                 'active'  => $c['active'],
                 'note'    => $c['active'] ? 'Live now in East Africa.' : 'Opening soon.',
-            ])
-            ->values()
-            ->all();
+            ]);
+
+        if ($this->tanzaniaOnlyMode()) {
+            $rows = $rows->filter(fn (array $c) => (bool) ($c['active'] ?? false));
+        }
+
+        return $rows->values()->all();
     }
 
     public function defaultLocale(?string $countryCode = null): string

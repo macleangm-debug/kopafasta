@@ -593,6 +593,8 @@ return [
         'feedback'           => 'Send feedback',
         'terms'              => 'Terms',
         'privacy'            => 'Privacy',
+        'ownership'          => 'This Digital Lending Platform is owned or operated by :legal_name',
+        'complaints_heading' => 'Complaints & queries',
     ],
 
     'auth' => [
@@ -713,6 +715,7 @@ return [
         'swahili'            => 'Kiswahili',
         'country'            => 'Country',
         'language'           => 'Language',
+        'country_coming_soon' => ':country is not available for this licensed digital lending entity yet.',
     ],
 
     'help_hub' => [
@@ -858,6 +861,13 @@ return [
         'processing_time'    => 'Processing time',
         'application_fee'    => 'Application fee',
         'post_approval_fees' => 'Post-approval fees',
+        'late_penalty'       => 'Late payment penalty',
+        'grace_period'       => 'Grace period after default',
+        'penalty_cap'        => 'Penalty cap (BoT max)',
+        'penalty_basis_per_day' => 'per day on overdue amount',
+        'penalty_basis_per_month' => 'per month on overdue amount',
+        'penalty_basis_one_time' => 'one-time on overdue amount',
+        'grace_days'         => ':days day(s)',
         'audience' => [
             'default' => 'Designed for :type borrowers who need flexible, transparent financing through our mobile platform.',
         ],

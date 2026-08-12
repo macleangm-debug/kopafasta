@@ -5,10 +5,15 @@
 @php
     $siteLocale = $siteLocale ?? app()->getLocale();
     $siteCountry = $siteCountry ?? 'TZ';
-    $siteCountries = $siteCountries ?? collect(app(\App\Services\CountrySettingsService::class)->codes())
-        ->map(fn (string $code) => app(\App\Services\CountrySettingsService::class)->forCode($code))
+    $countryService = app(\App\Services\CountrySettingsService::class);
+    $siteCountries = $siteCountries ?? collect($countryService->codes())
+        ->map(fn (string $code) => $countryService->forCode($code))
+        ->filter(fn (array $c) => (bool) ($c['active'] ?? false))
         ->values()
         ->all();
+    if ($siteCountries === []) {
+        $siteCountries = [$countryService->forCode('TZ')];
+    }
     $currentCountry = collect($siteCountries)->firstWhere('code', $siteCountry)
         ?? ['code' => 'TZ', 'name' => 'Tanzania', 'emoji' => '🇹🇿'];
     $isHeader = $variant === 'header';

@@ -68,17 +68,20 @@ class LoanPenaltyPolicy
 
         return [
             'default_grace_days' => (int) (
-                $overrides['default_grace_days']
+                $product->default_grace_days
+                ?? $overrides['default_grace_days']
                 ?? $global['default_grace_days']
                 ?? config('loan_product_defaults.default_grace_days', 7)
             ),
             'penalty_rate_percent' => (float) (
-                $overrides['penalty_rate_percent']
+                $product->penalty_rate_percent
+                ?? $overrides['penalty_rate_percent']
                 ?? $global['default_penalty_rate']
                 ?? config('loan_product_defaults.penalty_rate_percent', self::DEFAULT_PENALTY_RATE_PERCENT_PER_DAY)
             ),
             'penalty_basis' => (string) (
-                $overrides['penalty_basis']
+                $product->penalty_basis
+                ?? $overrides['penalty_basis']
                 ?? $global['penalty_basis']
                 ?? config('loan_product_defaults.penalty_basis', 'per_day')
             ),

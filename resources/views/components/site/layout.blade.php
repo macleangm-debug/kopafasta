@@ -148,6 +148,18 @@
                 <div class="lg:col-span-2">
                     <x-site.brand-mark variant="light" size="lg" :showSubtitle="true" />
                     <p class="text-sm text-gray-400 max-w-xs mt-3">{{ brand('tagline') }}. {{ __('site.footer.tagline') }}</p>
+                    <p class="text-sm text-brand-gold/90 max-w-sm mt-3 font-medium leading-snug">
+                        {{ __('site.footer.ownership', ['legal_name' => brand('legal_name')]) }}
+                    </p>
+                    <div class="mt-4 space-y-1 text-sm">
+                        <p class="text-[11px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('site.footer.complaints_heading') }}</p>
+                        @foreach (support_phones() as $phone)
+                            <a href="tel:{{ preg_replace('/\s+/', '', $phone) }}" class="block text-gray-300 hover:text-brand-gold transition">{{ $phone }}</a>
+                        @endforeach
+                        @foreach (support_emails() as $email)
+                            <a href="mailto:{{ $email }}" class="block text-gray-300 hover:text-brand-gold transition">{{ $email }}</a>
+                        @endforeach
+                    </div>
                 </div>
                 <div>
                     <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.nav.products') }}</h4>
@@ -192,7 +204,10 @@
             </div>
             <div class="border-t border-white/10 py-5 text-xs text-gray-500">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <span>&copy; {{ date('Y') }} {{ brand('legal_name') }}.</span>
+                    <span class="text-center sm:text-left">
+                        &copy; {{ date('Y') }} {{ brand('legal_name') }}.
+                        <span class="block sm:inline sm:ml-1 text-gray-400">{{ __('site.footer.ownership', ['legal_name' => brand('legal_name')]) }}</span>
+                    </span>
                     <span class="flex items-center gap-4">
                         <a href="{{ route('site.legal.terms') }}" class="hover:text-brand-gold transition">{{ __('site.footer.terms') }}</a>
                         <a href="{{ route('site.legal.privacy') }}" class="hover:text-brand-gold transition">{{ __('site.footer.privacy') }}</a>

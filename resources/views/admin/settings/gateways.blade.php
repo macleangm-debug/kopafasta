@@ -19,6 +19,9 @@
                 <div>
                     <h3 class="text-sm font-semibold text-gray-800">SMS gateway</h3>
                     <p class="text-xs text-gray-500 mt-1">Provider is Unitxt. Enter API key and Sender ID when Unitxt issues credentials, then test the connection.</p>
+                    <p class="text-xs text-amber-800 mt-2 rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2">
+                        BoT LNO: SMS Sender ID must be the licensed institution name approved for SMS (same identity shown in OTP / disbursement / repayment messages). Use the registered short Sender ID (max ~11 characters), not the full legal company name unless that is what the carrier registered.
+                    </p>
                 </div>
                 <a href="{{ route('admin.settings.gateways.health') }}"
                    class="inline-flex items-center justify-center rounded-xl bg-brand text-white text-xs font-semibold px-3.5 py-2.5 hover:bg-brand-light shrink-0">
