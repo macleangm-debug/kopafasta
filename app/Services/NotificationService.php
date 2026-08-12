@@ -176,6 +176,18 @@ class NotificationService
                 );
             }
         }
+
+        // Critical borrower receipts always land in the in-app inbox even if SMS is the only selected channel.
+        $config = $this->messaging->eventConfig($templateCode);
+        if (($config['critical'] ?? false) && ! in_array('in_app', $allowed, true)) {
+            $this->notifyInApp(
+                $customer,
+                $body,
+                'loan_updates',
+                $templateCode,
+                $subject,
+            );
+        }
     }
 
     /**

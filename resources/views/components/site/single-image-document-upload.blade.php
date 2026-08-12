@@ -16,6 +16,10 @@
         'cameraDenied' => __('borrower.profile.camera_denied'),
         'cameraUnsupported' => __('borrower.profile.camera_unsupported'),
         'cameraInsecure' => __('borrower.profile.camera_insecure'),
+        'useFrontCamera' => __('borrower.profile.use_front_camera'),
+        'useBackCamera' => __('borrower.profile.use_back_camera'),
+        'addPicture' => __('borrower.profile.add_picture'),
+        'brand' => brand_name(),
     ];
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
@@ -27,11 +31,11 @@
     <p class="mb-2 text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
 
     <div class="flex flex-wrap gap-2">
-        <label class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
-            <span x-text="labels.uploadImage"></span>
+        <label class="inline-flex items-center gap-2 bg-brand-muted hover:bg-brand/15 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer ring-1 ring-brand/15">
+            <span x-text="labels.addPicture || labels.uploadImage"></span>
             <input type="file" name="{{ $name }}" accept="image/*,application/pdf" class="sr-only" @change="setFile($event)">
         </label>
-        <button type="button" @click="openCamera()" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm" x-text="labels.captureImage">
+        <button type="button" @click="openCamera()" class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm" x-text="labels.captureImage">
         </button>
     </div>
 
@@ -52,14 +56,27 @@
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2 mt-3" x-text="cameraNotice"></p>
 
     <template x-teleport="body">
-        <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-black flex flex-col">
+        <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-brand flex flex-col">
+            <div class="relative z-[3] flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-brand to-transparent">
+                <div class="min-w-0">
+                    <x-site.brand-mark size="sm" variant="light" />
+                    <p class="mt-1 text-[10px] uppercase tracking-widest text-brand-gold font-semibold truncate" x-text="labels.brand"></p>
+                </div>
+                <button type="button" @click="closeCamera()"
+                        class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
+                        x-text="labels.close"></button>
+            </div>
             <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
                    class="absolute inset-0 w-full h-full object-cover"
                    :class="facingMode === 'user' ? 'mirror' : ''"></video>
-            <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 bg-gradient-to-t from-black/85 to-transparent">
-                <div class="flex gap-2 max-w-lg mx-auto">
-                    <button type="button" @click="captureImage()" class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm" x-text="labels.captureImage"></button>
-                    <button type="button" @click="closeCamera()" class="px-5 py-3.5 rounded-full text-sm font-semibold bg-white/15 text-white ring-1 ring-white/30" x-text="labels.close"></button>
+            <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">
+                <div class="flex items-center gap-2 max-w-lg mx-auto">
+                    <button type="button" @click="toggleFacing()"
+                            class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3.5 py-3.5 ring-1 ring-white/30 min-w-[7.5rem]"
+                            x-text="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera"></button>
+                    <button type="button" @click="captureImage()"
+                            class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm shadow-sm"
+                            x-text="labels.captureImage"></button>
                 </div>
             </div>
         </div>
@@ -108,10 +125,7 @@
                         this.cameraOpen = true;
                         await this.$nextTick();
                         await this.$nextTick();
-                        this.stream = await navigator.mediaDevices.getUserMedia({
-                            video: { facingMode: { ideal: this.facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
-                            audio: false,
-                        });
+                        this.stream = await this.requestCameraStream(this.facingMode);
                         const video = this.$refs.camVideo;
                         if (!video) throw new Error(this.labels.cameraUnsupported);
                         video.srcObject = this.stream;
@@ -124,6 +138,35 @@
                             ? this.labels.cameraDenied
                             : (e?.message || this.labels.cameraDenied);
                     }
+                },
+                async toggleFacing() {
+                    this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+                    this.stopStream();
+                    try {
+                        this.stream = await this.requestCameraStream(this.facingMode);
+                        const video = this.$refs.camVideo;
+                        if (!video) throw new Error(this.labels.cameraUnsupported);
+                        video.srcObject = this.stream;
+                        video.muted = true;
+                        await video.play();
+                    } catch (e) {
+                        this.cameraNotice = e?.name === 'NotAllowedError'
+                            ? this.labels.cameraDenied
+                            : (e?.message || this.labels.cameraDenied);
+                    }
+                },
+                async requestCameraStream(facing) {
+                    const attempts = [
+                        { video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                        { video: { facingMode: facing }, audio: false },
+                        { video: true, audio: false },
+                    ];
+                    let lastError;
+                    for (const constraints of attempts) {
+                        try { return await navigator.mediaDevices.getUserMedia(constraints); }
+                        catch (e) { lastError = e; }
+                    }
+                    throw lastError;
                 },
                 closeCamera() {
                     this.stopStream();

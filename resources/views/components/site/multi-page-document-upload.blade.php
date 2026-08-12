@@ -23,6 +23,10 @@
         'cameraUnsupported' => __('borrower.profile.camera_unsupported'),
         'cameraInsecure' => __('borrower.profile.camera_insecure'),
         'maxPages' => __('borrower.profile.multi_page_max', ['max' => $maxPages]),
+        'useFrontCamera' => __('borrower.profile.use_front_camera'),
+        'useBackCamera' => __('borrower.profile.use_back_camera'),
+        'addPicture' => __('borrower.profile.add_picture'),
+        'brand' => brand_name(),
     ];
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
@@ -31,36 +35,50 @@
     <p class="text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
     <input type="hidden" value="" x-bind:value="pages.length ? String(pages.length) : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
     <div class="flex flex-wrap gap-2">
-        <label class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
-            <span x-text="labels.uploadFile"></span>
+        <label class="inline-flex items-center gap-2 bg-brand-muted hover:bg-brand/15 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer ring-1 ring-brand/15">
+            <span x-text="labels.addPicture || labels.uploadFile"></span>
             <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="addFiles($event)">
         </label>
-        <button type="button" @click="openCamera()" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm" x-text="labels.capturePage">
+        <button type="button" @click="openCamera()" class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm" x-text="labels.capturePage">
         </button>
     </div>
 
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2" x-text="cameraNotice"></p>
 
-    {{-- Fullscreen camera --}}
+    {{-- Fullscreen branded camera --}}
     <template x-teleport="body">
-        <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-black flex flex-col">
-            <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
-            <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 bg-gradient-to-t from-black/85 to-transparent">
+        <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-brand flex flex-col">
+            <div class="relative z-[3] flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-brand to-transparent">
+                <div class="min-w-0">
+                    <x-site.brand-mark size="sm" variant="light" />
+                    <p class="mt-1 text-[10px] uppercase tracking-widest text-brand-gold font-semibold truncate" x-text="labels.brand"></p>
+                </div>
+                <button type="button" @click="closeCamera()"
+                        class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
+                        x-text="labels.close"></button>
+            </div>
+            <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
+                   class="absolute inset-0 w-full h-full object-cover"
+                   :class="facingMode === 'user' ? 'mirror' : ''"></video>
+            <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">
                 <div x-show="pages.length" class="flex gap-2 overflow-x-auto justify-center mb-4 pb-1">
                     <template x-for="(page, index) in pages" :key="'live-'+page.id">
                         <div class="relative shrink-0">
                             <template x-if="page.previewUrl">
-                                <img :src="page.previewUrl" alt="" class="size-12 rounded-lg object-cover ring-2 ring-white/80">
+                                <img :src="page.previewUrl" alt="" class="size-12 rounded-lg object-cover ring-2 ring-brand-gold/80">
                             </template>
                             <template x-if="!page.previewUrl">
-                                <div class="size-12 rounded-lg bg-white/20 ring-2 ring-white/80 grid place-items-center text-[10px] font-bold text-white">PDF</div>
+                                <div class="size-12 rounded-lg bg-white/20 ring-2 ring-brand-gold/80 grid place-items-center text-[10px] font-bold text-white">PDF</div>
                             </template>
-                            <span class="absolute -top-1.5 -left-1.5 size-5 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center ring-2 ring-black"
+                            <span class="absolute -top-1.5 -left-1.5 size-5 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center ring-2 ring-brand"
                                   x-text="index + 1"></span>
                         </div>
                     </template>
                 </div>
-                <div class="flex gap-2 max-w-lg mx-auto">
+                <div class="flex items-center gap-2 max-w-lg mx-auto">
+                    <button type="button" @click="toggleFacing()"
+                            class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3.5 py-3.5 ring-1 ring-white/30 min-w-[7.5rem]"
+                            x-text="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera"></button>
                     <button type="button" @click="capturePage()"
                             class="flex-1 font-bold px-4 py-3.5 rounded-full text-sm"
                             :class="pages.length ? 'bg-white/15 text-white ring-1 ring-white/30' : 'bg-brand-gold text-brand'"
@@ -68,9 +86,6 @@
                     <button type="button" x-show="pages.length" x-cloak @click="closeCamera()"
                             class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm"
                             x-text="labels.finish"></button>
-                    <button type="button" x-show="!pages.length" @click="closeCamera()"
-                            class="px-5 py-3.5 rounded-full text-sm font-semibold bg-white/15 text-white ring-1 ring-white/30"
-                            x-text="labels.close"></button>
                 </div>
             </div>
         </div>
@@ -111,6 +126,9 @@
 </div>
 
 @once
+    @push('styles')
+        <style>.mirror { transform: scaleX(-1); }</style>
+    @endpush
     @push('scripts')
     <script>
         function multiPageDocumentUpload(labels, fieldName, hostId, maxPages = 12) {
@@ -123,6 +141,7 @@
                 cameraOpen: false,
                 cameraNotice: null,
                 stream: null,
+                facingMode: 'environment',
                 nextId: 1,
                 async openCamera() {
                     this.cameraNotice = null;
@@ -142,7 +161,7 @@
                         this.cameraOpen = true;
                         await this.$nextTick();
                         await this.$nextTick();
-                        this.stream = await this.requestCameraStream();
+                        this.stream = await this.requestCameraStream(this.facingMode);
                         const video = this.$refs.camVideo;
                         if (!video) throw new Error(this.labels.cameraUnsupported);
                         video.srcObject = this.stream;
@@ -159,6 +178,23 @@
                             : (e?.message || this.labels.cameraDenied);
                     }
                 },
+                async toggleFacing() {
+                    this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+                    this.stopStream();
+                    try {
+                        this.stream = await this.requestCameraStream(this.facingMode);
+                        const video = this.$refs.camVideo;
+                        if (!video) throw new Error(this.labels.cameraUnsupported);
+                        video.srcObject = this.stream;
+                        video.muted = true;
+                        await this.waitForVideoReady(video);
+                        await video.play();
+                    } catch (e) {
+                        this.cameraNotice = e?.name === 'NotAllowedError'
+                            ? this.labels.cameraDenied
+                            : (e?.message || this.labels.cameraDenied);
+                    }
+                },
                 async waitForVideoReady(video) {
                     if (video.readyState >= 2 && video.videoWidth > 0) return;
                     await new Promise((resolve, reject) => {
@@ -167,10 +203,10 @@
                         video.addEventListener('loadedmetadata', done);
                     });
                 },
-                async requestCameraStream() {
+                async requestCameraStream(facing = 'environment') {
                     const attempts = [
-                        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
-                        { video: { facingMode: 'environment' }, audio: false },
+                        { video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+                        { video: { facingMode: facing }, audio: false },
                         { video: true, audio: false },
                     ];
                     let lastError;
@@ -200,7 +236,12 @@
                     const canvas = document.createElement('canvas');
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    const ctx = canvas.getContext('2d');
+                    if (this.facingMode === 'user') {
+                        ctx.translate(canvas.width, 0);
+                        ctx.scale(-1, 1);
+                    }
+                    ctx.drawImage(video, 0, 0);
                     canvas.toBlob(blob => {
                         if (!blob) return;
                         this.addBlob(blob, 'page-' + (this.pages.length + 1) + '.jpg');

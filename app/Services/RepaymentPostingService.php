@@ -169,19 +169,46 @@ class RepaymentPostingService
             : '—';
 
         $notifier = app(NotificationService::class);
+        $loanUrl = route('site.borrower.loans.show', $loan);
 
         if ($loan->status === 'closed' || (float) $loan->outstanding_balance <= 0) {
+            $closedBody = "Congratulations {$name}! Loan {$loan->loan_number} is fully repaid and closed. — ".brand_legal_name();
+
+            $notifier->notifyInApp(
+                $customer,
+                $closedBody,
+                'loan',
+                'loan_closed',
+                'Loan settled',
+                $loanUrl,
+                __('borrower.loan_servicing.view_final_contract'),
+            );
+
             $notifier->notifyCustomer($customer, 'loan_closed', [
                 'name' => $name,
                 'loan_number' => $loan->loan_number,
                 'amount' => $amount,
                 'balance' => $balance,
-                '_fallback_body' => "Congratulations {$name}! Loan {$loan->loan_number} is fully repaid and closed. — ".brand_legal_name(),
+                '_fallback_body' => $closedBody,
                 '_fallback_subject' => 'Loan settled',
             ]);
 
             return;
         }
+
+        $receivedBody = "Hi {$name}, we received {$amount} for loan {$loan->loan_number}. Remaining balance: {$balance}."
+            .($nextDue !== '—' ? " Next installment: {$nextAmount} due {$nextDue}." : '')
+            .' — '.brand_legal_name();
+
+        $notifier->notifyInApp(
+            $customer,
+            $receivedBody,
+            'loan',
+            'payment_received',
+            'Payment received',
+            $loanUrl,
+            __('borrower.loan_servicing.view_final_contract'),
+        );
 
         $notifier->notifyCustomer($customer, 'payment_received', [
             'name' => $name,
@@ -190,9 +217,7 @@ class RepaymentPostingService
             'balance' => $balance,
             'next_due_date' => $nextDue,
             'next_amount' => $nextAmount,
-            '_fallback_body' => "Hi {$name}, we received {$amount} for loan {$loan->loan_number}. Remaining balance: {$balance}."
-                .($nextDue !== '—' ? " Next installment: {$nextAmount} due {$nextDue}." : '')
-                .' — '.brand_legal_name(),
+            '_fallback_body' => $receivedBody,
             '_fallback_subject' => 'Payment received',
         ]);
     }
