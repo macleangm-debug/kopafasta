@@ -1,4 +1,12 @@
 @php
+    $person = $person
+        ?? $deskPerson
+        ?? $panelPerson
+        ?? request('review_person', request('person', 'borrower'));
+    if (! in_array($person, ['borrower', 'guarantor', 'member'], true)) {
+        $person = 'borrower';
+    }
+
     $docService = app(\App\Services\ApplicationDocumentRequestService::class);
     $presets = $docService::PRESET_LABELS;
     $assetPresets = $docService::ASSET_BACKED_PRESET_LABELS;
@@ -37,7 +45,16 @@
                 <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-amber-50/80 to-white flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">1 · Requested</p>
-                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Waiting on {{ $person === 'guarantor' ? 'guarantor / borrower' : 'borrower' }}</h2>
+                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">
+                            Waiting on
+                            @if ($person === 'guarantor')
+                                guarantor / borrower
+                            @elseif ($person === 'member')
+                                group member / leader
+                            @else
+                                borrower
+                            @endif
+                        </h2>
                         <p class="text-xs text-gray-500 mt-0.5">
                             Open requests. Profile-linked items (ID, face, income, collateral) are fulfilled on the profile — loan-file uploads appear under Received when submitted.
                         </p>
@@ -59,9 +76,11 @@
                                             <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
                                             @if (($docReq->subject_kind ?? 'borrower') === 'member')
                                                 @php
+                                                    $memberMatch = collect($groupReview['members'] ?? [])
+                                                        ->firstWhere('id', $docReq->loan_group_member_id);
                                                     $subjectName = $docReq->subjectCustomer?->full_name
                                                         ?? $docReq->groupMember?->customer?->full_name
-                                                        ?? collect($groupReview['members'] ?? [])->firstWhere('id', $docReq->loan_group_member_id)['name']
+                                                        ?? (is_array($memberMatch) ? ($memberMatch['name'] ?? null) : null)
                                                         ?? 'Group member';
                                                 @endphp
                                                 <p class="text-xs text-brand mt-0.5">For: {{ $subjectName }}</p>

@@ -1,17 +1,30 @@
 @php
-    $customer = $review['customer'];
+    $customer = $review['customer'] ?? null;
     $docs = collect($review['profile_documents'] ?? $review['kyc_documents'] ?? []);
+    $docSubjectLabel = match (true) {
+        (bool) ($review['is_member_subject'] ?? false) => 'Member documents',
+        (bool) ($review['is_guarantor_subject'] ?? false) => 'Guarantor documents',
+        default => 'Subject documents',
+    };
 @endphp
 
 <section class="rounded-2xl ring-1 ring-brand/10 bg-white overflow-hidden">
     <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white">
-        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Guarantor documents</p>
+        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $docSubjectLabel }}</p>
         <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Uploaded documents</h2>
-        <p class="text-xs text-gray-500 mt-0.5">Identity and profile documents for this guarantor — shown first so you can review what is already on file.</p>
+        <p class="text-xs text-gray-500 mt-0.5">
+            Identity and profile documents
+            @if ($customer)
+                for {{ $customer->full_name ?? 'this subject' }}
+            @endif
+            — shown first so you can review what is already on file.
+        </p>
     </div>
     <div class="p-5">
-        @if ($docs->isEmpty())
-            <p class="text-sm text-gray-500">No documents on this guarantor’s profile yet.</p>
+        @if (! $customer)
+            <p class="text-sm text-gray-500">Profile documents unlock after this subject finishes onboarding.</p>
+        @elseif ($docs->isEmpty())
+            <p class="text-sm text-gray-500">No documents on this profile yet.</p>
         @else
             <div class="grid md:grid-cols-2 gap-4">
                 @foreach ($docs as $doc)

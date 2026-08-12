@@ -1,6 +1,7 @@
 @php
-    $customer = $review['customer'];
+    $customer = $review['customer'] ?? null;
     $isGuarantor = (bool) ($review['is_guarantor_subject'] ?? false);
+    $isMember = (bool) ($review['is_member_subject'] ?? false);
     $crb = $isGuarantor
         ? ($review['guarantor_row']['crb'] ?? [])
         : ($review['crb'] ?? []);
@@ -43,7 +44,7 @@
 <section class="rounded-2xl ring-1 ring-brand/10 bg-white overflow-hidden">
     <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white flex flex-wrap items-start justify-between gap-3">
         <div>
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $isGuarantor ? 'Guarantor' : 'Borrower' }} · CRB</p>
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $isGuarantor ? 'Guarantor' : ($isMember ? 'Member' : 'Borrower') }} · CRB</p>
             <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Credit bureau report</h2>
             <p class="text-xs text-gray-500 mt-0.5">Pulled after affordability / capacity pass — summaries first, then complete detail.</p>
         </div>

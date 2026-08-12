@@ -1,18 +1,26 @@
 @php
     $isGuarantor = (bool) ($review['is_guarantor_subject'] ?? false);
+    $isMember = (bool) ($review['is_member_subject'] ?? false);
     $afford = $isGuarantor
         ? ($review['guarantor_row']['affordability'] ?? null)
         : ($affordability ?? $review['affordability'] ?? null);
-    $counter = $isGuarantor ? null : ($counterOffer ?? $review['counter_offer'] ?? null);
+    $counter = ($isGuarantor || $isMember) ? null : ($counterOffer ?? $review['counter_offer'] ?? null);
+    $capacityLabel = match (true) {
+        $isGuarantor => 'Guarantor',
+        $isMember => 'Member',
+        default => 'Borrower',
+    };
 @endphp
 
 <section class="rounded-2xl ring-1 ring-brand/10 bg-white overflow-hidden">
     <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white">
-        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $isGuarantor ? 'Guarantor' : 'Borrower' }} · Capacity</p>
+        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $capacityLabel }} · Capacity</p>
         <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Affordability</h2>
         <p class="text-xs text-gray-500 mt-0.5">
             @if ($isGuarantor)
                 Can this guarantor carry the instalment if the borrower fails?
+            @elseif ($isMember)
+                Can this group member service their share from available income?
             @else
                 Can the borrower service the proposed instalment from available income?
             @endif
@@ -23,6 +31,8 @@
             <p class="text-sm text-gray-500">
                 @if ($isGuarantor)
                     Affordability unlocks after the guarantor profile is complete.
+                @elseif ($isMember)
+                    Affordability unlocks after the member profile is complete.
                 @else
                     Affordability data is not available for this file yet.
                 @endif
