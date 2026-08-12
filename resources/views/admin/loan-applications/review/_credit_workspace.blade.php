@@ -48,7 +48,7 @@
             'loan_application' => $record,
             'workspace' => $key,
             'person' => request('person'),
-            'tab' => $key === 'profiles' ? (request('tab') ?: 'affordability') : null,
+            'tab' => $key === 'profiles' ? (request('tab') ?: 'personal') : null,
             'g' => request('g'),
             'm' => request('m'),
             'review_person' => $key === 'checklist' ? request('review_person') : null,
@@ -357,9 +357,9 @@
                                 <button type="button" class="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 disabled:opacity-40"
                                         @click="i = Math.min(slides.length - 1, i + 1)" :disabled="i >= slides.length - 1">Next →</button>
                             </div>
-                            <a :href="'{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'profiles', 'person' => 'member', 'tab' => 'crb']) }}&m=' + slide.id + '#borrower-file'"
+                            <a :href="'{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'checklist', 'review_person' => 'member']) }}&review_m=' + slide.id + '#checklist-documents'"
                                class="mt-3 inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
-                                Full member CRB →
+                                Member CRB on checklist →
                             </a>
                         </div>
                     </template>
@@ -407,9 +407,9 @@
                         </p>
                     </div>
                 </div>
-                <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'profiles', 'person' => 'borrower', 'tab' => 'crb']) }}#borrower-file"
+                <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'checklist', 'review_person' => 'borrower']) }}#checklist-documents"
                    class="mt-3 inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
-                    Full borrower CRB →
+                    Review CRB on checklist →
                 </a>
             </div>
             @endif
@@ -533,7 +533,7 @@
                                 'loan_application' => $record,
                                 'workspace' => 'profiles',
                                 'person' => 'guarantor',
-                                'tab' => 'affordability',
+                                'tab' => 'personal',
                                 'g' => $gSug['link_id'] ?? null,
                             ]) }}#borrower-file"
                            class="inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">

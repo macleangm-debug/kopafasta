@@ -93,14 +93,29 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             $this->assertStringContainsString('Profile sections', $profiles);
             $this->assertStringContainsString('tab=face', $profiles);
             $this->assertStringContainsString('person=guarantor', $profiles);
+            $this->assertStringNotContainsString('Partners available', $profiles);
+            $this->assertStringNotContainsString('Partners unavailable', $profiles);
+            $this->assertStringNotContainsString('>Group</a>', $profiles);
+            $this->assertStringContainsString('tab=personal', $profiles);
+            $this->assertStringNotContainsString("tab=affordability", $profiles);
+            $this->assertStringNotContainsString("tab=crb", $profiles);
         }
 
         $app = $this->application($admin, 'screening');
-        $screening = $this->actingAs($admin, 'admin')
+        $screeningHome = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $app))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('Screening workspace', $screening);
+        $this->assertStringContainsString('Screening workspace', $screeningHome);
+        $this->assertStringContainsString('Other institutions', $screeningHome);
+        $this->assertStringContainsString('Affordability', $screeningHome);
+        $this->assertStringNotContainsString('Profile complete', $screeningHome);
+        $this->assertStringNotContainsString('Record the committee decision', $screeningHome);
+
+        $screening = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'decision']))
+            ->assertOk()
+            ->getContent();
         $this->assertStringContainsString('Record the screening recommendation', $screening);
         $this->assertStringContainsString('Your decision', $screening);
         $this->assertStringContainsString('Record decision', $screening);
@@ -113,20 +128,16 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Rejection reasons', $screening);
         $this->assertStringContainsString('Open field advice', $screening);
         $this->assertStringNotContainsString('Complete screening', $screening);
-        $this->assertStringContainsString('Other institutions', $screening);
-        $this->assertStringContainsString('Affordability', $screening);
-        $this->assertStringNotContainsString('Profile complete', $screening);
-        $this->assertStringNotContainsString('Record the committee decision', $screening);
 
         $residence = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'residence']))
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'profiles', 'tab' => 'residence']))
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Residence information', $residence);
         $this->assertStringContainsString('aria-selected="true"', $residence);
 
         $face = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'face']))
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'profiles', 'tab' => 'face']))
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Side-by-side comparison', $face);
@@ -134,11 +145,17 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Front face not uploaded', $face);
 
         $documents = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'documents']))
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))
             ->assertOk()
             ->getContent();
+        $this->assertStringContainsString('Personal in place', $documents);
+        $this->assertStringContainsString('Capacity and evidence', $documents);
+        $this->assertStringContainsString('Security and close', $documents);
         $this->assertStringContainsString('Uploaded documents', $documents);
+        $this->assertStringContainsString('Borrower document library', $documents);
         $this->assertStringContainsString('Request documents', $documents);
+        $this->assertStringContainsString('Affordability', $documents);
+        $this->assertStringContainsString('Partners for this file', $documents);
         $this->assertStringNotContainsString('Return for documents', $documents);
 
         $this->assertStringContainsString('person=borrower', $screening);

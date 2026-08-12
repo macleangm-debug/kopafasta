@@ -391,13 +391,23 @@ class AuthController extends Controller
             'pin_recovery_expires_at',
         ]);
 
-        if (! $user || ! $this->pins->hasPin($user)) {
+        if (! $user) {
             return back()
                 ->withInput(['phone' => $phone])
                 ->with('feedback', [
-                    'tone' => 'info',
+                    'tone' => 'error',
                     'title' => __('site.auth.pin_recovery.title'),
-                    'message' => __('site.auth.pin_recovery.soft_sent'),
+                    'message' => __('site.auth.pin_recovery.not_registered'),
+                ]);
+        }
+
+        if (! $this->pins->hasPin($user)) {
+            return back()
+                ->withInput(['phone' => $phone])
+                ->with('feedback', [
+                    'tone' => 'warning',
+                    'title' => __('site.auth.pin_recovery.title'),
+                    'message' => __('site.auth.pin_recovery.no_pin_yet'),
                 ]);
         }
 

@@ -126,6 +126,25 @@ class PinRecoveryChallengeFeatureTest extends TestCase
         $this->assertNotEmpty(session('pin_recovery_questions'));
     }
 
+    public function test_forgot_pin_says_not_registered_for_unknown_phone(): void
+    {
+        $this->from(route('site.forgot-pin'))
+            ->post(route('site.forgot-pin.start'), ['phone' => '255900000002'])
+            ->assertRedirect(route('site.forgot-pin'))
+            ->assertSessionHas('feedback.message', __('site.auth.pin_recovery.not_registered'));
+    }
+
+    public function test_forgot_pin_says_no_pin_yet_when_registered_without_pin(): void
+    {
+        $user = $this->makeBorrowerUser();
+        $this->assertFalse(app(PinService::class)->hasPin($user));
+
+        $this->from(route('site.forgot-pin'))
+            ->post(route('site.forgot-pin.start'), ['phone' => $user->phone])
+            ->assertRedirect(route('site.forgot-pin'))
+            ->assertSessionHas('feedback.message', __('site.auth.pin_recovery.no_pin_yet'));
+    }
+
     public function test_forgot_pin_blocks_when_no_questions_available(): void
     {
         $user = $this->makeBorrowerUser([

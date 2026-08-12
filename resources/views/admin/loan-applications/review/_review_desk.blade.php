@@ -39,6 +39,28 @@
             'review_m' => $s['m'],
         ])).'#review-desk';
     };
+
+    $phaseOrder = ['person', 'capacity', 'security'];
+    $phases = [];
+    foreach ($desk['groups'] ?? [] as $group) {
+        $phaseKey = (string) ($group['phase'] ?? 'other');
+        if (! isset($phases[$phaseKey])) {
+            $phases[$phaseKey] = [
+                'key' => $phaseKey,
+                'label' => (string) ($group['phase_label'] ?? strtoupper($phaseKey)),
+                'groups' => [],
+            ];
+        }
+        $phases[$phaseKey]['groups'][] = $group;
+    }
+    uksort($phases, function ($a, $b) use ($phaseOrder) {
+        $ia = array_search($a, $phaseOrder, true);
+        $ib = array_search($b, $phaseOrder, true);
+        $ia = $ia === false ? 99 : $ia;
+        $ib = $ib === false ? 99 : $ib;
+
+        return $ia <=> $ib;
+    });
 @endphp
 
 <section id="review-desk" class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden scroll-mt-24">
@@ -47,7 +69,10 @@
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Assisted review</p>
             <h3 class="text-base font-bold text-gray-900 mt-0.5">Review checklist</h3>
             <p class="text-xs text-gray-500 mt-0.5">
-                One section open at a time. Use Pass remaining for clean groups — Fail still needs a reason. Record decisions on the Decision tab.
+                Three review cards: <span class="font-semibold text-gray-700">Personal in place</span>,
+                <span class="font-semibold text-gray-700">Capacity and evidence</span> (docs + affordability + CRB),
+                then <span class="font-semibold text-gray-700">Security and close</span> (collateral, partners, group).
+                Profiles stay for raw dossier fields only.
             </p>
         </div>
         <div class="rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-2.5 text-right">
@@ -97,8 +122,7 @@
                     <input type="hidden" name="m" value="{{ $deskM }}">
                 @endif
 
-                @php $currentPhase = null; @endphp
-                <div class="space-y-4"
+                <div class="space-y-5"
                      x-data="{
                          openGroup: null,
                          openItem: null,
@@ -120,21 +144,17 @@
                              });
                          }
                      }">
-                @foreach ($desk['groups'] ?? [] as $group)
+                @foreach ($phases as $phase)
+                    <div class="rounded-2xl ring-1 ring-brand/20 bg-brand-muted/20 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-brand/10 bg-white/70">
+                            <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand">{{ $phase['label'] }}</p>
+                        </div>
+                        <div class="p-3 sm:p-4 space-y-3">
+                @foreach ($phase['groups'] as $group)
                     @php
                         $groupKey = (string) ($group['key'] ?? '');
-                        $phaseKey = (string) ($group['phase'] ?? '');
-                        $phaseLabel = (string) ($group['phase_label'] ?? '');
                     @endphp
-                    @if ($phaseLabel !== '' && $phaseKey !== $currentPhase)
-                        @php $currentPhase = $phaseKey; @endphp
-                        <div class="pt-2 first:pt-0">
-                            <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand">
-                                {{ $phaseLabel }}
-                            </p>
-                        </div>
-                    @endif
-                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm">
+                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm bg-white">
                         <div class="px-4 py-3.5 bg-brand text-white flex flex-wrap items-center justify-between gap-2">
                             <button type="button" class="text-left min-w-0 flex-1" @click="toggleGroup(@js($groupKey))">
                                 <h4 class="text-base font-extrabold tracking-tight inline-flex items-center gap-2">
@@ -310,6 +330,15 @@
                         </ul>
                     </div>
                 @endforeach
+                            @include('admin.loan-applications.review._checklist_phase_panels', [
+                                'phase' => $phase['key'],
+                                'deskPerson' => $deskPerson,
+                                'deskG' => $deskG,
+                                'deskM' => $deskM,
+                            ])
+                        </div>
+                    </div>
+                @endforeach
                 </div>
 
                 <div class="flex justify-end">
@@ -320,23 +349,22 @@
                 </div>
             </form>
         @else
-            <div class="space-y-4"
+            <div class="space-y-5"
                  x-data="{
                      openGroup: null,
                      toggleGroup(key) { this.openGroup = this.openGroup === key ? null : key }
                  }">
-                @php $currentPhaseRo = null; @endphp
-                @foreach ($desk['groups'] ?? [] as $group)
+                @foreach ($phases as $phase)
+                    <div class="rounded-2xl ring-1 ring-brand/20 bg-brand-muted/20 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-brand/10 bg-white/70">
+                            <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand">{{ $phase['label'] }}</p>
+                        </div>
+                        <div class="p-3 sm:p-4 space-y-3">
+                @foreach ($phase['groups'] as $group)
                     @php
                         $groupKeyRo = (string) ($group['key'] ?? '');
-                        $phaseKeyRo = (string) ($group['phase'] ?? '');
-                        $phaseLabelRo = (string) ($group['phase_label'] ?? '');
                     @endphp
-                    @if ($phaseLabelRo !== '' && $phaseKeyRo !== $currentPhaseRo)
-                        @php $currentPhaseRo = $phaseKeyRo; @endphp
-                        <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand pt-1">{{ $phaseLabelRo }}</p>
-                    @endif
-                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm">
+                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm bg-white">
                         <button type="button" class="w-full px-4 py-3.5 bg-brand text-white text-left" @click="toggleGroup(@js($groupKeyRo))">
                             <h4 class="text-base font-extrabold tracking-tight inline-flex items-center gap-2">
                                 <svg class="size-4 text-brand-gold transition" :class="openGroup === @js($groupKeyRo) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
@@ -379,6 +407,15 @@
                                 </li>
                             @endforeach
                         </ul>
+                    </div>
+                @endforeach
+                            @include('admin.loan-applications.review._checklist_phase_panels', [
+                                'phase' => $phase['key'],
+                                'deskPerson' => $deskPerson,
+                                'deskG' => $deskG,
+                                'deskM' => $deskM,
+                            ])
+                        </div>
                     </div>
                 @endforeach
             </div>

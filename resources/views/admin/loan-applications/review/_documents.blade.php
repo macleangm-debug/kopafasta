@@ -128,8 +128,10 @@
     @endif
 </x-admin.review-section>
 
-@if (($review['profile_documents'] ?? collect())->isNotEmpty())
-    <x-admin.review-section id="review-kyc-documents" title="Borrower document library" subtitle="Profile and application documents — verify without leaving this review">
+<x-admin.review-section id="review-kyc-documents" title="Borrower document library" subtitle="Profile documents uploaded during onboarding — review alongside application files">
+    @if (($review['profile_documents'] ?? collect())->isEmpty())
+        <p class="text-sm text-gray-500">No profile documents on file yet for this borrower.</p>
+    @else
         <div class="grid md:grid-cols-2 gap-4">
             @foreach ($review['profile_documents'] as $doc)
                 @php
@@ -194,5 +196,5 @@
                 </div>
             @endforeach
         </div>
-    </x-admin.review-section>
-@endif
+    @endif
+</x-admin.review-section>

@@ -628,6 +628,8 @@ return [
             'answers_ok_title' => 'Answers verified',
             'answers_ok_body' => 'You can set a new PIN now.',
             'answers_wrong_title' => 'Try again',
+            'not_registered' => 'This phone number is not registered. Check the number or create an account.',
+            'no_pin_yet' => 'This number is registered, but no PIN has been set yet. Sign in another way or finish PIN setup after signing in.',
             'soft_sent' => 'If that number is registered, you can continue when the account is ready.',
             'not_enrolled' => 'Not enough saved details to reset yet. Sign in if you can, or contact support.',
             'set_pin_hint' => 'Choose a new 4-digit PIN.',

@@ -623,6 +623,8 @@ return [
             'answers_ok_title' => 'Majibu yamehakikiwa',
             'answers_ok_body' => 'Sasa unaweza kuweka PIN mpya.',
             'answers_wrong_title' => 'Jaribu tena',
+            'not_registered' => 'Nambari hii ya simu haijasajiliwa. Angalia nambari au fungua akaunti.',
+            'no_pin_yet' => 'Nambari hii imesajiliwa, lakini PIN bado haijawekwa. Ingia kwa njia nyingine au maliza kuweka PIN baada ya kuingia.',
             'soft_sent' => 'Ikiwa nambari hiyo imesajiliwa, unaweza kuendelea akaunti ikiwa tayari.',
             'not_enrolled' => 'Hakuna taarifa za kutosha kuweka PIN upya. Ingia ukiweza, au wasiliana na msaada.',
             'set_pin_hint' => 'Chagua PIN mpya ya tarakimu 4.',

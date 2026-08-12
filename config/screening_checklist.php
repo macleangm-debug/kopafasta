@@ -10,7 +10,7 @@ return [
     'identity' => [
         'label' => 'Identity & KYC',
         'phase' => 'person',
-        'phase_label' => '1 · Person & place',
+        'phase_label' => '1 · Personal in place',
         'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
             'nida_vs_dob' => [
@@ -75,7 +75,7 @@ return [
     'residence' => [
         'label' => 'Residence',
         'phase' => 'person',
-        'phase_label' => '1 · Person & place',
+        'phase_label' => '1 · Personal in place',
         'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
             'address_consistency' => [
@@ -119,7 +119,7 @@ return [
     'contacts' => [
         'label' => 'Contacts & references',
         'phase' => 'capacity',
-        'phase_label' => '2 · Capacity & evidence',
+        'phase_label' => '2 · Capacity and evidence',
         'subjects' => ['borrower'],
         'items' => [
             'call_guarantor' => [
@@ -163,7 +163,7 @@ return [
     'activity_income' => [
         'label' => 'Activity & income',
         'phase' => 'capacity',
-        'phase_label' => '2 · Capacity & evidence',
+        'phase_label' => '2 · Capacity and evidence',
         'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
             'activity_plausible' => [
@@ -198,7 +198,7 @@ return [
     'documents' => [
         'label' => 'Documents',
         'phase' => 'capacity',
-        'phase_label' => '2 · Capacity & evidence',
+        'phase_label' => '2 · Capacity and evidence',
         'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
             'required_docs_complete' => [
@@ -242,7 +242,7 @@ return [
     'collateral' => [
         'label' => 'Collateral & assets',
         'phase' => 'security',
-        'phase_label' => '3 · Security & close',
+        'phase_label' => '3 · Security and close',
         'subjects' => ['borrower', 'guarantor'],
         'items' => [
             'asset_identity' => [
@@ -303,7 +303,7 @@ return [
     'credit_file' => [
         'label' => 'Credit file wrap-up',
         'phase' => 'security',
-        'phase_label' => '3 · Security & close',
+        'phase_label' => '3 · Security and close',
         'subjects' => ['borrower'],
         'items' => [
             'crb_reviewed' => [
@@ -336,7 +336,7 @@ return [
     'guarantor_wrap' => [
         'label' => 'Guarantor wrap-up',
         'phase' => 'security',
-        'phase_label' => '3 · Security & close',
+        'phase_label' => '3 · Security and close',
         'subjects' => ['guarantor'],
         'items' => [
             'crb_reviewed' => [
@@ -369,7 +369,7 @@ return [
     'member_wrap' => [
         'label' => 'Member wrap-up',
         'phase' => 'security',
-        'phase_label' => '3 · Security & close',
+        'phase_label' => '3 · Security and close',
         'subjects' => ['member'],
         'items' => [
             'crb_reviewed' => [

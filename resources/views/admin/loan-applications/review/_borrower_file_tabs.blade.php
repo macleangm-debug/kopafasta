@@ -33,28 +33,13 @@
         }
     }
 
-    $defaultTab = request('tab', 'affordability');
-    if ($defaultTab === 'overview') {
-        $defaultTab = 'affordability';
+    // Profiles = dossier only. Affordability, CRB, partners, group, and document
+    // verification live on Review checklist to avoid duplicate review surfaces.
+    $defaultTab = request('tab', 'personal');
+    if (in_array($defaultTab, ['overview', 'affordability', 'crb', 'partners-available', 'partners-unavailable', 'group'], true)) {
+        $defaultTab = 'personal';
     }
-    $borrowerTabs = [
-        ['affordability', 'Affordability'],
-        ['crb', 'CRB'],
-        ['personal', 'Personal'],
-        ['face', 'Face'],
-        ['residence', 'Residence'],
-        ['activity', 'Activity'],
-        ['documents', 'Documents'],
-        ['collateral', 'Collateral'],
-        ['partners-available', 'Partners available'],
-        ['partners-unavailable', 'Partners unavailable'],
-    ];
-    if ($isGroupLoan) {
-        $borrowerTabs[] = ['group', 'Group'];
-    }
-    $memberTabs = [
-        ['affordability', 'Affordability'],
-        ['crb', 'CRB'],
+    $profileTabs = [
         ['personal', 'Personal'],
         ['face', 'Face'],
         ['residence', 'Residence'],
@@ -62,14 +47,9 @@
         ['documents', 'Documents'],
         ['collateral', 'Collateral'],
     ];
-    $guarantorTabs = $memberTabs;
-    $profileTabs = match ($person) {
-        'guarantor', 'member' => $person === 'guarantor' ? $guarantorTabs : $memberTabs,
-        default => $borrowerTabs,
-    };
     $allowedTabs = array_column($profileTabs, 0);
     if (! in_array($defaultTab, $allowedTabs, true)) {
-        $defaultTab = 'affordability';
+        $defaultTab = 'personal';
     }
 
     $openDocRequestCount = 0;
@@ -100,7 +80,7 @@
             'loan_application' => $record,
             'workspace' => 'profiles',
             'person' => $who,
-            'tab' => 'affordability',
+            'tab' => 'personal',
         ];
         if ($who === 'guarantor' && $linkId) {
             $params['g'] = $linkId;
@@ -154,11 +134,8 @@
         <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Credit file</p>
         <h3 class="text-base font-bold text-gray-900 mt-0.5">Profile sections</h3>
         <p class="text-xs text-gray-500 mt-0.5">
-            @if ($isGroupLoan)
-                Open each group member the same way as the checklist — leader, members, then guarantors.
-            @else
-                Review the borrower and guarantor the same way — the guarantor must be able to carry the loan if the borrower fails.
-            @endif
+            Profile data only (identity, face, residence, activity, documents library, collateral).
+            Pass/Fail review, affordability, CRB, partners, and group scoring live on <span class="font-semibold text-brand">Review checklist</span>.
         </p>
 
         <div class="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="File subject">
@@ -238,56 +215,26 @@
                         'bg-amber-100 text-amber-900' => $defaultTab !== $key,
                     ])>{{ $openDocRequestCount }}</span>
                 @endif
-                @if ($person === 'borrower' && $key === 'partners-available' && isset($partnerAvailability))
-                    <span @class([
-                        'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
-                        'bg-white/20 text-white' => $defaultTab === $key,
-                        'bg-emerald-100 text-emerald-900' => $defaultTab !== $key,
-                    ])>{{ $partnerAvailability['counts']['available'] ?? 0 }}</span>
-                @endif
-                @if ($person === 'borrower' && $key === 'partners-unavailable' && isset($partnerAvailability))
-                    <span @class([
-                        'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
-                        'bg-white/20 text-white' => $defaultTab === $key,
-                        'bg-amber-100 text-amber-900' => $defaultTab !== $key,
-                    ])>{{ $partnerAvailability['counts']['unavailable'] ?? 0 }}</span>
-                @endif
             </a>
         @endforeach
     </div>
 
     <div class="p-5">
-        @if ($person === 'guarantor' && $selectedGuarantor && empty($selectedGuarantor['file']) && ! in_array($defaultTab, ['affordability', 'crb'], true))
+        @if ($person === 'guarantor' && $selectedGuarantor && empty($selectedGuarantor['file']))
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
                 <p class="text-sm font-semibold text-amber-950">Guarantor profile not complete yet</p>
                 <p class="text-xs text-amber-900/90 mt-1">
                     Personal, face, residence, activity, documents and collateral unlock after onboarding finishes.
-                    Use Affordability / CRB for status while waiting.
+                    Use Review checklist for affordability / CRB while waiting.
                 </p>
             </div>
-        @elseif ($person === 'member' && $selectedMember && empty($selectedMember['file']) && empty($subjectReview['customer'] ?? null) && ! in_array($defaultTab, ['affordability', 'crb'], true))
+        @elseif ($person === 'member' && $selectedMember && empty($selectedMember['file']) && empty($subjectReview['customer'] ?? null))
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
                 <p class="text-sm font-semibold text-amber-950">Member profile not complete yet</p>
                 <p class="text-xs text-amber-900/90 mt-1">
                     Personal, face, residence, activity, documents and collateral unlock after the member finishes onboarding.
                 </p>
             </div>
-        @elseif ($defaultTab === 'affordability')
-            @include('admin.loan-applications.review._subject_affordability', [
-                'review' => $subjectReview,
-                'affordability' => $affordability ?? ($review['affordability'] ?? null),
-                'counterOffer' => $counterOffer ?? ($review['counter_offer'] ?? null),
-            ])
-            @if ($person === 'guarantor' && $selectedGuarantor)
-                <div class="mt-5">
-                    @include('admin.loan-applications.review._guarantor_overview', [
-                        'guarantor' => $selectedGuarantor,
-                        'single' => true,
-                    ])
-                </div>
-            @endif
-        @elseif ($defaultTab === 'crb')
-            @include('admin.loan-applications.review._subject_crb', ['review' => $subjectReview])
         @elseif ($defaultTab === 'personal')
             <div class="space-y-5">
                 @include('admin.loan-applications.review._profile_personal', ['review' => $subjectReview])
@@ -300,17 +247,20 @@
             @include('admin.loan-applications.review._profile_activity', ['review' => $subjectReview])
         @elseif ($defaultTab === 'documents')
             <div class="space-y-5">
+                <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3 text-xs text-sky-950">
+                    Profile library view. Verify application uploads and follow-up requests on
+                    <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'checklist']).'#checklist-documents' }}"
+                       class="font-semibold text-brand underline">Review checklist → Capacity and evidence</a>.
+                </div>
                 @if (in_array($person, ['guarantor', 'member'], true))
                     @include('admin.loan-applications.review._subject_documents', ['review' => $subjectReview])
                 @else
                     @include('admin.loan-applications.review._documents')
                 @endif
-                @include('admin.loan-applications.review._document-requests')
             </div>
         @elseif ($defaultTab === 'collateral')
             <div class="space-y-5">
                 @if ($person === 'borrower')
-                    {{-- Application-level blocks: only render for asset-backed / asset-lending products (partials self-gate). --}}
                     @include('admin.loan-applications._asset-backed')
                     @include('admin.loan-applications._asset-lending')
                     @if (! empty($review['asset']) || app(\App\Services\AssetLendingService::class)->isAssetLendingApplication($record))
@@ -323,18 +273,6 @@
                     'selectedGuarantor' => $selectedGuarantor ?? null,
                 ])
             </div>
-        @elseif ($person === 'borrower' && $defaultTab === 'partners-available')
-            @include('admin.loan-applications.review._partner_availability', [
-                'partnerAvailability' => $partnerAvailability ?? null,
-                'mode' => 'available',
-            ])
-        @elseif ($person === 'borrower' && $defaultTab === 'partners-unavailable')
-            @include('admin.loan-applications.review._partner_availability', [
-                'partnerAvailability' => $partnerAvailability ?? null,
-                'mode' => 'unavailable',
-            ])
-        @elseif ($defaultTab === 'group' && ($groupReview ?? null))
-            @include('admin.loan-applications.review._group')
         @endif
     </div>
 </section>
