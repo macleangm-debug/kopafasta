@@ -1,25 +1,43 @@
-<x-admin.layout title="Recovery Assignments" heading="Recovery Assignments" subheading="Partner cases linked to collection arrears">
+<x-admin.layout title="Recovery Assignments" heading="" subheading="">
 
-    <div class="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-[10px] uppercase text-gray-500">Open</p>
-            <p class="text-2xl font-bold">{{ $counts['open'] }}</p>
+    <section class="mb-6">
+        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
+            <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-6 text-white">
+                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Collections field</p>
+                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Recovery assignments</h1>
+                <p class="text-sm text-white/75 mt-2 max-w-2xl">
+                    Partner cases linked to arrears — track SLA, escalations, and recovery charges.
+                </p>
+            </div>
+            <div class="bg-white px-6 py-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Open</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['open']) }}</p>
+                </div>
+                <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Completed</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['completed']) }}</p>
+                </div>
+                <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">Escalated</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['escalated']) }}</p>
+                </div>
+                <div class="rounded-xl bg-rose-50 ring-1 ring-rose-100 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-rose-800 font-semibold">SLA breach</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['sla_breach']) }}</p>
+                </div>
+            </div>
         </div>
-        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4">
-            <p class="text-[10px] uppercase text-emerald-700">Completed</p>
-            <p class="text-2xl font-bold text-emerald-900">{{ $counts['completed'] }}</p>
-        </div>
-        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
-            <p class="text-[10px] uppercase text-amber-700">Escalated</p>
-            <p class="text-2xl font-bold text-amber-900">{{ $counts['escalated'] }}</p>
-        </div>
-        <div class="rounded-xl bg-red-50 ring-1 ring-red-200 p-4">
-            <p class="text-[10px] uppercase text-red-700">SLA breach</p>
-            <p class="text-2xl font-bold text-red-900">{{ $counts['sla_breach'] }}</p>
-        </div>
+    </section>
+
+    <div class="mb-4">
+        <a href="{{ route('admin.partners.tasks') }}"
+           class="inline-flex text-sm font-semibold text-brand hover:text-brand-light">
+            Partner tasks (valuer / GPS / insurance) →
+        </a>
     </div>
 
-    <div class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
+    <div class="bg-white rounded-2xl ring-1 ring-brand/10 shadow-sm overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
@@ -36,7 +54,7 @@
                 @forelse ($assignments as $assignment)
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3">
-                            <a href="{{ route('admin.recovery.assignments.show', $assignment) }}" class="text-amber-700 font-mono text-xs">
+                            <a href="{{ route('admin.recovery.assignments.show', $assignment) }}" class="text-brand font-mono text-xs font-semibold">
                                 #{{ $assignment->id }}
                             </a>
                             <div class="text-xs text-gray-500">{{ $assignment->arrearCase?->loan?->loan_number }}</div>

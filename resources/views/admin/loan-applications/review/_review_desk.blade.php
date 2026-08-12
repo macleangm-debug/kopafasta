@@ -47,7 +47,7 @@
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Assisted review</p>
             <h3 class="text-base font-bold text-gray-900 mt-0.5">Review checklist</h3>
             <p class="text-xs text-gray-500 mt-0.5">
-                Sections collapse when done. Use Pass remaining for clean groups — Fail still needs a reason. Committee only sees what you record.
+                One section open at a time. Use Pass remaining for clean groups — Fail still needs a reason. Record decisions on the Decision tab.
             </p>
         </div>
         <div class="rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-2.5 text-right">
@@ -97,14 +97,32 @@
                     <input type="hidden" name="m" value="{{ $deskM }}">
                 @endif
 
-                @php
-                    $firstIncompleteKey = collect($desk['groups'] ?? [])->first(fn ($g) => ! ($g['complete'] ?? false))['key'] ?? null;
-                    $currentPhase = null;
-                @endphp
+                @php $currentPhase = null; @endphp
+                <div class="space-y-4"
+                     x-data="{
+                         openGroup: null,
+                         openItem: null,
+                         toggleGroup(key) {
+                             this.openGroup = this.openGroup === key ? null : key;
+                             this.openItem = null;
+                         },
+                         toggleItem(key) {
+                             this.openItem = this.openItem === key ? null : key;
+                         },
+                         passRemaining(groupKey) {
+                             this.openGroup = groupKey;
+                             this.openItem = null;
+                             this.$refs['items_' + groupKey]?.querySelectorAll('[data-checklist-item]').forEach((el) => {
+                                 const data = Alpine.$data(el);
+                                 if (data && ! data.verdict) {
+                                     data.verdict = 'pass';
+                                 }
+                             });
+                         }
+                     }">
                 @foreach ($desk['groups'] ?? [] as $group)
                     @php
-                        $groupOpen = ($group['key'] ?? null) === $firstIncompleteKey
-                            || (($group['failed'] ?? 0) > 0 && ! ($group['complete'] ?? false));
+                        $groupKey = (string) ($group['key'] ?? '');
                         $phaseKey = (string) ($group['phase'] ?? '');
                         $phaseLabel = (string) ($group['phase_label'] ?? '');
                     @endphp
@@ -116,23 +134,11 @@
                             </p>
                         </div>
                     @endif
-                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm"
-                         x-data="{
-                             open: {{ $groupOpen ? 'true' : 'false' }},
-                             passRemaining() {
-                                 this.$refs.items?.querySelectorAll('[data-checklist-item]').forEach((el) => {
-                                     const data = Alpine.$data(el);
-                                     if (data && ! data.verdict) {
-                                         data.verdict = 'pass';
-                                         data.open = false;
-                                     }
-                                 });
-                             }
-                         }">
+                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm">
                         <div class="px-4 py-3.5 bg-brand text-white flex flex-wrap items-center justify-between gap-2">
-                            <button type="button" class="text-left min-w-0 flex-1" @click="open = !open">
+                            <button type="button" class="text-left min-w-0 flex-1" @click="toggleGroup(@js($groupKey))">
                                 <h4 class="text-base font-extrabold tracking-tight inline-flex items-center gap-2">
-                                    <svg class="size-4 text-brand-gold transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                    <svg class="size-4 text-brand-gold transition" :class="openGroup === @js($groupKey) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                     <span>{{ $group['label'] }}</span>
                                 </h4>
                                 <p class="text-[11px] text-white/80 mt-0.5 tabular-nums">
@@ -146,36 +152,34 @@
                             </button>
                             @if ($canEdit && ! ($group['complete'] ?? false))
                                 <button type="button"
-                                        @click.stop="passRemaining(); open = true"
+                                        @click.stop="passRemaining(@js($groupKey))"
                                         class="shrink-0 text-[11px] font-bold text-brand bg-brand-gold hover:brightness-95 px-2.5 py-1.5 rounded-lg">
                                     Pass remaining
                                 </button>
                             @endif
                         </div>
-                        <ul x-show="open" x-cloak x-ref="items" class="divide-y divide-gray-50 bg-white">
+                        <ul x-show="openGroup === @js($groupKey)" x-cloak x-ref="items_{{ $groupKey }}" class="divide-y divide-gray-50 bg-white">
                             @foreach ($group['items'] as $item)
                                 @php
                                     [$ig, $ik] = array_pad(explode('.', $item['key'], 2), 2, '');
                                     $fieldBase = "items[{$ig}][{$ik}]";
-                                    $uid = 'rd-'.str_replace(['.', ':'], '-', $item['key']);
+                                    $itemKey = (string) ($item['key'] ?? '');
                                     $compareRows = $item['evidence']['compare'] ?? [];
                                     $mismatchCount = collect($compareRows)->where('status', 'mismatch')->count();
-                                    $checklistOpen = ($item['verdict'] ?? null) === null || $mismatchCount > 0;
                                 @endphp
                                 <li class="p-4" data-checklist-item
                                     x-data="{
                                         verdict: @js($item['verdict'] ?? ''),
-                                        reason: @js($item['fail_reason_code'] ?? ''),
-                                        open: {{ $checklistOpen ? 'true' : 'false' }}
+                                        reason: @js($item['fail_reason_code'] ?? '')
                                     }">
                                     <div class="flex flex-wrap items-start justify-between gap-3">
-                                        <button type="button" class="text-left min-w-0 flex-1" @click="open = !open">
+                                        <button type="button" class="text-left min-w-0 flex-1" @click="toggleItem(@js($itemKey))">
                                             <p class="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
                                                 <span>{{ $item['label'] }}</span>
                                                 @if ($item['system_checked'] ?? false)
                                                     <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-sky-100 text-sky-900 ring-1 ring-sky-200">System</span>
                                                 @endif
-                                                <svg class="size-3.5 text-gray-400 transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                                <svg class="size-3.5 text-gray-400 transition" :class="openItem === @js($itemKey) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                             </p>
                                             @if ($item['evidence']['hint'] ?? null)
                                                 <p class="text-[11px] text-gray-500 mt-0.5">{{ $item['evidence']['hint'] }}</p>
@@ -188,25 +192,25 @@
                                             <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
                                                    :class="verdict === 'pass' ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-white text-gray-600 ring-gray-200'">
                                                 <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="pass"
-                                                       x-model="verdict" @change="open = true">
+                                                       x-model="verdict" @change="openItem = @js($itemKey)">
                                                 Pass ✓
                                             </label>
                                             <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
                                                    :class="verdict === 'fail' ? 'bg-rose-50 text-rose-900 ring-rose-200' : 'bg-white text-gray-600 ring-gray-200'">
                                                 <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="fail"
-                                                       x-model="verdict" @change="open = true">
+                                                       x-model="verdict" @change="openItem = @js($itemKey)">
                                                 Fail ✗
                                             </label>
                                             <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
                                                    :class="verdict === 'na' ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white text-gray-600 ring-gray-200'">
                                                 <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="na"
-                                                       x-model="verdict" @change="open = true">
+                                                       x-model="verdict" @change="openItem = @js($itemKey)">
                                                 N/A
                                             </label>
                                         </div>
                                     </div>
 
-                                    <div x-show="open" x-cloak class="mt-3 space-y-3">
+                                    <div x-show="openItem === @js($itemKey)" x-cloak class="mt-3 space-y-3">
                                         @if (! empty($item['evidence']['photos']))
                                             <div class="flex gap-2 overflow-x-auto pb-1"
                                                  x-data="{
@@ -306,6 +310,7 @@
                         </ul>
                     </div>
                 @endforeach
+                </div>
 
                 <div class="flex justify-end">
                     <button type="submit"
@@ -315,10 +320,15 @@
                 </div>
             </form>
         @else
-            <div class="space-y-4">
+            <div class="space-y-4"
+                 x-data="{
+                     openGroup: null,
+                     toggleGroup(key) { this.openGroup = this.openGroup === key ? null : key }
+                 }">
                 @php $currentPhaseRo = null; @endphp
                 @foreach ($desk['groups'] ?? [] as $group)
                     @php
+                        $groupKeyRo = (string) ($group['key'] ?? '');
                         $phaseKeyRo = (string) ($group['phase'] ?? '');
                         $phaseLabelRo = (string) ($group['phase_label'] ?? '');
                     @endphp
@@ -326,18 +336,17 @@
                         @php $currentPhaseRo = $phaseKeyRo; @endphp
                         <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand pt-1">{{ $phaseLabelRo }}</p>
                     @endif
-                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm"
-                         x-data="{ open: {{ ($group['complete'] ?? false) ? 'false' : 'true' }} }">
-                        <button type="button" class="w-full px-4 py-3.5 bg-brand text-white text-left" @click="open = !open">
+                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm">
+                        <button type="button" class="w-full px-4 py-3.5 bg-brand text-white text-left" @click="toggleGroup(@js($groupKeyRo))">
                             <h4 class="text-base font-extrabold tracking-tight inline-flex items-center gap-2">
-                                <svg class="size-4 text-brand-gold transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                <svg class="size-4 text-brand-gold transition" :class="openGroup === @js($groupKeyRo) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                 <span>{{ $group['label'] }}</span>
                             </h4>
                             <p class="text-[11px] text-white/80 mt-0.5 tabular-nums">
                                 {{ $group['decided'] ?? 0 }}/{{ $group['total'] ?? count($group['items'] ?? []) }} reviewed
                             </p>
                         </button>
-                        <ul x-show="open" x-cloak class="divide-y divide-gray-50 bg-white">
+                        <ul x-show="openGroup === @js($groupKeyRo)" x-cloak class="divide-y divide-gray-50 bg-white">
                             @foreach ($group['items'] as $item)
                                 <li class="p-4">
                                     <div class="flex items-start gap-3">

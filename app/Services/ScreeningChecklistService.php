@@ -980,7 +980,7 @@ class ScreeningChecklistService
                         'value' => trim(($loan['status'] ?? '').' · '.($loan['balance'] ?? $loan['amount'] ?? '')),
                     ];
                 }
-                $hint = 'Check exposure at other microfinances / lenders.';
+                $hint = 'Check exposure at other microfinances / lenders. System shows CRB fields — you decide Pass / Fail.';
                 break;
 
             case 'residence':
@@ -994,8 +994,39 @@ class ScreeningChecklistService
                     ['label' => 'Signatory phone', 'value' => (string) ($customer?->lga_officer_phone ?: '—')],
                 ];
                 $hint = filled($customer?->lga_officer_phone)
-                    ? 'Call the signatory phone to confirm the residence letter if needed.'
-                    : 'Residence letter signatory phone is missing — borrower must add LGO officer phone.';
+                    ? 'System checks address + LGO name/phone are filled. Confirming residence with the LGO is your phone call — not automatic.'
+                    : 'Residence incomplete — borrower must add address and LGO officer name + phone before you can call them.';
+                break;
+
+            case 'residence_proof':
+                $docs = (array) ($ctx['documents'] ?? []);
+                $files = collect($docs['files'] ?? [])->filter(function ($file) {
+                    $label = strtolower((string) ($file['label'] ?? $file['code'] ?? ''));
+                    $code = strtolower((string) ($file['code'] ?? ''));
+
+                    return str_contains($label, 'resid')
+                        || str_contains($label, 'utility')
+                        || str_contains($label, 'letter')
+                        || str_contains($code, 'resid')
+                        || str_contains($code, 'utility')
+                        || str_contains($code, 'lga')
+                        || str_contains($code, 'lgo');
+                })->values();
+                $rows = [
+                    ['label' => 'Residence / utility files', 'value' => (string) $files->count()],
+                    ['label' => 'How confirmed', 'value' => 'You review the letter / utility image — system only counts uploads'],
+                ];
+                foreach ($files->take(8) as $file) {
+                    if (! empty($file['url'])) {
+                        $photos[] = [
+                            'label' => trim(($file['label'] ?? 'Residence proof').(isset($file['status']) ? ' · '.$file['status'] : '')),
+                            'url' => (string) $file['url'],
+                        ];
+                    }
+                }
+                $hint = $photos === []
+                    ? 'No residence / utility proof uploaded yet — request a re-upload if needed.'
+                    : 'Open the images and confirm they match the stated address. System does not auto-verify the letter.';
                 break;
 
             case 'activity':
@@ -1003,6 +1034,7 @@ class ScreeningChecklistService
                     ['label' => 'Occupation / activity', 'value' => (string) ($customer?->occupation ?? $customer?->business_type ?? '—')],
                     ['label' => 'Employer / business', 'value' => (string) ($customer?->employer_name ?? $customer?->business_name ?? '—')],
                 ];
+                $hint = 'Screening judgment — system shows profile fields only.';
                 break;
 
             case 'affordability':
@@ -1011,7 +1043,9 @@ class ScreeningChecklistService
                     ['label' => 'Verdict', 'value' => strtoupper((string) ($aff['verdict'] ?? ($aff['pass'] ?? false ? 'pass' : '—')))],
                     ['label' => 'Capacity', 'value' => isset($aff['available_capacity']) ? format_money((float) $aff['available_capacity']) : '—'],
                     ['label' => 'Proposed EMI', 'value' => isset($aff['proposed_installment']) ? format_money((float) $aff['proposed_installment']) : '—'],
+                    ['label' => 'How confirmed', 'value' => 'System runs affordability math; you judge income evidence quality'],
                 ];
+                $hint = 'System calculates capacity vs proposed installment. Confirm the underlying income evidence yourself.';
                 break;
 
             case 'id_docs':
@@ -1037,9 +1071,10 @@ class ScreeningChecklistService
                 $docs = (array) ($ctx['documents'] ?? []);
                 $missing = collect($docs['missing'] ?? [])->filter()->values();
                 $rows = [
-                    ['label' => 'Required verified', 'value' => ($docs['satisfied'] ?? 0).' / '.($docs['required'] ?? 0)],
+                    ['label' => 'Product docs verified', 'value' => ($docs['satisfied'] ?? 0).' / '.($docs['required'] ?? 0)],
                     ['label' => 'Uploaded', 'value' => (string) ($docs['uploaded'] ?? 0)],
                     ['label' => 'Progress', 'value' => ($docs['progress'] ?? 0).'%'],
+                    ['label' => 'How confirmed', 'value' => 'System counts required product docs marked verified'],
                 ];
                 if ($missing->isNotEmpty()) {
                     $rows[] = [
@@ -1056,14 +1091,16 @@ class ScreeningChecklistService
                     }
                 }
                 $hint = $photos === []
-                    ? 'No product documents uploaded yet.'
-                    : 'Preview documents here — expand an image to enlarge. Request re-upload if needed.';
+                    ? 'No product documents uploaded yet. “0 / N” means none of the required types are verified yet.'
+                    : 'System Pass when every required product document is verified. Follow-up requests are a separate check.';
                 break;
 
             case 'doc_requests':
                 $rows = [
+                    ['label' => 'How confirmed', 'value' => 'System Pass when no open follow-up document requests remain'],
                     ['label' => 'Tip', 'value' => 'Use Pass/Fail after reviewing follow-up uploads. Request another re-upload from Profiles → Documents if needed.'],
                 ];
+                $hint = 'System checks whether screening follow-up document requests are still open.';
                 break;
 
             case 'guarantor_contact':
@@ -1074,6 +1111,7 @@ class ScreeningChecklistService
                     ['label' => 'Signal', 'value' => strtoupper((string) ($g['recommendation'] ?? '—'))],
                     ['label' => 'Summary', 'value' => (string) ($g['summary'] ?? '—')],
                 ];
+                $hint = 'You confirm by calling the guarantor — system only shows contact / CRB signals.';
                 break;
 
             case 'nok_contact':
@@ -1081,6 +1119,7 @@ class ScreeningChecklistService
                     ['label' => 'Next of kin', 'value' => (string) ($customer?->next_of_kin_name ?? $customer?->kin_name ?? '—')],
                     ['label' => 'Phone', 'value' => (string) ($customer?->next_of_kin_phone ?? $customer?->kin_phone ?? '—')],
                 ];
+                $hint = 'You confirm by calling next of kin — system cannot place the call.';
                 break;
 
             case 'insurance':
@@ -1090,13 +1129,25 @@ class ScreeningChecklistService
                     ['label' => 'Source', 'value' => (string) ($cs['source'] ?? '—')],
                     ['label' => 'Insurance type', 'value' => (string) (data_get($cs, 'insurance.insurance_type') ?: '—')],
                     ['label' => 'Expiry', 'value' => (string) (data_get($cs, 'insurance.expiry') ?: '—')],
+                    ['label' => 'How confirmed', 'value' => 'System shows recorded cover; you confirm the policy matches the asset'],
                 ];
+                $hint = 'System surfaces insurance on file. Confirm type and expiry against the vehicle / asset yourself.';
+                break;
+
+            case 'generic':
+                $rows = [
+                    ['label' => 'How confirmed', 'value' => 'Screening judgment — system does not auto-confirm this item'],
+                    ['label' => 'Tip', 'value' => 'Use Pass after you personally completed the check (call, file review, or notes).'],
+                ];
+                $hint = 'No automatic check — you confirm by completing the action (call, review notes, or committee readiness).';
                 break;
 
             default:
                 $rows = [
+                    ['label' => 'How confirmed', 'value' => 'Screening judgment — review evidence, then record Pass or Fail'],
                     ['label' => 'Tip', 'value' => 'Review the evidence above, then record Pass or Fail.'],
                 ];
+                $hint = 'System only shows supporting fields — confirmation is your Pass / Fail.';
         }
 
         return [

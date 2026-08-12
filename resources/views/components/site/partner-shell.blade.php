@@ -52,6 +52,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta http-equiv="Permissions-Policy" content="notifications=(), push=()">
     <title>{{ $pageTitle }}</title>
     @vite(['resources/css/app.css','resources/js/app.js'])
     @stack('styles')
@@ -59,7 +60,27 @@
 </head>
 <body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false}">
 
-<x-site.flash-notice />
+@if (session('status') || session('warning') || session('error'))
+    <div class="sr-only" aria-hidden="true"
+         x-data
+         x-init="
+            $nextTick(() => {
+                @if (session('error'))
+                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                        detail: { tone: 'error', title: @js(brand_name()), message: @js(session('error')), lines: [] }
+                    }));
+                @elseif (session('warning'))
+                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                        detail: { tone: 'warning', title: @js(brand_name()), message: @js(session('warning')), lines: [] }
+                    }));
+                @elseif (session('status'))
+                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                        detail: { tone: 'success', title: @js(brand_name()), message: @js(session('status')), lines: [] }
+                    }));
+                @endif
+            });
+         "></div>
+@endif
 
 <div class="min-h-screen flex">
 

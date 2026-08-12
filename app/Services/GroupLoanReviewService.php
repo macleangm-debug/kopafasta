@@ -36,10 +36,19 @@ class GroupLoanReviewService
             $memberCrb = collect($application->credit_appraisal_payload['group_member_crb'] ?? [])
                 ->firstWhere('customer_id', $customer?->id);
 
+            $crbSummary = $customer
+                ? app(CrbCreditCheckService::class)->summaryForCustomer($customer)
+                : [];
+            if (is_array($memberCrb) && filled($memberCrb['score'] ?? null) && ! filled($crbSummary['score'] ?? null)) {
+                $crbSummary['score'] = $memberCrb['score'];
+            }
+            $crbExplain = app(CrbCreditCheckService::class)->recommendationExplanation($crbSummary);
+
             return [
                 'id'                    => $member->id,
                 'role'                  => $member->role,
                 'name'                  => $customer?->full_name ?? '—',
+                'customer_id'           => $customer?->id,
                 'customer_number'       => $customer?->customer_number,
                 'phone'                 => $customer?->phone,
                 'national_id'           => $customer?->national_id,
@@ -47,8 +56,13 @@ class GroupLoanReviewService
                 'status_key'            => $status['key'],
                 'status_label'          => $status['label'],
                 'kyc_complete'          => (bool) ($requirements['can_apply'] ?? false),
-                'crb_score'             => $memberCrb['score'] ?? $latestCrb?->score,
-                'crb_status'            => $memberCrb['error'] ?? ($latestCrb ? 'checked' : 'Not checked'),
+                'crb_score'             => $memberCrb['score'] ?? $crbSummary['score'] ?? $latestCrb?->score,
+                'crb_status'            => $memberCrb['error'] ?? ($latestCrb || ($crbSummary['score'] ?? null) !== null ? 'checked' : 'Not checked'),
+                'crb_recommendation'    => strtolower((string) ($crbSummary['recommendation'] ?? '')),
+                'crb_existing_loans'    => (int) ($crbSummary['existing_loans'] ?? 0),
+                'crb_outstanding'       => (float) ($crbSummary['outstanding_balance'] ?? 0),
+                'crb_delinquencies'     => (int) ($crbSummary['delinquencies'] ?? 0),
+                'crb_summary'           => (string) ($crbExplain['summary'] ?? ''),
                 'crb_checked_at'        => $memberCrb['checked_at'] ?? $latestCrb?->checked_at?->toIso8601String(),
                 'monthly_income'        => $customer?->income_range,
                 'existing_exposure'     => $customer

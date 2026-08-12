@@ -556,11 +556,11 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         Route::get('/', DashboardController::class)->middleware('console')->name('dashboard');
 
-        Route::get('hubs/customers', [\App\Http\Controllers\Admin\ConsoleHubController::class, 'customers'])
+        Route::get('hubs/customers', fn () => redirect()->route('admin.customers.index'))
             ->name('hubs.customers');
-        Route::get('hubs/payments', [\App\Http\Controllers\Admin\ConsoleHubController::class, 'payments'])
+        Route::get('hubs/payments', fn () => redirect()->route('admin.payments.index'))
             ->name('hubs.payments');
-        Route::get('hubs/field-assignments', [\App\Http\Controllers\Admin\ConsoleHubController::class, 'fieldAssignments'])
+        Route::get('hubs/field-assignments', fn () => redirect()->route('admin.recovery.assignments.index'))
             ->name('hubs.field-assignments');
 
         // Applications

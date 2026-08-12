@@ -269,13 +269,93 @@
             @endif
         </div>
 
-        <div class="lg:col-span-3 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br {{ $crbTone['card'] }} text-white">
-            <div class="px-5 py-5">
+        <div class="lg:col-span-3 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 {{ $isGroupLoan && $groupMembers->isNotEmpty() ? '' : 'bg-gradient-to-br '.$crbTone['card'].' text-white' }}">
+            @if ($isGroupLoan && $groupMembers->isNotEmpty())
+                @php
+                    $memberCrbSlides = $groupMembers->values()->map(function (array $m) {
+                        $rec = strtolower((string) ($m['crb_recommendation'] ?? ''));
+                        $tone = match ($rec) {
+                            'approve' => 'from-emerald-600 to-emerald-800',
+                            'refer' => 'from-amber-500 to-amber-700',
+                            'reject' => 'from-rose-600 to-rose-800',
+                            default => 'from-brand to-brand-light',
+                        };
+
+                        return [
+                            'id' => (int) ($m['id'] ?? 0),
+                            'name' => (string) ($m['name'] ?? 'Member'),
+                            'role' => ucfirst((string) ($m['role'] ?? 'member')),
+                            'rec' => $rec !== '' ? $rec : '—',
+                            'score' => $m['crb_score'] ?? null,
+                            'summary' => (string) ($m['crb_summary'] ?? 'No CRB explanation available.'),
+                            'loans' => (int) ($m['crb_existing_loans'] ?? 0),
+                            'outstanding' => (float) ($m['crb_outstanding'] ?? 0),
+                            'delinq' => (int) ($m['crb_delinquencies'] ?? 0),
+                            'status' => (string) ($m['crb_status'] ?? ''),
+                            'tone' => $tone,
+                        ];
+                    })->all();
+                    $leaderIdx = $groupMembers->values()->search(fn ($m) => strtolower((string) ($m['role'] ?? '')) === 'leader');
+                    if ($leaderIdx === false) {
+                        $leaderIdx = 0;
+                    }
+                @endphp
+                <div x-data="{ i: {{ (int) $leaderIdx }}, slides: @js($memberCrbSlides) }" class="relative text-white">
+                    <template x-for="(slide, idx) in slides" :key="idx">
+                        <div x-show="i === idx" x-cloak
+                             class="bg-gradient-to-br px-5 py-5"
+                             :class="slide.tone">
+                            <div class="flex items-center justify-between gap-2 mb-1">
+                                <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Member CRB</p>
+                                <p class="text-[10px] font-bold tabular-nums text-white/70" x-text="(i + 1) + ' / ' + slides.length"></p>
+                            </div>
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-[11px] font-semibold text-white/85 truncate" x-text="slide.role + ' · ' + slide.name"></p>
+                                    <p class="text-2xl font-bold mt-1 uppercase tracking-tight" x-text="slide.rec"></p>
+                                </div>
+                                <span class="inline-flex shrink-0 text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 bg-white/20 text-white"
+                                      x-text="'Score ' + (slide.score ?? '—')"></span>
+                            </div>
+                            <p class="text-sm text-white/85 mt-3 leading-relaxed" x-text="slide.summary"></p>
+                            <div class="mt-4 grid grid-cols-2 gap-2">
+                                <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                                    <p class="text-[10px] uppercase tracking-wider text-white/60">Other institutions</p>
+                                    <p class="text-sm font-bold mt-0.5" x-text="slide.loans + ' loan' + (slide.loans === 1 ? '' : 's')"></p>
+                                    <p class="text-[11px] text-white/75 mt-0.5 truncate"
+                                       x-text="slide.outstanding > 0 ? ('Outst. ' + new Intl.NumberFormat().format(slide.outstanding)) : 'No outstanding reported'"></p>
+                                </div>
+                                <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                                    <p class="text-[10px] uppercase tracking-wider text-white/60">Delinquencies</p>
+                                    <p class="text-sm font-bold mt-0.5" x-text="slide.delinq"></p>
+                                    <p class="text-[11px] text-white/75 mt-0.5 truncate" x-text="slide.status || '—'"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 pt-4">
+                                <button type="button" class="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 disabled:opacity-40"
+                                        @click="i = Math.max(0, i - 1)" :disabled="i === 0">← Prev</button>
+                                <div class="flex gap-1">
+                                    <template x-for="(s, idx) in slides" :key="'dot-'+idx">
+                                        <button type="button" class="size-1.5 rounded-full"
+                                                :class="idx === i ? 'bg-white' : 'bg-white/35'"
+                                                @click="i = idx"></button>
+                                    </template>
+                                </div>
+                                <button type="button" class="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 disabled:opacity-40"
+                                        @click="i = Math.min(slides.length - 1, i + 1)" :disabled="i >= slides.length - 1">Next →</button>
+                            </div>
+                            <a :href="'{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'profiles', 'person' => 'member', 'tab' => 'crb']) }}&m=' + slide.id + '#borrower-file'"
+                               class="mt-3 inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
+                                Full member CRB →
+                            </a>
+                        </div>
+                    </template>
+                </div>
+            @else
+            <div class="bg-gradient-to-br {{ $crbTone['card'] }} text-white px-5 py-5">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">
-                            {{ $isGroupLoan ? 'Leader CRB' : 'Borrower CRB' }}
-                        </p>
+                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Borrower CRB</p>
                         <p class="text-2xl font-bold mt-1 uppercase tracking-tight">{{ $crbRec !== '' ? $crbRec : '—' }}</p>
                     </div>
                     <span class="inline-flex text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 {{ $crbTone['badge'] }}">
@@ -316,9 +396,10 @@
                 </div>
                 <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'profiles', 'person' => 'borrower', 'tab' => 'crb']) }}#borrower-file"
                    class="mt-3 inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
-                    Full {{ $isGroupLoan ? 'leader' : 'borrower' }} CRB →
+                    Full borrower CRB →
                 </a>
             </div>
+            @endif
         </div>
 
         @if ($showRosterCard)
@@ -523,11 +604,6 @@
                 @endif
 
                 @include('admin.loan-applications.review._review_desk')
-
-                {{-- Decisions stay available on the checklist tab --}}
-                <div id="review-action-zone" class="scroll-mt-24">
-                    @include('admin.loan-applications.review._recommendation')
-                </div>
             @elseif ($workspace === 'profiles')
                 @include('admin.loan-applications.review._borrower_file_tabs')
             @else
@@ -543,4 +619,4 @@
     </div>
 </section>
 
-@include('admin.loan-applications.review._decision_sticky_bar')
+@include('admin.loan-applications.review._decision_sticky_bar', ['workspace' => $workspace])

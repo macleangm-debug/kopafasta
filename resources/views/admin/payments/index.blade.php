@@ -1,9 +1,43 @@
-<x-admin.layout
-    title="Payments"
-    heading="Payments"
-    subheading="Registration, application, post-approval, repayment, and fee payments">
+<x-admin.layout title="Verify payments" heading="" subheading="">
 
-<div class="mb-4 flex flex-wrap gap-2">
+    <section class="mb-6">
+        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
+            <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-6 text-white">
+                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Bank matching</p>
+                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Verify payments</h1>
+                <p class="text-sm text-white/75 mt-2 max-w-2xl">
+                    Match borrower transfers to your bank or mobile-money account, then post to the ledger.
+                </p>
+            </div>
+            <div class="bg-white px-6 py-5 grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <a href="{{ route('admin.payments.index', ['status' => 'pending']) }}"
+                   class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4 hover:ring-amber-200 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Pending</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['pending']) }}</p>
+                </a>
+                <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Verified today</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['verified_today'] ?? 0) }}</p>
+                </div>
+                <a href="{{ route('admin.payments.index', ['status' => 'verified']) }}"
+                   class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-4 hover:ring-sky-200 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">Verified</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['verified']) }}</p>
+                </a>
+                <a href="{{ route('admin.payments.index', ['status' => 'rejected']) }}"
+                   class="rounded-xl bg-rose-50 ring-1 ring-rose-100 px-4 py-4 hover:ring-rose-200 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-rose-800 font-semibold">Rejected</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['rejected']) }}</p>
+                </a>
+                <div class="rounded-xl {{ ($counts['missing_journal'] ?? 0) > 0 ? 'bg-rose-50 ring-rose-100' : 'bg-gray-50 ring-gray-100' }} ring-1 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest {{ ($counts['missing_journal'] ?? 0) > 0 ? 'text-rose-800' : 'text-gray-600' }} font-semibold">Missing journal</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['missing_journal'] ?? 0) }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="mb-4 flex flex-wrap gap-2 items-center">
         @foreach ([
             'pending' => $counts['pending'].' pending',
             'verified' => 'Verified',
@@ -41,7 +75,7 @@
         @endif
     </form>
 
-    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-sm ring-1 ring-brand/10 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
@@ -104,7 +138,7 @@
                             <td class="px-5 py-3 text-right">
                                 <a href="{{ route('admin.payments.show', $payment) }}"
                                    class="text-xs font-semibold text-brand hover:text-brand-light">
-                                    Review →
+                                    Match bank →
                                 </a>
                             </td>
                         </tr>

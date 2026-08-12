@@ -328,7 +328,7 @@ class GroupMemberInvitationService
         $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($product);
 
         $updates = array_filter([
-            'draft_id'                => $draft->id,
+            'loan_application_draft_id' => $draft->id,
             'draft_reference'         => $draft->draft_reference,
             'group_name'              => filled($name) ? (string) $name : null,
             'group_purpose'           => filled($purpose) ? (string) $purpose : null,

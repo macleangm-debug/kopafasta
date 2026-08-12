@@ -107,7 +107,7 @@ return [
             ],
             'utility_or_proof' => [
                 'label' => 'Review residence proof / utility evidence',
-                'evidence' => 'documents',
+                'evidence' => 'residence_proof',
                 'fail_reasons' => [
                     'proof_missing' => 'Residence proof missing',
                     'proof_invalid' => 'Residence proof invalid or outdated',

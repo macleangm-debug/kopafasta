@@ -4,8 +4,10 @@
     $isCommitteeSticky = $stage === 'pre_approval';
     $recType = data_get($review, 'recommendation.type');
     $canReview = auth()->user()?->hasPermission('applications.review');
-    $showScreeningSticky = $isScreeningSticky && $canReview && empty($recType);
-    $showCommitteeSticky = $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty();
+    $workspace = $workspace ?? request('workspace', 'checklist');
+    // Decision desk lives on the Decision tab — do not cover the checklist.
+    $showScreeningSticky = $isScreeningSticky && $canReview && empty($recType) && $workspace === 'decision';
+    $showCommitteeSticky = $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty() && $workspace === 'decision';
     $decisionPanelUrl = route('admin.loan-applications.show', [
         'loan_application' => $record,
         'workspace' => 'decision',
@@ -19,7 +21,7 @@
                 @if ($showScreeningSticky)
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Screening team · Decision desk</p>
-                        <p class="text-sm font-bold mt-0.5 truncate">Approve, Reject, or Counter-offer — from this checklist or the Decision tab</p>
+                        <p class="text-sm font-bold mt-0.5 truncate">Approve, Reject, or Counter-offer from this Decision tab</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
                         <a href="{{ $decisionPanelUrl }}"

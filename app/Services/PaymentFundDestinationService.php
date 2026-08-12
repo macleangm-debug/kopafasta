@@ -153,7 +153,7 @@ class PaymentFundDestinationService
 
         $affiliate = PartnerPayment::query()
             ->with('partner')
-            ->where('payment_type', 'affiliate_commission')
+            ->where('source_type', 'affiliate_commission')
             ->where(function ($q) use ($payment) {
                 $q->where('reference', $payment->reference);
                 if ($payment->source_type && $payment->source_id) {
@@ -190,9 +190,13 @@ class PaymentFundDestinationService
 
         return PartnerPayment::query()
             ->with('partner')
-            ->where('payment_type', $paymentType)
-            ->where('source_type', $sourceType)
-            ->where('source_id', $sourceId)
+            ->where('source_type', $paymentType)
+            ->where(function ($q) use ($sourceType, $sourceId) {
+                // Prefer matching the originating record when present; some rows only set category source_type.
+                if ($sourceType !== '' && $sourceId > 0) {
+                    $q->where('source_id', $sourceId);
+                }
+            })
             ->get()
             ->map(fn (PartnerPayment $vp) => [
                 'party' => $vp->partner?->name ?? 'Partner',

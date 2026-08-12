@@ -34,6 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'two_factor' => \App\Http\Middleware\EnsureTwoFactorVerified::class,
         ]);
 
+        $middleware->appendToGroup('web', \App\Http\Middleware\QuietBrowserNotifications::class);
+
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->is('staff', 'staff/*')) {
                 return route('staff.login');

@@ -38,6 +38,14 @@ class PaymentVerificationController extends Controller
             'pending' => CustomerPayment::pending()->count(),
             'verified' => CustomerPayment::where('status', 'verified')->count(),
             'rejected' => CustomerPayment::where('status', 'rejected')->count(),
+            'verified_today' => CustomerPayment::query()
+                ->where('status', 'verified')
+                ->whereDate('verified_at', today())
+                ->count(),
+            'missing_journal' => CustomerPayment::query()
+                ->whereIn('status', ['verified', 'paid'])
+                ->whereNull('journal_entry_id')
+                ->count(),
         ];
 
         $types = config('payment_types.types', []);
