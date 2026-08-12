@@ -272,6 +272,7 @@ class ScreeningChecklistService
                             'hint' => 'Auto N/A — this loan is not on an asset / collateral path. Items reopen if screening moves it to an asset.',
                             'rows' => [],
                             'photos' => [],
+                            'documents' => [],
                             'compare' => [],
                             'layout' => null,
                         ]
@@ -471,8 +472,167 @@ class ScreeningChecklistService
 
             $application->update(['screening_payload' => $payload]);
 
-            return $this->viewModel($application->fresh(), $actor, $person, $guarantorLinkId, $memberId);
+            $fresh = $application->fresh();
+            $suggestion = $this->suggestedRejection($fresh);
+            if ($suggestion['prompt_reject'] && $suggestion['codes'] !== []) {
+                $payload = (array) ($fresh->screening_payload ?? []);
+                $payload['recommendation_meta'] = array_merge(
+                    (array) ($payload['recommendation_meta'] ?? []),
+                    [
+                        'preferred_rejection_reason_code' => $suggestion['codes'][0],
+                        'preferred_rejection_reason_codes' => $suggestion['codes'],
+                        'preferred_rejection_notes' => $suggestion['summary'],
+                        'from_checklist' => true,
+                    ]
+                );
+                $fresh->update([
+                    'screening_payload' => $payload,
+                    'screening_rejection_reason_code' => $suggestion['codes'][0],
+                ]);
+            }
+
+            return $this->viewModel($fresh->fresh(), $actor, $person, $guarantorLinkId, $memberId);
         });
+    }
+
+    /**
+     * Map checklist Fail verdicts into borrower-facing rejection letter codes + screening summary.
+     * Critical fails (incl. Gate 2 on any subject / group member) prompt reject.
+     *
+     * @return array{
+     *   prompt_reject: bool,
+     *   codes: list<string>,
+     *   summary: string,
+     *   fails: list<array{subject: string, item: string, label: string, fail_code: string, fail_label: string, risk: string, letter_code: string}>
+     * }
+     */
+    public function suggestedRejection(LoanApplication $application): array
+    {
+        $application->loadMissing([
+            'customer',
+            'customerGuarantors.guarantor',
+            'loanGroup.members.customer',
+        ]);
+
+        $bySubject = (array) data_get($application->screening_payload, 'screening_checklist.by_subject', []);
+        if ($bySubject === [] && is_array(data_get($application->screening_payload, 'screening_checklist.items'))) {
+            $bySubject = ['borrower' => ['items' => data_get($application->screening_payload, 'screening_checklist.items')]];
+        }
+
+        $letterMap = $this->checklistFailToLetterCodeMap();
+        $fails = [];
+        $prompt = false;
+
+        foreach ($bySubject as $subjectKey => $bucket) {
+            $items = (array) ($bucket['items'] ?? []);
+            $subjectLabel = $this->subjectDisplayLabel($application, (string) $subjectKey);
+            $kind = $this->kindFromSubject((string) $subjectKey);
+
+            foreach ($this->catalog($kind) as $groupKey => $group) {
+                foreach ((array) ($group['items'] ?? []) as $itemKey => $meta) {
+                    $meta = $this->normalizeItemMeta($meta);
+                    $full = $groupKey.'.'.$itemKey;
+                    $entry = (array) ($items[$full] ?? []);
+                    if (($entry['verdict'] ?? null) !== 'fail') {
+                        continue;
+                    }
+                    $failCode = (string) ($entry['fail_reason_code'] ?? 'custom');
+                    $failLabel = $this->failReasonLabel($meta['fail_reasons'], $entry) ?: $failCode;
+                    $letter = $letterMap[$failCode]
+                        ?? ($letterMap[$full] ?? null)
+                        ?? 'internal_credit_policy_declined';
+                    $risk = (string) ($meta['risk'] ?? 'normal');
+                    $isGate = ($meta['gate'] ?? null) === 'statements_vs_declared' || $full === 'activity_income.income_evidence';
+                    if ($risk === 'critical' || $isGate) {
+                        $prompt = true;
+                    }
+                    $fails[] = [
+                        'subject' => $subjectLabel,
+                        'item' => $full,
+                        'label' => (string) ($meta['label'] ?? $full),
+                        'fail_code' => $failCode,
+                        'fail_label' => $failLabel,
+                        'risk' => $risk,
+                        'letter_code' => $letter,
+                    ];
+                }
+            }
+        }
+
+        $codes = collect($fails)
+            ->sortBy(fn (array $fail) => match (true) {
+                str_contains($fail['item'], 'income_evidence') => 0,
+                $fail['risk'] === 'critical' => 1,
+                default => 2,
+            })
+            ->pluck('letter_code')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $summaryLines = collect($fails)->map(function (array $fail) {
+            $tag = ($fail['risk'] === 'critical') ? 'High risk' : 'Fail';
+
+            return $tag.' · '.$fail['subject'].' · '.$fail['label'].' — '.$fail['fail_label'];
+        })->all();
+
+        return [
+            'prompt_reject' => $prompt && $fails !== [],
+            'codes' => $codes,
+            'summary' => implode("\n", $summaryLines),
+            'fails' => $fails,
+        ];
+    }
+
+    /** @return array<string, string> checklist fail_reason_code (or item key) → letter code */
+    private function checklistFailToLetterCodeMap(): array
+    {
+        return [
+            'statements_missing' => 'required_documents_missing',
+            'revenue_mismatch' => 'insufficient_income',
+            'income_insufficient' => 'insufficient_income',
+            'irregular_pattern' => 'unstable_income_pattern',
+            'implausible' => 'business_not_verified',
+            'unverified' => 'employment_not_verified',
+            'docs_missing' => 'required_documents_missing',
+            'docs_rejected' => 'documents_not_verified',
+            'falsified' => 'falsified_documentation',
+            'inconsistent' => 'inconsistent_information',
+            'insufficient_capacity' => 'guarantor_not_acceptable',
+            'profile_incomplete' => 'guarantor_profile_incomplete',
+            'identity_mismatch' => 'national_id_mismatch',
+            'face_mismatch' => 'face_verification_failed',
+            'crb_reject' => 'poor_crb_history',
+            'high_debt' => 'excessive_existing_debt',
+            'delinquent' => 'active_loan_delinquency',
+            'low_score' => 'low_credit_score',
+            'custom' => 'internal_credit_policy_declined',
+        ];
+    }
+
+    private function subjectDisplayLabel(LoanApplication $application, string $subjectKey): string
+    {
+        if ($subjectKey === 'borrower') {
+            $name = $application->customer?->full_name;
+
+            return $name ? 'Borrower / leader ('.$name.')' : 'Borrower / leader';
+        }
+        if (str_starts_with($subjectKey, 'guarantor:')) {
+            $linkId = (int) substr($subjectKey, strlen('guarantor:'));
+            $link = $application->customerGuarantors->firstWhere('id', $linkId);
+            $name = $link?->displayName();
+
+            return ($name && $name !== '') ? 'Guarantor ('.$name.')' : 'Guarantor';
+        }
+        if (str_starts_with($subjectKey, 'member:')) {
+            $memberId = (int) substr($subjectKey, strlen('member:'));
+            $member = $application->loanGroup?->members?->firstWhere('id', $memberId);
+            $name = $member?->customer?->full_name ?? null;
+
+            return $name ? 'Group member ('.$name.')' : 'Group member';
+        }
+
+        return $subjectKey;
     }
 
     /** @param  array<string, mixed>|string  $meta */
@@ -1014,6 +1174,7 @@ class ScreeningChecklistService
         $customer = $ctx['customer'] ?? null;
         $crb = (array) ($ctx['crb'] ?? []);
         $photos = [];
+        $documents = [];
         $rows = [];
         $compare = [];
         $hint = null;
@@ -1282,7 +1443,7 @@ class ScreeningChecklistService
                     ['label' => 'Occupation / activity', 'value' => (string) ($customer?->occupation ?? $customer?->business_type ?? '—')],
                     ['label' => 'Employer / business', 'value' => (string) ($customer?->employer_name ?? $customer?->business_name ?? '—')],
                 ];
-                $hint = 'Screening judgment — system shows profile fields only.';
+                $hint = 'From the profile only — Pass if this activity looks real for the loan, Fail if it does not.';
                 break;
 
             case 'affordability':
@@ -1300,24 +1461,30 @@ class ScreeningChecklistService
                 $declared = (float) ($ctx['declared_monthly_income'] ?? 0);
                 $declaredLabel = (string) ($ctx['declared_income_label'] ?? '');
                 $statements = collect($ctx['income_statements'] ?? []);
+                $layout = 'documents';
                 $rows = [
                     ['label' => 'Profile monthly revenue', 'value' => $declaredLabel !== ''
                         ? $declaredLabel.($declared > 0 ? ' · ~'.format_money($declared) : '')
                         : ($declared > 0 ? format_money($declared).'/mo' : '— not declared')],
                     ['label' => 'Statements on file', 'value' => (string) $statements->count()],
-                    ['label' => 'Your gate', 'value' => 'Do statement inflows support this declared monthly revenue? (Gate 2 after capacity auto-reject)'],
                 ];
+                $documents = [];
                 foreach ($statements->take(8) as $file) {
-                    if (! empty($file['url'])) {
-                        $photos[] = [
-                            'label' => trim(($file['label'] ?? 'Statement').(isset($file['status']) ? ' · '.$file['status'] : '')),
-                            'url' => (string) $file['url'],
-                        ];
+                    if (empty($file['url'])) {
+                        continue;
                     }
+                    $path = strtolower((string) ($file['file_path'] ?? $file['url'] ?? ''));
+                    $kind = str_ends_with($path, '.pdf') ? 'pdf' : 'image';
+                    $documents[] = [
+                        'label' => trim((string) ($file['label'] ?? 'Statement')),
+                        'url' => (string) $file['url'],
+                        'kind' => $kind,
+                        'status' => $file['status'] ?? null,
+                    ];
                 }
-                $hint = $photos === []
-                    ? 'No bank / mobile-money statements on the profile yet — request them before Pass, or Fail as missing.'
-                    : 'Open each statement and judge whether cashflow supports the profile monthly revenue. Pass only when it matches.';
+                $hint = $documents === []
+                    ? 'No bank or mobile-money statement on this profile yet — request one, or Fail as missing (that rejects the file).'
+                    : 'Open the statement(s) below. Pass only if inflows support the profile monthly revenue. Fail rejects this application.';
                 break;
 
             case 'id_docs':
@@ -1427,6 +1594,7 @@ class ScreeningChecklistService
             'rows' => $rows,
             'compare' => $compare,
             'photos' => $photos,
+            'documents' => $documents,
             'hint' => $hint,
             'layout' => $layout,
         ];

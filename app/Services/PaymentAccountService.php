@@ -24,9 +24,12 @@ class PaymentAccountService
             if ($override) {
                 $mobileAccount = $override->mobileMoneyAccount
                     ?? ($paymentMethod === 'mobile_money' ? $this->defaultCollectionAccount() : null);
+                $bankAccount = $paymentMethod === 'bank_transfer'
+                    ? ($this->defaultCollectionBankAccount() ?? $override->bankAccount ?? $this->fallbackBankAccount())
+                    : $override->bankAccount;
 
                 return [
-                    'bank_account'         => $override->bankAccount,
+                    'bank_account'         => $bankAccount,
                     'mobile_money_account' => $mobileAccount,
                     'instructions'         => $override->payment_instructions,
                 ];
@@ -41,18 +44,24 @@ class PaymentAccountService
 
         if ($mapping) {
             $account = $mapping->mobileMoneyAccount ?? $this->defaultCollectionAccount();
+            $bankAccount = $paymentMethod === 'bank_transfer'
+                ? ($this->defaultCollectionBankAccount() ?? $mapping->bankAccount ?? $this->fallbackBankAccount())
+                : $mapping->bankAccount;
 
             return [
-                'bank_account'         => $mapping->bankAccount,
+                'bank_account'         => $bankAccount,
                 'mobile_money_account' => $paymentMethod === 'mobile_money' ? $account : $mapping->mobileMoneyAccount,
                 'instructions'         => $mapping->payment_instructions,
             ];
         }
 
         $defaultMobile = $paymentMethod === 'mobile_money' ? $this->defaultCollectionAccount() : null;
+        $defaultBank = $paymentMethod === 'bank_transfer'
+            ? ($this->defaultCollectionBankAccount() ?? $this->fallbackBankAccount())
+            : null;
 
         return [
-            'bank_account'         => null,
+            'bank_account'         => $defaultBank,
             'mobile_money_account' => $defaultMobile,
             'instructions'         => null,
         ];
@@ -71,11 +80,44 @@ class PaymentAccountService
             ->first();
     }
 
+    /** Single inbound bank account for all bank_transfer payments (e.g. TCB). */
+    public function defaultCollectionBankAccount(): ?BankAccount
+    {
+        $id = (int) (Setting::get('payments.default_collection_bank_account_id') ?? 0);
+        if ($id > 0) {
+            $account = BankAccount::query()
+                ->whereKey($id)
+                ->where('is_active', true)
+                ->first();
+            if ($account) {
+                return $account;
+            }
+        }
+
+        // Prefer an active TCB collection account if the setting is not yet saved.
+        return BankAccount::query()
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->where('bank_name', 'like', '%TCB%')
+                    ->orWhere('name', 'like', '%TCB%');
+            })
+            ->orderByRaw("CASE WHEN purpose = 'collection' THEN 0 ELSE 1 END")
+            ->orderBy('id')
+            ->first();
+    }
+
     public function applyDefaultCollectionToAllMappings(int $accountId): int
     {
         return PaymentAccountMapping::query()
             ->where('payment_method', 'mobile_money')
             ->update(['mobile_money_account_id' => $accountId]);
+    }
+
+    public function applyDefaultCollectionBankToAllMappings(int $accountId): int
+    {
+        return PaymentAccountMapping::query()
+            ->where('payment_method', 'bank_transfer')
+            ->update(['bank_account_id' => $accountId]);
     }
 
     /** @return array<string, string> */
@@ -101,18 +143,22 @@ class PaymentAccountService
     }
 
     /**
-     * Prefer a mapped bank for the payment type; otherwise any active mapped/default bank.
+     * Prefer the configured collection bank (TCB); otherwise any active mapped/default bank.
      * Keeps Mobile Money | Bank Transfer available on every PSP gate.
      */
     public function resolveBankAccount(string $paymentType, ?LoanProduct $product = null): ?BankAccount
     {
-        $resolved = $this->resolve($paymentType, 'bank_transfer', $product);
-
-        return $resolved['bank_account'] ?? $this->fallbackBankAccount();
+        return $this->defaultCollectionBankAccount()
+            ?? $this->resolve($paymentType, 'bank_transfer', $product)['bank_account']
+            ?? $this->fallbackBankAccount();
     }
 
     public function fallbackBankAccount(): ?BankAccount
     {
+        if ($default = $this->defaultCollectionBankAccount()) {
+            return $default;
+        }
+
         $mapped = PaymentAccountMapping::query()
             ->where('payment_method', 'bank_transfer')
             ->where('is_active', true)
@@ -140,7 +186,7 @@ class PaymentAccountService
     public function bankAccountsForDisplay(string $paymentType, string $reference, ?LoanProduct $product = null): array
     {
         $resolved = $this->resolve($paymentType, 'bank_transfer', $product);
-        $account = $resolved['bank_account'] ?? $this->fallbackBankAccount();
+        $account = $this->resolveBankAccount($paymentType, $product);
 
         if ($account) {
             $details = $this->bankTransferDetails($account, $reference);

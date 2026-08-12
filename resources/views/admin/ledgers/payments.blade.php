@@ -89,7 +89,7 @@
 
         @if (in_array($tab, ['all', 'fees', 'repayments'], true))
             <div class="mb-4 flex flex-wrap gap-2">
-                @foreach (['pending' => 'Pending', 'verified' => 'Verified', 'rejected' => 'Rejected', 'all' => 'Any status'] as $key => $label)
+                @foreach (['verified' => 'Complete', 'pending' => 'Awaiting bank', 'rejected' => 'Rejected', 'all' => 'Any status'] as $key => $label)
                     <a href="{{ route('admin.payments.ledger', array_filter(['direction' => 'in', 'tab' => $tab !== 'all' ? $tab : null, 'status' => $key, 'type' => $type ?: null])) }}"
                        class="px-2.5 py-1 rounded-md text-xs font-semibold {{ $status === $key ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 ring-1 ring-gray-200' }}">
                         {{ $label }}

@@ -1,29 +1,30 @@
-<x-admin.layout title="Verify payments" heading="" subheading="">
+<x-admin.layout title="Payments" heading="" subheading="">
 
     <section class="mb-6">
         <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-6 text-white">
-                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Bank matching</p>
-                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Verify payments</h1>
+                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Money in</p>
+                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Payments</h1>
                 <p class="text-sm text-white/75 mt-2 max-w-2xl">
-                    Match borrower transfers to your bank or mobile-money account, then post to the ledger.
+                    Completed payments only — mobile money confirmed by the PSP, and bank deposits after staff verification.
+                    Bank transfers waiting for a match live on the verification tab.
                 </p>
             </div>
             <div class="bg-white px-6 py-5 grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <a href="{{ route('admin.payments.index', ['status' => 'pending']) }}"
-                   class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4 hover:ring-amber-200 transition">
-                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Pending</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['pending']) }}</p>
+                <a href="{{ route('admin.payments.index', ['status' => 'complete']) }}"
+                   class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4 hover:ring-emerald-200 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Complete</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['complete']) }}</p>
                 </a>
-                <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4">
-                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Verified today</p>
+                <a href="{{ route('admin.payments.index', ['status' => 'awaiting_bank']) }}"
+                   class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4 hover:ring-amber-200 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Awaiting bank verify</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['awaiting_bank']) }}</p>
+                </a>
+                <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">Completed today</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['verified_today'] ?? 0) }}</p>
                 </div>
-                <a href="{{ route('admin.payments.index', ['status' => 'verified']) }}"
-                   class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-4 hover:ring-sky-200 transition">
-                    <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">Verified</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['verified']) }}</p>
-                </a>
                 <a href="{{ route('admin.payments.index', ['status' => 'rejected']) }}"
                    class="rounded-xl bg-rose-50 ring-1 ring-rose-100 px-4 py-4 hover:ring-rose-200 transition">
                     <p class="text-[10px] uppercase tracking-widest text-rose-800 font-semibold">Rejected</p>
@@ -39,10 +40,10 @@
 
     <div class="mb-4 flex flex-wrap gap-2 items-center">
         @foreach ([
-            'pending' => $counts['pending'].' pending',
-            'verified' => 'Verified',
+            'complete' => 'Complete',
+            'awaiting_bank' => ($counts['awaiting_bank'] ?? 0).' awaiting bank',
             'rejected' => 'Rejected',
-            'all' => 'All',
+            'all' => 'All (incl. in-flight)',
         ] as $key => $label)
             <a href="{{ route('admin.payments.index', array_filter(['status' => $key, 'type' => $type ?: null])) }}"
                class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
@@ -58,6 +59,16 @@
             Payment account settings
         </a>
     </div>
+
+    @if ($status === 'awaiting_bank')
+        <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+            Bank deposits only — match proof to your account, then verify to post the ledger. Mobile money is confirmed by the PSP and appears under Complete automatically.
+        </div>
+    @elseif ($status === 'complete')
+        <div class="mb-4 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand">
+            Showing completed payments (PSP-approved mobile + verified bank). Application fees such as Asset Lending show here once the payment is complete.
+        </div>
+    @endif
 
     <form method="GET" action="{{ route('admin.payments.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
         <input type="hidden" name="status" value="{{ $status }}">
@@ -82,8 +93,7 @@
                     <tr>
                         <th class="px-5 py-3">Reference</th>
                         <th class="px-5 py-3">Borrower</th>
-                        <th class="px-5 py-3">Loan</th>
-                        <th class="px-5 py-3">Payment type</th>
+                        <th class="px-5 py-3">Type &amp; context</th>
                         <th class="px-5 py-3">Method</th>
                         <th class="px-5 py-3">Amount</th>
                         <th class="px-5 py-3">Status</th>
@@ -96,6 +106,9 @@
                         @php
                             $customer = $payment->customer;
                             $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+                            $ctx = $payment->adminContext();
+                            $needsBankMatch = $payment->payment_method === 'bank_transfer'
+                                && in_array($payment->status, ['pending_verification', 'clarification_requested'], true);
                         @endphp
                         <tr class="hover:bg-gray-50 align-top">
                             <td class="px-5 py-3 font-mono text-xs font-semibold">
@@ -107,16 +120,53 @@
                                 <div class="font-medium">{{ $name ?: '—' }}</div>
                                 <div class="text-xs text-gray-500">{{ $customer->customer_number ?? '' }}</div>
                             </td>
-                            <td class="px-5 py-3 font-mono text-xs">
-                                @if ($payment->loan)
-                                    <a href="{{ route('admin.loans.show', $payment->loan) }}" class="text-brand hover:text-brand-light">
-                                        {{ $payment->loan->loan_number ?? $payment->loan->id }}
-                                    </a>
-                                @else
-                                    <span class="text-gray-400">—</span>
+                            <td class="px-5 py-3">
+                                <p class="font-semibold text-gray-900">{{ $ctx['type'] }}</p>
+                                @if ($ctx['product'])
+                                    <p class="text-xs text-gray-700 mt-0.5">
+                                        {{ $ctx['product'] }}
+                                        @if ($ctx['product_code'])
+                                            <span class="text-gray-400 font-mono">({{ $ctx['product_code'] }})</span>
+                                        @endif
+                                    </p>
                                 @endif
+                                <div class="mt-1 space-y-0.5 text-xs text-gray-500">
+                                    @if ($ctx['application_number'])
+                                        <p>
+                                            Application
+                                            @if ($ctx['application_url'])
+                                                <a href="{{ $ctx['application_url'] }}" class="font-semibold text-brand hover:underline">{{ $ctx['application_number'] }}</a>
+                                            @else
+                                                <span class="font-mono">{{ $ctx['application_number'] }}</span>
+                                            @endif
+                                        </p>
+                                    @endif
+                                    @if ($ctx['loan_number'])
+                                        <p>
+                                            Loan
+                                            @if ($ctx['loan_url'])
+                                                <a href="{{ $ctx['loan_url'] }}" class="font-semibold text-brand hover:underline">{{ $ctx['loan_number'] }}</a>
+                                            @else
+                                                <span class="font-mono">{{ $ctx['loan_number'] }}</span>
+                                            @endif
+                                        </p>
+                                    @endif
+                                    @if ($ctx['asset'])
+                                        <p>Asset · {{ $ctx['asset'] }}</p>
+                                    @endif
+                                    @if ($ctx['partner'])
+                                        <p class="text-brand/80">
+                                            Partner · {{ $ctx['partner'] }}
+                                            @if ($ctx['partner_role'])
+                                                <span class="text-gray-400">({{ $ctx['partner_role'] }})</span>
+                                            @endif
+                                        </p>
+                                    @endif
+                                    @if (! $ctx['product'] && ! $ctx['application_number'] && ! $ctx['loan_number'] && ! $ctx['partner'])
+                                        <p class="text-gray-400">No linked loan / product</p>
+                                    @endif
+                                </div>
                             </td>
-                            <td class="px-5 py-3">{{ $payment->typeLabel() }}</td>
                             <td class="px-5 py-3">{{ $payment->methodShortLabel() }}</td>
                             <td class="px-5 py-3 font-medium whitespace-nowrap">{{ format_money($payment->amount) }}</td>
                             <td class="px-5 py-3">
@@ -133,19 +183,25 @@
                                 </span>
                             </td>
                             <td class="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
-                                {{ ($payment->payment_date ?? $payment->created_at)?->format('d-M-Y') }}
+                                {{ ($payment->verified_at ?? $payment->payment_date ?? $payment->created_at)?->format('d-M-Y H:i') }}
                             </td>
                             <td class="px-5 py-3 text-right">
                                 <a href="{{ route('admin.payments.show', $payment) }}"
                                    class="text-xs font-semibold text-brand hover:text-brand-light">
-                                    Match bank →
+                                    {{ $needsBankMatch ? 'Match bank →' : 'Open →' }}
                                 </a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-5 py-12 text-center text-gray-500">
-                                No payments in this view.
+                            <td colspan="8" class="px-5 py-12 text-center text-gray-500">
+                                @if ($status === 'awaiting_bank')
+                                    No bank payments waiting for verification.
+                                @elseif ($status === 'complete')
+                                    No completed payments yet.
+                                @else
+                                    No payments in this view.
+                                @endif
                             </td>
                         </tr>
                     @endforelse

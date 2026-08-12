@@ -82,8 +82,21 @@
                             $uwSettings = app(\App\Services\UnderwritingSettingsService::class);
                             $counterEnabled = $uwSettings->counterOffersEnabled();
                             $autoReject = $uwSettings->automaticRejectionEnabled();
+                            $checklistReject = app(\App\Services\ScreeningChecklistService::class)->suggestedRejection($record);
+                            $openReject = request()->boolean('open_reject');
+                            $checklistRejectCodes = old(
+                                'rejection_reason_codes',
+                                session('checklist_reject_codes', $checklistReject['codes'] ?? [])
+                            );
+                            if (! is_array($checklistRejectCodes)) {
+                                $checklistRejectCodes = filled($checklistRejectCodes) ? [(string) $checklistRejectCodes] : [];
+                            }
+                            $checklistRejectNotes = old(
+                                'remarks',
+                                session('checklist_reject_notes', $checklistReject['summary'] ?? '')
+                            );
                             $oldDecision = old('recommendation_type', '');
-                            if (old('action') === 'reject') {
+                            if (old('action') === 'reject' || $openReject) {
                                 $oldDecision = 'reject';
                             }
                             $crbRecLabel = strtoupper((string) ($review['crb']['recommendation'] ?? data_get($review, 'crb.recommendation', '—')));
@@ -109,7 +122,11 @@
                                         if (this.decision === 'counter' && !this.counterEnabled) return false;
                                         return true;
                                     }
-                                }">
+                                }"
+                                @if ($openReject)
+                                    x-init="$nextTick(() => { $el.showModal() })"
+                                @endif
+                                >
                             <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="max-h-[90vh] overflow-y-auto">
                                 @csrf
                                 <input type="hidden" name="action" :value="action">
@@ -231,11 +248,23 @@
                                     </div>
 
                                     <div x-show="decision === 'reject'" x-cloak class="space-y-4">
+                                        @if (! empty($checklistReject['fails']))
+                                            <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 space-y-1.5">
+                                                <p class="text-[10px] uppercase tracking-widest font-bold text-rose-900">From review checklist</p>
+                                                @foreach (array_slice($checklistReject['fails'], 0, 6) as $failRow)
+                                                    <p class="text-xs text-rose-950">
+                                                        <span class="font-semibold">{{ $failRow['subject'] }}</span>
+                                                        · {{ $failRow['label'] }} — {{ $failRow['fail_label'] }}
+                                                    </p>
+                                                @endforeach
+                                                <p class="text-[11px] text-rose-800/80 pt-1">Reasons below are pre-ticked for the rejection letter. Adjust only if needed.</p>
+                                            </div>
+                                        @endif
                                         <p class="text-xs text-gray-500">
                                             Tick every reason that applies. The borrower sees these — and any advice — in their language.
                                         </p>
                                         @include('admin.loan-applications.review._rejection_fields', [
-                                            'selectedRejectionCodes' => old('rejection_reason_codes', []),
+                                            'selectedRejectionCodes' => $checklistRejectCodes,
                                             'adviceOptions' => $adviceOptions,
                                             'disabledWhen' => "decision !== 'reject'",
                                         ])

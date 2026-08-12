@@ -130,6 +130,97 @@ class CustomerPayment extends Model
         return config("payment_types.statuses.{$this->status}", ucfirst(str_replace('_', ' ', $this->status)));
     }
 
+    /**
+     * Admin list/detail context: product, application/loan, asset, partner.
+     *
+     * @return array{
+     *   type: string,
+     *   product: ?string,
+     *   product_code: ?string,
+     *   application_number: ?string,
+     *   application_url: ?string,
+     *   loan_number: ?string,
+     *   loan_url: ?string,
+     *   asset: ?string,
+     *   partner: ?string,
+     *   partner_role: ?string,
+     *   lines: list<string>
+     * }
+     */
+    public function adminContext(): array
+    {
+        $this->loadMissing(['loan', 'loanProduct', 'source']);
+
+        $product = $this->loanProduct;
+        $application = null;
+        $assetTitle = null;
+        $partnerName = null;
+        $partnerRole = null;
+
+        $source = $this->source;
+        if ($source instanceof LoanApplication) {
+            $application = $source;
+            $application->loadMissing('product');
+            $product = $product ?: $application->product;
+        } elseif ($source instanceof AssetReservation) {
+            $source->loadMissing(['asset.vendor', 'loanApplication.product']);
+            $application = $source->loanApplication;
+            $asset = $source->asset;
+            $assetTitle = $asset?->title ?: $asset?->serial_number;
+            $partnerName = $asset?->vendor?->name ?: ($asset?->supplier_name ?: null);
+            $partnerRole = $partnerName ? 'Asset supplier / partner' : null;
+            $product = $product ?: $application?->product;
+        }
+
+        $ctx = (array) data_get($this->provider_meta, 'apply_context', []);
+        if (! $product && filled($ctx['loan_product_id'] ?? null)) {
+            $product = LoanProduct::query()->find((int) $ctx['loan_product_id']);
+        }
+        if (! $application && filled($ctx['loan_application_id'] ?? null)) {
+            $application = LoanApplication::query()->find((int) $ctx['loan_application_id']);
+        }
+
+        $applicationNumber = $application?->application_number;
+        $applicationUrl = $application
+            ? route('admin.loan-applications.show', $application)
+            : null;
+        $loanNumber = $this->loan?->loan_number;
+        $loanUrl = $this->loan ? route('admin.loans.show', $this->loan) : null;
+
+        // Partner from fee split / destinations meta when not from asset vendor.
+        if (! $partnerName) {
+            $feeSplit = (array) data_get($this->provider_meta, 'fee_split', []);
+            $named = $feeSplit['partner_name'] ?? $feeSplit['gps_partner_name'] ?? null;
+            if (filled($named)) {
+                $partnerName = (string) $named;
+                $partnerRole = 'Fee partner';
+            }
+        }
+
+        $lines = array_values(array_filter([
+            $this->typeLabel(),
+            $product?->name ? ('Product · '.$product->name) : null,
+            $applicationNumber ? ('Application · '.$applicationNumber) : null,
+            $loanNumber ? ('Loan · '.$loanNumber) : null,
+            $assetTitle ? ('Asset · '.$assetTitle) : null,
+            $partnerName ? ('Partner · '.$partnerName) : null,
+        ]));
+
+        return [
+            'type' => $this->typeLabel(),
+            'product' => $product?->name,
+            'product_code' => $product?->code,
+            'application_number' => $applicationNumber,
+            'application_url' => $applicationUrl,
+            'loan_number' => $loanNumber,
+            'loan_url' => $loanUrl,
+            'asset' => $assetTitle,
+            'partner' => $partnerName,
+            'partner_role' => $partnerRole,
+            'lines' => $lines,
+        ];
+    }
+
     public function isPending(): bool
     {
         return in_array($this->status, ['awaiting_payment', 'pending_verification', 'clarification_requested', 'processing'], true);
@@ -159,5 +250,19 @@ class CustomerPayment extends Model
     public function scopePending($query)
     {
         return $query->whereIn('status', ['awaiting_payment', 'pending_verification', 'clarification_requested', 'processing']);
+    }
+
+    /** Completed money in — PSP-approved mobile or admin-verified bank. */
+    public function scopeComplete($query)
+    {
+        return $query->whereIn('status', ['verified', 'paid']);
+    }
+
+    /** Bank deposits waiting for staff match / clarification only. */
+    public function scopeAwaitingBankVerification($query)
+    {
+        return $query
+            ->where('payment_method', 'bank_transfer')
+            ->whereIn('status', ['pending_verification', 'clarification_requested']);
     }
 }

@@ -435,8 +435,18 @@ class BorrowerPaymentController extends Controller
         $bankAccounts = [];
         $canSwitchToBank = false;
 
-        if ($payment->payment_method === 'bank_transfer' && $payment->bankAccount) {
-            $bankDetails = $accounts->bankTransferDetails($payment->bankAccount, $payment->reference);
+        if ($payment->payment_method === 'bank_transfer') {
+            $product = $payment->loanProduct
+                ?? ($payment->loan_id ? $payment->loan?->product : null);
+            $bankAccount = $payment->bankAccount
+                ?? $accounts->resolveBankAccount($payment->payment_type, $product);
+            if ($bankAccount) {
+                if (! $payment->bank_account_id) {
+                    $payment->forceFill(['bank_account_id' => $bankAccount->id])->saveQuietly();
+                    $payment->setRelation('bankAccount', $bankAccount);
+                }
+                $bankDetails = $accounts->bankTransferDetails($bankAccount, $payment->reference);
+            }
         }
 
         if ($payment->payment_method === 'mobile_money' && $payment->mobileMoneyAccount) {

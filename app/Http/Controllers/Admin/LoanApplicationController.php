@@ -405,6 +405,20 @@ class LoanApplicationController extends ResourceController
             return back()->with('error', $e->getMessage())->withInput();
         }
 
+        $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($loan_application->fresh());
+        if ($suggestion['prompt_reject']) {
+            return redirect()
+                ->route('admin.loan-applications.show', [
+                    'loan_application' => $loan_application,
+                    'workspace' => 'decision',
+                    'open_reject' => 1,
+                ])
+                ->with('status', 'Critical checklist Fail recorded — confirm rejection. Letter reasons are pre-filled from the checklist.')
+                ->with('checklist_reject_codes', $suggestion['codes'])
+                ->with('checklist_reject_notes', $suggestion['summary'])
+                ->withFragment('review-action-zone');
+        }
+
         return redirect()
             ->route('admin.loan-applications.show', array_filter([
                 'loan_application' => $loan_application,

@@ -41,7 +41,7 @@
         </a>
         <a href="{{ route('admin.payments.index') }}"
            class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 px-4 py-2.5 rounded-xl ring-1 ring-gray-200 bg-gray-50">
-            Verify payments
+            Payments
         </a>
         <a href="{{ route('admin.repayments.index') }}"
            class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 px-4 py-2.5 rounded-xl ring-1 ring-gray-200 bg-gray-50">

@@ -5,29 +5,21 @@
     />
 
     <div x-show="requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5">
-        <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/15 px-5 py-6 sm:px-6">
-            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand">{{ __('borrower.apply.steps.guarantor') }}</p>
-            <h3 class="mt-1 text-lg font-bold text-gray-900">{{ __('borrower.apply.guarantor_fields.add_cta') }}</h3>
-            <p class="mt-1 text-sm text-gray-600 max-w-xl">{{ __('borrower.apply.guarantor_fields.add_intro') }}</p>
-            <button type="button"
-                    @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none' || form.guarantor_mode === 'previous') form.guarantor_mode = 'internal'"
-                    class="mt-4 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
-                <span class="text-lg leading-none">+</span>
-                {{ __('borrower.apply.guarantor_fields.add_cta') }}
-            </button>
-        </div>
+        <button type="button"
+                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none' || form.guarantor_mode === 'previous') form.guarantor_mode = 'internal'"
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
+            <span class="text-lg leading-none">+</span>
+            {{ __('borrower.apply.guarantor_fields.add_cta') }}
+        </button>
     </div>
 
     <div x-show="!requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5">
-        <div class="rounded-2xl bg-gradient-to-br from-brand-muted/40 to-white ring-1 ring-brand/10 px-5 py-5">
-            <p class="text-sm text-gray-600">{{ __('borrower.apply.guarantor_fields.optional_intro') }}</p>
-            <button type="button"
-                    @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none' || form.guarantor_mode === 'previous') form.guarantor_mode = 'internal'"
-                    class="mt-3 inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 text-sm shadow-sm">
-                <span class="text-lg leading-none">+</span>
-                {{ __('borrower.apply.guarantor_fields.add_cta') }}
-            </button>
-        </div>
+        <button type="button"
+                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none' || form.guarantor_mode === 'previous') form.guarantor_mode = 'internal'"
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
+            <span class="text-lg leading-none">+</span>
+            {{ __('borrower.apply.guarantor_fields.add_cta') }}
+        </button>
     </div>
 
     {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}

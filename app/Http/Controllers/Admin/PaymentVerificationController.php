@@ -15,18 +15,30 @@ class PaymentVerificationController extends Controller
 {
     public function index(Request $request): View
     {
-        $status = $request->query('status', 'pending');
+        // Main Payments = complete only. Bank queue is a separate tab.
+        $status = $request->query('status', 'complete');
+        if (! in_array($status, ['complete', 'awaiting_bank', 'rejected', 'all'], true)) {
+            // Legacy links: pending → bank queue; verified → complete.
+            $status = match ($status) {
+                'pending', 'pending_verification', 'clarification_requested' => 'awaiting_bank',
+                'verified', 'paid' => 'complete',
+                default => 'complete',
+            };
+        }
         $type = $request->query('type', '');
 
         $query = CustomerPayment::query()
-            ->with(['customer', 'bankAccount', 'verifier', 'loan'])
+            ->with(['customer', 'bankAccount', 'verifier', 'loan', 'loanProduct', 'source'])
             ->latest();
 
-        if ($status === 'pending') {
-            $query->pending();
-        } elseif ($status !== 'all') {
-            $query->where('status', $status);
+        if ($status === 'complete') {
+            $query->complete();
+        } elseif ($status === 'awaiting_bank') {
+            $query->awaitingBankVerification();
+        } elseif ($status === 'rejected') {
+            $query->where('status', 'rejected');
         }
+        // 'all' = no status filter (ops / support)
 
         if ($type !== '') {
             $query->where('payment_type', $type);
@@ -35,15 +47,20 @@ class PaymentVerificationController extends Controller
         $payments = $query->paginate(25)->withQueryString();
 
         $counts = [
-            'pending' => CustomerPayment::pending()->count(),
-            'verified' => CustomerPayment::where('status', 'verified')->count(),
+            'complete' => CustomerPayment::complete()->count(),
+            'awaiting_bank' => CustomerPayment::awaitingBankVerification()->count(),
             'rejected' => CustomerPayment::where('status', 'rejected')->count(),
             'verified_today' => CustomerPayment::query()
-                ->where('status', 'verified')
-                ->whereDate('verified_at', today())
+                ->where(function ($q) {
+                    $q->where(function ($inner) {
+                        $inner->where('status', 'verified')->whereDate('verified_at', today());
+                    })->orWhere(function ($inner) {
+                        $inner->where('status', 'paid')->whereDate('updated_at', today());
+                    });
+                })
                 ->count(),
             'missing_journal' => CustomerPayment::query()
-                ->whereIn('status', ['verified', 'paid'])
+                ->complete()
                 ->whereNull('journal_entry_id')
                 ->count(),
         ];
@@ -66,6 +83,26 @@ class PaymentVerificationController extends Controller
             'source',
         ]);
 
+        if ($payment->source instanceof \App\Models\AssetReservation) {
+            $payment->source->loadMissing(['asset.vendor', 'loanApplication.product']);
+        } elseif ($payment->source instanceof \App\Models\LoanApplication) {
+            $payment->source->loadMissing('product');
+        }
+
+        // Bank payments always show the configured collection bank (TCB).
+        if ($payment->payment_method === 'bank_transfer' && ! $payment->bankAccount) {
+            $collectionBank = app(\App\Services\PaymentAccountService::class)
+                ->resolveBankAccount((string) $payment->payment_type, $payment->loanProduct);
+            if ($collectionBank) {
+                $payment->setRelation('bankAccount', $collectionBank);
+                if (! $payment->bank_account_id) {
+                    $payment->forceFill(['bank_account_id' => $collectionBank->id])->saveQuietly();
+                }
+            }
+        }
+
+        $paymentContext = $payment->adminContext();
+
         try {
             $fundDestinations = app(\App\Services\PaymentFundDestinationService::class)->destinations($payment);
         } catch (\Throwable $e) {
@@ -73,7 +110,7 @@ class PaymentVerificationController extends Controller
             $fundDestinations = [];
         }
 
-        return view('admin.payments.show', compact('payment', 'fundDestinations'));
+        return view('admin.payments.show', compact('payment', 'fundDestinations', 'paymentContext'));
     }
 
     public function verify(CustomerPayment $payment, CustomerPaymentService $service): RedirectResponse

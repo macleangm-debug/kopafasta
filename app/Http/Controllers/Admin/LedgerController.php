@@ -26,7 +26,14 @@ class LedgerController extends Controller
 
         $defaultTab = $direction === 'out' ? 'partners' : 'all';
         $tab = $request->string('tab', $defaultTab)->toString();
-        $status = $request->string('status', $direction === 'in' ? 'all' : '')->toString();
+        $status = $request->string('status', $direction === 'in' ? 'verified' : '')->toString();
+        if ($direction === 'in' && $status === 'pending') {
+            // Ledger “pending” historically mixed mobile in-flight with bank queue — keep bank-only here.
+            // Prefer the Payments desk awaiting_bank tab for verification work.
+        }
+        if ($direction === 'in' && in_array($status, ['complete', 'verified'], true)) {
+            $status = 'verified';
+        }
         $type = $request->string('type')->toString();
 
         $types = config('payment_types.types', []);
@@ -56,7 +63,9 @@ class LedgerController extends Controller
 
             if ($status !== '' && $status !== 'all') {
                 if ($status === 'pending') {
-                    $query->pending();
+                    $query->awaitingBankVerification();
+                } elseif (in_array($status, ['verified', 'complete'], true)) {
+                    $query->complete();
                 } else {
                     $query->where('status', $status);
                 }

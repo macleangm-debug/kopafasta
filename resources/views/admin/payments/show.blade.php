@@ -13,6 +13,9 @@
         ?? $mm?->paybill_number
         ?? $mm?->till_number
         ?? $payment->mobile_number;
+    $ctx = $paymentContext ?? $payment->adminContext();
+    $isBankQueue = $payment->payment_method === 'bank_transfer'
+        && in_array($payment->status, ['pending_verification', 'clarification_requested', 'awaiting_payment'], true);
 @endphp
 
 <x-admin.layout
@@ -21,7 +24,7 @@
     subheading="">
 
     <div class="mb-4">
-        <a href="{{ route('admin.payments.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Back to verify payments</a>
+        <a href="{{ route('admin.payments.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Back to payments</a>
     </div>
 
     <section class="mb-6">
@@ -29,10 +32,16 @@
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-7 text-white">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Bank matching desk</p>
+                        <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">
+                            {{ $isBankQueue ? 'Bank matching desk' : 'Payment detail' }}
+                        </p>
                         <h1 class="text-2xl sm:text-3xl font-bold mt-1 font-mono tracking-tight">{{ $payment->reference }}</h1>
                         <p class="text-sm text-white/75 mt-2 max-w-xl">
-                            Confirm the transfer landed in the expected account, then verify to post the ledger entry.
+                            @if ($isBankQueue)
+                                Confirm the transfer landed in the expected account, then verify to post the ledger entry.
+                            @else
+                                Completed mobile payments are confirmed by the PSP. Context below links this payment to the loan / product / partner.
+                            @endif
                         </p>
                     </div>
                     <div class="text-right">
@@ -51,19 +60,39 @@
                     <p class="text-xs text-gray-500 mt-0.5 font-mono">{{ $customer?->phone ?? '—' }}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">What for</p>
-                    <p class="font-semibold text-gray-900 mt-1">{{ $payment->typeLabel() }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Payment type</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ $ctx['type'] }}</p>
                     <p class="text-xs text-gray-500 mt-0.5">{{ $payment->methodLabel() }}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Payment date</p>
-                    <p class="font-semibold text-gray-900 mt-1">{{ $payment->payment_date?->format('d M Y') ?? $payment->created_at?->format('d M Y') ?? '—' }}</p>
-                    @if ($payment->loan)
-                        <a href="{{ route('admin.loans.show', $payment->loan) }}" class="text-xs font-semibold text-brand mt-0.5 inline-block">
-                            Loan {{ $payment->loan->loan_number ?? $payment->loan->id }} →
-                        </a>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Product / loan</p>
+                    @if ($ctx['product'])
+                        <p class="font-semibold text-gray-900 mt-1">{{ $ctx['product'] }}</p>
+                        @if ($ctx['product_code'])
+                            <p class="text-xs text-gray-500 mt-0.5 font-mono">{{ $ctx['product_code'] }}</p>
+                        @endif
                     @else
-                        <p class="text-xs text-gray-400 mt-0.5">No related loan</p>
+                        <p class="font-semibold text-gray-400 mt-1">—</p>
+                    @endif
+                    @if ($ctx['application_number'])
+                        <p class="text-xs mt-1">
+                            Application
+                            @if ($ctx['application_url'])
+                                <a href="{{ $ctx['application_url'] }}" class="font-semibold text-brand hover:underline">{{ $ctx['application_number'] }}</a>
+                            @else
+                                <span class="font-mono">{{ $ctx['application_number'] }}</span>
+                            @endif
+                        </p>
+                    @endif
+                    @if ($ctx['loan_number'])
+                        <p class="text-xs mt-0.5">
+                            Loan
+                            @if ($ctx['loan_url'])
+                                <a href="{{ $ctx['loan_url'] }}" class="font-semibold text-brand hover:underline">{{ $ctx['loan_number'] }}</a>
+                            @else
+                                <span class="font-mono">{{ $ctx['loan_number'] }}</span>
+                            @endif
+                        </p>
                     @endif
                 </div>
                 <div>
@@ -75,15 +104,51 @@
                         </a>
                     @else
                         <p class="font-semibold text-amber-800 mt-1">Not posted yet</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Posts on verify</p>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $isBankQueue ? 'Posts on verify' : 'Check posting job' }}</p>
                     @endif
                 </div>
             </div>
         </div>
     </section>
 
+    @if ($ctx['asset'] || $ctx['partner'] || $ctx['application_number'] || $ctx['loan_number'] || $ctx['product'])
+        <section class="mb-6 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/50 to-white">
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Linked context</p>
+                <h2 class="text-sm font-bold text-gray-900 mt-0.5">What this payment belongs to</h2>
+            </div>
+            <div class="p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Type</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ $ctx['type'] }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Product</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ $ctx['product'] ?: '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Application / loan</p>
+                    <p class="font-semibold text-gray-900 mt-1">
+                        {{ $ctx['application_number'] ?: ($ctx['loan_number'] ?: '—') }}
+                    </p>
+                </div>
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Partner / asset</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ $ctx['partner'] ?: '—' }}</p>
+                    @if ($ctx['asset'])
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $ctx['asset'] }}</p>
+                    @endif
+                    @if ($ctx['partner_role'])
+                        <p class="text-[11px] text-gray-400 mt-0.5">{{ $ctx['partner_role'] }}</p>
+                    @endif
+                </div>
+            </div>
+        </section>
+    @endif
+
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
+            @if ($isBankQueue || $payment->payment_method === 'bank_transfer')
             <div class="rounded-2xl overflow-hidden ring-1 ring-emerald-200/80 shadow-sm bg-gradient-to-br from-emerald-50 to-white">
                 <div class="px-6 py-5 border-b border-emerald-100/80">
                     <p class="text-[10px] uppercase tracking-[0.18em] font-semibold text-emerald-800">Expected destination</p>
@@ -114,6 +179,21 @@
                     </div>
                 @endif
             </div>
+            @else
+            <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-gradient-to-br from-brand-muted/40 to-white px-6 py-5">
+                <p class="text-[10px] uppercase tracking-[0.18em] font-semibold text-brand">Mobile money · PSP confirmed</p>
+                <h2 class="text-lg font-bold text-gray-900 mt-1">Collection channel</h2>
+                <p class="text-sm text-gray-600 mt-1">
+                    {{ $destinationLabel ?: 'Mobile money' }}
+                    @if ($destinationNumber)
+                        · <span class="font-mono">{{ $destinationNumber }}</span>
+                    @endif
+                </p>
+                @if ($payment->provider_ref)
+                    <p class="text-xs text-gray-500 mt-2 font-mono">Provider ref · {{ $payment->provider_ref }}</p>
+                @endif
+            </div>
+            @endif
 
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-6">
                 <div class="flex items-start justify-between gap-3 mb-4">
@@ -124,7 +204,9 @@
                     @if ($payment->hasProof())
                         <span class="text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100">Uploaded</span>
                     @else
-                        <span class="text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 bg-amber-50 text-amber-900 ring-1 ring-amber-100">Missing</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 bg-amber-50 text-amber-900 ring-1 ring-amber-100">
+                            {{ $payment->payment_method === 'mobile_money' ? 'API / no slip' : 'Missing' }}
+                        </span>
                     @endif
                 </div>
                 @if ($payment->hasProof())
@@ -134,7 +216,13 @@
                         View proof
                     </a>
                 @else
-                    <p class="text-sm text-gray-500">No proof uploaded yet — you can still verify if the bank statement clearly matches.</p>
+                    <p class="text-sm text-gray-500">
+                        @if ($payment->payment_method === 'mobile_money')
+                            Mobile payments are confirmed by the PSP API — a bank slip is not required.
+                        @else
+                            No proof uploaded yet — you can still verify if the bank statement clearly matches.
+                        @endif
+                    </p>
                 @endif
             </div>
 
@@ -152,7 +240,7 @@
             @if ($partnerShare > 0 || $markupAmount > 0 || ! empty($fundDestinations))
                 <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-6">
                     <h2 class="text-sm font-bold text-gray-900 mb-1">Where funds go</h2>
-                    <p class="text-xs text-gray-500 mb-4">Allocation after verification</p>
+                    <p class="text-xs text-gray-500 mb-4">Allocation / partner share</p>
                     @if ($partnerShare > 0 || $markupAmount > 0)
                         <dl class="grid sm:grid-cols-2 gap-3 text-sm mb-4">
                             <div class="rounded-xl bg-gray-50 px-4 py-3">
@@ -206,13 +294,13 @@
         </div>
 
         <div class="space-y-4">
-            @if ($payment->isPending())
+            @if ($payment->isPending() && $isBankQueue)
                 <div class="rounded-2xl overflow-hidden ring-1 ring-emerald-200 shadow-sm bg-white">
                     <div class="bg-gradient-to-br from-emerald-600 to-emerald-800 px-5 py-4 text-white">
                         <p class="text-[10px] uppercase tracking-widest text-emerald-100 font-semibold">Confirm match</p>
                         <h3 class="text-base font-bold mt-1">Verify payment</h3>
                         <p class="text-xs text-emerald-50/90 mt-1.5 leading-relaxed">
-                            Only verify after you see this amount on the expected bank / mobile-money statement.
+                            Only verify after you see this amount on the expected bank statement.
                         </p>
                     </div>
                     <div class="p-5">
@@ -273,7 +361,13 @@
                 <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Status</p>
                     <p class="text-lg font-bold text-gray-900 mt-1">{{ $payment->statusLabel() }}</p>
-                    <p class="text-sm text-gray-500 mt-2">This payment is no longer awaiting verification.</p>
+                    <p class="text-sm text-gray-500 mt-2">
+                        @if ($payment->payment_method === 'mobile_money' && $payment->isVerified())
+                            Mobile payment confirmed by the PSP — no bank verification step.
+                        @else
+                            This payment is no longer awaiting bank verification.
+                        @endif
+                    </p>
                 </div>
             @endif
         </div>

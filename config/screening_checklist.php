@@ -187,7 +187,7 @@ return [
                 ],
             ],
             'activity_plausible' => [
-                'label' => 'Review stated business / employment activity',
+                'label' => 'Does the stated job / business look plausible?',
                 'evidence' => 'activity',
                 'fail_reasons' => [
                     'implausible' => 'Activity not plausible',
@@ -196,7 +196,7 @@ return [
                 ],
             ],
             'bank_or_mobile_money' => [
-                'label' => 'Review statement patterns (after revenue match)',
+                'label' => 'Any concerning patterns on the statements?',
                 'evidence' => 'income_statements',
                 'fail_reasons' => [
                     'statements_missing' => 'Statements missing',

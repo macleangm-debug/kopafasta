@@ -135,6 +135,10 @@ class CustomerPaymentService
             }
 
             $resolved = $this->accounts->resolve($type, $method, $product);
+            if ($method === 'bank_transfer') {
+                $bank = $this->accounts->resolveBankAccount($type, $product);
+                $resolved['bank_account'] = $bank;
+            }
             $reference = $data['reference'] ?? $this->generateReference();
             $autoVerify = (bool) ($data['auto_verify'] ?? false);
             $isBank = $method === 'bank_transfer';
@@ -213,7 +217,13 @@ class CustomerPaymentService
             $instructions = $resolved['instructions'];
             if ($isBank && $resolved['bank_account']) {
                 $details = $this->accounts->bankTransferDetails($resolved['bank_account'], $reference);
-                $instructions = trim(($instructions ?? '')."\n".'Use reference: '.$reference);
+                $extra = implode("\n", array_filter([
+                    'Pay to: '.$details['bank_name'].' · '.$details['account_name'],
+                    'Account: '.$details['account_number'],
+                    'Use reference: '.$reference,
+                    'Upload proof of payment after transfer for verification.',
+                ]));
+                $instructions = trim(($instructions ?? '')."\n".$extra);
             }
             if ($usePayIn) {
                 $instructions = trim(($instructions ?? '')."\n".__('borrower.payment_waiting.gate_instructions'));
@@ -452,11 +462,16 @@ class CustomerPaymentService
             ? \App\Models\LoanProduct::query()->find($payment->loan_product_id)
             : ($payment->loan_id ? $payment->loan?->product : null);
         $resolved = $this->accounts->resolve($payment->payment_type, 'bank_transfer', $product);
-        $bankAccount = $resolved['bank_account'] ?? $this->accounts->fallbackBankAccount();
+        $bankAccount = $this->accounts->resolveBankAccount($payment->payment_type, $product);
         abort_unless($bankAccount, 422, __('borrower.payment_waiting.bank_unavailable'));
 
         $details = $this->accounts->bankTransferDetails($bankAccount, $payment->reference);
-        $instructions = trim(($resolved['instructions'] ?? '')."\n".'Use reference: '.$payment->reference);
+        $instructions = trim(($resolved['instructions'] ?? '')."\n".implode("\n", array_filter([
+            'Pay to: '.$details['bank_name'].' · '.$details['account_name'],
+            'Account: '.$details['account_number'],
+            'Use reference: '.$payment->reference,
+            'Upload proof of payment after transfer for verification.',
+        ])));
 
         $payment->update([
             'payment_method' => 'bank_transfer',

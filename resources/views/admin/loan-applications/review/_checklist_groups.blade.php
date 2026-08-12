@@ -58,9 +58,6 @@
                             @if ($item['evidence']['hint'] ?? null)
                                 <p class="text-[11px] text-gray-500 mt-0.5">{{ $item['evidence']['hint'] }}</p>
                             @endif
-                            @if (($item['verdict'] ?? null) === null && (! empty($item['evidence']['photos']) || ! empty($item['evidence']['rows']) || ! empty($item['evidence']['compare'])))
-                                <p class="text-[11px] font-semibold text-amber-700 mt-0.5">Evidence is ready — still record Pass, Fail, or N/A, then Save.</p>
-                            @endif
                             @if ($mismatchCount > 0)
                                 <p class="text-[11px] font-semibold text-amber-700 mt-0.5">{{ $mismatchCount }} difference{{ $mismatchCount === 1 ? '' : 's' }} vs CRB — expand to compare</p>
                             @endif
@@ -88,7 +85,44 @@
                     </div>
 
                     <div x-show="openItem === @js($itemKey)" x-cloak class="mt-3 space-y-3">
-                        @if (! empty($item['evidence']['photos']))
+                        @if (! empty($item['evidence']['documents']) || ($item['evidence']['layout'] ?? null) === 'documents')
+                            <div class="rounded-xl ring-1 ring-brand/15 overflow-hidden bg-white">
+                                <div class="px-3.5 py-2.5 bg-gradient-to-r from-brand-muted/60 to-white border-b border-brand/10">
+                                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Statements on file</p>
+                                    <p class="text-[11px] text-gray-600 mt-0.5">Open full bank / mobile money statement — PDF and images supported.</p>
+                                </div>
+                                @if (! empty($item['evidence']['documents']))
+                                    <div class="p-3.5 grid sm:grid-cols-2 gap-3">
+                                        @foreach ($item['evidence']['documents'] as $doc)
+                                            <div class="rounded-xl ring-1 ring-brand/10 bg-brand-muted/20 p-3 flex gap-3 items-start">
+                                                <x-admin.document-preview
+                                                    :url="$doc['url']"
+                                                    :label="$doc['label'] ?? 'Statement'"
+                                                    variant="thumbnail" />
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="text-sm font-semibold text-gray-900">{{ $doc['label'] ?? 'Statement' }}</p>
+                                                    <p class="text-[11px] text-gray-500 mt-0.5 capitalize">
+                                                        {{ ($doc['kind'] ?? 'file') === 'pdf' ? 'PDF statement' : 'Image statement' }}
+                                                        @if (! empty($doc['status']))
+                                                            · {{ display_label($doc['status'], 'document_status') ?: $doc['status'] }}
+                                                        @endif
+                                                    </p>
+                                                    <div class="mt-2">
+                                                        <x-admin.document-preview
+                                                            :url="$doc['url']"
+                                                            label="Open full statement"
+                                                            variant="button" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="px-3.5 py-4 text-sm text-rose-800">No statement uploaded for this person yet.</p>
+                                @endif
+                            </div>
+                        @endif
+                        @if (! empty($item['evidence']['photos']) && ($item['evidence']['layout'] ?? null) !== 'documents')
                             @php
                                 $photoLayout = $item['evidence']['layout'] ?? null;
                                 $facePhoto = collect($item['evidence']['photos'])->firstWhere('role', 'face');
@@ -212,6 +246,15 @@
                         @endif
 
                         <div x-show="verdict === 'fail'" x-cloak class="rounded-xl bg-rose-50/80 ring-1 ring-rose-100 p-3 space-y-2">
+                            @if (($item['risk'] ?? '') === 'critical' || ($item['gate'] ?? null) === 'statements_vs_declared')
+                                <div class="rounded-lg bg-rose-100 ring-1 ring-rose-200 px-3 py-2">
+                                    <p class="text-xs font-bold text-rose-950">Failing this check rejects the application</p>
+                                    <p class="text-[11px] text-rose-900 mt-0.5">
+                                        Pick a reason and Save — the system opens Decision with rejection letter reasons filled in
+                                        (for group loans, one member Fail can reject the whole file).
+                                    </p>
+                                </div>
+                            @endif
                             <label class="block text-[10px] uppercase tracking-widest text-rose-800 font-semibold">Fail reason (required)</label>
                             <select name="{{ $fieldBase }}[fail_reason_code]" x-model="reason"
                                     class="w-full rounded-lg border-rose-200 text-sm focus:border-rose-400 focus:ring-rose-200">

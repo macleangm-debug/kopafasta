@@ -61,6 +61,50 @@
         </button>
     </form>
 
+    <form method="POST" action="{{ route('admin.settings.payment-accounts.default-collection-bank') }}" class="bg-white rounded-2xl ring-1 ring-brand/10 p-5 mb-8 space-y-4">
+        @csrf @method('PUT')
+
+        <div>
+            <h2 class="text-sm font-semibold text-brand">Collection bank account</h2>
+            <p class="text-xs text-gray-500 mt-1">
+                One inbound bank account for all bank transfers (amounts above {{ format_money($mobileMoneyThreshold ?? payment_mobile_money_threshold()) }} must use bank, not mobile money).
+                Borrowers pay this account and upload proof for staff verification.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Default bank account (e.g. TCB)</label>
+                <select name="default_collection_bank_account_id" class="w-full rounded-lg border-gray-200 text-sm">
+                    <option value="">— Not set —</option>
+                    @foreach ($bankAccounts as $account)
+                        <option value="{{ $account->id }}" @selected(($defaultCollectionBankId ?? 0) === $account->id)>
+                            {{ $account->bank_name }} · {{ $account->name }} · {{ $account->account_number }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2.5">
+                <input type="hidden" name="apply_to_all_bank_mappings" value="0">
+                <input type="checkbox" name="apply_to_all_bank_mappings" value="1" checked class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                <span class="text-gray-800">Apply to all bank transfer mappings</span>
+            </label>
+        </div>
+
+        @if ($defaultCollectionBank ?? null)
+            <p class="text-xs text-emerald-800 bg-emerald-50 ring-1 ring-emerald-100 rounded-lg px-3 py-2">
+                Active:
+                <strong>{{ $defaultCollectionBank->bank_name }}</strong>
+                · {{ $defaultCollectionBank->name }}
+                · Account <span class="font-mono">{{ $defaultCollectionBank->account_number }}</span>
+            </p>
+        @endif
+
+        <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2.5 rounded-xl">
+            Save collection bank account
+        </button>
+    </form>
+
     <form method="POST" action="{{ route('admin.settings.payment-accounts.default-disbursement') }}" class="bg-white rounded-2xl ring-1 ring-brand/10 p-5 mb-8 space-y-4">
         @csrf @method('PUT')
 

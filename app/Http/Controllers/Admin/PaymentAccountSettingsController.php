@@ -22,6 +22,8 @@ class PaymentAccountSettingsController extends Controller
 
         $defaultCollectionId = (int) (Setting::get('payments.default_collection_mobile_money_account_id') ?? 0);
         $defaultDisbursementId = (int) (Setting::get('payments.default_disbursement_mobile_money_account_id') ?? 0);
+        $defaultCollectionBankId = (int) (Setting::get('payments.default_collection_bank_account_id') ?? 0);
+        $resolvedDefaultBank = $accounts->defaultCollectionBankAccount();
 
         return view('admin.settings.payment-accounts', [
             'mappings'              => PaymentAccountMapping::with(['bankAccount', 'mobileMoneyAccount'])->orderBy('payment_type')->orderBy('payment_method')->get(),
@@ -31,6 +33,10 @@ class PaymentAccountSettingsController extends Controller
             'defaultCollection'   => $defaultCollectionId > 0
                 ? MobileMoneyAccount::find($defaultCollectionId)
                 : null,
+            'defaultCollectionBankId' => $defaultCollectionBankId > 0
+                ? $defaultCollectionBankId
+                : (int) ($resolvedDefaultBank?->id ?? 0),
+            'defaultCollectionBank' => $resolvedDefaultBank,
             'defaultDisbursementId' => $defaultDisbursementId,
             'defaultDisbursement'   => $defaultDisbursementId > 0
                 ? MobileMoneyAccount::find($defaultDisbursementId)
@@ -39,6 +45,7 @@ class PaymentAccountSettingsController extends Controller
             'methods'               => config('payment_types.methods', []),
             'products'              => LoanProduct::orderBy('name')->get(['id', 'name', 'code']),
             'overrides'             => LoanProductPaymentAccountOverride::with(['loanProduct', 'bankAccount', 'mobileMoneyAccount'])->get(),
+            'mobileMoneyThreshold'  => payment_mobile_money_threshold(),
         ]);
     }
 
@@ -60,6 +67,29 @@ class PaymentAccountSettingsController extends Controller
         $message = 'Default PSP collection account saved.';
         if ($updated > 0) {
             $message .= " Applied to {$updated} mobile money mapping(s).";
+        }
+
+        return back()->with('status', $message);
+    }
+
+    public function saveDefaultCollectionBank(Request $request, PaymentAccountService $accounts): RedirectResponse
+    {
+        $data = $request->validate([
+            'default_collection_bank_account_id' => ['nullable', 'exists:bank_accounts,id'],
+            'apply_to_all_bank_mappings'         => ['nullable', 'boolean'],
+        ]);
+
+        $accountId = (int) ($data['default_collection_bank_account_id'] ?? 0);
+        Setting::set('payments.default_collection_bank_account_id', $accountId > 0 ? $accountId : '');
+
+        $updated = 0;
+        if ($request->boolean('apply_to_all_bank_mappings') && $accountId > 0) {
+            $updated = $accounts->applyDefaultCollectionBankToAllMappings($accountId);
+        }
+
+        $message = 'Default collection bank account saved. All bank payments use this account.';
+        if ($updated > 0) {
+            $message .= " Applied to {$updated} bank mapping(s).";
         }
 
         return back()->with('status', $message);

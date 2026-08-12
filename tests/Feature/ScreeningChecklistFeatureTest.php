@@ -93,7 +93,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $admin = $this->staff();
         $app = $this->application($admin);
 
-        $this->actingAs($admin, 'admin')
+        $response = $this->actingAs($admin, 'admin')
             ->post(route('admin.loan-applications.screening-checklist', $app), [
                 'person' => 'borrower',
                 'items' => [
@@ -105,14 +105,49 @@ class ScreeningChecklistFeatureTest extends TestCase
                         ],
                     ],
                 ],
-            ])
-            ->assertRedirect();
+            ]);
+        $response->assertRedirect();
+        $this->assertStringContainsString('open_reject=1', $response->headers->get('Location'));
+        $this->assertStringContainsString('workspace=decision', $response->headers->get('Location'));
 
         $app->refresh();
         $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
         $this->assertSame('pass', $items['identity.nida_vs_dob']['verdict'] ?? null);
         $this->assertSame('fail', $items['identity.face_vs_nida']['verdict'] ?? null);
         $this->assertSame('face_mismatch', $items['identity.face_vs_nida']['fail_reason_code'] ?? null);
+
+        $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($app);
+        $this->assertTrue($suggestion['prompt_reject']);
+        $this->assertContains('face_verification_failed', $suggestion['codes']);
+    }
+
+    public function test_gate2_income_fail_maps_to_letter_reason_and_prompts_reject(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'income_evidence' => [
+                            'verdict' => 'fail',
+                            'fail_reason_code' => 'revenue_mismatch',
+                        ],
+                    ],
+                ],
+            ]);
+        $response->assertRedirect();
+        $this->assertStringContainsString('open_reject=1', $response->headers->get('Location'));
+        $response->assertSessionHas('checklist_reject_codes');
+
+        $app->refresh();
+        $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($app);
+        $this->assertTrue($suggestion['prompt_reject']);
+        $this->assertContains('insufficient_income', $suggestion['codes']);
+        $this->assertStringContainsString('Match financial statements', $suggestion['summary']);
+        $this->assertSame('insufficient_income', $app->screening_rejection_reason_code);
     }
 
     public function test_fail_without_reason_is_rejected(): void
