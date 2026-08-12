@@ -155,6 +155,12 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Reason for approval', $committee);
         $this->assertStringContainsString('Rejection reasons', $committee);
         $this->assertStringContainsString('Borrower CRB · Guarantor · Screening', $committee);
+
+        $checklistFlags = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Review checklist', $checklistFlags);
     }
 
     public function test_management_stage_uses_premium_ops_workspace(): void

@@ -286,6 +286,8 @@ class ScreeningChecklistService
             $groups[] = [
                 'key' => (string) $groupKey,
                 'label' => (string) ($group['label'] ?? ucfirst(str_replace('_', ' ', (string) $groupKey))),
+                'phase' => (string) ($group['phase'] ?? 'general'),
+                'phase_label' => (string) ($group['phase_label'] ?? ''),
                 'items' => $items,
                 'decided' => $groupDecided,
                 'total' => count($items),
@@ -677,7 +679,47 @@ class ScreeningChecklistService
             'satisfied' => (int) ($review['satisfied_docs'] ?? 0),
             'uploaded' => (int) ($review['uploaded_docs'] ?? 0),
             'progress' => (int) ($review['document_progress'] ?? 0),
+            'missing' => array_values(array_filter((array) ($review['missing_documents'] ?? []))),
+            'files' => [],
+            'id_files' => [],
         ];
+
+        // Product requirement uploads for in-checklist preview.
+        foreach (collect($review['uploads'] ?? []) as $upload) {
+            if (! is_object($upload) && ! is_array($upload)) {
+                continue;
+            }
+            $path = is_object($upload) ? ($upload->file_path ?? null) : ($upload['file_path'] ?? null);
+            $label = is_object($upload)
+                ? ($upload->documentType->name ?? $upload->original_name ?? 'Document')
+                : ($upload['label'] ?? 'Document');
+            $status = is_object($upload) ? ($upload->status ?? null) : ($upload['status'] ?? null);
+            if (! is_string($path) || ! filled($path)) {
+                continue;
+            }
+            $docs['files'][] = [
+                'label' => (string) $label,
+                'url' => asset('storage/'.$path),
+                'status' => (string) ($status ?: 'uploaded'),
+            ];
+        }
+
+        foreach (collect($review['id_documents'] ?? []) as $code => $doc) {
+            if (! is_object($doc) && ! is_array($doc)) {
+                continue;
+            }
+            $path = is_object($doc) ? ($doc->file_path ?? null) : ($doc['file_path'] ?? null);
+            $label = is_object($doc)
+                ? ($doc->documentType->name ?? (is_string($code) ? ucfirst(str_replace('_', ' ', $code)) : 'ID'))
+                : ($doc['label'] ?? 'ID');
+            if (! is_string($path) || ! filled($path)) {
+                continue;
+            }
+            $docs['id_files'][] = [
+                'label' => (string) $label,
+                'url' => asset('storage/'.$path),
+            ];
+        }
 
         if ($person === 'guarantor' && $guarantorLinkId) {
             $row = collect($review['guarantors'] ?? [])->first(
@@ -882,19 +924,55 @@ class ScreeningChecklistService
                 ];
                 break;
 
+            case 'id_docs':
+                $idFiles = (array) data_get($ctx, 'documents.id_files', []);
+                foreach ($idFiles as $file) {
+                    if (! empty($file['url'])) {
+                        $photos[] = [
+                            'label' => (string) ($file['label'] ?? 'ID'),
+                            'url' => (string) $file['url'],
+                        ];
+                    }
+                }
+                $rows = [
+                    ['label' => 'ID documents on file', 'value' => (string) count($photos)],
+                    ['label' => 'NIDA / National ID', 'value' => (string) ($customer?->national_id ?: '—')],
+                ];
+                $hint = $photos === []
+                    ? 'No ID images on file yet — request a re-upload if needed.'
+                    : 'Compare ID image quality here. Request a re-upload if unclear.';
+                break;
+
             case 'documents':
                 $docs = (array) ($ctx['documents'] ?? []);
+                $missing = collect($docs['missing'] ?? [])->filter()->values();
                 $rows = [
                     ['label' => 'Required verified', 'value' => ($docs['satisfied'] ?? 0).' / '.($docs['required'] ?? 0)],
                     ['label' => 'Uploaded', 'value' => (string) ($docs['uploaded'] ?? 0)],
                     ['label' => 'Progress', 'value' => ($docs['progress'] ?? 0).'%'],
                 ];
-                $hint = 'Open the Documents tab for full preview if needed.';
+                if ($missing->isNotEmpty()) {
+                    $rows[] = [
+                        'label' => 'Missing / unverified',
+                        'value' => $missing->take(8)->implode(', ').($missing->count() > 8 ? '…' : ''),
+                    ];
+                }
+                foreach (array_slice((array) ($docs['files'] ?? []), 0, 12) as $file) {
+                    if (! empty($file['url'])) {
+                        $photos[] = [
+                            'label' => trim(($file['label'] ?? 'Document').(isset($file['status']) ? ' · '.$file['status'] : '')),
+                            'url' => (string) $file['url'],
+                        ];
+                    }
+                }
+                $hint = $photos === []
+                    ? 'No product documents uploaded yet.'
+                    : 'Preview documents here — expand an image to enlarge. Request re-upload if needed.';
                 break;
 
             case 'doc_requests':
                 $rows = [
-                    ['label' => 'Tip', 'value' => 'Check open document requests on the Documents tab'],
+                    ['label' => 'Tip', 'value' => 'Use Pass/Fail after reviewing follow-up uploads. Request another re-upload from Profiles → Documents if needed.'],
                 ];
                 break;
 
@@ -927,7 +1005,7 @@ class ScreeningChecklistService
 
             default:
                 $rows = [
-                    ['label' => 'Tip', 'value' => 'Use the credit file tabs for detail, then record Pass or Fail here.'],
+                    ['label' => 'Tip', 'value' => 'Review the evidence above, then record Pass or Fail.'],
                 ];
         }
 

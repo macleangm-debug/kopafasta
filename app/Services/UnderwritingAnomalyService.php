@@ -52,7 +52,7 @@ class UnderwritingAnomalyService
             $anomalies[] = $this->item('affordability_warn', 'warning', 'Affordability near limit', $afford['reason'] ?? 'Repayment is close to the capacity ceiling.');
         }
 
-        if (($risk['band'] ?? '') === 'high' || (int) ($risk['score'] ?? 0) >= 70) {
+        if (in_array((string) ($risk['band'] ?? ''), ['high', 'medium'], true)) {
             $anomalies[] = $this->item('risk_high', 'warning', 'Elevated application risk', 'Risk score '.($risk['score'] ?? '—').' / 100'.(! empty($risk['label']) ? ' · '.$risk['label'] : '').'.');
         }
 
@@ -71,7 +71,16 @@ class UnderwritingAnomalyService
         $required = (int) ($review['required_docs'] ?? 0);
         $satisfied = (int) ($review['satisfied_docs'] ?? 0);
         if ($required > 0 && $satisfied < $required) {
-            $anomalies[] = $this->item('documents_gap', 'warning', 'Document gaps', ($required - $satisfied).' required document(s) still missing or unverified.');
+            $missingNames = collect($review['missing_documents'] ?? [])
+                ->filter(fn ($n) => is_string($n) && trim($n) !== '')
+                ->values();
+            $detail = ($required - $satisfied).' required document(s) still missing or unverified.';
+            if ($missingNames->isNotEmpty()) {
+                $shown = $missingNames->take(6)->implode(', ');
+                $extra = $missingNames->count() > 6 ? ' (+'.($missingNames->count() - 6).' more)' : '';
+                $detail .= ' Missing: '.$shown.$extra.'.';
+            }
+            $anomalies[] = $this->item('documents_gap', 'warning', 'Document gaps', $detail);
         }
 
         $openDocRequests = $application->documentRequests

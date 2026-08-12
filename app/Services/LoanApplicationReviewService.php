@@ -65,6 +65,16 @@ class LoanApplicationReviewService
                 return $doc && in_array($doc->status, ['verified', 'approved'], true);
             })
             ->count();
+        $missingDocuments = $requirements
+            ->where('is_required', true)
+            ->filter(function ($req) use ($uploads) {
+                $doc = $uploads->get($req->id);
+
+                return ! $doc || ! in_array($doc->status, ['verified', 'approved'], true);
+            })
+            ->map(fn ($req) => (string) ($req->name ?: 'Required document'))
+            ->values()
+            ->all();
 
         $uploadedCount = $requirements
             ->where('is_required', true)
@@ -154,6 +164,7 @@ class LoanApplicationReviewService
             'required_docs'      => $requiredCount,
             'satisfied_docs'     => $satisfiedCount,
             'uploaded_docs'      => $uploadedCount,
+            'missing_documents'  => $missingDocuments,
             'affordability'      => $affordability,
             'counter_offer'      => app(ApplicationOfferService::class)->maxCounterOffer($application),
             'recommendation'     => [

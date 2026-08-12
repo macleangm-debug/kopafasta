@@ -97,13 +97,26 @@
                     <input type="hidden" name="m" value="{{ $deskM }}">
                 @endif
 
-                @php $firstIncompleteKey = collect($desk['groups'] ?? [])->first(fn ($g) => ! ($g['complete'] ?? false))['key'] ?? null; @endphp
+                @php
+                    $firstIncompleteKey = collect($desk['groups'] ?? [])->first(fn ($g) => ! ($g['complete'] ?? false))['key'] ?? null;
+                    $currentPhase = null;
+                @endphp
                 @foreach ($desk['groups'] ?? [] as $group)
                     @php
                         $groupOpen = ($group['key'] ?? null) === $firstIncompleteKey
                             || (($group['failed'] ?? 0) > 0 && ! ($group['complete'] ?? false));
+                        $phaseKey = (string) ($group['phase'] ?? '');
+                        $phaseLabel = (string) ($group['phase_label'] ?? '');
                     @endphp
-                    <div class="rounded-2xl ring-1 ring-gray-100 overflow-hidden"
+                    @if ($phaseLabel !== '' && $phaseKey !== $currentPhase)
+                        @php $currentPhase = $phaseKey; @endphp
+                        <div class="pt-2 first:pt-0">
+                            <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand">
+                                {{ $phaseLabel }}
+                            </p>
+                        </div>
+                    @endif
+                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm"
                          x-data="{
                              open: {{ $groupOpen ? 'true' : 'false' }},
                              passRemaining() {
@@ -116,30 +129,30 @@
                                  });
                              }
                          }">
-                        <div class="px-4 py-3 bg-gradient-to-r from-brand-muted/30 to-white border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                        <div class="px-4 py-3.5 bg-brand text-white flex flex-wrap items-center justify-between gap-2">
                             <button type="button" class="text-left min-w-0 flex-1" @click="open = !open">
-                                <h4 class="text-sm font-bold text-gray-900 inline-flex items-center gap-2">
-                                    <svg class="size-3.5 text-gray-400 transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                <h4 class="text-base font-extrabold tracking-tight inline-flex items-center gap-2">
+                                    <svg class="size-4 text-brand-gold transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                     <span>{{ $group['label'] }}</span>
                                 </h4>
-                                <p class="text-[11px] text-gray-500 mt-0.5 tabular-nums">
+                                <p class="text-[11px] text-white/80 mt-0.5 tabular-nums">
                                     {{ $group['decided'] ?? 0 }}/{{ $group['total'] ?? count($group['items'] ?? []) }} reviewed
                                     @if (($group['failed'] ?? 0) > 0)
-                                        · <span class="text-rose-700 font-semibold">{{ $group['failed'] }} fail</span>
+                                        · <span class="text-rose-200 font-semibold">{{ $group['failed'] }} fail</span>
                                     @elseif ($group['complete'] ?? false)
-                                        · <span class="text-emerald-700 font-semibold">Done</span>
+                                        · <span class="text-brand-gold font-semibold">Done</span>
                                     @endif
                                 </p>
                             </button>
                             @if ($canEdit && ! ($group['complete'] ?? false))
                                 <button type="button"
                                         @click.stop="passRemaining(); open = true"
-                                        class="shrink-0 text-[11px] font-bold text-brand bg-white ring-1 ring-brand/20 hover:bg-brand-muted/50 px-2.5 py-1.5 rounded-lg">
+                                        class="shrink-0 text-[11px] font-bold text-brand bg-brand-gold hover:brightness-95 px-2.5 py-1.5 rounded-lg">
                                     Pass remaining
                                 </button>
                             @endif
                         </div>
-                        <ul x-show="open" x-cloak x-ref="items" class="divide-y divide-gray-50">
+                        <ul x-show="open" x-cloak x-ref="items" class="divide-y divide-gray-50 bg-white">
                             @foreach ($group['items'] as $item)
                                 @php
                                     [$ig, $ik] = array_pad(explode('.', $item['key'], 2), 2, '');
@@ -300,19 +313,28 @@
             </form>
         @else
             <div class="space-y-4">
+                @php $currentPhaseRo = null; @endphp
                 @foreach ($desk['groups'] ?? [] as $group)
-                    <div class="rounded-2xl ring-1 ring-gray-100 overflow-hidden"
+                    @php
+                        $phaseKeyRo = (string) ($group['phase'] ?? '');
+                        $phaseLabelRo = (string) ($group['phase_label'] ?? '');
+                    @endphp
+                    @if ($phaseLabelRo !== '' && $phaseKeyRo !== $currentPhaseRo)
+                        @php $currentPhaseRo = $phaseKeyRo; @endphp
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand pt-1">{{ $phaseLabelRo }}</p>
+                    @endif
+                    <div class="rounded-2xl ring-2 ring-brand/15 overflow-hidden shadow-sm"
                          x-data="{ open: {{ ($group['complete'] ?? false) ? 'false' : 'true' }} }">
-                        <button type="button" class="w-full px-4 py-3 bg-slate-50 border-b border-gray-100 text-left" @click="open = !open">
-                            <h4 class="text-sm font-bold text-gray-900 inline-flex items-center gap-2">
-                                <svg class="size-3.5 text-gray-400 transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                        <button type="button" class="w-full px-4 py-3.5 bg-brand text-white text-left" @click="open = !open">
+                            <h4 class="text-base font-extrabold tracking-tight inline-flex items-center gap-2">
+                                <svg class="size-4 text-brand-gold transition" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                 <span>{{ $group['label'] }}</span>
                             </h4>
-                            <p class="text-[11px] text-gray-500 mt-0.5 tabular-nums">
+                            <p class="text-[11px] text-white/80 mt-0.5 tabular-nums">
                                 {{ $group['decided'] ?? 0 }}/{{ $group['total'] ?? count($group['items'] ?? []) }} reviewed
                             </p>
                         </button>
-                        <ul x-show="open" x-cloak class="divide-y divide-gray-50">
+                        <ul x-show="open" x-cloak class="divide-y divide-gray-50 bg-white">
                             @foreach ($group['items'] as $item)
                                 <li class="p-4">
                                     <div class="flex items-start gap-3">

@@ -187,47 +187,86 @@
         </div>
 
         <div class="lg:col-span-3 rounded-2xl ring-1 p-5 {{ $riskTone }} shadow-sm">
-            <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">
-                {{ $isGroupLoan ? 'Group risk score' : 'Risk score' }}
-            </p>
-            <div class="flex items-end gap-1.5 mt-2">
-                <span class="text-4xl font-bold leading-none tabular-nums">
-                    {{ $isGroupLoan && isset($groupScoring['group_risk_score'])
-                        ? $groupScoring['group_risk_score']
-                        : ($risk['score'] ?? '—') }}
-                </span>
-                <span class="text-sm font-semibold pb-1 opacity-70">/100</span>
-            </div>
-            <p class="text-sm font-bold mt-2">
-                @if ($isGroupLoan && ! empty($groupScoring['risk_band']))
-                    {{ __('admin.group_review.scoring.risk_band.'.$groupScoring['risk_band']) }}
-                @else
-                    {{ $risk['label'] ?? '—' }}
+            @if ($isGroupLoan && $groupMembers->isNotEmpty())
+                @php
+                    $memberRiskSlides = $groupMembers->values()->map(function (array $m) {
+                        $score = $m['crb_score'] ?? null;
+
+                        return [
+                            'name' => (string) ($m['name'] ?? 'Member'),
+                            'role' => ucfirst((string) ($m['role'] ?? 'member')),
+                            'score' => $score,
+                            'ready' => (bool) ($m['kyc_complete'] ?? false),
+                            'status' => (string) ($m['status_label'] ?? ''),
+                            'crb' => (string) ($m['crb_status'] ?? ''),
+                            'amount' => (float) ($m['requested_amount'] ?? 0),
+                        ];
+                    })->all();
+                @endphp
+                <div x-data="{ i: 0, slides: @js($memberRiskSlides) }" class="space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">Member risk</p>
+                        <p class="text-[10px] font-bold tabular-nums opacity-70" x-text="(i + 1) + ' / ' + slides.length"></p>
+                    </div>
+                    <template x-if="slides[i]">
+                        <div>
+                            <p class="text-[11px] font-semibold opacity-80 truncate" x-text="slides[i].role + ' · ' + slides[i].name"></p>
+                            <div class="flex items-end gap-1.5 mt-1">
+                                <span class="text-4xl font-bold leading-none tabular-nums" x-text="slides[i].score ?? '—'"></span>
+                                <span class="text-sm font-semibold pb-1 opacity-70">CRB</span>
+                            </div>
+                            <p class="text-sm font-bold mt-2">
+                                <span x-text="slides[i].ready ? 'Profile ready' : 'Profile incomplete'"></span>
+                            </p>
+                            <p class="text-xs mt-1 opacity-90 truncate" x-text="slides[i].status || slides[i].crb || '—'"></p>
+                            <p class="text-[11px] mt-2 opacity-80" x-show="slides[i].amount > 0"
+                               x-text="'Ask ' + new Intl.NumberFormat().format(slides[i].amount)"></p>
+                        </div>
+                    </template>
+                    <div class="flex items-center justify-between gap-2 pt-1">
+                        <button type="button" class="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-white/60 ring-1 ring-current/20 disabled:opacity-40"
+                                @click="i = Math.max(0, i - 1)" :disabled="i === 0">← Prev</button>
+                        <div class="flex gap-1">
+                            <template x-for="(slide, idx) in slides" :key="idx">
+                                <button type="button" class="size-1.5 rounded-full"
+                                        :class="idx === i ? 'bg-current' : 'bg-current/30'"
+                                        @click="i = idx"></button>
+                            </template>
+                        </div>
+                        <button type="button" class="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-white/60 ring-1 ring-current/20 disabled:opacity-40"
+                                @click="i = Math.min(slides.length - 1, i + 1)" :disabled="i >= slides.length - 1">Next →</button>
+                    </div>
+                    <p class="mt-1 text-[10px] opacity-70 leading-snug">
+                        One weak member can fail the group — swipe each member. App risk {{ $risk['score'] ?? '—' }}/100 · {{ strtoupper((string) ($risk['recommendation'] ?? '—')) }}.
+                    </p>
+                </div>
+            @else
+                <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">Risk score</p>
+                <div class="flex items-end gap-1.5 mt-2">
+                    <span class="text-4xl font-bold leading-none tabular-nums">{{ $risk['score'] ?? '—' }}</span>
+                    <span class="text-sm font-semibold pb-1 opacity-70">/100</span>
+                </div>
+                <p class="text-sm font-bold mt-2">{{ $risk['label'] ?? '—' }}</p>
+                <p class="text-xs mt-2 opacity-90">
+                    System: <span class="font-bold uppercase">{{ $risk['recommendation'] ?? '—' }}</span>
+                </p>
+                @if (! empty($risk['explanation']))
+                    <p class="mt-3 text-[11px] leading-relaxed opacity-95 border-t border-current/15 pt-2">
+                        {{ $risk['explanation'] }}
+                    </p>
                 @endif
-            </p>
-            <p class="text-xs mt-2 opacity-90">
-                System: <span class="font-bold uppercase">{{ $risk['recommendation'] ?? '—' }}</span>
-            </p>
-            @if (! empty($risk['explanation']))
-                <p class="mt-3 text-[11px] leading-relaxed opacity-95 border-t border-current/15 pt-2">
-                    {{ $risk['explanation'] }}
+                @if (! empty($risk['factors']))
+                    <ul class="mt-2 space-y-1 text-[11px] opacity-90">
+                        @foreach (array_slice($risk['factors'], 0, 5) as $factor)
+                            <li>• {{ $factor }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+                <p class="mt-2 text-[10px] opacity-70 leading-snug">
+                    Includes borrower CRB and guarantor CRB/profile. Identity photos are compared on the checklist — not scored as a separate procedure.
+                    ≥75 approve · ≥50 refer · below 50 reject.
                 </p>
             @endif
-            @if (! empty($risk['factors']))
-                <ul class="mt-2 space-y-1 text-[11px] opacity-90">
-                    @foreach (array_slice($risk['factors'], 0, 5) as $factor)
-                        <li>• {{ $factor }}</li>
-                    @endforeach
-                </ul>
-            @endif
-            <p class="mt-2 text-[10px] opacity-70 leading-snug">
-                @if ($isGroupLoan)
-                    Group file: roster completion, leader CRB, docs. Identity photos are compared on the checklist.
-                @else
-                    Includes borrower CRB and guarantor CRB/profile. Identity photos are compared on the checklist — not scored as a separate procedure.
-                @endif
-                ≥75 approve · ≥50 refer · below 50 reject.
-            </p>
         </div>
 
         <div class="lg:col-span-3 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br {{ $crbTone['card'] }} text-white">
@@ -428,7 +467,7 @@
                    ])
                    @if ($workspace === $key) aria-current="page" @endif>
                     {{ $label }}
-                    @if ($key === 'decision' && ($anomalyCounts['critical'] ?? 0) + ($anomalyCounts['warning'] ?? 0) > 0)
+                    @if ($key === 'checklist' && ($anomalyCounts['critical'] ?? 0) + ($anomalyCounts['warning'] ?? 0) > 0)
                         <span class="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-amber-100 text-amber-950 text-[10px] font-bold">
                             {{ ($anomalyCounts['critical'] ?? 0) + ($anomalyCounts['warning'] ?? 0) }}
                         </span>
@@ -439,22 +478,13 @@
 
         <div class="p-4 sm:p-5 space-y-4">
             @if ($workspace === 'checklist')
-                @include('admin.loan-applications.review._review_desk')
-
-                {{-- Decisions stay available on the checklist tab --}}
-                <div id="review-action-zone" class="scroll-mt-24">
-                    @include('admin.loan-applications.review._recommendation')
-                </div>
-            @elseif ($workspace === 'profiles')
-                @include('admin.loan-applications.review._borrower_file_tabs')
-            @else
                 @if (! empty($anomalies))
-                    <details open class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden group">
+                    <details class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden group">
                         <summary class="cursor-pointer list-none px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
                             <div class="min-w-0">
-                                <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Decision guidance</p>
+                                <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Review flags</p>
                                 <p class="text-sm font-bold text-gray-900 mt-0.5">
-                                    {{ count($anomalies) }} flag{{ count($anomalies) === 1 ? '' : 's' }}
+                                    {{ count($anomalies) }} flag{{ count($anomalies) === 1 ? '' : 's' }} for this checklist
                                 </p>
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
@@ -473,6 +503,8 @@
                                         {{ $anomalyCounts['info'] }} info
                                     </span>
                                 @endif
+                                <span class="text-[11px] text-gray-500 group-open:hidden">Tap to expand</span>
+                                <span class="text-[11px] text-gray-500 hidden group-open:inline">Tap to collapse</span>
                             </div>
                         </summary>
                         <ul class="divide-y divide-gray-100 border-t border-gray-100 max-h-72 overflow-y-auto">
@@ -490,6 +522,15 @@
                     </details>
                 @endif
 
+                @include('admin.loan-applications.review._review_desk')
+
+                {{-- Decisions stay available on the checklist tab --}}
+                <div id="review-action-zone" class="scroll-mt-24">
+                    @include('admin.loan-applications.review._recommendation')
+                </div>
+            @elseif ($workspace === 'profiles')
+                @include('admin.loan-applications.review._borrower_file_tabs')
+            @else
                 @if ($isCommitteeStage)
                     @include('admin.loan-applications.review._committee_inputs')
                 @endif
