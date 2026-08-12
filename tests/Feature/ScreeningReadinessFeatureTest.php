@@ -31,6 +31,9 @@ class ScreeningReadinessFeatureTest extends TestCase
         $this->assertFalse($readiness['ready']);
         $this->assertSame('hold', $readiness['suggestion']);
         $this->assertStringContainsString('Not ready', $readiness['headline']);
+        $this->assertNotEmpty($readiness['next_steps']);
+        $this->assertArrayHasKey('href', $readiness['next_steps'][0]);
+        $this->assertStringContainsString('N/A counts as reviewed', $readiness['na_note']);
     }
 
     public function test_affordability_fail_and_weak_crb_lean_reject_when_checklist_complete(): void

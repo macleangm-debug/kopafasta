@@ -21,7 +21,7 @@
                             'mt-0.5 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md px-1.5 text-[10px] font-bold ring-1',
                             'bg-emerald-50 text-emerald-800 ring-emerald-200' => ($item['verdict'] ?? '') === 'pass',
                             'bg-rose-50 text-rose-800 ring-rose-200' => ($item['verdict'] ?? '') === 'fail',
-                            'bg-slate-50 text-slate-600 ring-slate-200' => ($item['verdict'] ?? '') === 'na',
+                            'bg-sky-50 text-sky-800 ring-sky-200' => ($item['verdict'] ?? '') === 'na',
                             'bg-gray-50 text-gray-400 ring-gray-200' => ($item['verdict'] ?? null) === null,
                         ])>
                             {{ match ($item['verdict'] ?? null) { 'pass' => '✓', 'fail' => '✗', 'na' => 'N/A', default => '—' } }}

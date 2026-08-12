@@ -82,6 +82,23 @@
     if (! isset($phases[$defaultPhase])) {
         $defaultPhase = array_key_first($phases) ?: 'person';
     }
+    $requestPhase = (string) request('desk_phase', '');
+    if ($requestPhase !== '' && isset($phases[$requestPhase])) {
+        $defaultPhase = $requestPhase;
+    }
+    $defaultCapacityTab = (string) request('capacity_tab', 'checks');
+    if (! in_array($defaultCapacityTab, ['checks', 'documents', 'affordability', 'crb'], true)) {
+        $defaultCapacityTab = 'checks';
+    }
+    $defaultSecurityTab = (string) request('security_tab', 'checks');
+    if (! in_array($defaultSecurityTab, ['checks', 'group', 'wrapup'], true)) {
+        $defaultSecurityTab = 'checks';
+    }
+    $requestOpenGroup = (string) request('open_group', '');
+    if ($requestOpenGroup !== '') {
+        $defaultOpenGroup = $requestOpenGroup;
+    }
+    $requestOpenItem = (string) request('open_item', '');
 
     $isGroupFile = collect($groupReview['members'] ?? [])->isNotEmpty();
     $phaseHints = [
@@ -96,10 +113,10 @@
 <section id="review-desk" class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden scroll-mt-24"
          x-data="{
              phase: @js($defaultPhase),
-             capacityTab: 'checks',
-             securityTab: 'checks',
+             capacityTab: @js($defaultCapacityTab),
+             securityTab: @js($defaultSecurityTab),
              openGroup: @js($defaultOpenGroup !== '' ? $defaultOpenGroup : null),
-             openItem: null,
+             openItem: @js($requestOpenItem !== '' ? $requestOpenItem : null),
              setPhase(key) {
                  this.phase = key;
                  this.openItem = null;

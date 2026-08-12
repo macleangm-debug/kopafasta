@@ -161,6 +161,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Close the file', $documents);
         $this->assertStringContainsString('Screening readiness', $documents);
         $this->assertStringContainsString('Not ready to decide yet', $documents);
+        $this->assertStringContainsString('Where to go next', $documents);
         $this->assertStringContainsString('Hold — finish checklist', $documents);
         $this->assertStringContainsString('Continue checklist', $documents);
         $this->assertStringNotContainsString('Partners for this file', $documents);

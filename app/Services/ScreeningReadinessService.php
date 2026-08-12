@@ -28,11 +28,14 @@ class ScreeningReadinessService
      *   tone: string,
      *   blockers: list<string>,
      *   signals: list<string>,
+     *   next_steps: list<array{label: string, detail: string, href: string, tone: string}>,
+     *   critical_fails: list<string>,
      *   checklist_done: int,
      *   checklist_total: int,
      *   checklist_failed: int,
      *   subjects_incomplete: int,
      *   subjects_total: int,
+     *   na_note: string,
      * }
      */
     public function forApplication(
@@ -50,6 +53,9 @@ class ScreeningReadinessService
         $checklistFailed = 0;
         $incomplete = [];
         $failedSubjects = [];
+        $nextSteps = [];
+        $criticalFails = [];
+        $criticalFailCount = 0;
 
         foreach ($subjects as $subject) {
             $checklistDone += (int) ($subject['done'] ?? 0);
@@ -60,6 +66,65 @@ class ScreeningReadinessService
             }
             if ((int) ($subject['failed'] ?? 0) > 0) {
                 $failedSubjects[] = trim(($subject['label'] ?? 'Subject').' · '.($subject['sublabel'] ?? ''));
+            }
+
+            $desk = $this->checklist->deskViewModel(
+                $application,
+                $review,
+                $groupReview,
+                $actor,
+                (string) ($subject['person'] ?? 'borrower'),
+                isset($subject['g']) ? (int) $subject['g'] : null,
+                isset($subject['m']) ? (int) $subject['m'] : null,
+            );
+
+            foreach ($desk['groups'] ?? [] as $group) {
+                foreach ($group['items'] ?? [] as $item) {
+                    $verdict = $item['verdict'] ?? null;
+                    $risk = (string) ($item['risk'] ?? 'normal');
+                    $subjectLabel = trim(($subject['label'] ?? 'Subject').' · '.($subject['sublabel'] ?? ''));
+                    $phase = (string) ($group['phase'] ?? 'person');
+                    $href = $this->checklistHref($application, $subject, $phase, (string) ($group['key'] ?? ''), (string) ($item['key'] ?? ''));
+
+                    if ($verdict === null) {
+                        if (count($nextSteps) < 12) {
+                            $nextSteps[] = [
+                                'label' => $item['label'] ?? 'Checklist item',
+                                'detail' => $subjectLabel.' · '.($group['phase_label'] ?? $group['label'] ?? 'Checklist'),
+                                'href' => $href,
+                                'tone' => $risk === 'critical' ? 'critical' : 'open',
+                            ];
+                        }
+                    } elseif ($verdict === 'fail') {
+                        if ($risk === 'critical') {
+                            $criticalFailCount++;
+                            $criticalFails[] = ($item['label'] ?? 'Check').' ('.$subjectLabel.')';
+                        }
+                        if (count($nextSteps) < 12) {
+                            $nextSteps[] = [
+                                'label' => 'Fail · '.($item['label'] ?? 'Checklist item'),
+                                'detail' => $subjectLabel.($item['fail_reason_label'] ?? null ? ' — '.$item['fail_reason_label'] : ''),
+                                'href' => $href,
+                                'tone' => $risk === 'critical' ? 'critical' : 'fail',
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        // Point to documents when product docs are behind.
+        $required = (int) ($review['required_docs'] ?? 0);
+        $satisfied = (int) ($review['satisfied_docs'] ?? 0);
+        if ($required > 0 && $satisfied < $required && count($nextSteps) < 12) {
+            $borrower = collect($subjects)->firstWhere('person', 'borrower') ?? ($subjects[0] ?? null);
+            if ($borrower) {
+                $nextSteps[] = [
+                    'label' => ($required - $satisfied).' required document(s) not verified',
+                    'detail' => 'Capacity → Documents',
+                    'href' => $this->checklistHref($application, $borrower, 'capacity', null, null, 'documents'),
+                    'tone' => 'open',
+                ];
             }
         }
 
@@ -80,12 +145,25 @@ class ScreeningReadinessService
             $blockers[] = 'Checklist incomplete for: '.implode(', ', array_slice($incomplete, 0, 4))
                 .(count($incomplete) > 4 ? '…' : '');
         }
+        if ($criticalFailCount > 0) {
+            $blockers[] = $criticalFailCount.' high-risk Fail'
+                .(count($criticalFails) > 0 ? ' — '.implode('; ', array_slice($criticalFails, 0, 3)) : '');
+        }
         if ($checklistFailed > 0) {
             $blockers[] = $checklistFailed.' checklist Fail'
                 .($failedSubjects !== [] ? ' ('.implode(', ', array_slice($failedSubjects, 0, 3)).')' : '');
         }
         if ($affordVerdict === 'fail') {
             $blockers[] = 'Affordability fails — borrower capacity does not support the proposed instalment';
+            $borrower = collect($subjects)->firstWhere('person', 'borrower') ?? ($subjects[0] ?? null);
+            if ($borrower && count($nextSteps) < 12) {
+                $nextSteps[] = [
+                    'label' => 'Affordability fail — review capacity numbers',
+                    'detail' => 'Capacity → Affordability',
+                    'href' => $this->checklistHref($application, $borrower, 'capacity', null, null, 'affordability'),
+                    'tone' => 'critical',
+                ];
+            }
         } elseif ($affordVerdict === 'warn') {
             $signals[] = 'Affordability is near the limit (warn)';
         } elseif ($affordVerdict === 'pass') {
@@ -108,7 +186,14 @@ class ScreeningReadinessService
         }
 
         $ready = $incomplete === [] && $checklistTotal > 0;
-        $suggestion = $this->suggest($ready, $checklistFailed, $affordVerdict, $crbSignal['recommendation'], $criticalFlags);
+        $suggestion = $this->suggest(
+            $ready,
+            $checklistFailed,
+            $criticalFailCount,
+            $affordVerdict,
+            $crbSignal['recommendation'],
+            $criticalFlags,
+        );
         $labels = [
             'hold' => 'Hold — finish checklist',
             'approve' => 'Lean Approve',
@@ -116,12 +201,19 @@ class ScreeningReadinessService
             'counter' => 'Lean Counter-offer / Refer',
         ];
 
+        // Prefer critical / open actions first.
+        usort($nextSteps, function ($a, $b) {
+            $rank = ['critical' => 0, 'fail' => 1, 'open' => 2];
+
+            return ($rank[$a['tone'] ?? 'open'] ?? 9) <=> ($rank[$b['tone'] ?? 'open'] ?? 9);
+        });
+
         return [
             'ready' => $ready,
             'suggestion' => $suggestion,
             'suggestion_label' => $labels[$suggestion] ?? strtoupper($suggestion),
             'headline' => $this->headline($ready, $suggestion),
-            'detail' => $this->detail($ready, $suggestion, $checklistDone, $checklistTotal),
+            'detail' => $this->detail($ready, $suggestion, $checklistDone, $checklistTotal, $criticalFailCount),
             'tone' => match ($suggestion) {
                 'approve' => 'good',
                 'reject' => 'bad',
@@ -130,12 +222,43 @@ class ScreeningReadinessService
             },
             'blockers' => array_values($blockers),
             'signals' => array_values($signals),
+            'next_steps' => array_values(array_slice($nextSteps, 0, 10)),
+            'critical_fails' => array_values(array_slice($criticalFails, 0, 8)),
             'checklist_done' => $checklistDone,
             'checklist_total' => $checklistTotal,
             'checklist_failed' => $checklistFailed,
             'subjects_incomplete' => count($incomplete),
             'subjects_total' => count($subjects),
+            'na_note' => 'N/A counts as reviewed and does not Fail the file — use it when the check truly does not apply (for example collateral on a clean group loan). It still moves the checklist forward.',
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $subject
+     */
+    private function checklistHref(
+        LoanApplication $application,
+        array $subject,
+        string $phase,
+        ?string $openGroup = null,
+        ?string $openItem = null,
+        ?string $capacityTab = null,
+        ?string $securityTab = null,
+    ): string {
+        $query = array_filter([
+            'loan_application' => $application,
+            'workspace' => 'checklist',
+            'review_person' => $subject['person'] ?? 'borrower',
+            'review_g' => $subject['g'] ?? null,
+            'review_m' => $subject['m'] ?? null,
+            'desk_phase' => $phase,
+            'open_group' => $openGroup,
+            'open_item' => $openItem,
+            'capacity_tab' => $capacityTab,
+            'security_tab' => $securityTab ?: ($phase === 'security' && ! $openGroup ? 'wrapup' : null),
+        ], fn ($v) => $v !== null && $v !== '');
+
+        return route('admin.loan-applications.show', $query).'#review-desk';
     }
 
     /**
@@ -188,6 +311,7 @@ class ScreeningReadinessService
     private function suggest(
         bool $ready,
         int $checklistFailed,
+        int $criticalFailCount,
         string $affordVerdict,
         string $crbRec,
         int $criticalFlags,
@@ -196,11 +320,12 @@ class ScreeningReadinessService
             return 'hold';
         }
 
-        if ($checklistFailed > 0 || $affordVerdict === 'fail' || $crbRec === 'reject' || $criticalFlags > 0) {
+        // High-risk checklist fails are a no-brainer lean Reject once the file is complete.
+        if ($criticalFailCount > 0 || $affordVerdict === 'fail' || $crbRec === 'reject' || $criticalFlags > 0) {
             return 'reject';
         }
 
-        if ($affordVerdict === 'warn' || $crbRec === 'refer') {
+        if ($checklistFailed > 0 || $affordVerdict === 'warn' || $crbRec === 'refer') {
             return 'counter';
         }
 
@@ -225,12 +350,16 @@ class ScreeningReadinessService
         };
     }
 
-    private function detail(bool $ready, string $suggestion, int $done, int $total): string
+    private function detail(bool $ready, string $suggestion, int $done, int $total, int $criticalFailCount): string
     {
         $progress = $total > 0 ? "{$done}/{$total} checklist items reviewed" : 'No checklist items yet';
 
         if (! $ready) {
-            return $progress.'. Finish every subject Pass/Fail, then open Decision.';
+            return $progress.'. Expand “Where to go next” below, finish those items, then open Decision. Decision stays open, but lean guidance waits until every subject is reviewed.';
+        }
+
+        if ($criticalFailCount > 0) {
+            return $progress.". {$criticalFailCount} high-risk Fail(s) — lean Reject unless you deliberately override with written reasons.";
         }
 
         return match ($suggestion) {

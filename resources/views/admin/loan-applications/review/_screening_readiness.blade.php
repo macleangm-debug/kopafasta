@@ -31,9 +31,12 @@
         'loan_application' => $record,
         'workspace' => 'checklist',
     ]).'#review-desk';
+    $nextSteps = $readiness['next_steps'] ?? [];
 @endphp
 
-<div id="screening-readiness" class="rounded-2xl overflow-hidden shadow-sm ring-1 {{ $shell }} bg-gradient-to-br text-white scroll-mt-24">
+<div id="screening-readiness"
+     class="rounded-2xl overflow-hidden shadow-sm ring-1 {{ $shell }} bg-gradient-to-br text-white scroll-mt-24"
+     x-data="{ openNext: @js(! ($readiness['ready'] ?? false)) }">
     <div class="px-5 py-4 sm:px-6 sm:py-5 flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
@@ -60,6 +63,11 @@
                 @if (($readiness['checklist_failed'] ?? 0) > 0)
                     <span class="rounded-lg bg-rose-100 text-rose-950 px-2.5 py-1 tabular-nums">
                         {{ $readiness['checklist_failed'] }} fail
+                    </span>
+                @endif
+                @if (! empty($readiness['critical_fails']))
+                    <span class="rounded-lg bg-rose-100 text-rose-950 px-2.5 py-1 tabular-nums">
+                        {{ count($readiness['critical_fails']) }} high-risk
                     </span>
                 @endif
             </div>
@@ -100,9 +108,53 @@
                     Continue checklist →
                 </a>
                 <p class="text-[11px] text-white/70 sm:text-right max-w-[14rem]">
-                    Suggested decision unlocks when every subject is reviewed.
+                    Decision stays reachable — lean guidance waits until every subject is reviewed.
                 </p>
             @endif
         </div>
     </div>
+
+    @if (! empty($nextSteps))
+        <div class="border-t border-white/10 bg-black/15 px-5 sm:px-6 py-3">
+            <button type="button"
+                    class="w-full flex items-center justify-between gap-3 text-left"
+                    @click="openNext = !openNext"
+                    :aria-expanded="openNext.toString()">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.18em] font-semibold text-white/60">Where to go next</p>
+                    <p class="text-sm font-semibold text-white mt-0.5">
+                        {{ count($nextSteps) }} action{{ count($nextSteps) === 1 ? '' : 's' }} to clear this progress bar
+                    </p>
+                </div>
+                <svg class="size-4 text-white/70 transition shrink-0" :class="openNext ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+            </button>
+            <div x-show="openNext" x-cloak class="mt-3 space-y-2">
+                @foreach ($nextSteps as $step)
+                    @php
+                        $stepTone = match ($step['tone'] ?? 'open') {
+                            'critical' => 'bg-rose-100 text-rose-950 ring-rose-200',
+                            'fail' => 'bg-amber-100 text-amber-950 ring-amber-200',
+                            default => 'bg-white/95 text-slate-900 ring-white/40',
+                        };
+                        $chip = match ($step['tone'] ?? 'open') {
+                            'critical' => 'High risk',
+                            'fail' => 'Failed',
+                            default => 'Open',
+                        };
+                    @endphp
+                    <a href="{{ $step['href'] }}"
+                       class="flex flex-wrap items-start justify-between gap-2 rounded-xl px-3.5 py-2.5 ring-1 {{ $stepTone }} hover:brightness-95 transition">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold">{{ $step['label'] }}</p>
+                            <p class="text-[11px] opacity-80 mt-0.5">{{ $step['detail'] }}</p>
+                        </div>
+                        <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide rounded-md px-2 py-1 bg-black/5">{{ $chip }} →</span>
+                    </a>
+                @endforeach
+                @if (! empty($readiness['na_note']))
+                    <p class="text-[11px] text-white/70 pt-1">{{ $readiness['na_note'] }}</p>
+                @endif
+            </div>
+        </div>
+    @endif
 </div>

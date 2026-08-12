@@ -16,6 +16,7 @@ return [
             'nida_vs_dob' => [
                 'label' => 'Compare NIDA number to date of birth',
                 'evidence' => 'nida_dob',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'nida_dob_mismatch' => 'NIDA does not match date of birth',
                     'nida_incomplete' => 'NIDA or date of birth missing / incomplete',
@@ -25,6 +26,7 @@ return [
             'name_vs_crb' => [
                 'label' => 'Map name to CRB report',
                 'evidence' => 'name_crb',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'name_mismatch' => 'Name does not match CRB',
                     'crb_missing' => 'CRB report not available',
@@ -34,6 +36,7 @@ return [
             'marital_vs_crb' => [
                 'label' => 'Compare marital / family status to CRB',
                 'evidence' => 'marital_crb',
+                'risk' => 'elevated',
                 'fail_reasons' => [
                     'marital_mismatch' => 'Marital status differs from CRB',
                     'spouse_mismatch' => 'Spouse name differs from CRB',
@@ -43,11 +46,12 @@ return [
                 ],
             ],
             'face_vs_nida' => [
-                'label' => 'Compare face verification to NIDA photo',
+                'label' => 'Compare face capture to uploaded ID',
                 'evidence' => 'face_nida',
+                'risk' => 'critical',
                 'fail_reasons' => [
-                    'face_mismatch' => 'Face does not match NIDA photo',
-                    'photos_missing' => 'Face or NIDA photo missing',
+                    'face_mismatch' => 'Face does not match uploaded ID',
+                    'photos_missing' => 'Face or ID photo missing',
                     'poor_quality' => 'Photo quality too poor to verify',
                     'custom' => 'Other (write reason)',
                 ],
@@ -55,6 +59,7 @@ return [
             'phone_ownership' => [
                 'label' => 'Confirm mobile number ownership',
                 'evidence' => 'phone',
+                'risk' => 'elevated',
                 'fail_reasons' => [
                     'phone_not_owned' => 'Number not owned by the customer',
                     'phone_unreachable' => 'Could not reach the number',
@@ -64,6 +69,7 @@ return [
             'id_document_quality' => [
                 'label' => 'Review ID / NIDA document quality',
                 'evidence' => 'id_docs',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'poor_quality' => 'Document unclear or incomplete',
                     'suspected_tamper' => 'Suspected tampering / falsified ID',
@@ -79,10 +85,11 @@ return [
         'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
             'address_consistency' => [
-                'label' => 'Confirm residence details are consistent',
+                'label' => 'Confirm residence details are complete (address + LGO)',
                 'evidence' => 'residence',
+                'risk' => 'elevated',
                 'fail_reasons' => [
-                    'address_mismatch' => 'Address details inconsistent',
+                    'address_mismatch' => 'Address details inconsistent with proof / LGO',
                     'incomplete' => 'Residence details incomplete',
                     'custom' => 'Other (write reason)',
                 ],
@@ -178,6 +185,7 @@ return [
             'income_evidence' => [
                 'label' => 'Verify income evidence against affordability',
                 'evidence' => 'affordability',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'income_insufficient' => 'Income evidence insufficient',
                     'affordance_fail' => 'Does not support proposed repayment',
@@ -204,6 +212,7 @@ return [
             'required_docs_complete' => [
                 'label' => 'Confirm required documents are complete',
                 'evidence' => 'documents',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'docs_missing' => 'Required documents missing',
                     'docs_rejected' => 'Documents rejected / not verified',
@@ -309,6 +318,7 @@ return [
             'crb_reviewed' => [
                 'label' => 'CRB report reviewed — other institutions / loans',
                 'evidence' => 'crb_loans',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'high_exposure' => 'Too much exposure at other institutions',
                     'delinquencies' => 'Active delinquencies on CRB',
@@ -318,6 +328,7 @@ return [
             'risk_flags_addressed' => [
                 'label' => 'Risk flags / anomalies addressed in notes',
                 'evidence' => 'generic',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'flags_unaddressed' => 'Critical flags not addressed',
                     'custom' => 'Other (write reason)',
@@ -342,6 +353,7 @@ return [
             'crb_reviewed' => [
                 'label' => 'Guarantor CRB — other institutions / loans',
                 'evidence' => 'crb_loans',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'high_exposure' => 'Guarantor exposure too high',
                     'delinquencies' => 'Guarantor has delinquencies',
@@ -375,6 +387,7 @@ return [
             'crb_reviewed' => [
                 'label' => 'Member CRB reviewed — other institutions / loans',
                 'evidence' => 'crb_loans',
+                'risk' => 'critical',
                 'fail_reasons' => [
                     'high_exposure' => 'Member exposure too high',
                     'delinquencies' => 'Member has delinquencies',

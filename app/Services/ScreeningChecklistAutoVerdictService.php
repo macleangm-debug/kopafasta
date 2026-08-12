@@ -187,6 +187,14 @@ class ScreeningChecklistAutoVerdictService
             $nida = $nida['file_path'] ?? $nida['path'] ?? null;
         }
         $hasNida = is_string($nida) && filled($nida);
+        if (! $hasNida) {
+            foreach ((array) data_get($ctx, 'documents.id_files', []) as $file) {
+                if (! empty($file['url']) || ! empty($file['file_path'] ?? null)) {
+                    $hasNida = true;
+                    break;
+                }
+            }
+        }
 
         if ($count < 1 || ! $hasNida) {
             return ['verdict' => 'fail', 'fail_reason_code' => 'photos_missing', 'source' => 'system'];

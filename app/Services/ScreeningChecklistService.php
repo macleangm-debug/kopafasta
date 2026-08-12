@@ -263,6 +263,7 @@ class ScreeningChecklistService
                     'item_key' => $itemKey,
                     'group_key' => $groupKey,
                     'label' => $meta['label'],
+                    'risk' => $meta['risk'] ?? 'normal',
                     'evidence_type' => $meta['evidence'],
                     'evidence' => $autoNa
                         ? [
@@ -270,6 +271,7 @@ class ScreeningChecklistService
                             'rows' => [],
                             'photos' => [],
                             'compare' => [],
+                            'layout' => null,
                         ]
                         : $this->buildEvidence($meta['evidence'], $context),
                     'fail_reasons' => $meta['fail_reasons'],
@@ -479,13 +481,20 @@ class ScreeningChecklistService
                 'label' => $meta,
                 'evidence' => 'generic',
                 'fail_reasons' => ['custom' => 'Other (write reason)'],
+                'risk' => 'normal',
             ];
+        }
+
+        $risk = (string) ($meta['risk'] ?? 'normal');
+        if (! in_array($risk, ['critical', 'elevated', 'normal'], true)) {
+            $risk = 'normal';
         }
 
         return [
             'label' => (string) ($meta['label'] ?? 'Check'),
             'evidence' => (string) ($meta['evidence'] ?? 'generic'),
             'fail_reasons' => (array) ($meta['fail_reasons'] ?? ['custom' => 'Other (write reason)']),
+            'risk' => $risk,
         ];
     }
 
@@ -863,6 +872,7 @@ class ScreeningChecklistService
         $rows = [];
         $compare = [];
         $hint = null;
+        $layout = null;
 
         switch ($type) {
             case 'nida_dob':
@@ -926,6 +936,8 @@ class ScreeningChecklistService
                 if ($facePhotos instanceof \Illuminate\Support\Collection) {
                     $facePhotos = $facePhotos->all();
                 }
+                $frontPhoto = null;
+                $supportFaces = [];
                 foreach ((array) $facePhotos as $angle => $entry) {
                     $path = $entry;
                     if (is_object($entry) && isset($entry->file_path)) {
@@ -936,27 +948,78 @@ class ScreeningChecklistService
                     if (! is_string($path) || ! filled($path)) {
                         continue;
                     }
-                    $photos[] = [
+                    $pack = [
                         'label' => is_string($angle) ? ucfirst(str_replace('_', ' ', $angle)) : 'Face',
                         'url' => asset('storage/'.$path),
+                        'role' => 'face_support',
                     ];
+                    if (is_string($angle) && strtolower($angle) === 'front') {
+                        $pack['label'] = 'Front face capture';
+                        $pack['role'] = 'face';
+                        $frontPhoto = $pack;
+                    } else {
+                        $supportFaces[] = $pack;
+                    }
                 }
-                $nidaPath = $ctx['nida_photo_path'] ?? null;
-                if (is_object($nidaPath) && isset($nidaPath->file_path)) {
-                    $nidaPath = $nidaPath->file_path;
-                } elseif (is_array($nidaPath)) {
-                    $nidaPath = $nidaPath['file_path'] ?? $nidaPath['path'] ?? null;
+                if ($frontPhoto === null && $supportFaces !== []) {
+                    $frontPhoto = $supportFaces[0];
+                    $frontPhoto['label'] = 'Face capture';
+                    $frontPhoto['role'] = 'face';
+                    array_shift($supportFaces);
                 }
-                if (is_string($nidaPath) && filled($nidaPath)) {
-                    $photos[] = [
-                        'label' => 'NIDA photo',
-                        'url' => asset('storage/'.$nidaPath),
+                if ($frontPhoto !== null) {
+                    $photos[] = $frontPhoto;
+                }
+
+                // Prefer uploaded ID card, then bureau NIDA photo (CRB never returns a portrait).
+                $idFiles = (array) data_get($ctx, 'documents.id_files', []);
+                $idPhoto = null;
+                foreach ($idFiles as $file) {
+                    if (empty($file['url'])) {
+                        continue;
+                    }
+                    $label = strtolower((string) ($file['label'] ?? ''));
+                    $candidate = [
+                        'label' => (string) ($file['label'] ?? 'Identification card'),
+                        'url' => (string) $file['url'],
+                        'role' => 'id',
                     ];
+                    if (str_contains($label, 'national') || str_contains($label, 'nida') || str_contains($label, 'front')) {
+                        $idPhoto = $candidate;
+                        break;
+                    }
+                    $idPhoto ??= $candidate;
                 }
+                if ($idPhoto === null) {
+                    $nidaPath = $ctx['nida_photo_path'] ?? null;
+                    if (is_object($nidaPath) && isset($nidaPath->file_path)) {
+                        $nidaPath = $nidaPath->file_path;
+                    } elseif (is_array($nidaPath)) {
+                        $nidaPath = $nidaPath['file_path'] ?? $nidaPath['path'] ?? null;
+                    }
+                    if (is_string($nidaPath) && filled($nidaPath)) {
+                        $idPhoto = [
+                            'label' => 'NIDA bureau photo (backup)',
+                            'url' => asset('storage/'.$nidaPath),
+                            'role' => 'id',
+                        ];
+                    }
+                }
+                if ($idPhoto !== null) {
+                    $photos[] = $idPhoto;
+                }
+                foreach ($supportFaces as $extra) {
+                    $photos[] = $extra;
+                }
+
                 $rows = [
                     ['label' => 'Face status', 'value' => display_label($customer?->face_verification_status, 'face_verification_status') ?: '—'],
+                    ['label' => 'Compare', 'value' => 'Front face vs uploaded ID — CRB has no portrait'],
                 ];
-                $hint = 'Open the photos and compare likeness.';
+                $hint = ($frontPhoto && $idPhoto)
+                    ? 'Side-by-side: confirm the person in the face capture is the same person on the ID. Other angles are supporting only.'
+                    : 'Need both a face capture and an uploaded ID (or NIDA bureau backup) before you can Pass.';
+                $layout = 'face_id_compare';
                 break;
 
             case 'phone':
@@ -994,7 +1057,7 @@ class ScreeningChecklistService
                     ['label' => 'Signatory phone', 'value' => (string) ($customer?->lga_officer_phone ?: '—')],
                 ];
                 $hint = filled($customer?->lga_officer_phone)
-                    ? 'System checks address + LGO name/phone are filled. Confirming residence with the LGO is your phone call — not automatic.'
+                    ? 'System only checks that address + LGO name/phone are filled — not that they match CRB or a letter. Call the LGO yourself to confirm.'
                     : 'Residence incomplete — borrower must add address and LGO officer name + phone before you can call them.';
                 break;
 
@@ -1156,6 +1219,7 @@ class ScreeningChecklistService
             'compare' => $compare,
             'photos' => $photos,
             'hint' => $hint,
+            'layout' => $layout,
         ];
     }
 

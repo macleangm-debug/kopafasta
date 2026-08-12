@@ -43,13 +43,18 @@
                     }">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <button type="button" class="text-left min-w-0 flex-1" @click="toggleItem(@js($itemKey))">
-                            <p class="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
-                                <span>{{ $item['label'] }}</span>
-                                @if ($item['system_checked'] ?? false)
-                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-sky-100 text-sky-900 ring-1 ring-sky-200">System</span>
-                                @endif
-                                <svg class="size-3.5 text-gray-400 transition" :class="openItem === @js($itemKey) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                            </p>
+                                            <p class="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
+                                                <span>{{ $item['label'] }}</span>
+                                                @if (($item['risk'] ?? 'normal') === 'critical')
+                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-rose-100 text-rose-900 ring-1 ring-rose-200">High risk</span>
+                                                @elseif (($item['risk'] ?? '') === 'elevated')
+                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-amber-100 text-amber-900 ring-1 ring-amber-200">Elevated</span>
+                                                @endif
+                                                @if ($item['system_checked'] ?? false)
+                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-sky-100 text-sky-900 ring-1 ring-sky-200">System</span>
+                                                @endif
+                                                <svg class="size-3.5 text-gray-400 transition" :class="openItem === @js($itemKey) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                            </p>
                             @if ($item['evidence']['hint'] ?? null)
                                 <p class="text-[11px] text-gray-500 mt-0.5">{{ $item['evidence']['hint'] }}</p>
                             @endif
@@ -71,7 +76,7 @@
                                 Fail ✗
                             </label>
                             <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
-                                   :class="verdict === 'na' ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white text-gray-600 ring-gray-200'">
+                                   :class="verdict === 'na' ? 'bg-sky-100 text-sky-900 ring-sky-300 shadow-sm' : 'bg-white text-gray-600 ring-gray-200'">
                                 <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="na"
                                        x-model="verdict" @change="openItem = @js($itemKey)">
                                 N/A
@@ -81,19 +86,74 @@
 
                     <div x-show="openItem === @js($itemKey)" x-cloak class="mt-3 space-y-3">
                         @if (! empty($item['evidence']['photos']))
-                            <div class="flex gap-2 overflow-x-auto pb-1"
-                                 x-data="{
+                            @php
+                                $photoLayout = $item['evidence']['layout'] ?? null;
+                                $facePhoto = collect($item['evidence']['photos'])->firstWhere('role', 'face');
+                                $idPhoto = collect($item['evidence']['photos'])->firstWhere('role', 'id');
+                                $supportPhotos = collect($item['evidence']['photos'])->where('role', 'face_support')->values();
+                            @endphp
+                            <div x-data="{
                                      lightbox: null,
                                      open(url, label) { this.lightbox = { url, label } },
                                      close() { this.lightbox = null }
                                  }">
-                                @foreach ($item['evidence']['photos'] as $photo)
-                                    <button type="button"
-                                            @click="open(@js($photo['url']), @js($photo['label'] ?? 'Photo'))"
-                                            class="shrink-0 w-20 h-20 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50 hover:ring-brand transition text-left">
-                                        <img src="{{ $photo['url'] }}" alt="{{ $photo['label'] }}" class="w-full h-full object-cover">
-                                    </button>
-                                @endforeach
+                                @if ($photoLayout === 'face_id_compare' && ($facePhoto || $idPhoto))
+                                    <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">
+                                        <div class="px-3 py-2 bg-brand-muted/40 border-b border-brand/10">
+                                            <p class="text-[11px] font-bold text-brand uppercase tracking-widest">Primary check — face vs uploaded ID</p>
+                                            <p class="text-[11px] text-gray-600 mt-0.5">CRB does not return a portrait. Compare our face capture to the ID the borrower uploaded.</p>
+                                        </div>
+                                        <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                                            <button type="button" class="p-3 text-left hover:bg-gray-50/80 transition"
+                                                    @if (! empty($facePhoto['url']))
+                                                        @click="open(@js($facePhoto['url']), @js($facePhoto['label'] ?? 'Face'))"
+                                                    @endif>
+                                                <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">1. Face capture</p>
+                                                @if (! empty($facePhoto['url']))
+                                                    <img src="{{ $facePhoto['url'] }}" alt="{{ $facePhoto['label'] }}" class="w-full max-h-56 object-cover rounded-lg ring-1 ring-gray-200">
+                                                    <span class="text-[11px] font-semibold text-brand mt-1.5 inline-block">Enlarge</span>
+                                                @else
+                                                    <div class="h-40 grid place-items-center rounded-lg bg-rose-50 text-sm text-rose-700 ring-1 ring-rose-100">Face not uploaded</div>
+                                                @endif
+                                            </button>
+                                            <button type="button" class="p-3 text-left hover:bg-gray-50/80 transition"
+                                                    @if (! empty($idPhoto['url']))
+                                                        @click="open(@js($idPhoto['url']), @js($idPhoto['label'] ?? 'ID'))"
+                                                    @endif>
+                                                <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">2. Uploaded ID</p>
+                                                @if (! empty($idPhoto['url']))
+                                                    <img src="{{ $idPhoto['url'] }}" alt="{{ $idPhoto['label'] }}" class="w-full max-h-56 object-cover rounded-lg ring-1 ring-gray-200">
+                                                    <span class="text-[11px] font-semibold text-brand mt-1.5 inline-block">{{ $idPhoto['label'] }} · Enlarge</span>
+                                                @else
+                                                    <div class="h-40 grid place-items-center rounded-lg bg-rose-50 text-sm text-rose-700 ring-1 ring-rose-100">ID card not on file</div>
+                                                @endif
+                                            </button>
+                                        </div>
+                                    </div>
+                                    @if ($supportPhotos->isNotEmpty())
+                                        <p class="text-[11px] font-semibold text-gray-500 mt-2">Supporting angles</p>
+                                        <div class="flex gap-2 overflow-x-auto pb-1 mt-1">
+                                            @foreach ($supportPhotos as $photo)
+                                                <button type="button"
+                                                        @click="open(@js($photo['url']), @js($photo['label'] ?? 'Photo'))"
+                                                        class="shrink-0 w-20 h-20 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50 hover:ring-brand transition text-left">
+                                                    <img src="{{ $photo['url'] }}" alt="{{ $photo['label'] }}" class="w-full h-full object-cover">
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                @else
+                                    <div class="flex gap-2 overflow-x-auto pb-1">
+                                        @foreach ($item['evidence']['photos'] as $photo)
+                                            <button type="button"
+                                                    @click="open(@js($photo['url']), @js($photo['label'] ?? 'Photo'))"
+                                                    class="shrink-0 w-28 h-28 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50 hover:ring-brand transition text-left relative">
+                                                <img src="{{ $photo['url'] }}" alt="{{ $photo['label'] }}" class="w-full h-full object-cover">
+                                                <span class="absolute inset-x-0 bottom-0 bg-black/55 text-white text-[9px] font-semibold px-1.5 py-1 truncate">{{ $photo['label'] }}</span>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
                                 <div x-show="lightbox" x-cloak
                                      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
                                      @keydown.escape.window="close()"

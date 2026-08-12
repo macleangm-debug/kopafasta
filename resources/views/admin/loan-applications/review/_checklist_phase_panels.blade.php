@@ -139,16 +139,15 @@
             default => 'Credit file wrap-up',
         };
     @endphp
-    <div id="checklist-wrap-up" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/15 p-4 sm:p-5 space-y-3">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Close the file</p>
-                <h4 class="text-sm font-bold text-gray-900 mt-0.5">{{ $wrapTitle }} · {{ $subjectLabel }}</h4>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    Confirm CRB exposure here, then mark wrap-up Pass / Fail under the Checks sub-tab before Decision.
-                </p>
-            </div>
+    <div id="checklist-wrap-up" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
+        <div class="px-4 sm:px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/50 to-white">
+            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Close the file</p>
+            <h4 class="text-base font-bold text-gray-900 mt-0.5">{{ $wrapTitle }} · {{ $subjectLabel }}</h4>
+            <p class="text-xs text-gray-500 mt-0.5 max-w-2xl">
+                Snapshot before Decision. Mark wrap-up Pass / Fail under the Checks sub-tab. Full CRB detail stays in Capacity → CRB.
+            </p>
         </div>
+        <div class="p-4 sm:p-5 space-y-3">
         <div class="grid sm:grid-cols-4 gap-2">
             <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-2.5">
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">CRB</p>
@@ -170,7 +169,8 @@
             </div>
         </div>
         <p class="text-[11px] text-gray-500">
-            Full CRB detail is under <span class="font-semibold text-gray-700">Capacity → CRB</span>.
+            High-risk Fail on wrap-up CRB or identity pushes readiness to <span class="font-semibold text-gray-700">Lean Reject</span> once the checklist is complete.
         </p>
+        </div>
     </div>
 @endif
