@@ -52,7 +52,9 @@ class PublicProductPresentationService
             ],
             'rate_label' => $this->rates->formatBorrowerRateRange($product),
             'rate_disclosure' => $this->rates->borrowerDisclosureLines($product, (float) $product->min_amount),
+            'monthly_rate_components' => $this->rates->borrowerMonthlyRateComponents($product),
             'repayment_frequency' => $product->repayment_cadence ?? $product->repayment_frequency ?? 'monthly',
+            'repayment_frequency_label' => $this->repaymentFrequencyLabel($product),
             'fees' => [
                 'application' => $applicationFee,
                 'post_approval_total' => $postApproval['total'],
@@ -67,8 +69,40 @@ class PublicProductPresentationService
             'faq' => $this->faq($product),
             'requires_collateral' => (bool) $product->requires_collateral,
             'requires_guarantor' => (bool) $product->requires_guarantor,
+            'highlights' => $this->highlights($product),
             'tiers' => $this->tiers->tiersForProduct($product),
         ];
+    }
+
+    private function repaymentFrequencyLabel(LoanProduct $product): string
+    {
+        $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($product);
+
+        return $cadence === 'weekly'
+            ? __('site.product_detail.repayment_weekly')
+            : __('site.product_detail.repayment_monthly');
+    }
+
+    /** @return list<string> */
+    private function highlights(LoanProduct $product): array
+    {
+        $items = [
+            $this->repaymentFrequencyLabel($product),
+        ];
+
+        if ($product->requires_guarantor) {
+            $items[] = __('site.product_detail.highlight_guarantor');
+        } else {
+            $items[] = __('site.product_detail.highlight_no_guarantor');
+        }
+
+        if ($product->requires_collateral) {
+            $items[] = __('site.product_detail.highlight_collateral');
+        } else {
+            $items[] = __('site.product_detail.highlight_no_collateral');
+        }
+
+        return $items;
     }
 
     private function overview(LoanProduct $product): string

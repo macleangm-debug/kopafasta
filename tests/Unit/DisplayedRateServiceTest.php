@@ -64,4 +64,31 @@ class DisplayedRateServiceTest extends TestCase
         $this->assertEqualsWithDelta(0.17, $service->displayedMonthlyRate($product, 200_000), 0.0001);
         $this->assertSame('17%', $service->formatBorrowerRateRange($product));
     }
+
+    public function test_borrower_monthly_rate_components_include_fees_besides_interest(): void
+    {
+        $product = LoanProduct::create([
+            'code' => 'TST-03',
+            'name' => 'Components Product',
+            'interest_rate' => 0.12,
+            'bot_regulated_rate' => 0.035,
+            'processing_fee_rate' => 0.05,
+            'service_fee_rate' => 0.035,
+            'administration_fee_rate' => 0.01,
+            'tenure_min_months' => 1,
+            'tenure_max_months' => 12,
+            'min_amount' => 100_000,
+            'max_amount' => 1_000_000,
+            'is_active' => true,
+            'status' => 'active',
+        ]);
+
+        $rows = app(DisplayedRateService::class)->borrowerMonthlyRateComponents($product);
+        $byKey = collect($rows)->keyBy('key');
+
+        $this->assertSame('3.5%', $byKey['bot_regulated_rate']['value']);
+        $this->assertSame('5%', $byKey['processing_fee_rate']['value']);
+        $this->assertSame('3.5%', $byKey['service_fee_rate']['value']);
+        $this->assertSame('1%', $byKey['insurance_fee_rate']['value']);
+    }
 }

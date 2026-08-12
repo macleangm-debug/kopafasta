@@ -48,23 +48,53 @@
 
     {{-- Key metrics --}}
     <section class="bg-[#faf8f5] border-b border-gray-100">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div class="glass-card p-4 sm:p-5 text-center">
-                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.limits') }}</div>
-                <div class="text-sm sm:text-lg font-bold mt-2 text-brand tabular-nums">{{ format_money($p['limits']['min_amount'], false, 0) }} – {{ format_money($p['limits']['max_amount'], false, 0) }}</div>
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="glass-card p-4 sm:p-5 text-center">
+                    <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.limits') }}</div>
+                    <div class="text-sm sm:text-lg font-bold mt-2 text-brand tabular-nums">{{ format_money($p['limits']['min_amount'], false, 0) }} – {{ format_money($p['limits']['max_amount'], false, 0) }}</div>
+                </div>
+                <div class="glass-card p-4 sm:p-5 text-center">
+                    <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.products.tenure') }}</div>
+                    <div class="text-sm sm:text-lg font-bold mt-2 tabular-nums">{{ $p['limits']['tenure_min_months'] }}–{{ $p['limits']['tenure_max_months'] }} mo</div>
+                </div>
+                <div class="glass-card p-4 sm:p-5 text-center">
+                    <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.total_monthly_rate') }}</div>
+                    <div class="text-sm sm:text-lg font-bold mt-2 text-brand">{{ $p['rate_label'] }} / mo</div>
+                </div>
+                <div class="glass-card p-4 sm:p-5 text-center col-span-2 lg:col-span-1">
+                    <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.processing_time') }}</div>
+                    <div class="text-sm sm:text-lg font-bold mt-2">{{ $p['processing_time'] }}</div>
+                </div>
             </div>
-            <div class="glass-card p-4 sm:p-5 text-center">
-                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.products.tenure') }}</div>
-                <div class="text-sm sm:text-lg font-bold mt-2 tabular-nums">{{ $p['limits']['tenure_min_months'] }}–{{ $p['limits']['tenure_max_months'] }} mo</div>
-            </div>
-            <div class="glass-card p-4 sm:p-5 text-center">
-                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ loan_product_rates_section_title($product) }}</div>
-                <div class="text-sm sm:text-lg font-bold mt-2 text-brand">{{ $p['rate_label'] }} / mo</div>
-            </div>
-            <div class="glass-card p-4 sm:p-5 text-center col-span-2 lg:col-span-1">
-                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.processing_time') }}</div>
-                <div class="text-sm sm:text-lg font-bold mt-2">{{ $p['processing_time'] }}</div>
-            </div>
+
+            @if (! empty($p['monthly_rate_components']))
+                <div class="glass-card p-4 sm:p-5">
+                    <div class="flex flex-wrap items-end justify-between gap-2 mb-3">
+                        <div>
+                            <p class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.monthly_rates_heading') }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ __('site.product_detail.monthly_rates_hint') }}</p>
+                        </div>
+                        <p class="text-xs font-semibold text-brand">{{ __('site.product_detail.total_monthly_rate') }}: {{ $p['rate_label'] }} / mo</p>
+                    </div>
+                    <div class="grid grid-cols-2 {{ count($p['monthly_rate_components']) > 3 ? 'lg:grid-cols-4' : 'lg:grid-cols-3' }} gap-3">
+                        @foreach ($p['monthly_rate_components'] as $component)
+                            <div class="rounded-xl bg-white/70 ring-1 ring-gray-100 px-3 py-3 text-center">
+                                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ $component['label'] }}</div>
+                                <div class="text-sm sm:text-base font-bold mt-1.5 text-brand tabular-nums">{{ $component['value'] }} <span class="text-xs font-semibold text-gray-500">/ mo</span></div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            @if (! empty($p['highlights']))
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($p['highlights'] as $highlight)
+                        <span class="inline-flex items-center rounded-full bg-white text-brand text-xs font-semibold px-3 py-1.5 ring-1 ring-brand/15">{{ $highlight }}</span>
+                    @endforeach
+                </div>
+            @endif
         </div>
     </section>
 

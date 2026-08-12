@@ -1,8 +1,19 @@
-@props(['link' => '', 'code' => '', 'message' => null, 'tone' => 'on-brand'])
+@props([
+    'link' => '',
+    'code' => '',
+    'message' => null,
+    'tone' => 'on-brand',
+    'channels' => ['copy', 'whatsapp', 'sms', 'native'],
+])
 
 @php
     $shareText = $message ?? __('borrower.referrals.share_default_message', ['link' => $link]);
     $encodedText = rawurlencode($shareText);
+    $channels = collect($channels)->map(fn ($c) => strtolower((string) $c))->all();
+    $showCopy = in_array('copy', $channels, true);
+    $showWhatsapp = in_array('whatsapp', $channels, true);
+    $showSms = in_array('sms', $channels, true);
+    $showNative = in_array('native', $channels, true);
     $onBrand = $tone === 'on-brand';
     $primary = $onBrand
         ? 'bg-brand-gold text-brand hover:brightness-95'
@@ -16,28 +27,38 @@
 @endphp
 
 <div x-data="referralShare(@js($link), @js($shareText))" class="w-full">
-    <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-        <button type="button" @click="copyLink()"
-                class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold {{ $secondary }} transition">
-            {{ __('borrower.referrals.share_copy') }}
-        </button>
-        <a href="https://wa.me/?text={{ $encodedText }}" target="_blank" rel="noopener"
-           class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold {{ $primary }} transition">
-            {{ __('borrower.referrals.share_whatsapp') }}
-        </a>
-        <a href="sms:?body={{ $encodedText }}"
-           class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold {{ $ghost }} transition">
-            {{ __('borrower.referrals.share_sms') }}
-        </a>
-        <button type="button" @click="nativeShare()"
-                class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold {{ $ghost }} transition">
-            {{ __('borrower.referrals.share_native') }}
-        </button>
+    <div class="grid {{ ($showCopy + $showWhatsapp + $showSms + $showNative) > 1 ? 'grid-cols-2' : 'grid-cols-1' }} sm:flex sm:flex-wrap gap-2">
+        @if ($showCopy)
+            <button type="button" @click="copyLink()"
+                    class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold {{ $secondary }} transition">
+                {{ __('borrower.referrals.share_copy') }}
+            </button>
+        @endif
+        @if ($showWhatsapp)
+            <a href="https://wa.me/?text={{ $encodedText }}" target="_blank" rel="noopener"
+               class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold {{ $primary }} transition">
+                {{ __('borrower.referrals.share_whatsapp') }}
+            </a>
+        @endif
+        @if ($showSms)
+            <a href="sms:?body={{ $encodedText }}"
+               class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold {{ $ghost }} transition">
+                {{ __('borrower.referrals.share_sms') }}
+            </a>
+        @endif
+        @if ($showNative)
+            <button type="button" @click="nativeShare()"
+                    class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold {{ $ghost }} transition">
+                {{ __('borrower.referrals.share_native') }}
+            </button>
+        @endif
     </div>
-    <p x-show="copied" x-cloak x-transition
-       class="mt-2 text-xs font-medium {{ $onBrand ? 'text-brand-gold' : 'text-brand' }}">
-        {{ __('borrower.referrals.share_copied') }}
-    </p>
+    @if ($showCopy || $showNative)
+        <p x-show="copied" x-cloak x-transition
+           class="mt-2 text-xs font-medium {{ $onBrand ? 'text-brand-gold' : 'text-brand' }}">
+            {{ __('borrower.referrals.share_copied') }}
+        </p>
+    @endif
 </div>
 
 @once

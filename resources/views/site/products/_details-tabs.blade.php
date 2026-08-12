@@ -53,42 +53,69 @@
             </div>
 
             <div x-show="tab === 'fees'" x-cloak>
-                <dl class="space-y-3 text-sm max-w-md">
-                    <div class="flex justify-between gap-3">
-                        <dt class="text-gray-500">{{ __('site.product_detail.application_fee') }}</dt>
-                        <dd class="font-semibold tabular-nums">{{ format_money($p['fees']['application']) }}</dd>
+                <div class="grid lg:grid-cols-2 gap-8">
+                    <div>
+                        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-3">{{ __('site.product_detail.monthly_rates_heading') }}</p>
+                        <dl class="space-y-3 text-sm max-w-md">
+                            @foreach ($p['monthly_rate_components'] ?? [] as $component)
+                                <div class="flex justify-between gap-3">
+                                    <dt class="text-gray-500">{{ $component['label'] }}</dt>
+                                    <dd class="font-semibold tabular-nums">{{ $component['value'] }} / mo</dd>
+                                </div>
+                            @endforeach
+                            <div class="flex justify-between gap-3 pt-2 border-t border-gray-100">
+                                <dt class="text-gray-900 font-medium">{{ __('site.product_detail.total_monthly_rate') }}</dt>
+                                <dd class="font-bold text-brand tabular-nums">{{ $p['rate_label'] }} / mo</dd>
+                            </div>
+                        </dl>
+                        @if (! empty($p['rate_disclosure']))
+                            <ul class="mt-4 space-y-1 text-xs text-gray-600 max-w-xl">
+                                @foreach (array_slice($p['rate_disclosure'], 0, 3) as $line)
+                                    <li>{{ $line }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
                     </div>
-                    <div class="flex justify-between gap-3">
-                        <dt class="text-gray-500">{{ __('site.product_detail.post_approval_fees') }}</dt>
-                        <dd class="font-semibold tabular-nums">{{ format_money($p['fees']['post_approval_total']) }}</dd>
+
+                    <div>
+                        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-3">{{ __('site.product_detail.one_time_fees_heading') }}</p>
+                        <dl class="space-y-3 text-sm max-w-md">
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-gray-500">{{ __('site.product_detail.application_fee') }}</dt>
+                                <dd class="font-semibold tabular-nums">{{ format_money($p['fees']['application']) }}</dd>
+                            </div>
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-gray-500">{{ __('site.product_detail.post_approval_fees') }}</dt>
+                                <dd class="font-semibold tabular-nums">{{ format_money($p['fees']['post_approval_total']) }}</dd>
+                            </div>
+                            @foreach ($p['fees']['post_approval_lines'] ?? [] as $line)
+                                <div class="flex justify-between gap-3 pl-3">
+                                    <dt class="text-gray-400 text-xs">{{ $line['name'] }}</dt>
+                                    <dd class="font-medium tabular-nums text-xs text-gray-600">{{ format_money($line['amount']) }}</dd>
+                                </div>
+                            @endforeach
+                            @if (! empty($p['penalties']))
+                                <div class="pt-3 mt-1 border-t border-gray-100 space-y-3">
+                                    <div class="flex justify-between gap-3">
+                                        <dt class="text-gray-500">{{ __('site.product_detail.late_penalty') }}</dt>
+                                        <dd class="font-semibold tabular-nums text-right">
+                                            {{ rtrim(rtrim(number_format((float) $p['penalties']['rate_percent'], 2, '.', ''), '0'), '.') }}%
+                                            <span class="block text-[11px] font-normal text-gray-500">{{ $p['penalties']['basis_label'] }}</span>
+                                        </dd>
+                                    </div>
+                                    <div class="flex justify-between gap-3">
+                                        <dt class="text-gray-500">{{ __('site.product_detail.grace_period') }}</dt>
+                                        <dd class="font-semibold tabular-nums">{{ __('site.product_detail.grace_days', ['days' => $p['penalties']['grace_days']]) }}</dd>
+                                    </div>
+                                    <div class="flex justify-between gap-3">
+                                        <dt class="text-gray-500">{{ __('site.product_detail.penalty_cap') }}</dt>
+                                        <dd class="font-semibold tabular-nums">{{ rtrim(rtrim(number_format((float) $p['penalties']['cap_percent'], 2, '.', ''), '0'), '.') }}%</dd>
+                                    </div>
+                                </div>
+                            @endif
+                        </dl>
                     </div>
-                    @if (! empty($p['penalties']))
-                        <div class="pt-3 mt-1 border-t border-gray-100 space-y-3">
-                            <div class="flex justify-between gap-3">
-                                <dt class="text-gray-500">{{ __('site.product_detail.late_penalty') }}</dt>
-                                <dd class="font-semibold tabular-nums text-right">
-                                    {{ rtrim(rtrim(number_format((float) $p['penalties']['rate_percent'], 2, '.', ''), '0'), '.') }}%
-                                    <span class="block text-[11px] font-normal text-gray-500">{{ $p['penalties']['basis_label'] }}</span>
-                                </dd>
-                            </div>
-                            <div class="flex justify-between gap-3">
-                                <dt class="text-gray-500">{{ __('site.product_detail.grace_period') }}</dt>
-                                <dd class="font-semibold tabular-nums">{{ __('site.product_detail.grace_days', ['days' => $p['penalties']['grace_days']]) }}</dd>
-                            </div>
-                            <div class="flex justify-between gap-3">
-                                <dt class="text-gray-500">{{ __('site.product_detail.penalty_cap') }}</dt>
-                                <dd class="font-semibold tabular-nums">{{ rtrim(rtrim(number_format((float) $p['penalties']['cap_percent'], 2, '.', ''), '0'), '.') }}%</dd>
-                            </div>
-                        </div>
-                    @endif
-                </dl>
-                @if (! empty($p['rate_disclosure']))
-                    <ul class="mt-4 pt-4 border-t border-gray-100 space-y-1 text-xs text-gray-600 max-w-xl">
-                        @foreach (array_slice($p['rate_disclosure'], 0, 3) as $line)
-                            <li>{{ $line }}</li>
-                        @endforeach
-                    </ul>
-                @endif
+                </div>
             </div>
 
             <div x-show="tab === 'documents'" x-cloak>

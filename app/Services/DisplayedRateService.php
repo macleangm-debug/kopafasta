@@ -71,6 +71,101 @@ class DisplayedRateService
         ];
     }
 
+    /**
+     * Borrower-facing monthly rate components (interest + other monthly fees).
+     * When tiers exist, each component is shown as a min–max range across bands.
+     *
+     * @return list<array{key: string, label: string, value: string, min: float, max: float}>
+     */
+    public function borrowerMonthlyRateComponents(LoanProduct $product): array
+    {
+        $sharia = $product->hidesInterest();
+        $ranges = $this->componentRanges($product);
+
+        $rows = [];
+        if (! $sharia) {
+            $rows[] = $this->componentRow(
+                'bot_regulated_rate',
+                __('site.product_detail.monthly_rate_bot'),
+                $ranges['bot_regulated_rate']
+            );
+        }
+
+        $rows[] = $this->componentRow(
+            'processing_fee_rate',
+            __('site.product_detail.monthly_rate_processing'),
+            $ranges['processing_fee_rate']
+        );
+        $rows[] = $this->componentRow(
+            'service_fee_rate',
+            __('site.product_detail.monthly_rate_risk'),
+            $ranges['service_fee_rate']
+        );
+        $rows[] = $this->componentRow(
+            'insurance_fee_rate',
+            __('site.product_detail.monthly_rate_insurance'),
+            $ranges['insurance_fee_rate']
+        );
+
+        return $rows;
+    }
+
+    /**
+     * @return array{
+     *     bot_regulated_rate: array{min: float, max: float},
+     *     processing_fee_rate: array{min: float, max: float},
+     *     service_fee_rate: array{min: float, max: float},
+     *     insurance_fee_rate: array{min: float, max: float},
+     *     uses_tiers: bool
+     * }
+     */
+    public function componentRanges(LoanProduct $product): array
+    {
+        $tiers = $this->loadTiers($product);
+
+        if ($tiers->isNotEmpty()) {
+            $parts = $tiers->map(fn (LoanProductRateTier $t) => $t->rateComponents());
+
+            return [
+                'bot_regulated_rate'  => $this->minMax($parts->pluck('bot_regulated_rate')),
+                'processing_fee_rate' => $this->minMax($parts->pluck('processing_fee_rate')),
+                'service_fee_rate'    => $this->minMax($parts->pluck('service_fee_rate')),
+                'insurance_fee_rate'  => $this->minMax($parts->pluck('insurance_fee_rate')),
+                'uses_tiers'          => true,
+            ];
+        }
+
+        $c = $this->rateComponents($product);
+
+        return [
+            'bot_regulated_rate'  => ['min' => $c['bot_regulated_rate'], 'max' => $c['bot_regulated_rate']],
+            'processing_fee_rate' => ['min' => $c['processing_fee_rate'], 'max' => $c['processing_fee_rate']],
+            'service_fee_rate'    => ['min' => $c['service_fee_rate'], 'max' => $c['service_fee_rate']],
+            'insurance_fee_rate'  => ['min' => $c['insurance_fee_rate'], 'max' => $c['insurance_fee_rate']],
+            'uses_tiers'          => false,
+        ];
+    }
+
+    /** @param \Illuminate\Support\Collection<int, float|int|string> $values */
+    private function minMax(\Illuminate\Support\Collection $values): array
+    {
+        $nums = $values->map(fn ($v) => (float) $v);
+
+        return ['min' => (float) $nums->min(), 'max' => (float) $nums->max()];
+    }
+
+    /** @param array{min: float, max: float} $range */
+    private function componentRow(string $key, string $label, array $range): array
+    {
+        return [
+            'key' => $key,
+            'label' => $label,
+            'value' => RatePercent::formatRange($range['min'], $range['max']),
+            'min' => $range['min'],
+            'max' => $range['max'],
+        ];
+    }
+
     public function lowestBorrowerRateLabel(iterable $products): string
     {
         $mins = collect($products)
