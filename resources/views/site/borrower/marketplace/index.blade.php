@@ -27,7 +27,7 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.photo') }}</label>
-                <input type="file" name="photo" accept="image/*" capture="environment" class="w-full text-sm">
+                <x-site.single-image-document-upload name="photo" facing="environment" :required="false" />
             </div>
             <div>
                 <button class="bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">{{ __('borrower.marketplace.submit_request') }}</button>

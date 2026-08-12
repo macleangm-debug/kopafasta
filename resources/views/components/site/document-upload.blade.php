@@ -5,51 +5,89 @@
     'disabled' => false,
 ])
 
-<div class="space-y-3" x-data="documentUpload(@js($disabled), @js($multiple))">
+@php
+    $cameraLabels = [
+        'addPicture' => __('borrower.profile.add_picture'),
+        'captureImage' => __('borrower.profile.capture_image'),
+        'close' => __('borrower.profile.multi_page_close'),
+        'cameraDenied' => __('borrower.profile.camera_denied'),
+        'cameraUnsupported' => __('borrower.profile.camera_unsupported'),
+        'cameraInsecure' => __('borrower.profile.camera_insecure'),
+        'useFrontCamera' => __('borrower.profile.use_front_camera'),
+        'useBackCamera' => __('borrower.profile.use_back_camera'),
+        'brand' => brand_name(),
+        'gallery' => __('borrower.document_upload.gallery'),
+        'pdf' => __('borrower.document_upload.pdf'),
+        'camera' => __('borrower.document_upload.camera'),
+    ];
+@endphp
+
+<div class="space-y-3" x-data="documentUpload(@js($disabled), @js($multiple), @js($cameraLabels))">
     @unless($disabled)
+        <p class="text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
+
         <div class="flex flex-wrap gap-2">
-            <button type="button" @click="mode='camera'" :class="mode === 'camera' ? activeTab : idleTab">{{ __('borrower.document_upload.camera') }}</button>
-            <button type="button" @click="mode='gallery'" :class="mode === 'gallery' ? activeTab : idleTab">{{ __('borrower.document_upload.gallery') }}</button>
-            <button type="button" @click="mode='pdf'" :class="mode === 'pdf' ? activeTab : idleTab">{{ __('borrower.document_upload.pdf') }}</button>
+            <label class="inline-flex items-center gap-2 bg-brand-muted hover:bg-brand/15 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer ring-1 ring-brand/15">
+                <span x-text="labels.addPicture"></span>
+                <input type="file" accept="image/*" :multiple="allowMultiple" class="sr-only" @change="addFiles($event.target.files); mode='gallery'">
+            </label>
+            <button type="button" @click="openCamera()"
+                    class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm"
+                    x-text="labels.captureImage"></button>
+            <label class="inline-flex items-center gap-2 bg-white hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer ring-1 ring-brand/15">
+                <span x-text="labels.pdf"></span>
+                <input type="file" accept="application/pdf" :multiple="allowMultiple" class="sr-only" @change="addFiles($event.target.files); mode='pdf'">
+            </label>
         </div>
 
-        <div x-show="mode === 'camera'" x-cloak class="space-y-3">
-            <video x-ref="video" autoplay playsinline muted class="w-full rounded-xl bg-black max-h-48 object-cover"></video>
-            <canvas x-ref="canvas" class="hidden"></canvas>
-            <div class="flex flex-wrap gap-2">
-                <button type="button" @click="startCamera()" class="text-sm font-semibold px-4 py-2 rounded-full bg-gray-900 text-white">{{ __('borrower.document_upload.start_camera') }}</button>
-                <button type="button" @click="capture()" class="text-sm font-semibold px-4 py-2 rounded-full bg-amber-500 text-gray-900">{{ __('borrower.document_upload.capture_page') }}</button>
+        <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2" x-text="cameraNotice"></p>
+
+        <template x-teleport="body">
+            <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-brand flex flex-col">
+                <div class="relative z-[3] flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-brand to-transparent">
+                    <div class="min-w-0">
+                        <x-site.brand-mark size="sm" variant="light" />
+                        <p class="mt-1 text-[10px] uppercase tracking-widest text-brand-gold font-semibold truncate" x-text="labels.brand"></p>
+                    </div>
+                    <button type="button" @click="closeCamera()"
+                            class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
+                            x-text="labels.close"></button>
+                </div>
+                <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
+                       class="absolute inset-0 w-full h-full object-cover"
+                       :class="facingMode === 'user' ? 'mirror' : ''"></video>
+                <canvas x-ref="canvas" class="hidden"></canvas>
+                <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">
+                    <div class="flex items-center gap-2 max-w-lg mx-auto">
+                        <button type="button" @click="toggleFacing()"
+                                class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3.5 py-3.5 ring-1 ring-white/30 min-w-[7.5rem]"
+                                x-text="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera"></button>
+                        <button type="button" @click="capture()"
+                                class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm shadow-sm"
+                                x-text="labels.captureImage"></button>
+                    </div>
+                </div>
             </div>
-        </div>
-
-        <div x-show="mode === 'gallery'" x-cloak>
-            <input type="file" x-ref="galleryInput" accept="image/*" :multiple="allowMultiple" class="w-full text-sm"
-                   @change="addFiles($event.target.files)">
-        </div>
-
-        <div x-show="mode === 'pdf'" x-cloak>
-            <input type="file" x-ref="pdfInput" accept="application/pdf" :multiple="allowMultiple" class="w-full text-sm"
-                   @change="addFiles($event.target.files)">
-        </div>
+        </template>
 
         <div x-show="queued.length" class="space-y-2">
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">{{ __('borrower.document_upload.ready_to_upload') }} (<span x-text="queued.length"></span>)</p>
             <template x-for="(item, index) in queued" :key="index">
-                <div class="flex items-center justify-between gap-3 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                <div class="flex items-center justify-between gap-3 text-sm bg-white ring-1 ring-brand/15 rounded-xl px-3 py-2">
                     <div class="flex items-center gap-3 min-w-0">
                         <template x-if="item.preview">
                             <button type="button" @click="expandedUrl = item.preview"
-                                    class="h-12 w-12 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white shrink-0 cursor-zoom-in">
+                                    class="h-12 w-12 rounded-lg overflow-hidden ring-1 ring-brand/20 bg-white shrink-0 cursor-zoom-in">
                                 <img :src="item.preview" alt="" class="h-full w-full object-cover">
                             </button>
                         </template>
                         <template x-if="!item.preview && item.isPdf">
-                            <div class="h-12 w-12 rounded-lg ring-1 ring-gray-200 bg-white flex flex-col items-center justify-center text-gray-600 shrink-0">
+                            <div class="h-12 w-12 rounded-lg ring-1 ring-brand/20 bg-brand-muted flex flex-col items-center justify-center text-brand shrink-0">
                                 <span class="text-[10px] font-bold">PDF</span>
                             </div>
                         </template>
                         <template x-if="!item.preview && !item.isPdf">
-                            <div class="h-12 w-12 rounded-lg ring-1 ring-gray-200 bg-white flex items-center justify-center text-gray-500 text-[10px] font-semibold shrink-0">FILE</div>
+                            <div class="h-12 w-12 rounded-lg ring-1 ring-brand/20 bg-white flex items-center justify-center text-brand text-[10px] font-semibold shrink-0">FILE</div>
                         </template>
                         <span class="truncate" x-text="item.name"></span>
                     </div>
@@ -68,7 +106,7 @@
                 </div>
             @endif
             <button type="submit" :disabled="!canSubmit"
-                    class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold px-4 py-2.5 rounded-full text-sm inline-flex items-center justify-center gap-2">
+                    class="w-full bg-brand hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-4 py-2.5 rounded-xl text-sm inline-flex items-center justify-center gap-2">
                 {{ __('borrower.document_upload.submit') }}
             </button>
         </form>
@@ -86,17 +124,22 @@
 </div>
 
 @once
+    @push('styles')
+        <style>.mirror { transform: scaleX(-1); }</style>
+    @endpush
     @push('scripts')
         <script>
             document.addEventListener('alpine:init', () => {
-                Alpine.data('documentUpload', (disabled = false, allowMultiple = true) => ({
+                Alpine.data('documentUpload', (disabled = false, allowMultiple = true, labels = {}) => ({
                     mode: 'gallery',
                     queued: [],
                     stream: null,
                     allowMultiple,
                     expandedUrl: null,
-                    activeTab: 'text-sm font-semibold px-4 py-2 rounded-full bg-gray-900 text-white',
-                    idleTab: 'text-sm font-semibold px-4 py-2 rounded-full bg-white ring-1 ring-gray-200 text-gray-700',
+                    cameraOpen: false,
+                    cameraNotice: null,
+                    facingMode: 'environment',
+                    labels: labels || {},
 
                     get canSubmit() {
                         return this.queued.length > 0 || (this.$refs.form?.querySelector('[name=response]')?.value?.trim()?.length > 0);
@@ -131,37 +174,96 @@
                         if (removed?.preview) URL.revokeObjectURL(removed.preview);
                     },
 
-                    async startCamera() {
+                    async openCamera() {
+                        this.cameraNotice = null;
+                        if (!window.isSecureContext) {
+                            this.cameraNotice = this.labels.cameraInsecure;
+                            return;
+                        }
                         if (!navigator.mediaDevices?.getUserMedia) {
-                            this.mode = 'gallery';
+                            this.cameraNotice = this.labels.cameraUnsupported;
                             return;
                         }
                         try {
-                            if (this.stream) this.stopCamera();
-                            this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-                            this.$refs.video.srcObject = this.stream;
+                            this.cameraOpen = true;
+                            await this.$nextTick();
+                            await this.$nextTick();
+                            this.stream = await this.requestCameraStream(this.facingMode);
+                            const video = this.$refs.camVideo;
+                            if (!video) throw new Error(this.labels.cameraUnsupported);
+                            video.srcObject = this.stream;
+                            video.setAttribute('playsinline', 'true');
+                            video.setAttribute('webkit-playsinline', 'true');
+                            video.muted = true;
+                            await video.play();
                         } catch (e) {
-                            this.mode = 'gallery';
+                            this.cameraOpen = false;
+                            this.stopCamera();
+                            this.cameraNotice = e?.name === 'NotAllowedError'
+                                ? this.labels.cameraDenied
+                                : (e?.message || this.labels.cameraDenied);
                         }
                     },
 
+                    async toggleFacing() {
+                        this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+                        if (!this.cameraOpen) return;
+                        try {
+                            this.stopCamera();
+                            this.stream = await this.requestCameraStream(this.facingMode);
+                            const video = this.$refs.camVideo;
+                            if (video) {
+                                video.srcObject = this.stream;
+                                await video.play();
+                            }
+                        } catch (e) {
+                            this.cameraNotice = this.labels.cameraDenied;
+                        }
+                    },
+
+                    async requestCameraStream(facing) {
+                        const attempts = [
+                            { video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                            { video: { facingMode: facing }, audio: false },
+                            { video: true, audio: false },
+                        ];
+                        let lastError = null;
+                        for (const constraints of attempts) {
+                            try { return await navigator.mediaDevices.getUserMedia(constraints); }
+                            catch (e) { lastError = e; }
+                        }
+                        throw lastError || new Error(this.labels.cameraDenied);
+                    },
+
                     capture() {
-                        const video = this.$refs.video;
+                        const video = this.$refs.camVideo;
                         const canvas = this.$refs.canvas;
                         if (!video?.videoWidth) return;
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
-                        canvas.getContext('2d').drawImage(video, 0, 0);
+                        const ctx = canvas.getContext('2d');
+                        if (this.facingMode === 'user') {
+                            ctx.translate(canvas.width, 0);
+                            ctx.scale(-1, 1);
+                        }
+                        ctx.drawImage(video, 0, 0);
                         canvas.toBlob((blob) => {
                             if (!blob) return;
                             const file = new File([blob], `scan-${Date.now()}.jpg`, { type: 'image/jpeg' });
                             this.addFiles([file]);
+                            this.closeCamera();
                         }, 'image/jpeg', 0.92);
+                    },
+
+                    closeCamera() {
+                        this.cameraOpen = false;
+                        this.stopCamera();
                     },
 
                     stopCamera() {
                         this.stream?.getTracks().forEach(t => t.stop());
                         this.stream = null;
+                        if (this.$refs.camVideo) this.$refs.camVideo.srcObject = null;
                     },
 
                     submitForm() {
@@ -176,7 +278,7 @@
                         this.queued.forEach((item) => {
                             fd.append(this.allowMultiple ? 'files[]' : 'file', item.file || item);
                         });
-                        this.stopCamera();
+                        this.closeCamera();
                         this.revokeQueued();
                         fetch(form.action, {
                             method: 'POST',

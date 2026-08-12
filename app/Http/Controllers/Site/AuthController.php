@@ -98,13 +98,16 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'phone'        => ['required', 'string', 'max:20'],
+            'phone_local'  => ['nullable', 'string', 'max:20'],
             'pin'          => ['required', 'string', new FourDigitPin],
             'partner_code' => ['nullable', 'string', 'max:50'],
             'remember'     => ['nullable', 'boolean'],
             'trust_device' => ['nullable', 'boolean'],
         ]);
 
-        $phone = trim($data['phone']);
+        $phone = PhoneNumber::fromRequest($request, 'phone')
+            ?? PhoneNumber::normalizeForCountry($data['phone'], 'TZ')
+            ?? trim($data['phone']);
 
         if ($this->throttle->tooManyAttempts($phone, $request)) {
             $seconds = $this->throttle->availableIn($phone, $request);

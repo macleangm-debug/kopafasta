@@ -32,6 +32,11 @@ class TurnstileService
             return true;
         }
 
+        // Local/dev hosts often cannot complete production Turnstile challenges.
+        if (app()->environment(['local', 'testing'])) {
+            return true;
+        }
+
         $token = trim((string) $token);
         if ($token === '') {
             return false;

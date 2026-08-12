@@ -76,9 +76,11 @@
                         @else
                             <div class="w-full h-28 rounded-lg bg-gray-50 ring-1 ring-gray-100 grid place-items-center text-gray-400 text-xs mb-2">{{ __('site.affiliate_portal.no_upload') }}</div>
                         @endif
-                        <input type="file" name="{{ $field }}" accept="image/*" capture="user"
-                               @if(! filled($info['path'])) required @endif
-                               class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
+                        <x-site.single-image-document-upload
+                            :name="$field"
+                            facing="user"
+                            :required="! filled($info['path'])"
+                        />
                         @error($field)<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                     </div>
                 @endforeach

@@ -190,8 +190,10 @@
         <div class="lg:col-span-3 rounded-2xl ring-1 p-5 {{ $riskTone }} shadow-sm">
             @if ($isGroupLoan && $groupMembers->isNotEmpty())
                 @php
-                    $memberRiskSlides = $groupMembers->values()->map(function (array $m) {
-                        $score = $m['crb_score'] ?? null;
+                    $crbFeedback = app(\App\Services\CrbCreditCheckService::class);
+                    $memberRiskSlides = $groupMembers->values()->map(function (array $m) use ($crbFeedback) {
+                        $score = isset($m['crb_score']) && is_numeric($m['crb_score']) ? (int) $m['crb_score'] : null;
+                        $band = $crbFeedback->scoreBandFeedback($score);
 
                         return [
                             'name' => (string) ($m['name'] ?? 'Member'),
@@ -201,6 +203,10 @@
                             'status' => (string) ($m['status_label'] ?? ''),
                             'crb' => (string) ($m['crb_status'] ?? ''),
                             'amount' => (float) ($m['requested_amount'] ?? 0),
+                            'band_label' => $band['label'],
+                            'band_detail' => $band['detail'],
+                            'band_rec' => strtoupper($band['recommendation']),
+                            'band_tone' => $band['tone'],
                         ];
                     })->all();
                 @endphp
@@ -216,6 +222,12 @@
                                 <span class="text-4xl font-bold leading-none tabular-nums" x-text="slides[i].score ?? '—'"></span>
                                 <span class="text-sm font-semibold pb-1 opacity-70">CRB</span>
                             </div>
+                            <p class="text-sm font-bold mt-2">
+                                <span x-text="slides[i].band_label"></span>
+                                <span class="opacity-70"> · </span>
+                                <span x-text="slides[i].band_rec"></span>
+                            </p>
+                            <p class="text-[11px] mt-1 leading-snug opacity-90" x-text="slides[i].band_detail"></p>
                             <p class="text-sm font-bold mt-2">
                                 <span x-text="slides[i].ready ? 'Profile ready' : 'Profile incomplete'"></span>
                             </p>
@@ -238,7 +250,7 @@
                                 @click="i = Math.min(slides.length - 1, i + 1)" :disabled="i >= slides.length - 1">Next →</button>
                     </div>
                     <p class="mt-1 text-[10px] opacity-70 leading-snug">
-                        One weak member can fail the group — swipe each member. App risk {{ $risk['score'] ?? '—' }}/100 · {{ strtoupper((string) ($risk['recommendation'] ?? '—')) }}.
+                        CRB bands: ≥650 approve · 500–649 refer · &lt;500 reject. One weak member can fail the group. App risk {{ $risk['score'] ?? '—' }}/100 · {{ strtoupper((string) ($risk['recommendation'] ?? '—')) }}.
                     </p>
                 </div>
             @else

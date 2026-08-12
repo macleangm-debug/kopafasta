@@ -248,7 +248,14 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Due date (optional)</label>
-                        <input type="date" name="due_at" class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
+                        <input type="date" name="due_at"
+                               min="{{ now()->toDateString() }}"
+                               value="{{ old('due_at') }}"
+                               class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
+                        <p class="mt-1 text-[11px] text-gray-500">Today or a future date only.</p>
+                        @error('due_at')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
 

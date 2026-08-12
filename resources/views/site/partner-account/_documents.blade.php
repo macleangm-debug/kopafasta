@@ -64,8 +64,7 @@
                 <input type="hidden" name="doc_type" :value="docType">
                 <div x-show="docType" x-cloak>
                     <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.doc_file') }}</label>
-                    <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf,.webp,image/*" capture="environment" class="w-full text-sm"
-                           :required="!!docType">
+                    <x-site.single-image-document-upload name="file" facing="environment" :required="false" />
                     <p class="mt-2 text-xs text-gray-500">{{ __('borrower.profile.or_take_picture_hint') }}</p>
                 </div>
                 <button type="submit" :disabled="!docType"

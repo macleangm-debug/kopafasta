@@ -550,6 +550,50 @@ class CrbCreditCheckService
         return $score >= 650 ? 'approve' : ($score >= 500 ? 'refer' : 'reject');
     }
 
+    /**
+     * Borrower/admin-facing CRB score bands used across group member risk UI.
+     *
+     * @return array{recommendation: string, band: string, label: string, detail: string, tone: string}
+     */
+    public function scoreBandFeedback(?int $score): array
+    {
+        $recommendation = $this->recommendationFromScore($score);
+
+        if ($score === null) {
+            return [
+                'recommendation' => 'refer',
+                'band' => 'unknown',
+                'label' => 'No CRB score',
+                'detail' => 'Run or refresh the bureau check before relying on this member.',
+                'tone' => 'neutral',
+            ];
+        }
+
+        return match ($recommendation) {
+            'approve' => [
+                'recommendation' => 'approve',
+                'band' => 'strong',
+                'label' => 'Strong ('.$score.')',
+                'detail' => '≥650 leans APPROVE — stronger repayment history signal.',
+                'tone' => 'good',
+            ],
+            'reject' => [
+                'recommendation' => 'reject',
+                'band' => 'weak',
+                'label' => 'Weak ('.$score.')',
+                'detail' => '<500 leans REJECT — elevated bureau risk for the group.',
+                'tone' => 'bad',
+            ],
+            default => [
+                'recommendation' => 'refer',
+                'band' => 'moderate',
+                'label' => 'Moderate ('.$score.')',
+                'detail' => '500–649 leans REFER — not auto-approve; review this member carefully.',
+                'tone' => 'warn',
+            ],
+        };
+    }
+
     /** @return array{summary: string, reasons: list<string>} */
     public function recommendationExplanation(array $summary): array
     {
