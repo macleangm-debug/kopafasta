@@ -27,8 +27,8 @@
         ];
     })->values();
     $captured = $photoEntries->filter(fn ($p) => filled($p['url']))->values();
-    // Uploads are locked while approved or under review; UW sets revision_required to unlock
-    $canReplaceFace = ! in_array($statusKey, ['verified', 'pending'], true);
+    // Face photos stay editable — underwriting can still verify; borrowers must be able to replace.
+    $canReplaceFace = true;
 @endphp
 
 {{-- Mirror NIDA card + collateral lightbox: no overflow trap, teleport escape glass-card backdrop-filter --}}

@@ -7,9 +7,21 @@
         $detailFields = $selectedType ? \App\Models\CustomerAsset::detailFieldsFor($selectedType) : [];
         $uwPrompt = request()->boolean('uw');
         $openAddPicker = $adding && ! $selectedType;
+        $pledgedBlocked = request()->boolean('pledged');
+        $assetService = app(\App\Services\CustomerAssetService::class);
+        $currentAppId = null;
+        try {
+            $currentAppId = \App\Models\LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled', 'disbursed'])
+                ->latest('id')
+                ->value('id');
+        } catch (\Throwable) {
+            $currentAppId = null;
+        }
     @endphp
 
-    <div x-data="{ addOpen: @js($openAddPicker), openAsset: {{ (int) request('edit', 0) ?: 'null' }}, lightbox: null }"
+    <div x-data="{ addOpen: @js($openAddPicker || $pledgedBlocked), openAsset: {{ (int) request('edit', 0) ?: 'null' }}, lightbox: null }"
          x-init="if (openAsset) { $nextTick(() => { const el = document.getElementById('asset-edit-' + openAsset); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); }">
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.my_collaterals'),
@@ -22,10 +34,49 @@
             <div class="mb-4 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
                 <p class="text-sm font-semibold text-amber-950">{{ __('borrower.profile.collateral_uw_title') }}</p>
                 <p class="text-sm text-amber-900/80 mt-1">
-                    {{ ($assets ?? collect())->isEmpty()
-                        ? __('borrower.profile.collateral_uw_none_body')
-                        : __('borrower.profile.collateral_uw_existing_body') }}
+                    @if ($pledgedBlocked)
+                        {{ __('borrower.profile.collateral_uw_pledged_body') }}
+                    @elseif (($assets ?? collect())->isEmpty())
+                        {{ __('borrower.profile.collateral_uw_none_body') }}
+                    @else
+                        {{ __('borrower.profile.collateral_uw_existing_body') }}
+                    @endif
                 </p>
+            </div>
+        @endif
+
+        @if (($assets ?? collect())->isNotEmpty() && $uwPrompt && ! ($adding && $selectedType))
+            <div class="mb-4 space-y-2">
+                @foreach ($assets as $asset)
+                    @php
+                        $isPledged = $assetService->isPledgedToAnotherApplication($asset, $currentAppId ? (int) $currentAppId : null);
+                    @endphp
+                    <div @class([
+                        'rounded-xl ring-1 px-4 py-3',
+                        'bg-amber-50 ring-amber-200' => $isPledged,
+                        'bg-white ring-gray-200' => ! $isPledged,
+                    ])>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">{{ $asset->label }}</p>
+                                <p class="text-xs text-gray-500">{{ $assetTypes[$asset->asset_type] ?? $asset->asset_type }}</p>
+                            </div>
+                            @if ($isPledged)
+                                <span class="inline-flex rounded-full bg-amber-100 text-amber-950 text-[11px] font-bold px-2.5 py-1">
+                                    {{ __('borrower.profile.collateral_tied_other_loan') }}
+                                </span>
+                            @else
+                                <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'edit' => $asset->id, 'uw' => 1]) }}"
+                                   class="text-xs font-semibold text-brand hover:underline">
+                                    {{ __('borrower.profile.view_manage') }}
+                                </a>
+                            @endif
+                        </div>
+                        @if ($isPledged)
+                            <p class="text-xs text-amber-900/80 mt-1">{{ __('borrower.profile.collateral_tied_other_loan_hint') }}</p>
+                        @endif
+                    </div>
+                @endforeach
             </div>
         @endif
 

@@ -174,28 +174,7 @@
         @endif
     </div>
 
-    <div class="px-5 py-3 border-b border-gray-100 flex gap-2 overflow-x-auto">
-        @foreach ($desk['subjects'] ?? [] as $s)
-            <a href="{{ $subjectUrl($s) }}"
-               @class([
-                   'shrink-0 inline-flex flex-col rounded-xl px-3.5 py-2 text-left ring-1 transition min-w-[7.5rem]',
-                   'bg-brand text-white ring-brand shadow-sm' => ($desk['subject'] ?? '') === $s['key'],
-                   'bg-white text-gray-800 ring-gray-200 hover:bg-brand-muted/40' => ($desk['subject'] ?? '') !== $s['key'],
-               ])>
-                <span class="text-xs font-bold truncate max-w-[9rem]">{{ $s['label'] }}@if (! empty($s['sublabel'])) · {{ \Illuminate\Support\Str::of($s['sublabel'])->explode(' ')->first() }}@endif</span>
-                <span class="mt-0.5 text-[10px] font-semibold tabular-nums">
-                    {{ $s['done'] }}/{{ $s['total'] }}
-                    @if (($s['failed'] ?? 0) > 0)
-                        · {{ $s['failed'] }}✗
-                    @elseif ($s['complete'])
-                        · ✓
-                    @endif
-                </span>
-            </a>
-        @endforeach
-    </div>
-
-    {{-- Phase tabs --}}
+    {{-- Phase tabs (person switcher lives above Review checklist / Profiles / Decision) --}}
     <div class="px-5 pt-4 flex flex-wrap gap-2 border-b border-gray-100 pb-3">
         @foreach ($phases as $phase)
             @php

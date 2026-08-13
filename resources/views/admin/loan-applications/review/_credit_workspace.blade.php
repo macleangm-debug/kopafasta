@@ -44,16 +44,23 @@
     }
 
     $workspaceUrl = function (string $key) use ($record) {
+        $person = request('review_person', request('person', 'borrower'));
+        if (! in_array($person, ['borrower', 'guarantor', 'member'], true)) {
+            $person = 'borrower';
+        }
+        $g = request('review_g', request('g'));
+        $m = request('review_m', request('m'));
+
         $params = array_filter([
             'loan_application' => $record,
             'workspace' => $key,
-            'person' => request('person'),
+            'person' => $person,
             'tab' => $key === 'profiles' ? (request('tab') ?: 'personal') : null,
-            'g' => request('g'),
-            'm' => request('m'),
-            'review_person' => $key === 'checklist' ? request('review_person') : null,
-            'review_g' => $key === 'checklist' ? request('review_g') : null,
-            'review_m' => $key === 'checklist' ? request('review_m') : null,
+            'g' => $g,
+            'm' => $m,
+            'review_person' => $person,
+            'review_g' => $g,
+            'review_m' => $m,
         ], fn ($v) => $v !== null && $v !== '');
 
         return route('admin.loan-applications.show', $params).'#credit-workspace';
@@ -559,6 +566,9 @@
             </div>
         @endif
     </div>
+
+    {{-- Person switcher sits above workspace tabs so Checklist / Profiles / Decision stay aligned --}}
+    @include('admin.loan-applications.review._workspace_person_switcher')
 
     {{-- Top workspace tabs --}}
     <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">

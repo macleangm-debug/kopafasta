@@ -560,7 +560,7 @@
                     :empty="! $faceHasPhotos && ! $faceComplete"
                     :inline-edit="true"
                     :default-open="$focusHash === 'face'"
-                    :default-edit="$focusHash === 'face' && in_array($faceKey, ['rejected', 'revision_required', 'incomplete'], true)"
+                    :default-edit="$focusHash === 'face'"
                     :allow-overflow="true">
                     <x-slot:view>
                         @if (! empty($faceAngles ?? []))
@@ -570,6 +570,9 @@
                                 :angles="$faceAngles"
                                 :compact="true"
                             />
+                            <button type="button" @click="openEdit()" class="inline-flex mt-3 text-sm font-semibold text-brand hover:underline">
+                                {{ __('borrower.profile.edit_face_photos') }}
+                            </button>
                         @else
                             @php
                                 $faceStatus = match ($faceKey) {
@@ -587,11 +590,13 @@
                         @endif
                     </x-slot:view>
                     <x-slot:form>
-                        @if (in_array($faceKey, ['rejected', 'revision_required', 'incomplete'], true) && isset($faceSteps, $faceUploadUrls))
+                        @if (isset($faceSteps, $faceUploadUrls))
                             @if ($faceKey === 'revision_required')
                                 <p class="text-sm text-amber-800 mb-4 font-medium">{{ __('borrower.apply.checklist.face_revision') }}</p>
                             @elseif ($faceKey === 'rejected' && filled($customer->face_rejection_notes))
                                 <p class="text-sm text-red-800 mb-4">{{ $customer->face_rejection_notes }}</p>
+                            @elseif (in_array($faceKey, ['verified', 'pending'], true))
+                                <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.edit_face_photos_hint') }}</p>
                             @endif
                             @include('site.borrower.profile._face_inline', [
                                 'steps' => $faceSteps,
@@ -599,13 +604,6 @@
                                 'deleteUrls' => $faceDeleteUrls ?? [],
                                 'wizard' => $faceWizard ?? ['current_index' => 0],
                             ])
-                        @elseif (isset($faceSteps, $faceUploadUrls) || ! empty($faceAngles ?? []))
-                            <x-site.face-verification-status
-                                :customer="$customer"
-                                :photos="$facePhotos ?? collect()"
-                                :angles="$faceAngles ?? []"
-                                :compact="true"
-                            />
                         @else
                             <p class="text-sm text-gray-600">{{ __('borrower.nida.face_capture_hint') }}</p>
                         @endif

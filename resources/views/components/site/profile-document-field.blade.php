@@ -129,9 +129,6 @@
                 :labels="$labels"
                 :required="$required"
             />
-            <p class="text-xs text-gray-400 mt-3">{{ __('borrower.profile.or_upload_pdf') }}</p>
-            <input type="file" name="{{ $fieldName }}" accept=".jpg,.jpeg,.png,.pdf"
-                   class="mt-2 w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-amber-50 file:text-amber-800 file:font-semibold">
         @endif
         @if ($document)
             <button type="button" @click="replaceMode = false" class="mt-3 text-sm font-semibold text-gray-500 hover:text-gray-700">

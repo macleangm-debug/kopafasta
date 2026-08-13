@@ -136,13 +136,11 @@ class FaceVerificationService
 
             $progress = $this->progress($customer->fresh());
 
-            // Keep status editable until the borrower explicitly submits for review.
-            if ($customer->face_verification_status !== 'verified') {
-                $customer->update([
-                    'face_verification_status' => 'incomplete',
-                    'face_verified_at'         => null,
-                ]);
-            }
+            // Replacing angles always re-opens review — including previously verified faces.
+            $customer->update([
+                'face_verification_status' => 'incomplete',
+                'face_verified_at' => null,
+            ]);
 
             return $record;
         });

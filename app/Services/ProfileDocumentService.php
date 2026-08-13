@@ -53,28 +53,39 @@ class ProfileDocumentService
     }
 
     /**
-     * Soft-delete the latest profile-scoped document for a code (and aliases).
-     * Used when underwriting asks the borrower to re-upload a profile document.
+     * Archive the latest profile document for a code so borrowers start fresh
+     * while underwriting can still compare the previous file.
      */
-    public function deleteProfileDocument(Customer $customer, string $code): bool
+    public function archiveProfileDocument(Customer $customer, string $code): bool
     {
         $resolvedCodes = $this->expandCodes([$code]);
-        $docs = $this->queryDocuments($customer, $resolvedCodes, profileOnly: true);
+        $docs = $this->queryDocuments($customer, $resolvedCodes, profileOnly: true)
+            ->filter(fn (CustomerDocument $doc) => ! in_array($doc->status, ['replaced', 'archived'], true));
 
         if ($docs->isEmpty()) {
             return false;
         }
 
-        $deleted = false;
         foreach ($docs as $document) {
-            if ($document->file_path) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($document->file_path);
-            }
-            $document->delete();
-            $deleted = true;
+            $meta = $this->metadata($document);
+            $meta['archived_at'] = now()->toIso8601String();
+            $meta['previous_status'] = $document->status;
+            $document->update([
+                'status' => 'replaced',
+                'notes' => json_encode($meta),
+            ]);
         }
 
-        return $deleted;
+        return true;
+    }
+
+    /**
+     * Soft-delete the latest profile-scoped document for a code (and aliases).
+     * Prefer archiveProfileDocument when underwriting still needs the prior file.
+     */
+    public function deleteProfileDocument(Customer $customer, string $code): bool
+    {
+        return $this->archiveProfileDocument($customer, $code);
     }
 
     public function statusLabel(CustomerDocument $document): string
@@ -127,7 +138,28 @@ class ProfileDocumentService
             ->where('customer_id', $customer->id)
             ->when($profileOnly, fn ($query) => $query->whereNull('loan_application_id'))
             ->whereHas('documentType', fn ($query) => $query->whereIn('code', $codes))
+            ->whereNotIn('status', ['replaced', 'archived'])
             ->orderByDesc('id')
+            ->get();
+    }
+
+    /**
+     * Prior profile versions (replaced) for screening side-by-side compare.
+     *
+     * @return Collection<int, CustomerDocument>
+     */
+    public function replacedVersions(Customer $customer, string $code, int $limit = 5): Collection
+    {
+        $resolvedCodes = $this->expandCodes([$code]);
+
+        return CustomerDocument::query()
+            ->with('documentType')
+            ->where('customer_id', $customer->id)
+            ->whereNull('loan_application_id')
+            ->whereHas('documentType', fn ($query) => $query->whereIn('code', $resolvedCodes))
+            ->whereIn('status', ['replaced', 'archived'])
+            ->orderByDesc('id')
+            ->limit($limit)
             ->get();
     }
 }

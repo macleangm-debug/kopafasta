@@ -31,14 +31,16 @@
 
     <p class="mb-2 text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
 
-    <div class="flex flex-wrap gap-2">
-        <label class="inline-flex items-center gap-2 bg-brand-muted hover:bg-brand/15 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer ring-1 ring-brand/15">
-            <span x-text="labels.addPicture || labels.uploadImage"></span>
+    <div class="flex flex-wrap items-center gap-3">
+        <label class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
+            <span>{{ __('borrower.profile.upload') }}</span>
             <input type="file" name="{{ $name }}" accept="image/*,application/pdf" class="sr-only" @change="setFile($event)">
         </label>
-        <button type="button" @click="openCamera()" class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm" x-text="labels.captureImage">
+        <button type="button" @click="openCamera()" class="text-sm font-semibold text-brand hover:underline">
+            {{ __('borrower.profile.use_camera_optional') }}
         </button>
     </div>
+    <p class="text-xs text-gray-500 mt-2">{{ __('borrower.profile.upload_unified_hint') }}</p>
 
     <div x-show="previewUrl || previewName" x-cloak class="mt-3">
         <template x-if="previewUrl">

@@ -2,7 +2,7 @@
     $guarantorRows = collect($review['guarantors'] ?? []);
     $memberRows = collect($groupReview['members'] ?? []);
     $isGroupLoan = $memberRows->isNotEmpty();
-    $person = request('person', 'borrower');
+    $person = request('person', request('review_person', 'borrower'));
     if (! in_array($person, ['borrower', 'guarantor', 'member'], true)) {
         $person = 'borrower';
     }
@@ -12,7 +12,7 @@
 
     $selectedGuarantor = null;
     if ($person === 'guarantor') {
-        $gId = (int) request('g', 0);
+        $gId = (int) request('g', request('review_g', 0));
         $selectedGuarantor = $guarantorRows->first(fn ($row) => (int) ($row['link_id'] ?? 0) === $gId)
             ?? $guarantorRows->first(fn ($row) => ($row['profile_complete'] ?? false) && ($row['status'] ?? '') !== 'rejected')
             ?? $guarantorRows->first(fn ($row) => ($row['status'] ?? '') !== 'rejected')
@@ -24,7 +24,7 @@
 
     $selectedMember = null;
     if ($person === 'member') {
-        $mId = (int) request('m', 0);
+        $mId = (int) request('m', request('review_m', 0));
         $selectedMember = $memberRows->first(fn ($row) => (int) ($row['id'] ?? 0) === $mId)
             ?? $memberRows->first(fn ($row) => ($row['role'] ?? '') !== 'leader')
             ?? $memberRows->first();
@@ -136,65 +136,8 @@
         <p class="text-xs text-gray-500 mt-0.5">
             Profile data only (identity, face, residence, activity, documents library, collateral).
             Pass/Fail review, affordability, CRB, partners, and group scoring live on <span class="font-semibold text-brand">Review checklist</span>.
+            Switch Leader / Member / Guarantor above the workspace tabs.
         </p>
-
-        <div class="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="File subject">
-            <a href="{{ $personUrl('borrower') }}"
-               @class([
-                   'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition ring-1',
-                   'bg-brand text-white ring-brand shadow-sm' => $person === 'borrower',
-                   'bg-white text-gray-700 ring-gray-200 hover:bg-brand-muted/40' => $person !== 'borrower',
-               ])>
-                {{ $isGroupLoan ? 'Leader' : 'Borrower' }}
-                <span class="opacity-80 font-normal truncate max-w-[10rem]">{{ $review['customer']->full_name ?? '' }}</span>
-            </a>
-
-            @if ($isGroupLoan)
-                @foreach ($memberRows->filter(fn ($row) => (int) ($row['customer_id'] ?? 0) !== $leaderCustomerId) as $mRow)
-                    <a href="{{ $personUrl('member', (int) $mRow['id']) }}"
-                       @class([
-                           'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition ring-1',
-                           'bg-brand text-white ring-brand shadow-sm' => $person === 'member' && (int) ($selectedMember['id'] ?? 0) === (int) $mRow['id'],
-                           'bg-white text-gray-700 ring-gray-200 hover:bg-brand-muted/40' => ! ($person === 'member' && (int) ($selectedMember['id'] ?? 0) === (int) $mRow['id']),
-                       ])>
-                        Member
-                        <span class="opacity-80 font-normal truncate max-w-[10rem]">{{ $mRow['name'] ?? '—' }}</span>
-                        @if ($mRow['profile_complete'] ?? $mRow['kyc_complete'] ?? false)
-                            <span @class([
-                                'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-                                'bg-white/20' => $person === 'member' && (int) ($selectedMember['id'] ?? 0) === (int) $mRow['id'],
-                                'bg-emerald-100 text-emerald-800' => ! ($person === 'member' && (int) ($selectedMember['id'] ?? 0) === (int) $mRow['id']),
-                            ])>Ready</span>
-                        @endif
-                    </a>
-                @endforeach
-            @endif
-
-            @forelse ($guarantorRows->filter(fn ($row) => ($row['status'] ?? '') !== 'rejected' || ($row['profile_complete'] ?? false)) as $gRow)
-                <a href="{{ $personUrl('guarantor', (int) $gRow['link_id']) }}"
-                   @class([
-                       'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition ring-1',
-                       'bg-brand text-white ring-brand shadow-sm' => $person === 'guarantor' && (int) ($selectedGuarantor['link_id'] ?? 0) === (int) $gRow['link_id'],
-                       'bg-white text-gray-700 ring-gray-200 hover:bg-brand-muted/40' => ! ($person === 'guarantor' && (int) ($selectedGuarantor['link_id'] ?? 0) === (int) $gRow['link_id']),
-                   ])>
-                    Guarantor
-                    <span class="opacity-80 font-normal truncate max-w-[10rem]">{{ $gRow['name'] ?? '—' }}</span>
-                    @if ($gRow['profile_complete'] ?? false)
-                        <span @class([
-                            'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-                            'bg-white/20' => $person === 'guarantor' && (int) ($selectedGuarantor['link_id'] ?? 0) === (int) $gRow['link_id'],
-                            'bg-emerald-100 text-emerald-800' => ! ($person === 'guarantor' && (int) ($selectedGuarantor['link_id'] ?? 0) === (int) $gRow['link_id']),
-                        ])>Ready</span>
-                    @endif
-                </a>
-            @empty
-                @if ($review['product']?->requires_guarantor)
-                    <span class="inline-flex items-center rounded-xl px-4 py-2.5 text-xs font-semibold bg-amber-50 text-amber-950 ring-1 ring-amber-200">
-                        Guarantor pending
-                    </span>
-                @endif
-            @endforelse
-        </div>
     </div>
 
     <div class="px-3 pt-3 flex gap-1.5 overflow-x-auto border-b border-gray-100" role="tablist" aria-label="Profile sections">

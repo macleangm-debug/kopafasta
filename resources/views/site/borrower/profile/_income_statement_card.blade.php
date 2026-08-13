@@ -281,9 +281,10 @@
                     </div>
                 </div>
 
-                {{-- Step 3: capture / upload pages → server merges to PDF --}}
+                {{-- Step 3: always start fresh (no prior PDF) so Save appears after upload --}}
                 <div x-show="step === 3" x-cloak class="space-y-4">
                     <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.income_step_scan_title') }}</p>
+                    <p class="text-xs text-gray-500">{{ __('borrower.profile.income_replace_fresh_hint') }}</p>
                     @foreach ($primaryItems as $item)
                         <div class="rounded-xl border border-gray-100 p-4 bg-white space-y-3" x-show="incomeMethod === @js($item['key'])" x-cloak>
                             <p class="text-sm font-semibold text-gray-900">
@@ -291,17 +292,17 @@
                                 <span class="text-red-500">*</span>
                             </p>
                             <x-site.profile-document-field
-                                :document="$item['document'] ?? null"
+                                :document="null"
                                 :field-name="$item['key']"
                                 :pages-field-name="$item['key'].'_pages'"
                                 :mode="($item['multi'] ?? false) ? 'multi' : 'single'"
                                 :label="$item['label']"
                                 :input-host-id="$item['key'].'-statement-upload'"
-                                :required="empty($item['document'])"
+                                :required="true"
                                 :labels="[
                                     'hint' => __('borrower.profile.multi_page_hint_short'),
-                                    'uploadFile' => __('borrower.profile.capture_pages_upload'),
-                                    'capturePage' => __('borrower.profile.capture_pages'),
+                                    'uploadFile' => __('borrower.profile.upload'),
+                                    'capturePage' => __('borrower.profile.use_camera_optional'),
                                 ]"
                             />
                         </div>

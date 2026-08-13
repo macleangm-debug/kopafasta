@@ -123,16 +123,28 @@ class ApplicationDocumentRequestService
                 ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
                 ?? $application?->customer;
 
-            $hasAssets = $customer
-                ? $customer->assets()->exists()
-                : false;
+            if (! $customer) {
+                return route('site.borrower.profile', ['section' => 'assets', 'add' => 1, 'uw' => 1]);
+            }
 
-            // Existing collateral → manage on profile. None → open add picker.
-            if ($hasAssets) {
+            $assetService = app(CustomerAssetService::class);
+            $assets = $assetService->forCustomer($customer);
+            $appId = $application?->id;
+            $usable = $assets->filter(
+                fn ($asset) => ! $assetService->isPledgedToAnotherApplication($asset, $appId)
+            );
+            $pledgedOnly = $assets->isNotEmpty() && $usable->isEmpty();
+
+            if ($usable->isNotEmpty()) {
                 return route('site.borrower.profile', ['section' => 'assets', 'uw' => 1]);
             }
 
-            return route('site.borrower.profile', ['section' => 'assets', 'add' => 1, 'uw' => 1]);
+            return route('site.borrower.profile', [
+                'section' => 'assets',
+                'add' => 1,
+                'uw' => 1,
+                'pledged' => $pledgedOnly ? 1 : null,
+            ]);
         }
         if (str_contains($label, 'asset photo') || str_contains($label, 'ownership document') || str_contains($label, 'insurance')) {
             return route('site.borrower.profile', ['section' => 'assets']);

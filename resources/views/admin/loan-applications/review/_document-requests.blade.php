@@ -59,11 +59,19 @@
                             Open requests. Profile-linked items (ID, face, income, collateral) are fulfilled on the profile — loan-file uploads appear under Received when submitted.
                         </p>
                     </div>
-                    @if ($openRequestCount > 0)
-                        <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-900 text-xs font-semibold px-3 py-1 ring-1 ring-amber-200">
-                            {{ $openRequestCount }} open
-                        </span>
-                    @endif
+                    <div class="flex flex-wrap items-center gap-2">
+                        @if ($openRequestCount > 0)
+                            <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-900 text-xs font-semibold px-3 py-1 ring-1 ring-amber-200">
+                                {{ $openRequestCount }} open
+                            </span>
+                        @endif
+                        @if ($canRequestDocs)
+                            <a href="#request-more-documents"
+                               class="inline-flex items-center rounded-lg bg-brand-gold hover:brightness-95 text-brand text-[11px] font-bold px-2.5 py-1.5">
+                                Request more →
+                            </a>
+                        @endif
+                    </div>
                 </div>
                 <div class="p-5 sm:p-6 space-y-5">
                     @if ($loanAwaiting->isNotEmpty())
@@ -227,7 +235,7 @@
 @endif
 
 @if ($canRequestDocs)
-    <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" x-data="{
+    <section id="request-more-documents" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" x-data="{
         open: {{ $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject']) ? 'true' : 'false' }},
         applyPack(labels) {
             this.open = true;
@@ -239,7 +247,12 @@
         }
     }">
         <div class="px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-gray-900">Request documents</h2>
+            <div>
+                <h2 class="text-sm font-semibold text-gray-900">Request documents</h2>
+                @if ($openRequestCount > 0)
+                    <p class="text-xs text-gray-500 mt-0.5">You can send more packs while other requests are still open.</p>
+                @endif
+            </div>
             <div class="flex flex-wrap gap-1.5">
                 <button type="button" @click="applyPack(['Updated National ID', 'New National ID photo', 'New face verification photo', 'Image Not Clear'])"
                         class="rounded-lg bg-sky-50 text-sky-900 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-sky-100">ID pack</button>

@@ -3202,14 +3202,28 @@ class BorrowerController extends Controller
             ]);
         }
 
-        // Replace existing profile file for this type (screening requests expect a clean swap).
+        // Archive prior profile file (keep for screening compare) then store the new one.
         $existing = CustomerDocument::query()
             ->where('customer_id', $customer->id)
             ->where('document_type_id', $type->id)
             ->whereNull('loan_application_id')
-            ->latest()
+            ->whereNotIn('status', ['replaced', 'archived'])
+            ->latest('id')
             ->first();
-        $oldPath = $existing?->file_path;
+
+        if ($existing) {
+            $meta = [];
+            if (filled($existing->notes)) {
+                $decoded = json_decode((string) $existing->notes, true);
+                $meta = is_array($decoded) ? $decoded : [];
+            }
+            $meta['archived_at'] = now()->toIso8601String();
+            $meta['previous_status'] = $existing->status;
+            $existing->update([
+                'status' => 'replaced',
+                'notes' => json_encode($meta),
+            ]);
+        }
 
         $path = $single
             ? $single->store("customer/{$customer->id}/documents", 'public')
@@ -3219,25 +3233,18 @@ class BorrowerController extends Controller
         $originalName = $single?->getClientOriginalName()
             ?? ($pageCount === 1 ? ($pageFiles[0]->getClientOriginalName() ?? null) : null);
 
-        CustomerDocument::updateOrCreate(
-            [
-                'customer_id'       => $customer->id,
-                'document_type_id'  => $type->id,
-                'loan_application_id' => null,
-            ],
-            [
-                'file_path' => $path,
-                'status'    => 'pending_review',
-                'notes'     => json_encode(array_filter([
-                    'page_count'    => max(1, $pageCount),
-                    'original_name' => $originalName,
-                ])),
-            ]
-        );
-
-        if ($oldPath && $oldPath !== $path) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPath);
-        }
+        CustomerDocument::create([
+            'customer_id' => $customer->id,
+            'document_type_id' => $type->id,
+            'loan_application_id' => null,
+            'file_path' => $path,
+            'status' => 'pending_review',
+            'notes' => json_encode(array_filter([
+                'page_count' => max(1, $pageCount),
+                'original_name' => $originalName,
+                'replaces_document_id' => $existing?->id,
+            ])),
+        ]);
 
         try {
             app(\App\Services\MemberEngagementRewardService::class)->afterDocumentUploaded($customer, $documentCode);

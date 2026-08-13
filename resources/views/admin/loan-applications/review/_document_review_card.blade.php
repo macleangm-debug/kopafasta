@@ -16,6 +16,11 @@
     };
     $checklistLinks = app(\App\Services\ChecklistDocumentBridge::class)
         ->checklistLinksForDocumentCode((string) ($doc->documentType?->code ?? ''));
+    $priorVersions = collect();
+    if ($doc->customer_id && $doc->documentType?->code) {
+        $priorVersions = app(\App\Services\ProfileDocumentService::class)
+            ->replacedVersions($doc->customer, (string) $doc->documentType->code, 3);
+    }
 @endphp
 
 <div class="rounded-xl ring-1 ring-brand/10 overflow-hidden bg-white p-3 flex items-start gap-3"
@@ -58,6 +63,22 @@
                     · Replacement requested
                 @endif
             </p>
+        @endif
+
+        @if ($priorVersions->isNotEmpty())
+            <div class="mt-3 rounded-lg bg-slate-50 ring-1 ring-slate-200 px-3 py-2">
+                <p class="text-[10px] uppercase tracking-widest font-bold text-slate-600">Compare with previous</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    @foreach ($priorVersions as $prior)
+                        @if ($prior->file_path)
+                            <x-admin.document-preview
+                                :url="asset('storage/'.$prior->file_path)"
+                                :label="'Prior · '.($prior->updated_at?->format('d M Y') ?? 'old')"
+                                variant="button" />
+                        @endif
+                    @endforeach
+                </div>
+            </div>
         @endif
 
         <div class="mt-3 flex flex-wrap gap-2 items-center">

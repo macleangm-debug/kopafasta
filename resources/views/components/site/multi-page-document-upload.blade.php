@@ -34,14 +34,16 @@
 <div class="space-y-4" x-data="multiPageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), {{ (int) $maxPages }})">
     <p class="text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
     <input type="hidden" value="" x-bind:value="pages.length ? String(pages.length) : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
-    <div class="flex flex-wrap gap-2">
-        <label class="inline-flex items-center gap-2 bg-brand-muted hover:bg-brand/15 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer ring-1 ring-brand/15">
-            <span x-text="labels.addPicture || labels.uploadFile"></span>
+    <div class="flex flex-wrap items-center gap-3">
+        <label class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
+            <span>{{ __('borrower.profile.upload') }}</span>
             <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="addFiles($event)">
         </label>
-        <button type="button" @click="openCamera()" class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm" x-text="labels.capturePage">
+        <button type="button" @click="openCamera()" class="text-sm font-semibold text-brand hover:underline">
+            {{ __('borrower.profile.use_camera_optional') }}
         </button>
     </div>
+    <p class="text-xs text-gray-500">{{ __('borrower.profile.upload_unified_hint') }}</p>
 
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2" x-text="cameraNotice"></p>
 
