@@ -2006,24 +2006,42 @@ class BorrowerController extends Controller
 
             $details = $customer->activity_details ?? [];
             if ($request->filled('income_proof_method')) {
-                $details['income_proof_method'] = $request->input('income_proof_method');
-                // Choosing bank or mobile money keeps only that primary statement on the profile.
-                $docs = app(\App\Services\ProfileDocumentService::class);
-                if ($details['income_proof_method'] === 'bank_statement') {
-                    $docs->deleteProfileDocument($customer, 'mobile_money_statement');
-                } elseif ($details['income_proof_method'] === 'mobile_money_statement') {
-                    $docs->deleteProfileDocument($customer, 'bank_statement');
+                $method = (string) $request->input('income_proof_method');
+                $details['income_proof_method'] = $method;
+
+                $provider = trim((string) $request->input('income_account_provider', ''));
+                $number = trim((string) $request->input('income_account_number', ''));
+                $name = $customer->legalDisplayName();
+
+                $statements = is_array($details['income_statements'] ?? null)
+                    ? $details['income_statements']
+                    : [];
+                $statements[$method] = array_filter([
+                    'provider' => $provider,
+                    'number' => $number,
+                    'name' => $name,
+                ], fn ($value) => $value !== '');
+                $details['income_statements'] = $statements;
+
+                // Keep legacy flat keys as "last edited" for older readers.
+                if ($provider !== '') {
+                    $details['income_account_provider'] = $provider;
                 }
-            }
-            foreach (['income_account_provider', 'income_account_number', 'income_account_name'] as $detailKey) {
-                if ($detailKey === 'income_account_name') {
-                    $details[$detailKey] = $customer->legalDisplayName();
-                    continue;
+                if ($number !== '') {
+                    $details['income_account_number'] = $number;
                 }
-                if ($request->has($detailKey)) {
-                    $value = trim((string) $request->input($detailKey, ''));
-                    if ($value !== '') {
-                        $details[$detailKey] = $value;
+                $details['income_account_name'] = $name;
+            } else {
+                foreach (['income_account_provider', 'income_account_number', 'income_account_name'] as $detailKey) {
+                    if ($detailKey === 'income_account_name') {
+                        $details[$detailKey] = $customer->legalDisplayName();
+                        continue;
+                    }
+                    if ($request->has($detailKey)) {
+                        $value = trim((string) $request->input($detailKey, ''));
+                        if ($value !== '') {
+                            $details[$detailKey] = $value;
+                        }
                     }
                 }
             }

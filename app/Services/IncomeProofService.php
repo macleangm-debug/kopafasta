@@ -105,6 +105,67 @@ class IncomeProofService
         return null;
     }
 
+    /**
+     * Methods that already have a statement on the profile (bank and/or mobile).
+     *
+     * @return list<string>
+     */
+    public function presentPrimaryMethods(Customer $customer): array
+    {
+        $methods = [];
+        if ($this->hasDocument($customer, 'bank_statement')) {
+            $methods[] = 'bank_statement';
+        }
+        if ($this->hasDocument($customer, 'mobile_money_statement') || $this->hasDocument($customer, 'mpesa_statement')) {
+            $methods[] = 'mobile_money_statement';
+        }
+
+        return $methods;
+    }
+
+    /**
+     * Account metadata for one statement type (nested preferred, legacy flat fallback).
+     *
+     * @return array{provider: string, number: string, name: string}
+     */
+    public function statementAccountDetails(Customer $customer, string $method): array
+    {
+        $details = $customer->activity_details ?? [];
+        $nested = $details['income_statements'][$method] ?? null;
+        if (is_array($nested)) {
+            return [
+                'provider' => trim((string) ($nested['provider'] ?? '')),
+                'number' => trim((string) ($nested['number'] ?? '')),
+                'name' => trim((string) ($nested['name'] ?? '')) ?: $customer->legalDisplayName(),
+            ];
+        }
+
+        if (($details['income_proof_method'] ?? null) === $method) {
+            return [
+                'provider' => trim((string) ($details['income_account_provider'] ?? '')),
+                'number' => trim((string) ($details['income_account_number'] ?? '')),
+                'name' => trim((string) ($details['income_account_name'] ?? '')) ?: $customer->legalDisplayName(),
+            ];
+        }
+
+        return [
+            'provider' => '',
+            'number' => '',
+            'name' => $customer->legalDisplayName(),
+        ];
+    }
+
+    /**
+     * @return array{bank_statement: array{provider: string, number: string, name: string}, mobile_money_statement: array{provider: string, number: string, name: string}}
+     */
+    public function allStatementAccountDetails(Customer $customer): array
+    {
+        return [
+            'bank_statement' => $this->statementAccountDetails($customer, 'bank_statement'),
+            'mobile_money_statement' => $this->statementAccountDetails($customer, 'mobile_money_statement'),
+        ];
+    }
+
     /** @return list<array{key: string, label: string}> */
     public function informalPrimaryOptions(): array
     {
@@ -266,18 +327,15 @@ class IncomeProofService
     /** @param  Collection<string, CustomerDocument>  $uploads */
     private function informalChecklist(Customer $customer, Collection $uploads): array
     {
-        $primaryComplete = $this->hasPrimaryProof($customer);
-        $selectedMethod = $this->selectedPrimaryMethod($customer);
-
         $items = [
             array_merge(
                 $this->checklistRow('bank_statement', __('borrower.profile.income_bank_statement'), true, $uploads),
                 [
                     'multi'    => true,
                     'group'    => 'primary',
-                    'complete' => $primaryComplete,
+                    'complete' => $uploads->has('bank_statement'),
                     'document' => $uploads->get('bank_statement'),
-                    'visible'  => $selectedMethod === null || $selectedMethod === 'bank_statement',
+                    'visible'  => true,
                 ],
             ),
             array_merge(
@@ -285,9 +343,9 @@ class IncomeProofService
                 [
                     'multi'    => true,
                     'group'    => 'primary',
-                    'complete' => $primaryComplete,
+                    'complete' => $uploads->has('mobile_money_statement') || $uploads->has('mpesa_statement'),
                     'document' => $uploads->get('mobile_money_statement') ?? $uploads->get('mpesa_statement'),
-                    'visible'  => $selectedMethod === null || $selectedMethod === 'mobile_money_statement',
+                    'visible'  => true,
                 ],
             ),
         ];

@@ -81,6 +81,53 @@
         <x-admin.step title="Requirements">
             <x-admin.select name="requires_collateral" label="Requires collateral" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_collateral ?? '0')" />
             <x-admin.select name="requires_guarantor"  label="Requires guarantor"  :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" />
+
+            @php
+                $isGroupProduct = $r && (
+                    str_starts_with(strtoupper((string) $r->code), 'GL')
+                    || ($r->category ?? '') === 'group'
+                );
+                $constitutionReq = collect($requirements ?? ($r?->requirements ?? collect()))
+                    ->first(fn ($row) => (is_array($row) ? ($row['name'] ?? '') : ($row->name ?? '')) === 'Group constitution');
+                $rosterReq = collect($requirements ?? ($r?->requirements ?? collect()))
+                    ->first(fn ($row) => (is_array($row) ? ($row['name'] ?? '') : ($row->name ?? '')) === 'Group member roster');
+                $constitutionRequiredDefault = is_array($constitutionReq)
+                    ? (bool) ($constitutionReq['is_required'] ?? false)
+                    : (bool) ($constitutionReq?->is_required ?? false);
+                $rosterRequiredDefault = is_array($rosterReq)
+                    ? (bool) ($rosterReq['is_required'] ?? false)
+                    : (bool) ($rosterReq?->is_required ?? false);
+            @endphp
+            @if ($isGroupProduct)
+                <div class="md:col-span-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-4 space-y-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">Group loan evidence (optional)</h3>
+                        <p class="text-xs text-gray-600 mt-1">
+                            Members are already captured digitally when the group applies. Turn these on only if underwriting needs a paper constitution or printed roster. You can enable them again later.
+                        </p>
+                    </div>
+                    <label class="flex items-start gap-3 text-sm text-gray-800 cursor-pointer">
+                        <input type="hidden" name="require_group_constitution" value="0">
+                        <input type="checkbox" name="require_group_constitution" value="1"
+                               @checked((string) old('require_group_constitution', $constitutionRequiredDefault ? '1' : '0') === '1')
+                               class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/30">
+                        <span>
+                            <span class="font-semibold">Require group constitution</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">Group bylaws / constitution document upload on the application.</span>
+                        </span>
+                    </label>
+                    <label class="flex items-start gap-3 text-sm text-gray-800 cursor-pointer">
+                        <input type="hidden" name="require_group_member_roster" value="0">
+                        <input type="checkbox" name="require_group_member_roster" value="1"
+                               @checked((string) old('require_group_member_roster', $rosterRequiredDefault ? '1' : '0') === '1')
+                               class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/30">
+                        <span>
+                            <span class="font-semibold">Require group member roster document</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">Printed/signed list with IDs — in addition to digital group members.</span>
+                        </span>
+                    </label>
+                </div>
+            @endif
         </x-admin.step>
 
         <x-admin.step title="Documents" id="documents">

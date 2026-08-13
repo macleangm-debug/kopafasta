@@ -81,6 +81,8 @@ class LoanProductController extends ResourceController
             'penalty_basis' => ['required', 'in:per_day,per_month,one_time'],
             'requires_collateral' => ['nullable', 'boolean'],
             'requires_guarantor'  => ['nullable', 'boolean'],
+            'require_group_constitution' => ['nullable', 'boolean'],
+            'require_group_member_roster' => ['nullable', 'boolean'],
             'uses_capital_partner' => ['nullable', 'in:0,1'],
             'status'              => ['required', 'in:active,inactive,coming_soon'],
             'hides_interest'      => ['nullable', 'in:0,1'],
@@ -165,7 +167,15 @@ class LoanProductController extends ResourceController
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
         $cloneFromId = $validated['clone_from_id'] ?? null;
-        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['clone_from_id'], $validated['image']);
+        unset(
+            $validated['requirements'],
+            $validated['post_approval_fees'],
+            $validated['rate_tiers'],
+            $validated['clone_from_id'],
+            $validated['image'],
+            $validated['require_group_constitution'],
+            $validated['require_group_member_roster'],
+        );
 
         $source = $cloneFromId ? LoanProduct::with(['requirements', 'rateTiers', 'postApprovalFees'])->find($cloneFromId) : null;
         if ($source) {
@@ -217,6 +227,7 @@ class LoanProductController extends ResourceController
 
         $record = LoanProduct::create($payload);
         $this->syncRequirements($record, $requirements);
+        $this->syncGroupEvidenceRequirements($record, $request);
         $this->syncPostApprovalFees($record, $postApprovalFees);
         $this->syncRateTiers($record, $rateTiers, applyDefaultsIfEmpty: true);
         $this->syncInterestRateFromTiers($record);
@@ -267,7 +278,7 @@ class LoanProductController extends ResourceController
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
-        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['clone_from_id'], $validated['image']);
+        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['clone_from_id'], $validated['image'], $validated['require_group_constitution'], $validated['require_group_member_roster']);
 
         $payload = $this->transform($validated, $record);
         if ($request->hasFile('image')) {
@@ -276,6 +287,7 @@ class LoanProductController extends ResourceController
 
         $record->update($payload);
         $this->syncRequirements($record, $requirements);
+        $this->syncGroupEvidenceRequirements($record, $request);
         $this->syncPostApprovalFees($record, $postApprovalFees);
         $this->syncRateTiers($record, $rateTiers, applyDefaultsIfEmpty: true);
         $this->syncInterestRateFromTiers($record);
@@ -396,10 +408,16 @@ class LoanProductController extends ResourceController
     protected function syncRequirements(LoanProduct $product, array $rows): void
     {
         $keptIds = [];
+        $groupDocNames = ['Group constitution', 'Group member roster'];
+
+        // Keep group evidence rows — toggled separately under Group loan settings.
+        foreach ($product->requirements()->whereIn('name', $groupDocNames)->get(['id']) as $row) {
+            $keptIds[] = $row->id;
+        }
 
         foreach ($rows as $row) {
             $name = trim((string) ($row['name'] ?? ''));
-            if ($name === '') {
+            if ($name === '' || in_array($name, $groupDocNames, true)) {
                 continue;
             }
 
@@ -434,6 +452,48 @@ class LoanProductController extends ResourceController
             $query->whereNotIn('id', $keptIds);
         }
         $query->delete();
+    }
+
+    protected function isGroupLoanProduct(LoanProduct $product): bool
+    {
+        return str_starts_with(strtoupper((string) $product->code), 'GL')
+            || ($product->category ?? '') === 'group';
+    }
+
+    /**
+     * Upsert optional group constitution / roster requirements from product checkboxes.
+     * Default off — digital group membership already covers the roster for most files.
+     */
+    protected function syncGroupEvidenceRequirements(LoanProduct $product, Request $request): void
+    {
+        if (! $this->isGroupLoanProduct($product)) {
+            return;
+        }
+
+        $defs = [
+            'Group constitution' => [
+                'flag' => 'require_group_constitution',
+                'description' => 'Group bylaws / constitution document.',
+            ],
+            'Group member roster' => [
+                'flag' => 'require_group_member_roster',
+                'description' => 'List of all group members with IDs.',
+            ],
+        ];
+
+        foreach ($defs as $name => $meta) {
+            LoanProductRequirement::query()->updateOrCreate(
+                [
+                    'loan_product_id' => $product->id,
+                    'name' => $name,
+                ],
+                [
+                    'type' => 'document',
+                    'description' => $meta['description'],
+                    'is_required' => $request->boolean($meta['flag']),
+                ]
+            );
+        }
     }
 
     /** @param list<array<string, mixed>> $rows */

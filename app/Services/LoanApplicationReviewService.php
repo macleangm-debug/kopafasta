@@ -38,7 +38,15 @@ class LoanApplicationReviewService
         abort_unless($customer, 404);
 
         $profile = $this->profile->calculate($customer);
-        $requirements = $application->product?->requirements ?? collect();
+        $requirements = collect($application->product?->requirements ?? [])
+            ->reject(function ($req) {
+                $name = (string) ($req->name ?? '');
+
+                // Dormant group evidence (product checkbox off) stays out of the checklist until enabled.
+                return in_array($name, ['Group constitution', 'Group member roster'], true)
+                    && ! (bool) $req->is_required;
+            })
+            ->values();
         $allUploads = CustomerDocument::query()
             ->where('loan_application_id', $application->id)
             ->whereNotNull('loan_product_requirement_id')

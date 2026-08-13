@@ -1,11 +1,15 @@
 {{-- Document requirements repeater. Expects optional $requirements collection. --}}
 @php
+    $groupDocNames = ['Group constitution', 'Group member roster'];
     $existing = collect(old('requirements', ($requirements ?? collect())->map(fn ($r) => [
         'id'          => $r->id ?? null,
         'name'        => $r->name ?? '',
         'description' => $r->description ?? '',
         'is_required' => (bool) ($r->is_required ?? true),
-    ])->all()));
+    ])->all()))
+        // Managed via Group loan evidence checkboxes on GL products — keep out of free-form list.
+        ->reject(fn ($row) => in_array((string) ($row['name'] ?? ''), $groupDocNames, true))
+        ->values();
 
     if ($existing->isEmpty()) {
         $existing = collect([['id' => null, 'name' => '', 'description' => '', 'is_required' => true]]);

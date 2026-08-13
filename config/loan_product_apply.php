@@ -41,8 +41,8 @@ return [
             ['label' => 'Insurance cover', 'detail' => 'Comprehensive insurance certificate'],
         ],
         'GL' => [
-            ['label' => 'Group members', 'detail' => 'Member roster submitted during application'],
-            ['label' => 'Group approval', 'detail' => 'Constitution and group sign-off'],
+            ['label' => 'Group members', 'detail' => 'Member roster submitted digitally during application'],
+            ['label' => 'Group approval', 'detail' => 'Group sign-off during application (paper constitution optional if enabled on the product)'],
             ['label' => 'External guarantor', 'detail' => 'Not required for group loans'],
         ],
     ],

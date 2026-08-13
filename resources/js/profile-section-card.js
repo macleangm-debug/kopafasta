@@ -34,6 +34,7 @@ export function registerProfileSectionCard(Alpine) {
             this.showEditAction = true;
             this.expanded = true;
             window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
+            window.dispatchEvent(new CustomEvent('profile-section-edit', { detail: this.sectionHash }));
         },
 
         openEdit() {
@@ -41,6 +42,7 @@ export function registerProfileSectionCard(Alpine) {
             this.expanded = true;
             this.showEditAction = true;
             window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
+            window.dispatchEvent(new CustomEvent('profile-section-edit', { detail: this.sectionHash }));
         },
 
         requestClose() {

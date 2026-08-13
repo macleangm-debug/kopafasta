@@ -73,8 +73,8 @@ class LoanProductRequirementSeeder extends Seeder
                 ['name' => 'School / college fee letter','description' => 'Official fee structure or admission letter.'],
             ],
             'GL'  => [
-                ['name' => 'Group constitution',        'description' => 'Group bylaws / constitution document.'],
-                ['name' => 'Group member roster',       'description' => 'List of all group members with IDs.'],
+                ['name' => 'Group constitution',        'description' => 'Group bylaws / constitution document.', 'required' => false],
+                ['name' => 'Group member roster',       'description' => 'List of all group members with IDs.', 'required' => false],
             ],
             'FC'  => [
                 ['name' => 'Workshop / craft proof',    'description' => 'Photo of workshop, tools or recent work.'],
