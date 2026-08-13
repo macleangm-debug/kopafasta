@@ -94,9 +94,15 @@ class ApplicationDocumentRequestService
      * Deep-link borrowers to profile for identity/signature/face requests,
      * otherwise to the application document request anchor.
      */
-    public function borrowerActionUrl(LoanApplicationDocumentRequest $request): string
+    public function borrowerActionUrl(LoanApplicationDocumentRequest $request, ?Customer $viewer = null): string
     {
         $application = $request->application;
+
+        // Owner assisting a member/guarantor: stay on the application upload, not the owner's profile.
+        if ($viewer && $this->borrowerIsAssisting($viewer, $request) && $application) {
+            return route('site.borrower.application', $application).'#request-'.$request->id;
+        }
+
         $label = mb_strtolower((string) $request->label);
 
         if (str_contains($label, 'signature')) {
@@ -203,13 +209,14 @@ class ApplicationDocumentRequestService
      *
      * @return array{id: int, kind: string, label: string, cta_label: string, url: string, status: string, rejected: bool, instructions: ?string}
      */
-    public function borrowerGuidedAction(LoanApplicationDocumentRequest $request): array
+    public function borrowerGuidedAction(LoanApplicationDocumentRequest $request, ?Customer $viewer = null): array
     {
         $kind = $this->borrowerActionKind($request);
         $rejected = $request->status === 'rejected';
+        $assisting = $viewer && $this->borrowerIsAssisting($viewer, $request);
 
         $collateralCta = __('borrower.loan_profile.uw_cta.add_collateral');
-        if ($kind === 'collateral') {
+        if ($kind === 'collateral' && ! $assisting) {
             $customer = $request->subjectCustomer
                 ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
                 ?? $request->application?->customer;
@@ -218,24 +225,28 @@ class ApplicationDocumentRequestService
             }
         }
 
-        $ctaLabel = match ($kind) {
-            'signature' => __('borrower.loan_profile.uw_cta.update_signature'),
-            'face' => __('borrower.loan_profile.uw_cta.recapture_face'),
-            'identity' => __('borrower.loan_profile.uw_cta.update_identity'),
-            'collateral' => $collateralCta,
-            'income' => __('borrower.loan_profile.uw_cta.update_income'),
-            'clarification' => __('borrower.loan_profile.uw_cta.respond'),
-            default => $rejected
+        $ctaLabel = $assisting
+            ? ($rejected
                 ? __('borrower.loan_profile.reupload')
-                : __('borrower.loan_profile.upload'),
-        };
+                : __('borrower.loan_profile.upload'))
+            : match ($kind) {
+                'signature' => __('borrower.loan_profile.uw_cta.update_signature'),
+                'face' => __('borrower.loan_profile.uw_cta.recapture_face'),
+                'identity' => __('borrower.loan_profile.uw_cta.update_identity'),
+                'collateral' => $collateralCta,
+                'income' => __('borrower.loan_profile.uw_cta.update_income'),
+                'clarification' => __('borrower.loan_profile.uw_cta.respond'),
+                default => $rejected
+                    ? __('borrower.loan_profile.reupload')
+                    : __('borrower.loan_profile.upload'),
+            };
 
         return [
             'id'           => (int) $request->id,
-            'kind'         => $kind,
+            'kind'         => $assisting ? 'document' : $kind,
             'label'        => (string) $request->label,
             'cta_label'    => $ctaLabel,
-            'url'          => $this->borrowerActionUrl($request),
+            'url'          => $this->borrowerActionUrl($request, $viewer),
             'status'       => (string) $request->status,
             'rejected'     => $rejected,
             'instructions' => $request->instructions,
@@ -258,7 +269,10 @@ class ApplicationDocumentRequestService
         return $application->documentRequests
             ->filter(fn (LoanApplicationDocumentRequest $request) => $request->needsBorrowerAction())
             ->values()
-            ->map(fn (LoanApplicationDocumentRequest $request) => $this->borrowerGuidedAction($request))
+            ->map(fn (LoanApplicationDocumentRequest $request) => $this->borrowerGuidedAction(
+                $request,
+                $application->customer
+            ))
             ->all();
     }
 
@@ -448,7 +462,7 @@ class ApplicationDocumentRequestService
 
         $leader = $application->customer;
         if (
-            $request->subject_kind === 'member'
+            in_array((string) ($request->subject_kind ?? ''), ['member', 'guarantor'], true)
             && $subject
             && $leader
             && (int) $leader->id !== (int) $subject->id
@@ -464,7 +478,7 @@ class ApplicationDocumentRequestService
         bool $inApp = true,
         bool $forLeader = false,
     ): void {
-        $uploadUrl = $this->borrowerActionUrl($request);
+        $uploadUrl = $this->borrowerActionUrl($request, $forLeader ? $customer : null);
         $locale = $customer->user?->locale
             ?? $customer->preferred_locale
             ?? $customer->locale
@@ -567,7 +581,7 @@ class ApplicationDocumentRequestService
             }
 
             if (
-                $req->subject_kind === 'member'
+                in_array((string) ($req->subject_kind ?? ''), ['member', 'guarantor'], true)
                 && $leader
                 && (int) $leader->id !== $subjectId
             ) {
@@ -806,7 +820,8 @@ class ApplicationDocumentRequestService
                             ->whereHas('application', fn ($aq) => $aq->where('customer_id', $customer->id));
                     })
                     ->orWhere(function ($inner) use ($customer) {
-                        $inner->where('subject_kind', 'member')
+                        // Application owner can see member + guarantor asks (assist).
+                        $inner->whereIn('subject_kind', ['member', 'guarantor'])
                             ->whereHas('application', fn ($aq) => $aq->where('customer_id', $customer->id));
                     });
             })
@@ -830,6 +845,39 @@ class ApplicationDocumentRequestService
         );
     }
 
+    /**
+     * True when the logged-in customer is the application owner helping a
+     * member or guarantor fulfill a request targeted at someone else.
+     */
+    public function borrowerIsAssisting(Customer $customer, LoanApplicationDocumentRequest $request): bool
+    {
+        $request->loadMissing('application');
+
+        if ((int) $request->application?->customer_id !== (int) $customer->id) {
+            return false;
+        }
+
+        if (! in_array((string) ($request->subject_kind ?? ''), ['member', 'guarantor'], true)) {
+            return false;
+        }
+
+        if ($request->subject_customer_id && (int) $request->subject_customer_id === (int) $customer->id) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Profile deep-links only for the subject; assistants upload on the application. */
+    public function isProfileGuidedForCustomer(Customer $customer, LoanApplicationDocumentRequest $request): bool
+    {
+        if ($this->borrowerIsAssisting($customer, $request)) {
+            return false;
+        }
+
+        return $this->isProfileGuidedRequest($request);
+    }
+
     public function customerCanFulfillRequest(Customer $customer, LoanApplicationDocumentRequest $request): bool
     {
         $request->loadMissing('application');
@@ -842,7 +890,8 @@ class ApplicationDocumentRequestService
             return true;
         }
 
-        return $request->subject_kind === 'member'
+        // Primary borrower / group leader can assist members and guarantors.
+        return in_array((string) ($request->subject_kind ?? ''), ['member', 'guarantor'], true)
             && (int) $request->application?->customer_id === (int) $customer->id;
     }
 

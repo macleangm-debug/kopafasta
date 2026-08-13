@@ -169,14 +169,17 @@
                                 <p class="font-semibold text-gray-900">
                                     {{ app(\App\Services\ApplicationDocumentRequestService::class)->localizedLabel((string) $docReq->label) }}
                                 </p>
-                                @if (($docReq->subject_kind ?? 'borrower') === 'member')
+                                @if (in_array(($docReq->subject_kind ?? 'borrower'), ['member', 'guarantor'], true))
                                     @php
-                                        $reqMemberName = $docReq->subjectCustomer?->full_name
+                                        $reqSubjectName = $docReq->subjectCustomer?->full_name
                                             ?? $docReq->groupMember?->customer?->full_name
                                             ?? __('borrower.notifications.document_request_member_fallback');
+                                        $reqSubjectLabel = ($docReq->subject_kind ?? '') === 'guarantor'
+                                            ? __('borrower.application.request_for_guarantor', ['name' => $reqSubjectName])
+                                            : __('borrower.application.request_for_member', ['name' => $reqSubjectName]);
                                     @endphp
                                     <p class="text-xs font-semibold text-brand mt-0.5">
-                                        {{ __('borrower.application.request_for_member', ['name' => $reqMemberName]) }}
+                                        {{ $reqSubjectLabel }}
                                     </p>
                                 @endif
                                 <p class="text-xs text-gray-500 mt-0.5">

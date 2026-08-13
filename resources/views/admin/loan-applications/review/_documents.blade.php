@@ -10,9 +10,11 @@
         ?: ($review['member_row']['name'] ?? null)
         ?: ($review['guarantor_row']['name'] ?? null)
         ?: 'this subject';
-    $evidenceTitle = $isMemberSubject
-        ? 'Member evidence'
-        : ($isGuarantorSubject ? 'Guarantor evidence' : 'Application evidence');
+    // Same shell for leader / member / guarantor — only the subject name changes.
+    $evidenceTitle = 'Application evidence';
+    if ($isMemberSubject || $isGuarantorSubject) {
+        $evidenceTitle = trim(($isMemberSubject ? 'Member' : 'Guarantor').' · '.($subjectName ?: 'evidence'));
+    }
     $profileDocs = collect($review['profile_documents'] ?? []);
     $docReviewService = app(\App\Services\ApplicationDocumentReviewService::class);
     $appReviews = $docReviewService->reviewsForApplication($record);
@@ -195,23 +197,49 @@
 
     $docRequestService = app(\App\Services\ApplicationDocumentRequestService::class);
     $documentRequestsForPanel = collect($documentRequests ?? []);
-    if ($isSubjectPanel) {
-        $subjectCustomerId = (int) ($review['customer']->id ?? 0);
-        $memberId = (int) ($review['member_row']['id'] ?? 0);
-        $documentRequestsForPanel = $documentRequestsForPanel->filter(function ($req) use ($subjectCustomerId, $memberId, $isMemberSubject, $isGuarantorSubject) {
-            if ($subjectCustomerId > 0 && (int) ($req->subject_customer_id ?? 0) === $subjectCustomerId) {
+    // Always scope Requested to the person on screen (leader included).
+    // Leader used to show every open request on the application — that made
+    // leader/member Documents look like different products.
+    $subjectCustomerId = (int) ($review['customer']->id ?? 0);
+    $memberId = (int) ($review['member_row']['id'] ?? 0);
+    $documentRequestsForPanel = $documentRequestsForPanel->filter(function ($req) use (
+        $subjectCustomerId,
+        $memberId,
+        $isMemberSubject,
+        $isGuarantorSubject,
+        $record
+    ) {
+        $kind = (string) ($req->subject_kind ?? 'borrower');
+        $reqCustomerId = (int) ($req->subject_customer_id ?? 0);
+        $reqMemberId = (int) ($req->loan_group_member_id ?? 0);
+
+        if ($isMemberSubject) {
+            if ($memberId > 0 && $reqMemberId === $memberId) {
                 return true;
-            }
-            if ($isMemberSubject && $memberId > 0 && (int) ($req->loan_group_member_id ?? 0) === $memberId) {
-                return true;
-            }
-            if ($isGuarantorSubject && ($req->subject_kind ?? '') === 'guarantor') {
-                return $subjectCustomerId <= 0 || (int) ($req->subject_customer_id ?? 0) === $subjectCustomerId;
             }
 
+            return $kind === 'member'
+                && $subjectCustomerId > 0
+                && $reqCustomerId === $subjectCustomerId;
+        }
+
+        if ($isGuarantorSubject) {
+            return $kind === 'guarantor'
+                && ($subjectCustomerId <= 0 || $reqCustomerId === $subjectCustomerId);
+        }
+
+        // Leader / primary borrower: only borrower-targeted requests.
+        if (in_array($kind, ['member', 'guarantor'], true)) {
             return false;
-        })->values();
-    }
+        }
+
+        if ($reqCustomerId > 0 && $subjectCustomerId > 0) {
+            return $reqCustomerId === $subjectCustomerId;
+        }
+
+        return $reqCustomerId === 0
+            || $reqCustomerId === (int) ($record->customer_id ?? 0);
+    })->values();
     $isLoanFileRequest = fn ($req) => ! $docRequestService->isProfileGuidedRequest($req);
     $loanRequestsForPanel = $documentRequestsForPanel->filter($isLoanFileRequest)->values();
     $profileRequestsForPanel = $documentRequestsForPanel->reject($isLoanFileRequest)->values();
@@ -322,7 +350,7 @@
                     Requested
                     @if ($openRequestCount > 0)
                         <span class="inline-flex min-w-[1.25rem] justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-                              :class="panel === 'requests' ? 'bg-brand/15 text-brand' : 'bg-brand-gold text-brand'">
+                              :class="panel === 'requests' ? 'bg-brand/15 text-brand' : 'bg-white/20 text-white'">
                             {{ $openRequestCount }}
                         </span>
                     @endif
@@ -569,7 +597,10 @@
         <div x-show="panel === 'requests'" x-cloak role="tabpanel" class="p-4 sm:p-5 space-y-4 bg-gradient-to-b from-white to-brand-muted/10">
             @include('admin.loan-applications.review._document-requests', [
                 'documentRequests' => $documentRequestsForPanel,
-                'person' => $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : ($deskPerson ?? $panelPerson ?? request('review_person', 'borrower'))),
+                'person' => $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : ($deskPerson ?? $panelPerson ?? request('review_person', request('person', 'borrower')))),
+                'lockRequestSubject' => true,
+                'requestMemberId' => $isMemberSubject ? $memberId : null,
+                'requestSubjectCustomerId' => $subjectCustomerId > 0 ? $subjectCustomerId : null,
             ])
         </div>
 

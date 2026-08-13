@@ -2769,6 +2769,7 @@ return [
     'requested_documents' => 'Nyaraka zilizoombwa',
     'requested_documents_hint' => 'Ukaguzi umeomba yafuatayo. Pakia kwa kamera, galeri, au PDF.',
     'request_for_member' => 'Kwa mwanachama wa kikundi: :name',
+    'request_for_guarantor' => 'Kwa mdhamini: :name',
     'required_documents' => 'Nyaraka zinazohitajika',
     'required_documents_hint' => 'Pakia kila hati inayohitajika hapa chini ili tuweze kuchakata ombi lako.',
     'required_progress' => ':satisfied kati ya :total zilizokamilika',

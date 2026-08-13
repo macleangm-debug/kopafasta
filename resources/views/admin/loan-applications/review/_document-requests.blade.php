@@ -292,11 +292,29 @@
                             ];
                         })->values();
                     }
+
+                    $panelPerson = $person
+                        ?? request('review_person', request('person', 'borrower'));
+                    if (! in_array($panelPerson, ['borrower', 'guarantor', 'member'], true)) {
+                        $panelPerson = 'borrower';
+                    }
+
                     $defaultRequestSubject = 'borrower';
-                    if (request('review_person') === 'member' && (int) request('review_m', 0) > 0) {
-                        $defaultRequestSubject = 'member:'.(int) request('review_m');
-                    } elseif (request('review_person') === 'guarantor' && (int) request('review_g', 0) > 0) {
-                        $gLink = $guarantorsForRequest->firstWhere('link_id', (int) request('review_g'))
+                    $lockedMemberId = (int) ($requestMemberId ?? 0);
+                    $lockedSubjectCustomerId = (int) ($requestSubjectCustomerId ?? 0);
+
+                    if ($panelPerson === 'member') {
+                        $mId = $lockedMemberId
+                            ?: (int) request('review_m', request('m', 0));
+                        if ($mId > 0) {
+                            $defaultRequestSubject = 'member:'.$mId;
+                        }
+                    } elseif ($panelPerson === 'guarantor') {
+                        $gLinkId = (int) request('review_g', request('g', 0));
+                        $gLink = $guarantorsForRequest->firstWhere('link_id', $gLinkId)
+                            ?? ($lockedSubjectCustomerId > 0
+                                ? $guarantorsForRequest->firstWhere('customer_id', $lockedSubjectCustomerId)
+                                : null)
                             ?? $guarantorsForRequest->first();
                         if ($gLink) {
                             $defaultRequestSubject = 'guarantor:'.(int) ($gLink['customer_id'] ?? 0);
@@ -304,7 +322,10 @@
                     } elseif (old('request_subject')) {
                         $defaultRequestSubject = (string) old('request_subject');
                     }
-                    $showSubjectPicker = $groupMembersForRequest->isNotEmpty() || $guarantorsForRequest->isNotEmpty();
+
+                    $lockRequestSubject = (bool) ($lockRequestSubject ?? false);
+                    $showSubjectPicker = ! $lockRequestSubject
+                        && ($groupMembersForRequest->isNotEmpty() || $guarantorsForRequest->isNotEmpty());
                 @endphp
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
@@ -327,7 +348,20 @@
                     </div>
                 </div>
 
-                @if ($showSubjectPicker)
+                @if ($lockRequestSubject)
+                    <input type="hidden" name="request_subject" value="{{ $defaultRequestSubject }}">
+                    <p class="text-xs text-gray-600 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-2">
+                        Requesting for the person you are reviewing
+                        @if ($panelPerson === 'member')
+                            (group member).
+                        @elseif ($panelPerson === 'guarantor')
+                            (guarantor).
+                        @else
+                            (leader / borrower).
+                        @endif
+                        Switch Leader / Member / Guarantor above to request for someone else.
+                    </p>
+                @elseif ($showSubjectPicker)
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Request for <span class="text-red-500">*</span></label>
                         <select name="request_subject" required class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">

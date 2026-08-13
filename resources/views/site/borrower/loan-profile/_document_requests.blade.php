@@ -117,8 +117,10 @@
                 <ul class="space-y-3">
                     @foreach ($actionDocs as $docReq)
                         @php
-                            $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
-                            $profileUrl = $docSvc->borrowerActionUrl($docReq);
+                            $profileGuided = $customer
+                                ? $docSvc->isProfileGuidedForCustomer($customer, $docReq)
+                                : $docSvc->isProfileGuidedRequest($docReq);
+                            $profileUrl = $docSvc->borrowerActionUrl($docReq, $customer);
                             $isRejected = $docReq->status === 'rejected';
                             $displayDocs = $customer
                                 ? $docSvc->displayDocumentsForRequest($docReq, $customer)

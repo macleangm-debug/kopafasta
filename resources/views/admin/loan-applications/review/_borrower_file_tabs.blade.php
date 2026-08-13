@@ -52,11 +52,44 @@
         $defaultTab = 'personal';
     }
 
+    $leaderCustomerId = (int) ($review['customer']->id ?? $record->customer_id ?? 0);
+
     $openDocRequestCount = 0;
-    if (isset($groupedDocumentRequests) && is_array($groupedDocumentRequests)) {
-        $openDocRequestCount = collect($groupedDocumentRequests['pending'] ?? [])->count()
-            + collect($groupedDocumentRequests['uploaded'] ?? [])->count();
+    $allDocRequests = collect($documentRequests ?? []);
+    if ($allDocRequests->isEmpty() && isset($groupedDocumentRequests) && is_array($groupedDocumentRequests)) {
+        $allDocRequests = collect($groupedDocumentRequests['pending'] ?? [])
+            ->merge($groupedDocumentRequests['uploaded'] ?? []);
     }
+    $openDocRequestCount = $allDocRequests
+        ->filter(fn ($req) => in_array($req->status ?? '', ['pending', 'uploaded', 'rejected'], true))
+        ->filter(function ($req) use ($person, $selectedMember, $selectedGuarantor, $leaderCustomerId) {
+            $kind = (string) ($req->subject_kind ?? 'borrower');
+            $reqCustomerId = (int) ($req->subject_customer_id ?? 0);
+            $reqMemberId = (int) ($req->loan_group_member_id ?? 0);
+
+            if ($person === 'member') {
+                $memberId = (int) ($selectedMember['id'] ?? 0);
+                $memberCustomerId = (int) ($selectedMember['customer_id'] ?? 0);
+                if ($memberId > 0 && $reqMemberId === $memberId) {
+                    return true;
+                }
+
+                return $kind === 'member' && $memberCustomerId > 0 && $reqCustomerId === $memberCustomerId;
+            }
+
+            if ($person === 'guarantor') {
+                $gCustomerId = (int) ($selectedGuarantor['customer_id'] ?? 0);
+
+                return $kind === 'guarantor' && ($gCustomerId <= 0 || $reqCustomerId === $gCustomerId);
+            }
+
+            if (in_array($kind, ['member', 'guarantor'], true)) {
+                return false;
+            }
+
+            return $reqCustomerId === 0 || $reqCustomerId === $leaderCustomerId;
+        })
+        ->count();
 
     $tabUrl = function (string $key) use ($record, $person, $selectedGuarantor, $selectedMember) {
         $params = [
@@ -124,8 +157,6 @@
             'checked_at' => $selectedMember['crb_checked_at'] ?? null,
         ];
     }
-
-    $leaderCustomerId = (int) ($review['customer']->id ?? $record->customer_id ?? 0);
 @endphp
 
 {{-- Server-rendered: person switcher + section tabs --}}
@@ -151,7 +182,7 @@
                    'bg-transparent text-gray-600 hover:bg-brand-muted/50' => $defaultTab !== $key,
                ])>
                 {{ $label }}
-                @if ($person === 'borrower' && $key === 'documents' && $openDocRequestCount > 0)
+                @if ($key === 'documents' && $openDocRequestCount > 0)
                     <span @class([
                         'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
                         'bg-white/20 text-white' => $defaultTab === $key,
@@ -191,9 +222,8 @@
         @elseif ($defaultTab === 'documents')
             <div class="space-y-5">
                 <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3 text-xs text-sky-950">
-                    Profile library view. Verify application uploads and follow-up requests on
-                    <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'checklist']).'#checklist-documents' }}"
-                       class="font-semibold text-brand underline">Review checklist → Capacity and evidence</a>.
+                    Same Documents workspace as Review checklist for this person — Checklist, Requested, and Library.
+                    Request more packs here; they notify this person only.
                 </div>
                 @include('admin.loan-applications.review._documents', ['review' => $subjectReview])
             </div>

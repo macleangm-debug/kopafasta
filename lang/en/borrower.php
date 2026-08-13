@@ -2946,6 +2946,7 @@ return [
         'requested_documents' => 'Requested documents',
         'requested_documents_hint' => 'Underwriting has asked for the following. Upload using camera, gallery, or PDF.',
         'request_for_member' => 'For group member: :name',
+        'request_for_guarantor' => 'For guarantor: :name',
         'doc_group_pending' => 'Pending documents',
         'doc_group_uploaded' => 'Uploaded documents',
         'doc_group_completed' => 'Completed requests',
