@@ -348,7 +348,7 @@
             ></div>
         @endif
 
-        <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8">
+        <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full">
                 @if ($portalMode !== 'guarantor')
 
@@ -366,6 +366,9 @@
 <x-site.guarantor-request-popup :pending="$pendingGuarantorPopup" />
 <x-site.confirm-modal name="default" />
 <x-site.feedback-modal name="default" />
+@if (session('show_membership_card') && $borrowerCustomer && ($borrowerCustomer->isMembershipActive() || $borrowerCustomer->isMembershipInGrace() || $borrowerCustomer->hasMembership()))
+    <x-site.membership-card-modal :customer="$borrowerCustomer" />
+@endif
 <x-site.borrower-help-hub />
 <x-site.celebration-confetti />
 <x-site.document-lightbox />

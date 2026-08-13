@@ -194,7 +194,8 @@ return [
         'max_duration' => 'Maximum duration',
         'search_label' => 'Search loan products',
         'search_placeholder' => 'Search by name or product code…',
-        'all_categories' => 'All',
+        'filter_label' => 'Filter by category',
+        'all_categories' => 'All categories',
         'no_results_title' => 'No products match your search',
         'no_results_body' => 'Try a different search term or category filter.',
         'help_title' => 'Need help choosing?',
@@ -3165,6 +3166,7 @@ return [
         'badge_expiring_soon'=> 'Expiring soon',
         'badge_not_issued'   => 'Not issued',
         'card_ready_title'   => 'Your membership card is ready',
+        'card_ready_body'    => 'Here is your digital member card. Open Membership anytime to view or share it.',
         'pin_ready_browse'   => 'PIN created. Explore your dashboard — pay the membership fee when you are ready to apply.',
         'activated_start_loan' => 'Membership activated. You can start a loan application anytime.',
         'notification_title' => 'You are now a kopafasta member',
@@ -3282,7 +3284,7 @@ return [
         'bank_transfer' => 'Bank Transfer',
         'bank_transfer_short' => 'Bank',
         'mobile_money' => 'Mobile Money',
-        'mobile_money_short' => 'M-Pesa',
+        'mobile_money_short' => 'Mobile money',
     ],
 
     'payment_statuses' => [

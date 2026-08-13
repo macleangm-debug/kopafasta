@@ -41,4 +41,9 @@ class CustomerDocument extends Model
     {
         return $this->belongsTo(LoanApplicationDocumentRequest::class, 'loan_application_document_request_id');
     }
+
+    public function applicationReviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LoanApplicationDocumentReview::class, 'customer_document_id');
+    }
 }

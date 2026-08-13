@@ -104,6 +104,8 @@ class AdminPaymentsIndexFeatureTest extends TestCase
         $this->assertStringContainsString($complete->reference, $html);
         $this->assertStringContainsString('Application Fee', $html);
         $this->assertStringContainsString('Asset Lending Loan', $html);
+        $this->assertStringContainsString('Mobile money', $html);
+        $this->assertStringNotContainsString('>M-Pesa<', $html);
         $this->assertMatchesRegularExpression('/Incoming · complete[\s\S]*?5[,.]?000/', $html);
         $this->assertStringNotContainsString($inflight->reference, $html);
         $this->assertStringNotContainsString($bankPending->reference, $html);
@@ -135,5 +137,26 @@ class AdminPaymentsIndexFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString($bankPending->reference, $html);
+    }
+
+    public function test_mobile_money_method_shows_operator_not_generic_mpesa(): void
+    {
+        $admin = $this->staff();
+        $customer = $this->customer($admin);
+        $this->payment($customer, [
+            'reference' => 'PAY-MIXX',
+            'payment_method' => 'mobile_money',
+            'provider_meta' => ['operator' => 'Tigo'],
+            'status' => 'verified',
+            'verified_at' => now(),
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.payments.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Mixx by Yas', $html);
+        $this->assertStringNotContainsString('>M-Pesa<', $html);
     }
 }

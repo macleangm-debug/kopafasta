@@ -74,17 +74,7 @@
                                     <div class="rounded-xl ring-1 ring-gray-200 bg-white px-4 py-3 flex items-start justify-between gap-2">
                                         <div class="min-w-0">
                                             <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
-                                            @if (($docReq->subject_kind ?? 'borrower') === 'member')
-                                                @php
-                                                    $memberMatch = collect($groupReview['members'] ?? [])
-                                                        ->firstWhere('id', $docReq->loan_group_member_id);
-                                                    $subjectName = $docReq->subjectCustomer?->full_name
-                                                        ?? $docReq->groupMember?->customer?->full_name
-                                                        ?? (is_array($memberMatch) ? ($memberMatch['name'] ?? null) : null)
-                                                        ?? 'Group member';
-                                                @endphp
-                                                <p class="text-xs text-brand mt-0.5">For: {{ $subjectName }}</p>
-                                            @endif
+                                            <p class="text-xs text-brand mt-0.5">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>
                                             @if ($docReq->instructions)
                                                 <p class="text-xs text-gray-500 mt-0.5">{{ $docReq->instructions }}</p>
                                             @endif
@@ -109,6 +99,7 @@
                                     <div class="rounded-xl ring-1 ring-sky-100 bg-sky-50/40 px-4 py-3 flex items-start justify-between gap-2">
                                         <div class="min-w-0">
                                             <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
+                                            <p class="text-xs text-brand mt-0.5">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>
                                             <p class="text-xs text-sky-800/80 mt-0.5">
                                                 Updated in profile ({{ $kind }}) — review under Personal / Face / Collateral.
                                             </p>
@@ -151,6 +142,7 @@
                                             <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
                                             <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">Received</span>
                                         </div>
+                                        <p class="text-xs text-brand mt-0.5">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>
                                         @if ($docReq->instructions)
                                             <p class="text-sm text-gray-600 mt-1">{{ $docReq->instructions }}</p>
                                         @endif

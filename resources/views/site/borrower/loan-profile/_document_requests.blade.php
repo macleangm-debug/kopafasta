@@ -146,6 +146,9 @@
                                                     : __('borrower.loan_profile.documents_status_action') }}
                                             </span>
                                         </div>
+                                        <p class="mt-1 text-xs font-semibold text-brand">
+                                            {{ $docReq->subjectRoleLabel() }}
+                                        </p>
                                         <p class="mt-1 text-[11px] font-medium text-gray-500">
                                             {{ $profileGuided
                                                 ? __('borrower.loan_profile.document_source_profile_hint')
@@ -266,6 +269,7 @@
                                                 {{ $statusLabel }}
                                             </span>
                                         </div>
+                                        <p class="mt-1 text-xs font-semibold text-brand">{{ $docReq->subjectRoleLabel() }}</p>
                                         @if ($thumbDocs->isNotEmpty())
                                             <div class="mt-2.5 flex flex-wrap gap-2">
                                                 @foreach ($thumbDocs as $upload)

@@ -64,4 +64,36 @@ class LoanApplicationDocumentRequest extends Model
     {
         return in_array($this->status, ['pending', 'rejected'], true);
     }
+
+    /** Human label: "Amina Juma · Leader" / "John Doe · Guarantor" / "Borrower". */
+    public function subjectRoleLabel(?array $groupReview = null): string
+    {
+        $kind = (string) ($this->subject_kind ?? 'borrower');
+        $name = $this->subjectCustomer?->full_name
+            ?? $this->groupMember?->customer?->full_name
+            ?? null;
+
+        if ($kind === 'member') {
+            $member = null;
+            if ($this->loan_group_member_id && is_array($groupReview)) {
+                $member = collect($groupReview['members'] ?? [])->firstWhere('id', $this->loan_group_member_id);
+            }
+            $role = strtolower((string) ($member['role'] ?? $this->groupMember?->role ?? 'member'));
+            $roleLabel = $role === 'leader' ? 'Leader' : 'Member';
+            $name = $name
+                ?? (is_array($member) ? ($member['name'] ?? null) : null)
+                ?? 'Group member';
+
+            return trim($name).' · '.$roleLabel;
+        }
+
+        if ($kind === 'guarantor') {
+            return trim(($name ?: 'Guarantor')).' · Guarantor';
+        }
+
+        $name = $name ?: ($this->application?->customer?->full_name ?? 'Borrower');
+        $isGroup = (bool) ($this->application?->loanGroup);
+
+        return trim($name).' · '.($isGroup ? 'Leader' : 'Borrower');
+    }
 }

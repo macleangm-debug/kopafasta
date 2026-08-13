@@ -193,7 +193,8 @@ return [
     'max_duration' => 'Muda wa juu',
     'search_label' => 'Tafuta bidhaa za mkopo',
     'search_placeholder' => 'Tafuta kwa jina au msimbo wa bidhaa…',
-    'all_categories' => 'Zote',
+    'filter_label' => 'Chuja kwa kategoria',
+    'all_categories' => 'Kategoria zote',
     'no_results_title' => 'Hakuna bidhaa zinazolingana na utafutaji wako',
     'no_results_body' => 'Jaribu neno au kichujio kingine cha kategoria.',
     'help_title' => 'Unahitaji msaada wa kuchagua?',
@@ -2970,6 +2971,7 @@ return [
     'badge_expiring_soon' => 'Inakaribia kuisha',
     'badge_not_issued' => 'Haijatolewa',
     'card_ready_title' => 'Kadi yako ya uanachama iko tayari',
+    'card_ready_body' => 'Hii ndiyo kadi yako ya kidijitali. Fungua Uanachama wakati wowote kuiona au kuishiriki.',
     'pin_ready_browse' => 'PIN imeundwa. Chunguza dashibodi yako — lipa ada ya uanachama unapokuwa tayari kuomba.',
     'activated_start_loan' => 'Uanachama umeamilishwa. Unaweza kuanza ombi la mkopo wakati wowote.',
     'notification_title' => 'Sasa wewe ni mwanachama wa kopafasta',
@@ -3088,7 +3090,7 @@ return [
     'bank_transfer' => 'Uhamisho wa Benki',
     'bank_transfer_short' => 'Benki',
     'mobile_money' => 'Pesa kwa Simu',
-    'mobile_money_short' => 'M-Pesa',
+    'mobile_money_short' => 'Pesa kwa simu',
 ],
 
 'payment_statuses' => [

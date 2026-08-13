@@ -204,7 +204,7 @@
                             ? 'bg-brand-gold text-brand shadow-sm'
                             : 'bg-white/10 text-white ring-white/20 hover:bg-white/20'"
                         class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold ring-1 ring-transparent transition">
-                    Requests
+                    Requested
                     @if ($openRequestCount > 0)
                         <span class="inline-flex min-w-[1.25rem] justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold"
                               :class="panel === 'requests' ? 'bg-brand/15 text-brand' : 'bg-brand-gold text-brand'">
@@ -470,11 +470,16 @@
 
         {{-- Library --}}
         <div x-show="panel === 'library'" x-cloak role="tabpanel" class="p-4 sm:p-5 space-y-4">
+            @php
+                $docReviewService = app(\App\Services\ApplicationDocumentReviewService::class);
+                $appReviews = $docReviewService->reviewsForApplication($record);
+            @endphp
             <div class="rounded-xl bg-gradient-to-r from-brand-muted/40 to-white ring-1 ring-brand/10 px-4 py-3">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Profile library</p>
                 <h3 class="text-sm font-semibold text-gray-900 mt-0.5">{{ $libraryTitle }}</h3>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Profile documents for {{ $subjectName }} · {{ $profileDocs->count() }} on file · grouped by category
+                    Profile documents for {{ $subjectName }} · {{ $profileDocs->count() }} on file ·
+                    <span class="font-semibold text-brand">review is for this application only</span>
                 </p>
             </div>
 
@@ -488,42 +493,15 @@
                                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ $libCat }}</p>
                                 <p class="text-[11px] text-gray-500 mt-0.5">{{ $libDocs->count() }} on file</p>
                             </div>
-                            <div class="p-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <div class="p-3 grid sm:grid-cols-2 gap-3">
                                 @foreach ($libDocs as $doc)
-                                    @php
-                                        $docGuidance = app(\App\Services\ApplicationDocumentReviewService::class)->guidanceForDocument($doc);
-                                    @endphp
-                                    <div class="rounded-xl ring-1 ring-brand/10 overflow-hidden bg-white p-3 flex gap-3 shadow-sm">
-                                        @if ($doc->file_path)
-                                            <x-admin.document-preview
-                                                :url="asset('storage/'.$doc->file_path)"
-                                                label="View"
-                                                variant="thumbnail" />
-                                        @endif
-                                        <div class="min-w-0 flex-1">
-                                            <p class="font-semibold text-sm text-gray-900 truncate">{{ $doc->documentType?->name ?? 'Supporting document' }}</p>
-                                            <p class="text-[11px] text-gray-500 mt-0.5">{{ $doc->created_at?->format('d M Y') }}</p>
-                                            <div class="mt-2 flex flex-wrap gap-1.5">
-                                                <x-admin.badge :value="$doc->status ?? 'pending'" group="document_status"
-                                                    :map="[
-                                                        'verified' => 'bg-emerald-100 text-emerald-800',
-                                                        'approved' => 'bg-emerald-100 text-emerald-800',
-                                                        'pending_review' => 'bg-amber-100 text-amber-800',
-                                                        'pending' => 'bg-amber-100 text-amber-800',
-                                                        'rejected' => 'bg-red-100 text-red-800',
-                                                    ]" />
-                                                @if (! in_array($doc->status, ['verified', 'approved'], true))
-                                                    <form method="POST" action="{{ route('admin.loan-applications.documents.verify', [$record, $doc]) }}" class="inline">
-                                                        @csrf
-                                                        <button type="submit" class="text-[11px] font-semibold text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200 px-2 py-1 rounded-md">Verify</button>
-                                                    </form>
-                                                @endif
-                                            </div>
-                                            @if (! empty($docGuidance['items']))
-                                                <p class="text-[10px] text-gray-500 mt-1.5 line-clamp-2">{{ implode(' · ', array_slice($docGuidance['items'], 0, 2)) }}</p>
-                                            @endif
-                                        </div>
-                                    </div>
+                                    @include('admin.loan-applications.review._document_review_card', [
+                                        'doc' => $doc,
+                                        'appReview' => $appReviews->get($doc->id),
+                                        'reviewPerson' => $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : 'borrower'),
+                                        'reviewG' => request('review_g'),
+                                        'reviewM' => request('review_m'),
+                                    ])
                                 @endforeach
                             </div>
                         </section>

@@ -40,6 +40,17 @@ class ScreeningChecklistAutoVerdictService
         // Residence — completeness including LGO signatory phone
         $out['residence.address_consistency'] = $this->residenceComplete($customer);
 
+        // Document-backed checklist items (ID quality, residence proof, authenticity)
+        // — driven by application Documents reviews so screeners do not re-check files.
+        $customerForDocs = $customer instanceof Customer ? $customer : null;
+        $bridge = app(ChecklistDocumentBridge::class);
+        foreach (config('checklist_document_bridge.auto_from_documents', []) as $fullKey) {
+            $docVerdict = $bridge->autoVerdict($application, $customerForDocs, (string) $fullKey);
+            if ($docVerdict !== null) {
+                $out[(string) $fullKey] = $docVerdict;
+            }
+        }
+
         // Documents completeness
         $out['documents.required_docs_complete'] = $this->requiredDocs($docs);
 

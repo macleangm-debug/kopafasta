@@ -53,10 +53,29 @@
                                                 @if ($item['system_checked'] ?? false)
                                                     <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-sky-100 text-sky-900 ring-1 ring-sky-200">System</span>
                                                 @endif
+                                                @if ($item['documents_checked'] ?? false)
+                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-violet-100 text-violet-900 ring-1 ring-violet-200">Documents</span>
+                                                @elseif (! empty($item['document_link']))
+                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-violet-50 text-violet-800 ring-1 ring-violet-100">Docs linked</span>
+                                                @endif
                                                 <svg class="size-3.5 text-gray-400 transition" :class="openItem === @js($itemKey) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                             </p>
                             @if ($item['evidence']['hint'] ?? null)
                                 <p class="text-[11px] text-gray-500 mt-0.5">{{ $item['evidence']['hint'] }}</p>
+                            @endif
+                            @if (! empty($item['document_link']['label']))
+                                <p class="text-[11px] mt-0.5 {{ ($item['document_link']['status'] ?? '') === 'rejected' ? 'text-rose-700 font-semibold' : (($item['document_link']['status'] ?? '') === 'verified' ? 'text-violet-800 font-medium' : 'text-violet-700') }}">
+                                    {{ $item['document_link']['label'] }}
+                                    <a href="{{ route('admin.loan-applications.show', array_filter([
+                                            'loan_application' => $record ?? request()->route('loan_application'),
+                                            'workspace' => 'checklist',
+                                            'capacity_tab' => 'documents',
+                                            'review_person' => request('review_person'),
+                                            'review_g' => request('review_g'),
+                                            'review_m' => request('review_m'),
+                                        ])) }}#review-documents"
+                                       class="underline underline-offset-2 hover:text-brand">Open Documents</a>
+                                </p>
                             @endif
                             @if ($mismatchCount > 0)
                                 <p class="text-[11px] font-semibold text-amber-700 mt-0.5">{{ $mismatchCount }} difference{{ $mismatchCount === 1 ? '' : 's' }} vs CRB — expand to compare</p>
@@ -88,8 +107,12 @@
                         @if (! empty($item['evidence']['documents']) || ($item['evidence']['layout'] ?? null) === 'documents')
                             <div class="rounded-xl ring-1 ring-brand/15 overflow-hidden bg-white">
                                 <div class="px-3.5 py-2.5 bg-gradient-to-r from-brand-muted/60 to-white border-b border-brand/10">
-                                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Statements on file</p>
-                                    <p class="text-[11px] text-gray-600 mt-0.5">Open full bank / mobile money statement — PDF and images supported.</p>
+                                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ $item['evidence']['documents_heading'] ?? 'Documents on file' }}</p>
+                                    <p class="text-[11px] text-gray-600 mt-0.5">
+                                        {{ ($item['evidence_type'] ?? '') === 'activity'
+                                            ? 'Open activity proof documents — contracts, licences, business photos, TIN, etc.'
+                                            : 'Open full bank / mobile money statement — PDF and images supported.' }}
+                                    </p>
                                 </div>
                                 @if (! empty($item['evidence']['documents']))
                                     <div class="p-3.5 grid sm:grid-cols-2 gap-3">
@@ -97,12 +120,12 @@
                                             <div class="rounded-xl ring-1 ring-brand/10 bg-brand-muted/20 p-3 flex gap-3 items-start">
                                                 <x-admin.document-preview
                                                     :url="$doc['url']"
-                                                    :label="$doc['label'] ?? 'Statement'"
+                                                    :label="$doc['label'] ?? 'Document'"
                                                     variant="thumbnail" />
                                                 <div class="min-w-0 flex-1">
-                                                    <p class="text-sm font-semibold text-gray-900">{{ $doc['label'] ?? 'Statement' }}</p>
+                                                    <p class="text-sm font-semibold text-gray-900">{{ $doc['label'] ?? 'Document' }}</p>
                                                     <p class="text-[11px] text-gray-500 mt-0.5 capitalize">
-                                                        {{ ($doc['kind'] ?? 'file') === 'pdf' ? 'PDF statement' : 'Image statement' }}
+                                                        {{ ($doc['kind'] ?? 'file') === 'pdf' ? 'PDF' : 'Image' }}
                                                         @if (! empty($doc['status']))
                                                             · {{ display_label($doc['status'], 'document_status') ?: $doc['status'] }}
                                                         @endif
@@ -110,7 +133,7 @@
                                                     <div class="mt-2">
                                                         <x-admin.document-preview
                                                             :url="$doc['url']"
-                                                            label="Open full statement"
+                                                            :label="$item['evidence']['documents_open_label'] ?? 'Open document'"
                                                             variant="button" />
                                                     </div>
                                                 </div>
@@ -118,7 +141,11 @@
                                         @endforeach
                                     </div>
                                 @else
-                                    <p class="px-3.5 py-4 text-sm text-rose-800">No statement uploaded for this person yet.</p>
+                                    <p class="px-3.5 py-4 text-sm text-rose-800">
+                                        {{ ($item['evidence_type'] ?? '') === 'activity'
+                                            ? 'No activity proof documents uploaded for this person yet.'
+                                            : 'No statement uploaded for this person yet.' }}
+                                    </p>
                                 @endif
                             </div>
                         @endif
@@ -255,10 +282,12 @@
                                     </p>
                                 </div>
                             @endif
-                            <label class="block text-[10px] uppercase tracking-widest text-rose-800 font-semibold">Fail reason (required)</label>
+                            <label class="block text-[10px] uppercase tracking-widest text-rose-800 font-semibold">
+                                {{ ($item['item_key'] ?? '') === 'bank_or_mobile_money' ? 'Concerning pattern (required)' : 'Fail reason (required)' }}
+                            </label>
                             <select name="{{ $fieldBase }}[fail_reason_code]" x-model="reason"
                                     class="w-full rounded-lg border-rose-200 text-sm focus:border-rose-400 focus:ring-rose-200">
-                                <option value="">Select reason…</option>
+                                <option value="">{{ ($item['item_key'] ?? '') === 'bank_or_mobile_money' ? 'Select concerning pattern…' : 'Select reason…' }}</option>
                                 @foreach ($item['fail_reasons'] as $code => $label)
                                     <option value="{{ $code }}">{{ $label }}</option>
                                 @endforeach

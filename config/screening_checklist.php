@@ -49,6 +49,7 @@ return [
                 'label' => 'Compare face capture to uploaded ID',
                 'evidence' => 'face_nida',
                 'risk' => 'critical',
+                'document_bundle' => 'id_quality',
                 'fail_reasons' => [
                     'face_mismatch' => 'Face does not match uploaded ID',
                     'photos_missing' => 'Face or ID photo missing',
@@ -67,12 +68,14 @@ return [
                 ],
             ],
             'id_document_quality' => [
-                'label' => 'Review ID / NIDA document quality',
+                'label' => 'Confirm ID documents are clear (via Documents)',
                 'evidence' => 'id_docs',
                 'risk' => 'critical',
+                'document_bundle' => 'id_quality',
                 'fail_reasons' => [
                     'poor_quality' => 'Document unclear or incomplete',
                     'suspected_tamper' => 'Suspected tampering / falsified ID',
+                    'proof_missing' => 'ID document missing',
                     'custom' => 'Other (write reason)',
                 ],
             ],
@@ -113,8 +116,9 @@ return [
                 ],
             ],
             'utility_or_proof' => [
-                'label' => 'Review residence proof / utility evidence',
+                'label' => 'Confirm residence proof (via Documents)',
                 'evidence' => 'residence_proof',
+                'document_bundle' => 'residence_proof',
                 'fail_reasons' => [
                     'proof_missing' => 'Residence proof missing',
                     'proof_invalid' => 'Residence proof invalid or outdated',
@@ -177,6 +181,7 @@ return [
             'income_evidence' => [
                 'label' => 'Match financial statements to profile monthly revenue',
                 'evidence' => 'income_statements',
+                'document_bundle' => 'income_statements',
                 'risk' => 'critical',
                 'gate' => 'statements_vs_declared',
                 'fail_reasons' => [
@@ -189,18 +194,32 @@ return [
             'activity_plausible' => [
                 'label' => 'Does the stated job / business look plausible?',
                 'evidence' => 'activity',
+                'document_bundle' => 'activity_proof',
                 'fail_reasons' => [
-                    'implausible' => 'Activity not plausible',
-                    'unverified' => 'Could not verify activity',
+                    'implausible' => 'Activity not plausible for this loan',
+                    'unverified' => 'Could not verify activity from profile / documents',
+                    'docs_missing' => 'Activity proof documents missing',
+                    'inconsistent' => 'Activity details inconsistent with documents',
                     'custom' => 'Other (write reason)',
                 ],
             ],
             'bank_or_mobile_money' => [
                 'label' => 'Any concerning patterns on the statements?',
                 'evidence' => 'income_statements',
+                'document_bundle' => 'income_statements',
+                'risk' => 'critical',
                 'fail_reasons' => [
-                    'statements_missing' => 'Statements missing',
-                    'irregular_pattern' => 'Irregular or concerning patterns',
+                    'gambling_betting' => 'Gambling, betting, or lottery activity',
+                    'round_tripping' => 'Circular / same-day in-and-out transfers',
+                    'third_party_dumping' => 'Large unexplained third-party deposits',
+                    'salary_inconsistent' => 'Inflows inconsistent with stated job / business',
+                    'high_cash_out' => 'Heavy cash-out pattern vs declared income',
+                    'overdraft_bounce' => 'Frequent overdrafts, unpaid charges, or bounced items',
+                    'debt_stacking' => 'Multiple concurrent loan / microfinance repayments',
+                    'dormant_spike' => 'Long dormancy then sudden large spikes',
+                    'low_turnover' => 'Turnover too thin for declared monthly revenue',
+                    'statements_missing' => 'Statements missing or unreadable',
+                    'irregular_pattern' => 'Other irregular or concerning pattern',
                     'custom' => 'Other (write reason)',
                 ],
             ],
@@ -223,8 +242,9 @@ return [
                 ],
             ],
             'doc_authenticity' => [
-                'label' => 'Spot-check document authenticity / consistency',
+                'label' => 'Confirm document authenticity (via Documents reviews)',
                 'evidence' => 'documents',
+                'document_bundle' => 'profile_all',
                 'fail_reasons' => [
                     'falsified' => 'Falsified documentation',
                     'inconsistent' => 'Documents inconsistent with profile',
@@ -242,10 +262,11 @@ return [
             ],
             'falsified_docs' => [
                 'label' => 'Flag falsified / mismatched documentation',
-                'evidence' => 'insurance',
+                'evidence' => 'documents',
+                'document_bundle' => 'profile_all',
                 'fail_reasons' => [
-                    'insurance_type_mismatch' => 'Claimed Comprehensive but cover is Third Party (or similar)',
                     'falsified_documentation' => 'Falsified documentation',
+                    'inconsistent' => 'Documents inconsistent with profile',
                     'custom' => 'Other (write reason)',
                 ],
             ],

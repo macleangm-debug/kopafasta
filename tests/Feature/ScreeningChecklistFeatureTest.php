@@ -245,4 +245,56 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertNotSame($leader['total'], $memberA['total']);
         $this->assertGreaterThan(0, (int) $memberA['total']);
     }
+
+    public function test_activity_checklist_pulls_profile_activity_details(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $app->customer->update([
+            'activity_type' => 'employed',
+            'income_range' => '1m_5m',
+            'monthly_income' => 1_500_000,
+            'activity_details' => [
+                'employer_name' => 'Dar Logistics Ltd',
+                'job_title' => 'Dispatcher',
+            ],
+        ]);
+
+        $vm = app(ScreeningChecklistService::class)->viewModel($app->fresh(['customer']), $admin);
+        $item = collect($vm['groups'] ?? [])
+            ->flatMap(fn ($g) => $g['items'] ?? [])
+            ->firstWhere('key', 'activity_income.activity_plausible');
+
+        $this->assertNotNull($item);
+        $labels = collect($item['evidence']['rows'] ?? [])->pluck('value')->implode(' | ');
+        $this->assertStringContainsString('Dar Logistics Ltd', $labels);
+        $this->assertStringContainsString('Dispatcher', $labels);
+        $this->assertStringContainsString('Activity documents', (string) ($item['evidence']['documents_heading'] ?? ''));
+    }
+
+    public function test_statement_pattern_fail_prompts_reject_with_letter_code(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'bank_or_mobile_money' => [
+                            'verdict' => 'fail',
+                            'fail_reason_code' => 'gambling_betting',
+                        ],
+                    ],
+                ],
+            ]);
+        $response->assertRedirect();
+        $this->assertStringContainsString('open_reject=1', $response->headers->get('Location'));
+
+        $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($app->fresh());
+        $this->assertTrue($suggestion['prompt_reject']);
+        $this->assertContains('unstable_income_pattern', $suggestion['codes']);
+        $this->assertStringContainsString('Gambling', $suggestion['summary']);
+    }
 }

@@ -818,15 +818,23 @@ class LoanApplicationController extends ResourceController
         return back()->with('status', 'Replacement requested. The group leader has been notified.')->withFragment('review-group');
     }
 
-    public function verifyDocument(LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse
+    public function verifyDocument(Request $request, LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
-        $review->verify($document, $loan_application, auth()->user());
+        $subject = $this->resolveDocumentReviewSubject($request, $loan_application, $document);
+        $review->verify($document, $loan_application, auth()->user(), $subject);
 
         return redirect()
-            ->route("{$this->routePrefix}.show", $loan_application)
-            ->with('status', 'Document marked as verified.')
+            ->route("{$this->routePrefix}.show", array_filter([
+                'loan_application' => $loan_application,
+                'review_person' => $request->input('review_person'),
+                'review_g' => $request->input('review_g'),
+                'review_m' => $request->input('review_m'),
+                'workspace' => 'checklist',
+                'capacity_tab' => 'documents',
+            ]))
+            ->with('status', 'Document marked reviewed for this application.')
             ->withFragment('review-documents');
     }
 
@@ -836,55 +844,67 @@ class LoanApplicationController extends ResourceController
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:500'],
-            'request_again' => ['nullable', 'boolean'],
+            'fail_reason_code' => ['required', 'string', 'max:80'],
+            'fail_reason_custom' => ['nullable', 'string', 'max:500'],
+            'remedy' => ['nullable', 'in:request_again,none'],
             'request_again_label' => ['nullable', 'string', 'max:160'],
+            'review_person' => ['nullable', 'string', 'max:20'],
+            'review_g' => ['nullable', 'integer'],
+            'review_m' => ['nullable', 'integer'],
         ]);
-        $review->reject($document, $loan_application, auth()->user(), $data['notes'] ?? null);
 
-        $status = 'Document rejected.';
-        if ($request->boolean('request_again') && auth()->user()?->hasPermission('applications.request_documents')) {
-            $label = trim((string) ($data['request_again_label'] ?? ''));
-            if ($label === '') {
-                $label = $document->documentType?->name
-                    ?: $document->original_name
-                    ?: 'Replacement document';
-            }
-            $instructions = filled($data['notes'] ?? null)
-                ? 'Previous upload rejected: '.$data['notes']
-                : null;
-            $subjectKind = 'borrower';
-            $subjectCustomerId = null;
-            $loanGroupMemberId = null;
-            $reviewPerson = (string) $request->input('review_person', 'borrower');
-            if ($reviewPerson === 'member' && (int) $request->input('review_m', 0) > 0) {
-                $subjectKind = 'member';
-                $loanGroupMemberId = (int) $request->input('review_m');
-            } elseif ($reviewPerson === 'guarantor' && (int) $request->input('review_g', 0) > 0) {
-                // Guarantor link id is not customer id — resolve from review context when present.
-                $subjectKind = 'borrower';
-            }
-            app(\App\Services\ApplicationDocumentRequestService::class)->create(
-                $loan_application,
-                auth()->user(),
-                $label,
-                $instructions,
-                null,
-                'document',
-                $subjectKind,
-                $subjectCustomerId,
-                $loanGroupMemberId,
-            );
-            $status = 'Document rejected and a new request was sent to the borrower.';
-        }
+        $subject = $this->resolveDocumentReviewSubject($request, $loan_application, $document);
+        $review->reject($document, $loan_application, auth()->user(), array_merge($data, $subject, [
+            'remedy' => $data['remedy'] ?? 'request_again',
+        ]));
+
+        $status = (($data['remedy'] ?? 'request_again') === 'request_again')
+            ? 'Document failed for this application and a replacement was requested.'
+            : 'Document failed for this application.';
 
         return redirect()
             ->route("{$this->routePrefix}.show", array_filter([
                 'loan_application' => $loan_application,
+                'review_person' => $request->input('review_person'),
+                'review_g' => $request->input('review_g'),
+                'review_m' => $request->input('review_m'),
                 'workspace' => 'checklist',
                 'capacity_tab' => 'documents',
             ]))
             ->with('status', $status)
             ->withFragment('checklist-documents');
+    }
+
+    /**
+     * @return array{subject_kind: string, subject_customer_id: ?int, loan_group_member_id: ?int}
+     */
+    private function resolveDocumentReviewSubject(Request $request, LoanApplication $loan_application, CustomerDocument $document): array
+    {
+        $person = (string) $request->input('review_person', 'borrower');
+        $subjectKind = 'borrower';
+        $subjectCustomerId = (int) $document->customer_id;
+        $loanGroupMemberId = null;
+
+        if ($person === 'member' && (int) $request->input('review_m', 0) > 0) {
+            $subjectKind = 'member';
+            $loanGroupMemberId = (int) $request->input('review_m');
+            $member = $loan_application->loanGroup?->members?->firstWhere('id', $loanGroupMemberId);
+            if ($member?->customer_id) {
+                $subjectCustomerId = (int) $member->customer_id;
+            }
+        } elseif ($person === 'guarantor' && (int) $request->input('review_g', 0) > 0) {
+            $subjectKind = 'guarantor';
+            $link = $loan_application->customerGuarantors()->with('guarantor')->find((int) $request->input('review_g'));
+            if ($link?->guarantor_id) {
+                $subjectCustomerId = (int) $link->guarantor_id;
+            }
+        }
+
+        return [
+            'subject_kind' => $subjectKind,
+            'subject_customer_id' => $subjectCustomerId ?: null,
+            'loan_group_member_id' => $loanGroupMemberId,
+        ];
     }
 
     public function createLoan(LoanApplication $loan_application, LoanOriginationService $origination): RedirectResponse

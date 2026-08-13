@@ -82,6 +82,7 @@
         <div class="mt-auto pt-2.5">
             @if ($isAvailable)
                 <a href="{{ $ctaUrl }}"
+                   data-loading="click"
                    class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-bold px-4 py-2 rounded-xl text-sm transition shadow-sm">
                     {{ $ctaLabel }} →
                 </a>

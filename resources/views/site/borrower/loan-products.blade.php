@@ -13,35 +13,32 @@
 
         {{-- Profile completeness is enforced only at final submit — never as a product-list hurdle. --}}
 
-        <div class="glass-card p-4 sm:p-5 mb-6">
-            <div class="flex flex-col lg:flex-row lg:items-center gap-4">
-                <div class="flex-1 relative">
+        <div class="mb-5">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="flex-1 relative min-w-0">
                     <label for="loan-product-search" class="sr-only">{{ __('borrower.loan_products_page.search_label') }}</label>
                     <input id="loan-product-search"
                            type="search"
                            x-model="search"
                            placeholder="{{ __('borrower.loan_products_page.search_placeholder') }}"
-                           class="w-full rounded-xl border-gray-200 bg-white/80 pl-10 pr-4 py-3 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
+                           class="w-full rounded-xl border-gray-200 bg-white pl-10 pr-4 py-3 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand shadow-sm">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
                         <circle cx="9" cy="9" r="5.5"/><path d="M14 14l3 3"/>
                     </svg>
                 </div>
-                <div class="flex flex-wrap gap-2">
-                    <button type="button"
-                            @click="category = 'all'"
-                            :class="category === 'all' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-600 ring-gray-200 hover:ring-brand/30'"
-                            class="rounded-full px-4 py-2 text-xs font-semibold ring-1 transition">
-                        {{ __('borrower.loan_products_page.all_categories') }}
-                    </button>
-                    @foreach ($categories as $cat)
-                        <button type="button"
-                                @click="category = @js($cat)"
-                                :class="category === @js($cat) ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-600 ring-gray-200 hover:ring-brand/30'"
-                                class="rounded-full px-4 py-2 text-xs font-semibold ring-1 transition capitalize">
-                            {{ str_replace('_', ' ', $cat) }}
-                        </button>
-                    @endforeach
-                </div>
+                @if ($categories->isNotEmpty())
+                    <div class="sm:w-52 shrink-0">
+                        <label for="loan-product-category" class="sr-only">{{ __('borrower.loan_products_page.filter_label') }}</label>
+                        <select id="loan-product-category"
+                                x-model="category"
+                                class="w-full rounded-xl border-gray-200 bg-white py-3 pl-3 pr-10 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand shadow-sm capitalize">
+                            <option value="all">{{ __('borrower.loan_products_page.all_categories') }}</option>
+                            @foreach ($categories as $cat)
+                                <option value="{{ $cat }}">{{ str_replace('_', ' ', $cat) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
             </div>
         </div>
 

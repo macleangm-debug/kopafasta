@@ -247,7 +247,17 @@ class ScreeningChecklistService
                 $suggestion = $systemSuggestions[$fullKey] ?? null;
                 $row = $this->applySystemSuggestion($row, $suggestion);
                 [$verdict, $autoNa] = $this->resolveItemVerdict((string) $groupKey, $row, $collateralApplies);
-                $isSystem = in_array(($row['source'] ?? null), ['system', 'auto_na'], true) && $verdict !== null;
+                $rowSource = (string) ($row['source'] ?? '');
+                $isSystem = in_array($rowSource, ['system', 'auto_na'], true) && $verdict !== null;
+                $isDocuments = $rowSource === 'documents' && $verdict !== null;
+                $documentLink = null;
+                if (! $autoNa) {
+                    $documentLink = app(ChecklistDocumentBridge::class)->statusForItem(
+                        $application,
+                        $context['customer'] ?? null,
+                        $fullKey,
+                    );
+                }
                 $total++;
                 if ($verdict !== null) {
                     $decided++;
@@ -276,18 +286,22 @@ class ScreeningChecklistService
                             'compare' => [],
                             'layout' => null,
                         ]
-                        : $this->buildEvidence($meta['evidence'], $context),
+                        : $this->buildEvidence($meta['evidence'], $context, $itemKey),
                     'fail_reasons' => $meta['fail_reasons'],
                     'verdict' => $verdict,
                     'auto_na' => $autoNa,
                     'system_checked' => $isSystem,
+                    'documents_checked' => $isDocuments || (($documentLink['auto'] ?? false) && $verdict !== null && $rowSource === 'documents'),
+                    'document_link' => $documentLink,
                     'checked' => $verdict === 'pass' || $verdict === 'na',
                     'fail_reason_code' => $autoNa ? null : ($row['fail_reason_code'] ?? null),
                     'fail_reason_custom' => $autoNa ? null : ($row['fail_reason_custom'] ?? null),
                     'fail_reason_label' => $autoNa ? null : $this->failReasonLabel($meta['fail_reasons'], $row),
                     'at' => $autoNa ? null : ($row['at'] ?? null),
                     'by' => $autoNa ? null : $by,
-                    'by_name' => $isSystem ? 'System' : ($autoNa ? null : ($by ? ($names[$by] ?? null) : null)),
+                    'by_name' => $isDocuments
+                        ? 'Documents'
+                        : ($isSystem ? 'System' : ($autoNa ? null : ($by ? ($names[$by] ?? null) : null))),
                 ];
             }
             if ($items === []) {
@@ -542,7 +556,9 @@ class ScreeningChecklistService
                         ?? ($letterMap[$full] ?? null)
                         ?? 'internal_credit_policy_declined';
                     $risk = (string) ($meta['risk'] ?? 'normal');
-                    $isGate = ($meta['gate'] ?? null) === 'statements_vs_declared' || $full === 'activity_income.income_evidence';
+                    $isGate = ($meta['gate'] ?? null) === 'statements_vs_declared'
+                        || $full === 'activity_income.income_evidence'
+                        || $full === 'activity_income.bank_or_mobile_money';
                     if ($risk === 'critical' || $isGate) {
                         $prompt = true;
                     }
@@ -592,6 +608,15 @@ class ScreeningChecklistService
             'revenue_mismatch' => 'insufficient_income',
             'income_insufficient' => 'insufficient_income',
             'irregular_pattern' => 'unstable_income_pattern',
+            'gambling_betting' => 'unstable_income_pattern',
+            'round_tripping' => 'unstable_income_pattern',
+            'third_party_dumping' => 'unstable_income_pattern',
+            'salary_inconsistent' => 'unstable_income_pattern',
+            'high_cash_out' => 'unstable_income_pattern',
+            'overdraft_bounce' => 'unstable_income_pattern',
+            'debt_stacking' => 'excessive_existing_debt',
+            'dormant_spike' => 'unstable_income_pattern',
+            'low_turnover' => 'insufficient_income',
             'implausible' => 'business_not_verified',
             'unverified' => 'employment_not_verified',
             'docs_missing' => 'required_documents_missing',
@@ -658,11 +683,13 @@ class ScreeningChecklistService
             'fail_reasons' => (array) ($meta['fail_reasons'] ?? ['custom' => 'Other (write reason)']),
             'risk' => $risk,
             'gate' => isset($meta['gate']) ? (string) $meta['gate'] : null,
+            'document_bundle' => isset($meta['document_bundle']) ? (string) $meta['document_bundle'] : null,
         ];
     }
 
     /**
-     * Apply system suggestion when the item has no human verdict yet (or was previously system-set).
+     * Apply system / Documents suggestion when the item has no human verdict yet
+     * (or was previously system/documents-set).
      *
      * @param  array<string, mixed>  $row
      * @param  array{verdict?: string, fail_reason_code?: string|null, source?: string}|null  $suggestion
@@ -676,11 +703,12 @@ class ScreeningChecklistService
         $source = (string) ($suggestion['source'] ?? '');
         $existing = $this->normalizeVerdict($row);
         $existingSource = (string) ($row['source'] ?? '');
+        $autoSources = ['system', 'auto_na', 'documents'];
 
-        // system_skip = human must decide. If a prior system auto-verdict is stale (e.g. photos
-        // arrived after a photos_missing Fail), clear it so the item reopens for review.
+        // system_skip = human must decide. If a prior system/documents auto-verdict is stale
+        // (e.g. photos arrived after a photos_missing Fail), clear it so the item reopens.
         if ($source === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
-            if ($existing !== null && in_array($existingSource, ['system', 'auto_na'], true)) {
+            if ($existing !== null && in_array($existingSource, $autoSources, true)) {
                 return [
                     'verdict' => null,
                     'checked' => false,
@@ -695,15 +723,21 @@ class ScreeningChecklistService
             return $row;
         }
 
-        $humanLocked = $existing !== null && ! in_array($existingSource, ['system', 'auto_na'], true);
+        $humanLocked = $existing !== null && ! in_array($existingSource, $autoSources, true);
         if ($humanLocked) {
             return $row;
         }
 
+        $resolvedSource = match ($source) {
+            'auto_na' => 'auto_na',
+            'documents' => 'documents',
+            default => 'system',
+        };
+
         return [
             'verdict' => $suggestion['verdict'],
             'checked' => in_array($suggestion['verdict'], ['pass', 'na'], true),
-            'source' => $source === 'auto_na' ? 'auto_na' : 'system',
+            'source' => $resolvedSource,
             'fail_reason_code' => $suggestion['fail_reason_code'] ?? null,
             'fail_reason_custom' => null,
             'at' => $row['at'] ?? now()->toIso8601String(),
@@ -814,28 +848,107 @@ class ScreeningChecklistService
         $context = $this->evidenceContext($application, $person, $guarantorLinkId, $memberId, null, null);
         $kind = $this->kindFromSubject($this->subjectKey($person, $guarantorLinkId, $memberId));
         $suggestions = app(ScreeningChecklistAutoVerdictService::class)->suggest($application, $kind, $context);
+        $autoSources = ['system', 'auto_na', 'documents'];
 
         foreach ($validKeys as $key) {
             $suggestion = $suggestions[$key] ?? null;
-            if ($suggestion === null || ($suggestion['source'] ?? '') === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
+            if ($suggestion === null) {
                 continue;
             }
+
             $current = (array) ($items[$key] ?? []);
             $existing = $this->normalizeVerdict($current);
             $existingSource = (string) ($current['source'] ?? '');
-            if ($existing !== null && ! in_array($existingSource, ['system', 'auto_na'], true)) {
+            $suggestionSource = (string) ($suggestion['source'] ?? '');
+
+            // Clear stale system/documents verdicts when the platform can no longer decide.
+            if ($suggestionSource === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
+                if ($existing !== null && in_array($existingSource, $autoSources, true)) {
+                    unset($items[$key]);
+                }
                 continue;
             }
+
+            if ($existing !== null && ! in_array($existingSource, $autoSources, true)) {
+                continue;
+            }
+            $resolvedSource = match ($suggestionSource) {
+                'auto_na' => 'auto_na',
+                'documents' => 'documents',
+                default => 'system',
+            };
             $items[$key] = [
                 'verdict' => $suggestion['verdict'],
                 'checked' => in_array($suggestion['verdict'], ['pass', 'na'], true),
-                'source' => ($suggestion['source'] ?? '') === 'auto_na' ? 'auto_na' : 'system',
+                'source' => $resolvedSource,
                 'fail_reason_code' => $suggestion['fail_reason_code'] ?? null,
                 'fail_reason_custom' => null,
                 'at' => now()->toIso8601String(),
                 'by' => null,
             ];
         }
+    }
+
+    /**
+     * Persist Documents-driven checklist verdicts after a file is reviewed in Documents.
+     *
+     * @param  list<string>  $touchedKeys
+     */
+    public function refreshDocumentLinkedVerdicts(
+        LoanApplication $application,
+        User $actor,
+        string $person = 'borrower',
+        ?int $guarantorLinkId = null,
+        ?int $memberId = null,
+        array $touchedKeys = [],
+    ): void {
+        $subject = $this->subjectKey($person, $guarantorLinkId, $memberId);
+        $validKeys = [];
+        foreach ($this->catalog($subject) as $groupKey => $group) {
+            foreach (array_keys((array) ($group['items'] ?? [])) as $itemKey) {
+                $validKeys[] = $groupKey.'.'.$itemKey;
+            }
+        }
+
+        if ($touchedKeys !== []) {
+            $validKeys = array_values(array_intersect($validKeys, $touchedKeys));
+        }
+        if ($validKeys === []) {
+            return;
+        }
+
+        DB::transaction(function () use ($application, $actor, $person, $guarantorLinkId, $memberId, $subject, $validKeys) {
+            $application->refresh();
+            $payload = (array) ($application->screening_payload ?? []);
+            $root = (array) ($payload['screening_checklist'] ?? []);
+            $bySubject = (array) ($root['by_subject'] ?? []);
+
+            if (! isset($bySubject['borrower']) && isset($root['items']) && is_array($root['items'])) {
+                $bySubject['borrower'] = [
+                    'items' => $root['items'],
+                    'updated_at' => $root['updated_at'] ?? null,
+                    'updated_by' => $root['updated_by'] ?? null,
+                ];
+            }
+
+            $items = (array) (($bySubject[$subject]['items'] ?? []) ?: []);
+            $this->syncSystemVerdicts($application, $items, $validKeys, $person, $guarantorLinkId, $memberId);
+
+            $bySubject[$subject] = [
+                'items' => $items,
+                'updated_at' => now()->toIso8601String(),
+                'updated_by' => $actor->id,
+            ];
+
+            $payload['screening_checklist'] = [
+                'by_subject' => $bySubject,
+                'items' => (array) ($bySubject['borrower']['items'] ?? []),
+                'updated_at' => $bySubject['borrower']['updated_at'] ?? now()->toIso8601String(),
+                'updated_by' => $bySubject['borrower']['updated_by'] ?? $actor->id,
+            ];
+
+            $application->update(['screening_payload' => $payload]);
+        });
     }
 
     /**
@@ -1166,9 +1279,19 @@ class ScreeningChecklistService
 
     /**
      * @param  array<string, mixed>  $ctx
-     * @return array{type: string, rows: list<array{label: string, value: string}>, photos: list<array{label: string, url: string}>, hint: ?string}
+     * @return array{
+     *   type: string,
+     *   rows: list<array{label: string, value: string}>,
+     *   photos: list<array{label: string, url: string}>,
+     *   documents: list<array{label: string, url: string, kind?: string, status?: ?string}>,
+     *   hint: ?string,
+     *   layout: ?string,
+     *   documents_heading: ?string,
+     *   documents_open_label: ?string,
+     *   compare: list<array{label: string, profile: string, crb: string, status: string}>
+     * }
      */
-    private function buildEvidence(string $type, array $ctx): array
+    private function buildEvidence(string $type, array $ctx, ?string $itemKey = null): array
     {
         /** @var Customer|null $customer */
         $customer = $ctx['customer'] ?? null;
@@ -1179,6 +1302,8 @@ class ScreeningChecklistService
         $compare = [];
         $hint = null;
         $layout = null;
+        $documentsHeading = null;
+        $documentsOpenLabel = null;
 
         switch ($type) {
             case 'nida_dob':
@@ -1439,11 +1564,9 @@ class ScreeningChecklistService
                 break;
 
             case 'activity':
-                $rows = [
-                    ['label' => 'Occupation / activity', 'value' => (string) ($customer?->occupation ?? $customer?->business_type ?? '—')],
-                    ['label' => 'Employer / business', 'value' => (string) ($customer?->employer_name ?? $customer?->business_name ?? '—')],
-                ];
-                $hint = 'From the profile only — Pass if this activity looks real for the loan, Fail if it does not.';
+                [$rows, $documents, $photos, $hint] = $this->activityEvidenceBundle($customer);
+                $documentsHeading = 'Activity documents';
+                $documentsOpenLabel = 'Open document';
                 break;
 
             case 'affordability':
@@ -1484,7 +1607,11 @@ class ScreeningChecklistService
                 }
                 $hint = $documents === []
                     ? 'No bank or mobile-money statement on this profile yet — request one, or Fail as missing (that rejects the file).'
-                    : 'Open the statement(s) below. Pass only if inflows support the profile monthly revenue. Fail rejects this application.';
+                    : ($itemKey === 'bank_or_mobile_money'
+                        ? 'Open the statement(s) below. On Fail, pick a concerning pattern — that rejects the application and pre-fills the rejection letter.'
+                        : 'Open the statement(s) below. Pass only if inflows support the profile monthly revenue. Fail rejects this application.');
+                $documentsHeading = 'Statements on file';
+                $documentsOpenLabel = 'Open full statement';
                 break;
 
             case 'id_docs':
@@ -1597,7 +1724,135 @@ class ScreeningChecklistService
             'documents' => $documents,
             'hint' => $hint,
             'layout' => $layout,
+            'documents_heading' => $documentsHeading,
+            'documents_open_label' => $documentsOpenLabel,
         ];
+    }
+
+    /**
+     * Profile activity type + details + activity proof documents for screening.
+     *
+     * @return array{0: list<array{label: string, value: string}>, 1: list<array{label: string, url: string, kind?: string, status?: ?string}>, 2: list<array{label: string, url: string}>, 3: string}
+     */
+    private function activityEvidenceBundle(?Customer $customer): array
+    {
+        if (! $customer) {
+            return [[
+                ['label' => 'Activity', 'value' => '— no customer on file'],
+            ], [], [], 'No profile linked — cannot review activity.'];
+        }
+
+        $type = (string) ($customer->activity_type ?? $customer->employment_type ?? '');
+        $details = (array) ($customer->activity_details ?? []);
+        $fieldDefs = collect(activity_fields_localized()[$type] ?? [])->keyBy('key');
+
+        $rows = [
+            [
+                'label' => 'Activity type',
+                'value' => display_label($type, 'activity_type')
+                    ?: (activity_type_label($type) ?? ($type !== '' ? $type : '—')),
+            ],
+            [
+                'label' => 'Income range',
+                'value' => income_range_label($customer->income_range)
+                    ?? ($customer->monthly_income ? format_money((float) $customer->monthly_income).'/mo' : '—'),
+            ],
+        ];
+
+        if ($customer->monthly_income) {
+            $rows[] = [
+                'label' => 'Monthly income (midpoint)',
+                'value' => format_money((float) $customer->monthly_income),
+            ];
+        }
+
+        foreach ($fieldDefs as $key => $field) {
+            if (($field['type'] ?? '') === 'document') {
+                continue;
+            }
+            $raw = $details[$key] ?? null;
+            if (! filled($raw) && in_array($key, ['business_name', 'employer_name'], true)) {
+                $raw = $customer->business_name ?? null;
+            }
+            if (! filled($raw)) {
+                continue;
+            }
+            $value = (string) $raw;
+            $options = (array) ($field['options'] ?? []);
+            if ($options !== [] && isset($options[$value])) {
+                $value = (string) $options[$value];
+            }
+            $rows[] = [
+                'label' => (string) ($field['label'] ?? $key),
+                'value' => $value,
+            ];
+        }
+
+        // Any other filled detail keys not covered by the activity profile schema.
+        foreach ($details as $key => $raw) {
+            if ($fieldDefs->has($key) || ! filled($raw) || is_array($raw)) {
+                continue;
+            }
+            $rows[] = [
+                'label' => ucwords(str_replace('_', ' ', (string) $key)),
+                'value' => (string) $raw,
+            ];
+        }
+
+        if (count($rows) <= 2) {
+            $rows[] = [
+                'label' => 'Activity details',
+                'value' => '— no activity details on profile yet',
+            ];
+        }
+
+        $docCodes = ['employment_contract', 'business_license', 'business_registration', 'business_photos', 'tin_certificate', 'salary_slip'];
+        foreach ($fieldDefs as $field) {
+            if (($field['type'] ?? '') === 'document' && filled($field['document_code'] ?? null)) {
+                $docCodes[] = (string) $field['document_code'];
+            }
+        }
+        $docCodes = array_values(array_unique($docCodes));
+
+        $uploads = app(ProfileDocumentService::class)->latestByCodes($customer, $docCodes);
+        $documents = [];
+        $photos = [];
+        foreach ($docCodes as $code) {
+            $doc = $uploads->get($code);
+            if (! $doc || ! filled($doc->file_path ?? null)) {
+                continue;
+            }
+            $url = asset('storage/'.$doc->file_path);
+            $label = match ($code) {
+                'employment_contract' => 'Employment contract',
+                'business_license' => 'Business licence',
+                'business_registration' => 'Business registration',
+                'business_photos' => 'Business photos',
+                'tin_certificate' => 'TIN certificate',
+                'salary_slip' => 'Salary slip',
+                default => (string) ($doc->documentType?->name ?? ucwords(str_replace('_', ' ', $code))),
+            };
+            $path = strtolower((string) $doc->file_path);
+            $kind = str_ends_with($path, '.pdf') ? 'pdf' : 'image';
+            $documents[] = [
+                'label' => $label,
+                'url' => $url,
+                'kind' => $kind,
+                'status' => $doc->status ?? null,
+            ];
+            if ($kind === 'image') {
+                $photos[] = [
+                    'label' => $label,
+                    'url' => $url,
+                ];
+            }
+        }
+
+        $hint = $documents === []
+            ? 'Review the profile activity fields below. Request activity proof documents if needed, then Pass or Fail.'
+            : 'Review the profile activity fields and open the activity documents below. Pass if the activity looks real for this loan.';
+
+        return [$rows, $documents, $photos, $hint];
     }
 
     /**

@@ -253,7 +253,7 @@
             ></div>
         @endif
 
-        <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8">
+        <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full mx-auto">
                 {{ $slot }}
             </div>

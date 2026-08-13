@@ -110,6 +110,17 @@ class CustomerPayment extends Model
 
     public function methodShortLabel(): string
     {
+        if ($this->payment_method === 'mobile_money') {
+            $operator = data_get($this->provider_meta, 'operator')
+                ?? data_get($this->provider_meta, 'raw.operator')
+                ?? data_get($this->provider_meta, 'raw.data.operator');
+            if (filled($operator)) {
+                return $this->formatMobileOperatorLabel((string) $operator);
+            }
+
+            return 'Mobile money';
+        }
+
         $key = "borrower.payment_methods.{$this->payment_method}_short";
         $translated = __($key);
         if ($translated !== $key) {
@@ -117,6 +128,24 @@ class CustomerPayment extends Model
         }
 
         return config("payment_types.methods.{$this->payment_method}.short", $this->methodLabel());
+    }
+
+    /** Map PayIn / network operator codes to a borrower-facing wallet name. */
+    public function formatMobileOperatorLabel(string $operator): string
+    {
+        $key = strtolower((string) preg_replace('/[^a-z0-9]+/i', '_', trim($operator)));
+
+        return match (true) {
+            str_contains($key, 'mpesa'),
+            str_contains($key, 'm_pesa'),
+            str_contains($key, 'vodacom') => 'M-Pesa',
+            str_contains($key, 'mixx'),
+            str_contains($key, 'yas'),
+            str_contains($key, 'tigo') => 'Mixx by Yas',
+            str_contains($key, 'airtel') => 'Airtel Money',
+            str_contains($key, 'halo') => 'Halopesa',
+            default => filled($operator) ? ucwords(str_replace(['_', '-'], ' ', $operator)) : 'Mobile money',
+        };
     }
 
     public function statusLabel(): string

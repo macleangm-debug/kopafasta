@@ -1,19 +1,22 @@
 /**
- * Global submit / busy-button feedback.
+ * Global submit / busy-button feedback for customer + partner portals.
  * On form submit: disable the submitter, dim it, show a spinner + "…" label.
  * Prevents double submits while the browser navigates or the request runs.
  *
  * Opt out: form[data-skip-loading="1"] or form[data-submit-guard="1"]
- *          (or Alpine x-data that already owns a busy/submitting/… flag)
  * Custom label: button[data-loading-label="Paying…"]
  *
- * For non-form buttons (fetch / XHR):
- *   kfMarkBusy(btn) / kfClearBusy(btn)
- *   or mark the button data-loading="1" and call kfMarkBusy from your handler.
+ * Action links / buttons:
+ *   data-loading="click" — always
+ *   Inside [data-kf-busy-scope]: button-styled same-origin links auto-busy
+ *
+ * Manual: kfMarkBusy(btn) / kfClearBusy(btn)
  */
 const BUSY_KEYS = ['paying', 'submitting', 'applying', 'uploading', 'saving', 'busy', 'loading'];
 
 const BUSY_CLASSES = ['opacity-70', 'cursor-wait', 'inline-flex', 'items-center', 'justify-center', 'gap-2', 'pointer-events-none'];
+
+const ACTION_BG = /\b(bg-brand|bg-brand-gold|bg-amber-|bg-orange-|bg-emerald-|bg-rose-|bg-red-|bg-sky-|bg-yellow-)/;
 
 function spinnerHtml(label) {
     return '<svg class="size-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
@@ -51,7 +54,12 @@ export function kfClearBusy(el) {
 }
 
 export function kfMarkBusy(el, label) {
-    if (!(el instanceof HTMLElement) || el.dataset.kfBusy === '1' || el.disabled) {
+    if (!(el instanceof HTMLElement) || el.dataset.kfBusy === '1') {
+        return;
+    }
+
+    // Anchors can't use disabled — pointer-events + aria-busy block re-clicks.
+    if (el.disabled && el.tagName !== 'A') {
         return;
     }
 
@@ -60,7 +68,7 @@ export function kfMarkBusy(el, label) {
 
     const loadingLabel = label || loadingLabelFor(el);
 
-    if (el.tagName === 'BUTTON') {
+    if (el.tagName === 'BUTTON' || el.tagName === 'A') {
         el.dataset.originalHtml = el.innerHTML;
         el.innerHTML = spinnerHtml(loadingLabel);
     } else if (el.tagName === 'INPUT') {
@@ -68,7 +76,9 @@ export function kfMarkBusy(el, label) {
         el.value = loadingLabel;
     }
 
-    el.disabled = true;
+    if (el.tagName !== 'A') {
+        el.disabled = true;
+    }
     el.classList.add(...BUSY_CLASSES);
 }
 
@@ -128,11 +138,6 @@ function shouldSkipForm(form) {
         return true;
     }
 
-    const xData = form.getAttribute('x-data') || '';
-    if (xData && new RegExp('\\b(' + BUSY_KEYS.join('|') + ')\\b').test(xData)) {
-        return true;
-    }
-
     return false;
 }
 
@@ -151,7 +156,7 @@ function onSubmit(event) {
         ? event.submitter
         : form.querySelector('button[type="submit"], input[type="submit"]');
 
-    if (! submitter || submitter.disabled) {
+    if (! submitter || (submitter.disabled && submitter.dataset.kfBusy !== '1')) {
         return;
     }
 
@@ -165,26 +170,97 @@ function onSubmit(event) {
     });
 }
 
+function isSameOriginNavigableLink(el) {
+    if (!(el instanceof HTMLAnchorElement) || ! el.href) {
+        return false;
+    }
+
+    if (el.hasAttribute('download') || el.target === '_blank') {
+        return false;
+    }
+
+    const href = el.getAttribute('href') || '';
+    if (href === '' || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+        return false;
+    }
+
+    try {
+        const url = new URL(el.href, window.location.href);
+
+        return url.origin === window.location.origin;
+    } catch {
+        return false;
+    }
+}
+
+function looksLikeActionControl(el) {
+    if (!(el instanceof HTMLElement)) {
+        return false;
+    }
+
+    if (el.matches('[data-loading="click"], [data-loading="1"]')) {
+        return true;
+    }
+
+    const className = typeof el.className === 'string' ? el.className : '';
+
+    return ACTION_BG.test(className);
+}
+
 /**
- * Optional: buttons outside forms that navigate or kick off work.
- * Use data-loading="click" on <button type="button"> or <a> that should
- * show busy state immediately on click (until next page or kfClearBusy).
+ * Early feedback for action links. Form submit buttons are handled in onSubmit
+ * so confirm-modal @submit.prevent flows do not leave a stuck spinner.
  */
 function onClick(event) {
-    const target = event.target instanceof Element
-        ? event.target.closest('[data-loading="click"]')
-        : null;
-
-    if (! target || target.dataset.kfBusy === '1') {
+    if (event.defaultPrevented || event.button !== 0) {
         return;
     }
 
-    // Let confirm / Alpine preventDefault handlers win.
-    if (event.defaultPrevented) {
+    const target = event.target instanceof Element ? event.target : null;
+    if (! target) {
         return;
     }
 
-    kfMarkBusy(target);
+    const explicit = target.closest('[data-loading="click"]');
+    if (explicit) {
+        if (explicit.dataset.kfBusy === '1') {
+            event.preventDefault();
+            event.stopPropagation();
+
+            return;
+        }
+        kfMarkBusy(explicit);
+
+        return;
+    }
+
+    const link = target.closest('a[href]');
+    if (! (link instanceof HTMLAnchorElement)) {
+        return;
+    }
+
+    if (link.dataset.kfBusy === '1') {
+        event.preventDefault();
+        event.stopPropagation();
+
+        return;
+    }
+
+    if (! isSameOriginNavigableLink(link)) {
+        return;
+    }
+
+    // Skip chrome nav / menus unless explicitly opted in.
+    if (link.closest('nav, aside, header, [data-skip-busy-links]')) {
+        return;
+    }
+
+    const inScope = link.closest('[data-kf-busy-scope]');
+    if (! inScope || ! looksLikeActionControl(link)) {
+        return;
+    }
+
+    kfMarkBusy(link);
 }
 
 export function bindSubmitLoading() {
@@ -197,6 +273,6 @@ export function bindSubmitLoading() {
     window.kfClearBusy = kfClearBusy;
 
     document.addEventListener('submit', onSubmit);
-    document.addEventListener('click', onClick);
+    document.addEventListener('click', onClick, true);
     window.addEventListener('pageshow', resetAllLoadingUi);
 }

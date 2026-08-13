@@ -67,7 +67,7 @@ return [
         ],
         'mobile_money' => [
             'label'     => 'Mobile Money',
-            'short'     => 'M-Pesa',
+            'short'     => 'Mobile money',
             'channel'   => 'mobile_money',
         ],
     ],
