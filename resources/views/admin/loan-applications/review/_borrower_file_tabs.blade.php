@@ -223,7 +223,7 @@
             <div class="space-y-5">
                 <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3 text-xs text-sky-950">
                     Same Documents workspace as Review checklist for this person — Checklist, Requested, and Library.
-                    Request more packs here; they notify this person only.
+                    Packs you send here notify this person only.
                 </div>
                 @include('admin.loan-applications.review._documents', ['review' => $subjectReview])
             </div>

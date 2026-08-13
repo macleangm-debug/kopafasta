@@ -37,7 +37,6 @@
         + $profileOpen->filter(fn ($r) => $r->needsBorrowerAction() || $r->status === 'uploaded')->count();
 @endphp
 
-{{-- Lifecycle: Requested → Received → Accepted (same for screening & committee) --}}
 @if ($loanReady->isNotEmpty() || $loanCompleted->filter(fn ($r) => $r->uploads->isNotEmpty())->isNotEmpty() || $loanAwaiting->isNotEmpty() || $profileOpen->isNotEmpty())
     <section id="review-document-pipeline" class="scroll-mt-24 space-y-5">
         @if ($loanAwaiting->isNotEmpty() || $profileOpen->isNotEmpty())
@@ -66,10 +65,11 @@
                             </span>
                         @endif
                         @if ($canRequestDocs)
-                            <a href="#request-more-documents"
-                               class="inline-flex items-center rounded-lg bg-brand-gold hover:brightness-95 text-brand text-[11px] font-bold px-2.5 py-1.5">
+                            <button type="button"
+                                    @click="window.dispatchEvent(new CustomEvent('kf-open-doc-composer')); $nextTick(() => document.getElementById('request-more-documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))"
+                                    class="inline-flex items-center rounded-lg bg-brand-gold hover:brightness-95 text-brand text-[11px] font-bold px-2.5 py-1.5">
                                 Request more →
-                            </a>
+                            </button>
                         @endif
                     </div>
                 </div>
@@ -232,11 +232,25 @@
             </div>
         @endif
     </section>
+@else
+    <section id="review-document-pipeline" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+        <div class="px-5 sm:px-6 py-4 bg-gradient-to-r from-brand-muted/40 to-white">
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Requested</p>
+            <h2 class="text-sm font-semibold text-gray-900 mt-0.5">No open requests for this person</h2>
+            <p class="text-xs text-gray-500 mt-0.5">
+                Use Request documents below to send ID, income, residence, or a custom request. It notifies this person only.
+            </p>
+        </div>
+    </section>
 @endif
 
 @if ($canRequestDocs)
+    @php
+        $composerStartsOpen = $openRequestCount === 0
+            || $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject']);
+    @endphp
     <section id="request-more-documents" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" x-data="{
-        open: {{ $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject']) ? 'true' : 'false' }},
+        open: {{ $composerStartsOpen ? 'true' : 'false' }},
         applyPack(labels) {
             this.open = true;
             this.$nextTick(() => {
@@ -245,13 +259,16 @@
                 });
             });
         }
-    }">
+    }" @kf-open-doc-composer.window="open = true">
         <div class="px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="text-sm font-semibold text-gray-900">Request documents</h2>
-                @if ($openRequestCount > 0)
-                    <p class="text-xs text-gray-500 mt-0.5">You can send more packs while other requests are still open.</p>
-                @endif
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Send a pack to the person on this screen. They are notified.
+                    @if ($openRequestCount > 0)
+                        You can send more while other requests are still open.
+                    @endif
+                </p>
             </div>
             <div class="flex flex-wrap gap-1.5">
                 <button type="button" @click="applyPack(['Updated National ID', 'New National ID photo', 'New face verification photo', 'Image Not Clear'])"

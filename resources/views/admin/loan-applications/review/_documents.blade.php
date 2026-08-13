@@ -10,14 +10,57 @@
         ?: ($review['member_row']['name'] ?? null)
         ?: ($review['guarantor_row']['name'] ?? null)
         ?: 'this subject';
-    // Same shell for leader / member / guarantor — only the subject name changes.
+    // Same chrome for leader / member / guarantor — person switcher already names who is on screen.
     $evidenceTitle = 'Application evidence';
-    if ($isMemberSubject || $isGuarantorSubject) {
-        $evidenceTitle = trim(($isMemberSubject ? 'Member' : 'Guarantor').' · '.($subjectName ?: 'evidence'));
-    }
     $profileDocs = collect($review['profile_documents'] ?? []);
     $docReviewService = app(\App\Services\ApplicationDocumentReviewService::class);
     $appReviews = $docReviewService->reviewsForApplication($record);
+    $docRequestService = app(\App\Services\ApplicationDocumentRequestService::class);
+
+    $documentRequestsForPanel = collect($documentRequests ?? []);
+    $subjectCustomerId = (int) ($review['customer']->id ?? 0);
+    $memberId = (int) ($review['member_row']['id'] ?? 0);
+    $documentRequestsForPanel = $documentRequestsForPanel->filter(function ($req) use (
+        $subjectCustomerId,
+        $memberId,
+        $isMemberSubject,
+        $isGuarantorSubject,
+        $record
+    ) {
+        $kind = (string) ($req->subject_kind ?? 'borrower');
+        $reqCustomerId = (int) ($req->subject_customer_id ?? 0);
+        $reqMemberId = (int) ($req->loan_group_member_id ?? 0);
+
+        if ($isMemberSubject) {
+            if ($memberId > 0 && $reqMemberId === $memberId) {
+                return true;
+            }
+
+            return $kind === 'member'
+                && $subjectCustomerId > 0
+                && $reqCustomerId === $subjectCustomerId;
+        }
+
+        if ($isGuarantorSubject) {
+            return $kind === 'guarantor'
+                && ($subjectCustomerId <= 0 || $reqCustomerId === $subjectCustomerId);
+        }
+
+        if (in_array($kind, ['member', 'guarantor'], true)) {
+            return false;
+        }
+
+        if ($reqCustomerId > 0 && $subjectCustomerId > 0) {
+            return $reqCustomerId === $subjectCustomerId;
+        }
+
+        return $reqCustomerId === 0
+            || $reqCustomerId === (int) ($record->customer_id ?? 0);
+    })->values();
+
+    $subjectHasIncomeRequest = $documentRequestsForPanel->contains(
+        fn ($req) => $docRequestService->borrowerActionKind($req) === 'income'
+    );
 
     $categoryFor = function ($req): array {
         $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
@@ -40,23 +83,32 @@
         return ['key' => 'other', 'label' => 'Other documents', 'order' => 9];
     };
 
-    // Members/guarantors share the leader shell, but only personal evidence — not group/loan-file extras.
+    // Members/guarantors: personal KYC only. Income is a loan-file item unless this
+    // person was specifically asked to update bank / mobile-money / income proof.
     if ($isSubjectPanel) {
-        $requirements = $requirements->filter(function ($req) use ($categoryFor) {
+        $requirements = $requirements->filter(function ($req) use ($categoryFor, $subjectHasIncomeRequest) {
             $category = $categoryFor($req);
             if (in_array($category['key'], ['group', 'business', 'supporting', 'collateral'], true)) {
                 return false;
             }
 
             $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
-
-            return str_contains($hay, 'national id')
+            $isIdentity = str_contains($hay, 'national id')
                 || str_contains($hay, 'passport')
-                || str_contains($hay, 'income')
+                || str_contains($hay, 'face')
+                || str_contains($hay, 'nida')
+                || str_contains($hay, 'photo of id');
+            $isIncome = str_contains($hay, 'income')
                 || str_contains($hay, 'bank statement')
                 || str_contains($hay, 'mobile money')
-                || str_contains($hay, 'face')
-                || str_contains($hay, 'nida');
+                || str_contains($hay, 'payslip')
+                || str_contains($hay, 'salary');
+
+            if ($isIncome) {
+                return $subjectHasIncomeRequest;
+            }
+
+            return $isIdentity;
         })->values();
     }
 
@@ -66,6 +118,7 @@
         return match (true) {
             str_contains($hay, 'national id') && str_contains($hay, 'front') => ['national_id_front'],
             str_contains($hay, 'national id') && str_contains($hay, 'back') => ['national_id_back'],
+            str_contains($hay, 'national id') || str_contains($hay, 'nida') => ['national_id_front', 'national_id_back'],
             str_contains($hay, 'passport') => ['passport_photo', 'passport'],
             str_contains($hay, 'income') || str_contains($hay, 'bank statement') || str_contains($hay, 'mobile money') => [
                 'bank_statement', 'mobile_money_statement', 'mpesa_statement', 'salary_slip',
@@ -88,7 +141,6 @@
         $histories,
         $guidanceMap,
         $categoryFor,
-        $isSubjectPanel,
         $profileCodesForRequirement,
         $subjectProfileDoc,
         $docReviewService,
@@ -96,50 +148,48 @@
         $record
     ) {
         $category = $categoryFor($req);
-        $upload = null;
-        $history = collect();
+        $upload = $uploads->get($req->id);
+        $history = $histories->get($req->id, collect());
+        $fromProfile = false;
         $bucket = 'optional';
         $statusLabel = 'Optional';
 
-        if ($isSubjectPanel) {
+        if (! $upload) {
             $profileDoc = $subjectProfileDoc($profileCodesForRequirement($req));
             if ($profileDoc) {
-                $status = $appReviews->get($profileDoc->id)?->status
-                    ?? $docReviewService->statusFor($record, $profileDoc);
-                $bucket = match (true) {
-                    in_array($status, ['verified', 'approved'], true) => 'verified',
-                    $status === 'rejected' => 'rejected',
-                    default => 'uploaded',
-                };
-                $statusLabel = match ($bucket) {
-                    'verified' => 'Verified',
-                    'rejected' => 'Rejected',
-                    default => 'On profile',
-                };
-                // Surface profile file in the expand panel via a lightweight stand-in.
                 $upload = $profileDoc;
-            } elseif ($req->is_required) {
-                $bucket = 'missing';
-                $statusLabel = 'Missing';
+                $fromProfile = true;
             }
-        } else {
-            $upload = $uploads->get($req->id);
-            $history = $histories->get($req->id, collect());
-            $isApproved = $upload && in_array($upload->status, ['verified', 'approved'], true);
+        }
+
+        if ($fromProfile) {
+            $status = $appReviews->get($upload->id)?->status
+                ?? $docReviewService->statusFor($record, $upload);
+            $bucket = match (true) {
+                in_array($status, ['verified', 'approved'], true) => 'verified',
+                $status === 'rejected' => 'rejected',
+                default => 'uploaded',
+            };
+            $statusLabel = match ($bucket) {
+                'verified' => 'Verified',
+                'rejected' => 'Rejected',
+                default => 'On profile',
+            };
+        } elseif ($upload) {
+            $isApproved = in_array($upload->status, ['verified', 'approved'], true);
             $bucket = match (true) {
                 $isApproved => 'verified',
-                $upload && $upload->status === 'rejected' => 'rejected',
-                (bool) $upload => 'uploaded',
-                $req->is_required => 'missing',
-                default => 'optional',
+                $upload->status === 'rejected' => 'rejected',
+                default => 'uploaded',
             };
             $statusLabel = match ($bucket) {
                 'verified' => display_label($upload->status, 'document_status') ?: 'Verified',
                 'rejected' => 'Rejected',
-                'uploaded' => display_label($upload->status, 'document_status') ?: 'Uploaded',
-                'missing' => 'Missing',
-                default => 'Optional',
+                default => display_label($upload->status, 'document_status') ?: 'Uploaded',
             };
+        } elseif ($req->is_required) {
+            $bucket = 'missing';
+            $statusLabel = 'Missing';
         }
 
         return [
@@ -158,7 +208,7 @@
                 default => 'bg-gray-100 text-gray-600',
             },
             'statusLabel' => $statusLabel,
-            'from_profile' => $isSubjectPanel,
+            'from_profile' => $fromProfile,
         ];
     })->values();
 
@@ -188,58 +238,11 @@
         ->groupBy(fn ($row) => $row['category']['key'])
         ->sortBy(fn ($group) => $group->first()['category']['order'] ?? 99);
 
-    $libraryTitle = $isMemberSubject
-        ? 'Member document library'
-        : ($isGuarantorSubject ? 'Guarantor document library' : 'Borrower document library');
+    $libraryTitle = 'Document library';
     $libraryByCategory = $profileDocs
         ->groupBy(fn ($doc) => strtolower((string) ($doc->documentType?->category ?: 'kyc')))
         ->sortKeys();
 
-    $docRequestService = app(\App\Services\ApplicationDocumentRequestService::class);
-    $documentRequestsForPanel = collect($documentRequests ?? []);
-    // Always scope Requested to the person on screen (leader included).
-    // Leader used to show every open request on the application — that made
-    // leader/member Documents look like different products.
-    $subjectCustomerId = (int) ($review['customer']->id ?? 0);
-    $memberId = (int) ($review['member_row']['id'] ?? 0);
-    $documentRequestsForPanel = $documentRequestsForPanel->filter(function ($req) use (
-        $subjectCustomerId,
-        $memberId,
-        $isMemberSubject,
-        $isGuarantorSubject,
-        $record
-    ) {
-        $kind = (string) ($req->subject_kind ?? 'borrower');
-        $reqCustomerId = (int) ($req->subject_customer_id ?? 0);
-        $reqMemberId = (int) ($req->loan_group_member_id ?? 0);
-
-        if ($isMemberSubject) {
-            if ($memberId > 0 && $reqMemberId === $memberId) {
-                return true;
-            }
-
-            return $kind === 'member'
-                && $subjectCustomerId > 0
-                && $reqCustomerId === $subjectCustomerId;
-        }
-
-        if ($isGuarantorSubject) {
-            return $kind === 'guarantor'
-                && ($subjectCustomerId <= 0 || $reqCustomerId === $subjectCustomerId);
-        }
-
-        // Leader / primary borrower: only borrower-targeted requests.
-        if (in_array($kind, ['member', 'guarantor'], true)) {
-            return false;
-        }
-
-        if ($reqCustomerId > 0 && $subjectCustomerId > 0) {
-            return $reqCustomerId === $subjectCustomerId;
-        }
-
-        return $reqCustomerId === 0
-            || $reqCustomerId === (int) ($record->customer_id ?? 0);
-    })->values();
     $isLoanFileRequest = fn ($req) => ! $docRequestService->isProfileGuidedRequest($req);
     $loanRequestsForPanel = $documentRequestsForPanel->filter($isLoanFileRequest)->values();
     $profileRequestsForPanel = $documentRequestsForPanel->reject($isLoanFileRequest)->values();
@@ -260,13 +263,8 @@
         ->take(4)
         ->values();
 
-    // Subject panels: Requests first, then Library (profile evidence). Leader: Checklist when action needed.
-    $defaultPanel = match (true) {
-        $openRequestCount > 0 => 'requests',
-        $isSubjectPanel => ($counts['uploaded'] > 0 || $counts['missing'] > 0 ? 'checklist' : 'library'),
-        $counts['uploaded'] > 0 || $counts['action'] > 0 || $counts['missing'] > 0 => 'checklist',
-        default => 'library',
-    };
+    // Same landing tab for every person so screening does not swap layouts.
+    $defaultPanel = 'checklist';
 @endphp
 
 <div
@@ -285,10 +283,15 @@
             this.filter = 'missing';
             this.openId = null;
         },
-        showRequests() {
+        showRequests(openComposer = false) {
             this.panel = 'requests';
             this.openId = null;
             this.$nextTick(() => {
+                if (openComposer) {
+                    window.dispatchEvent(new CustomEvent('kf-open-doc-composer'));
+                    document.getElementById('request-more-documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                }
                 document.getElementById('review-document-pipeline')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         }
@@ -300,6 +303,9 @@
                     <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Documents</p>
                     <h2 class="text-sm font-semibold text-white mt-0.5">{{ $evidenceTitle }}</h2>
                     <p class="text-xs text-white/75 mt-0.5">
+                        @if ($isSubjectPanel && $subjectName)
+                            {{ $subjectName }} ·
+                        @endif
                         {{ $satisfiedDocsCount }}/{{ $requiredDocsCount }} required verified
                         @if ($counts['uploaded'] > 0)
                             · <span class="text-brand-gold font-semibold">{{ $counts['uploaded'] }} to verify</span>
@@ -437,10 +443,8 @@
                                         $guidance = $row['guidance'];
                                     @endphp
                                     <div x-show="match(@js($row['bucket']))" class="bg-white">
-                                        <button type="button"
-                                                class="w-full px-3.5 py-3.5 flex items-center gap-3 text-left hover:bg-brand-muted/20 transition"
-                                                @click="openId = openId === {{ (int) $req->id }} ? null : {{ (int) $req->id }}">
-                                            <div class="shrink-0 w-12 h-12 rounded-lg overflow-hidden ring-1 ring-brand/10 bg-gray-50 flex items-center justify-center">
+                                        <div class="w-full px-3.5 py-3.5 flex items-center gap-3">
+                                            <div class="shrink-0 w-12 h-12 rounded-lg overflow-hidden ring-1 ring-brand/10 bg-gray-50 flex items-center justify-center [&_button]:!w-full [&_button]:!h-full [&_button]:!rounded-lg">
                                                 @if ($upload?->file_path)
                                                     <x-admin.document-preview
                                                         :url="asset('storage/'.$upload->file_path)"
@@ -450,23 +454,27 @@
                                                     <span class="text-[10px] font-bold uppercase tracking-wide text-rose-500">Missing</span>
                                                 @endif
                                             </div>
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex flex-wrap items-center gap-1.5">
-                                                    <p class="text-sm font-semibold text-gray-900 truncate">{{ $req->name }}</p>
-                                                    <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold {{ $row['badgeMap'] }}">{{ $row['statusLabel'] }}</span>
-                                                    @if ($req->is_required)
-                                                        <span class="text-[10px] uppercase tracking-widest font-semibold text-gray-400">Req</span>
+                                            <button type="button"
+                                                    class="min-w-0 flex-1 flex items-center gap-3 text-left hover:bg-brand-muted/20 rounded-lg px-1 py-0.5 -mx-1 transition"
+                                                    @click="openId = openId === {{ (int) $req->id }} ? null : {{ (int) $req->id }}">
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex flex-wrap items-center gap-1.5">
+                                                        <p class="text-sm font-semibold text-gray-900 truncate">{{ $req->name }}</p>
+                                                        <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold {{ $row['badgeMap'] }}">{{ $row['statusLabel'] }}</span>
+                                                        @if ($req->is_required)
+                                                            <span class="text-[10px] uppercase tracking-widest font-semibold text-gray-400">Req</span>
+                                                        @endif
+                                                    </div>
+                                                    @if ($req->description)
+                                                        <p class="text-[11px] text-gray-500 mt-0.5 truncate">{{ $req->description }}</p>
                                                     @endif
                                                 </div>
-                                                @if ($req->description)
-                                                    <p class="text-[11px] text-gray-500 mt-0.5 truncate">{{ $req->description }}</p>
-                                                @endif
-                                            </div>
-                                            <span class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand/70">
-                                                <span x-text="openId === {{ (int) $req->id }} ? 'Collapse' : 'Expand'"></span>
-                                                <svg class="size-5 text-brand/60 transition" :class="openId === {{ (int) $req->id }} ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
-                                            </span>
-                                        </button>
+                                                <span class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand/70">
+                                                    <span x-text="openId === {{ (int) $req->id }} ? 'Collapse' : 'Expand'"></span>
+                                                    <svg class="size-5 text-brand/60 transition" :class="openId === {{ (int) $req->id }} ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
+                                                </span>
+                                            </button>
+                                        </div>
 
                                         <div x-show="openId === {{ (int) $req->id }}" x-cloak class="px-3.5 pb-4 space-y-3 border-t border-brand/5 bg-gradient-to-b from-brand-muted/20 to-white">
                                             @if (! empty($guidance['items']))

@@ -153,7 +153,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Security and close', $documents);
         $this->assertStringContainsString('Pass / Fail checks', $documents);
         $this->assertStringContainsString('Application evidence', $documents);
-        $this->assertStringContainsString('Borrower document library', $documents);
+        $this->assertStringContainsString('Document library', $documents);
         $this->assertStringContainsString('Request documents', $documents);
         $this->assertStringContainsString('Checklist', $documents);
         $this->assertStringContainsString('Requested', $documents);
