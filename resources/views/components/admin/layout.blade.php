@@ -40,6 +40,7 @@
             ['— Credit committee —', '__group__'],
             ['Committee home',        'admin.teams.committee'],
             ['Credit committee',      'admin.loan-applications.pre-approvals'],
+            ['System sorted',         'admin.loan-applications.pipeline.system-sorted'],
             ['— Credit management —', '__group__'],
             ['Management home',       'admin.teams.management'],
             ['Management queue',      'admin.loan-applications.pipeline.approved'],
@@ -165,8 +166,9 @@
 
     $filterNavItems = function (array $items) use ($permissionService) {
         $departmentAccess = app(\App\Services\DepartmentAccessService::class);
+        $role = (string) (auth()->user()?->role ?? '');
 
-        return array_values(array_filter($items, function (array $item) use ($permissionService, $departmentAccess) {
+        return array_values(array_filter($items, function (array $item) use ($permissionService, $departmentAccess, $role) {
             if (($item[1] ?? '') === '__group__') {
                 return true;
             }
@@ -179,6 +181,10 @@
             }
 
             if (auth()->check() && ! $departmentAccess->canAccessRoute(auth()->user(), $route)) {
+                return false;
+            }
+
+            if ($role === 'manager' && $route === 'admin.loan-applications.pipeline.system-sorted') {
                 return false;
             }
 

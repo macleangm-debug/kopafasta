@@ -106,10 +106,7 @@
             </div>
             <div class="flex flex-wrap gap-2 shrink-0">
                 @php
-                    $canManageCapacity = auth()->user()
-                        && ! in_array((string) auth()->user()->role, ['credit_analyst'], true)
-                        && (auth()->user()->hasPermission('applications.reject')
-                            || in_array((string) auth()->user()->role, ['admin', 'super_admin', 'manager'], true));
+                    $canManageCapacity = $capacityAutoReject->canAct(auth()->user());
                 @endphp
                 @if ($canManageCapacity)
                     <form method="POST" action="{{ route('admin.loan-applications.capacity-auto-reject.fire', $record) }}">
@@ -125,7 +122,7 @@
                         </button>
                     </form>
                 @else
-                    <p class="text-xs font-semibold text-amber-900/80 self-center">View only — management confirms Send now / Keep in screening.</p>
+                    <p class="text-xs font-semibold text-amber-900/80 self-center">View only — credit committee confirms Send now / Keep in screening.</p>
                 @endif
             </div>
         </div>

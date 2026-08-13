@@ -19,6 +19,7 @@ use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -289,19 +290,7 @@ class LoanApplicationController extends ResourceController
 
     private function canManageCapacityAutoReject(): bool
     {
-        $user = auth()->user();
-        if (! $user) {
-            return false;
-        }
-
-        // Screening analysts may view; only management / reject permission holders act.
-        if (in_array((string) $user->role, ['credit_analyst'], true)
-            && ! in_array((string) $user->role, ['admin', 'super_admin', 'manager'], true)) {
-            return false;
-        }
-
-        return $user->hasPermission('applications.reject')
-            || in_array((string) $user->role, ['admin', 'super_admin', 'manager'], true);
+        return app(\App\Services\CapacityAutoRejectService::class)->canAct(auth()->user());
     }
 
     public function assignAnalyst(Request $request, LoanApplication $loan_application): RedirectResponse
@@ -595,19 +584,31 @@ class LoanApplicationController extends ResourceController
             }
 
             if ($data['action'] === 'submit_recommendation') {
-                $offerService->submitRecommendation(
-                    $loan_application,
-                    auth()->user(),
-                    (string) $data['recommendation_type'],
-                    isset($data['recommended_amount']) ? (float) $data['recommended_amount'] : null,
-                    isset($data['offered_tenure_months']) ? (int) $data['offered_tenure_months'] : null,
-                    $data['remarks'] ?? null,
-                    null,
-                    $data['recommendation_rationale'] ?? null,
-                    $data['screening_rejection_reason_code'] ?? null,
-                    $data['recommendation_notes'] ?? null,
-                );
-                $loan_application->refresh();
+                DB::transaction(function () use ($workflow, $offerService, $loan_application, $data) {
+                    $workflow->assertScreeningDocumentsReady($loan_application);
+                    $offerService->submitRecommendation(
+                        $loan_application,
+                        auth()->user(),
+                        (string) $data['recommendation_type'],
+                        isset($data['recommended_amount']) ? (float) $data['recommended_amount'] : null,
+                        isset($data['offered_tenure_months']) ? (int) $data['offered_tenure_months'] : null,
+                        $data['remarks'] ?? null,
+                        null,
+                        $data['recommendation_rationale'] ?? null,
+                        $data['screening_rejection_reason_code'] ?? null,
+                        $data['recommendation_notes'] ?? null,
+                    );
+                    $workflow->transition(
+                        $loan_application->fresh(),
+                        auth()->user(),
+                        'submit_recommendation',
+                        $data['remarks'] ?? null,
+                    );
+                });
+
+                return redirect()
+                    ->route("{$this->routePrefix}.show", $loan_application)
+                    ->with('status', (LoanApplicationWorkflowService::ACTIONS['submit_recommendation']['label'] ?? 'Action').' completed successfully.');
             }
 
             if ($data['action'] === 'suggest_asset_alternative') {

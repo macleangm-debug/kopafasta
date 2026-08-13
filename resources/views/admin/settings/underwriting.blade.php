@@ -88,12 +88,12 @@
                     <input type="checkbox" name="enable_capacity_auto_reject" value="1"
                            @checked(! isset($values['enable_capacity_auto_reject']) || ! empty($values['enable_capacity_auto_reject']))
                            class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
-                    <span class="text-gray-800">Auto-park &amp; reject when repayment capacity fails (screening does not work these)</span>
+                    <span class="text-gray-800">Auto-park &amp; reject when repayment capacity fails (screening does not work these; committee owns the 12-hour window)</span>
                 </label>
                 <x-admin.input name="capacity_auto_reject_delay_hours" label="Capacity auto-reject delay (hours)" type="number"
                                :value="$values['capacity_auto_reject_delay_hours'] ?? 12" required />
                 <p class="text-xs text-gray-500 md:col-span-2 -mt-2">
-                    After submit, capacity-fail applications are marked “system sorted” on the screening list. Feedback (with ask amount, installment, and capacity numbers) is sent to the borrower when this delay elapses. Default 12 hours.
+                    After submit, capacity-fail applications are marked “system sorted.” Credit committee can send the rejection early or keep the file in screening during this delay. Credit management does not work this queue. Default 12 hours.
                 </p>
             </div>
         </div>

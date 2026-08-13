@@ -273,7 +273,10 @@
         ->values();
 
     // Same landing tab for every person so screening does not swap layouts.
-    $defaultPanel = 'checklist';
+    $defaultPanel = (string) request('docs_panel', 'checklist');
+    if (! in_array($defaultPanel, ['checklist', 'requests', 'library'], true)) {
+        $defaultPanel = 'checklist';
+    }
 @endphp
 
 <div

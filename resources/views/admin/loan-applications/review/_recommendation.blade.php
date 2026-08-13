@@ -14,8 +14,19 @@
     $viewer = auth()->user();
     $canReview = (bool) ($viewer?->hasPermission('applications.review'));
     $screeningActions = collect($availableActions ?? []);
-    $canPushRecommendation = $isCreditStage && $canReview && empty($rec['type']);
+    $canPushRecommendation = $isCreditStage && $canReview;
     $hasScreeningActions = $screeningActions->isNotEmpty() || $canPushRecommendation;
+    $draftRec = $isCreditStage && ! empty($rec['type']);
+    $docBlockers = $isCreditStage
+        ? app(\App\Services\LoanApplicationWorkflowService::class)->screeningDocumentBlockers($record)
+        : [];
+    $docsUrl = route('admin.loan-applications.show', [
+        'loan_application' => $record,
+        'workspace' => 'checklist',
+        'desk_phase' => 'capacity',
+        'capacity_tab' => 'documents',
+        'docs_panel' => 'requests',
+    ]).'#review-documents';
 @endphp
 
 <div id="review-recommendation" class="scroll-mt-24 mb-2 space-y-4">
@@ -27,7 +38,7 @@
         'ring-brand/10' => ! $isCreditStage,
     ])>
         <div @class([
-            'px-5 sm:px-6 py-4 border-b flex flex-wrap items-start justify-between gap-3',
+            'px-4 sm:px-5 py-3 border-b flex flex-wrap items-start justify-between gap-2',
             'border-brand-gold/30 bg-gradient-to-r from-brand-gold/20 to-white' => $isCreditStage,
             'border-brand/10 bg-gradient-to-r from-brand-muted/50 to-white' => ! $isCreditStage,
         ])>
@@ -42,7 +53,11 @@
                 @if ($isCreditStage)
                     <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold text-brand ring-1 ring-brand/20">Decide here</span>
                 @endif
-                @if (! empty($rec['type']))
+                @if ($draftRec)
+                    <span class="text-xs font-semibold rounded-full px-3 py-1 bg-amber-100 text-amber-950">
+                        Draft · not pushed
+                    </span>
+                @elseif (! empty($rec['type']))
                     <span class="text-xs font-semibold rounded-full px-3 py-1 bg-emerald-100 text-emerald-800">
                         Rec: {{ str_replace('_', ' ', ucfirst($rec['type'])) }}
                     </span>
@@ -50,8 +65,8 @@
             </div>
         </div>
 
-        <div class="p-5 sm:p-6">
-            <dl class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-3">
+        <div class="p-4 sm:p-5">
+            <dl class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm mb-3">
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                     <dt class="text-[10px] uppercase tracking-widest text-gray-500">Requested</dt>
                     <dd class="font-bold text-gray-900 mt-1">{{ format_money((float) $record->requested_amount) }}</dd>
@@ -89,10 +104,37 @@
                 </div>
             </dl>
 
+            @if ($docBlockers !== [])
+                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm mb-3">
+                    <p class="font-semibold text-amber-950">Cannot push to committee yet</p>
+                    <p class="text-xs text-amber-900 mt-1">
+                        {{ count($docBlockers) }} document{{ count($docBlockers) === 1 ? '' : 's' }} still missing or waiting on the borrower.
+                        Screening sees them under <span class="font-semibold">Review checklist → Docs</span>
+                        (Requested for follow-ups, Checklist for product files). Not on Profiles.
+                    </p>
+                    <ul class="mt-2 space-y-0.5 text-xs text-amber-950">
+                        @foreach (array_slice($docBlockers, 0, 6) as $blocker)
+                            <li>{{ $blocker }}</li>
+                        @endforeach
+                    </ul>
+                    <a href="{{ $docsUrl }}" class="mt-2 inline-flex text-xs font-bold text-brand underline underline-offset-2">
+                        Open Docs
+                    </a>
+                </div>
+            @endif
+
             @if (! empty($rec['type']))
-                <div class="rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-3 text-sm mb-3">
-                    <p class="font-semibold text-brand">
-                        Recommendation on file:
+                <div @class([
+                    'rounded-xl ring-1 px-4 py-3 text-sm mb-3',
+                    'bg-amber-50 ring-amber-200' => $draftRec,
+                    'bg-brand-muted/60 ring-brand/15' => ! $draftRec,
+                ])>
+                    <p @class(['font-semibold', 'text-amber-950' => $draftRec, 'text-brand' => ! $draftRec])>
+                        @if ($draftRec)
+                            Draft on file — not pushed to committee:
+                        @else
+                            Recommendation on file:
+                        @endif
                         <span class="capitalize">{{ str_replace('_', ' ', $rec['type']) }}</span>
                     </p>
                     @if (! empty($rec['rationale_label']))
@@ -119,9 +161,9 @@
                 @php $autoReject = app(\App\Services\UnderwritingSettingsService::class)->automaticRejectionEnabled(); @endphp
                 <p class="text-sm text-red-700 bg-red-50 ring-1 ring-red-100 rounded-lg px-4 py-3 mb-3">
                     @if ($autoReject)
-                        Affordability failed at requested amount — reject the application or request documents on the Documents tab.
+                        Affordability failed at requested amount — reject the application or request documents on Review checklist → Docs.
                     @else
-                        Affordability failed — use <span class="font-semibold">Record decision</span> for a counter-offer, or request documents on the Documents tab.
+                        Affordability failed — use <span class="font-semibold">Record decision</span> for a counter-offer, or request documents on Review checklist → Docs.
                     @endif
                 </p>
             @elseif ($isCreditStage)
@@ -146,7 +188,7 @@
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-widest text-brand">Your decision</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Approve or counter pushes to committee. Reject closes the file. Need files? Request them on the Documents tab.</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Approve or counter pushes to committee. Reject closes the file. Need files? Review checklist → Docs.</p>
                         </div>
                         <a href="{{ route('admin.teams.screening') }}"
                            class="text-xs font-semibold text-brand hover:underline">
@@ -178,7 +220,7 @@
                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 2 · Credit committee</p>
                 <h3 class="text-base font-bold text-gray-900 mt-0.5">Record the committee decision</h3>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Compare CRB vs screening above, then issue an offer, final-approve, or reject. Request any missing files on the Documents tab.
+                    Compare CRB vs screening above, then issue an offer, final-approve, or reject. Request any missing files on Review checklist → Docs.
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">

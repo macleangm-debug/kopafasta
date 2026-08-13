@@ -7,6 +7,14 @@
         'approved'       => ['Management queue', 'admin.loan-applications.pipeline.approved'],
         'disbursement'   => ['Release queue', 'admin.loan-applications.pipeline.disbursement'],
     ];
+    $role = (string) (auth()->user()?->role ?? '');
+    if ($role === 'manager') {
+        $tabs = array_intersect_key($tabs, array_flip(['approved', 'disbursement']));
+    } elseif ($role === 'credit_committee') {
+        $tabs = array_intersect_key($tabs, array_flip(['system_sorted', 'committee']));
+    } elseif ($role === 'credit_analyst') {
+        $tabs = array_intersect_key($tabs, array_flip(['under_review', 'system_sorted']));
+    }
 @endphp
 <nav class="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-3">
     @foreach ($tabs as $key => [$label, $route])

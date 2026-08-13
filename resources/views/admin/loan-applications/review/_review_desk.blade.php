@@ -109,6 +109,9 @@
     if (! in_array($defaultCapacityTab, ['checks', 'documents', 'affordability', 'crb'], true)) {
         $defaultCapacityTab = 'checks';
     }
+    if (in_array($defaultCapacityTab, ['documents', 'affordability', 'crb'], true)) {
+        $defaultPhase = 'capacity';
+    }
     $defaultSecurityTab = (string) request('security_tab', 'checks');
     if (! in_array($defaultSecurityTab, ['checks', 'group', 'wrapup'], true)) {
         $defaultSecurityTab = 'checks';

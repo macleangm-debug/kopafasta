@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDocumentRequest;
 use App\Models\LoanProduct;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -121,8 +122,10 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Your decision', $screening);
         $this->assertStringContainsString('Record decision', $screening);
         $this->assertStringContainsString('Record your decision', $screening);
-        $this->assertStringContainsString('Why are you approving this application?', $screening);
+        $this->assertStringContainsString('Why are you approving?', $screening);
         $this->assertStringContainsString('Push to Committee', $screening);
+        $this->assertStringContainsString('Review checklist → Docs', $screening);
+        $this->assertStringNotContainsString('Need files? Request them on the Documents tab.', $screening);
         $this->assertStringNotContainsString('Who you are reviewing', $screening);
         $this->assertStringNotContainsString('Preferred reject reason', $screening);
         $this->assertStringNotContainsString('Return for documents', $screening);
@@ -221,5 +224,50 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringNotContainsString('Capital partner funds', $html);
         $this->assertStringNotContainsString('Override amount', $html);
         $this->assertStringNotContainsString('Waive fee', $html);
+    }
+
+    public function test_decision_desk_points_to_docs_and_marks_unstaged_recommendation_as_draft(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'screening');
+
+        foreach (['National ID (front)', 'Business licence', 'Proof of residence'] as $label) {
+            LoanApplicationDocumentRequest::create([
+                'loan_application_id' => $app->id,
+                'requested_by' => $admin->id,
+                'label' => $label,
+                'type' => 'document',
+                'status' => 'pending',
+            ]);
+        }
+
+        $decision = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'decision']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Cannot push to committee yet', $decision);
+        $this->assertStringContainsString('Review checklist → Docs', $decision);
+        $this->assertStringContainsString('Cannot approve until these documents are in', $decision);
+        $this->assertStringContainsString('National ID (front)', $decision);
+        $this->assertStringContainsString('docs_panel=requests', $decision);
+        $this->assertStringContainsString('capacity_tab=documents', $decision);
+        $this->assertStringNotContainsString('Who you are reviewing', $decision);
+
+        $app->forceFill([
+            'recommendation_type' => 'approve',
+            'recommended_amount' => 800_000,
+            'recommended_at' => now(),
+            'recommended_by' => $admin->id,
+        ])->save();
+
+        $draft = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'decision']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Draft · not pushed', $draft);
+        $this->assertStringContainsString('Draft on file — not pushed to committee', $draft);
+        $this->assertStringNotContainsString('Recommendation on file:', $draft);
     }
 }

@@ -35,6 +35,10 @@ class CreditTeamWorkspaceController extends Controller
                 ->where('current_stage', 'pre_approval')
                 ->whereNotNull('recommendation_type')
                 ->count(),
+            'system_sorted' => LoanApplication::query()
+                ->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
+                ->where('screening_payload->capacity_auto_reject->status', \App\Services\CapacityAutoRejectService::STATUS_PENDING)
+                ->count(),
         ];
 
         return view('admin.teams.committee', compact('counts'));

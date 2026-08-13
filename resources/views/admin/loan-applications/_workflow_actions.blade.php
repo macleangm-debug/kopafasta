@@ -102,6 +102,15 @@
                             $crbRecLabel = strtoupper((string) ($review['crb']['recommendation'] ?? data_get($review, 'crb.recommendation', '—')));
                             $adviceOptions = $rejectionAdviceOptions
                                 ?? app(\App\Services\LoanRejectionReasonService::class)->adviceOptions();
+                            $docBlockers = app(\App\Services\LoanApplicationWorkflowService::class)
+                                ->screeningDocumentBlockers($record);
+                            $docsUrl = route('admin.loan-applications.show', array_filter([
+                                'loan_application' => $record,
+                                'workspace' => 'checklist',
+                                'desk_phase' => 'capacity',
+                                'capacity_tab' => 'documents',
+                                'docs_panel' => $docBlockers === [] ? null : 'requests',
+                            ])).'#review-documents';
                         @endphp
                         <button type="button"
                                 data-open-dialog="recommend-{{ $record->id }}"
@@ -109,15 +118,18 @@
                             Record decision
                         </button>
                         <dialog id="recommend-{{ $record->id }}"
-                                class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-xl p-0 backdrop:bg-brand/40 open:flex open:flex-col"
+                                class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-md p-0 backdrop:bg-brand/40 open:flex open:flex-col"
                                 x-data="{
                                     decision: '{{ $oldDecision }}',
                                     advice: '{{ old('rejection_advice_code', '') }}',
                                     counterEnabled: {{ $counterEnabled ? 'true' : 'false' }},
                                     affordPass: {{ $affordPass ? 'true' : 'false' }},
+                                    docsReady: {{ $docBlockers === [] ? 'true' : 'false' }},
                                     get action() { return this.decision === 'reject' ? 'reject' : 'submit_recommendation' },
                                     get canSubmit() {
                                         if (!this.decision) return false;
+                                        if (this.decision === 'reject') return true;
+                                        if (!this.docsReady) return false;
                                         if (this.decision === 'approve' && !this.affordPass && {{ $autoReject ? 'true' : 'false' }}) return false;
                                         if (this.decision === 'counter' && !this.counterEnabled) return false;
                                         return true;
@@ -127,69 +139,80 @@
                                     x-init="$nextTick(() => { $el.showModal() })"
                                 @endif
                                 >
-                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="max-h-[90vh] overflow-y-auto">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="max-h-[85vh] overflow-y-auto">
                                 @csrf
                                 <input type="hidden" name="action" :value="action">
                                 <input type="hidden" name="recommendation_type" :value="decision === 'reject' ? '' : decision">
 
-                                <div class="px-6 pt-6 pb-5 bg-gradient-to-br from-brand via-brand to-brand-light text-white">
+                                <div class="px-4 pt-4 pb-3 bg-gradient-to-br from-brand via-brand to-brand-light text-white">
                                     <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Screening desk</p>
-                                    <h4 class="text-xl font-bold mt-1">Record your decision</h4>
-                                    <p class="text-sm text-white/75 mt-1.5">
-                                        Approve or counter moves this file to committee. Reject closes it for the borrower.
+                                    <h4 class="text-lg font-bold mt-0.5">Record your decision</h4>
+                                    <p class="text-xs text-white/75 mt-1">
+                                        Approve or counter moves this file to committee. Reject closes it.
                                     </p>
-                                    <div class="mt-4 flex flex-wrap gap-2 text-[11px]">
-                                        <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">
+                                    <div class="mt-2.5 flex flex-wrap gap-1.5 text-[11px]">
+                                        <span class="inline-flex items-center rounded-full bg-white/10 px-2.5 py-0.5 ring-1 ring-white/20">
                                             Requested {{ format_money((float) $record->requested_amount) }}
                                         </span>
-                                        <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">
+                                        <span class="inline-flex items-center rounded-full bg-white/10 px-2.5 py-0.5 ring-1 ring-white/20">
                                             CRB {{ $crbRecLabel }}
                                         </span>
-                                        @if ($counterEnabled)
-                                            <span class="inline-flex items-center rounded-full bg-brand-gold/20 text-brand-gold px-3 py-1 ring-1 ring-brand-gold/40">
-                                                Counter enabled
-                                            </span>
-                                        @endif
                                     </div>
                                 </div>
 
-                                <div class="p-6 space-y-5">
+                                <div class="p-4 space-y-3">
+                                    @if ($docBlockers !== [])
+                                        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5">
+                                            <p class="text-xs font-semibold text-amber-950">Cannot approve until these documents are in</p>
+                                            <ul class="mt-1.5 space-y-0.5 text-[11px] text-amber-900">
+                                                @foreach (array_slice($docBlockers, 0, 6) as $blocker)
+                                                    <li>{{ $blocker }}</li>
+                                                @endforeach
+                                            </ul>
+                                            <a href="{{ $docsUrl }}"
+                                               class="mt-2 inline-flex text-[11px] font-bold text-brand underline underline-offset-2">
+                                                Open Review checklist → Docs
+                                            </a>
+                                        </div>
+                                    @endif
+
                                     @if (! $affordPass && $autoReject)
-                                        <p class="text-sm text-red-800 bg-red-50 ring-1 ring-red-100 rounded-xl px-4 py-3">
-                                            Affordability failed — approval at the requested amount is blocked. Reject, or request documents on the Documents tab.
+                                        <p class="text-xs text-red-800 bg-red-50 ring-1 ring-red-100 rounded-xl px-3 py-2">
+                                            Affordability failed — approval at the requested amount is blocked. Reject, or request files on Review checklist → Docs.
                                         </p>
                                     @elseif (! $affordPass && $counterEnabled)
-                                        <p class="text-sm text-amber-950 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3">
+                                        <p class="text-xs text-amber-950 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">
                                             Affordability failed at the requested amount — use Counter-offer or Reject.
                                         </p>
                                     @elseif (! $affordPass)
-                                        <p class="text-sm text-amber-950 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3">
-                                            Affordability failed and counter-offers are disabled — Reject, or request documents on the Documents tab.
+                                        <p class="text-xs text-amber-950 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">
+                                            Affordability failed and counter-offers are disabled — Reject, or request files on Review checklist → Docs.
                                         </p>
                                     @endif
 
                                     <div>
-                                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">Decision</p>
+                                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-1.5">Decision</p>
                                         <div @class([
-                                            'grid grid-cols-1 gap-2',
+                                            'grid grid-cols-1 gap-1.5',
                                             'sm:grid-cols-3' => $counterEnabled,
                                             'sm:grid-cols-2' => ! $counterEnabled,
                                         ])>
                                             <button type="button" @click="decision = 'approve'"
-                                                    :disabled="!affordPass && {{ $autoReject ? 'true' : 'false' }}"
+                                                    :disabled="(!affordPass && {{ $autoReject ? 'true' : 'false' }}) || !docsReady"
                                                     :class="decision === 'approve'
                                                         ? 'bg-emerald-600 text-white ring-emerald-600 shadow-sm'
                                                         : 'bg-white text-gray-800 ring-gray-200 hover:bg-emerald-50'"
-                                                    class="rounded-xl px-3 py-3 text-left ring-1 transition disabled:opacity-40">
+                                                    class="rounded-lg px-3 py-2 text-left ring-1 transition disabled:opacity-40">
                                                 <span class="block text-sm font-bold">Approve</span>
                                                 <span class="block text-[11px] mt-0.5 opacity-80">At {{ format_money((float) $record->requested_amount) }}</span>
                                             </button>
                                             @if ($counterEnabled)
                                                 <button type="button" @click="decision = 'counter'"
+                                                        :disabled="!docsReady"
                                                         :class="decision === 'counter'
                                                             ? 'bg-amber-500 text-white ring-amber-500 shadow-sm'
                                                             : 'bg-white text-gray-800 ring-gray-200 hover:bg-amber-50'"
-                                                        class="rounded-xl px-3 py-3 text-left ring-1 transition">
+                                                        class="rounded-lg px-3 py-2 text-left ring-1 transition disabled:opacity-40">
                                                     <span class="block text-sm font-bold">Counter</span>
                                                     <span class="block text-[11px] mt-0.5 opacity-80">
                                                         @if ($maxCounter > 0)
@@ -204,7 +227,7 @@
                                                     :class="decision === 'reject'
                                                         ? 'bg-rose-600 text-white ring-rose-600 shadow-sm'
                                                         : 'bg-white text-gray-800 ring-gray-200 hover:bg-rose-50'"
-                                                    class="rounded-xl px-3 py-3 text-left ring-1 transition">
+                                                    class="rounded-lg px-3 py-2 text-left ring-1 transition">
                                                 <span class="block text-sm font-bold">Reject</span>
                                                 <span class="block text-[11px] mt-0.5 opacity-80">Close the application</span>
                                             </button>
@@ -229,29 +252,27 @@
                                         </div>
                                     </div>
 
-                                    <div x-show="decision === 'approve' || decision === 'counter'" x-cloak class="space-y-4">
-                                        <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3 text-xs text-brand">
-                                            CRB alignment is calculated automatically from the bureau suggestion
-                                            (<span class="font-semibold">({{ $crbRecLabel }})</span>
-                                            — you only need to answer why you are taking this decision.
-                                        </div>
+                                    <div x-show="decision === 'approve' || decision === 'counter'" x-cloak class="space-y-2.5">
+                                        <p class="text-[11px] text-brand bg-brand-muted/40 ring-1 ring-brand/10 rounded-lg px-3 py-2">
+                                            CRB is {{ $crbRecLabel }} — write why you are taking this decision.
+                                        </p>
                                         <div>
-                                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">
-                                                <span x-text="decision === 'counter' ? 'Why are you recommending this counter-offer?' : 'Why are you approving this application?'"></span>
+                                            <label class="block text-xs font-semibold text-gray-700 mb-1">
+                                                <span x-text="decision === 'counter' ? 'Why this counter-offer?' : 'Why are you approving?'"></span>
                                                 <span class="text-red-500">*</span>
                                             </label>
-                                            <textarea name="remarks" rows="3" maxlength="1000"
+                                            <textarea name="remarks" rows="2" maxlength="1000"
                                                       :disabled="decision !== 'approve' && decision !== 'counter'"
                                                       :required="decision === 'approve' || decision === 'counter'"
-                                                      placeholder="Write your reason for the committee…"
-                                                      class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">{{ old('remarks') }}</textarea>
+                                                      placeholder="Reason for committee…"
+                                                      class="w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2 focus:ring-2 focus:ring-brand/30">{{ old('remarks') }}</textarea>
                                         </div>
                                         <div>
-                                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Additional notes <span class="font-normal text-gray-400">(optional)</span></label>
-                                            <textarea name="recommendation_notes" rows="2" maxlength="1000"
+                                            <label class="block text-xs font-semibold text-gray-700 mb-1">Notes <span class="font-normal text-gray-400">(optional)</span></label>
+                                            <textarea name="recommendation_notes" rows="1" maxlength="1000"
                                                       :disabled="decision !== 'approve' && decision !== 'counter'"
-                                                      placeholder="Anything else the committee should know…"
-                                                      class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">{{ old('recommendation_notes') }}</textarea>
+                                                      placeholder="Anything else for committee…"
+                                                      class="w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2 focus:ring-2 focus:ring-brand/30">{{ old('recommendation_notes') }}</textarea>
                                         </div>
                                     </div>
 
@@ -279,15 +300,15 @@
                                     </div>
                                 </div>
 
-                                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex flex-wrap items-center justify-end gap-2">
+                                <div class="px-4 py-3 border-t border-gray-100 bg-gray-50/80 flex flex-wrap items-center justify-end gap-2">
                                     <button type="button" data-close-dialog="recommend-{{ $record->id }}"
-                                            class="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-xl">
+                                            class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg">
                                         Cancel
                                     </button>
                                     <button type="submit"
                                             :disabled="!canSubmit || !decision"
-                                            class="inline-flex items-center justify-center min-w-[12rem] bg-brand-gold hover:brightness-95 disabled:opacity-40 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm">
-                                        Push to Committee
+                                            class="inline-flex items-center justify-center min-w-[10rem] bg-brand-gold hover:brightness-95 disabled:opacity-40 text-brand font-bold text-sm px-4 py-2 rounded-lg shadow-sm">
+                                        <span x-text="decision === 'reject' ? 'Confirm reject' : 'Push to Committee'"></span>
                                     </button>
                                 </div>
                             </form>

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDocumentRequest;
 use App\Models\LoanProduct;
 use App\Models\Setting;
 use App\Models\User;
@@ -160,5 +161,73 @@ class CreditCommitteeWorkflowFeatureTest extends TestCase
 
         $this->assertNotContains('complete_screening', $actions);
         $this->assertContains('submit_recommendation', $actions);
+    }
+
+    public function test_submit_recommendation_does_not_persist_when_requested_documents_are_open(): void
+    {
+        $branch = $this->branch();
+        $analyst = User::factory()->create([
+            'role' => 'admin',
+            'branch_id' => $branch->id,
+            'is_active' => true,
+        ]);
+        $application = $this->application($analyst, [
+            'current_stage' => 'screening',
+            'status' => 'under_review',
+            'recommendation_type' => null,
+            'recommended_amount' => null,
+        ]);
+
+        foreach (['National ID (front)', 'Business licence', 'Proof of residence'] as $label) {
+            LoanApplicationDocumentRequest::create([
+                'loan_application_id' => $application->id,
+                'requested_by' => $analyst->id,
+                'label' => $label,
+                'type' => 'document',
+                'status' => 'pending',
+            ]);
+        }
+
+        $this->actingAs($analyst, 'admin')
+            ->from(route('admin.loan-applications.show', ['loan_application' => $application, 'workspace' => 'decision']))
+            ->post(route('admin.loan-applications.workflow', $application), [
+                'action' => 'submit_recommendation',
+                'recommendation_type' => 'approve',
+                'remarks' => 'Approved they are okay.',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('action');
+
+        $application->refresh();
+        $this->assertNull($application->recommendation_type);
+        $this->assertNull($application->recommended_at);
+        $this->assertSame('screening', $application->current_stage);
+    }
+
+    public function test_open_document_requests_are_listed_as_screening_blockers(): void
+    {
+        $branch = $this->branch();
+        $analyst = User::factory()->create([
+            'role' => 'admin',
+            'branch_id' => $branch->id,
+            'is_active' => true,
+        ]);
+        $application = $this->application($analyst, [
+            'current_stage' => 'screening',
+            'status' => 'under_review',
+            'recommendation_type' => null,
+        ]);
+
+        LoanApplicationDocumentRequest::create([
+            'loan_application_id' => $application->id,
+            'requested_by' => $analyst->id,
+            'label' => 'Updated National ID',
+            'type' => 'document',
+            'status' => 'pending',
+        ]);
+
+        $blockers = app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application);
+
+        $this->assertTrue(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'Updated National ID')));
     }
 }

@@ -87,7 +87,7 @@ class LoanApplicationWorkflowService
         $stage = $application->current_stage ?? 'submitted';
 
         return collect(self::ACTIONS)
-            // Document gaps are requested from the Documents tab (same as committee), not a separate workflow CTA.
+            // Document gaps are requested from Review checklist → Docs, not a separate workflow CTA.
             ->filter(fn (array $action, string $key) => ! in_array($key, ['complete_screening', 'return_for_documents'], true))
             ->filter(fn (array $action) => in_array($stage, $action['from'], true))
             ->filter(fn (array $action, string $key) => $this->permissions->has($user, $action['permission']))
@@ -160,12 +160,7 @@ class LoanApplicationWorkflowService
         }
 
         if ($actionKey === 'complete_screening' || $actionKey === 'submit_recommendation') {
-            $dossier = app(LoanApplicationReviewService::class)->dossier($application);
-            if (($dossier['document_progress'] ?? 0) < 100) {
-                throw ValidationException::withMessages([
-                    'action' => 'All required documents must be uploaded and verified before pushing to committee.',
-                ]);
-            }
+            $this->assertScreeningDocumentsReady($application);
         }
 
         if ($actionKey === 'disburse') {
@@ -439,6 +434,51 @@ class LoanApplicationWorkflowService
         ]);
 
         return $application->fresh(['stageHistory', 'customer', 'product']);
+    }
+
+    /**
+     * Product checklist gaps and open follow-up requests that must be in before committee.
+     *
+     * @return list<string>
+     */
+    public function screeningDocumentBlockers(LoanApplication $application): array
+    {
+        $dossier = app(LoanApplicationReviewService::class)->dossier($application);
+        $blockers = [];
+
+        foreach ((array) ($dossier['missing_documents'] ?? []) as $name) {
+            $label = trim((string) $name);
+            if ($label !== '') {
+                $blockers[] = $label;
+            }
+        }
+
+        $application->loadMissing(['documentRequests.subjectCustomer', 'documentRequests.groupMember.customer']);
+        foreach ($application->documentRequests as $request) {
+            if (! $request->needsBorrowerAction()) {
+                continue;
+            }
+            $label = trim((string) ($request->label ?? 'Requested document'));
+            $who = $request->subjectRoleLabel();
+            $blockers[] = $who ? $label.' ('.$who.')' : $label;
+        }
+
+        return array_values(array_unique($blockers));
+    }
+
+    public function assertScreeningDocumentsReady(LoanApplication $application): void
+    {
+        $blockers = $this->screeningDocumentBlockers($application);
+        if ($blockers === []) {
+            return;
+        }
+
+        $lines = array_merge(
+            ['Cannot push to committee until every requested document is submitted and verified.'],
+            $blockers,
+        );
+
+        throw ValidationException::withMessages(['action' => $lines]);
     }
 
     public function stageLabel(string $stage): string

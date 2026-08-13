@@ -31,6 +31,16 @@ class CapacityAutoRejectService
         return ($this->state($application)['status'] ?? null) === self::STATUS_PENDING;
     }
 
+    /** Credit committee (and admin) may send now or keep in screening. Credit management does not. */
+    public function canAct(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return in_array((string) $user->role, ['credit_committee', 'admin', 'super_admin'], true);
+    }
+
     /** @return array<string, mixed>|null */
     public function state(LoanApplication $application): ?array
     {
@@ -242,6 +252,7 @@ class CapacityAutoRejectService
 
     private function fire(LoanApplication $application, ?User $actor, bool $immediate): LoanApplication
     {
+        // Closes on profile (declared) capacity — outstanding documents must not block this path.
         return DB::transaction(function () use ($application, $actor, $immediate) {
             $application = LoanApplication::query()
                 ->with(['customer.user', 'product'])
