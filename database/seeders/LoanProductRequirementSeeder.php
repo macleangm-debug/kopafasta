@@ -18,7 +18,7 @@ class LoanProductRequirementSeeder extends Seeder
             ['name' => 'National ID (front)',  'description' => 'Clear photo of the front side of your ID.'],
             ['name' => 'National ID (back)',   'description' => 'Clear photo of the back side of your ID.'],
             ['name' => 'Passport photo',       'description' => 'Recent passport-size photo, plain background.'],
-            ['name' => 'Income verification',  'description' => 'Bank statement OR mobile money statement (6 months).'],
+            ['name' => 'Income verification',  'description' => 'Choose bank statement or mobile money statement (6 months).'],
         ];
 
         // Code-prefix or substring -> extra requirements

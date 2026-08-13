@@ -1,14 +1,21 @@
 @php
     $requirements = collect($review['requirements'] ?? []);
-    $uploads = $review['uploads'] ?? collect();
-    $histories = $review['upload_histories'] ?? collect();
-    $guidanceMap = $review['requirement_guidance'] ?? collect();
+    $uploads = collect($review['uploads'] ?? []);
+    $histories = collect($review['upload_histories'] ?? []);
+    $guidanceMap = collect($review['requirement_guidance'] ?? []);
     $isMemberSubject = (bool) ($review['is_member_subject'] ?? false);
     $isGuarantorSubject = (bool) ($review['is_guarantor_subject'] ?? false);
+    $isSubjectPanel = $isMemberSubject || $isGuarantorSubject;
     $subjectName = ($review['customer']->full_name ?? null)
         ?: ($review['member_row']['name'] ?? null)
         ?: ($review['guarantor_row']['name'] ?? null)
         ?: 'this subject';
+    $evidenceTitle = $isMemberSubject
+        ? 'Member evidence'
+        : ($isGuarantorSubject ? 'Guarantor evidence' : 'Application evidence');
+    $profileDocs = collect($review['profile_documents'] ?? []);
+    $docReviewService = app(\App\Services\ApplicationDocumentReviewService::class);
+    $appReviews = $docReviewService->reviewsForApplication($record);
 
     $categoryFor = function ($req): array {
         $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
@@ -31,26 +38,116 @@
         return ['key' => 'other', 'label' => 'Other documents', 'order' => 9];
     };
 
-    $rows = $requirements->map(function ($req) use ($uploads, $histories, $guidanceMap, $categoryFor) {
-        $upload = $uploads->get($req->id);
-        $isApproved = $upload && in_array($upload->status, ['verified', 'approved'], true);
-        $bucket = match (true) {
-            $isApproved => 'verified',
-            $upload && $upload->status === 'rejected' => 'rejected',
-            (bool) $upload => 'uploaded',
-            $req->is_required => 'missing',
-            default => 'optional',
+    // Members/guarantors share the leader shell, but only personal evidence — not group/loan-file extras.
+    if ($isSubjectPanel) {
+        $requirements = $requirements->filter(function ($req) use ($categoryFor) {
+            $category = $categoryFor($req);
+            if (in_array($category['key'], ['group', 'business', 'supporting', 'collateral'], true)) {
+                return false;
+            }
+
+            $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
+
+            return str_contains($hay, 'national id')
+                || str_contains($hay, 'passport')
+                || str_contains($hay, 'income')
+                || str_contains($hay, 'bank statement')
+                || str_contains($hay, 'mobile money')
+                || str_contains($hay, 'face')
+                || str_contains($hay, 'nida');
+        })->values();
+    }
+
+    $profileCodesForRequirement = function ($req): array {
+        $hay = strtolower(trim((string) ($req->name ?? '')));
+
+        return match (true) {
+            str_contains($hay, 'national id') && str_contains($hay, 'front') => ['national_id_front'],
+            str_contains($hay, 'national id') && str_contains($hay, 'back') => ['national_id_back'],
+            str_contains($hay, 'passport') => ['passport_photo', 'passport'],
+            str_contains($hay, 'income') || str_contains($hay, 'bank statement') || str_contains($hay, 'mobile money') => [
+                'bank_statement', 'mobile_money_statement', 'mpesa_statement', 'salary_slip',
+            ],
+            str_contains($hay, 'face') || str_contains($hay, 'selfie') => ['face_front', 'face_id'],
+            default => [],
         };
+    };
+
+    $subjectProfileDoc = function (array $codes) use ($profileDocs) {
+        if ($codes === []) {
+            return null;
+        }
+
+        return $profileDocs->first(fn ($doc) => in_array($doc->documentType?->code, $codes, true));
+    };
+
+    $rows = $requirements->map(function ($req) use (
+        $uploads,
+        $histories,
+        $guidanceMap,
+        $categoryFor,
+        $isSubjectPanel,
+        $profileCodesForRequirement,
+        $subjectProfileDoc,
+        $docReviewService,
+        $appReviews,
+        $record
+    ) {
         $category = $categoryFor($req);
+        $upload = null;
+        $history = collect();
+        $bucket = 'optional';
+        $statusLabel = 'Optional';
+
+        if ($isSubjectPanel) {
+            $profileDoc = $subjectProfileDoc($profileCodesForRequirement($req));
+            if ($profileDoc) {
+                $status = $appReviews->get($profileDoc->id)?->status
+                    ?? $docReviewService->statusFor($record, $profileDoc);
+                $bucket = match (true) {
+                    in_array($status, ['verified', 'approved'], true) => 'verified',
+                    $status === 'rejected' => 'rejected',
+                    default => 'uploaded',
+                };
+                $statusLabel = match ($bucket) {
+                    'verified' => 'Verified',
+                    'rejected' => 'Rejected',
+                    default => 'On profile',
+                };
+                // Surface profile file in the expand panel via a lightweight stand-in.
+                $upload = $profileDoc;
+            } elseif ($req->is_required) {
+                $bucket = 'missing';
+                $statusLabel = 'Missing';
+            }
+        } else {
+            $upload = $uploads->get($req->id);
+            $history = $histories->get($req->id, collect());
+            $isApproved = $upload && in_array($upload->status, ['verified', 'approved'], true);
+            $bucket = match (true) {
+                $isApproved => 'verified',
+                $upload && $upload->status === 'rejected' => 'rejected',
+                (bool) $upload => 'uploaded',
+                $req->is_required => 'missing',
+                default => 'optional',
+            };
+            $statusLabel = match ($bucket) {
+                'verified' => display_label($upload->status, 'document_status') ?: 'Verified',
+                'rejected' => 'Rejected',
+                'uploaded' => display_label($upload->status, 'document_status') ?: 'Uploaded',
+                'missing' => 'Missing',
+                default => 'Optional',
+            };
+        }
 
         return [
             'req' => $req,
             'upload' => $upload,
-            'history' => $histories->get($req->id, collect()),
+            'history' => $history,
             'guidance' => $guidanceMap->get($req->id, ['title' => 'What to verify', 'items' => []]),
             'bucket' => $bucket,
             'category' => $category,
-            'isApproved' => $isApproved,
+            'isApproved' => $bucket === 'verified',
             'badgeMap' => match ($bucket) {
                 'verified' => 'bg-emerald-100 text-emerald-800',
                 'rejected' => 'bg-red-100 text-red-800',
@@ -58,13 +155,8 @@
                 'missing' => 'bg-rose-50 text-rose-800',
                 default => 'bg-gray-100 text-gray-600',
             },
-            'statusLabel' => match ($bucket) {
-                'verified' => display_label($upload->status, 'document_status') ?: 'Verified',
-                'rejected' => 'Rejected',
-                'uploaded' => display_label($upload->status, 'document_status') ?: 'Uploaded',
-                'missing' => 'Missing',
-                default => 'Optional',
-            },
+            'statusLabel' => $statusLabel,
+            'from_profile' => $isSubjectPanel,
         ];
     })->values();
 
@@ -79,6 +171,11 @@
         'verified' => $rows->where('bucket', 'verified')->count(),
         'rejected' => $rejectedRows->count(),
     ];
+    $requiredDocsCount = $rows->filter(fn ($row) => (bool) ($row['req']->is_required ?? false))->count();
+    $satisfiedDocsCount = $rows->where('bucket', 'verified')->count();
+    $documentProgress = $requiredDocsCount > 0
+        ? (int) round(($satisfiedDocsCount / $requiredDocsCount) * 100)
+        : (int) ($review['document_progress'] ?? 0);
     $defaultFilter = match (true) {
         $counts['missing'] > 0 => 'missing',
         $counts['uploaded'] > 0 || $counts['rejected'] > 0 => 'action',
@@ -89,7 +186,6 @@
         ->groupBy(fn ($row) => $row['category']['key'])
         ->sortBy(fn ($group) => $group->first()['category']['order'] ?? 99);
 
-    $profileDocs = collect($review['profile_documents'] ?? []);
     $libraryTitle = $isMemberSubject
         ? 'Member document library'
         : ($isGuarantorSubject ? 'Guarantor document library' : 'Borrower document library');
@@ -99,6 +195,23 @@
 
     $docRequestService = app(\App\Services\ApplicationDocumentRequestService::class);
     $documentRequestsForPanel = collect($documentRequests ?? []);
+    if ($isSubjectPanel) {
+        $subjectCustomerId = (int) ($review['customer']->id ?? 0);
+        $memberId = (int) ($review['member_row']['id'] ?? 0);
+        $documentRequestsForPanel = $documentRequestsForPanel->filter(function ($req) use ($subjectCustomerId, $memberId, $isMemberSubject, $isGuarantorSubject) {
+            if ($subjectCustomerId > 0 && (int) ($req->subject_customer_id ?? 0) === $subjectCustomerId) {
+                return true;
+            }
+            if ($isMemberSubject && $memberId > 0 && (int) ($req->loan_group_member_id ?? 0) === $memberId) {
+                return true;
+            }
+            if ($isGuarantorSubject && ($req->subject_kind ?? '') === 'guarantor') {
+                return $subjectCustomerId <= 0 || (int) ($req->subject_customer_id ?? 0) === $subjectCustomerId;
+            }
+
+            return false;
+        })->values();
+    }
     $isLoanFileRequest = fn ($req) => ! $docRequestService->isProfileGuidedRequest($req);
     $loanRequestsForPanel = $documentRequestsForPanel->filter($isLoanFileRequest)->values();
     $profileRequestsForPanel = $documentRequestsForPanel->reject($isLoanFileRequest)->values();
@@ -119,10 +232,11 @@
         ->take(4)
         ->values();
 
+    // Subject panels: Requests first, then Library (profile evidence). Leader: Checklist when action needed.
     $defaultPanel = match (true) {
         $openRequestCount > 0 => 'requests',
-        $counts['uploaded'] > 0 || $counts['action'] > 0 => 'checklist',
-        $counts['missing'] > 0 => 'checklist',
+        $isSubjectPanel => ($counts['uploaded'] > 0 || $counts['missing'] > 0 ? 'checklist' : 'library'),
+        $counts['uploaded'] > 0 || $counts['action'] > 0 || $counts['missing'] > 0 => 'checklist',
         default => 'library',
     };
 @endphp
@@ -156,9 +270,9 @@
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0">
                     <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Documents</p>
-                    <h2 class="text-sm font-semibold text-white mt-0.5">Application evidence</h2>
+                    <h2 class="text-sm font-semibold text-white mt-0.5">{{ $evidenceTitle }}</h2>
                     <p class="text-xs text-white/75 mt-0.5">
-                        {{ $review['satisfied_docs'] ?? 0 }}/{{ $review['required_docs'] ?? 0 }} required verified
+                        {{ $satisfiedDocsCount }}/{{ $requiredDocsCount }} required verified
                         @if ($counts['uploaded'] > 0)
                             · <span class="text-brand-gold font-semibold">{{ $counts['uploaded'] }} to verify</span>
                         @endif
@@ -181,7 +295,7 @@
                         </button>
                     @endif
                     <div class="h-2 w-28 bg-white/20 rounded-full overflow-hidden ring-1 ring-white/20">
-                        <div class="h-full bg-brand-gold transition-all" style="width: {{ $review['document_progress'] ?? 0 }}%"></div>
+                        <div class="h-full bg-brand-gold transition-all" style="width: {{ $documentProgress }}%"></div>
                     </div>
                 </div>
             </div>
@@ -343,15 +457,22 @@
 
                                             @if ($upload)
                                                 <div class="flex flex-wrap items-start gap-3 pt-1">
-                                                    @if (! in_array($upload->status, ['verified', 'approved'], true))
+                                                    @if ($row['bucket'] !== 'verified')
                                                         <form method="POST" action="{{ route('admin.loan-applications.documents.verify', [$record, $upload]) }}" class="inline">
                                                             @csrf
+                                                            <input type="hidden" name="review_person" value="{{ $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : ($deskPerson ?? $panelPerson ?? request('review_person', 'borrower'))) }}">
+                                                            @if ($deskM ?? $panelM ?? request('review_m'))
+                                                                <input type="hidden" name="review_m" value="{{ $deskM ?? $panelM ?? request('review_m') }}">
+                                                            @endif
+                                                            @if ($deskG ?? $panelG ?? request('review_g'))
+                                                                <input type="hidden" name="review_g" value="{{ $deskG ?? $panelG ?? request('review_g') }}">
+                                                            @endif
                                                             <button type="submit" class="text-xs font-semibold text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100">
                                                                 Verify
                                                             </button>
                                                         </form>
                                                     @endif
-                                                    @if ($upload->status !== 'rejected')
+                                                    @if ($row['bucket'] !== 'rejected')
                                                         <form method="POST"
                                                               action="{{ route('admin.loan-applications.documents.reject', [$record, $upload]) }}"
                                                               class="flex flex-col gap-2 min-w-[16rem] max-w-full"
@@ -364,7 +485,7 @@
                                                                   tone: 'warning',
                                                               })">
                                                             @csrf
-                                                            <input type="hidden" name="review_person" value="{{ $deskPerson ?? $panelPerson ?? request('review_person', 'borrower') }}">
+                                                            <input type="hidden" name="review_person" value="{{ $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : ($deskPerson ?? $panelPerson ?? request('review_person', 'borrower'))) }}">
                                                             <input type="hidden" name="review_m" value="{{ $deskM ?? $panelM ?? request('review_m') }}">
                                                             <input type="hidden" name="review_g" value="{{ $deskG ?? $panelG ?? request('review_g') }}">
                                                             <button type="submit" class="self-start text-xs font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">
@@ -404,9 +525,18 @@
                                                             variant="link" />
                                                     @endif
                                                 </div>
-                                                <p class="text-[11px] text-gray-500">Latest upload · {{ $upload->created_at?->format('d M Y, H:i') }}</p>
+                                                <p class="text-[11px] text-gray-500">
+                                                    {{ ! empty($row['from_profile']) ? 'Profile file' : 'Latest upload' }}
+                                                    · {{ $upload->created_at?->format('d M Y, H:i') }}
+                                                </p>
                                             @else
-                                                <p class="text-sm text-gray-500 pt-3">No file uploaded for this requirement yet. Ask the borrower to upload, or use Request documents under Requests.</p>
+                                                <p class="text-sm text-gray-500 pt-3">
+                                                    @if ($isSubjectPanel)
+                                                        No matching profile file yet. Request an update from this person, or review under Library when they upload.
+                                                    @else
+                                                        No file uploaded for this requirement yet. Ask the borrower to upload, or use Request documents under Requests.
+                                                    @endif
+                                                </p>
                                             @endif
 
                                             @if ($history->count() > 1)
@@ -437,14 +567,15 @@
 
         {{-- Requests --}}
         <div x-show="panel === 'requests'" x-cloak role="tabpanel" class="p-4 sm:p-5 space-y-4 bg-gradient-to-b from-white to-brand-muted/10">
-            @include('admin.loan-applications.review._document-requests')
+            @include('admin.loan-applications.review._document-requests', [
+                'documentRequests' => $documentRequestsForPanel,
+                'person' => $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : ($deskPerson ?? $panelPerson ?? request('review_person', 'borrower'))),
+            ])
         </div>
 
         {{-- Library --}}
         <div x-show="panel === 'library'" x-cloak role="tabpanel" class="p-4 sm:p-5 space-y-4">
             @php
-                $docReviewService = app(\App\Services\ApplicationDocumentReviewService::class);
-                $appReviews = $docReviewService->reviewsForApplication($record);
                 $libraryPending = $profileDocs->filter(function ($doc) use ($docReviewService, $record, $appReviews) {
                     $status = $appReviews->get($doc->id)?->status
                         ?? $docReviewService->statusFor($record, $doc);
@@ -454,7 +585,10 @@
             @endphp
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <h3 class="text-sm font-semibold text-gray-900">
-                    {{ $subjectName }}
+                    {{ $libraryTitle }}
+                    @if ($subjectName)
+                        <span class="font-normal text-gray-500">· {{ $subjectName }}</span>
+                    @endif
                     @if ($libraryPending > 0)
                         <span class="text-amber-700 font-bold tabular-nums">· {{ $libraryPending }} pending</span>
                     @endif

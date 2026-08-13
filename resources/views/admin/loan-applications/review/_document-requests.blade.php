@@ -239,7 +239,7 @@
         }
     }">
         <div class="px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-gray-900">Request docs</h2>
+            <h2 class="text-sm font-semibold text-gray-900">Request documents</h2>
             <div class="flex flex-wrap gap-1.5">
                 <button type="button" @click="applyPack(['Updated National ID', 'New National ID photo', 'New face verification photo', 'Image Not Clear'])"
                         class="rounded-lg bg-sky-50 text-sky-900 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-sky-100">ID pack</button>

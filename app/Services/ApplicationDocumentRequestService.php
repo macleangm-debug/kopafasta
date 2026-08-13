@@ -119,7 +119,20 @@ class ApplicationDocumentRequestService
             return route('site.borrower.profile', ['section' => 'activity']).'?focus=income#profile-income-statement';
         }
         if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')) {
-            return route('site.borrower.profile', ['section' => 'assets', 'add' => 1]);
+            $customer = $request->subjectCustomer
+                ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
+                ?? $application?->customer;
+
+            $hasAssets = $customer
+                ? $customer->assets()->exists()
+                : false;
+
+            // Existing collateral → manage on profile. None → open add picker.
+            if ($hasAssets) {
+                return route('site.borrower.profile', ['section' => 'assets', 'uw' => 1]);
+            }
+
+            return route('site.borrower.profile', ['section' => 'assets', 'add' => 1, 'uw' => 1]);
         }
         if (str_contains($label, 'asset photo') || str_contains($label, 'ownership document') || str_contains($label, 'insurance')) {
             return route('site.borrower.profile', ['section' => 'assets']);
@@ -183,11 +196,21 @@ class ApplicationDocumentRequestService
         $kind = $this->borrowerActionKind($request);
         $rejected = $request->status === 'rejected';
 
+        $collateralCta = __('borrower.loan_profile.uw_cta.add_collateral');
+        if ($kind === 'collateral') {
+            $customer = $request->subjectCustomer
+                ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
+                ?? $request->application?->customer;
+            if ($customer && $customer->assets()->exists()) {
+                $collateralCta = __('borrower.loan_profile.uw_cta.update_collateral');
+            }
+        }
+
         $ctaLabel = match ($kind) {
             'signature' => __('borrower.loan_profile.uw_cta.update_signature'),
             'face' => __('borrower.loan_profile.uw_cta.recapture_face'),
             'identity' => __('borrower.loan_profile.uw_cta.update_identity'),
-            'collateral' => __('borrower.loan_profile.uw_cta.add_collateral'),
+            'collateral' => $collateralCta,
             'income' => __('borrower.loan_profile.uw_cta.update_income'),
             'clarification' => __('borrower.loan_profile.uw_cta.respond'),
             default => $rejected

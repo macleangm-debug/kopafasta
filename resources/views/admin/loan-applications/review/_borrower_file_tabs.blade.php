@@ -252,11 +252,7 @@
                     <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'checklist']).'#checklist-documents' }}"
                        class="font-semibold text-brand underline">Review checklist → Capacity and evidence</a>.
                 </div>
-                @if (in_array($person, ['guarantor', 'member'], true))
-                    @include('admin.loan-applications.review._subject_documents', ['review' => $subjectReview])
-                @else
-                    @include('admin.loan-applications.review._documents')
-                @endif
+                @include('admin.loan-applications.review._documents', ['review' => $subjectReview])
             </div>
         @elseif ($defaultTab === 'collateral')
             <div class="space-y-5">

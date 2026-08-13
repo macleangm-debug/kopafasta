@@ -5,9 +5,11 @@
         $selectedType = old('asset_type', request('type'));
         $typeIcons = \App\Models\CustomerAsset::typeIcons();
         $detailFields = $selectedType ? \App\Models\CustomerAsset::detailFieldsFor($selectedType) : [];
+        $uwPrompt = request()->boolean('uw');
+        $openAddPicker = $adding && ! $selectedType;
     @endphp
 
-    <div x-data="{ addOpen: false, openAsset: {{ (int) request('edit', 0) ?: 'null' }}, lightbox: null }"
+    <div x-data="{ addOpen: @js($openAddPicker), openAsset: {{ (int) request('edit', 0) ?: 'null' }}, lightbox: null }"
          x-init="if (openAsset) { $nextTick(() => { const el = document.getElementById('asset-edit-' + openAsset); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); }">
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.my_collaterals'),
@@ -15,6 +17,17 @@
             'customer' => $customer,
             'active' => 'assets',
         ])
+
+        @if ($uwPrompt && ! ($adding && $selectedType))
+            <div class="mb-4 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                <p class="text-sm font-semibold text-amber-950">{{ __('borrower.profile.collateral_uw_title') }}</p>
+                <p class="text-sm text-amber-900/80 mt-1">
+                    {{ ($assets ?? collect())->isEmpty()
+                        ? __('borrower.profile.collateral_uw_none_body')
+                        : __('borrower.profile.collateral_uw_existing_body') }}
+                </p>
+            </div>
+        @endif
 
         @if ($adding && $selectedType)
             {{-- ============ Item 18: type-specific add form ============ --}}

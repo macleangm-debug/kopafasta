@@ -133,27 +133,48 @@
                     @endforeach
                 </div>
             @else
-                {{-- Step 1: choose statement type --}}
-                <div x-show="step === 1" x-cloak class="space-y-3">
+                {{-- Step 1: choose statement type (same pattern as payment accounts) --}}
+                <div x-show="step === 1" x-cloak class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('borrower.profile.income_method_question') }}</p>
-                    @foreach ($incomePrimaryOptions as $option)
-                        <label class="flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer"
-                               :class="incomeMethod === @js($option['key']) ? 'border-amber-300 bg-amber-50 ring-1 ring-amber-200' : 'border-gray-200 hover:border-gray-300'"
-                               @click="incomeMethod = @js($option['key'])">
-                            <input type="radio" name="income_proof_method" value="{{ $option['key'] }}"
-                                   class="mt-1 text-amber-500 focus:ring-amber-500"
-                                   x-model="incomeMethod" required>
-                            <span class="text-sm font-medium text-gray-900">{{ $option['label'] }}</span>
-                        </label>
-                    @endforeach
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <button type="button"
+                                @click="incomeMethod = 'bank_statement'; step = 2"
+                                class="rounded-3xl ring-2 px-6 py-7 text-left transition shadow-sm"
+                                :class="incomeMethod === 'bank_statement' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 bg-gradient-to-br from-white to-gray-50 hover:ring-brand/40'">
+                            <span class="text-3xl" aria-hidden="true">🏦</span>
+                            <p class="text-base font-bold text-gray-900 mt-3">{{ __('borrower.profile.income_method_bank_title') }}</p>
+                            <p class="text-sm text-gray-500 mt-1.5 leading-relaxed">{{ __('borrower.profile.income_method_bank_hint') }}</p>
+                        </button>
+                        <button type="button"
+                                @click="incomeMethod = 'mobile_money_statement'; step = 2"
+                                class="rounded-3xl ring-2 px-6 py-7 text-left transition shadow-sm"
+                                :class="incomeMethod === 'mobile_money_statement' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 bg-gradient-to-br from-white to-gray-50 hover:ring-brand/40'">
+                            <span class="text-3xl" aria-hidden="true">📱</span>
+                            <p class="text-base font-bold text-gray-900 mt-3">{{ __('borrower.profile.income_method_mobile_title') }}</p>
+                            <p class="text-sm text-gray-500 mt-1.5 leading-relaxed">{{ __('borrower.profile.income_method_mobile_hint') }}</p>
+                        </button>
+                    </div>
+                    <input type="hidden" name="income_proof_method" :value="incomeMethod">
+                    @error('income_proof_method')
+                        <p class="text-xs text-red-600">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                {{-- Step 2: account details --}}
+                {{-- Step 2: account details (labels follow chosen method) --}}
                 <div x-show="step === 2" x-cloak class="space-y-4" data-income-step="2">
-                    <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.income_account_details') }}</p>
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm font-semibold text-gray-900"
+                           x-text="incomeMethod === 'bank_statement' ? @js(__('borrower.profile.income_bank_section')) : @js(__('borrower.profile.income_mobile_section'))"></p>
+                        <button type="button" @click="step = 1; incomeMethod = ''" class="text-xs font-semibold text-gray-600 hover:text-gray-900">
+                            {{ __('borrower.profile.income_change_method_short') }}
+                        </button>
+                    </div>
                     <div class="grid sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_provider') }} <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">
+                                <span x-text="incomeMethod === 'bank_statement' ? @js(__('borrower.profile.income_bank_name')) : @js(__('borrower.profile.income_mobile_provider'))"></span>
+                                <span class="text-red-500">*</span>
+                            </label>
                             <input type="text" name="income_account_provider"
                                    value="{{ old('income_account_provider', $customer->activity_details['income_account_provider'] ?? '') }}"
                                    class="kf-field"
@@ -161,12 +182,15 @@
                                    :placeholder="incomeMethod === 'bank_statement' ? @js(__('borrower.profile.income_bank_placeholder')) : @js(__('borrower.profile.income_momo_placeholder'))">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_number') }} <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">
+                                <span x-text="incomeMethod === 'bank_statement' ? @js(__('borrower.profile.income_bank_account_number')) : @js(__('borrower.profile.income_mobile_number'))"></span>
+                                <span class="text-red-500">*</span>
+                            </label>
                             <input type="text" name="income_account_number"
                                    value="{{ old('income_account_number', $customer->activity_details['income_account_number'] ?? '') }}"
                                    class="kf-field"
                                    x-bind:required="step === 2"
-                                   placeholder="{{ __('borrower.profile.income_account_number_placeholder') }}">
+                                   :placeholder="incomeMethod === 'bank_statement' ? @js(__('borrower.profile.income_bank_account_placeholder')) : @js(__('borrower.profile.income_mobile_number_placeholder'))">
                         </div>
                         <div class="sm:col-span-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
                             <p class="text-xs text-gray-500">{{ __('borrower.profile.income_account_name') }}</p>

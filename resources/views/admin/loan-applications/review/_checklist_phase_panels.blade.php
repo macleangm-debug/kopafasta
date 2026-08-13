@@ -64,12 +64,8 @@
             </span>
         </div>
 
-        @if (in_array($panelPerson, ['guarantor', 'member'], true))
-            @include('admin.loan-applications.review._subject_documents', ['review' => $panelSubjectReview])
-            @include('admin.loan-applications.review._document-requests')
-        @else
-            @include('admin.loan-applications.review._documents', ['review' => $panelSubjectReview])
-        @endif
+        {{-- Same Application evidence shell for borrower/leader, guarantor, and group members. --}}
+        @include('admin.loan-applications.review._documents', ['review' => $panelSubjectReview])
     </div>
 @endif
 
