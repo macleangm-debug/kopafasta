@@ -117,11 +117,13 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Record the screening recommendation', $screening);
+        $this->assertStringContainsString('Max this income can support', $screening);
         $this->assertStringContainsString('Your decision', $screening);
         $this->assertStringContainsString('Record decision', $screening);
         $this->assertStringContainsString('Record your decision', $screening);
         $this->assertStringContainsString('Why are you approving this application?', $screening);
         $this->assertStringContainsString('Push to Committee', $screening);
+        $this->assertStringNotContainsString('Who you are reviewing', $screening);
         $this->assertStringNotContainsString('Preferred reject reason', $screening);
         $this->assertStringNotContainsString('Return for documents', $screening);
         $this->assertStringContainsString('Advice for borrower', $screening);
@@ -151,7 +153,6 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Personal in place', $documents);
         $this->assertStringContainsString('Capacity and evidence', $documents);
         $this->assertStringContainsString('Security and close', $documents);
-        $this->assertStringContainsString('Pass / Fail checks', $documents);
         $this->assertStringContainsString('Application evidence', $documents);
         $this->assertStringContainsString('Document library', $documents);
         $this->assertStringContainsString('Request documents', $documents);
@@ -162,7 +163,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Credit file wrap-up', $documents);
         $this->assertStringContainsString('Hold — finish checklist', $documents);
         $this->assertStringContainsString('Gate 2', $documents);
-        $this->assertStringContainsString('Match financial statements to profile monthly revenue', $documents);
+        $this->assertStringContainsString('Match statements to profile revenue', $documents);
+        $this->assertStringContainsString('Statement totals', $documents);
+        $this->assertStringContainsString('Max repayment (1/3)', $documents);
         $this->assertStringNotContainsString('Partners for this file', $documents);
         $this->assertStringNotContainsString('Return for documents', $documents);
 

@@ -33,7 +33,7 @@
                             @endif
                             @if (! empty($item['evidence']['rows']))
                                 <dl class="mt-2 grid sm:grid-cols-2 gap-1.5">
-                                    @foreach (array_slice($item['evidence']['rows'], 0, 4) as $row)
+                                    @foreach (array_slice($item['evidence']['rows'], 0, 6) as $row)
                                         <div class="text-[11px] text-gray-600">
                                             <span class="font-semibold text-gray-500">{{ $row['label'] }}:</span>
                                             {{ $row['value'] }}

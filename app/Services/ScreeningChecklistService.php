@@ -269,7 +269,7 @@ class ScreeningChecklistService
                     }
                 }
                 $by = isset($row['by']) ? (int) $row['by'] : null;
-                $items[] = [
+                $item = [
                     'key' => $fullKey,
                     'item_key' => $itemKey,
                     'group_key' => $groupKey,
@@ -302,7 +302,25 @@ class ScreeningChecklistService
                     'by_name' => $isDocuments
                         ? 'Documents'
                         : ($isSystem ? 'System' : ($autoNa ? null : ($by ? ($names[$by] ?? null) : null))),
+                    'captures_statement' => ($meta['gate'] ?? null) === 'statements_vs_declared',
+                    'statement_deposits_total' => $autoNa ? null : ($row['statement_deposits_total'] ?? null),
+                    'statement_months' => $autoNa ? null : ($row['statement_months'] ?? StatementCapacityService::DEFAULT_MONTHS),
+                    'statement_monthly' => $autoNa ? null : ($row['statement_monthly'] ?? null),
+                    'statement_weekly' => $autoNa ? null : ($row['statement_weekly'] ?? null),
                 ];
+                if (! $autoNa && ($meta['gate'] ?? null) === 'statements_vs_declared' && (float) ($row['statement_monthly'] ?? 0) > 0) {
+                    $item['evidence']['rows'][] = [
+                        'label' => 'Statement deposits',
+                        'value' => format_money((float) ($row['statement_deposits_total'] ?? 0))
+                            .' over '.(int) ($row['statement_months'] ?? 6).' months',
+                    ];
+                    $item['evidence']['rows'][] = [
+                        'label' => 'Proven average',
+                        'value' => format_money((float) $row['statement_monthly']).'/mo · ≈ '
+                            .format_money((float) ($row['statement_weekly'] ?? 0)).'/week',
+                    ];
+                }
+                $items[] = $item;
             }
             if ($items === []) {
                 continue;
@@ -434,14 +452,14 @@ class ScreeningChecklistService
                     if ($code === 'custom' && $custom === '') {
                         throw new \InvalidArgumentException("Write a custom fail reason for {$key}.");
                     }
-                    $items[$key] = [
+                    $items[$key] = $this->mergeStatementCapture($key, [
                         'verdict' => 'fail',
                         'checked' => false,
                         'fail_reason_code' => $code,
                         'fail_reason_custom' => $code === 'custom' ? $custom : null,
                         'at' => now()->toIso8601String(),
                         'by' => $actor->id,
-                    ];
+                    ], $incoming, (array) ($items[$key] ?? []), $verdict);
                 } else {
                     $entry = [
                         'verdict' => $verdict,
@@ -455,7 +473,13 @@ class ScreeningChecklistService
                     if (str_starts_with($key, 'collateral.') && $verdict === 'na' && ! $this->collateralReviewApplies($application)) {
                         $entry['source'] = 'auto_na';
                     }
-                    $items[$key] = $entry;
+                    $items[$key] = $this->mergeStatementCapture(
+                        $key,
+                        $entry,
+                        $incoming,
+                        (array) ($items[$key] ?? []),
+                        $verdict,
+                    );
                 }
             }
 
@@ -1019,6 +1043,44 @@ class ScreeningChecklistService
         }
 
         return $reasons[$code] ?? (string) $code;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @param  array<string, mixed>  $incoming
+     * @param  array<string, mixed>  $existing
+     * @return array<string, mixed>
+     */
+    private function mergeStatementCapture(
+        string $key,
+        array $entry,
+        array $incoming,
+        array $existing,
+        string $verdict,
+    ): array {
+        if ($key !== StatementCapacityService::CHECKLIST_KEY) {
+            return $entry;
+        }
+
+        $capture = app(StatementCapacityService::class)->fromIncoming($incoming);
+
+        if ($capture === null) {
+            foreach (['statement_deposits_total', 'statement_months', 'statement_monthly', 'statement_weekly'] as $field) {
+                if (isset($existing[$field])) {
+                    $entry[$field] = $existing[$field];
+                }
+            }
+        } else {
+            $entry = array_merge($entry, $capture);
+        }
+
+        if ($verdict === 'pass' && (float) ($entry['statement_monthly'] ?? 0) <= 0) {
+            throw new \InvalidArgumentException(
+                'Key the total deposits from the statement (and the months covered) before passing the revenue match. The system uses that average for capacity and any counter-offer.'
+            );
+        }
+
+        return $entry;
     }
 
     /**
@@ -1638,7 +1700,7 @@ class ScreeningChecklistService
                     ? 'No bank or mobile-money statement on this profile yet — request one, or Fail as missing (that rejects the file).'
                     : ($itemKey === 'bank_or_mobile_money'
                         ? 'Open the statement(s) below. On Fail, pick a concerning pattern — that rejects the application and pre-fills the rejection letter.'
-                        : 'Open the statement(s) below. Pass only if inflows support the profile monthly revenue. Fail rejects this application.');
+                        : 'Open the statement(s). Key the total deposits for the period (usually 6 months). The system averages monthly and weekly for capacity and any counter-offer.');
                 $documentsHeading = 'Statements on file';
                 $documentsOpenLabel = 'Open full statement';
                 break;

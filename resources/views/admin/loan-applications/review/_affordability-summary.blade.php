@@ -38,8 +38,17 @@
 
         <dl class="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
             <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500">Monthly income</dt>
+                <dt class="text-[10px] uppercase tracking-widest text-gray-500">
+                    {{ ($affordability['income_basis'] ?? '') === 'statement' ? 'Statement monthly' : 'Monthly income' }}
+                </dt>
                 <dd class="font-semibold text-gray-900 mt-1">{{ format_money($affordability['net_income'] ?? 0) }}</dd>
+                @if (($affordability['income_basis'] ?? '') === 'statement')
+                    <dd class="text-[11px] text-gray-500 mt-0.5">
+                        {{ format_money($affordability['statement_deposits_total'] ?? 0) }}
+                        over {{ (int) ($affordability['statement_months'] ?? 6) }} mo
+                        · ≈ {{ format_money($affordability['statement_weekly'] ?? 0) }}/week
+                    </dd>
+                @endif
             </div>
             <div>
                 <dt class="text-[10px] uppercase tracking-widest text-gray-500">Existing commitments</dt>
@@ -66,12 +75,27 @@
             · {{ $affordability['reason'] ?? '' }}
         </p>
 
-        @if (! empty($counterOffer['amount']) && ($counterOffer['amount'] ?? 0) > 0 && ! ($affordability['pass'] ?? false))
+        @php
+            $capacityCeiling = (float) ($affordability['max_affordable_principal'] ?? ($counterOffer['amount'] ?? 0));
+            $counterEnabled = app(\App\Services\UnderwritingSettingsService::class)->counterOffersEnabled();
+        @endphp
+        @if ($capacityCeiling > 0)
             <p class="text-xs text-violet-800 bg-violet-50 ring-1 ring-violet-100 rounded-lg px-3 py-2">
-                Suggested counter-offer ceiling:
-                <span class="font-bold">{{ format_money((float) $counterOffer['amount']) }}</span>
-                over {{ $counterOffer['tenure_months'] ?? $record->requested_tenure_months }} months
-                (est. {{ format_money((float) ($counterOffer['installment'] ?? 0)) }}/month)
+                @if ($counterEnabled && ! ($affordability['pass'] ?? false))
+                    System counter-offer:
+                @else
+                    Max this income can support:
+                @endif
+                <span class="font-bold">{{ format_money($capacityCeiling) }}</span>
+                @if (! empty($counterOffer['tenure_months']) || $record->requested_tenure_months)
+                    over {{ $counterOffer['tenure_months'] ?? $record->requested_tenure_months }} months
+                @endif
+                @if (! empty($counterOffer['installment']))
+                    (est. {{ format_money((float) $counterOffer['installment']) }}/month)
+                @endif
+                @if (! $counterEnabled)
+                    · counter-offers are off — used for the decision only
+                @endif
             </p>
         @endif
     </div>

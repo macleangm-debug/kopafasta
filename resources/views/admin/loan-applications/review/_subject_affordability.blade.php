@@ -56,8 +56,13 @@
     <div class="p-5">
         @if (! empty($afford))
             <p class="text-xs text-gray-600 mb-4 rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
-                <span class="font-semibold text-gray-800">System</span> ran the one-third income rule.
-                Your job is to confirm the income evidence is real, then Pass / Fail the matching checklist item under Capacity → Pass / Fail checks.
+                <span class="font-semibold text-gray-800">System</span> ran the one-third income rule
+                @if (($afford['income_basis'] ?? '') === 'statement')
+                    using statement-proven monthly income (total deposits ÷ months).
+                @else
+                    using profile-declared income until statement totals are keyed on Gate 2.
+                @endif
+                Confirm the statement is real, then Pass / Fail the matching checklist item under Capacity.
             </p>
         @endif
         @if (empty($afford))
@@ -73,8 +78,15 @@
         @else
             <div class="mb-4 grid sm:grid-cols-3 gap-2 text-sm">
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2.5">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Income</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+                        {{ ($afford['income_basis'] ?? '') === 'statement' ? 'Statement monthly' : 'Income' }}
+                    </p>
                     <p class="font-bold text-gray-900 mt-0.5">{{ format_money($afford['net_income'] ?? 0) }}</p>
+                    @if (($afford['income_basis'] ?? '') === 'statement' && ($afford['statement_weekly'] ?? 0) > 0)
+                        <p class="text-[11px] text-gray-500 mt-0.5">≈ {{ format_money($afford['statement_weekly']) }}/week</p>
+                    @elseif (($afford['declared_monthly_income'] ?? 0) > 0 && ($afford['income_basis'] ?? '') === 'statement')
+                        <p class="text-[11px] text-gray-500 mt-0.5">Declared {{ format_money($afford['declared_monthly_income']) }}</p>
+                    @endif
                 </div>
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2.5">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Available capacity</p>

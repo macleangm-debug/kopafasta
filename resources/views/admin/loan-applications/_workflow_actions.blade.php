@@ -212,13 +212,21 @@
                                     </div>
 
                                     <div x-show="decision === 'counter'" x-cloak>
-                                        <label class="block text-xs font-semibold text-gray-700 mb-1.5">Counter amount <span class="text-red-500">*</span></label>
-                                        <input type="number" name="recommended_amount" min="0" step="1000"
-                                               value="{{ old('recommended_amount', $maxCounter > 0 ? (int) $maxCounter : '') }}"
-                                               placeholder="{{ $maxCounter > 0 ? (int) $maxCounter : 'Amount' }}"
-                                               :disabled="decision !== 'counter'"
-                                               :required="decision === 'counter'"
-                                               class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">
+                                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-1.5">System counter amount</p>
+                                        <input type="hidden" name="recommended_amount" value="{{ $maxCounter > 0 ? (int) $maxCounter : 0 }}"
+                                               :disabled="decision !== 'counter'">
+                                        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                                            <p class="text-lg font-bold text-amber-950 tabular-nums">
+                                                @if ($maxCounter > 0)
+                                                    {{ format_money($maxCounter) }}
+                                                @else
+                                                    Not available yet
+                                                @endif
+                                            </p>
+                                            <p class="text-[11px] text-amber-900 mt-1">
+                                                Calculated from statement-proven income and the one-third capacity rule. Screening cannot type a different amount.
+                                            </p>
+                                        </div>
                                     </div>
 
                                     <div x-show="decision === 'approve' || decision === 'counter'" x-cloak class="space-y-4">

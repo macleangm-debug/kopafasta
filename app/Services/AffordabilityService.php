@@ -11,6 +11,7 @@ class AffordabilityService
 {
     public function __construct(
         private readonly CountryCreditSettingsService $countryCredit,
+        private readonly StatementCapacityService $statements,
     ) {}
 
     /**
@@ -32,7 +33,15 @@ class AffordabilityService
      *   pass: bool,
      *   status_label: string,
      *   reason: string,
-     *   evaluated_at: string
+     *   evaluated_at: string,
+     *   income_basis: 'statement'|'declared',
+     *   declared_monthly_income: float,
+     *   statement_monthly: float|null,
+     *   statement_weekly: float|null,
+     *   statement_deposits_total: float|null,
+     *   statement_months: int|null,
+     *   max_affordable_principal: float,
+     *   repayment_cadence: string
      * }
      */
     public function evaluate(LoanApplication $application): array
@@ -40,7 +49,18 @@ class AffordabilityService
         $customer = $application->customer;
         $product  = $application->product;
 
-        $netIncome = (float) ($customer->monthly_income ?? 0);
+        $resolved = $customer
+            ? $this->statements->resolveIncome($application, $customer, 'borrower')
+            : [
+                'net_income' => 0.0,
+                'income_basis' => 'declared',
+                'declared_monthly_income' => 0.0,
+                'statement_deposits_total' => null,
+                'statement_months' => null,
+                'statement_monthly' => null,
+                'statement_weekly' => null,
+            ];
+        $netIncome = (float) $resolved['net_income'];
 
         $existing = (float) RepaymentSchedule::query()
             ->whereHas('loan', fn ($q) => $q->where('customer_id', $customer->id))
@@ -69,7 +89,9 @@ class AffordabilityService
         if ($netIncome <= 0) {
             $verdict = 'fail';
             $statusLabel = 'Affordability Failed';
-            $reason = 'No declared monthly income on file.';
+            $reason = $resolved['income_basis'] === 'statement'
+                ? 'No proven monthly income from the statement totals.'
+                : 'No declared monthly income on file.';
         } elseif ($newEmi > $availableCapacity) {
             $verdict = 'fail';
             $statusLabel = 'Affordability Failed';
@@ -79,6 +101,9 @@ class AffordabilityService
             $statusLabel = 'Affordability Passed';
             $reason = 'Proposed installment is near the maximum repayment capacity.';
         }
+
+        $highCap = (float) ($product?->max_amount ?? $application->requested_amount ?? $availableCapacity * max(1, $tenure));
+        $maxPrincipal = $this->principalFromCapacity($availableCapacity, $rate, max(1, $tenure), $highCap);
 
         return [
             'net_income'              => round($netIncome, 2),
@@ -97,6 +122,14 @@ class AffordabilityService
             'status_label'            => $statusLabel,
             'reason'                  => $reason,
             'evaluated_at'            => now()->toIso8601String(),
+            'income_basis'            => $resolved['income_basis'],
+            'declared_monthly_income' => round((float) $resolved['declared_monthly_income'], 2),
+            'statement_monthly'       => $resolved['statement_monthly'],
+            'statement_weekly'        => $resolved['statement_weekly'],
+            'statement_deposits_total'=> $resolved['statement_deposits_total'],
+            'statement_months'        => $resolved['statement_months'],
+            'max_affordable_principal'=> $maxPrincipal,
+            'repayment_cadence'       => (string) ($product?->repayment_cadence ?? 'monthly'),
         ];
     }
 
@@ -117,18 +150,28 @@ class AffordabilityService
 
         $tenure = $tenureMonths ?: (int) ($application->requested_tenure_months ?? 12);
         $rate = (float) ($application->product?->interest_rate ?? 0);
+        $high = (float) ($application->product?->max_amount ?? $application->requested_amount ?? $capacity * $tenure);
 
-        if ($rate <= 0) {
-            return round($capacity * $tenure, 2);
+        return $this->principalFromCapacity($capacity, $rate, $tenure, $high);
+    }
+
+    public function principalFromCapacity(float $capacity, float $monthlyRate, int $months, float $highCap): float
+    {
+        if ($capacity <= 0 || $months <= 0) {
+            return 0.0;
+        }
+
+        if ($monthlyRate <= 0) {
+            return round($capacity * $months, 2);
         }
 
         $low = 0.0;
-        $high = (float) ($application->product?->max_amount ?? $application->requested_amount ?? $capacity * $tenure);
+        $high = max($capacity, $highCap);
         $best = 0.0;
 
         for ($i = 0; $i < 32; $i++) {
             $mid = ($low + $high) / 2;
-            $emi = $this->computeEmi($mid, $rate, $tenure);
+            $emi = $this->computeEmi($mid, $monthlyRate, $months);
 
             if ($emi <= $capacity) {
                 $best = $mid;
@@ -146,9 +189,24 @@ class AffordabilityService
      *
      * @return array<string, mixed>
      */
-    public function evaluateForGuarantor(Customer $guarantor, float $additionalMonthlyExposure = 0): array
-    {
-        $netIncome = (float) ($guarantor->monthly_income ?? 0);
+    public function evaluateForGuarantor(
+        Customer $guarantor,
+        float $additionalMonthlyExposure = 0,
+        ?LoanApplication $application = null,
+        ?int $guarantorLinkId = null,
+    ): array {
+        $resolved = ($application && $guarantorLinkId)
+            ? $this->statements->resolveIncome($application, $guarantor, 'guarantor:'.$guarantorLinkId)
+            : [
+                'net_income' => $this->statements->declaredMonthly($guarantor),
+                'income_basis' => 'declared',
+                'declared_monthly_income' => $this->statements->declaredMonthly($guarantor),
+                'statement_deposits_total' => null,
+                'statement_months' => null,
+                'statement_monthly' => null,
+                'statement_weekly' => null,
+            ];
+        $netIncome = (float) $resolved['net_income'];
 
         $ownObligations = (float) RepaymentSchedule::query()
             ->whereHas('loan', fn ($q) => $q->where('customer_id', $guarantor->id))
@@ -174,7 +232,9 @@ class AffordabilityService
         if ($netIncome <= 0) {
             $verdict = 'fail';
             $statusLabel = 'No income on file';
-            $reason = 'Guarantor has no declared monthly income.';
+            $reason = $resolved['income_basis'] === 'statement'
+                ? 'Guarantor has no proven monthly income from statement totals.'
+                : 'Guarantor has no declared monthly income.';
         } elseif ($newEmi > $availableCapacity) {
             $verdict = 'fail';
             $statusLabel = 'Insufficient capacity';
@@ -197,6 +257,12 @@ class AffordabilityService
             'pass'                   => $verdict === 'pass',
             'status_label'           => $statusLabel,
             'reason'                 => $reason,
+            'income_basis'           => $resolved['income_basis'],
+            'declared_monthly_income'=> round((float) $resolved['declared_monthly_income'], 2),
+            'statement_monthly'      => $resolved['statement_monthly'],
+            'statement_weekly'       => $resolved['statement_weekly'],
+            'statement_deposits_total' => $resolved['statement_deposits_total'],
+            'statement_months'       => $resolved['statement_months'],
         ];
     }
 

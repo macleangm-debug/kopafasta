@@ -53,7 +53,12 @@ class ScreeningReadinessFeatureTest extends TestCase
                 continue;
             }
             foreach (array_keys($group['items'] ?? []) as $itemKey) {
-                $items[$groupKey][$itemKey] = ['verdict' => 'pass'];
+                $row = ['verdict' => 'pass'];
+                if ($groupKey === 'activity_income' && $itemKey === 'income_evidence') {
+                    $row['statement_deposits_total'] = 6_000_000;
+                    $row['statement_months'] = 6;
+                }
+                $items[$groupKey][$itemKey] = $row;
             }
         }
         app(\App\Services\ScreeningChecklistService::class)->save(

@@ -146,7 +146,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($app);
         $this->assertTrue($suggestion['prompt_reject']);
         $this->assertContains('insufficient_income', $suggestion['codes']);
-        $this->assertStringContainsString('Match financial statements', $suggestion['summary']);
+        $this->assertStringContainsString('Match statements', $suggestion['summary']);
         $this->assertSame('insufficient_income', $app->screening_rejection_reason_code);
     }
 
@@ -296,5 +296,55 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertTrue($suggestion['prompt_reject']);
         $this->assertContains('unstable_income_pattern', $suggestion['codes']);
         $this->assertStringContainsString('Gambling', $suggestion['summary']);
+    }
+
+    public function test_gate2_pass_requires_statement_totals(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.loan-applications.show', $app))
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'income_evidence' => ['verdict' => 'pass'],
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+    }
+
+    public function test_gate2_pass_stores_monthly_and_weekly_from_total_deposits(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'income_evidence' => [
+                            'verdict' => 'pass',
+                            'statement_deposits_total' => 6_000_000,
+                            'statement_months' => 6,
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionMissing('error');
+
+        $app->refresh();
+        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $item = $items['activity_income.income_evidence'] ?? [];
+        $this->assertSame('pass', $item['verdict'] ?? null);
+        $this->assertEquals(6_000_000, (float) ($item['statement_deposits_total'] ?? 0));
+        $this->assertSame(6, (int) ($item['statement_months'] ?? 0));
+        $this->assertEquals(1_000_000, (float) ($item['statement_monthly'] ?? 0));
+        $this->assertEquals(round(1_000_000 * 12 / 52, 2), (float) ($item['statement_weekly'] ?? 0));
     }
 }

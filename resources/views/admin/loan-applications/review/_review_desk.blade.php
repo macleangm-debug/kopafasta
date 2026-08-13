@@ -152,9 +152,13 @@
                  this.openItem = null;
                  this.$refs['items_' + groupKey]?.querySelectorAll('[data-checklist-item]').forEach((el) => {
                      const data = Alpine.$data(el);
-                     if (data && ! data.verdict) {
-                         data.verdict = 'pass';
+                     if (! data || data.verdict) {
+                         return;
                      }
+                     if (data.needsStatementTotals && ! (Number(data.deposits) > 0)) {
+                         return;
+                     }
+                     data.verdict = 'pass';
                  });
              }
          }">

@@ -61,16 +61,19 @@
                         <dt class="text-[10px] uppercase tracking-widest text-brand">Your recommended amount</dt>
                         <dd class="font-bold text-brand mt-1">{{ format_money((float) $record->recommended_amount) }}</dd>
                     </div>
-                @elseif ($counter && ($counter['amount'] ?? 0) > 0)
-                    <div class="rounded-xl bg-brand-gold/15 ring-1 ring-brand-gold/40 px-3 py-3">
-                        <dt class="text-[10px] uppercase tracking-widest text-brand">Max affordable (counter)</dt>
-                        <dd class="font-bold text-brand mt-1">{{ format_money((float) $counter['amount']) }}</dd>
-                        <dd class="text-[10px] text-brand/70 mt-0.5">Est. {{ format_money((float) ($counter['installment'] ?? 0)) }}/mo</dd>
-                    </div>
                 @else
-                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-500">Recommended amount</dt>
-                        <dd class="font-medium text-gray-500 mt-1">Not set yet</dd>
+                    <div class="rounded-xl bg-brand-gold/15 ring-1 ring-brand-gold/40 px-3 py-3">
+                        <dt class="text-[10px] uppercase tracking-widest text-brand">
+                            {{ app(\App\Services\UnderwritingSettingsService::class)->counterOffersEnabled() ? 'System counter ceiling' : 'Max this income can support' }}
+                        </dt>
+                        @if (($counter['amount'] ?? 0) > 0 || ($affordability['max_affordable_principal'] ?? 0) > 0)
+                            <dd class="font-bold text-brand mt-1">{{ format_money((float) ($counter['amount'] ?? $affordability['max_affordable_principal'] ?? 0)) }}</dd>
+                            @if (! empty($counter['installment']))
+                                <dd class="text-[10px] text-brand/70 mt-0.5">Est. {{ format_money((float) $counter['installment']) }}/mo</dd>
+                            @endif
+                        @else
+                            <dd class="font-medium text-gray-500 mt-1">Key statement totals on Gate 2</dd>
+                        @endif
                     </div>
                 @endif
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-3">

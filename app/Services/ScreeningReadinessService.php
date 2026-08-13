@@ -95,10 +95,10 @@ class ScreeningReadinessService
                             || ! empty($item['evidence']['compare']);
                         $nextSteps[] = [
                             'label' => $isIncomeGate
-                                ? 'Gate 2 · Match statements to profile monthly revenue'
+                                ? 'Gate 2 · Key statement totals and match revenue'
                                 : (($hasEvidence ? 'Confirm Pass/Fail · ' : 'Still open · ').($item['label'] ?? 'Checklist item')),
                             'detail' => $isIncomeGate
-                                ? $subjectLabel.' · Capacity — do bank / mobile-money statements support declared monthly revenue? Do this before other checklist work.'
+                                ? $subjectLabel.' · Capacity — add total deposits from the statement, then Pass only if that average supports the profile. Required before other checklist work.'
                                 : ($subjectLabel.' · '.($group['phase_label'] ?? $group['label'] ?? 'Checklist')
                                     .($hasEvidence ? ' — evidence is ready; you still must record Pass, Fail, or N/A and Save' : '')),
                             'href' => $href,

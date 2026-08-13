@@ -9,6 +9,7 @@ use App\Models\CustomerGuarantor;
 use App\Models\GuarantorInvitation;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\LoanProductRequirement;
 use App\Models\RepaymentSchedule;
 use Illuminate\Support\Collection;
 
@@ -41,6 +42,10 @@ class LoanApplicationReviewService
         $requirements = collect($application->product?->requirements ?? [])
             ->reject(function ($req) {
                 $name = (string) ($req->name ?? '');
+
+                if (LoanProductRequirement::nameLooksLikeProfileDuplicate($name, $req->description ?? null)) {
+                    return true;
+                }
 
                 // Dormant group evidence (product checkbox off) stays out of the checklist until enabled.
                 return in_array($name, ['Group constitution', 'Group member roster'], true)
@@ -412,6 +417,8 @@ class LoanApplicationReviewService
                     ? app(AffordabilityService::class)->evaluateForGuarantor(
                         $member,
                         round((float) ($invitation?->requested_amount ?? $application->requested_amount ?? 0) / 12, 2),
+                        $application,
+                        (int) $link->id,
                     )
                     : null;
 

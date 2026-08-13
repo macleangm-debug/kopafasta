@@ -62,6 +62,15 @@
         fn ($req) => $docRequestService->borrowerActionKind($req) === 'income'
     );
 
+    // Duplicates of Face / Income verification (passport-size photo, source-of-income
+    // proof, 3-month statements when 6-month Income verification is already required).
+    $requirements = $requirements->reject(function ($req) {
+        return \App\Models\LoanProductRequirement::nameLooksLikeProfileDuplicate(
+            $req->name ?? '',
+            $req->description ?? null
+        );
+    })->values();
+
     $categoryFor = function ($req): array {
         $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
         $rules = [
@@ -94,7 +103,7 @@
 
             $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
             $isIdentity = str_contains($hay, 'national id')
-                || str_contains($hay, 'passport')
+                || (str_contains($hay, 'passport') && ! str_contains($hay, 'photo'))
                 || str_contains($hay, 'face')
                 || str_contains($hay, 'nida')
                 || str_contains($hay, 'photo of id');

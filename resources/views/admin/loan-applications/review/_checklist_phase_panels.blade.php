@@ -73,7 +73,9 @@
     <div id="checklist-affordability" class="scroll-mt-24 space-y-4">
         @include('admin.loan-applications.review._subject_affordability', [
             'review' => $panelSubjectReview,
-            'affordability' => $panelSubjectReview['affordability'] ?? ($affordability ?? ($review['affordability'] ?? null)),
+            'affordability' => $panelPerson === 'member' && ! empty($panelMember['affordability'])
+                ? $panelMember['affordability']
+                : ($panelSubjectReview['affordability'] ?? ($affordability ?? ($review['affordability'] ?? null))),
             'counterOffer' => $counterOffer ?? ($review['counter_offer'] ?? null),
         ])
         @if ($panelPerson === 'guarantor' && $panelGuarantor)

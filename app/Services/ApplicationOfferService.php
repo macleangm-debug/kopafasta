@@ -18,6 +18,7 @@ class ApplicationOfferService
 
     public function __construct(
         private readonly AffordabilityService $affordability,
+        private readonly GroupAffordabilityService $groupAffordability,
         private readonly NotificationService $notifications,
         private readonly DisplayedRateService $rates,
         private readonly AssetBackedLoanService $assetBacked,
@@ -28,7 +29,7 @@ class ApplicationOfferService
     {
         $application->loadMissing(['customer', 'product']);
         $tenure = (int) ($application->requested_tenure_months ?? 12);
-        $amount = $this->affordability->maxAffordablePrincipal($application, $tenure);
+        $amount = $this->groupAffordability->maxAffordablePrincipal($application, $tenure);
 
         $product = $application->product;
         if ($product) {
@@ -172,7 +173,7 @@ class ApplicationOfferService
                 ]);
             }
             $counter = $this->maxCounterOffer($application);
-            $recommendedAmount = $recommendedAmount > 0 ? $recommendedAmount : $counter['amount'];
+            $recommendedAmount = $counter['amount'];
             $tenureMonths = $tenureMonths ?: $counter['tenure_months'];
 
             if ($recommendedAmount <= 0) {

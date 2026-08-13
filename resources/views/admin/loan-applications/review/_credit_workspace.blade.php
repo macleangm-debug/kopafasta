@@ -567,8 +567,10 @@
         @endif
     </div>
 
-    {{-- Person switcher sits above workspace tabs so Checklist / Profiles / Decision stay aligned --}}
-    @include('admin.loan-applications.review._workspace_person_switcher')
+    {{-- Person switcher is for Checklist / Profiles only. Decision is for the whole file. --}}
+    @if ($workspace !== 'decision')
+        @include('admin.loan-applications.review._workspace_person_switcher')
+    @endif
 
     {{-- Top workspace tabs --}}
     <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">

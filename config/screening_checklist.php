@@ -179,7 +179,7 @@ return [
         'items' => [
             // Gate 2 (after capacity auto-reject): human must confirm statements support profile revenue.
             'income_evidence' => [
-                'label' => 'Match financial statements to profile monthly revenue',
+                'label' => 'Match statements to profile revenue — key total deposits',
                 'evidence' => 'income_statements',
                 'document_bundle' => 'income_statements',
                 'risk' => 'critical',

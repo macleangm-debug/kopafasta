@@ -17,7 +17,6 @@ class LoanProductRequirementSeeder extends Seeder
         $baseline = [
             ['name' => 'National ID (front)',  'description' => 'Clear photo of the front side of your ID.'],
             ['name' => 'National ID (back)',   'description' => 'Clear photo of the back side of your ID.'],
-            ['name' => 'Passport photo',       'description' => 'Recent passport-size photo, plain background.'],
             ['name' => 'Income verification',  'description' => 'Choose bank statement or mobile money statement (6 months).'],
         ];
 
@@ -25,12 +24,10 @@ class LoanProductRequirementSeeder extends Seeder
         $rules = [
             'BIZ' => [
                 ['name' => 'Business licence',          'description' => 'Valid TRA / local government business licence.'],
-                ['name' => '3 months bank statement',   'description' => 'Most recent 3 months of bank or mobile-money statement.'],
                 ['name' => 'Photo of business',         'description' => 'Photo showing your shop / business premises.'],
             ],
             'BZ' => [
                 ['name' => 'Business licence',          'description' => 'Valid TRA / local government business licence.'],
-                ['name' => '3 months bank statement',   'description' => 'Most recent 3 months of bank or mobile-money statement.'],
                 ['name' => 'Photo of business',         'description' => 'Photo showing your shop / business premises.'],
             ],
             'AC'  => [ // Fundi Capital
@@ -39,7 +36,6 @@ class LoanProductRequirementSeeder extends Seeder
             'SAL' => [
                 ['name' => 'Latest 3 payslips',         'description' => 'Most recent 3 monthly payslips.'],
                 ['name' => 'Employer letter',           'description' => 'Letter from your employer confirming employment.'],
-                ['name' => '3 months bank statement',   'description' => 'Salary account statement for the last 3 months.'],
             ],
             'AGR' => [
                 ['name' => 'Farm location proof',       'description' => 'Photo of farm or land-use letter from local leader.'],
@@ -79,15 +75,6 @@ class LoanProductRequirementSeeder extends Seeder
             'FC'  => [
                 ['name' => 'Workshop / craft proof',    'description' => 'Photo of workshop, tools or recent work.'],
             ],
-            'IL'  => [
-                ['name' => 'Source of income proof',    'description' => 'Any document showing how you earn money.'],
-            ],
-            'SL'  => [
-                ['name' => 'Source of income proof',    'description' => 'Any document showing how you earn money.'],
-            ],
-            'WM'  => [
-                ['name' => 'Source of income proof',    'description' => 'Any document showing how you earn money.'],
-            ],
         ];
 
         LoanProduct::query()->get()->each(function (LoanProduct $product) use ($baseline, $rules) {
@@ -112,6 +99,15 @@ class LoanProductRequirementSeeder extends Seeder
                     ]
                 );
             }
+
+            LoanProductRequirement::query()
+                ->where('loan_product_id', $product->id)
+                ->whereIn('name', [
+                    'Passport photo',
+                    'Source of income proof',
+                    '3 months bank statement',
+                ])
+                ->delete();
         });
     }
 }

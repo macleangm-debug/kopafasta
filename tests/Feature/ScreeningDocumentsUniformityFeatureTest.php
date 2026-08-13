@@ -48,6 +48,8 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             ['name' => 'National ID (front)', 'description' => 'Clear photo of the front side of your ID.'],
             ['name' => 'National ID (back)', 'description' => 'Clear photo of the back side of your ID.'],
             ['name' => 'Passport photo', 'description' => 'Recent passport-size photo, plain background.'],
+            ['name' => 'Source of income proof', 'description' => 'Any document showing how you earn money.'],
+            ['name' => '3 months bank statement', 'description' => 'Most recent 3 months of bank or mobile-money statement.'],
             ['name' => 'Income verification', 'description' => 'Bank statement OR mobile money statement (6 months).'],
         ] as $row) {
             LoanProductRequirement::create([
@@ -203,5 +205,25 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $this->assertStringContainsString('No open requests for this person', $otherHtml);
         $this->assertStringNotContainsString('No open requests for this person', $askedHtml);
         $this->assertStringContainsString('Waiting on', $askedHtml);
+
+        foreach ([$leaderHtml, $askedHtml, $otherHtml] as $html) {
+            $this->assertStringNotContainsString('Recent passport-size photo, plain background.', $html);
+            $this->assertStringNotContainsString('Source of income proof', $html);
+            $this->assertStringNotContainsString('3 months bank statement', $html);
+            $this->assertStringNotContainsString('Most recent 3 months of bank or mobile-money statement.', $html);
+        }
+
+        $decisionHtml = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'decision',
+                'review_person' => 'member',
+                'review_m' => $askedRow->id,
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Record the screening recommendation', $decisionHtml);
+        $this->assertStringNotContainsString('Who you are reviewing', $decisionHtml);
     }
 }

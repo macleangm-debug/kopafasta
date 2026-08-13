@@ -88,6 +88,13 @@ class GroupLoanReviewService
 
         $perMember = (float) ($members->avg('requested_amount') ?: 0);
         $total = (float) $members->sum('requested_amount');
+        $groupAfford = app(GroupAffordabilityService::class)->evaluate($application);
+        $affordByCustomer = collect($groupAfford['members'] ?? [])->keyBy('customer_id');
+        $members = $members->map(function (array $row) use ($affordByCustomer) {
+            $row['affordability'] = $affordByCustomer->get($row['customer_id'] ?? 0);
+
+            return $row;
+        });
 
         return [
             'group_number'        => $group->group_number,
@@ -108,6 +115,7 @@ class GroupLoanReviewService
             'application_status'  => app(GroupApplicationStatusService::class)->resolveForGroup($group, $application),
             'scoring'             => $group->scoring_snapshot
                 ?: app(GroupScoringService::class)->scoreForGroup($group, $application),
+            'affordability'       => $groupAfford,
         ];
     }
 }

@@ -39,7 +39,17 @@
                 <li class="p-4" data-checklist-item
                     x-data="{
                         verdict: @js($item['verdict'] ?? ''),
-                        reason: @js($item['fail_reason_code'] ?? '')
+                        reason: @js($item['fail_reason_code'] ?? ''),
+                        needsStatementTotals: {{ ! empty($item['captures_statement']) ? 'true' : 'false' }},
+                        deposits: {{ (float) ($item['statement_deposits_total'] ?? 0) }},
+                        months: {{ (int) ($item['statement_months'] ?? 6) }},
+                        get monthly() {
+                            const months = Number(this.months) || 0;
+                            const deposits = Number(this.deposits) || 0;
+                            return months > 0 ? deposits / months : 0;
+                        },
+                        get weekly() { return this.monthly * 12 / 52 },
+                        money(n) { return Math.round(Number(n) || 0).toLocaleString() }
                     }">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <button type="button" class="text-left min-w-0 flex-1" @click="toggleItem(@js($itemKey))">
@@ -270,6 +280,54 @@
                                     </div>
                                 @endforeach
                             </dl>
+                        @endif
+
+                        @if (! empty($item['captures_statement']) && empty($item['auto_na']))
+                            <div class="rounded-xl ring-1 ring-brand/15 bg-brand-muted/30 p-3.5 space-y-3">
+                                <div>
+                                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Statement totals</p>
+                                    <p class="text-[11px] text-gray-600 mt-0.5">
+                                        Add up all credits / deposits on the statement. The system divides by the months covered — monthly is used for capacity; weekly is shown for weekly products.
+                                    </p>
+                                </div>
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <label class="block">
+                                        <span class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Total deposits (TZS)</span>
+                                        <input type="number" min="0" step="1000"
+                                               name="{{ $fieldBase }}[statement_deposits_total]"
+                                               x-model.number="deposits"
+                                               @if (! $canEdit) disabled @endif
+                                               placeholder="e.g. 6,000,000"
+                                               class="mt-1 w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2 focus:ring-2 focus:ring-brand/30">
+                                    </label>
+                                    <label class="block">
+                                        <span class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Period covered</span>
+                                        <select name="{{ $fieldBase }}[statement_months]"
+                                                x-model.number="months"
+                                                @if (! $canEdit) disabled @endif
+                                                class="mt-1 w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2 focus:ring-2 focus:ring-brand/30">
+                                            <option value="3">3 months</option>
+                                            <option value="6">6 months</option>
+                                            <option value="12">12 months</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="grid sm:grid-cols-3 gap-2">
+                                    <div class="rounded-lg bg-white ring-1 ring-brand/10 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-widest text-gray-500">≈ per month</p>
+                                        <p class="text-sm font-bold text-gray-900 mt-0.5 tabular-nums" x-text="money(monthly)"></p>
+                                    </div>
+                                    <div class="rounded-lg bg-white ring-1 ring-brand/10 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-widest text-gray-500">≈ per week</p>
+                                        <p class="text-sm font-bold text-gray-900 mt-0.5 tabular-nums" x-text="money(weekly)"></p>
+                                    </div>
+                                    <div class="rounded-lg bg-white ring-1 ring-brand/10 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-widest text-gray-500">Max repayment (1/3)</p>
+                                        <p class="text-sm font-bold text-brand mt-0.5 tabular-nums" x-text="money(monthly * {{ (float) app(\App\Services\CountryCreditSettingsService::class)->repaymentRatio() }})"></p>
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-brand/80">Required to Pass this item. Capacity and any counter-offer use one-third of this monthly average (minus existing instalments) — not the full deposit total.</p>
+                            </div>
                         @endif
 
                         <div x-show="verdict === 'fail'" x-cloak class="rounded-xl bg-rose-50/80 ring-1 ring-rose-100 p-3 space-y-2">

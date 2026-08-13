@@ -13,8 +13,8 @@ class GroupAffordabilityService
         private readonly AffordabilityService $affordability,
         private readonly CountryCreditSettingsService $countryCredit,
         private readonly GroupLendingService $groupLending,
-        private readonly GroupScoringService $groupScoring,
         private readonly DisplayedRateService $rates,
+        private readonly StatementCapacityService $statements,
     ) {}
 
     /**
@@ -91,9 +91,22 @@ class GroupAffordabilityService
                 $share = round($amount / max(1, $members->count()), 2);
             }
             $installment = $this->affordability->estimateInstallment($share, $monthlyRate, $tenure);
-            $income = $customer
-                ? (float) $this->groupScoring->resolveMonthlyIncome($customer)
-                : 0.0;
+            $resolved = $customer
+                ? $this->statements->resolveIncome(
+                    $application,
+                    $customer,
+                    $this->statements->subjectForGroupMember($application, $member),
+                )
+                : [
+                    'net_income' => 0.0,
+                    'income_basis' => 'declared',
+                    'declared_monthly_income' => 0.0,
+                    'statement_deposits_total' => null,
+                    'statement_months' => null,
+                    'statement_monthly' => null,
+                    'statement_weekly' => null,
+                ];
+            $income = (float) $resolved['net_income'];
             $existing = $customer ? $this->existingObligations($customer) : 0.0;
             $maxRepayment = round($income * $ratio, 2);
             $capacity = max(0.0, round($maxRepayment - $existing, 2));
@@ -102,7 +115,9 @@ class GroupAffordabilityService
             $reason = 'Within available capacity.';
             if ($income <= 0) {
                 $verdict = 'fail';
-                $reason = 'No declared monthly income on file.';
+                $reason = ($resolved['income_basis'] ?? '') === 'statement'
+                    ? 'No proven monthly income from statement totals.'
+                    : 'No declared monthly income on file.';
             } elseif ($installment > $capacity) {
                 $verdict = 'fail';
                 $reason = 'Share installment '.format_money($installment).' exceeds capacity '.format_money($capacity).'.';
@@ -123,6 +138,12 @@ class GroupAffordabilityService
                 'verdict' => $verdict,
                 'pass' => $verdict === 'pass',
                 'reason' => $reason,
+                'income_basis' => $resolved['income_basis'],
+                'declared_monthly_income' => (float) $resolved['declared_monthly_income'],
+                'statement_monthly' => $resolved['statement_monthly'],
+                'statement_weekly' => $resolved['statement_weekly'],
+                'statement_deposits_total' => $resolved['statement_deposits_total'],
+                'statement_months' => $resolved['statement_months'],
             ];
 
             $rows[] = $row;
@@ -166,6 +187,41 @@ class GroupAffordabilityService
             'reason' => $reason,
             'evaluated_at' => now()->toIso8601String(),
         ];
+    }
+
+    public function maxAffordablePrincipal(LoanApplication $application, ?int $tenureMonths = null): float
+    {
+        $application->loadMissing(['customer', 'product', 'loanGroup.members.customer']);
+
+        if (! $this->groupLending->isGroupProduct($application->product)) {
+            return $this->affordability->maxAffordablePrincipal($application, $tenureMonths);
+        }
+
+        $evaluation = $this->evaluate($application);
+        $tenure = $tenureMonths ?: max(1, (int) ($application->requested_tenure_months ?? 12));
+        $amount = (float) ($application->requested_amount ?? 0);
+        $rateBreakdown = $this->rates->breakdown($application->product, $amount);
+        $monthlyRate = (float) ($rateBreakdown['displayed_monthly_rate'] ?? $application->product?->interest_rate ?? 0);
+        $highCap = (float) ($application->product?->max_amount ?? $amount);
+
+        $scale = 1.0;
+        $anyShare = false;
+        foreach ((array) ($evaluation['members'] ?? []) as $row) {
+            $share = (float) ($row['requested_amount'] ?? 0);
+            if ($share <= 0) {
+                continue;
+            }
+            $anyShare = true;
+            $capacity = (float) ($row['available_capacity'] ?? 0);
+            $maxShare = $this->affordability->principalFromCapacity($capacity, $monthlyRate, $tenure, $highCap);
+            $scale = min($scale, $maxShare / $share);
+        }
+
+        if (! $anyShare) {
+            return 0.0;
+        }
+
+        return round(max(0, $amount * $scale), 2);
     }
 
     private function existingObligations(Customer $customer): float
