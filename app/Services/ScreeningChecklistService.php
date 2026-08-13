@@ -487,6 +487,20 @@ class ScreeningChecklistService
             $application->update(['screening_payload' => $payload]);
 
             $fresh = $application->fresh();
+
+            $subjectCustomer = $this->resolveSubjectCustomer($fresh, $person, $guarantorLinkId, $memberId);
+            app(ChecklistDocumentBridge::class)->syncDocumentsAfterChecklistPass(
+                $fresh,
+                $actor,
+                $subjectCustomer,
+                $items,
+                [
+                    'subject_kind' => $person,
+                    'subject_customer_id' => $subjectCustomer?->id,
+                    'loan_group_member_id' => $memberId,
+                ],
+            );
+
             $suggestion = $this->suggestedRejection($fresh);
             if ($suggestion['prompt_reject'] && $suggestion['codes'] !== []) {
                 $payload = (array) ($fresh->screening_payload ?? []);
@@ -1037,6 +1051,21 @@ class ScreeningChecklistService
         }
 
         return $flat;
+    }
+
+    /**
+     * @return Customer|null
+     */
+    private function resolveSubjectCustomer(
+        LoanApplication $application,
+        string $person,
+        ?int $guarantorLinkId,
+        ?int $memberId,
+    ): ?Customer {
+        $context = $this->evidenceContext($application, $person, $guarantorLinkId, $memberId, null, null);
+        $customer = $context['customer'] ?? null;
+
+        return $customer instanceof Customer ? $customer : null;
     }
 
     /**

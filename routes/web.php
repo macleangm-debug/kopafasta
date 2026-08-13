@@ -625,6 +625,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.assign-analyst');
         Route::post('loan-applications/{loan_application}/documents/{document}/verify', [LoanApplicationController::class, 'verifyDocument'])
             ->name('loan-applications.documents.verify');
+        Route::post('loan-applications/{loan_application}/documents/verify-all', [LoanApplicationController::class, 'verifyAllDocuments'])
+            ->name('loan-applications.documents.verify-all');
         Route::post('loan-applications/{loan_application}/documents/{document}/reject', [LoanApplicationController::class, 'rejectDocument'])
             ->name('loan-applications.documents.reject');
         Route::post('loan-applications/{loan_application}/group-members/{loan_group_member}/review', [LoanApplicationController::class, 'reviewGroupMember'])

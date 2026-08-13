@@ -38,13 +38,10 @@
                 </p>
                 @if ($checklistLinks !== [])
                     <p class="text-[10px] text-violet-800 mt-1.5">
-                        Feeds review checklist:
+                        Checklist:
                         @foreach ($checklistLinks as $i => $link)
                             @if ($i > 0)<span class="text-violet-400"> · </span>@endif
-                            <span class="font-semibold">{{ $link['label'] }}</span>
-                            @if ($link['auto'])
-                                <span class="text-violet-500">(auto)</span>
-                            @endif
+                            <span class="font-semibold">{{ \Illuminate\Support\Str::of($link['label'])->before(' (via') }}</span>
                         @endforeach
                     </p>
                 @endif

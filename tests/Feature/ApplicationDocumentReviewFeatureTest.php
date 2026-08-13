@@ -202,4 +202,40 @@ class ApplicationDocumentReviewFeatureTest extends TestCase
         $this->assertSame('documents', $items['identity.id_document_quality']['source'] ?? null);
         $this->assertSame('suspected_tamper', $items['identity.id_document_quality']['fail_reason_code'] ?? null);
     }
+
+    public function test_passing_id_checklist_items_auto_verifies_pending_id_document(): void
+    {
+        $admin = $this->staff();
+        ['app' => $app, 'customer' => $customer] = $this->application($admin);
+
+        $type = DocumentType::create([
+            'code' => 'national_id_front',
+            'name' => 'National ID — front',
+            'category' => 'kyc',
+            'is_active' => true,
+        ]);
+
+        $doc = CustomerDocument::create([
+            'customer_id' => $customer->id,
+            'document_type_id' => $type->id,
+            'file_path' => 'documents/id-front.jpg',
+            'status' => 'pending_review',
+        ]);
+
+        app(\App\Services\ScreeningChecklistService::class)->save($app, $admin, [
+            'identity' => [
+                'face_vs_nida' => ['verdict' => 'pass'],
+                'id_document_quality' => ['verdict' => 'pass'],
+            ],
+        ], 'borrower');
+
+        $review = LoanApplicationDocumentReview::query()
+            ->where('loan_application_id', $app->id)
+            ->where('customer_document_id', $doc->id)
+            ->first();
+
+        $this->assertNotNull($review);
+        $this->assertSame('verified', $review->status);
+        $this->assertStringContainsString('checklist', (string) ($review->notes ?? ''));
+    }
 }

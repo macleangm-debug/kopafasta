@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentReview;
@@ -101,6 +102,83 @@ class ApplicationDocumentReviewService
         );
 
         return $review->fresh();
+    }
+
+    /**
+     * Verify without re-syncing checklist (used when checklist Pass already drove this).
+     *
+     * @param  array{subject_kind?: string, subject_customer_id?: ?int, loan_group_member_id?: ?int}  $subject
+     */
+    public function verifyQuiet(
+        CustomerDocument $document,
+        LoanApplication $application,
+        User $user,
+        array $subject = [],
+    ): LoanApplicationDocumentReview {
+        $this->assertCanReview($document, $application, $user);
+
+        $review = $this->upsertReview($document, $application, $user, [
+            'status' => 'verified',
+            'fail_reason_code' => null,
+            'fail_reason_custom' => null,
+            'remedy' => null,
+            'notes' => 'Auto-verified from review checklist Pass',
+        ], $subject);
+
+        if ((int) ($document->loan_application_id ?? 0) === (int) $application->id) {
+            $document->update([
+                'status' => 'verified',
+                'verified_at' => now(),
+                'verified_by' => $user->id,
+            ]);
+        }
+
+        $this->audit->log($user, 'admin.loan_applications.document_verified', $application, [], [
+            'document_id' => $document->id,
+            'requirement_id' => $document->loan_product_requirement_id,
+            'application_review_id' => $review->id,
+            'scope' => 'application',
+            'source' => 'checklist',
+        ]);
+
+        return $review->fresh();
+    }
+
+    /**
+     * Verify every pending profile document for a subject on this application.
+     *
+     * @param  array{subject_kind?: string, subject_customer_id?: ?int, loan_group_member_id?: ?int}  $subject
+     */
+    public function verifyAllPending(
+        LoanApplication $application,
+        Customer $customer,
+        User $user,
+        array $subject = [],
+    ): int {
+        $docs = CustomerDocument::query()
+            ->with('documentType')
+            ->where('customer_id', $customer->id)
+            ->where(function ($q) use ($application) {
+                $q->whereNull('loan_application_id')
+                    ->orWhere('loan_application_id', $application->id);
+            })
+            ->whereNotNull('file_path')
+            ->latest('id')
+            ->get()
+            ->unique(fn (CustomerDocument $doc) => (string) ($doc->document_type_id ?? $doc->id))
+            ->values();
+
+        $count = 0;
+        foreach ($docs as $doc) {
+            $status = $this->statusFor($application, $doc);
+            if (in_array($status, ['verified', 'approved', 'rejected'], true)) {
+                continue;
+            }
+            $this->verify($doc, $application, $user, $subject);
+            $count++;
+        }
+
+        return $count;
     }
 
     /**

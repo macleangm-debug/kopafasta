@@ -63,4 +63,26 @@ return [
         'documents.doc_authenticity',
         'documents.falsified_docs',
     ],
+
+    /**
+     * When these checklist keys are all Pass for a subject, pending Documents in that
+     * bundle are auto-verified (Documents ← checklist). Excludes profile_all roll-ups
+     * so authenticity does not have to pass before the first file can be cleared.
+     */
+    'reverse_auto_verify' => [
+        'id_quality' => [
+            'identity.face_vs_nida',
+            'identity.id_document_quality',
+        ],
+        'residence_proof' => [
+            'residence.utility_or_proof',
+        ],
+        'income_statements' => [
+            'activity_income.income_evidence',
+            'activity_income.bank_or_mobile_money',
+        ],
+        'activity_proof' => [
+            'activity_income.activity_plausible',
+        ],
+    ],
 ];

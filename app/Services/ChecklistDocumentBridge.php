@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentReview;
+use App\Models\User;
 use Illuminate\Support\Collection;
 
 /**
@@ -282,5 +283,59 @@ class ChecklistDocumentBridge
         }
 
         return $links;
+    }
+
+    /**
+     * After checklist save: if reverse-verify keys for a bundle are all Pass,
+     * mark pending Documents in that bundle verified for this application.
+     *
+     * @param  array<string, mixed>  $checklistItems
+     */
+    public function syncDocumentsAfterChecklistPass(
+        LoanApplication $application,
+        User $actor,
+        ?Customer $customer,
+        array $checklistItems,
+        array $subject = [],
+    ): int {
+        if (! $customer) {
+            return 0;
+        }
+
+        $verified = 0;
+        $reviewService = app(ApplicationDocumentReviewService::class);
+
+        foreach (config('checklist_document_bridge.reverse_auto_verify', []) as $bundleKey => $requiredKeys) {
+            $requiredKeys = array_values(array_filter((array) $requiredKeys, 'is_string'));
+            if ($requiredKeys === []) {
+                continue;
+            }
+
+            $allPass = true;
+            foreach ($requiredKeys as $fullKey) {
+                $row = (array) ($checklistItems[$fullKey] ?? []);
+                $verdict = strtolower(trim((string) ($row['verdict'] ?? '')));
+                if ($verdict !== 'pass') {
+                    $allPass = false;
+                    break;
+                }
+            }
+            if (! $allPass) {
+                continue;
+            }
+
+            foreach ($this->documentsForBundle($application, $customer, (string) $bundleKey) as $doc) {
+                $status = $reviewService->statusFor($application, $doc);
+                if (in_array($status, ['verified', 'approved', 'rejected'], true)) {
+                    continue;
+                }
+
+                // Quiet path: verify without pushing checklist again (already Pass).
+                $reviewService->verifyQuiet($doc, $application, $actor, $subject);
+                $verified++;
+            }
+        }
+
+        return $verified;
     }
 }

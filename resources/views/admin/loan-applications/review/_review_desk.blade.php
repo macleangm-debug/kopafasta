@@ -123,11 +123,9 @@
     $requestOpenItem = (string) request('open_item', '');
 
     $phaseHints = [
-        'person' => 'Your job: Pass / Fail each Personal check (identity, face, residence, activity).',
-        'capacity' => 'Gate 2 first: match statements to profile monthly revenue, then Pass / Fail other capacity checks, documents, affordability & CRB.',
-        'security' => $isGroupFile
-            ? 'Your job: Pass / Fail security checks, review the group, then close the wrap-up.'
-            : 'Your job: Pass / Fail security checks, then close the wrap-up (Group review only appears on group loans).',
+        'person' => '',
+        'capacity' => '',
+        'security' => '',
     ];
 @endphp
 
@@ -160,45 +158,37 @@
                  });
              }
          }">
-    <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-start justify-between gap-3">
-        <div>
-            <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Assisted review</p>
-            <h3 class="text-base font-bold text-gray-900 mt-0.5">Review checklist</h3>
-            <p class="text-xs text-gray-500 mt-0.5 max-w-2xl">
-                Work one tab at a time: <span class="font-semibold text-gray-700">Personal</span>, then
-                <span class="font-semibold text-gray-700">Capacity</span> (checks + documents + affordability + CRB), then
-                <span class="font-semibold text-gray-700">Security and close</span>.
-            </p>
+    <div class="px-5 py-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+            <h3 class="text-base font-bold text-gray-900">Review</h3>
+            <span class="text-sm font-bold text-brand tabular-nums">{{ $desk['decided'] }}/{{ $desk['total'] }}</span>
+            @if (($desk['failed'] ?? 0) > 0)
+                <span class="text-[11px] font-bold text-rose-700">{{ $desk['failed'] }} fail</span>
+            @endif
         </div>
-        <div class="rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-2.5 text-right">
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">This subject</p>
-            <p class="text-lg font-bold text-brand tabular-nums">{{ $desk['decided'] }}/{{ $desk['total'] }}</p>
-            <p class="text-[11px] text-brand/80">
-                {{ $desk['passed'] }} pass · {{ $desk['failed'] }} fail · {{ $desk['percent'] }}%
-            </p>
-        </div>
+        @if ($canEdit)
+            <button type="submit" form="screening-checklist-form"
+                    class="shrink-0 inline-flex rounded-xl bg-brand text-white text-xs font-bold px-3.5 py-2 hover:bg-brand-light">
+                Save →
+            </button>
+        @endif
     </div>
 
     <div class="px-5 py-3 border-b border-gray-100 flex gap-2 overflow-x-auto">
         @foreach ($desk['subjects'] ?? [] as $s)
             <a href="{{ $subjectUrl($s) }}"
                @class([
-                   'shrink-0 inline-flex flex-col rounded-xl px-3.5 py-2.5 text-left ring-1 transition min-w-[8.5rem]',
+                   'shrink-0 inline-flex flex-col rounded-xl px-3.5 py-2 text-left ring-1 transition min-w-[7.5rem]',
                    'bg-brand text-white ring-brand shadow-sm' => ($desk['subject'] ?? '') === $s['key'],
                    'bg-white text-gray-800 ring-gray-200 hover:bg-brand-muted/40' => ($desk['subject'] ?? '') !== $s['key'],
                ])>
-                <span class="text-xs font-bold">{{ $s['label'] }}</span>
-                <span @class([
-                    'text-[11px] truncate max-w-[9rem]',
-                    'text-white/80' => ($desk['subject'] ?? '') === $s['key'],
-                    'text-gray-500' => ($desk['subject'] ?? '') !== $s['key'],
-                ])>{{ $s['sublabel'] ?? '—' }}</span>
-                <span class="mt-1 text-[10px] font-semibold tabular-nums">
+                <span class="text-xs font-bold truncate max-w-[9rem]">{{ $s['label'] }}@if (! empty($s['sublabel'])) · {{ \Illuminate\Support\Str::of($s['sublabel'])->explode(' ')->first() }}@endif</span>
+                <span class="mt-0.5 text-[10px] font-semibold tabular-nums">
                     {{ $s['done'] }}/{{ $s['total'] }}
-                    @if ($s['complete'])
-                        · Done
-                    @elseif (($s['failed'] ?? 0) > 0)
-                        · {{ $s['failed'] }} fail
+                    @if (($s['failed'] ?? 0) > 0)
+                        · {{ $s['failed'] }}✗
+                    @elseif ($s['complete'])
+                        · ✓
                     @endif
                 </span>
             </a>
@@ -240,13 +230,11 @@
     <div class="p-5 space-y-4">
         @foreach ($phases as $phase)
             <div x-show="phase === @js($phase['key'])" x-cloak class="space-y-4">
-                <p class="text-xs text-gray-500">{{ $phaseHints[$phase['key']] ?? '' }}</p>
-
                 @if ($phase['key'] === 'capacity')
                     <div class="flex flex-wrap gap-1.5">
                         @foreach ([
-                            'checks' => 'Pass / Fail checks',
-                            'documents' => 'Documents',
+                            'checks' => 'Checks',
+                            'documents' => 'Docs',
                             'affordability' => 'Affordability',
                             'crb' => 'CRB',
                         ] as $tabKey => $tabLabel)
@@ -263,9 +251,9 @@
                 @elseif ($phase['key'] === 'security')
                     <div class="flex flex-wrap gap-1.5">
                         @foreach (array_filter([
-                            'checks' => 'Pass / Fail checks',
-                            'group' => $isGroupFile && $deskPerson === 'borrower' ? 'Group review' : null,
-                            'wrapup' => 'Close / wrap-up',
+                            'checks' => 'Checks',
+                            'group' => $isGroupFile && $deskPerson === 'borrower' ? 'Group' : null,
+                            'wrapup' => 'Close',
                         ]) as $tabKey => $tabLabel)
                             <button type="button"
                                     @click="securityTab = @js($tabKey)"
@@ -283,7 +271,7 @@
 
         {{-- Pass/Fail only inside the save form (keeps document verify/reject forms valid) --}}
         @if ($canEdit)
-            <form method="POST" action="{{ route('admin.loan-applications.screening-checklist', $record) }}" class="space-y-4">
+            <form id="screening-checklist-form" method="POST" action="{{ route('admin.loan-applications.screening-checklist', $record) }}" class="space-y-4">
                 @csrf
                 <input type="hidden" name="person" value="{{ $deskPerson }}">
                 @if ($deskG)
@@ -313,7 +301,7 @@
                 <div class="flex justify-end">
                     <button type="submit"
                             class="inline-flex items-center rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-light">
-                        Save review checklist
+                        Save
                     </button>
                 </div>
             </form>

@@ -121,8 +121,9 @@
 
     $defaultPanel = match (true) {
         $openRequestCount > 0 => 'requests',
-        $counts['missing'] > 0 || $counts['action'] > 0 => 'checklist',
-        default => 'checklist',
+        $counts['uploaded'] > 0 || $counts['action'] > 0 => 'checklist',
+        $counts['missing'] > 0 => 'checklist',
+        default => 'library',
     };
 @endphp
 
@@ -227,57 +228,28 @@
 
         {{-- Always-visible document requests strip --}}
         @if ($openRequestCount > 0)
-            <div class="px-4 sm:px-5 py-3.5 bg-gradient-to-r from-brand-gold/25 via-amber-50 to-white border-b border-brand-gold/40">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Document requests</p>
-                        <p class="text-sm font-semibold text-gray-900 mt-0.5">
-                            {{ $openRequestCount }} open · visible to screening and committee on this same file
-                        </p>
-                        <ul class="mt-2 space-y-1">
-                            @foreach ($openRequestPreview as $previewReq)
-                                <li class="text-xs text-gray-700 flex gap-2">
-                                    <span class="text-brand-gold font-bold shrink-0">•</span>
-                                    <span class="min-w-0">
-                                        <span class="font-semibold">{{ $previewReq->label }}</span>
-                                        @if (($previewReq->subject_kind ?? 'borrower') === 'member')
-                                            <span class="text-brand"> · member</span>
-                                        @endif
-                                        <span class="text-gray-500">
-                                            · {{ $previewReq->status === 'uploaded' ? 'Received — accept or reject' : 'Waiting on borrower' }}
-                                        </span>
-                                    </span>
-                                </li>
-                            @endforeach
-                            @if ($openRequestCount > $openRequestPreview->count())
-                                <li class="text-[11px] text-gray-500">+ {{ $openRequestCount - $openRequestPreview->count() }} more</li>
-                            @endif
-                        </ul>
-                    </div>
-                    <button type="button"
-                            @click="showRequests()"
-                            class="shrink-0 inline-flex items-center rounded-xl bg-brand text-white text-xs font-bold px-3.5 py-2.5 hover:bg-brand-light transition shadow-sm">
-                        Open requests →
-                    </button>
-                </div>
+            <div class="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-brand-gold/25 via-amber-50 to-white border-b border-brand-gold/40 flex flex-wrap items-center justify-between gap-2">
+                <p class="text-xs font-bold text-gray-900">
+                    {{ $openRequestCount }} open request{{ $openRequestCount === 1 ? '' : 's' }}
+                    @if ($openRequestPreview->isNotEmpty())
+                        <span class="font-semibold text-gray-600">· {{ $openRequestPreview->first()->label }}</span>
+                    @endif
+                </p>
+                <button type="button"
+                        @click="showRequests()"
+                        class="shrink-0 inline-flex items-center rounded-lg bg-brand text-white text-[11px] font-bold px-3 py-1.5 hover:bg-brand-light">
+                    Open →
+                </button>
             </div>
         @endif
 
         {{-- Checklist --}}
         <div x-show="panel === 'checklist'" role="tabpanel" class="p-4 sm:p-5 space-y-4">
-            <div class="rounded-xl bg-gradient-to-r from-brand-muted/70 to-white ring-1 ring-brand/15 px-4 py-3">
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Your job</p>
-                <p class="text-sm text-gray-900 mt-1 font-semibold">
-                    Verify waiting uploads, request anything still missing, then Pass / Fail Documents under Capacity.
-                </p>
-                <p class="text-[11px] text-gray-500 mt-1">Grouped by category so you can scan Identity, Income, Business, and Collateral quickly.</p>
-            </div>
-
             <div class="flex flex-wrap gap-1.5">
                 @foreach ([
                     'missing' => 'Missing ('.$counts['missing'].')',
-                    'action' => 'Needs action ('.$counts['action'].')',
-                    'uploaded' => 'To verify ('.$counts['uploaded'].')',
+                    'action' => 'Action ('.$counts['action'].')',
+                    'uploaded' => 'Verify ('.$counts['uploaded'].')',
                     'verified' => 'Done ('.$counts['verified'].')',
                     'all' => 'All ('.$counts['all'].')',
                 ] as $key => $label)
@@ -473,25 +445,49 @@
             @php
                 $docReviewService = app(\App\Services\ApplicationDocumentReviewService::class);
                 $appReviews = $docReviewService->reviewsForApplication($record);
+                $libraryPending = $profileDocs->filter(function ($doc) use ($docReviewService, $record, $appReviews) {
+                    $status = $appReviews->get($doc->id)?->status
+                        ?? $docReviewService->statusFor($record, $doc);
+
+                    return ! in_array($status, ['verified', 'approved', 'rejected'], true);
+                })->count();
             @endphp
-            <div class="rounded-xl bg-gradient-to-r from-brand-muted/40 to-white ring-1 ring-brand/10 px-4 py-3">
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Profile library</p>
-                <h3 class="text-sm font-semibold text-gray-900 mt-0.5">{{ $libraryTitle }}</h3>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    Profile documents for {{ $subjectName }} · {{ $profileDocs->count() }} on file ·
-                    <span class="font-semibold text-brand">review is for this application only</span>
-                </p>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-gray-900">
+                    {{ $subjectName }}
+                    @if ($libraryPending > 0)
+                        <span class="text-amber-700 font-bold tabular-nums">· {{ $libraryPending }} pending</span>
+                    @endif
+                </h3>
+                @if ($libraryPending > 0 && auth()->user()?->hasPermission('applications.review'))
+                    <form method="POST"
+                          action="{{ route('admin.loan-applications.documents.verify-all', $record) }}"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js('Verify all pending?'),
+                              message: @js('Clears pending profile files for this person on this application.'),
+                              confirmLabel: @js('Verify all'),
+                              confirmClass: 'bg-emerald-700 hover:bg-emerald-800 text-white',
+                              tone: 'confirm',
+                          })">
+                        @csrf
+                        <input type="hidden" name="review_person" value="{{ $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : 'borrower') }}">
+                        @if (request('review_g'))<input type="hidden" name="review_g" value="{{ request('review_g') }}">@endif
+                        @if (request('review_m'))<input type="hidden" name="review_m" value="{{ request('review_m') }}">@endif
+                        <button type="submit" class="inline-flex rounded-lg bg-brand text-white text-[11px] font-bold px-3 py-1.5">
+                            Verify all ({{ $libraryPending }})
+                        </button>
+                    </form>
+                @endif
             </div>
 
             @if ($profileDocs->isEmpty())
-                <p class="text-sm text-gray-500">No profile documents on file yet for {{ $subjectName }}.</p>
+                <p class="text-sm text-gray-500">No documents.</p>
             @else
                 <div class="space-y-4">
                     @foreach ($libraryByCategory as $libCat => $libDocs)
                         <section class="rounded-xl ring-1 ring-brand/10 overflow-hidden bg-white">
-                            <div class="px-3.5 py-2.5 bg-gradient-to-r from-brand-muted/50 to-white border-b border-brand/10">
+                            <div class="px-3.5 py-2 bg-gradient-to-r from-brand-muted/50 to-white border-b border-brand/10">
                                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ $libCat }}</p>
-                                <p class="text-[11px] text-gray-500 mt-0.5">{{ $libDocs->count() }} on file</p>
                             </div>
                             <div class="p-3 grid sm:grid-cols-2 gap-3">
                                 @foreach ($libDocs as $doc)

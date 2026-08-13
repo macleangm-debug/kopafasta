@@ -57,29 +57,8 @@
 
 @if ($phaseKey === 'capacity' && ($section === null || $section === 'documents'))
     <div id="checklist-documents" class="scroll-mt-24 space-y-4">
-        <div class="rounded-xl bg-gradient-to-r from-brand-muted/70 to-white ring-1 ring-brand/15 px-4 py-3">
-            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Your job on this tab</p>
-            <p class="text-sm text-gray-900 mt-1 font-semibold">
-                1) Check open document requests (gold strip) · 2) Verify uploads by category · 3) Pass / Fail Documents under Capacity → Pass / Fail checks
-            </p>
-            <p class="text-[11px] text-gray-500 mt-1">Same Documents view for screening and committee — committee sprints critical areas from Decision.</p>
-        </div>
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Evidence</p>
-                <h4 class="text-sm font-bold text-gray-900 mt-0.5">Documents · {{ $subjectLabel }}</h4>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    @if ($panelPerson === 'member')
-                        Profile documents for this group member only. Loan product uploads stay on the leader / application subject.
-                    @elseif ($panelPerson === 'guarantor')
-                        Profile documents for this guarantor. Application product uploads stay on the borrower file.
-                    @elseif ($isGroupFile)
-                        Application uploads for this group loan, then the leader’s profile library.
-                    @else
-                        Application uploads for this loan first, then the borrower profile library.
-                    @endif
-                </p>
-            </div>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <h4 class="text-sm font-bold text-gray-900">Documents · {{ $subjectLabel }}</h4>
             <span class="inline-flex rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 px-2.5 py-1 text-[11px] font-bold">
                 {{ ucfirst($panelPerson) }}
             </span>
@@ -96,12 +75,6 @@
 
 @if ($phaseKey === 'capacity' && ($section === null || $section === 'affordability'))
     <div id="checklist-affordability" class="scroll-mt-24 space-y-4">
-        <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3">
-            <p class="text-[10px] uppercase tracking-[0.18em] text-sky-800 font-bold">Your job on this tab</p>
-            <p class="text-sm text-sky-950 mt-1 font-semibold">
-                Read the system math, then Pass / Fail “Match financial statements to profile monthly revenue” under Capacity → Pass / Fail checks (Gate 2). If statements do not support declared revenue, Fail that gate before other checklist work.
-            </p>
-        </div>
         @include('admin.loan-applications.review._subject_affordability', [
             'review' => $panelSubjectReview,
             'affordability' => $panelSubjectReview['affordability'] ?? ($affordability ?? ($review['affordability'] ?? null)),
@@ -118,12 +91,6 @@
 
 @if ($phaseKey === 'capacity' && ($section === null || $section === 'crb'))
     <div id="checklist-crb" class="scroll-mt-24 space-y-4">
-        <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3">
-            <p class="text-[10px] uppercase tracking-[0.18em] text-sky-800 font-bold">Your job on this tab</p>
-            <p class="text-sm text-sky-950 mt-1 font-semibold">
-                View-only bureau data — start on Summary for red flags, then Pass / Fail “CRB report reviewed” under Security → Pass / Fail checks. Face compare stays on Personal (CRB has no portrait).
-            </p>
-        </div>
         @include('admin.loan-applications.review._subject_crb', ['review' => $panelSubjectReview])
     </div>
 @endif
@@ -131,12 +98,6 @@
 @if ($phaseKey === 'security' && ($section === null || $section === 'group'))
     @if ($panelPerson === 'borrower' && $isGroupFile)
         <div class="space-y-4">
-            <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3">
-                <p class="text-[10px] uppercase tracking-[0.18em] text-sky-800 font-bold">Your job on this tab</p>
-                <p class="text-sm text-sky-950 mt-1 font-semibold">
-                    Use Overview / Members / Feedback / Signatures below. Subject chips at the top are separate checklists — then Pass / Fail group checks under Security → Pass / Fail checks.
-                </p>
-            </div>
             @include('admin.loan-applications.review._group')
         </div>
     @endif
@@ -164,28 +125,18 @@
         };
     @endphp
     <div id="checklist-wrap-up" class="scroll-mt-24 space-y-4">
-        <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <p class="text-[10px] uppercase tracking-[0.18em] text-sky-800 font-bold">Your job on this tab</p>
-                <p class="text-sm text-sky-950 mt-1 font-semibold max-w-2xl">
-                    Use this snapshot, then open Pass / Fail checks and decide wrap-up items (CRB / flags / ready for committee). This page alone does not finish the checklist.
-                </p>
-            </div>
-            <button type="button"
-                    @click="securityTab = 'checks'; openGroup = @js($wrapGroupKey)"
-                    class="shrink-0 inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
-                Go mark wrap-up Pass / Fail →
-            </button>
-        </div>
         <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
-            <div class="px-4 sm:px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/50 to-white">
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">Close the file</p>
-                <h4 class="text-base font-bold text-gray-900 mt-0.5">{{ $wrapTitle }} · {{ $subjectLabel }}</h4>
-                <p class="text-xs text-gray-500 mt-0.5 max-w-2xl">
-                    Quick CRB exposure before Decision. Full detail stays in Capacity → CRB.
-                </p>
+            <div class="px-4 sm:px-5 py-3 border-b border-brand/10 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h4 class="text-sm font-bold text-gray-900">{{ $wrapTitle }} · {{ $subjectLabel }}</h4>
+                </div>
+                <button type="button"
+                        @click="securityTab = 'checks'; openGroup = @js($wrapGroupKey)"
+                        class="shrink-0 inline-flex rounded-xl bg-brand text-white text-xs font-bold px-3.5 py-2 hover:bg-brand-light">
+                    Mark wrap-up →
+                </button>
             </div>
-            <div class="p-4 sm:p-5 space-y-3">
+            <div class="p-4 sm:p-5">
                 <div class="grid sm:grid-cols-4 gap-2">
                     <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-2.5">
                         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">CRB</p>
@@ -206,9 +157,6 @@
                         </p>
                     </div>
                 </div>
-                <p class="text-[11px] text-gray-500">
-                    High-risk Fail on wrap-up CRB pushes readiness to <span class="font-semibold text-gray-700">Lean Reject</span> once the checklist is complete.
-                </p>
             </div>
         </div>
     </div>

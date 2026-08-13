@@ -25,28 +25,42 @@
 @endphp
 
 <section id="review-documents" class="rounded-2xl ring-1 ring-brand/10 bg-white overflow-hidden shadow-sm scroll-mt-24">
-    <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand via-brand-light to-brand text-white">
-        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ $docSubjectLabel }}</p>
-        <h2 class="text-sm font-semibold text-white mt-0.5">Uploaded documents</h2>
-        <p class="text-xs text-white/75 mt-0.5">
-            @if ($customer)
-                {{ $customer->full_name ?? 'This subject' }} · {{ $roleLabel }}
-            @endif
-            — open each file, then Mark reviewed or Fail for <span class="text-brand-gold font-semibold">this application only</span>.
+    <div class="px-5 py-3 border-b border-brand/10 bg-gradient-to-r from-brand via-brand-light to-brand text-white flex flex-wrap items-center justify-between gap-2">
+        <div>
+            <h2 class="text-sm font-semibold text-white">{{ $customer->full_name ?? 'Subject' }} · {{ $roleLabel }}</h2>
             @if ($pendingCount > 0)
-                · {{ $pendingCount }} still pending review
+                <p class="text-[11px] text-white/80 mt-0.5 tabular-nums">{{ $pendingCount }} pending</p>
             @endif
-        </p>
+        </div>
+        @if ($pendingCount > 0 && auth()->user()?->hasPermission('applications.review'))
+            <form method="POST"
+                  action="{{ route('admin.loan-applications.documents.verify-all', $record) }}"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js('Verify all pending?'),
+                      message: @js('Marks every pending profile file for this person as reviewed on this application.'),
+                      confirmLabel: @js('Verify all'),
+                      confirmClass: 'bg-emerald-700 hover:bg-emerald-800 text-white',
+                      tone: 'confirm',
+                  })">
+                @csrf
+                <input type="hidden" name="review_person" value="{{ $person ?? request('review_person', 'borrower') }}">
+                @if ($guarantorLinkId ?? request('review_g'))
+                    <input type="hidden" name="review_g" value="{{ $guarantorLinkId ?? request('review_g') }}">
+                @endif
+                @if ($memberId ?? request('review_m'))
+                    <input type="hidden" name="review_m" value="{{ $memberId ?? request('review_m') }}">
+                @endif
+                <button type="submit" class="inline-flex rounded-lg bg-brand-gold text-brand text-[11px] font-bold px-3 py-1.5">
+                    Verify all ({{ $pendingCount }})
+                </button>
+            </form>
+        @endif
     </div>
     <div class="p-5 space-y-4">
-        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-3 text-sm text-amber-950">
-            These are profile uploads (KYC / income / business). Reviewing them here does not permanently clear them for future applications — a new application starts them as Pending review again.
-        </div>
-
         @if (! $customer)
-            <p class="text-sm text-gray-500">Profile documents unlock after this subject finishes onboarding.</p>
+            <p class="text-sm text-gray-500">No profile yet.</p>
         @elseif ($docs->isEmpty())
-            <p class="text-sm text-gray-500">No documents on this profile yet.</p>
+            <p class="text-sm text-gray-500">No documents.</p>
         @else
             @foreach ($docsByCategory as $cat => $catDocs)
                 <div class="rounded-xl ring-1 ring-brand/10 overflow-hidden">

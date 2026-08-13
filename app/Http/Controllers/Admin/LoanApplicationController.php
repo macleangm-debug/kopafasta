@@ -838,6 +838,55 @@ class LoanApplicationController extends ResourceController
             ->withFragment('review-documents');
     }
 
+    public function verifyAllDocuments(Request $request, LoanApplication $loan_application, ApplicationDocumentReviewService $review): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $person = (string) $request->input('review_person', 'borrower');
+        $subjectKind = 'borrower';
+        $subjectCustomerId = (int) $loan_application->customer_id;
+        $loanGroupMemberId = null;
+
+        if ($person === 'member' && (int) $request->input('review_m', 0) > 0) {
+            $subjectKind = 'member';
+            $loanGroupMemberId = (int) $request->input('review_m');
+            $loan_application->loadMissing('loanGroup.members');
+            $member = $loan_application->loanGroup?->members?->firstWhere('id', $loanGroupMemberId);
+            if ($member?->customer_id) {
+                $subjectCustomerId = (int) $member->customer_id;
+            }
+        } elseif ($person === 'guarantor' && (int) $request->input('review_g', 0) > 0) {
+            $subjectKind = 'guarantor';
+            $link = $loan_application->customerGuarantors()->with('guarantor')->find((int) $request->input('review_g'));
+            if ($link?->guarantor_id) {
+                $subjectCustomerId = (int) $link->guarantor_id;
+            }
+        }
+
+        $subject = [
+            'subject_kind' => $subjectKind,
+            'subject_customer_id' => $subjectCustomerId ?: null,
+            'loan_group_member_id' => $loanGroupMemberId,
+        ];
+
+        $customer = \App\Models\Customer::query()->findOrFail($subjectCustomerId);
+        $count = $review->verifyAllPending($loan_application, $customer, auth()->user(), $subject);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", array_filter([
+                'loan_application' => $loan_application,
+                'review_person' => $request->input('review_person'),
+                'review_g' => $request->input('review_g'),
+                'review_m' => $request->input('review_m'),
+                'workspace' => 'checklist',
+                'capacity_tab' => 'documents',
+            ]))
+            ->with('status', $count > 0
+                ? "Verified {$count} document".($count === 1 ? '' : 's').' for this application.'
+                : 'No pending documents to verify.')
+            ->withFragment('review-documents');
+    }
+
     public function rejectDocument(Request $request, LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);

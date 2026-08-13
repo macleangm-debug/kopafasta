@@ -227,31 +227,71 @@
 @endif
 
 @if ($canRequestDocs)
-    <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" x-data="{ open: {{ $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject']) ? 'true' : 'false' }} }">
-        <div class="px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Request more</p>
-                <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Request documents</h2>
-                <p class="text-xs text-gray-500 mt-0.5">Same for screening and committee — the member is notified and the file moves to Requested.</p>
+    <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" x-data="{
+        open: {{ $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject']) ? 'true' : 'false' }},
+        applyPack(labels) {
+            this.open = true;
+            this.$nextTick(() => {
+                this.$root.querySelectorAll('input[type=checkbox][name^=presets]').forEach((el) => {
+                    el.checked = labels.includes(el.value);
+                });
+            });
+        }
+    }">
+        <div class="px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-sm font-semibold text-gray-900">Request docs</h2>
+            <div class="flex flex-wrap gap-1.5">
+                <button type="button" @click="applyPack(['Updated National ID', 'New National ID photo', 'New face verification photo', 'Image Not Clear'])"
+                        class="rounded-lg bg-sky-50 text-sky-900 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-sky-100">ID pack</button>
+                <button type="button" @click="applyPack(['Updated Bank Statement', 'Updated Mobile Money Statement', 'Latest salary slip', 'Additional Income Proof'])"
+                        class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Income pack</button>
+                <button type="button" @click="applyPack(['Guarantor residence letter'])"
+                        class="rounded-lg bg-emerald-50 text-emerald-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-emerald-100">Residence pack</button>
+                <button type="button"
+                        @click="open = !open"
+                        class="inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand-gold hover:brightness-95 px-2.5 py-1.5 rounded-lg">
+                    <span x-text="open ? 'Hide' : 'Custom'"></span>
+                </button>
             </div>
-            <button type="button"
-                    @click="open = !open"
-                    class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl shadow-sm ring-1 ring-brand/15">
-                <span x-text="open ? 'Hide form' : 'Request documents'"></span>
-                <svg class="size-4 transition" :class="open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
-            </button>
         </div>
         <div x-show="open" x-cloak class="border-t border-brand/10">
-            <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="p-5 sm:p-6 space-y-5">
+            <form method="POST"
+                  action="{{ route('admin.loan-applications.document-requests.store', $record) }}"
+                  class="p-5 sm:p-6 space-y-5"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js('Send document request?'),
+                      message: @js('The member will be notified and this moves to Requested on the shared file.'),
+                      confirmLabel: @js('Send request'),
+                      confirmClass: 'bg-brand-gold hover:brightness-95 text-brand',
+                      tone: 'confirm',
+                  })">
                 @csrf
                 @php
                     $groupMembersForRequest = collect($groupReview['members'] ?? [])->values();
+                    $guarantorsForRequest = collect($review['guarantors'] ?? [])->values();
+                    if ($guarantorsForRequest->isEmpty()) {
+                        $record->loadMissing('customerGuarantors.guarantor');
+                        $guarantorsForRequest = collect($record->customerGuarantors ?? [])->map(function ($link) {
+                            return [
+                                'link_id' => $link->id,
+                                'customer_id' => $link->guarantor_id,
+                                'name' => $link->guarantor?->full_name ?? 'Guarantor',
+                            ];
+                        })->values();
+                    }
                     $defaultRequestSubject = 'borrower';
                     if (request('review_person') === 'member' && (int) request('review_m', 0) > 0) {
                         $defaultRequestSubject = 'member:'.(int) request('review_m');
+                    } elseif (request('review_person') === 'guarantor' && (int) request('review_g', 0) > 0) {
+                        $gLink = $guarantorsForRequest->firstWhere('link_id', (int) request('review_g'))
+                            ?? $guarantorsForRequest->first();
+                        if ($gLink) {
+                            $defaultRequestSubject = 'guarantor:'.(int) ($gLink['customer_id'] ?? 0);
+                        }
                     } elseif (old('request_subject')) {
                         $defaultRequestSubject = (string) old('request_subject');
                     }
+                    $showSubjectPicker = $groupMembersForRequest->isNotEmpty() || $guarantorsForRequest->isNotEmpty();
                 @endphp
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
@@ -274,25 +314,40 @@
                     </div>
                 </div>
 
-                @if ($groupMembersForRequest->isNotEmpty())
+                @if ($showSubjectPicker)
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Request for <span class="text-red-500">*</span></label>
                         <select name="request_subject" required class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
-                            @foreach ($groupMembersForRequest as $member)
-                                @php
-                                    $isLeader = ($member['role'] ?? '') === 'leader';
-                                    $memberValue = $isLeader ? 'borrower' : ('member:'.($member['id'] ?? ''));
-                                    $memberLabel = ($isLeader ? 'Leader · ' : 'Member · ').($member['name'] ?? 'Member');
-                                    if (! empty($member['customer_number'])) {
-                                        $memberLabel .= ' · '.$member['customer_number'];
-                                    }
-                                @endphp
-                                <option value="{{ $memberValue }}" @selected($defaultRequestSubject === $memberValue)>
-                                    {{ $memberLabel }}
-                                </option>
-                            @endforeach
+                            @if ($groupMembersForRequest->isNotEmpty())
+                                @foreach ($groupMembersForRequest as $member)
+                                    @php
+                                        $isLeader = ($member['role'] ?? '') === 'leader';
+                                        $memberValue = $isLeader ? 'borrower' : ('member:'.($member['id'] ?? ''));
+                                        $memberLabel = ($isLeader ? 'Leader · ' : 'Member · ').($member['name'] ?? 'Member');
+                                        if (! empty($member['customer_number'])) {
+                                            $memberLabel .= ' · '.$member['customer_number'];
+                                        }
+                                    @endphp
+                                    <option value="{{ $memberValue }}" @selected($defaultRequestSubject === $memberValue)>
+                                        {{ $memberLabel }}
+                                    </option>
+                                @endforeach
+                            @else
+                                <option value="borrower" @selected($defaultRequestSubject === 'borrower')>Borrower</option>
+                                @foreach ($guarantorsForRequest as $g)
+                                    @php
+                                        $gValue = 'guarantor:'.(int) ($g['customer_id'] ?? 0);
+                                        $gLabel = 'Guarantor · '.($g['name'] ?? 'Guarantor');
+                                    @endphp
+                                    @if ((int) ($g['customer_id'] ?? 0) > 0)
+                                        <option value="{{ $gValue }}" @selected($defaultRequestSubject === $gValue)>
+                                            {{ $gLabel }}
+                                        </option>
+                                    @endif
+                                @endforeach
+                            @endif
                         </select>
-                        <p class="mt-1 text-[11px] text-gray-500">Income / profile requests clear and replace that member’s existing profile file.</p>
+                        <p class="mt-1 text-[11px] text-gray-500">Income / profile requests clear and replace that person’s existing profile file.</p>
                         @error('request_subject')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
@@ -362,7 +417,9 @@
                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2"></textarea>
                 </div>
 
-                <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+                <button type="submit"
+                        data-loading-label="Sending request…"
+                        class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
                     Send request
                 </button>
             </form>
