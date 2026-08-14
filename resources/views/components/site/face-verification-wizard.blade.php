@@ -53,11 +53,7 @@
 
         <div class="rounded-2xl ring-1 ring-gray-200 bg-white px-5 py-6 text-center">
             <p class="text-sm text-gray-600">{{ __('borrower.face_verification_page.intro_short') }}</p>
-            <div class="mt-4 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-3 text-left">
-                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.nida.device_scope_title') }}</p>
-                <p class="mt-1 text-xs text-gray-600 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
-                <p class="mt-2 text-xs text-gray-500">{{ __('borrower.face_verification_page.privacy_note') }}</p>
-            </div>
+            <p class="mt-3 text-xs text-gray-500">{{ __('borrower.face_verification_page.privacy_note') }}</p>
             <button type="button" @click="startScan()" :disabled="!ready || loading"
                     class="mt-5 w-full bg-brand-gold hover:bg-yellow-400 disabled:opacity-50 text-brand font-bold px-6 py-4 rounded-full text-sm shadow-sm transition">
                 <span x-show="!loading">{{ __('borrower.face_verification_page.start_cta') }}</span>

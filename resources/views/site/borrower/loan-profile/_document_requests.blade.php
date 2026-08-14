@@ -12,6 +12,15 @@
     $customer = $profile['customer'] ?? $application->customer ?? auth()->user()?->customer;
     $docSvc = app(\App\Services\ApplicationDocumentRequestService::class);
     $defaultTab = $openDocCount > 0 ? 'requested' : 'submitted';
+    $savedCollateral = collect();
+    $collateralAvailabilities = collect();
+    if ($customer) {
+        $savedCollateral = $customer->assets()->where('is_active', true)->latest()->get();
+        $assetService = app(\App\Services\CustomerAssetService::class);
+        $collateralAvailabilities = $savedCollateral->mapWithKeys(
+            fn ($asset) => [$asset->id => $assetService->availabilityForApplication($asset, $application)]
+        );
+    }
 @endphp
 
 @if ($actionDocs->isNotEmpty() || $submittedDocs->isNotEmpty())
@@ -151,11 +160,6 @@
                                         <p class="mt-1 text-xs font-semibold text-brand">
                                             {{ $docSvc->localizedSubjectRoleLabel($docReq) }}
                                         </p>
-                                        <p class="mt-1 text-[11px] font-medium text-gray-500">
-                                            {{ $profileGuided
-                                                ? __('borrower.loan_profile.document_source_profile_hint')
-                                                : __('borrower.loan_profile.document_source_loan_hint') }}
-                                        </p>
                                     </div>
                                 </div>
 
@@ -163,7 +167,7 @@
                                     $reqInstructions = $docSvc->localizedInstructions((string) $docReq->label, $docReq->instructions);
                                 @endphp
                                 @if ($reqInstructions)
-                                    <p class="mt-3 text-sm leading-relaxed text-gray-700">{{ $reqInstructions }}</p>
+                                    <p class="mt-2 text-xs text-gray-600">{{ $reqInstructions }}</p>
                                 @endif
 
                                 @if ($docReq->admin_notes && $isRejected)
@@ -188,7 +192,15 @@
 
                             @if ($docReq->needsBorrowerAction())
                                 <div class="bg-gray-50/80 px-4 py-4 sm:px-5">
-                                    @if ($profileGuided)
+                                    @if ((string) $docReq->label === 'Add collateral asset')
+                                        <div class="space-y-3">
+                                            @include('site.borrower.loan-profile._collateral_request_picker', [
+                                                'assets' => $savedCollateral,
+                                                'availabilities' => $collateralAvailabilities,
+                                                'application' => $application,
+                                            ])
+                                        </div>
+                                    @elseif ($profileGuided)
                                         <a href="{{ $profileUrl }}"
                                            class="inline-flex w-full items-center justify-center rounded-xl bg-brand-gold px-4 py-3 text-sm font-bold text-brand shadow-sm hover:brightness-95 sm:w-auto">
                                             {{ __('borrower.loan_profile.document_go_to_profile') }}

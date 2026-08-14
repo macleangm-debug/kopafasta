@@ -34,16 +34,14 @@ class DocumentRequestBorrowerLocaleFeatureTest extends TestCase
             'Underwriting needs collateral for this loan. Please add a collateral asset in your profile with ownership and insurance documents.',
             'sw'
         );
-        $this->assertStringContainsString('dhamana', $collateralCopy);
-        $this->assertStringNotContainsString('Underwriting', $collateralCopy);
+        $this->assertSame('Ongeza dhamana, umiliki na bima kwenye wasifu.', $collateralCopy);
 
         $mobileCopy = $service->localizedInstructions(
             'Updated Mobile Money Statement',
             'Please upload an updated mobile money statement.',
             'sw'
         );
-        $this->assertStringContainsString('pesa kwa simu', $mobileCopy);
-        $this->assertStringNotContainsString('Please upload', $mobileCopy);
+        $this->assertSame('Pakia taarifa ya pesa kwa simu ya hivi karibuni.', $mobileCopy);
 
         $presetLabels = array_merge(
             ApplicationDocumentRequestService::PRESET_LABELS,
@@ -62,8 +60,19 @@ class DocumentRequestBorrowerLocaleFeatureTest extends TestCase
 
             $swCopy = $service->localizedInstructions($label, null, 'sw');
             $this->assertNotSame('', trim($swCopy));
+            $this->assertLessThan(90, mb_strlen($swCopy), "Too wordy [{$label}]: {$swCopy}");
             $this->assertStringNotContainsString('Please ', $swCopy);
             $this->assertStringNotContainsString('Underwriting', $swCopy);
+            $this->assertStringNotContainsString('Tafadhali', $swCopy);
+            $this->assertStringNotContainsString('Ukaguzi', $swCopy);
+
+            foreach (ApplicationDocumentRequestService::legacyPresetInstructions()[$label] ?? [] as $legacyEnglish) {
+                $this->assertSame(
+                    $swCopy,
+                    $service->localizedInstructions($label, $legacyEnglish, 'sw'),
+                    "Legacy English for [{$label}] should still translate"
+                );
+            }
         }
     }
 
@@ -122,13 +131,19 @@ class DocumentRequestBorrowerLocaleFeatureTest extends TestCase
         $this->assertStringContainsString('Ongeza mali ya dhamana', $html);
         $this->assertStringContainsString('Taarifa mpya ya pesa kwa simu', $html);
         $this->assertStringContainsString('Nyaraka za kodi', $html);
-        $this->assertStringContainsString('Ukaguzi unahitaji dhamana', $html);
-        $this->assertStringContainsString('Tafadhali pakia taarifa mpya ya pesa kwa simu', $html);
-        $this->assertStringContainsString('Tafadhali pakia nyaraka za kodi zilizoombwa', $html);
+        $this->assertStringContainsString('Ongeza dhamana, umiliki na bima kwenye wasifu.', $html);
+        $this->assertStringContainsString('Pakia taarifa ya pesa kwa simu ya hivi karibuni.', $html);
+        $this->assertStringContainsString('Pakia nyaraka za kodi zilizoombwa.', $html);
         $this->assertStringNotContainsString('Add collateral asset', $html);
         $this->assertStringNotContainsString('Underwriting needs collateral', $html);
         $this->assertStringNotContainsString('Updated Mobile Money Statement', $html);
         $this->assertStringNotContainsString('Please upload an updated mobile money statement.', $html);
+        $this->assertStringNotContainsString('Ukaguzi unahitaji dhamana', $html);
+        $this->assertStringNotContainsString('Tafadhali pakia', $html);
+        $this->assertStringNotContainsString('Hatufikii orodha yako ya mawasiliano', $html);
+        $this->assertStringNotContainsString('Pakia picha moja au zaidi, au PDF', $html);
+        $this->assertStringNotContainsString('Kamilisha hii kwenye wasifu wako', $html);
+        $this->assertStringNotContainsString('Pakia hapa kwa mkopo huu', $html);
         $this->assertStringNotContainsString('Au tumia kamera', $html);
         $this->assertStringNotContainsString('Or use camera', $html);
         $this->assertStringContainsString('Kamera', $html);

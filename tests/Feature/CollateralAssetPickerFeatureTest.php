@@ -96,7 +96,7 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Shamba la kiongozi', false)
             ->assertSee(__('borrower.profile.collateral_use_this'), false)
-            ->assertSee(__('borrower.profile.collateral_available'), false)
+            ->assertSee(__('borrower.profile.collateral_ready'), false)
             ->getContent();
 
         $this->assertStringContainsString('Shamba la kiongozi', $html);
@@ -185,6 +185,41 @@ class CollateralAssetPickerFeatureTest extends TestCase
         $this->assertStringContainsString('application='.$application->id, $url);
         $this->assertStringNotContainsString('add=1', $url);
         $this->assertStringContainsString('uw=1', $url);
+    }
+
+    public function test_loan_application_shows_saved_assets_to_pick(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $this->completeAsset($customer, 'Shamba la kiongozi');
+        $admin = User::factory()->create(['role' => 'admin']);
+        app(ApplicationDocumentRequestService::class)->create($application, $admin, 'Add collateral asset');
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.application', $application))
+            ->assertOk()
+            ->assertSee('Shamba la kiongozi', false)
+            ->assertSee(__('borrower.profile.collateral_use_this'), false)
+            ->assertSee(__('borrower.profile.collateral_ready'), false)
+            ->assertSee(__('borrower.profile.view_asset'), false);
+    }
+
+    public function test_asset_view_opens_read_only_with_edit_option(): void
+    {
+        $customer = $this->completeBorrower();
+        $asset = $this->completeAsset($customer, 'Plot A');
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', [
+                'section' => 'assets',
+                'view' => $asset->id,
+            ]))
+            ->assertOk()
+            ->assertSee('data-asset-mode="view"', false)
+            ->assertSee(__('borrower.apply.edit'), false)
+            ->getContent();
+
+        $this->assertStringContainsString('data-asset-mode="edit"', $html);
     }
 
     public function test_account_shells_opt_into_view_transitions(): void

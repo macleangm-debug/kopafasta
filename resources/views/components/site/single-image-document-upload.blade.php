@@ -29,8 +29,6 @@
     {{-- Gate helper: filled when a preview exists --}}
     <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
 
-    <p class="mb-2 text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
-
     <div class="flex flex-wrap items-center gap-3">
         <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
             <span>{{ __('borrower.profile.upload') }}</span>
@@ -41,7 +39,6 @@
             {{ __('borrower.document_upload.camera') }}
         </button>
     </div>
-    <p class="text-xs text-gray-500 mt-2">{{ __('borrower.profile.upload_unified_hint') }}</p>
 
     <div x-show="previewUrl || previewName" x-cloak class="mt-3">
         <template x-if="previewUrl">

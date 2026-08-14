@@ -32,9 +32,13 @@
             },
         ],
         default => [
-            'label' => __('borrower.profile.collateral_available'),
+            'label' => ($availability['selectable'] ?? false)
+                ? __('borrower.profile.collateral_ready')
+                : __('borrower.profile.collateral_status_active'),
             'class' => 'bg-brand-muted text-brand',
-            'hint' => null,
+            'hint' => ($availability['selectable'] ?? false)
+                ? __('borrower.profile.collateral_ready_hint')
+                : null,
         ],
     };
 @endphp

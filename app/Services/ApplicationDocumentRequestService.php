@@ -60,33 +60,132 @@ class ApplicationDocumentRequestService
     public static function presetInstructions(): array
     {
         return [
-            'Insurance About To Expire'      => 'Your asset insurance is expiring soon. Please upload an updated insurance certificate.',
-            'New Insurance Certificate'      => 'Please upload a clear copy of the current insurance certificate for this asset.',
-            'New Ownership Document'         => 'Please upload the ownership or logbook document for this asset.',
-            'New Asset Photo'                => 'Please upload a clear, recent photo of the asset.',
-            'Updated National ID'            => 'Please upload a clear copy of your national ID.',
-            'New National ID photo'          => 'Underwriting needs a clearer national ID photo. Please upload again from your profile.',
-            'New face verification photo'    => 'Underwriting needs new face verification photos. Please recapture them in your profile.',
-            'Identity verification photo'    => 'Please upload a new identity verification photo holding your national ID.',
-            'Image Not Clear'                => 'The uploaded image is not clear enough. Please re-upload a sharper photo.',
-            'Ownership Certificate Missing Page' => 'The ownership certificate appears incomplete. Please upload all pages.',
-            'Signature Not Visible'          => 'Your signature is not clear enough for legal documents. Please update it once in your profile — it will be used on all contracts.',
-            'Updated Bank Statement'         => 'Please upload an updated bank statement covering the latest period.',
-            'Updated Mobile Money Statement' => 'Please upload an updated mobile money statement.',
-            'Additional Income Proof'        => 'Please upload additional proof of income for this application.',
-            'Business Registration Document' => 'Please upload your business registration document.',
-            'Business Photos'                => 'Please upload clear photos of your business premises or activity.',
-            'Supplier Invoices'              => 'Please upload the relevant supplier invoices for this loan.',
-            'Tax Documents'                  => 'Please upload the requested tax documents.',
-            'Employment Confirmation Letter' => 'Please upload an employment confirmation letter from your employer.',
-            'Guarantor residence letter'     => 'Please upload a residence letter for your guarantor.',
-            'Updated employment contract'    => 'Please upload your updated employment contract.',
-            'Latest salary slip'             => 'Please upload your latest salary slip.',
-            'Add collateral asset'           => 'Underwriting needs collateral for this loan. Please add a collateral asset in your profile with ownership and insurance documents.',
-            'Updated collateral ownership document' => 'Please upload an updated ownership or logbook document for your collateral asset.',
-            'Updated collateral insurance certificate' => 'Please upload a current insurance certificate for your collateral asset.',
-            'New collateral photo'           => 'Please upload a clear, recent photo of your collateral asset.',
-            'Collateral valuation document'  => 'Please upload a valuation or appraisal document for your collateral.',
+            'Insurance About To Expire'      => 'Upload an updated insurance certificate.',
+            'New Insurance Certificate'      => 'Upload a clear insurance certificate.',
+            'New Ownership Document'         => 'Upload the ownership or logbook document.',
+            'New Asset Photo'                => 'Upload a clear photo of the asset.',
+            'Updated National ID'            => 'Upload a clear national ID photo.',
+            'New National ID photo'          => 'Upload a clearer national ID photo from your profile.',
+            'New face verification photo'    => 'Retake face photos in your profile.',
+            'Identity verification photo'    => 'Upload a photo of you holding your national ID.',
+            'Image Not Clear'                => 'Upload a sharper photo.',
+            'Ownership Certificate Missing Page' => 'Upload every page of the ownership document.',
+            'Signature Not Visible'          => 'Update your signature in your profile.',
+            'Updated Bank Statement'         => 'Upload a recent bank statement.',
+            'Updated Mobile Money Statement' => 'Upload a recent mobile money statement.',
+            'Additional Income Proof'        => 'Upload extra proof of income.',
+            'Business Registration Document' => 'Upload your business registration.',
+            'Business Photos'                => 'Upload clear photos of your business.',
+            'Supplier Invoices'              => 'Upload the supplier invoices.',
+            'Tax Documents'                  => 'Upload the requested tax documents.',
+            'Employment Confirmation Letter' => 'Upload an employment confirmation letter.',
+            'Guarantor residence letter'     => 'Upload a residence letter for the guarantor.',
+            'Updated employment contract'    => 'Upload your updated employment contract.',
+            'Latest salary slip'             => 'Upload your latest salary slip.',
+            'Add collateral asset'           => 'Add collateral with ownership and insurance in your profile.',
+            'Updated collateral ownership document' => 'Upload an updated ownership document.',
+            'Updated collateral insurance certificate' => 'Upload an updated insurance certificate.',
+            'New collateral photo'           => 'Upload a clear photo of the collateral.',
+            'Collateral valuation document'  => 'Upload the valuation document.',
+        ];
+    }
+
+    /**
+     * Older English defaults still stored on existing requests.
+     *
+     * @return array<string, list<string>>
+     */
+    public static function legacyPresetInstructions(): array
+    {
+        return [
+            'Insurance About To Expire' => [
+                'Your asset insurance is expiring soon. Please upload an updated insurance certificate.',
+            ],
+            'New Insurance Certificate' => [
+                'Please upload a clear copy of the current insurance certificate for this asset.',
+            ],
+            'New Ownership Document' => [
+                'Please upload the ownership or logbook document for this asset.',
+            ],
+            'New Asset Photo' => [
+                'Please upload a clear, recent photo of the asset.',
+            ],
+            'Updated National ID' => [
+                'Please upload a clear copy of your national ID.',
+            ],
+            'New National ID photo' => [
+                'Underwriting needs a clearer national ID photo. Please upload again from your profile.',
+            ],
+            'New face verification photo' => [
+                'Underwriting needs new face verification photos. Please recapture them in your profile.',
+            ],
+            'Identity verification photo' => [
+                'Please upload a new identity verification photo holding your national ID.',
+            ],
+            'Image Not Clear' => [
+                'The uploaded image is not clear enough. Please re-upload a sharper photo.',
+            ],
+            'Ownership Certificate Missing Page' => [
+                'The ownership certificate appears incomplete. Please upload all pages.',
+            ],
+            'Signature Not Visible' => [
+                'Your signature is not clear enough for legal documents. Please update it once in your profile — it will be used on all contracts.',
+            ],
+            'Updated Bank Statement' => [
+                'Please upload an updated bank statement covering the latest period.',
+            ],
+            'Updated Mobile Money Statement' => [
+                'Please upload an updated mobile money statement.',
+                'Please upload an updated mobile money statement covering the latest period.',
+            ],
+            'Additional Income Proof' => [
+                'Please upload additional proof of income for this application.',
+            ],
+            'Business Registration Document' => [
+                'Please upload your business registration document.',
+            ],
+            'Business Photos' => [
+                'Please upload clear photos of your business premises or activity.',
+            ],
+            'Supplier Invoices' => [
+                'Please upload the relevant supplier invoices for this loan.',
+            ],
+            'Tax Documents' => [
+                'Please upload the requested tax documents.',
+            ],
+            'Employment Confirmation Letter' => [
+                'Please upload an employment confirmation letter from your employer.',
+                'Please upload an employment confirmation letter.',
+            ],
+            'Guarantor residence letter' => [
+                'Please upload a residence letter for your guarantor.',
+                'Please upload a residence confirmation letter for the guarantor.',
+            ],
+            'Updated employment contract' => [
+                'Please upload your updated employment contract.',
+            ],
+            'Latest salary slip' => [
+                'Please upload your latest salary slip.',
+            ],
+            'Add collateral asset' => [
+                'Underwriting needs collateral for this loan. Please add a collateral asset in your profile with ownership and insurance documents.',
+            ],
+            'Updated collateral ownership document' => [
+                'Please upload an updated ownership or logbook document for your collateral asset.',
+                'Please upload an updated ownership document for the collateral.',
+            ],
+            'Updated collateral insurance certificate' => [
+                'Please upload a current insurance certificate for your collateral asset.',
+                'Please upload an updated insurance certificate for the collateral.',
+            ],
+            'New collateral photo' => [
+                'Please upload a clear, recent photo of your collateral asset.',
+                'Please upload a clear photo of the collateral.',
+            ],
+            'Collateral valuation document' => [
+                'Please upload a valuation or appraisal document for your collateral.',
+                'Please upload the collateral valuation document.',
+            ],
         ];
     }
 
@@ -297,28 +396,38 @@ class ApplicationDocumentRequestService
     {
         $locale = $locale ?: app()->getLocale();
         $instructions = trim((string) $instructions);
-        $englishDefault = self::presetInstructions()[$label] ?? null;
-        $englishFromLang = __('borrower.document_request_presets.instructions.'.$label, [], 'en');
         $langKey = 'borrower.document_request_presets.instructions.'.$label;
-        $englishFromLang = $englishFromLang !== $langKey ? $englishFromLang : null;
+        $knownEnglish = $this->knownEnglishInstructions($label);
 
-        $isPresetEnglish = $instructions === ''
-            || ($englishDefault !== null && $instructions === $englishDefault)
-            || ($englishFromLang !== null && $instructions === $englishFromLang);
+        $isPresetEnglish = $instructions === '' || in_array($instructions, $knownEnglish, true);
 
         if ($isPresetEnglish) {
             $translated = __($langKey, [], $locale);
             if ($translated !== $langKey) {
                 return $translated;
             }
-            if ($englishDefault) {
-                return $englishDefault;
+            if ($knownEnglish !== []) {
+                return $knownEnglish[0];
             }
 
             return (string) __('borrower.document_request_presets.default_instructions', [], $locale);
         }
 
         return $instructions;
+    }
+
+    /** @return list<string> */
+    private function knownEnglishInstructions(string $label): array
+    {
+        $langKey = 'borrower.document_request_presets.instructions.'.$label;
+        $fromLang = __($langKey, [], 'en');
+        $fromLang = $fromLang !== $langKey ? $fromLang : null;
+
+        return array_values(array_unique(array_filter([
+            self::presetInstructions()[$label] ?? null,
+            $fromLang,
+            ...(self::legacyPresetInstructions()[$label] ?? []),
+        ])));
     }
 
     /** Borrower-facing "Name · Role" with a translated role. */

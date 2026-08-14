@@ -10,12 +10,19 @@ export function registerCollateralAddForm(Alpine) {
         isVehicle: !!config.isVehicle,
         photoCount: Number(config.photoCount || 2),
         step1Ready: false,
+        step2Ready: false,
         step3Ready: false,
         step4Ready: false,
         currentPhotoReady: false,
         allPhotosReady: false,
         _timer: null,
         get lastStep() {
+            return this.isVehicle ? 5 : 3;
+        },
+        get photoStep() {
+            return this.isVehicle ? 3 : 2;
+        },
+        get proofStep() {
             return this.isVehicle ? 4 : 3;
         },
         next() {
@@ -24,7 +31,7 @@ export function registerCollateralAddForm(Alpine) {
             }
         },
         prev() {
-            if (this.step === 2 && this.photoIndex > 0) {
+            if (this.step === this.photoStep && this.photoIndex > 0) {
                 this.photoIndex--;
                 return;
             }
@@ -46,9 +53,10 @@ export function registerCollateralAddForm(Alpine) {
         refreshGates() {
             const form = this.$el;
             const complete = (scope) => window.KopaFastaForm?.isComplete(form, { onlyVisible: false, scope }) ?? false;
-            this.step1Ready = complete(form.querySelector('[data-collateral-step="1"]'));
-            this.step3Ready = complete(form.querySelector('[data-collateral-step="3"]'));
-            this.step4Ready = ! this.isVehicle || complete(form.querySelector('[data-collateral-step="4"]'));
+            this.step1Ready = complete(form.querySelector('[data-collateral-step="details"]'));
+            this.step2Ready = ! this.isVehicle || complete(form.querySelector('[data-collateral-step="insurance"]'));
+            this.step3Ready = complete(form.querySelector('[data-collateral-step="proof"]'));
+            this.step4Ready = ! this.isVehicle || complete(form.querySelector('[data-collateral-step="cert"]'));
             this.currentPhotoReady = complete(form.querySelector('[data-photo-slot="'+this.photoIndex+'"]'));
             let all = true;
             for (let i = 0; i < this.photoCount; i++) {

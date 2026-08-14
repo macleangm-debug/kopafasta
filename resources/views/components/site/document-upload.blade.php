@@ -24,8 +24,6 @@
 
 <div class="space-y-3" x-data="documentUpload(@js($disabled), @js($multiple), @js($cameraLabels))">
     @unless($disabled)
-        <p class="text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
-
         <div class="flex flex-wrap items-center gap-3">
             <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
                 <span>{{ __('borrower.profile.upload') }}</span>
@@ -36,7 +34,6 @@
                 {{ __('borrower.document_upload.camera') }}
             </button>
         </div>
-        <p class="text-xs text-gray-500">{{ __('borrower.profile.upload_unified_hint') }}</p>
 
         <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2" x-text="cameraNotice"></p>
 
