@@ -184,7 +184,7 @@
                     <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2 tabular-nums tracking-tight">{{ $insCompleted }}</p>
                     <p class="text-xs text-gray-500 mt-1.5">{{ __('site.partner_portal.insurance_completed_hint') }}</p>
                 </div>
-                <a href="{{ route('site.partner.tasks') }}" class="group p-5 sm:p-6 hover:bg-brand-muted/30 transition-colors">
+                <a href="{{ route('site.partner.tasks') }}" data-kf-motion="tab" class="group p-5 sm:p-6 hover:bg-brand-muted/30 transition-colors">
                     <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('site.partner_portal.stat_open_cover') }}</p>
                     <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2 tabular-nums tracking-tight">{{ $insOpenJobs }}</p>
                     <p class="text-xs text-gray-500 mt-1.5 group-hover:text-brand font-semibold">{{ __('site.partner_portal.cta_cover_jobs') }} →</p>
@@ -214,7 +214,7 @@
                         {{ __('site.partner_portal.upcoming_tasks') }}
                     @endif
                 </h2>
-                <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline font-semibold">{{ __('site.partner_portal.all') }}</a>
+                <a href="{{ route('site.partner.tasks') }}" data-kf-motion="tab" class="text-sm text-brand hover:underline font-semibold">{{ __('site.partner_portal.all') }}</a>
             </div>
             @if ($upcoming->isEmpty())
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-8 text-center">
@@ -229,7 +229,7 @@
                                 ? 'bg-amber-100 text-amber-700'
                                 : ($t->status === 'in_progress' ? 'bg-indigo-100 text-brand' : 'bg-gray-100 text-gray-700');
                         @endphp
-                        <a href="{{ route('site.partner.task', $t) }}" class="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg">
+                        <a href="{{ route('site.partner.task', $t) }}" data-kf-share="kf-task-{{ $t->id }}" class="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg">
                             <div class="min-w-0">
                                 <p class="font-semibold text-sm truncate">{{ ucfirst(str_replace('_',' ', $t->task_type)) }} · {{ $t->customer_name ?: '—' }}</p>
                                 <p class="text-xs text-gray-500 truncate">{{ $t->location ?: '—' }} · {{ __('site.partner_portal.due') }} {{ $t->due_at ? $t->due_at->format('d M H:i') : __('site.partner_portal.flexible') }}</p>

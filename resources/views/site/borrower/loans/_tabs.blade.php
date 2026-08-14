@@ -30,6 +30,7 @@
             $isActive = $activeTab === $key;
         @endphp
         <a href="{{ route('site.borrower.loans', $params) }}"
+           data-kf-motion="tab"
            class="snap-start inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition whitespace-nowrap {{ $isActive ? 'bg-brand text-white shadow-sm' : 'bg-white/80 text-gray-600 ring-1 ring-gray-200/80 hover:bg-brand-muted hover:text-brand' }}">
             <span>{{ $label }}</span>
         </a>

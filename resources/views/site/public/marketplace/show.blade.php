@@ -6,7 +6,12 @@
 
         <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 mt-6">
             <div>
-                @include('site.marketplace._photo-slider', ['photos' => $asset['photos'] ?? [], 'category' => $asset['category'] ?? 'other', 'zoom' => true])
+                @include('site.marketplace._photo-slider', [
+                    'photos' => $asset['photos'] ?? [],
+                    'category' => $asset['category'] ?? 'other',
+                    'zoom' => true,
+                    'share' => ! empty($asset['id']) ? 'kf-mp-'.$asset['id'] : null,
+                ])
             </div>
             <div>
                 <p class="text-xs uppercase tracking-widest text-brand font-bold">{{ config('asset_marketplace.categories.'.$asset['category']) }}</p>

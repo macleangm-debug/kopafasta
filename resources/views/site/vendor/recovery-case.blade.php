@@ -14,7 +14,7 @@
     @endphp
 
     <div class="mb-5">
-        <a href="{{ route('site.partner.recovery-cases') }}" class="text-sm text-brand hover:underline">← Back to recovery cases</a>
+        <a href="{{ route('site.partner.recovery-cases') }}" data-kf-motion="pop" class="text-sm text-brand hover:underline">← Back to recovery cases</a>
     </div>
 
     @if (session('status'))
@@ -34,7 +34,7 @@
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
             <p class="text-xs uppercase tracking-wide text-gray-500">Case #{{ $assignment->arrear_case_id }}</p>
-            <h1 class="text-2xl font-extrabold">{{ $borrowerName ?: 'Borrower' }}</h1>
+            <h1 class="text-2xl font-extrabold" style="view-transition-name: kf-rec-{{ $assignment->id }}">{{ $borrowerName ?: 'Borrower' }}</h1>
             <p class="text-sm text-gray-600 mt-1">
                 {{ display_label($assignment->partner_type, 'recovery_partner_type') }}
                 @if ($loan?->loan_number) · {{ $loan->loan_number }} @endif

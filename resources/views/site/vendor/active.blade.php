@@ -7,7 +7,7 @@
     @else
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach ($tasks as $t)
-                <a href="{{ route('site.partner.task', $t) }}" class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 hover:shadow-sm block">
+                <a href="{{ route('site.partner.task', $t) }}" data-kf-share="kf-task-{{ $t->id }}" class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 hover:shadow-sm block">
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="font-bold">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}</p>

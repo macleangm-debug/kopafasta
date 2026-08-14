@@ -4,7 +4,7 @@
     content-width="wide">
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.loans', ['tab' => 'active']) }}" class="text-sm font-semibold text-brand hover:underline">
+        <a href="{{ route('site.borrower.loans', ['tab' => 'active']) }}" data-kf-motion="pop" class="text-sm font-semibold text-brand hover:underline">
             {{ __('borrower.loans_page.back') }}
         </a>
     </div>
@@ -25,7 +25,8 @@
     <x-site.borrower-page-header
         :eyebrow="$servicing['product_name'] ?? '—'"
         :title="$servicing['loan_reference']"
-        :subtitle="__('borrower.loans_page.active_loan')">
+        :subtitle="__('borrower.loans_page.active_loan')"
+        :share="'kf-loan-'.$loan->id">
         <x-slot:actions>
             <span class="text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ $servicing['status_label'] ?? ucfirst($loan->status) }}</span>
         </x-slot:actions>

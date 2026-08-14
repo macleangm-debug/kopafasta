@@ -70,7 +70,7 @@
         </div>
 
         {{-- REQUESTED: do this now --}}
-        <div x-show="tab === 'requested'" x-cloak role="tabpanel" class="space-y-3">
+        <div x-show="tab === 'requested'" x-cloak x-transition.opacity.duration.180ms role="tabpanel" class="space-y-3">
             <div class="rounded-2xl bg-gradient-to-br from-amber-50 via-white to-white px-4 py-3.5 ring-1 ring-amber-200/80 sm:px-5">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="min-w-0">
@@ -137,7 +137,7 @@
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <h3 class="text-base font-bold text-gray-900">{{ $docReq->label }}</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ $docSvc->localizedLabel((string) $docReq->label) }}</h3>
                                             <span @class([
                                                 'rounded-full px-2.5 py-0.5 text-[11px] font-bold',
                                                 'bg-red-100 text-red-800' => $isRejected,
@@ -149,7 +149,7 @@
                                             </span>
                                         </div>
                                         <p class="mt-1 text-xs font-semibold text-brand">
-                                            {{ $docReq->subjectRoleLabel() }}
+                                            {{ $docSvc->localizedSubjectRoleLabel($docReq) }}
                                         </p>
                                         <p class="mt-1 text-[11px] font-medium text-gray-500">
                                             {{ $profileGuided
@@ -159,8 +159,11 @@
                                     </div>
                                 </div>
 
-                                @if ($docReq->instructions)
-                                    <p class="mt-3 text-sm leading-relaxed text-gray-700">{{ $docReq->instructions }}</p>
+                                @php
+                                    $reqInstructions = $docSvc->localizedInstructions((string) $docReq->label, $docReq->instructions);
+                                @endphp
+                                @if ($reqInstructions)
+                                    <p class="mt-3 text-sm leading-relaxed text-gray-700">{{ $reqInstructions }}</p>
                                 @endif
 
                                 @if ($docReq->admin_notes && $isRejected)
@@ -222,7 +225,7 @@
         </div>
 
         {{-- SUBMITTED: quiet receipt --}}
-        <div x-show="tab === 'submitted'" x-cloak role="tabpanel">
+        <div x-show="tab === 'submitted'" x-cloak x-transition.opacity.duration.180ms role="tabpanel">
             <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
                 <div class="border-b border-gray-100 bg-gradient-to-r from-brand-muted/35 to-white px-4 py-4 sm:px-5">
                     <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand">
@@ -262,7 +265,7 @@
                                     ]) aria-hidden="true">✓</span>
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                            <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
+                                            <p class="font-semibold text-gray-900">{{ $docSvc->localizedLabel((string) $docReq->label) }}</p>
                                             <span @class([
                                                 'rounded-full px-2 py-0.5 text-[11px] font-semibold',
                                                 'bg-emerald-50 text-emerald-800' => $isAccepted,
@@ -271,7 +274,7 @@
                                                 {{ $statusLabel }}
                                             </span>
                                         </div>
-                                        <p class="mt-1 text-xs font-semibold text-brand">{{ $docReq->subjectRoleLabel() }}</p>
+                                        <p class="mt-1 text-xs font-semibold text-brand">{{ $docSvc->localizedSubjectRoleLabel($docReq) }}</p>
                                         @if ($thumbDocs->isNotEmpty())
                                             <div class="mt-2.5 flex flex-wrap gap-2">
                                                 @foreach ($thumbDocs as $upload)

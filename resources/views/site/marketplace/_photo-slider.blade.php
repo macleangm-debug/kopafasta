@@ -1,4 +1,4 @@
-@props(['photos' => [], 'category' => 'other', 'zoom' => false])
+@props(['photos' => [], 'category' => 'other', 'zoom' => false, 'share' => null])
 
 @php
     $urls = marketplace_photo_urls($photos);
@@ -37,6 +37,7 @@
         {{-- Main preview (cover / selected) --}}
         <div
             class="relative rounded-2xl overflow-hidden bg-slate-100 aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none ring-1 ring-black/5 shadow-md select-none"
+            @if ($share) style="view-transition-name: {{ $share }}" @endif
             @touchstart.passive="onTouchStart($event)"
             @touchend.passive="onTouchEnd($event)"
         >
@@ -146,7 +147,8 @@
         @endif
     </div>
 @else
-    <div class="aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none rounded-2xl bg-gradient-to-br from-brand-muted to-brand/10 grid place-items-center text-6xl ring-1 ring-black/5">
+    <div class="aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none rounded-2xl bg-gradient-to-br from-brand-muted to-brand/10 grid place-items-center text-6xl ring-1 ring-black/5"
+         @if ($share) style="view-transition-name: {{ $share }}" @endif>
         {{ marketplace_category_emoji($category) }}
     </div>
 @endif

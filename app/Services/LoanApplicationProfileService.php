@@ -549,7 +549,7 @@ class LoanApplicationProfileService
                 $docService = app(ApplicationDocumentRequestService::class);
                 $items[] = [
                     'key'        => 'request-'.$request->id,
-                    'label'      => $request->label,
+                    'label'      => $docService->localizedLabel((string) $request->label),
                     'upload_url' => $docService->borrowerActionUrl($request),
                     'complete'   => false,
                 ];

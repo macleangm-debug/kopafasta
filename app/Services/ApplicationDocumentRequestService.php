@@ -130,27 +130,23 @@ class ApplicationDocumentRequestService
                 ?? $application?->customer;
 
             if (! $customer) {
-                return route('site.borrower.profile', ['section' => 'assets', 'add' => 1, 'uw' => 1]);
+                return route('site.borrower.profile', [
+                    'section' => 'assets',
+                    'add' => 1,
+                    'uw' => 1,
+                    'application' => $application?->id,
+                ]);
             }
 
             $assetService = app(CustomerAssetService::class);
             $assets = $assetService->forCustomer($customer);
-            $appId = $application?->id;
-            $usable = $assets->filter(
-                fn ($asset) => ! $assetService->isPledgedToAnotherApplication($asset, $appId)
-            );
-            $pledgedOnly = $assets->isNotEmpty() && $usable->isEmpty();
 
-            if ($usable->isNotEmpty()) {
-                return route('site.borrower.profile', ['section' => 'assets', 'uw' => 1]);
-            }
-
-            return route('site.borrower.profile', [
+            return route('site.borrower.profile', array_filter([
                 'section' => 'assets',
-                'add' => 1,
                 'uw' => 1,
-                'pledged' => $pledgedOnly ? 1 : null,
-            ]);
+                'application' => $application?->id,
+                'add' => $assets->isEmpty() ? 1 : null,
+            ], fn ($value) => $value !== null));
         }
         if (str_contains($label, 'asset photo') || str_contains($label, 'ownership document') || str_contains($label, 'insurance')) {
             return route('site.borrower.profile', ['section' => 'assets']);
@@ -244,12 +240,15 @@ class ApplicationDocumentRequestService
         return [
             'id'           => (int) $request->id,
             'kind'         => $assisting ? 'document' : $kind,
-            'label'        => (string) $request->label,
+            'label'        => $this->localizedLabel((string) $request->label),
             'cta_label'    => $ctaLabel,
             'url'          => $this->borrowerActionUrl($request, $viewer),
             'status'       => (string) $request->status,
             'rejected'     => $rejected,
-            'instructions' => $request->instructions,
+            'instructions' => $this->localizedInstructions(
+                (string) $request->label,
+                $request->instructions
+            ),
         ];
     }
 
@@ -299,11 +298,17 @@ class ApplicationDocumentRequestService
         $locale = $locale ?: app()->getLocale();
         $instructions = trim((string) $instructions);
         $englishDefault = self::presetInstructions()[$label] ?? null;
+        $englishFromLang = __('borrower.document_request_presets.instructions.'.$label, [], 'en');
+        $langKey = 'borrower.document_request_presets.instructions.'.$label;
+        $englishFromLang = $englishFromLang !== $langKey ? $englishFromLang : null;
 
-        if ($instructions === '' || ($englishDefault !== null && $instructions === $englishDefault)) {
-            $key = 'borrower.document_request_presets.instructions.'.$label;
-            $translated = __($key, [], $locale);
-            if ($translated !== $key) {
+        $isPresetEnglish = $instructions === ''
+            || ($englishDefault !== null && $instructions === $englishDefault)
+            || ($englishFromLang !== null && $instructions === $englishFromLang);
+
+        if ($isPresetEnglish) {
+            $translated = __($langKey, [], $locale);
+            if ($translated !== $langKey) {
                 return $translated;
             }
             if ($englishDefault) {
@@ -314,6 +319,40 @@ class ApplicationDocumentRequestService
         }
 
         return $instructions;
+    }
+
+    /** Borrower-facing "Name · Role" with a translated role. */
+    public function localizedSubjectRoleLabel(LoanApplicationDocumentRequest $request, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        $kind = (string) ($request->subject_kind ?? 'borrower');
+        $name = $request->subjectCustomer?->full_name
+            ?? $request->groupMember?->customer?->full_name
+            ?? null;
+
+        if ($kind === 'member') {
+            $role = strtolower((string) ($request->groupMember?->role ?? 'member'));
+            $roleKey = $role === 'leader'
+                ? 'borrower.loan_profile.document_subject_leader'
+                : 'borrower.loan_profile.document_subject_member';
+            $name = $name ?: (string) __('borrower.notifications.document_request_member_fallback', [], $locale);
+
+            return trim($name).' · '.__($roleKey, [], $locale);
+        }
+
+        if ($kind === 'guarantor') {
+            $name = $name ?: (string) __('borrower.loan_profile.document_subject_guarantor', [], $locale);
+
+            return trim($name).' · '.__('borrower.loan_profile.document_subject_guarantor', [], $locale);
+        }
+
+        $name = $name ?: ($request->application?->customer?->full_name ?? (string) __('borrower.loan_profile.document_subject_borrower', [], $locale));
+        $isGroup = (bool) ($request->application?->loanGroup);
+        $roleKey = $isGroup
+            ? 'borrower.loan_profile.document_subject_leader'
+            : 'borrower.loan_profile.document_subject_borrower';
+
+        return trim($name).' · '.__($roleKey, [], $locale);
     }
 
     public function create(
@@ -987,6 +1026,46 @@ class ApplicationDocumentRequestService
 
         if ($marked > 0) {
             $revision->clearForTarget($customer->fresh(), 'income');
+        }
+
+        return $marked;
+    }
+
+    /**
+     * When the borrower pledges a profile asset onto this loan, mark matching
+     * open collateral requests as uploaded.
+     */
+    public function markCollateralRequestsUploadedFromProfile(Customer $customer, LoanApplication $application): int
+    {
+        $marked = 0;
+
+        $requests = LoanApplicationDocumentRequest::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', ['pending', 'rejected'])
+            ->get();
+
+        foreach ($requests as $request) {
+            if ($this->borrowerActionKind($request) !== 'collateral') {
+                continue;
+            }
+            if (! $this->customerCanFulfillRequest($customer, $request)) {
+                continue;
+            }
+
+            $request->update([
+                'status' => 'uploaded',
+                'admin_notes' => null,
+            ]);
+            $marked++;
+
+            app(NotificationCtaService::class)->consumeDocumentRequestCtas(
+                (int) $application->id,
+                (int) $request->id,
+            );
+        }
+
+        if ($marked > 0) {
+            $this->syncApplicationStatus($application->fresh());
         }
 
         return $marked;

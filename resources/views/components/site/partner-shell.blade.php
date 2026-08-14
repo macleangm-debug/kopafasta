@@ -84,7 +84,7 @@
 
 <div class="min-h-screen flex">
 
-    <aside class="hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
+    <aside class="kf-chrome-sidebar hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <a href="{{ Route::has($homeRoute) ? route($homeRoute) : route('site.home') }}" class="relative block px-5 py-4 border-b border-white/15">
             <x-site.brand-mark size="md" variant="light" :portal="$portalLabel" />
@@ -93,6 +93,7 @@
             @foreach ($nav as $item)
                 @php $isActive = $active === $item['key']; @endphp
                 <a href="{{ route($item['route']) }}"
+                   data-kf-motion="tab"
                    class="flex items-center gap-3 mx-3 my-0.5 px-3 py-2.5 text-sm rounded-xl transition
                           {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm'
                                        : 'text-white/85 hover:bg-white/10 hover:text-white' }}">
@@ -110,7 +111,7 @@
 
     <div class="flex-1 flex flex-col min-h-screen min-w-0">
 
-        <header class="hidden lg:flex sticky top-0 z-20 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16">
+        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-20 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16">
             <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition">
                 ← {{ brand_name() }}
             </a>
@@ -126,7 +127,7 @@
                     <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50 bg-white/95 shadow-xl">
                         <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                             <p class="text-sm font-semibold text-gray-900">{{ __('site.partner_portal.nav_notifications') }}</p>
-                            <a href="{{ $notificationsHref }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.partner_portal.view_all') }}</a>
+                            <a href="{{ $notificationsHref }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('site.partner_portal.view_all') }}</a>
                         </div>
                         <div class="max-h-80 overflow-y-auto">
                             @forelse ($partnerPreview as $n)
@@ -156,7 +157,7 @@
                     <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
                          class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95">
                         @foreach ($profileLinks as $link)
-                            <a href="{{ route($link['route']) }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $link['label'] }}</a>
+                            <a href="{{ route($link['route']) }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $link['label'] }}</a>
                         @endforeach
                         <div class="border-t border-gray-100 my-1"></div>
                         <form method="POST" action="{{ route('site.logout') }}">
@@ -168,13 +169,13 @@
             </div>
         </header>
 
-        <header class="lg:hidden sticky top-0 z-30 glass-nav flex items-center justify-between px-3 h-14 gap-2">
+        <header class="kf-chrome-topbar-mobile lg:hidden sticky top-0 z-30 glass-nav flex items-center justify-between px-3 h-14 gap-2">
             <a href="{{ Route::has($homeRoute) ? route($homeRoute) : route('site.home') }}" class="flex items-center gap-2 shrink-0">
                 <x-site.brand-mark size="sm" />
             </a>
             <div class="flex items-center gap-0.5 shrink-0">
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                <a href="{{ $notificationsHref }}" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
+                <a href="{{ $notificationsHref }}" data-kf-motion="tab" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $navService->iconSvg('bell') !!}</svg>
                     @if (($partnerUnread ?? 0) > 0)
                         <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $partnerUnread > 9 ? '9+' : $partnerUnread }}</span>
@@ -189,7 +190,7 @@
                     <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
                          class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95 shadow-xl">
                         @foreach ($profileLinks as $link)
-                            <a href="{{ route($link['route']) }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $link['label'] }}</a>
+                            <a href="{{ route($link['route']) }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $link['label'] }}</a>
                         @endforeach
                         <div class="border-t border-gray-100 my-1"></div>
                         <form method="POST" action="{{ route('site.logout') }}">
@@ -217,6 +218,7 @@
                     @foreach ($nav as $item)
                         @php $isActive = $active === $item['key']; @endphp
                         <a href="{{ route($item['route']) }}"
+                           data-kf-motion="tab"
                            class="flex items-center gap-3 mx-3 my-0.5 px-3 py-3 text-sm rounded-xl
                                   {{ $isActive ? 'bg-brand-gold text-brand font-bold' : 'text-white/90 hover:bg-white/10' }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $navService->iconSvg($item['icon'] ?? 'home') !!}</svg>
@@ -253,7 +255,7 @@
             ></div>
         @endif
 
-        <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8" data-kf-busy-scope>
+        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full mx-auto">
                 {{ $slot }}
             </div>

@@ -26,7 +26,7 @@
                             <td class="px-4 py-3 text-gray-600">{{ $t->completed_at?->format('d M Y H:i') }}</td>
                             <td class="px-4 py-3">{{ format_money($t->fee_amount) }}</td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $t->payment_status }}</span></td>
-                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" class="text-brand hover:underline text-sm font-semibold">Open</a></td>
+                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" data-kf-share="kf-task-{{ $t->id }}" class="text-brand hover:underline text-sm font-semibold">Open</a></td>
                         </tr>
                     @endforeach
                 </tbody>

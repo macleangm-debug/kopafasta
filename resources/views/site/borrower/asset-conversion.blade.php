@@ -1,7 +1,7 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.offer.asset_conversion_title'))" active="loans" content-width="wide">
     <div x-data="{ channel: @js(old('channel', 'mobile_money')) }">
         <div class="mb-6">
-            <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:text-amber-800">&larr; {{ __('borrower.offer.back_to_application') }}</a>
+            <a href="{{ route('site.borrower.application', $application) }}" data-kf-motion="pop" class="text-sm text-amber-700 hover:text-amber-800">&larr; {{ __('borrower.offer.back_to_application') }}</a>
             <h1 class="text-2xl font-bold mt-2">{{ __('borrower.offer.asset_conversion_title') }}</h1>
             <p class="text-sm text-gray-500 mt-1">{{ $application->application_number }} · {{ $application->product?->name }}</p>
         </div>

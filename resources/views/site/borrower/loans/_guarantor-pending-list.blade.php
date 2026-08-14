@@ -38,7 +38,7 @@
                         <td class="px-4 py-3 text-right font-mono tabular-nums">{{ $amount !== null ? format_money((float) $amount) : '—' }}</td>
                         <td class="px-4 py-3 font-mono text-xs">{{ $reference }}</td>
                         <td class="px-4 py-3 text-right">
-                            <a href="{{ route('site.borrower.guarantor-requests.show', $link) }}" class="text-brand font-semibold hover:underline">
+                            <a href="{{ route('site.borrower.guarantor-requests.show', $link) }}" data-kf-share="kf-gtr-{{ $link->id }}" class="text-brand font-semibold hover:underline">
                                 {{ __('borrower.guaranteed.view_request') }}
                             </a>
                         </td>
@@ -66,7 +66,7 @@
                     ?? ($row->invitation?->short_code ? strtoupper((string) $row->invitation->short_code) : '—');
                 $detailUrl = route('site.borrower.guarantor-requests.show', $link);
             @endphp
-            <div class="glass-card p-5 ring-1 ring-brand/10">
+            <div class="glass-card p-5 ring-1 ring-brand/10" data-kf-share="kf-gtr-{{ $link->id }}">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $productName }}</p>

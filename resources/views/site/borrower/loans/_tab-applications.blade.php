@@ -23,10 +23,12 @@
     </div>
     <div class="inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
         <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'cards']) }}"
+           data-kf-motion="tab"
            class="px-3 py-1.5 rounded-lg font-semibold {{ $viewMode === 'cards' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
             {{ __('borrower.applications_list.cards') }}
         </a>
         <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'table']) }}"
+           data-kf-motion="tab"
            class="px-3 py-1.5 rounded-lg font-semibold {{ $viewMode === 'table' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
             {{ __('borrower.applications_list.table') }}
         </a>

@@ -6,22 +6,19 @@
         $typeIcons = \App\Models\CustomerAsset::typeIcons();
         $detailFields = $selectedType ? \App\Models\CustomerAsset::detailFieldsFor($selectedType) : [];
         $uwPrompt = request()->boolean('uw');
-        $openAddPicker = $adding && ! $selectedType;
-        $pledgedBlocked = request()->boolean('pledged');
+        $openAddPicker = $adding && ! $selectedType && ($assets ?? collect())->isEmpty();
         $assetService = app(\App\Services\CustomerAssetService::class);
-        $currentAppId = null;
-        try {
-            $currentAppId = \App\Models\LoanApplication::query()
-                ->where('customer_id', $customer->id)
-                ->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled', 'disbursed'])
-                ->latest('id')
-                ->value('id');
-        } catch (\Throwable) {
-            $currentAppId = null;
-        }
+        $currentApp = $uwApplication ?? null;
+        $currentAppId = $currentApp?->id;
+        $assetAvailabilities = ($assets ?? collect())->mapWithKeys(
+            fn ($asset) => [$asset->id => $assetService->availabilityForApplication($asset, $currentApp)]
+        );
+        $availableCount = $assetAvailabilities->where('selectable', true)->count();
+        $pledgedCount = $assetAvailabilities->where('code', 'pledged_other')->count();
+        $onThisCount = $assetAvailabilities->where('code', 'on_this_loan')->count();
     @endphp
 
-    <div x-data="{ addOpen: @js($openAddPicker || $pledgedBlocked), openAsset: {{ (int) request('edit', 0) ?: 'null' }}, lightbox: null }"
+    <div x-data="{ addOpen: @js($openAddPicker), openAsset: {{ (int) request('edit', 0) ?: 'null' }}, lightbox: null }"
          x-init="if (openAsset) { $nextTick(() => { const el = document.getElementById('asset-edit-' + openAsset); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); }">
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.my_collaterals'),
@@ -34,12 +31,14 @@
             <div class="mb-4 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
                 <p class="text-sm font-semibold text-amber-950">{{ __('borrower.profile.collateral_uw_title') }}</p>
                 <p class="text-sm text-amber-900/80 mt-1">
-                    @if ($pledgedBlocked)
-                        {{ __('borrower.profile.collateral_uw_pledged_body') }}
-                    @elseif (($assets ?? collect())->isEmpty())
+                    @if (($assets ?? collect())->isEmpty())
                         {{ __('borrower.profile.collateral_uw_none_body') }}
+                    @elseif ($availableCount > 0)
+                        {{ __('borrower.profile.collateral_uw_choose_body') }}
+                    @elseif ($onThisCount > 0 && $pledgedCount === 0)
+                        {{ __('borrower.profile.collateral_uw_already_on_loan_body') }}
                     @else
-                        {{ __('borrower.profile.collateral_uw_existing_body') }}
+                        {{ __('borrower.profile.collateral_uw_blocked_body') }}
                     @endif
                 </p>
             </div>
@@ -48,33 +47,36 @@
         @if (($assets ?? collect())->isNotEmpty() && $uwPrompt && ! ($adding && $selectedType))
             <div class="mb-4 space-y-2">
                 @foreach ($assets as $asset)
-                    @php
-                        $isPledged = $assetService->isPledgedToAnotherApplication($asset, $currentAppId ? (int) $currentAppId : null);
-                    @endphp
+                    @php $availability = $assetAvailabilities[$asset->id] ?? ['code' => 'available', 'selectable' => false]; @endphp
                     <div @class([
                         'rounded-xl ring-1 px-4 py-3',
-                        'bg-amber-50 ring-amber-200' => $isPledged,
-                        'bg-white ring-gray-200' => ! $isPledged,
+                        'bg-amber-50 ring-amber-200' => ($availability['code'] ?? '') === 'pledged_other',
+                        'bg-red-50 ring-red-200' => ($availability['code'] ?? '') === 'declined',
+                        'bg-white ring-gray-200' => ! in_array($availability['code'] ?? '', ['pledged_other', 'declined'], true),
                     ])>
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div>
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div class="min-w-0">
                                 <p class="text-sm font-semibold text-gray-900">{{ $asset->label }}</p>
                                 <p class="text-xs text-gray-500">{{ $assetTypes[$asset->asset_type] ?? $asset->asset_type }}</p>
+                                @include('site.borrower.profile._asset_availability', ['availability' => $availability, 'showHint' => true])
                             </div>
-                            @if ($isPledged)
-                                <span class="inline-flex rounded-full bg-amber-100 text-amber-950 text-[11px] font-bold px-2.5 py-1">
-                                    {{ __('borrower.profile.collateral_tied_other_loan') }}
-                                </span>
-                            @else
-                                <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'edit' => $asset->id, 'uw' => 1]) }}"
-                                   class="text-xs font-semibold text-brand hover:underline">
+                            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                                @if ($availability['selectable'] ?? false)
+                                    <form method="POST" action="{{ route('site.borrower.profile.assets.use', $asset) }}">
+                                        @csrf
+                                        <input type="hidden" name="application_id" value="{{ $currentAppId }}">
+                                        <button type="submit"
+                                                class="inline-flex items-center justify-center rounded-xl bg-brand-gold px-4 py-2 text-xs font-bold text-brand shadow-sm hover:brightness-95">
+                                            {{ __('borrower.profile.collateral_use_this') }}
+                                        </button>
+                                    </form>
+                                @endif
+                                <button type="button" @click="openAsset = {{ $asset->id }}"
+                                        class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-xs font-bold text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40">
                                     {{ __('borrower.profile.view_manage') }}
-                                </a>
-                            @endif
+                                </button>
+                            </div>
                         </div>
-                        @if ($isPledged)
-                            <p class="text-xs text-amber-900/80 mt-1">{{ __('borrower.profile.collateral_tied_other_loan_hint') }}</p>
-                        @endif
                     </div>
                 @endforeach
             </div>
@@ -97,6 +99,9 @@
                       x-on:submit="saving = true; uploading = true">
                     @csrf
                     <input type="hidden" name="asset_type" value="{{ $selectedType }}">
+                    @if ($currentAppId)
+                        <input type="hidden" name="application" value="{{ $currentAppId }}">
+                    @endif
                     <x-site.upload-busy-overlay :message="__('borrower.profile.uploading_collateral')" />
 
                     <div class="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-2">
@@ -332,8 +337,9 @@
                                     <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] font-semibold bg-white/90 backdrop-blur px-2.5 py-1 rounded-full text-gray-800 ring-1 ring-black/5">
                                         {{ $typeIcons[$asset->asset_type] ?? '📦' }} {{ $assetTypes[$asset->asset_type] ?? $asset->asset_type }}
                                     </span>
-                                    <span class="absolute top-3 right-3 inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/90 text-white px-2.5 py-1 rounded-full">
-                                        {{ __('borrower.profile.collateral_status_active') }}
+                                    @php $availability = $assetAvailabilities[$asset->id] ?? ['code' => 'available']; @endphp
+                                    <span class="absolute top-3 right-3">
+                                        @include('site.borrower.profile._asset_availability', ['availability' => $availability, 'showHint' => false])
                                     </span>
                                     @if (count($gallery) > 1)
                                         <span class="absolute bottom-3 right-3 text-[11px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full">
@@ -390,7 +396,13 @@
                     <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.choose_asset_type_hint') }}</p>
                     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         @foreach ($assetTypes as $key => $label)
-                            <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'add' => 1, 'type' => $key]) }}"
+                            <a href="{{ route('site.borrower.profile', array_filter([
+                                    'section' => 'assets',
+                                    'add' => 1,
+                                    'type' => $key,
+                                    'uw' => $uwPrompt ? 1 : null,
+                                    'application' => $currentAppId,
+                                ])) }}"
                                class="group rounded-2xl ring-1 ring-gray-200/80 p-5 hover:ring-brand/40 hover:shadow-md transition bg-white text-center">
                                 <span class="text-3xl block mb-3" aria-hidden="true">{{ $typeIcons[$key] ?? '📦' }}</span>
                                 <h3 class="font-bold text-gray-900 group-hover:text-brand">{{ $label }}</h3>

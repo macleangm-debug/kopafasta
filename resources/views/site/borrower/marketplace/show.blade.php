@@ -1,7 +1,7 @@
 <x-site.borrower-layout :title="brand_title($asset['title'])" active="marketplace" content-width="wide">
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.marketplace') }}" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.marketplace.back_to_marketplace') }}</a>
+        <a href="{{ route('site.borrower.marketplace') }}" data-kf-motion="pop" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.marketplace.back_to_marketplace') }}</a>
     </div>
 
     @if (session('error'))
@@ -13,7 +13,12 @@
 
     <div class="grid lg:grid-cols-2 gap-6">
         <div>
-            @include('site.marketplace._photo-slider', ['photos' => $asset['photos'] ?? [], 'category' => $asset['category'] ?? 'other', 'zoom' => true])
+            @include('site.marketplace._photo-slider', [
+                'photos' => $asset['photos'] ?? [],
+                'category' => $asset['category'] ?? 'other',
+                'zoom' => true,
+                'share' => ! empty($asset['id']) ? 'kf-mp-'.$asset['id'] : null,
+            ])
         </div>
 
         <div>

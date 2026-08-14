@@ -25,6 +25,7 @@
     <div class="flex flex-wrap gap-2 mb-5">
         @foreach ($tabs as $k => $label)
             <a href="{{ route('site.partner.recovery-cases', $k === 'all' ? [] : ['status' => $k]) }}"
+               data-kf-motion="tab"
                class="px-3 py-1.5 rounded-full text-xs font-semibold border
                       {{ $current === $k ? 'bg-brand text-white border-brand/600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
                 {{ $label }}
@@ -83,6 +84,7 @@
 
                     <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
                         <a href="{{ route('site.partner.recovery-case', $assignment) }}"
+                           data-kf-share="kf-rec-{{ $assignment->id }}"
                            class="inline-flex items-center rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-brand-light">
                             Open case
                         </a>

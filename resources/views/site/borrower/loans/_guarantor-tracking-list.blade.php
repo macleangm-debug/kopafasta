@@ -37,7 +37,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <a href="{{ $detailUrl }}" class="text-brand font-semibold hover:underline">{{ __('borrower.guaranteed.view_details') }}</a>
+                            <a href="{{ $detailUrl }}" data-kf-share="kf-gtd-{{ $row->link->id }}" class="text-brand font-semibold hover:underline">{{ __('borrower.guaranteed.view_details') }}</a>
                         </td>
                     </tr>
                 @endforeach
@@ -54,7 +54,7 @@
                 $detailUrl = route('site.borrower.guaranteed.show', $row->link);
                 $isTerminal = (bool) ($row->is_terminal ?? false);
             @endphp
-            <div class="glass-card p-5 ring-1 ring-brand/10 {{ $isTerminal ? 'opacity-80' : '' }}">
+            <div class="glass-card p-5 ring-1 ring-brand/10 {{ $isTerminal ? 'opacity-80' : '' }}" data-kf-share="kf-gtd-{{ $row->link->id }}">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $productName }}</p>

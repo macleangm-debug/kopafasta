@@ -53,6 +53,7 @@
                 $tagClass = $statusColors[$status] ?? $statusColors['not_started'];
             @endphp
             <a href="{{ $section['url'] }}"
+               data-kf-share="kf-prof-{{ $section['key'] }}"
                class="group rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white p-5 transition hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <span class="text-2xl leading-none" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>

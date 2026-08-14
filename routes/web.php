@@ -359,6 +359,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'hub|personal|activity|residence|kin|kyc|security|payment|assets|membership');
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
             Route::post('/borrower/profile/assets',                  [\App\Http\Controllers\Site\BorrowerController::class, 'storeAsset'])->name('borrower.profile.assets.store');
+            Route::post('/borrower/profile/assets/{asset}/use',      [\App\Http\Controllers\Site\BorrowerController::class, 'useAsset'])->name('borrower.profile.assets.use');
             Route::put('/borrower/profile/assets/{asset}',           [\App\Http\Controllers\Site\BorrowerController::class, 'updateAsset'])->name('borrower.profile.assets.update');
             Route::delete('/borrower/profile/assets/{asset}',        [\App\Http\Controllers\Site\BorrowerController::class, 'destroyAsset'])->name('borrower.profile.assets.destroy');
             Route::post('/borrower/profile/assets/{asset}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'replaceAssetDocument'])->name('borrower.profile.assets.documents.replace');

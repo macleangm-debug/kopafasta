@@ -1637,7 +1637,16 @@ class BorrowerController extends Controller
             ->with('borrowerLegalName', $borrowerLegalName)
             ->with('detailsService', $detailsService)
             ->with('assets', $section === 'assets' ? app(\App\Services\CustomerAssetService::class)->forCustomer($customer) : collect())
-            ->with('assetTypes', \App\Models\CustomerAsset::typeOptions());
+            ->with('assetTypes', \App\Models\CustomerAsset::typeOptions())
+            ->with(
+                'uwApplication',
+                $section === 'assets'
+                    ? app(\App\Services\CustomerAssetService::class)->resolveUwApplication(
+                        $customer,
+                        $request->integer('application') ?: null
+                    )
+                    : null
+            );
     }
 
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
@@ -3356,16 +3365,60 @@ class BorrowerController extends Controller
             ->only($allowed)
             ->all();
 
-        app(\App\Services\CustomerAssetService::class)->store($customer, $data, [
+        $saved = app(\App\Services\CustomerAssetService::class)->store($customer, $data, [
             'photos'              => $validPhotos,
             'person_photo'        => $request->file('person_photo'),
             'ownership_document'  => $request->file('ownership_document'),
             'insurance_document'  => $request->file('insurance_document'),
         ]);
 
+        $uwApplicationId = $request->integer('application') ?: null;
+        $uwApplication = $uwApplicationId
+            ? app(\App\Services\CustomerAssetService::class)->resolveUwApplication($customer, $uwApplicationId)
+            : null;
+        if ($uwApplication) {
+            try {
+                app(\App\Services\CustomerAssetService::class)
+                    ->attachToApplication($saved, $uwApplication, $customer);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return redirect()
+                    ->route('site.borrower.profile', [
+                        'section' => 'assets',
+                        'uw' => 1,
+                        'application' => $uwApplication->id,
+                    ])
+                    ->with('warning', $e->errors()['asset'][0] ?? __('borrower.profile.collateral_cannot_use'));
+            }
+
+            return redirect()
+                ->route('site.borrower.application', $uwApplication)
+                ->with('status', __('borrower.profile.collateral_linked'));
+        }
+
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets'])
             ->with('status', __('borrower.profile.asset_saved'));
+    }
+
+    public function useAsset(Request $request, \App\Models\CustomerAsset $asset): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($asset->customer_id !== $customer->id || ! $asset->is_active, 404);
+
+        $data = $request->validate([
+            'application_id' => ['required', 'integer', 'exists:loan_applications,id'],
+        ]);
+
+        $application = app(\App\Services\CustomerAssetService::class)
+            ->resolveUwApplication($customer, (int) $data['application_id']);
+        abort_unless($application, 404);
+
+        app(\App\Services\CustomerAssetService::class)
+            ->attachToApplication($asset, $application, $customer);
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('status', __('borrower.profile.collateral_linked'));
     }
 
     public function updateAsset(Request $request, \App\Models\CustomerAsset $asset): RedirectResponse

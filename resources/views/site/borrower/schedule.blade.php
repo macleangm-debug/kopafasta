@@ -2,9 +2,9 @@
 
     <div class="mb-4">
         @if ($loan)
-            <a href="{{ route('site.borrower.loans.show', $loan) }}" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.loans_page.view_loan') }}</a>
+            <a href="{{ route('site.borrower.loans.show', $loan) }}" data-kf-motion="pop" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.loans_page.view_loan') }}</a>
         @else
-            <a href="{{ route('site.borrower.loans', ['tab' => 'active']) }}" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.loans_page.back') }}</a>
+            <a href="{{ route('site.borrower.loans', ['tab' => 'active']) }}" data-kf-motion="pop" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.loans_page.back') }}</a>
         @endif
     </div>
 

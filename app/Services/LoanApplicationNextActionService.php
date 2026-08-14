@@ -400,7 +400,9 @@ class LoanApplicationNextActionService
             return $this->action(
                 'upload_documents',
                 $count === 1
-                    ? __('borrower.loan_profile.next_actions.upload', ['item' => $first->label])
+                    ? __('borrower.loan_profile.next_actions.upload', [
+                        'item' => $docService->localizedLabel((string) $first->label),
+                    ])
                     : __('borrower.loan_profile.next_actions.upload_documents', ['count' => $count]),
                 $guided['cta_label'],
                 $guided['url'],

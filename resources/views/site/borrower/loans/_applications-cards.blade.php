@@ -16,7 +16,8 @@
             $badge = $toneClasses[$row['status_tone']] ?? $toneClasses['sky'];
             $isClosed = ! empty($row['is_closed']) || in_array((string) ($row['status'] ?? ''), ['withdrawn', 'offer_declined', 'rejected'], true);
         @endphp
-        <div class="glass-card p-5 {{ $isClosed ? 'opacity-90' : '' }}">
+        <div class="glass-card p-5 {{ $isClosed ? 'opacity-90' : '' }}"
+             data-kf-share="kf-app-{{ $row['id'] }}">
             <div class="flex items-start justify-between gap-3 mb-3">
                 <div class="min-w-0">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $row['loan_type'] }}</p>

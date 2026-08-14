@@ -114,15 +114,16 @@
 <div class="min-h-screen flex">
 
     {{-- Sidebar (desktop) --}}
-    <aside class="hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
+    <aside class="kf-chrome-sidebar hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
-        <a href="{{ route('site.borrower.dashboard') }}" class="relative block px-5 py-4 border-b border-white/15">
+        <a href="{{ route('site.borrower.dashboard') }}" data-kf-motion="tab" class="relative block px-5 py-4 border-b border-white/15">
             <x-site.brand-mark size="md" variant="light" :portal="__('borrower.portal')" />
         </a>
         <nav class="relative flex-1 overflow-y-auto px-3 py-5 space-y-1">
             @foreach ($nav as $item)
                 @php $isActive = $active === $item['key']; @endphp
                 <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
+                   data-kf-motion="tab"
                    class="group relative flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition
                           {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm'
                                        : 'text-white/85 hover:bg-white/10 hover:text-white' }}">
@@ -145,7 +146,7 @@
     <div class="flex-1 flex flex-col min-h-screen min-w-0">
 
         {{-- Topbar (desktop) --}}
-        <header class="hidden lg:flex sticky top-0 z-40 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16">
+        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-40 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16">
             <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition">
                 ← {{ brand_name() }}
             </a>
@@ -159,7 +160,7 @@
                     <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50">
                         <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white/80">
                             <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
-                            <a href="{{ route('site.borrower.notifications') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
+                            <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
                         </div>
                         <div class="max-h-80 overflow-y-auto bg-white/90">
                             <template x-if="items.length === 0">
@@ -222,8 +223,8 @@
         </header>
 
         {{-- Topbar (mobile) --}}
-        <header class="lg:hidden sticky top-0 z-40 glass-nav flex items-center justify-between px-3 h-14 gap-2">
-            <a href="{{ route('site.borrower.dashboard') }}" class="flex items-center gap-2 shrink-0">
+        <header class="kf-chrome-topbar-mobile lg:hidden sticky top-0 z-40 glass-nav flex items-center justify-between px-3 h-14 gap-2">
+            <a href="{{ route('site.borrower.dashboard') }}" data-kf-motion="tab" class="flex items-center gap-2 shrink-0">
                 <x-site.brand-mark size="sm" />
             </a>
             <div class="flex items-center gap-0.5 shrink-0">
@@ -250,7 +251,7 @@
                                 <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
                                     <h2 class="text-base font-bold text-gray-900">{{ __('borrower.layout.notifications') }}</h2>
                                     <div class="flex items-center gap-3">
-                                        <a href="{{ route('site.borrower.notifications') }}" @click="sheetOpen = false" class="text-xs font-semibold text-brand">{{ __('borrower.layout.view_all') }}</a>
+                                        <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" @click="sheetOpen = false" class="text-xs font-semibold text-brand">{{ __('borrower.layout.view_all') }}</a>
                                         <button type="button" @click="sheetOpen = false" class="p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Close">
                                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
                                         </button>
@@ -284,9 +285,9 @@
                     </button>
                     <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
                          class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95 shadow-xl">
-                        <a href="{{ route('site.borrower.profile') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
-                        <a href="{{ route('site.borrower.settings') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.nav.settings') }}</a>
-                        <a href="{{ route('site.borrower.support') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
+                        <a href="{{ route('site.borrower.profile') }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
+                        <a href="{{ route('site.borrower.settings') }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.nav.settings') }}</a>
+                        <a href="{{ route('site.borrower.support') }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
                         <div class="border-t border-gray-100 my-1"></div>
                         <form method="POST" action="{{ route('site.logout') }}">
                             @csrf
@@ -314,6 +315,7 @@
                     @foreach ($nav as $item)
                         @php $isActive = $active === $item['key']; @endphp
                         <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
+                           data-kf-motion="tab"
                            class="relative flex items-center gap-3 px-3.5 py-3 text-sm rounded-xl transition
                                   {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm' : 'text-white/90 hover:bg-white/10' }}">
                             @if ($isActive)
@@ -348,7 +350,7 @@
             ></div>
         @endif
 
-        <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8" data-kf-busy-scope>
+        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full">
                 @if ($portalMode !== 'guarantor')
 

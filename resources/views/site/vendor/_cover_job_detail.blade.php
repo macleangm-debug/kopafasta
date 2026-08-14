@@ -29,13 +29,13 @@
 @endphp
 
 <div class="mb-5">
-    <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline">← {{ __('site.partner_portal.back_to_cover_jobs') }}</a>
+    <a href="{{ route('site.partner.tasks') }}" data-kf-motion="pop" class="text-sm text-brand hover:underline">← {{ __('site.partner_portal.back_to_cover_jobs') }}</a>
 </div>
 
 <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
     <div class="min-w-0">
         <p class="text-[11px] uppercase tracking-[0.18em] text-brand font-bold mb-1">{{ __('site.partner_portal.cover_job_eyebrow') }}</p>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight truncate">{{ $coverTitle }}</h1>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight truncate" style="view-transition-name: kf-task-{{ $task->id }}">{{ $coverTitle }}</h1>
         <p class="text-sm text-gray-500 mt-1">
             {{ __('site.partner_portal.cover_job_meta', ['id' => $task->id, 'date' => $task->created_at->format('d M Y')]) }}
             @if ($reg)
@@ -96,7 +96,7 @@
         </div>
 
         {{-- Asset dossier --}}
-        <div x-show="tab === 'asset'" x-cloak class="space-y-4">
+        <div x-show="tab === 'asset'" x-cloak x-transition.opacity.duration.180ms class="space-y-4">
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
                 @if ($photos !== [])
                     <div
@@ -207,7 +207,7 @@
         </div>
 
         {{-- Cover context --}}
-        <div x-show="tab === 'cover'" x-cloak class="space-y-4">
+        <div x-show="tab === 'cover'" x-cloak x-transition.opacity.duration.180ms class="space-y-4">
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <h2 class="font-bold mb-1">{{ __('site.partner_portal.tab_cover') }}</h2>
                 <p class="text-sm text-gray-600 mb-4">{{ __('site.partner_portal.cover_brief') }}</p>
@@ -255,7 +255,7 @@
         </div>
 
         {{-- Issue policy --}}
-        <div x-show="tab === 'issue'" x-cloak class="space-y-4">
+        <div x-show="tab === 'issue'" x-cloak x-transition.opacity.duration.180ms class="space-y-4">
             @if ($isOpen)
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 sm:p-6">
                     <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
@@ -339,7 +339,7 @@
         </div>
 
         {{-- Documents --}}
-        <div x-show="tab === 'documents'" x-cloak class="space-y-4">
+        <div x-show="tab === 'documents'" x-cloak x-transition.opacity.duration.180ms class="space-y-4">
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <h2 class="font-bold mb-3">{{ __('site.partner_portal.collateral_documents') }}</h2>
                 <ul class="divide-y divide-gray-100 text-sm">

@@ -1,7 +1,7 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.agreement.page_title', ['number' => $application->application_number]))" active="loans" content-width="wide">
 
     <div>
-        <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:underline">&larr; {{ __('borrower.agreement.back_to_application') }}</a>
+        <a href="{{ route('site.borrower.application', $application) }}" data-kf-motion="pop" class="text-sm text-amber-700 hover:underline">&larr; {{ __('borrower.agreement.back_to_application') }}</a>
 
         @if (session('status'))
             <div class="mt-3 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>

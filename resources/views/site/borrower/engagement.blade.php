@@ -23,7 +23,7 @@
         </nav>
 
         {{-- Overview --}}
-        <div x-show="tab === 'overview'" class="space-y-4">
+        <div x-show="tab === 'overview'" x-transition.opacity.duration.180ms class="space-y-4">
             <div class="glass-card overflow-hidden ring-1 ring-brand/10">
                 <div class="relative bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-8 py-6 text-white">
                     <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)]" aria-hidden="true"></div>
@@ -89,17 +89,17 @@
         </div>
 
         {{-- Referrals tab --}}
-        <div x-show="tab === 'referrals'" x-cloak class="mt-1">
+        <div x-show="tab === 'referrals'" x-cloak x-transition.opacity.duration.180ms class="mt-1">
             @include('site.borrower.engagement._referrals-panel')
         </div>
 
         {{-- Rewards tab --}}
-        <div x-show="tab === 'rewards'" x-cloak class="mt-1">
+        <div x-show="tab === 'rewards'" x-cloak x-transition.opacity.duration.180ms class="mt-1">
             @include('site.borrower.engagement._rewards-panel')
         </div>
 
         {{-- Streak tab — journey stepper --}}
-        <div x-show="tab === 'streak'" x-cloak class="mt-1">
+        <div x-show="tab === 'streak'" x-cloak x-transition.opacity.duration.180ms class="mt-1">
             @php
                 $currentCount = (int) ($streakReward['count'] ?? 0);
                 $milestones = collect($streakReward['milestones'] ?? [])->values();

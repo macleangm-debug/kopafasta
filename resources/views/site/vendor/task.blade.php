@@ -38,12 +38,12 @@
         @include('site.vendor._cover_job_detail')
     @else
     <div class="mb-5">
-        <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline">← Back to tasks</a>
+        <a href="{{ route('site.partner.tasks') }}" data-kf-motion="pop" class="text-sm text-brand hover:underline">← Back to tasks</a>
     </div>
 
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
-            <h1 class="text-2xl font-extrabold">{{ ucfirst(str_replace('_',' ', $task->task_type)) }}</h1>
+            <h1 class="text-2xl font-extrabold" style="view-transition-name: kf-task-{{ $task->id }}">{{ ucfirst(str_replace('_',' ', $task->task_type)) }}</h1>
             <p class="text-xs text-gray-500">Task #{{ $task->id }} · Created {{ $task->created_at->format('d M Y') }}</p>
         </div>
         <div class="flex items-center gap-2">

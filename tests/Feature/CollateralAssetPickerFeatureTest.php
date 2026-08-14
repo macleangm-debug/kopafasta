@@ -1,0 +1,201 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Customer;
+use App\Models\CustomerAsset;
+use App\Models\LoanApplication;
+use App\Models\LoanApplicationAsset;
+use App\Models\LoanProduct;
+use App\Models\User;
+use App\Services\ApplicationDocumentRequestService;
+use App\Services\CustomerAssetService;
+use App\Services\PinRecoveryChallengeService;
+use App\Services\PinService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class CollateralAssetPickerFeatureTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function completeBorrower(): Customer
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Asha',
+            'primary_school' => 'Uhuru Primary',
+            'nida_middle4' => '4582',
+        ]);
+
+        return Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-AST-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Leader',
+            'last_name' => 'Asset',
+            'phone' => '25571234'.random_int(1000, 9999),
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+    }
+
+    private function applicationFor(Customer $customer): LoanApplication
+    {
+        $product = LoanProduct::create([
+            'code' => 'IL-AST-'.random_int(100, 999),
+            'name' => 'Installment',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+
+        return LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-AST-'.random_int(100, 999),
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 800_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now(),
+        ]);
+    }
+
+    private function completeAsset(Customer $customer, string $label = 'Plot A'): CustomerAsset
+    {
+        return CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'land',
+            'label' => $label,
+            'is_active' => true,
+            'photo_paths' => ['assets/front.jpg', 'assets/back.jpg'],
+            'metadata' => ['ownership_document_path' => 'assets/title.pdf'],
+        ]);
+    }
+
+    public function test_existing_asset_can_be_chosen_for_underwriting_request(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $asset = $this->completeAsset($customer, 'Shamba la kiongozi');
+        $admin = User::factory()->create(['role' => 'admin']);
+        app(ApplicationDocumentRequestService::class)->create($application, $admin, 'Add collateral asset');
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', [
+                'section' => 'assets',
+                'uw' => 1,
+                'application' => $application->id,
+            ]))
+            ->assertOk()
+            ->assertSee('Shamba la kiongozi', false)
+            ->assertSee(__('borrower.profile.collateral_use_this'), false)
+            ->assertSee(__('borrower.profile.collateral_available'), false)
+            ->getContent();
+
+        $this->assertStringContainsString('Shamba la kiongozi', $html);
+
+        $this->actingAs($customer->user)
+            ->post(route('site.borrower.profile.assets.use', $asset), [
+                'application_id' => $application->id,
+            ])
+            ->assertRedirect(route('site.borrower.application', $application));
+
+        $this->assertDatabaseHas('loan_application_assets', [
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $asset->id,
+        ]);
+        $this->assertDatabaseHas('loan_application_document_requests', [
+            'loan_application_id' => $application->id,
+            'label' => 'Add collateral asset',
+            'status' => 'uploaded',
+        ]);
+    }
+
+    public function test_asset_tied_to_another_loan_shows_why_it_cannot_be_used(): void
+    {
+        $customer = $this->completeBorrower();
+        $thisLoan = $this->applicationFor($customer);
+        $otherLoan = $this->applicationFor($customer);
+        $asset = $this->completeAsset($customer, 'Gari la kiongozi');
+
+        LoanApplicationAsset::create([
+            'loan_application_id' => $otherLoan->id,
+            'customer_asset_id' => $asset->id,
+            'asset_type' => 'land',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+        ]);
+
+        $availability = app(CustomerAssetService::class)
+            ->availabilityForApplication($asset->fresh(), $thisLoan);
+
+        $this->assertSame('pledged_other', $availability['code']);
+        $this->assertFalse($availability['selectable']);
+        $this->assertSame($otherLoan->application_number, $availability['application_number']);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', [
+                'section' => 'assets',
+                'uw' => 1,
+                'application' => $thisLoan->id,
+            ]))
+            ->assertOk()
+            ->assertSee('Gari la kiongozi', false)
+            ->assertSee(__('borrower.profile.collateral_tied_named', ['number' => $otherLoan->application_number]), false)
+            ->assertDontSee(__('borrower.profile.collateral_use_this'), false);
+    }
+
+    public function test_incomplete_asset_is_tagged_instead_of_selectable(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $asset = CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'land',
+            'label' => 'Plot without docs',
+            'is_active' => true,
+        ]);
+
+        $availability = app(CustomerAssetService::class)
+            ->availabilityForApplication($asset, $application);
+
+        $this->assertSame('incomplete', $availability['code']);
+        $this->assertSame('photos', $availability['incomplete']);
+        $this->assertFalse($availability['selectable']);
+    }
+
+    public function test_collateral_deep_link_keeps_existing_assets_visible(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $this->completeAsset($customer);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $request = app(ApplicationDocumentRequestService::class)
+            ->create($application, $admin, 'Add collateral asset');
+
+        $url = app(ApplicationDocumentRequestService::class)
+            ->borrowerActionUrl($request->fresh(), $customer);
+
+        $this->assertStringContainsString('application='.$application->id, $url);
+        $this->assertStringNotContainsString('add=1', $url);
+        $this->assertStringContainsString('uw=1', $url);
+    }
+
+    public function test_account_shells_opt_into_view_transitions(): void
+    {
+        $customer = $this->completeBorrower();
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.dashboard'))
+            ->assertOk()
+            ->assertSee('kf-chrome-sidebar', false)
+            ->assertSee('kf-chrome-page', false)
+            ->assertSee('data-kf-motion="tab"', false);
+    }
+}

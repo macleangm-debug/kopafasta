@@ -6,7 +6,7 @@
                 <h1 class="text-2xl font-extrabold text-gray-900 mt-1">{{ __('borrower.rejection_letter.notify_title') }}</h1>
                 <p class="text-sm text-gray-600 mt-1">{{ $application->application_number }} · {{ $agreement->reference }}</p>
             </div>
-            <a href="{{ route('site.borrower.application', $application) }}" class="text-sm font-semibold text-brand hover:underline">
+            <a href="{{ route('site.borrower.application', $application) }}" data-kf-motion="pop" class="text-sm font-semibold text-brand hover:underline">
                 ← {{ __('borrower.loan_profile.back_to_application') }}
             </a>
         </div>

@@ -11,7 +11,8 @@
     $photoCount = count($photoUrls);
 @endphp
 
-<article class="glass-card overflow-hidden flex flex-col h-full hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] hover:-translate-y-0.5 transition-all duration-300 group">
+<article class="glass-card overflow-hidden flex flex-col h-full hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] hover:-translate-y-0.5 transition-all duration-300 group"
+         @if (! empty($asset['id'])) data-kf-share="kf-mp-{{ $asset['id'] }}" @endif>
     <div class="relative overflow-hidden bg-slate-50"
          @if ($photoCount > 0)
          x-data="{

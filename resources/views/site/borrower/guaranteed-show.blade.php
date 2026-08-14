@@ -23,6 +23,7 @@
 
     <div class="mb-4">
         <a href="{{ route('site.borrower.loans', ['tab' => $listTab]) }}"
+           data-kf-motion="pop"
            class="text-sm font-semibold text-brand hover:underline">
             ← {{ $listTab === 'guarantor'
                 ? __('borrower.guaranteed.back_to_requests')
@@ -38,6 +39,7 @@
         :eyebrow="__('borrower.loans_page.guarantor_badge')"
         :title="$productName"
         :subtitle="$borrowerName.' · '.$row->reference"
+        :share="($row->link->id ?? $row->id) ? 'kf-gtd-'.($row->link->id ?? $row->id) : null"
     >
         <x-slot:actions>
             <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $needsProfile ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800' }}">

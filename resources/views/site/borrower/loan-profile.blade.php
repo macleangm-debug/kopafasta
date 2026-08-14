@@ -41,7 +41,7 @@
     @endphp
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.loans', ['tab' => 'applications']) }}" class="text-sm font-semibold text-brand hover:underline">
+        <a href="{{ route('site.borrower.loans', ['tab' => 'applications']) }}" data-kf-motion="pop" class="text-sm font-semibold text-brand hover:underline">
             {{ __('borrower.loan_profile.back') }}
         </a>
     </div>
@@ -50,6 +50,7 @@
         :eyebrow="__('borrower.loan_profile.label')"
         :title="$summary['product_name']"
         :subtitle="$summary['application_number']"
+        :share="($application?->id ?? $draft?->id) ? 'kf-app-'.($application?->id ?? $draft?->id) : null"
     />
 
     @if (! empty($summary['loan_number']))

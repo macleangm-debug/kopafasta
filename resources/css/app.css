@@ -110,6 +110,104 @@
     }
 }
 
+/*
+ * Account-shell page transitions (borrower + affiliate/partner).
+ * Chrome keeps its view-transition-name so sidebar/topbar do not flash.
+ * tab  = Instagram crossfade (top-level nav, query tabs)
+ * push/pop = Netflix / iOS drill-in
+ * morph = shared-element (card/photo → detail hero)
+ * fade  = Facebook app-shell / entering the account / lateral jumps
+ */
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+::view-transition-group(kf-sidebar),
+::view-transition-group(kf-topbar-desktop),
+::view-transition-group(kf-topbar-mobile) {
+    animation-duration: 0.01ms;
+}
+
+.kf-chrome-sidebar {
+    view-transition-name: kf-sidebar;
+}
+
+.kf-chrome-topbar-desktop {
+    view-transition-name: kf-topbar-desktop;
+}
+
+.kf-chrome-topbar-mobile {
+    view-transition-name: kf-topbar-mobile;
+}
+
+.kf-chrome-page {
+    view-transition-name: kf-page;
+}
+
+html:active-view-transition-type(push)::view-transition-old(kf-page) {
+    animation: kf-page-out-left 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+html:active-view-transition-type(push)::view-transition-new(kf-page) {
+    animation: kf-page-in-right 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+html:active-view-transition-type(pop)::view-transition-old(kf-page) {
+    animation: kf-page-out-right 200ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+html:active-view-transition-type(pop)::view-transition-new(kf-page) {
+    animation: kf-page-in-left 200ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+html:active-view-transition-type(fade)::view-transition-old(kf-page),
+html:active-view-transition-type(tab)::view-transition-old(kf-page),
+html:active-view-transition-type(morph)::view-transition-old(kf-page) {
+    animation: kf-page-fade-out 160ms ease both;
+}
+html:active-view-transition-type(fade)::view-transition-new(kf-page),
+html:active-view-transition-type(tab)::view-transition-new(kf-page),
+html:active-view-transition-type(morph)::view-transition-new(kf-page) {
+    animation: kf-page-fade-in 180ms ease both;
+}
+
+[data-kf-share] {
+    contain: layout;
+}
+
+@keyframes kf-page-in-right {
+    from { opacity: 0; transform: translateX(18px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes kf-page-out-left {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(-12px); }
+}
+@keyframes kf-page-in-left {
+    from { opacity: 0; transform: translateX(-18px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes kf-page-out-right {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(12px); }
+}
+@keyframes kf-page-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes kf-page-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    @view-transition {
+        navigation: none;
+    }
+}
+
 /* System-wide numeric display (1,000 · 50,000,000) */
 @layer base {
     html,

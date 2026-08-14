@@ -2,9 +2,11 @@
     'eyebrow' => null,
     'title',
     'subtitle' => null,
+    'share' => null,
 ])
 
-<div {{ $attributes->merge(['class' => 'mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4']) }}>
+<div {{ $attributes->merge(['class' => 'mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4']) }}
+     @if ($share) style="view-transition-name: {{ $share }}" @endif>
     <div class="min-w-0">
         @if ($eyebrow)
             <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ $eyebrow }}</p>

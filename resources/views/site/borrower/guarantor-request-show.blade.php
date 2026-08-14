@@ -17,7 +17,7 @@
     @endphp
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.loans', ['tab' => 'guarantor']) }}" class="text-sm font-semibold text-brand hover:underline">
+        <a href="{{ route('site.borrower.loans', ['tab' => 'guarantor']) }}" data-kf-motion="pop" class="text-sm font-semibold text-brand hover:underline">
             ← {{ __('borrower.guarantor.back_to_requests') }}
         </a>
     </div>
@@ -33,6 +33,7 @@
         :eyebrow="__('borrower.loans_page.guarantor_badge')"
         :title="$productName"
         :subtitle="$borrowerName.' · '.$reference"
+        :share="$invitation->id ? 'kf-gtr-'.$invitation->id : null"
     >
         <x-slot:actions>
             <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 bg-amber-100 text-amber-900">

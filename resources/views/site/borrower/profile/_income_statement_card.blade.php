@@ -302,7 +302,7 @@
                                 :labels="[
                                     'hint' => __('borrower.profile.multi_page_hint_short'),
                                     'uploadFile' => __('borrower.profile.upload'),
-                                    'capturePage' => __('borrower.profile.use_camera_optional'),
+                                    'capturePage' => __('borrower.document_upload.camera'),
                                 ]"
                             />
                         </div>

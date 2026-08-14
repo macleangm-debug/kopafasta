@@ -1,7 +1,7 @@
 <x-site.vendor-layout title="Invoice" active="payments">
 
     <div class="mb-5 flex items-center justify-between">
-        <a href="{{ route('site.partner.payments') }}" class="text-sm text-brand hover:underline">← Back to payments</a>
+        <a href="{{ route('site.partner.payments') }}" data-kf-motion="pop" class="text-sm text-brand hover:underline">← Back to payments</a>
         <button onclick="window.print()" class="text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">Print / Save PDF</button>
     </div>
 

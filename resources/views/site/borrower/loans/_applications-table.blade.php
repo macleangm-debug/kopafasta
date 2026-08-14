@@ -31,7 +31,10 @@
                             ? ($row['preview_url'] ?? $row['action_url'])
                             : ($row['action_url'] ?? '#');
                     @endphp
-                    <tr class="hover:bg-brand-muted/20 cursor-pointer transition" onclick="window.location='{{ $viewUrl }}'">
+                    <tr class="hover:bg-brand-muted/20 cursor-pointer transition"
+                        data-kf-motion="push"
+                        data-kf-share="kf-app-{{ $row['id'] }}"
+                        onclick="window.location='{{ $viewUrl }}'">
                         <td class="px-4 py-3">
                             <span class="inline-flex text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">
                                 {{ $row['application_status'] ?? $row['status_label'] }}
@@ -51,12 +54,12 @@
                         </td>
                         <td class="px-4 py-3 text-right space-x-2" onclick="event.stopPropagation()">
                             @if ($row['is_draft'] ?? false)
-                                <a href="{{ $row['action_url'] }}" class="text-brand font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
+                                <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
                                 @if (! empty($row['preview_url']))
-                                    <a href="{{ $row['preview_url'] }}" class="text-gray-600 font-semibold hover:underline text-xs">{{ $row['preview_label'] ?? __('borrower.applications_list.view') }}</a>
+                                    <a href="{{ $row['preview_url'] }}" data-kf-motion="push" class="text-gray-600 font-semibold hover:underline text-xs">{{ $row['preview_label'] ?? __('borrower.applications_list.view') }}</a>
                                 @endif
                             @else
-                                <a href="{{ $row['action_url'] }}" class="text-brand font-semibold hover:underline text-xs">{{ __('borrower.applications_list.view') }}</a>
+                                <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ __('borrower.applications_list.view') }}</a>
                             @endif
                         </td>
                     </tr>

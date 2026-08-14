@@ -99,6 +99,7 @@
                 : __('borrower.loans_page.subtitle'))">
         <x-slot:actions>
             <a href="{{ route('site.borrower.loan-products') }}"
+               data-kf-motion="tab"
                class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
                 {{ __('borrower.loans_page.apply_new_cta') }}
             </a>
@@ -126,7 +127,7 @@
                 $statClass = 'glass-card h-full min-h-[5.5rem] p-4 ring-1 '.$toneRing.' flex flex-col justify-between';
             @endphp
             @if ($statHref)
-                <a href="{{ $statHref }}" class="{{ $statClass }} hover:ring-brand/30 transition block">
+                <a href="{{ $statHref }}" data-kf-motion="tab" class="{{ $statClass }} hover:ring-brand/30 transition block">
                     <div class="flex items-start justify-between gap-2">
                         <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold leading-snug line-clamp-2">{{ $stat['label'] }}</p>
                         <span class="text-lg shrink-0 leading-none" aria-hidden="true">{{ $stat['icon'] }}</span>

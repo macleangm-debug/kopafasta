@@ -12,6 +12,7 @@
         <div class="inline-flex flex-wrap rounded-xl ring-1 ring-gray-200/80 bg-white/80 backdrop-blur p-0.5 text-sm gap-0.5">
             @foreach ($tabs as $tab)
                 <a href="{{ $tab['url'] }}"
+                   data-kf-motion="tab"
                    @class([
                        'px-4 py-2 rounded-lg font-semibold transition',
                        $active === ($tab['key'] ?? '')

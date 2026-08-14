@@ -35,12 +35,13 @@
     <p class="text-[11px] text-gray-500 leading-relaxed">{{ __('borrower.nida.device_scope_body') }}</p>
     <input type="hidden" value="" x-bind:value="pages.length ? String(pages.length) : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
     <div class="flex flex-wrap items-center gap-3">
-        <label class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
+        <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
             <span>{{ __('borrower.profile.upload') }}</span>
             <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="addFiles($event)">
         </label>
-        <button type="button" @click="openCamera()" class="text-sm font-semibold text-brand hover:underline">
-            {{ __('borrower.profile.use_camera_optional') }}
+        <button type="button" @click="openCamera()"
+                class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand shadow-sm ring-1 ring-brand/20 hover:bg-brand-muted/40">
+            {{ __('borrower.document_upload.camera') }}
         </button>
     </div>
     <p class="text-xs text-gray-500">{{ __('borrower.profile.upload_unified_hint') }}</p>

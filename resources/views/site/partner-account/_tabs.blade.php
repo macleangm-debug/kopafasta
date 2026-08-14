@@ -38,6 +38,7 @@
                         $isComplete = (bool) ($status['complete'] ?? false);
                     @endphp
                     <a href="{{ route($profileRoute, ['section' => $key]) }}"
+                       data-kf-motion="tab"
                        class="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold {{ $isActive ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">
                         <span class="inline-flex items-center gap-2">
                             @if ($status !== null)
@@ -70,6 +71,7 @@
                     : 'bg-white/80 text-gray-600 ring-gray-200/80 hover:bg-brand-muted/40';
             @endphp
             <a href="{{ route($profileRoute, ['section' => $key]) }}"
+               data-kf-motion="tab"
                class="snap-start shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition
                       {{ $isActive ? 'bg-brand text-white shadow-sm ring-2 ring-brand' : $inactiveRing }}">
                 @if ($status !== null)

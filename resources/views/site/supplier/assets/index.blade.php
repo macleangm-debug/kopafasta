@@ -10,6 +10,7 @@
                 Delivered history
             </a>
             <a href="{{ route('site.supplier.assets.create') }}"
+               data-kf-motion="push"
                class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
                 Upload asset
             </a>
@@ -53,7 +54,7 @@
                                 ])>{{ $asset->is_active ? 'Active' : 'Inactive' }}</span>
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('site.supplier.assets.edit', $asset) }}" class="text-brand font-semibold hover:underline">Edit</a>
+                                <a href="{{ route('site.supplier.assets.edit', $asset) }}" data-kf-motion="push" class="text-brand font-semibold hover:underline">Edit</a>
                             </td>
                         </tr>
                     @endforeach

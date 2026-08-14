@@ -10,7 +10,7 @@
 
 @if (! $wizardMode && ($active ?? '') !== 'hub')
     <div class="mb-4">
-        <a href="{{ route('site.borrower.profile') }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
+        <a href="{{ route('site.borrower.profile') }}" data-kf-motion="pop" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
             ← {{ __('borrower.profile.hub.back') }}
         </a>
     </div>
@@ -19,6 +19,7 @@
 @include('site.borrower.profile._heading', [
     'title' => $title,
     'subtitle' => ($active ?? '') === 'hub' ? $subtitle : null,
+    'share' => ($active ?? '') !== 'hub' ? 'kf-prof-'.$active : null,
 ])
 
 @if (! $wizardMode)

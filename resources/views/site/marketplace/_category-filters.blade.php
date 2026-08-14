@@ -25,11 +25,13 @@
     {{-- Desktop: inline pills --}}
     <div class="hidden lg:flex flex-wrap gap-2">
         <a href="{{ route($routeName, $baseParams) }}"
+           data-kf-motion="tab"
            class="px-4 py-2 rounded-full text-sm font-medium transition {{ empty($category) ? $activeClass : $inactiveClass }}">
             {{ __('borrower.marketplace.all') }}
         </a>
         @foreach ($categories as $key => $label)
             <a href="{{ route($routeName, array_merge($baseParams, ['category' => $key])) }}"
+               data-kf-motion="tab"
                class="px-4 py-2 rounded-full text-sm font-medium transition {{ $category === $key ? $activeClass : $inactiveClass }}">
                 {{ $label }}
             </a>
@@ -38,7 +40,7 @@
 
     <x-site.bottom-sheet :title="__('borrower.marketplace.categories')" open="categoriesOpen">
         <div class="grid gap-2">
-            <a href="{{ route($routeName, $baseParams) }}" @click="categoriesOpen = false"
+            <a href="{{ route($routeName, $baseParams) }}" data-kf-motion="tab" @click="categoriesOpen = false"
                class="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition {{ empty($category) ? 'bg-brand text-white' : 'bg-gray-50 text-gray-800 hover:bg-brand-muted/40' }}">
                 {{ __('borrower.marketplace.all') }}
                 @if (empty($category))
@@ -46,7 +48,7 @@
                 @endif
             </a>
             @foreach ($categories as $key => $label)
-                <a href="{{ route($routeName, array_merge($baseParams, ['category' => $key])) }}" @click="categoriesOpen = false"
+                <a href="{{ route($routeName, array_merge($baseParams, ['category' => $key])) }}" data-kf-motion="tab" @click="categoriesOpen = false"
                    class="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition {{ $category === $key ? 'bg-brand text-white' : 'bg-gray-50 text-gray-800 hover:bg-brand-muted/40' }}">
                     {{ $label }}
                     @if ($category === $key)

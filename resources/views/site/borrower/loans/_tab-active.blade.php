@@ -5,10 +5,12 @@
     </div>
     <div class="inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
         <a href="{{ route('site.borrower.loans', ['tab' => 'active', 'view' => 'cards']) }}"
+           data-kf-motion="tab"
            class="px-3 py-1.5 rounded-lg font-semibold {{ ($viewMode ?? 'cards') === 'cards' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
             {{ __('borrower.applications_list.cards') }}
         </a>
         <a href="{{ route('site.borrower.loans', ['tab' => 'active', 'view' => 'table']) }}"
+           data-kf-motion="tab"
            class="px-3 py-1.5 rounded-lg font-semibold {{ ($viewMode ?? 'cards') === 'table' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
             {{ __('borrower.applications_list.table') }}
         </a>
@@ -44,7 +46,7 @@
                             <td class="px-4 py-3 text-right font-mono tabular-nums">{{ format_money($loan->outstanding_balance) }}</td>
                             <td class="px-4 py-3 capitalize">{{ $loan->status }}</td>
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('site.borrower.loans.show', $loan) }}" class="text-brand font-semibold hover:underline">{{ __('borrower.loans_page.view_loan') }}</a>
+                                <a href="{{ route('site.borrower.loans.show', $loan) }}" data-kf-share="kf-loan-{{ $loan->id }}" class="text-brand font-semibold hover:underline">{{ __('borrower.loans_page.view_loan') }}</a>
                             </td>
                         </tr>
                     @endforeach
@@ -65,7 +67,7 @@
                 };
                 $monthly = $loan->tenure_months > 0 ? round(($loan->principal_amount / $loan->tenure_months) + ($loan->principal_amount * $loan->interest_rate)) : 0;
             @endphp
-            <div class="glass-card p-6">
+            <div class="glass-card p-6" data-kf-share="kf-loan-{{ $loan->id }}">
                 <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
                     <div>
                         <p class="text-xs text-gray-500">{{ $loan->product->name ?? '—' }}</p>
@@ -110,13 +112,13 @@
                 @endphp
                 <div class="flex items-center gap-2 flex-wrap">
                     <a href="{{ route('site.borrower.loans.show', $loan) }}" class="bg-white ring-1 ring-gray-200/80 hover:bg-brand-muted/30 text-gray-800 text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.view_loan') }}</a>
-                    <a href="{{ route('site.borrower.schedule', $loan->id) }}" class="bg-brand hover:bg-brand-light text-white text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.view_schedule') }}</a>
-                    <a href="{{ route('site.borrower.payments.create', ['loan' => $loan->id]) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.make_payment') }}</a>
+                    <a href="{{ route('site.borrower.schedule', $loan->id) }}" data-kf-motion="push" class="bg-brand hover:bg-brand-light text-white text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.view_schedule') }}</a>
+                    <a href="{{ route('site.borrower.payments.create', ['loan' => $loan->id]) }}" data-kf-motion="push" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.make_payment') }}</a>
                     @if ($canRestructure)
-                        <a href="{{ route('site.borrower.loans.restructure', $loan) }}" class="bg-white ring-1 ring-gray-200/80 hover:bg-brand-muted/30 text-gray-800 text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loan_actions.restructure') }}</a>
+                        <a href="{{ route('site.borrower.loans.restructure', $loan) }}" data-kf-motion="push" class="bg-white ring-1 ring-gray-200/80 hover:bg-brand-muted/30 text-gray-800 text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loan_actions.restructure') }}</a>
                     @endif
                     @if ($canTopUp)
-                        <a href="{{ route('site.borrower.loans.top-up', $loan) }}" class="bg-white ring-1 ring-gray-200/80 hover:bg-brand-muted/30 text-gray-800 text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loan_actions.top_up') }}</a>
+                        <a href="{{ route('site.borrower.loans.top-up', $loan) }}" data-kf-motion="push" class="bg-white ring-1 ring-gray-200/80 hover:bg-brand-muted/30 text-gray-800 text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loan_actions.top_up') }}</a>
                     @endif
                 </div>
             </div>

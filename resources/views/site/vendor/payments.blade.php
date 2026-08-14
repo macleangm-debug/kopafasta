@@ -84,7 +84,7 @@
                             <td class="px-4 py-3 font-semibold">{{ $fmt($p->amount) }}</td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $p->status }}</span></td>
                             <td class="px-4 py-3 text-gray-600">{{ $p->paid_at?->format('d M Y') ?? '—' }}</td>
-                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.invoice', $p) }}" class="text-brand hover:underline text-sm font-semibold">{{ __('site.partner_portal.payments_col_invoice') }}</a></td>
+                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.invoice', $p) }}" data-kf-motion="push" class="text-brand hover:underline text-sm font-semibold">{{ __('site.partner_portal.payments_col_invoice') }}</a></td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -2,6 +2,7 @@
 
     <div class="mb-5 max-w-xl mx-auto">
         <a href="{{ $selectedLoan ? route('site.borrower.loans.show', $selectedLoan) : route('site.borrower.loans') }}"
+           data-kf-motion="pop"
            class="text-sm font-semibold text-brand hover:underline">
             ← {{ __('borrower.loans_page.view_loan') }}
         </a>

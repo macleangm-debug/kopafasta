@@ -14,7 +14,7 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.marketplace.reserve_title'))" active="marketplace" content-width="narrow">
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.marketplace.show', $asset['id']) }}" class="text-xs text-gray-500 hover:text-gray-700">← {{ __('borrower.marketplace.back_to_asset') }}</a>
+        <a href="{{ route('site.borrower.marketplace.show', $asset['id']) }}" data-kf-motion="pop" class="text-xs text-gray-500 hover:text-gray-700">← {{ __('borrower.marketplace.back_to_asset') }}</a>
     </div>
 
     <div class="mb-5">
