@@ -35,6 +35,15 @@ return [
         'street'          => 'Mtaa / anwani kamili',
     ],
 
+    'placeholders' => [
+        'business_name' => 'mf. Duka la Asha',
+        'street'        => 'mf. Mbezi Beach, Nyumba 12',
+        'ward'          => 'mf. Mbezi',
+        'school_name'   => 'mf. Uhuru Secondary',
+        'employer_name' => 'mf. CRDB Bank',
+        'job_title'     => 'mf. Teller',
+    ],
+
     'options' => [
         'employee_count' => [
             '1'       => 'Mimi peke yangu',

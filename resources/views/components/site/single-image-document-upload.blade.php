@@ -41,17 +41,21 @@
     </div>
 
     <div x-show="previewUrl || previewName" x-cloak class="mt-3">
-        <template x-if="previewUrl">
-            <button type="button" @click="expanded = true" class="relative h-28 w-28 rounded-xl overflow-hidden ring-1 ring-brand/20 bg-white cursor-zoom-in block">
-                <img :src="previewUrl" alt="" class="h-full w-full object-cover object-center">
-            </button>
-        </template>
-        <template x-if="!previewUrl && previewName">
-            <div class="h-28 w-28 rounded-xl ring-1 ring-brand/20 bg-white grid place-items-center">
-                <span class="text-xs font-bold text-brand">PDF</span>
-            </div>
-        </template>
-        <p class="text-xs text-gray-500 mt-1.5" x-text="previewName"></p>
+        <div class="relative inline-flex">
+            <template x-if="previewUrl">
+                <button type="button" @click="expanded = true" class="h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
+                    <img :src="previewUrl" alt="" class="h-full w-full object-cover object-center">
+                </button>
+            </template>
+            <template x-if="!previewUrl && previewName">
+                <div class="h-16 w-16 rounded-lg ring-1 ring-gray-200 bg-white grid place-items-center">
+                    <span class="text-[10px] font-bold text-brand">PDF</span>
+                </div>
+            </template>
+            <button type="button" @click="clearFile()"
+                    class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-white text-red-600 text-xs font-bold ring-1 ring-gray-200 grid place-items-center"
+                    aria-label="{{ __('borrower.document_upload.remove') }}">×</button>
+        </div>
     </div>
 
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2 mt-3" x-text="cameraNotice"></p>
@@ -257,6 +261,15 @@
                     } else {
                         this.previewUrl = null;
                     }
+                },
+                clearFile() {
+                    const host = document.getElementById(this.hostId);
+                    if (host) host.innerHTML = '';
+                    if (this.previewUrl && String(this.previewUrl).startsWith('blob:')) {
+                        URL.revokeObjectURL(this.previewUrl);
+                    }
+                    this.previewUrl = null;
+                    this.previewName = null;
                 },
             };
         }

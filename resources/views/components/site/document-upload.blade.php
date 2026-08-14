@@ -19,6 +19,9 @@
         'gallery' => __('borrower.document_upload.gallery'),
         'pdf' => __('borrower.document_upload.pdf'),
         'camera' => __('borrower.document_upload.camera'),
+        'submitConfirmTitle' => __('borrower.document_upload.submit_confirm_title'),
+        'submitConfirmBody' => __('borrower.document_upload.submit_confirm_body'),
+        'submitConfirmLabel' => __('borrower.document_upload.submit'),
     ];
 @endphp
 
@@ -66,29 +69,32 @@
         </template>
 
         <div x-show="queued.length" class="space-y-2">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">{{ __('borrower.document_upload.ready_to_upload') }} (<span x-text="queued.length"></span>)</p>
-            <template x-for="(item, index) in queued" :key="index">
-                <div class="flex items-center justify-between gap-3 text-sm bg-white ring-1 ring-brand/15 rounded-xl px-3 py-2">
-                    <div class="flex items-center gap-3 min-w-0">
+            <p class="text-xs font-semibold text-gray-500">{{ __('borrower.document_upload.ready_to_upload') }} (<span x-text="queued.length"></span>)</p>
+            <ul class="flex flex-wrap gap-2">
+                <template x-for="(item, index) in queued" :key="index">
+                    <li class="relative">
                         <template x-if="item.preview">
                             <button type="button" @click="expandedUrl = item.preview"
-                                    class="h-12 w-12 rounded-lg overflow-hidden ring-1 ring-brand/20 bg-white shrink-0 cursor-zoom-in">
+                                    class="h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
                                 <img :src="item.preview" alt="" class="h-full w-full object-cover">
                             </button>
                         </template>
                         <template x-if="!item.preview && item.isPdf">
-                            <div class="h-12 w-12 rounded-lg ring-1 ring-brand/20 bg-brand-muted flex flex-col items-center justify-center text-brand shrink-0">
-                                <span class="text-[10px] font-bold">PDF</span>
+                            <div class="h-16 w-16 rounded-lg ring-1 ring-gray-200 bg-white grid place-items-center">
+                                <span class="text-[10px] font-bold text-brand">PDF</span>
                             </div>
                         </template>
                         <template x-if="!item.preview && !item.isPdf">
-                            <div class="h-12 w-12 rounded-lg ring-1 ring-brand/20 bg-white flex items-center justify-center text-brand text-[10px] font-semibold shrink-0">FILE</div>
+                            <div class="h-16 w-16 rounded-lg ring-1 ring-gray-200 bg-white grid place-items-center">
+                                <span class="text-[10px] font-semibold text-brand">FILE</span>
+                            </div>
                         </template>
-                        <span class="truncate" x-text="item.name"></span>
-                    </div>
-                    <button type="button" @click="removeQueued(index)" class="text-red-600 text-xs font-semibold shrink-0">{{ __('borrower.document_upload.remove') }}</button>
-                </div>
-            </template>
+                        <button type="button" @click="removeQueued(index)"
+                                class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-white text-red-600 text-xs font-bold ring-1 ring-gray-200 grid place-items-center"
+                                aria-label="{{ __('borrower.document_upload.remove') }}">×</button>
+                    </li>
+                </template>
+            </ul>
         </div>
 
         <form x-ref="form" method="POST" action="{{ $action }}" enctype="multipart/form-data" @submit.prevent="submitForm">
@@ -262,6 +268,19 @@
                     },
 
                     submitForm() {
+                        if (typeof window.confirmForm === 'function') {
+                            window.confirmForm(null, {
+                                title: this.labels.submitConfirmTitle || '',
+                                message: this.labels.submitConfirmBody || '',
+                                confirmLabel: this.labels.submitConfirmLabel || '',
+                                onConfirm: () => this.performSubmit(),
+                            });
+                            return;
+                        }
+                        this.performSubmit();
+                    },
+
+                    performSubmit() {
                         const form = this.$refs.form;
                         const btn = form?.querySelector('button[type=submit]');
                         if (btn && typeof window.kfMarkBusy === 'function') {

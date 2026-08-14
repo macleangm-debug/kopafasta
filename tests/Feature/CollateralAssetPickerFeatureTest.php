@@ -222,6 +222,28 @@ class CollateralAssetPickerFeatureTest extends TestCase
         $this->assertStringContainsString('data-asset-mode="edit"', $html);
     }
 
+    public function test_add_collateral_opens_type_as_wizard_step(): void
+    {
+        $customer = $this->completeBorrower();
+        $this->completeAsset($customer, 'Plot A');
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'assets']))
+            ->assertOk()
+            ->assertDontSee(__('borrower.profile.choose_asset_type'), false)
+            ->assertSee(__('borrower.profile.add_new_collateral'), false);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', [
+                'section' => 'assets',
+                'add' => 1,
+            ]))
+            ->assertOk()
+            ->assertSee(__('borrower.profile.choose_asset_type'), false)
+            ->assertSee(__('borrower.profile.asset_types.vehicle'), false)
+            ->assertDontSee('name="label"', false);
+    }
+
     public function test_account_shells_opt_into_view_transitions(): void
     {
         $customer = $this->completeBorrower();

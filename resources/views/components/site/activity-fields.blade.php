@@ -97,6 +97,7 @@
                                 <input type="text"
                                        :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
                                        class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                                       :placeholder="field.placeholder || ''"
                                        :required="field.required">
                             </template>
                         </div>
@@ -127,6 +128,7 @@
                             <input type="text"
                                    :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
                                    class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                                   :placeholder="field.placeholder || ''"
                                    :required="field.required">
                         </div>
                     </template>
@@ -229,6 +231,7 @@
                         <input type="text"
                                :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                               :placeholder="field.placeholder || ''"
                                :required="field.required">
                     </template>
                 </div>

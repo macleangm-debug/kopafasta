@@ -186,6 +186,7 @@ export function applyWizard(config) {
                 scheduleLoading: false,
                 reviewPage: 1,
                 reviewPageCount: 2,
+                assetSubstep: 1,
                 supplementMode: !!config.supplementMode,
                 supplementApplicationId: config.supplementApplicationId || null,
                 stepIcons: {
@@ -2472,15 +2473,18 @@ export function applyWizard(config) {
                         return this.group.members.length === target;
                     }
                     if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
+                        void this.assetSubstep;
                         if (! this.customerAssets?.length || ! this.selectedCustomerAssetIds()?.length) return false;
                         const missingInsurance = this.selectedCustomerAssetIds().some((id) => {
                             const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
                             return asset && asset.asset_type === 'vehicle' && ! asset.has_insurance;
                         });
                         if (missingInsurance) return false;
+                        if (this.assetSubstep <= 1) return true;
                         if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) return false;
                         if (this.current && this.form.requested_amount > this.current.max) return false;
                         if (! this.form.requested_tenure_months || this.form.requested_tenure_months < (this.current?.tmin || 1)) return false;
+                        if (this.assetSubstep <= 2) return true;
                         if (! this.form.purpose) return false;
                         if (this.purposeNeedsDetail()) return false;
                         return true;
@@ -3214,6 +3218,7 @@ export function applyWizard(config) {
                             window.location = base + (base.includes('?') ? '&' : '?') + 'edit=' + encodeURIComponent(missingInsuranceId) + '&focus=insurance';
                             return false;
                         }
+                        if (this.assetSubstep <= 1) return true;
                         if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) {
                             showWizardFeedback(this.i18n.assetDetails.amountRequired || this.i18n.alerts.amountRequired);
                             return false;
@@ -3226,6 +3231,7 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.assetDetails.tenureRequired || this.i18n.alerts.tenureRequired);
                             return false;
                         }
+                        if (this.assetSubstep <= 2) return true;
                         if (! this.form.purpose) {
                             showWizardFeedback(this.i18n.alerts.selectPurpose || this.i18n.assetDetails.purposeRequired);
                             return false;
@@ -3449,6 +3455,13 @@ export function applyWizard(config) {
                     this.advancing = true;
                     try {
                         this.syncQuoteFormFromDom();
+                        if (this.stepKey === 'asset_details' && this.assetSubstep < 3) {
+                            if (! await this.validateStep()) return;
+                            await this.persistDraft(true);
+                            this.assetSubstep++;
+                            this.scrollWizardIntoView();
+                            return;
+                        }
                         if (! await this.validateStep()) return;
 
                         await this.persistDraft(true);
@@ -3512,10 +3525,18 @@ export function applyWizard(config) {
                         return;
                     }
                     if (this.reviewBack()) return;
+                    if (this.stepKey === 'asset_details' && this.assetSubstep > 1) {
+                        this.assetSubstep--;
+                        this.scrollWizardIntoView();
+                        return;
+                    }
                     if (this.step > 0) {
                         this.feeGateOpen = false;
                         this.step--;
                         this.syncStepKey();
+                        if (this.stepKey === 'asset_details') {
+                            this.assetSubstep = 3;
+                        }
                         if (this.stepKey === 'review') {
                             this.reviewPage = this.reviewPageCount;
                             this.refreshReview(this.formRoot());

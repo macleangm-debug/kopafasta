@@ -1,5 +1,5 @@
 {{-- Asset-backed collateral step — hide while fee gate is open (same as IL quote). --}}
-<div x-show="stepKey === 'asset_details' && ! $data.feeGateOpen" class="p-6 sm:p-8">
+<div x-show="stepKey === 'asset_details' && ! $data.feeGateOpen" class="p-6 sm:p-8" data-wizard-step="asset_details">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.asset_details')"
         :title="__('borrower.apply.asset_details.title')"
@@ -8,6 +8,17 @@
 
     <template x-if="current">
         <div class="space-y-6">
+            <div class="flex items-center gap-2 text-xs font-semibold text-gray-500">
+                <template x-for="n in 3" :key="'as'+n">
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="size-6 rounded-full grid place-items-center text-[11px]"
+                              :class="assetSubstep >= n ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'"
+                              x-text="n"></span>
+                        <span x-show="n < 3" class="text-gray-300" aria-hidden="true">·</span>
+                    </span>
+                </template>
+            </div>
+
             <div x-show="!customerAssets.length" class="rounded-2xl bg-brand-muted/50 ring-1 ring-brand/15 p-5 sm:p-6">
                 <p class="text-sm font-semibold text-brand">{{ __('borrower.apply.asset_details.no_assets_title') }}</p>
                 <p class="text-sm text-brand/80 mt-2">{{ __('borrower.apply.asset_details.no_assets_body') }}</p>
@@ -17,7 +28,7 @@
                 </a>
             </div>
 
-            <div x-show="customerAssets.length" class="space-y-4">
+            <div x-show="customerAssets.length && assetSubstep === 1" class="space-y-4">
                 <div class="glass-card p-5 ring-1 ring-brand/15">
                     <label class="block text-sm font-semibold text-gray-900 mb-1">
                         {{ __('borrower.apply.asset_details.choose_existing') }} <span class="text-rose-500">*</span>
@@ -55,7 +66,7 @@
                 </div>
             </div>
 
-            <div x-show="customerAssets.length && selectedCustomerAssetIds().length" class="glass-card p-5 sm:p-6 ring-1 ring-brand/15 space-y-6">
+            <div x-show="customerAssets.length && selectedCustomerAssetIds().length && assetSubstep === 2" class="glass-card p-5 sm:p-6 ring-1 ring-brand/15 space-y-6">
                 <div>
                     <div class="flex items-end justify-between gap-3 mb-3">
                         <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.loan_amount') }} <span class="text-rose-500">*</span></label>
@@ -94,7 +105,7 @@
                 </div>
             </div>
 
-            <div x-show="customerAssets.length && selectedCustomerAssetIds().length" class="glass-card p-5 ring-1 ring-gray-200/80">
+            <div x-show="customerAssets.length && selectedCustomerAssetIds().length && assetSubstep === 3" class="glass-card p-5 ring-1 ring-gray-200/80">
                 <div x-show="form.purpose && !purposeEditing && !purposeNeedsDetail()" x-cloak class="space-y-2">
                     <div class="flex items-center justify-between gap-3">
                         <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.purpose') }}</p>

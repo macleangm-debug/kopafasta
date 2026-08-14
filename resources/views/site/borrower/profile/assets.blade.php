@@ -6,7 +6,6 @@
         $typeIcons = \App\Models\CustomerAsset::typeIcons();
         $detailFields = $selectedType ? \App\Models\CustomerAsset::detailFieldsFor($selectedType) : [];
         $uwPrompt = request()->boolean('uw');
-        $openAddPicker = $adding && ! $selectedType;
         $assetService = app(\App\Services\CustomerAssetService::class);
         $currentApp = $uwApplication ?? null;
         $currentAppId = $currentApp?->id;
@@ -18,7 +17,7 @@
         $onThisCount = $assetAvailabilities->where('code', 'on_this_loan')->count();
     @endphp
 
-    <div x-data="{ addOpen: @js($openAddPicker), openAsset: {{ (int) (request('view') ?: request('edit') ?: 0) ?: 'null' }}, editingAsset: {{ request()->filled('edit') ? (int) request('edit') : 'null' }}, lightbox: null }"
+    <div x-data="{ openAsset: {{ (int) (request('view') ?: request('edit') ?: 0) ?: 'null' }}, editingAsset: {{ request()->filled('edit') ? (int) request('edit') : 'null' }}, lightbox: null }"
          x-init="if (openAsset) { $nextTick(() => { const el = document.getElementById('asset-edit-' + openAsset); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); }">
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.my_collaterals'),
@@ -27,7 +26,7 @@
             'active' => 'assets',
         ])
 
-        @if ($uwPrompt && ! ($adding && $selectedType))
+        @if ($uwPrompt && ! $adding)
             <div class="mb-4 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
                 <p class="text-sm font-semibold text-amber-950">{{ __('borrower.profile.collateral_uw_title') }}</p>
                 <p class="text-sm text-amber-900/80 mt-1">
@@ -44,7 +43,7 @@
             </div>
         @endif
 
-        @if (($assets ?? collect())->isNotEmpty() && $uwPrompt && ! ($adding && $selectedType))
+        @if (($assets ?? collect())->isNotEmpty() && $uwPrompt && ! $adding)
             <div class="mb-4 space-y-2">
                 @foreach ($assets as $asset)
                     @php $availability = $assetAvailabilities[$asset->id] ?? ['code' => 'available', 'selectable' => false]; @endphp
@@ -104,12 +103,24 @@
                     @endif
                     <x-site.upload-busy-overlay :message="__('borrower.profile.uploading_collateral')" />
 
+                    @php
+                        $typePickerUrl = route('site.borrower.profile', array_filter([
+                            'section' => 'assets',
+                            'add' => 1,
+                            'uw' => $uwPrompt ? 1 : null,
+                            'application' => $currentAppId,
+                        ]));
+                    @endphp
                     <div class="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-2">
+                        <a href="{{ $typePickerUrl }}"
+                           class="size-6 rounded-full grid place-items-center text-[11px] bg-brand text-white"
+                           title="{{ __('borrower.profile.choose_asset_type') }}">1</a>
+                        <span class="text-gray-300" aria-hidden="true">·</span>
                         <template x-for="n in lastStep" :key="'c'+n">
                             <span class="inline-flex items-center gap-1.5">
                                 <span class="size-6 rounded-full grid place-items-center text-[11px]"
                                       :class="step >= n ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'"
-                                      x-text="n"></span>
+                                      x-text="n + 1"></span>
                                 <span x-show="n < lastStep" class="text-gray-300" aria-hidden="true">·</span>
                             </span>
                         </template>
@@ -143,12 +154,20 @@
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ $fieldLabel }} <span class="text-red-500">*</span></label>
                                     @if ($isYearField)
-                                        <select name="{{ $inputName }}" required class="kf-field">
-                                            <option value="">{{ __('borrower.profile.select_year') }}</option>
-                                            @for ($y = $yearMax; $y >= $yearMin; $y--)
-                                                <option value="{{ $y }}" @selected((string) $oldVal === (string) $y)>{{ $y }}</option>
-                                            @endfor
-                                        </select>
+                                        @php
+                                            $yearOptions = [];
+                                            for ($y = $yearMax; $y >= $yearMin; $y--) {
+                                                $yearOptions[(string) $y] = (string) $y;
+                                            }
+                                        @endphp
+                                        <x-site.sheet-select
+                                            :name="$inputName"
+                                            :options="$yearOptions"
+                                            :value="$oldVal"
+                                            :required="true"
+                                            :placeholder="__('borrower.profile.select_year')"
+                                            select-class="kf-field"
+                                        />
                                     @else
                                         <input type="text"
                                                inputmode="{{ $field['type'] === 'number' ? 'numeric' : 'text' }}"
@@ -177,12 +196,18 @@
                                 </label>
                                 <p class="text-xs text-brand/80 mb-3">{{ __('borrower.profile.vehicle_insurance_hint') }}</p>
                                 <div class="mb-3">
-                                    <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.collateral_fields.insurance_type') }} <span class="text-red-500">*</span></label>
-                                    <select name="details[insurance_type]" required class="kf-field">
-                                        <option value="" @selected(! old('details.insurance_type')) disabled>{{ __('borrower.profile.insurance_type_placeholder') }}</option>
-                                        <option value="comprehensive" @selected(old('details.insurance_type') === 'comprehensive')>{{ __('borrower.profile.insurance_comprehensive') }}</option>
-                                        <option value="third_party" @selected(old('details.insurance_type') === 'third_party')>{{ __('borrower.profile.insurance_third_party') }}</option>
-                                    </select>
+                                    <x-site.sheet-select
+                                        name="details[insurance_type]"
+                                        :label="__('borrower.profile.collateral_fields.insurance_type')"
+                                        :options="[
+                                            'comprehensive' => __('borrower.profile.insurance_comprehensive'),
+                                            'third_party' => __('borrower.profile.insurance_third_party'),
+                                        ]"
+                                        :value="old('details.insurance_type')"
+                                        :required="true"
+                                        :placeholder="__('borrower.profile.insurance_type_placeholder')"
+                                        select-class="kf-field"
+                                    />
                                 </div>
                                 <div class="grid sm:grid-cols-2 gap-3">
                                     <div>
@@ -198,7 +223,8 @@
                                             :value="old('details.insurance_expires_at')"
                                             :required="true"
                                             :min="now()->addDay()->format('Y-m-d')"
-                                            :max="now()->addYears(15)->format('Y-m-d')"
+                                            :max="now()->addYears(5)->format('Y-m-d')"
+                                            :default="now()->addYear()->format('Y-m-d')"
                                             input-class="kf-field"
                                         />
                                     </div>
@@ -260,6 +286,11 @@
                     @endif
 
                     <div class="flex flex-wrap gap-3 pt-2">
+                        <a href="{{ $typePickerUrl }}"
+                           x-show="step === 1 && photoIndex === 0" x-cloak
+                           class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
+                            {{ __('borrower.profile.back') }}
+                        </a>
                         <button type="button" x-show="step > 1 || photoIndex > 0" x-cloak @click="prev()"
                                 class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
                             {{ __('borrower.profile.back') }}
@@ -308,16 +339,55 @@
                     </div>
                 </form>
             </x-site.profile-section-card>
+        @elseif ($adding)
+            <x-site.profile-section-card :title="__('borrower.profile.add_asset')" :allow-overflow="true">
+                <div class="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-4">
+                    <span class="size-6 rounded-full grid place-items-center text-[11px] bg-brand text-white">1</span>
+                    <span class="text-gray-300" aria-hidden="true">·</span>
+                    <span class="size-6 rounded-full grid place-items-center text-[11px] bg-gray-100 text-gray-500">2</span>
+                    <span class="text-gray-300" aria-hidden="true">·</span>
+                    <span class="size-6 rounded-full grid place-items-center text-[11px] bg-gray-100 text-gray-500">3</span>
+                    <span class="text-gray-300" aria-hidden="true">·</span>
+                    <span class="size-6 rounded-full grid place-items-center text-[11px] bg-gray-100 text-gray-500">4</span>
+                </div>
+                <p class="text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.choose_asset_type') }}</p>
+                <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.choose_asset_type_hint') }}</p>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    @foreach ($assetTypes as $key => $label)
+                        <a href="{{ route('site.borrower.profile', array_filter([
+                                'section' => 'assets',
+                                'add' => 1,
+                                'type' => $key,
+                                'uw' => $uwPrompt ? 1 : null,
+                                'application' => $currentAppId,
+                            ])) }}"
+                           class="group rounded-2xl ring-1 ring-gray-200/80 p-5 hover:ring-brand/40 hover:shadow-md transition bg-white text-center">
+                            <span class="text-3xl block mb-3" aria-hidden="true">{{ $typeIcons[$key] ?? '📦' }}</span>
+                            <h3 class="font-bold text-gray-900 group-hover:text-brand">{{ __('borrower.profile.asset_types.'.$key) }}</h3>
+                            <p class="mt-2 text-xs font-semibold text-brand">{{ __('borrower.profile.continue_with_type') }} →</p>
+                        </a>
+                    @endforeach
+                </div>
+                <div class="mt-5">
+                    <a href="{{ route('site.borrower.profile', array_filter([
+                            'section' => 'assets',
+                            'uw' => $uwPrompt ? 1 : null,
+                            'application' => $currentAppId,
+                        ])) }}"
+                       class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
+                        {{ __('borrower.profile.cancel') }}
+                    </a>
+                </div>
+            </x-site.profile-section-card>
         @else
-            {{-- ============ Item 17: swipeable collateral cards ============ --}}
+            {{-- Saved collateral cards --}}
             @if ($assets->isNotEmpty())
                 <div class="flex items-center justify-between mb-3">
                     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">
                         {{ __('borrower.profile.collateral_count', ['count' => $assets->count()]) }}
                     </p>
                 </div>
-                <div class="-mx-1 px-1 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 mb-6"
-                     style="scrollbar-width: thin;">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     @foreach ($assets as $asset)
                         @php
                             $thumb = $asset->thumbnailPath();
@@ -336,7 +406,7 @@
                                 ->take(4)
                                 ->values();
                         @endphp
-                        <div class="snap-start shrink-0 w-[80%] sm:w-72">
+                        <div class="h-full">
                             <div class="glass-card overflow-hidden ring-1 ring-gray-200/80 h-full flex flex-col">
                                 <div class="relative h-40 bg-gradient-to-br from-brand-muted/60 to-white">
                                     @if ($thumb)
@@ -387,7 +457,7 @@
                 </div>
             @endif
 
-            {{-- Type-first collateral add (choose type → form) --}}
+            {{-- Add collateral — type picker is step 1 of the wizard (?add=1) --}}
             <div class="glass-card p-5 sm:p-6">
                 @if ($assets->isEmpty())
                     <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200/80 px-4 py-4 mb-4">
@@ -395,32 +465,16 @@
                         <p class="text-sm text-gray-600 mt-1">{{ __('borrower.profile.collateral_none_needed_body') }}</p>
                     </div>
                 @endif
-                <button type="button" @click="addOpen = !addOpen"
-                        class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm">
+                <a href="{{ route('site.borrower.profile', array_filter([
+                        'section' => 'assets',
+                        'add' => 1,
+                        'uw' => $uwPrompt ? 1 : null,
+                        'application' => $currentAppId,
+                    ])) }}"
+                   class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm">
                     <span class="text-lg leading-none">＋</span>
                     {{ $assets->isEmpty() ? __('borrower.profile.add_first_collateral') : __('borrower.profile.add_new_collateral') }}
-                </button>
-
-                <div x-show="addOpen" x-cloak class="mt-5">
-                    <p class="text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.choose_asset_type') }}</p>
-                    <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.choose_asset_type_hint') }}</p>
-                    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        @foreach ($assetTypes as $key => $label)
-                            <a href="{{ route('site.borrower.profile', array_filter([
-                                    'section' => 'assets',
-                                    'add' => 1,
-                                    'type' => $key,
-                                    'uw' => $uwPrompt ? 1 : null,
-                                    'application' => $currentAppId,
-                                ])) }}"
-                               class="group rounded-2xl ring-1 ring-gray-200/80 p-5 hover:ring-brand/40 hover:shadow-md transition bg-white text-center">
-                                <span class="text-3xl block mb-3" aria-hidden="true">{{ $typeIcons[$key] ?? '📦' }}</span>
-                                <h3 class="font-bold text-gray-900 group-hover:text-brand">{{ __('borrower.profile.asset_types.'.$key) }}</h3>
-                                <p class="mt-2 text-xs font-semibold text-brand">{{ __('borrower.profile.continue_with_type') }} →</p>
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
+                </a>
             </div>
 
             {{-- ============ Per-collateral detail modal (Item 18 details + Item 19 gallery) ============ --}}
@@ -449,15 +503,27 @@
                     $availability = $assetAvailabilities[$asset->id] ?? ['code' => 'available', 'selectable' => false];
                 @endphp
                 <div x-show="openAsset === {{ $asset->id }}" x-cloak x-transition
-                     class="fixed inset-0 z-[70] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
+                     class="fixed inset-0 z-[70] bg-black/60 flex items-end lg:items-center justify-center p-0 lg:p-4"
                      @keydown.escape.window="openAsset = null" @click.self="openAsset = null">
-                    <div class="bg-white w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-y-auto">
-                        <div class="sticky top-0 bg-white/95 backdrop-blur px-5 py-4 border-b border-gray-100 flex items-center justify-between z-10">
+                    <div class="bg-white w-full lg:max-w-2xl lg:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white/95 backdrop-blur px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3 z-10">
                             <div class="min-w-0">
                                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.asset_types.'.$asset->asset_type) }}</p>
                                 <h2 class="font-bold text-gray-900 truncate">{{ $asset->label }}</h2>
                             </div>
-                            <button type="button" @click="openAsset = null" class="shrink-0 size-9 grid place-items-center rounded-full hover:bg-gray-100 text-gray-500 text-xl">×</button>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <button type="button" x-show="editingAsset !== {{ $asset->id }}" x-cloak
+                                        @click="editingAsset = {{ $asset->id }}"
+                                        class="inline-flex items-center justify-center rounded-xl bg-brand-gold px-3.5 py-2 text-xs font-bold text-brand shadow-sm hover:brightness-95">
+                                    {{ __('borrower.apply.edit') }}
+                                </button>
+                                <button type="button" x-show="editingAsset === {{ $asset->id }}" x-cloak
+                                        @click="editingAsset = null"
+                                        class="inline-flex items-center justify-center rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40">
+                                    {{ __('borrower.profile.cancel') }}
+                                </button>
+                                <button type="button" @click="openAsset = null; editingAsset = null" class="size-9 grid place-items-center rounded-full hover:bg-gray-100 text-gray-500 text-xl">×</button>
+                            </div>
                         </div>
 
                         <div class="p-5 space-y-6" id="asset-edit-{{ $asset->id }}">
@@ -474,30 +540,6 @@
                                             <dd class="mt-0.5 text-sm font-semibold text-gray-900 break-words">{{ $row['value'] }}</dd>
                                         </div>
                                     @endforeach
-                                    @if ($asset->asset_type === 'vehicle')
-                                        @if ($insuranceDetails['insurance_type'])
-                                            <div>
-                                                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.collateral_fields.insurance_type') }}</dt>
-                                                <dd class="mt-0.5 text-sm font-semibold text-gray-900">
-                                                    {{ $insuranceDetails['insurance_type'] === 'third_party'
-                                                        ? __('borrower.profile.insurance_third_party')
-                                                        : __('borrower.profile.insurance_comprehensive') }}
-                                                </dd>
-                                            </div>
-                                        @endif
-                                        @if ($insuranceDetails['insurance_policy_number'])
-                                            <div>
-                                                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }}</dt>
-                                                <dd class="mt-0.5 text-sm font-semibold text-gray-900">{{ $insuranceDetails['insurance_policy_number'] }}</dd>
-                                            </div>
-                                        @endif
-                                        @if ($insuranceDetails['insurance_expires_at'])
-                                            <div>
-                                                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.collateral_fields.insurance_expires_at') }}</dt>
-                                                <dd class="mt-0.5 text-sm font-semibold text-gray-900 tabular-nums">{{ $insuranceDetails['insurance_expires_at'] }}</dd>
-                                            </div>
-                                        @endif
-                                    @endif
                                     @if (filled($asset->description))
                                         <div class="sm:col-span-2">
                                             <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.description') }}</dt>
@@ -505,10 +547,6 @@
                                         </div>
                                     @endif
                                 </dl>
-                                <button type="button" @click="editingAsset = {{ $asset->id }}"
-                                        class="inline-flex items-center justify-center rounded-xl bg-brand-gold px-4 py-2.5 text-sm font-bold text-brand shadow-sm hover:brightness-95">
-                                    {{ __('borrower.apply.edit') }}
-                                </button>
                             </div>
 
                             <form method="POST" action="{{ route('site.borrower.profile.assets.update', $asset) }}"
@@ -539,12 +577,20 @@
                                         <div>
                                             <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.'.$field['key']) }} <span class="text-red-500">*</span></label>
                                             @if ($isYearField)
-                                                <select name="{{ $inputName }}" required class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                                                    <option value="">{{ __('borrower.profile.select_year') }}</option>
-                                                    @for ($y = $yearMax; $y >= $yearMin; $y--)
-                                                        <option value="{{ $y }}" @selected((string) old($oldKey, $val) === (string) $y)>{{ $y }}</option>
-                                                    @endfor
-                                                </select>
+                                                @php
+                                                    $yearOptions = [];
+                                                    for ($y = $yearMax; $y >= $yearMin; $y--) {
+                                                        $yearOptions[(string) $y] = (string) $y;
+                                                    }
+                                                @endphp
+                                                <x-site.sheet-select
+                                                    :name="$inputName"
+                                                    :options="$yearOptions"
+                                                    :value="old($oldKey, $val)"
+                                                    :required="true"
+                                                    :placeholder="__('borrower.profile.select_year')"
+                                                    select-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                                                />
                                             @else
                                                 <input type="{{ ($field['type'] ?? '') === 'number' ? 'number' : 'text' }}"
                                                        name="{{ $inputName }}" value="{{ old($oldKey, $val) }}" required maxlength="150"
@@ -553,39 +599,49 @@
                                             @endif
                                         </div>
                                     @endforeach
-                                    @if ($asset->asset_type === 'vehicle')
-                                        <div class="sm:col-span-2">
-                                            <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_type') }} <span class="text-red-500">*</span></label>
-                                            <select name="details[insurance_type]" required class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                                                <option value="" disabled @selected(! old('details.insurance_type', $asset->detail('insurance_type')))>{{ __('borrower.profile.insurance_type_placeholder') }}</option>
-                                                <option value="comprehensive" @selected(old('details.insurance_type', $asset->detail('insurance_type')) === 'comprehensive')>{{ __('borrower.profile.insurance_comprehensive') }}</option>
-                                                <option value="third_party" @selected(old('details.insurance_type', $asset->detail('insurance_type')) === 'third_party')>{{ __('borrower.profile.insurance_third_party') }}</option>
-                                            </select>
-                                            <p class="mt-1 text-[11px] text-gray-500">{{ __('borrower.profile.insurance_type_help') }}</p>
-                                        </div>
-                                        <div>
-                                            <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
-                                            <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number', $asset->detail('insurance_policy_number')) }}" required maxlength="150"
-                                                   placeholder="{{ __('borrower.profile.collateral_placeholders.insurance_policy_number') }}"
-                                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                                        </div>
-                                        <div>
-                                            <x-site.date-input
-                                                name="details[insurance_expires_at]"
-                                                :label="__('borrower.profile.collateral_fields.insurance_expires_at')"
-                                                :value="old('details.insurance_expires_at', $asset->detail('insurance_expires_at'))"
-                                                :required="true"
-                                                :min="now()->format('Y-m-d')"
-                                                :max="now()->addYears(15)->format('Y-m-d')"
-                                                input-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-base"
-                                            />
-                                        </div>
-                                    @endif
                                     <div class="sm:col-span-2">
                                         <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.description') }}</label>
                                         <textarea name="description" rows="2" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('description', $asset->description) }}</textarea>
                                     </div>
                                 </div>
+                                @if ($asset->asset_type === 'vehicle')
+                                    <div class="rounded-2xl bg-white ring-1 ring-brand/15 p-4 space-y-3">
+                                        <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.vehicle_insurance') }}</p>
+                                        <x-site.sheet-select
+                                            name="details[insurance_type]"
+                                            :label="__('borrower.profile.collateral_fields.insurance_type')"
+                                            :options="[
+                                                'comprehensive' => __('borrower.profile.insurance_comprehensive'),
+                                                'third_party' => __('borrower.profile.insurance_third_party'),
+                                            ]"
+                                            :value="old('details.insurance_type', $asset->detail('insurance_type'))"
+                                            :required="true"
+                                            :placeholder="__('borrower.profile.insurance_type_placeholder')"
+                                            select-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                                        />
+                                        <p class="text-[11px] text-gray-500">{{ __('borrower.profile.insurance_type_help') }}</p>
+                                        <div class="grid sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
+                                                <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number', $asset->detail('insurance_policy_number')) }}" required maxlength="150"
+                                                       placeholder="{{ __('borrower.profile.collateral_placeholders.insurance_policy_number') }}"
+                                                       class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                            </div>
+                                            <div>
+                                                <x-site.date-input
+                                                    name="details[insurance_expires_at]"
+                                                    :label="__('borrower.profile.collateral_fields.insurance_expires_at')"
+                                                    :value="old('details.insurance_expires_at', $asset->detail('insurance_expires_at'))"
+                                                    :required="true"
+                                                    :min="now()->format('Y-m-d')"
+                                                    :max="now()->addYears(5)->format('Y-m-d')"
+                                                    :default="now()->addYear()->format('Y-m-d')"
+                                                    input-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-base"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
                                 <button type="submit" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                                     {{ __('borrower.profile.save') }}
                                 </button>
@@ -652,7 +708,7 @@
                                                 </div>
                                             </template>
 
-                                            <div class="absolute top-3 left-3 z-20 flex gap-1.5" x-show="editingAsset === {{ $asset->id }} && slides[gIndex]?.replaceable">
+                                            <div class="absolute top-3 left-3 z-20 flex gap-1.5" x-show="slides[gIndex]?.replaceable">
                                                 <template x-for="(slide, i) in slides" :key="'act-'+i">
                                                     <div x-show="i === gIndex && slide.replaceable" x-cloak class="flex gap-1.5">
                                                         <form method="POST" action="{{ route('site.borrower.profile.assets.photos.replace', $asset) }}" enctype="multipart/form-data">
@@ -690,7 +746,7 @@
                                 {{-- Add more photos (up to 6) --}}
                                 @if (count($asset->photo_paths ?? []) < 6)
                                     <form method="POST" action="{{ route('site.borrower.profile.assets.photos.add', $asset) }}" enctype="multipart/form-data"
-                                          class="mt-3" x-show="editingAsset === {{ $asset->id }}" x-cloak x-data="{ busy: false }" @submit="busy = true">
+                                          class="mt-3" x-data="{ busy: false }" @submit="busy = true">
                                         @csrf
                                         <label class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
                                             <span class="text-lg leading-none">＋</span> {{ __('borrower.profile.add_photos') }}
@@ -705,7 +761,7 @@
                             {{-- Ownership + insurance documents --}}
                             <div class="space-y-4">
                                 <div class="rounded-2xl ring-1 ring-gray-200 p-4">
-                                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('borrower.profile.ownership_document') }}</p>
+                                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.ownership_document') }}</p>
                                     @if ($ownershipDoc)
                                         <div class="flex flex-wrap items-center gap-3">
                                             @if (str_ends_with(strtolower($ownershipDoc), '.pdf'))
@@ -716,7 +772,7 @@
                                                 >📄 {{ __('borrower.profile.view_document') }}</x-site.document-view-button>
                                             @else
                                                 <button type="button" @click="lightbox = @js(asset('storage/'.$ownershipDoc))"
-                                                        class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
+                                                        class="h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
                                                     <img src="{{ asset('storage/'.$ownershipDoc) }}" alt="" class="h-full w-full object-cover">
                                                 </button>
                                             @endif
@@ -735,22 +791,34 @@
                                 </div>
 
                                 @if ($asset->asset_type === 'vehicle')
-                                    <div class="rounded-2xl ring-1 ring-brand/20 bg-brand-muted/20 p-4">
-                                        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.profile.vehicle_insurance') }}</p>
-                                        <p class="text-[11px] text-brand/80 mb-3">{{ __('borrower.profile.vehicle_insurance_hint') }}</p>
-                                        @if ($asset->insuranceType())
-                                            <p class="text-xs font-semibold text-gray-700 mb-2">
-                                                {{ __('borrower.profile.collateral_fields.insurance_type') }}:
-                                                {{ $asset->insuranceType() === 'third_party' ? __('borrower.profile.insurance_third_party') : __('borrower.profile.insurance_comprehensive') }}
-                                            </p>
-                                        @endif
-                                        @if ($asset->detail('insurance_expires_at'))
-                                            <p class="text-xs font-semibold text-gray-700 mb-3 tabular-nums">
-                                                {{ __('borrower.profile.collateral_fields.insurance_expires_at') }}: {{ $asset->detail('insurance_expires_at') }}
-                                            </p>
-                                        @endif
+                                    <div class="rounded-2xl ring-1 ring-brand/20 bg-brand-muted/20 p-4 space-y-3">
+                                        <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.vehicle_insurance') }}</p>
+                                        <dl x-show="editingAsset !== {{ $asset->id }}" class="grid sm:grid-cols-2 gap-3">
+                                            @if ($insuranceDetails['insurance_type'])
+                                                <div>
+                                                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.collateral_fields.insurance_type') }}</dt>
+                                                    <dd class="mt-0.5 text-sm font-semibold text-gray-900">
+                                                        {{ $insuranceDetails['insurance_type'] === 'third_party'
+                                                            ? __('borrower.profile.insurance_third_party')
+                                                            : __('borrower.profile.insurance_comprehensive') }}
+                                                    </dd>
+                                                </div>
+                                            @endif
+                                            @if ($insuranceDetails['insurance_policy_number'])
+                                                <div>
+                                                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }}</dt>
+                                                    <dd class="mt-0.5 text-sm font-semibold text-gray-900">{{ $insuranceDetails['insurance_policy_number'] }}</dd>
+                                                </div>
+                                            @endif
+                                            @if ($insuranceDetails['insurance_expires_at'])
+                                                <div>
+                                                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.collateral_fields.insurance_expires_at') }}</dt>
+                                                    <dd class="mt-0.5 text-sm font-semibold text-gray-900 tabular-nums">{{ $insuranceDetails['insurance_expires_at'] }}</dd>
+                                                </div>
+                                            @endif
+                                        </dl>
                                         @if ($insuranceDoc)
-                                            <div class="flex flex-wrap items-center gap-3 mb-3">
+                                            <div class="flex flex-wrap items-center gap-3">
                                                 @if (str_ends_with(strtolower($insuranceDoc), '.pdf'))
                                                     <x-site.document-view-button
                                                         :url="asset('storage/'.$insuranceDoc)"
@@ -759,13 +827,13 @@
                                                     >📄 {{ __('borrower.profile.view_document') }}</x-site.document-view-button>
                                                 @else
                                                     <button type="button" @click="lightbox = @js(asset('storage/'.$insuranceDoc))"
-                                                            class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
+                                                            class="h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
                                                         <img src="{{ asset('storage/'.$insuranceDoc) }}" alt="" class="h-full w-full object-cover">
                                                     </button>
                                                 @endif
                                             </div>
                                         @else
-                                            <p class="text-xs text-amber-700 mb-2">{{ __('borrower.profile.no_document_yet') }}</p>
+                                            <p class="text-xs text-amber-700">{{ __('borrower.profile.no_document_yet') }}</p>
                                         @endif
                                         <form method="POST" action="{{ route('site.borrower.profile.assets.documents.replace', $asset) }}" enctype="multipart/form-data" x-show="editingAsset === {{ $asset->id }}" x-cloak>
                                             @csrf

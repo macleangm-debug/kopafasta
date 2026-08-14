@@ -6,6 +6,7 @@
     'min' => null,
     'max' => null,
     'help' => null,
+    'default' => null,
     'inputClass' => 'w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition',
 ])
 
@@ -14,6 +15,13 @@
     $selected = filled($selected) ? \Illuminate\Support\Str::of((string) $selected)->substr(0, 10)->toString() : '';
     $minDate = $min ?: '1940-01-01';
     $maxDate = $max ?: now()->format('Y-m-d');
+    $fallbackDate = $default ?: now()->format('Y-m-d');
+    if ($fallbackDate < $minDate) {
+        $fallbackDate = $minDate;
+    }
+    if ($fallbackDate > $maxDate) {
+        $fallbackDate = $maxDate;
+    }
     $id = 'date-'.str_replace(['[', ']'], ['-', ''], $name).'-'.substr(md5($name.$selected), 0, 6);
     $monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     $minYear = (int) substr($minDate, 0, 4);
@@ -26,26 +34,32 @@
         desktopOpen: false,
         desktopStyle: '',
         pickerMode: 'calendar',
-        finePointer: typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+        narrow: typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches,
         value: @js($selected),
-        draft: @js($selected ?: $maxDate),
+        draft: @js($selected ?: $fallbackDate),
+        fallback: @js($fallbackDate),
         min: @js($minDate),
         max: @js($maxDate),
         months: @js($monthNames),
         viewYear: 0,
         viewMonth: 0,
         init() {
-            const base = this.parse(this.value || this.max);
+            this.narrow = this.isNarrow();
+            const base = this.parse(this.value || this.fallback);
             this.viewYear = base.getFullYear();
             this.viewMonth = base.getMonth();
             if (! this.value) this.draft = this.format(base);
         },
+        isNarrow() {
+            return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
+        },
         openPicker() {
-            if (this.finePointer) {
+            this.narrow = this.isNarrow();
+            if (this.narrow) {
+                this.openSheet();
+            } else {
                 this.openDesktop();
                 this.positionDesktop();
-            } else {
-                this.openSheet();
             }
         },
         positionDesktop() {
@@ -85,7 +99,7 @@
             return str;
         },
         openSheet() {
-            this.draft = this.clamp(this.value || this.max);
+            this.draft = this.clamp(this.value || this.fallback);
             const d = this.parse(this.draft);
             this.viewYear = d.getFullYear();
             this.viewMonth = d.getMonth();
@@ -93,7 +107,7 @@
             this.open = true;
         },
         openDesktop() {
-            this.draft = this.clamp(this.value || this.max);
+            this.draft = this.clamp(this.value || this.fallback);
             const d = this.parse(this.draft);
             this.viewYear = d.getFullYear();
             this.viewMonth = d.getMonth();
@@ -164,6 +178,7 @@
     }"
     class="relative"
     @keydown.escape.window="open = false; desktopOpen = false; pickerMode = 'calendar'"
+    @resize.window="narrow = isNarrow(); if (narrow) { desktopOpen = false } else { open = false }"
 >
     @if ($label)
         <label for="{{ $id }}" class="block text-sm font-medium text-gray-700 mb-1.5">
@@ -180,7 +195,7 @@
         <svg class="w-5 h-5 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
     </button>
 
-    {{-- Touch / mobile: bottom sheet (always in DOM; only opened when !finePointer) --}}
+    {{-- Mobile / tablet: bottom sheet. Desktop: anchored calendar. --}}
     <x-site.bottom-sheet :title="$label ?: 'Select date'" open="open">
         <div class="space-y-4">
             <template x-if="pickerMode === 'calendar'">
@@ -257,7 +272,7 @@
 
     {{-- Fine pointer (desktop): teleport so glass-card backdrop-filter cannot clip the calendar --}}
     <template x-teleport="body">
-        <div x-show="finePointer && desktopOpen" x-cloak @click.outside="desktopOpen = false"
+        <div x-show="!narrow && desktopOpen" x-cloak @click.outside="desktopOpen = false"
              class="fixed z-[90] w-[22rem] rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 p-4"
              x-ref="desktopCal"
              :style="desktopStyle"

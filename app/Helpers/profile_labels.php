@@ -35,6 +35,11 @@ if (! function_exists('translate_activity_field')) {
             ? $translated
             : ($field['label'] ?? $key);
 
+        $placeholder = __('activity.placeholders.'.$key);
+        if ($placeholder !== 'activity.placeholders.'.$key) {
+            $field['placeholder'] = $placeholder;
+        }
+
         if (! empty($field['options']) && is_array($field['options'])) {
             $field['options'] = collect($field['options'])
                 ->mapWithKeys(function (string $label, string $optKey) use ($key) {

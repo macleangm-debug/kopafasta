@@ -92,35 +92,42 @@
         </div>
     </template>
 
-    {{-- Page gallery --}}
-    <div x-show="pages.length > 0" x-cloak class="rounded-2xl ring-1 ring-brand/15 bg-white p-4">
-        <div class="flex items-center justify-between gap-3 mb-3">
-            <p class="text-sm font-semibold text-gray-900">
+    {{-- Page gallery — same holder as submitted document thumbs --}}
+    <div x-show="pages.length > 0" x-cloak>
+        <div class="flex items-center justify-between gap-3 mb-2">
+            <p class="text-xs font-semibold text-gray-500">
                 <span x-text="labels.pagesReady.replace(':count', String(pages.length))"></span>
             </p>
             <button type="button" @click="openCamera()" :disabled="pages.length >= maxPages"
-                    class="text-xs font-semibold text-amber-700 hover:underline disabled:opacity-40" x-text="labels.addAnother"></button>
+                    class="text-xs font-semibold text-brand hover:underline disabled:opacity-40" x-text="labels.addAnother"></button>
         </div>
-        <ul class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+        <ul class="flex flex-wrap gap-2">
             <template x-for="(page, index) in pages" :key="page.id">
-                <li class="relative rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50 aspect-[3/4]">
+                <li class="relative" x-data="{ expanded: false }">
                     <template x-if="page.previewUrl">
-                        <img :src="page.previewUrl" alt="" class="absolute inset-0 w-full h-full object-cover">
+                        <button type="button" @click="expanded = true"
+                                class="h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
+                            <img :src="page.previewUrl" alt="" class="h-full w-full object-cover">
+                        </button>
                     </template>
                     <template x-if="!page.previewUrl">
-                        <div class="absolute inset-0 grid place-items-center text-xs font-bold text-brand">PDF</div>
+                        <div class="h-16 w-16 rounded-lg ring-1 ring-gray-200 bg-white grid place-items-center">
+                            <span class="text-[10px] font-bold text-brand">PDF</span>
+                        </div>
                     </template>
-                    <div class="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1.5 flex items-center justify-between gap-1">
-                        <span class="inline-flex items-center gap-1.5 text-[10px] font-semibold text-white truncate">
-                            <span class="size-4 rounded-full bg-white/20 grid place-items-center text-[9px] font-bold" x-text="index + 1"></span>
-                            <span x-text="labels.pageLabel + ' ' + (index + 1)"></span>
-                        </span>
-                        <button type="button" @click="removePage(index)" class="text-[10px] font-bold text-red-200 hover:text-white" x-text="labels.remove"></button>
+                    <button type="button" @click="removePage(index)"
+                            class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-white text-red-600 text-xs font-bold ring-1 ring-gray-200 grid place-items-center"
+                            :aria-label="labels.remove">×</button>
+                    <div x-show="expanded && page.previewUrl" x-cloak x-transition
+                         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+                         @keydown.escape.window="expanded = false"
+                         @click.self="expanded = false">
+                        <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expanded = false" x-text="labels.close"></button>
+                        <img :src="page.previewUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
                     </div>
                 </li>
             </template>
         </ul>
-        <p class="text-[11px] text-gray-500 mt-3" x-text="labels.hint"></p>
     </div>
 
     <div id="{{ $hostId }}"></div>

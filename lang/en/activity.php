@@ -35,6 +35,15 @@ return [
         'street'          => 'Street / detailed address',
     ],
 
+    'placeholders' => [
+        'business_name' => 'e.g. Asha Shop',
+        'street'        => 'e.g. Mbezi Beach, House 12',
+        'ward'          => 'e.g. Mbezi',
+        'school_name'   => 'e.g. Uhuru Secondary',
+        'employer_name' => 'e.g. CRDB Bank',
+        'job_title'     => 'e.g. Teller',
+    ],
+
     'options' => [
         'employee_count' => [
             '1'       => 'Just me',

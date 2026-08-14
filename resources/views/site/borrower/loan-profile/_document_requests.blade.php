@@ -209,7 +209,12 @@
                                         <form method="POST"
                                               action="{{ route('site.borrower.application.document-requests.store', [$application, $docReq]) }}"
                                               enctype="multipart/form-data"
-                                              class="space-y-4">
+                                              class="space-y-4"
+                                              @submit.prevent="window.confirmForm($el, {
+                                                  title: @js(__('borrower.document_upload.submit_confirm_title')),
+                                                  message: @js(__('borrower.document_upload.submit_confirm_body')),
+                                                  confirmLabel: @js(__('borrower.document_upload.submit')),
+                                              })">
                                             @csrf
                                             <x-site.multi-page-document-upload
                                                 name="files"

@@ -89,7 +89,7 @@ return [
     ],
     'partner_apply' => [
         'title'                 => 'Become a :type',
-        'subtitle'              => 'Submit your business profile and documents. Our partnerships team reviews applications and sends an activation invite.',
+        'subtitle'              => 'Send your profile and documents. We review and send an activation invite.',
         'change_type'           => 'Change type',
         'hide_types'            => 'Hide options',
         'tab_contact'           => 'Contact',

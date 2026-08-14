@@ -89,7 +89,7 @@ return [
     ],
     'partner_apply' => [
         'title'                 => 'Kuwa :type',
-        'subtitle'              => 'Wasilisha wasifu na hati za biashara. Timu yetu itakagua na kutuma mwaliko wa kuwezesha akaunti.',
+        'subtitle'              => 'Tuma wasifu na hati. Tutakagua na kutuma mwaliko.',
         'change_type'           => 'Badilisha aina',
         'hide_types'            => 'Ficha chaguo',
         'tab_contact'           => 'Mawasiliano',
