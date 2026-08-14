@@ -37,6 +37,7 @@
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_account.upload_new') }}</p>
             <h2 class="text-lg font-bold text-gray-900 mt-1 mb-4">{{ __('site.partner_account.add_document') }}</h2>
             <form method="POST" action="{{ $uploadRoute }}" enctype="multipart/form-data" class="space-y-3"
+                  data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
                   @submit="
                       if (!docType) { $event.preventDefault(); return; }
                       const labelInput = $el.querySelector('[data-doc-label]');
@@ -65,7 +66,6 @@
                 <div x-show="docType" x-cloak>
                     <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.doc_file') }}</label>
                     <x-site.single-image-document-upload name="file" facing="environment" :required="false" />
-                    <p class="mt-2 text-xs text-gray-500">{{ __('borrower.profile.or_take_picture_hint') }}</p>
                 </div>
                 <button type="submit" :disabled="!docType"
                         class="w-full rounded-xl bg-brand-gold hover:brightness-95 disabled:opacity-50 text-brand text-sm font-bold py-2.5">
@@ -73,7 +73,6 @@
                 </button>
             </form>
             <p class="text-xs text-gray-500 mt-3">{{ __('site.partner_account.docs_admin_hint') }}</p>
-            <x-site.upload-busy-overlay />
         </div>
     @endif
 

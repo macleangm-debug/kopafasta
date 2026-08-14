@@ -160,6 +160,7 @@
               }"
               x-on:input="refreshReady()"
               x-on:change="refreshReady()"
+              data-saving-message="{{ __('borrower.profile.uploading_income') }}"
               @submit="uploading = true">
             @csrf @method('PUT')
             @if ($wizardMode ?? false)
@@ -198,7 +199,6 @@
                                 :input-host-id="$item['key'].'-upload'"
                                 :required="true"
                                 :labels="[
-                                    'hint' => __('borrower.profile.multi_page_hint_short'),
                                     'uploadFile' => __('borrower.profile.capture_pages_upload'),
                                     'capturePage' => __('borrower.profile.capture_pages'),
                                 ]"
@@ -300,7 +300,6 @@
                                 :input-host-id="$item['key'].'-statement-upload'"
                                 :required="true"
                                 :labels="[
-                                    'hint' => __('borrower.profile.multi_page_hint_short'),
                                     'uploadFile' => __('borrower.profile.upload'),
                                     'capturePage' => __('borrower.document_upload.camera'),
                                 ]"
@@ -327,7 +326,6 @@
                 </button>
             </div>
 
-            <x-site.upload-busy-overlay />
         </form>
     </x-slot:form>
 </x-site.profile-section-card>

@@ -9,7 +9,7 @@
 @php
     $hostId = $inputHostId ?? ('doc-pages-'.md5($name));
     $labelDefaults = [
-        'hint' => __('borrower.profile.multi_page_hint_short'),
+        'hint' => '',
         'uploadFile' => __('borrower.profile.multi_page_upload'),
         'capturePage' => __('borrower.profile.multi_page_capture'),
         'close' => __('borrower.profile.multi_page_close'),

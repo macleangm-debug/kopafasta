@@ -127,7 +127,8 @@ class CustomerAssetService
     }
 
     /**
-     * True when this profile asset is already linked to another non-terminal loan application.
+     * True when this profile asset is already linked to another open loan.
+     * Rejected, cancelled, withdrawn applications, and closed/written-off loans release the asset.
      */
     public function isPledgedToAnotherApplication(CustomerAsset $asset, ?int $exceptApplicationId = null): bool
     {
@@ -139,7 +140,13 @@ class CustomerAssetService
         $row = LoanApplicationAsset::query()
             ->where('customer_asset_id', $asset->id)
             ->whereHas('application', function ($q) use ($exceptApplicationId): void {
-                $q->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled']);
+                $q->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled', 'expired']);
+                $q->where(function ($open) {
+                    $open->whereDoesntHave('loan')
+                        ->orWhereHas('loan', function ($loan): void {
+                            $loan->whereNotIn('status', ['closed', 'written_off']);
+                        });
+                });
                 if ($exceptApplicationId) {
                     $q->where('id', '!=', $exceptApplicationId);
                 }

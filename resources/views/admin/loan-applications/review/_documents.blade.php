@@ -76,7 +76,7 @@
         $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
         $rules = [
             ['key' => 'identity', 'label' => 'Identity & KYC', 'order' => 1, 'needles' => ['national id', 'passport', 'face', 'identity', 'nida', 'photo of id']],
-            ['key' => 'income', 'label' => 'Income & statements', 'order' => 2, 'needles' => ['income', 'bank statement', 'mobile money', 'payslip', 'salary', 'statement', 'revenue', 'source of income']],
+            ['key' => 'income', 'label' => 'Income verification', 'order' => 2, 'needles' => ['income', 'income verification', 'bank statement', 'mobile money', 'mobile statement', 'payslip', 'salary', 'statement', 'revenue', 'source of income']],
             ['key' => 'business', 'label' => 'Business & activity', 'order' => 3, 'needles' => ['business', 'licence', 'license', 'shop', 'farm', 'workshop', 'invoice', 'supplier', 'buyer', 'off-taker', 'fundi', 'employer']],
             ['key' => 'collateral', 'label' => 'Collateral & assets', 'order' => 4, 'needles' => ['collateral', 'vehicle', 'logbook', 'insurance', 'valuation', 'ownership', 'title deed', 'asset']],
             ['key' => 'group', 'label' => 'Group', 'order' => 5, 'needles' => ['group constitution', 'member roster', 'group member']],

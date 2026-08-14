@@ -21,7 +21,7 @@
         x-data="{ open: true }"
         x-show="open"
         x-cloak
-        class="fixed inset-0 z-[10040] flex items-end sm:items-center justify-center p-4"
+        class="fixed inset-0 z-[10040] flex items-center justify-center p-4"
         role="dialog"
         aria-modal="true"
         aria-labelledby="guarantor-invite-popup-title"

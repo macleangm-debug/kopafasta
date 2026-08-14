@@ -22,6 +22,7 @@
         'submitConfirmTitle' => __('borrower.document_upload.submit_confirm_title'),
         'submitConfirmBody' => __('borrower.document_upload.submit_confirm_body'),
         'submitConfirmLabel' => __('borrower.document_upload.submit'),
+        'savingMessage' => __('borrower.profile.uploading_documents'),
     ];
 @endphp
 
@@ -294,6 +295,9 @@
                         });
                         this.closeCamera();
                         this.revokeQueued();
+                        if (typeof window.kfShowSaving === 'function') {
+                            window.kfShowSaving(this.labels.savingMessage || '');
+                        }
                         fetch(form.action, {
                             method: 'POST',
                             body: fd,

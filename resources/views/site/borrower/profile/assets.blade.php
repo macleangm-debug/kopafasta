@@ -92,6 +92,7 @@
                     $isVehicle = $selectedType === 'vehicle';
                 @endphp
                 <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6" novalidate
+                      data-saving-message="{{ __('borrower.profile.uploading_collateral') }}"
                       x-data="collateralAddForm({ isVehicle: @js($isVehicle), photoCount: {{ count($photoSlots) }} })"
                       x-on:input="refreshGates()"
                       x-on:change="refreshGates()"
@@ -101,7 +102,6 @@
                     @if ($currentAppId)
                         <input type="hidden" name="application" value="{{ $currentAppId }}">
                     @endif
-                    <x-site.upload-busy-overlay :message="__('borrower.profile.uploading_collateral')" />
 
                     @php
                         $typePickerUrl = route('site.borrower.profile', array_filter([

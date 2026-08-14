@@ -63,6 +63,7 @@
                   }"
                   x-on:input="refreshReady()"
                   x-on:change="refreshReady()"
+                  data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
                   @submit="if (!docType || !ready) { $event.preventDefault(); return; } uploading = true">
                 @csrf @method('PUT')
                 @if ($wizardMode ?? false)
@@ -137,7 +138,6 @@
                                 :input-host-id="'additional-upload-'.$item['key']"
                                 :required="true"
                                 :labels="[
-                                    'hint' => __('borrower.profile.multi_page_hint_short'),
                                     'uploadFile' => __('borrower.profile.capture_pages_upload'),
                                     'capturePage' => __('borrower.profile.capture_pages'),
                                 ]"
@@ -153,7 +153,6 @@
                     {{ __('borrower.profile.save_documents') }}
                 </button>
 
-                <x-site.upload-busy-overlay />
             </form>
         </x-slot:form>
     </x-site.profile-section-card>

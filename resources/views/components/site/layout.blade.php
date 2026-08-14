@@ -219,6 +219,7 @@
 
         <x-site.chatbot-widget />
     @endunless
+    <x-site.upload-busy-overlay />
     <x-site.confirm-modal name="default" />
     <x-site.feedback-modal name="default" />
     @stack('scripts')

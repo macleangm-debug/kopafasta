@@ -142,7 +142,6 @@
                             input-host-id="employment-contract-pages"
                             :required="true"
                             :labels="[
-                                'hint' => __('borrower.profile.employment_contract_hint'),
                                 'uploadFile' => __('borrower.profile.capture_pages_upload'),
                                 'capturePage' => __('borrower.profile.capture_pages'),
                             ]"

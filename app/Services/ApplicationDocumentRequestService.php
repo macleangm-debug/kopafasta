@@ -280,6 +280,9 @@ class ApplicationDocumentRequestService
         if (
             str_contains($label, 'bank statement')
             || str_contains($label, 'mobile money')
+            || str_contains($label, 'mobile statement')
+            || str_contains($label, 'account statement')
+            || str_contains($label, 'income verification')
             || str_contains($label, 'salary slip')
             || str_contains($label, 'income proof')
             || str_contains($label, 'employment confirmation')
@@ -297,6 +300,64 @@ class ApplicationDocumentRequestService
         }
 
         return 'document';
+    }
+
+    public function screeningKindLabel(LoanApplicationDocumentRequest $request): string
+    {
+        return match ($this->borrowerActionKind($request)) {
+            'income' => 'Income verification',
+            'collateral' => 'Collateral',
+            'face' => 'Face verification',
+            'identity' => 'National ID',
+            'signature' => 'Signature',
+            default => (string) $request->label,
+        };
+    }
+
+    /**
+     * Deep-link into the profile tab where this submitted request should be reviewed.
+     *
+     * @param  list<array<string, mixed>>  $guarantorRows
+     */
+    public function screeningReviewUrl(
+        LoanApplicationDocumentRequest $request,
+        LoanApplication $application,
+        array $guarantorRows = [],
+    ): string {
+        $kind = $this->borrowerActionKind($request);
+        $tab = match ($kind) {
+            'income' => 'activity',
+            'collateral' => 'collateral',
+            'face' => 'face',
+            'identity' => 'personal',
+            default => 'documents',
+        };
+        $person = in_array((string) $request->subject_kind, ['borrower', 'member', 'guarantor'], true)
+            ? (string) $request->subject_kind
+            : 'borrower';
+
+        $m = $person === 'member' ? $request->loan_group_member_id : null;
+        $g = null;
+        if ($person === 'guarantor' && $request->subject_customer_id) {
+            $match = collect($guarantorRows)->first(
+                fn ($row) => (int) ($row['customer_id'] ?? 0) === (int) $request->subject_customer_id
+            );
+            $g = $match['link_id'] ?? null;
+        }
+
+        $params = array_filter([
+            'loan_application' => $application,
+            'workspace' => 'profiles',
+            'tab' => $tab,
+            'person' => $person,
+            'm' => $m,
+            'g' => $g,
+            'review_person' => $person,
+            'review_m' => $m,
+            'review_g' => $g,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        return route('admin.loan-applications.show', $params).'#borrower-file';
     }
 
     /**

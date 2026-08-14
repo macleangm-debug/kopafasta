@@ -94,6 +94,8 @@
             : null;
     @endphp
 
+    @include('admin.loan-applications.review._submissions_inbox')
+
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">

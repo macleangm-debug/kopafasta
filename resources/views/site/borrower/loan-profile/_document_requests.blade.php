@@ -210,6 +210,7 @@
                                               action="{{ route('site.borrower.application.document-requests.store', [$application, $docReq]) }}"
                                               enctype="multipart/form-data"
                                               class="space-y-4"
+                                              data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
                                               @submit.prevent="window.confirmForm($el, {
                                                   title: @js(__('borrower.document_upload.submit_confirm_title')),
                                                   message: @js(__('borrower.document_upload.submit_confirm_body')),

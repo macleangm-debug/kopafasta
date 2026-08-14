@@ -68,6 +68,7 @@
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
+                      data-saving-message="{{ __('borrower.profile.uploading') }}"
                       x-data="{ uploading: false }" @submit="uploading = true">
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)
@@ -88,7 +89,6 @@
                     />
 
                     <x-site.gated-submit class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save')" />
-                    <x-site.upload-busy-overlay />
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>

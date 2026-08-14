@@ -97,16 +97,15 @@
     x-on:keydown.escape.window="if (open) cancel()"
     x-show="open"
     x-cloak
-    class="fixed inset-0 z-[10050] flex items-end lg:items-center justify-center p-0 lg:p-4"
+    class="fixed inset-0 z-[10050] flex items-center justify-center p-4"
     role="dialog"
     aria-modal="true"
 >
     <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="cancel()"></div>
-    <div class="relative w-full max-w-md overflow-hidden rounded-t-3xl lg:rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15"
-         style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+    <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15"
          x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 translate-y-full lg:translate-y-3 lg:scale-95"
-         x-transition:enter-end="opacity-100 translate-y-0 lg:scale-100">
+         x-transition:enter-start="opacity-0 translate-y-3 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100">
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
             <div class="flex items-start gap-3">
                 <span class="mt-0.5 size-11 rounded-2xl grid place-items-center ring-1 shrink-0"
@@ -132,11 +131,7 @@
         </div>
         <div class="px-6 py-5">
             <p x-show="message" x-cloak class="text-sm text-gray-600 leading-relaxed" x-text="message"></p>
-            <div class="mt-6 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                <button type="button" @click="cancel()"
-                        class="inline-flex justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white ring-1 ring-gray-200 hover:bg-gray-50">
-                    {{ $cancelLabel }}
-                </button>
+            <div class="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
                 <button type="button"
                         @click="
                             const confirmCb = onConfirm;
@@ -159,6 +154,9 @@
                                     form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
                                 }
                                 form.dataset.loadingBound = '1';
+                                if (typeof window.kfFormNeedsSaving === 'function' && window.kfFormNeedsSaving(form) && typeof window.kfShowSaving === 'function') {
+                                    window.kfShowSaving(form.getAttribute('data-saving-message') || '');
+                                }
                                 form.submit();
                             } else if (typeof confirmCb === 'function') {
                                 if (typeof window.kfMarkBusy === 'function') window.kfMarkBusy(confirmBtn);
@@ -170,9 +168,13 @@
                             onCancel = null;
                         "
                         :disabled="!form && typeof onConfirm !== 'function'"
-                        class="inline-flex justify-center px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm disabled:opacity-50"
+                        class="inline-flex w-full sm:w-auto justify-center px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm disabled:opacity-50"
                         :class="confirmClass"
                         x-text="confirmLabel"></button>
+                <button type="button" @click="cancel()"
+                        class="inline-flex w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white ring-1 ring-gray-200 hover:bg-gray-50">
+                    {{ $cancelLabel }}
+                </button>
             </div>
         </div>
     </div>

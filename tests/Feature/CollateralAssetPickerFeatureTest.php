@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\CustomerAsset;
+use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\LoanProduct;
@@ -222,6 +223,78 @@ class CollateralAssetPickerFeatureTest extends TestCase
         $this->assertStringContainsString('data-asset-mode="edit"', $html);
     }
 
+    public function test_rejected_and_closed_loans_release_the_asset(): void
+    {
+        $customer = $this->completeBorrower();
+        $rejectedLoan = $this->applicationFor($customer);
+        $rejectedLoan->update(['status' => 'rejected']);
+        $closedApp = $this->applicationFor($customer);
+        $closedApp->update(['status' => 'disbursed']);
+        $thisLoan = $this->applicationFor($customer);
+        $rejectedAsset = $this->completeAsset($customer, 'Rejected plot');
+        $closedAsset = $this->completeAsset($customer, 'Closed plot');
+
+        LoanApplicationAsset::create([
+            'loan_application_id' => $rejectedLoan->id,
+            'customer_asset_id' => $rejectedAsset->id,
+            'asset_type' => 'land',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+        ]);
+        LoanApplicationAsset::create([
+            'loan_application_id' => $closedApp->id,
+            'customer_asset_id' => $closedAsset->id,
+            'asset_type' => 'land',
+            'uw_status' => LoanApplicationAsset::UW_ACCEPTED,
+        ]);
+        Loan::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $closedApp->loan_product_id,
+            'loan_application_id' => $closedApp->id,
+            'loan_number' => 'LN-AST-'.random_int(1000, 9999),
+            'principal_amount' => 500_000,
+            'approved_amount' => 500_000,
+            'outstanding_balance' => 0,
+            'interest_rate' => 0.15,
+            'tenure_months' => 6,
+            'status' => 'closed',
+            'closed_at' => now(),
+        ]);
+
+        $service = app(CustomerAssetService::class);
+
+        $this->assertSame('available', $service->availabilityForApplication($rejectedAsset->fresh(), $thisLoan)['code']);
+        $this->assertSame('available', $service->availabilityForApplication($closedAsset->fresh(), $thisLoan)['code']);
+        $this->assertTrue($service->availabilityForApplication($rejectedAsset->fresh(), $thisLoan)['selectable']);
+        $this->assertTrue($service->availabilityForApplication($closedAsset->fresh(), $thisLoan)['selectable']);
+    }
+
+    public function test_on_this_loan_badge_names_the_application(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $asset = $this->completeAsset($customer, 'Named plot');
+
+        LoanApplicationAsset::create([
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $asset->id,
+            'asset_type' => 'land',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+        ]);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', [
+                'section' => 'assets',
+                'uw' => 1,
+                'application' => $application->id,
+            ]))
+            ->assertOk()
+            ->assertSee(__('borrower.profile.collateral_on_this_loan', [
+                'number' => $application->application_number,
+            ]), false)
+            ->assertDontSee('Ready for this loan', false)
+            ->assertDontSee('On this loan', false);
+    }
+
     public function test_add_collateral_opens_type_as_wizard_step(): void
     {
         $customer = $this->completeBorrower();
@@ -253,6 +326,8 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('kf-chrome-sidebar', false)
             ->assertSee('kf-chrome-page', false)
-            ->assertSee('data-kf-motion="tab"', false);
+            ->assertSee('data-kf-motion="tab"', false)
+            ->assertSee('$store.kfSaving', false)
+            ->assertSee('items-center justify-center p-4', false);
     }
 }

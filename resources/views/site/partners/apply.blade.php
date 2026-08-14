@@ -54,6 +54,7 @@
         </div>
 
         <form method="POST" action="{{ route('site.partners.apply.post') }}" enctype="multipart/form-data" class="glass-card p-6 sm:p-8 space-y-5"
+              data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
               @submit.prevent="
                   const roles = [...$el.querySelectorAll('input[name=\'requested_roles[]\']:checked')].map((el) => el.value);
                   const caps = [];

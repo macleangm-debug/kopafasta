@@ -3,12 +3,14 @@ import collapse from '@alpinejs/collapse';
 import { registerFormReadyAlpine } from './form-ready';
 import { registerCollateralAddForm } from './collateral-add-form';
 import { registerProfileSectionCard } from './profile-section-card';
+import { registerSavingOverlay } from './saving-overlay';
 
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
 registerFormReadyAlpine(Alpine);
 registerCollateralAddForm(Alpine);
 registerProfileSectionCard(Alpine);
+registerSavingOverlay(Alpine);
 
 function initAlpineTrees() {
     document.querySelectorAll('[x-data]').forEach((el) => {

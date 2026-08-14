@@ -366,6 +366,7 @@
 </div>
 
 <x-site.guarantor-request-popup :pending="$pendingGuarantorPopup" />
+<x-site.upload-busy-overlay />
 <x-site.confirm-modal name="default" />
 <x-site.feedback-modal name="default" />
 @if (session('show_membership_card') && $borrowerCustomer && ($borrowerCustomer->isMembershipActive() || $borrowerCustomer->isMembershipInGrace() || $borrowerCustomer->hasMembership()))
