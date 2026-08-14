@@ -65,10 +65,11 @@
     // Duplicates of Face / Income verification (passport-size photo, source-of-income
     // proof, 3-month statements when 6-month Income verification is already required).
     $requirements = $requirements->reject(function ($req) {
-        return \App\Models\LoanProductRequirement::nameLooksLikeProfileDuplicate(
-            $req->name ?? '',
-            $req->description ?? null
-        );
+        $name = $req->name ?? '';
+
+        return \App\Models\LoanProductRequirement::nameLooksLikeProfileDuplicate($name, $req->description ?? null)
+            || \App\Models\LoanProductRequirement::nameIsDigitalGroupRoster($name)
+            || \App\Models\LoanProductRequirement::nameIsGroupConstitution($name);
     })->values();
 
     $categoryFor = function ($req): array {

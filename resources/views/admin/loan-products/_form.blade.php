@@ -103,7 +103,7 @@
                     <div>
                         <h3 class="text-sm font-semibold text-gray-900">Group loan evidence (optional)</h3>
                         <p class="text-xs text-gray-600 mt-1">
-                            Members are already captured digitally when the group applies. Turn these on only if underwriting needs a paper constitution or printed roster. You can enable them again later.
+                            Group members are already the roster. Paper constitution and a printed member list are not compulsory and do not block screening.
                         </p>
                     </div>
                     <label class="flex items-start gap-3 text-sm text-gray-800 cursor-pointer">

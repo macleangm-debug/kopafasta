@@ -47,9 +47,9 @@ class LoanApplicationReviewService
                     return true;
                 }
 
-                // Dormant group evidence (product checkbox off) stays out of the checklist until enabled.
-                return in_array($name, ['Group constitution', 'Group member roster'], true)
-                    && ! (bool) $req->is_required;
+                // Paper constitution and roster are not compulsory. Roster is the digital members list.
+                return LoanProductRequirement::nameIsDigitalGroupRoster($name)
+                    || LoanProductRequirement::nameIsGroupConstitution($name);
             })
             ->values();
         $allUploads = CustomerDocument::query()

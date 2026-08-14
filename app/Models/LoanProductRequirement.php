@@ -52,4 +52,22 @@ class LoanProductRequirement extends Model
         return $name === '3 months bank statement'
             || (str_contains($name, '3 month') && str_contains($name, 'bank statement'));
     }
+
+    /** Digital group members are the roster — this paper upload must never block screening. */
+    public static function nameIsDigitalGroupRoster(?string $name): bool
+    {
+        $name = strtolower(trim((string) $name));
+
+        return $name === 'group member roster'
+            || ($name !== '' && str_contains($name, 'group') && str_contains($name, 'roster'));
+    }
+
+    /** Paper group constitution — optional unless the product checkbox is on. */
+    public static function nameIsGroupConstitution(?string $name): bool
+    {
+        $name = strtolower(trim((string) $name));
+
+        return $name === 'group constitution'
+            || ($name !== '' && str_contains($name, 'group') && str_contains($name, 'constitution'));
+    }
 }

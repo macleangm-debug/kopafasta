@@ -11,6 +11,8 @@ use App\Models\LoanProduct;
 use App\Models\LoanProductRequirement;
 use App\Models\User;
 use App\Services\ApplicationDocumentRequestService;
+use App\Services\LoanApplicationReviewService;
+use App\Services\LoanApplicationWorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -225,5 +227,83 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
 
         $this->assertStringContainsString('Record the screening recommendation', $decisionHtml);
         $this->assertStringNotContainsString('Who you are reviewing', $decisionHtml);
+    }
+
+    public function test_group_constitution_and_roster_are_not_compulsory_blockers(): void
+    {
+        $branch = Branch::create([
+            'code' => 'GP'.random_int(10, 99),
+            'name' => 'Group Paper Branch',
+            'region' => 'Dar',
+            'is_active' => true,
+        ]);
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'branch_id' => $branch->id,
+            'is_active' => true,
+        ]);
+        $product = LoanProduct::create([
+            'code' => 'GL-PAPER',
+            'name' => 'Group Paper Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+
+        foreach (['Group constitution', 'Group member roster', 'National ID (front)'] as $name) {
+            LoanProductRequirement::create([
+                'loan_product_id' => $product->id,
+                'type' => 'document',
+                'name' => $name,
+                'is_required' => true,
+            ]);
+        }
+
+        $leader = Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-GP-L',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Leader',
+            'last_name' => 'Paper',
+            'phone' => '255712349010',
+            'branch_id' => $branch->id,
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $leader->id,
+            'loan_product_id' => $product->id,
+            'branch_id' => $branch->id,
+            'application_number' => 'APP-GP-001',
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 800_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now(),
+        ]);
+
+        $missing = app(LoanApplicationReviewService::class)->dossier($application)['missing_documents'] ?? [];
+        $blockers = app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application);
+
+        $this->assertContains('National ID (front)', $missing);
+        $this->assertNotContains('Group constitution', $missing);
+        $this->assertNotContains('Group member roster', $missing);
+        $this->assertContains('National ID (front)', $blockers);
+        $this->assertFalse(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'Group constitution')));
+        $this->assertFalse(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'Group member roster')));
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'decision',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('Group constitution', $html);
+        $this->assertStringNotContainsString('Group member roster', $html);
     }
 }

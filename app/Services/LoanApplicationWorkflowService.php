@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ApplicationStageHistory;
 use App\Models\AuditLog;
 use App\Models\LoanApplication;
+use App\Models\LoanProductRequirement;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -448,9 +449,14 @@ class LoanApplicationWorkflowService
 
         foreach ((array) ($dossier['missing_documents'] ?? []) as $name) {
             $label = trim((string) $name);
-            if ($label !== '') {
-                $blockers[] = $label;
+            if ($label === '') {
+                continue;
             }
+            if (LoanProductRequirement::nameIsDigitalGroupRoster($label)
+                || LoanProductRequirement::nameIsGroupConstitution($label)) {
+                continue;
+            }
+            $blockers[] = $label;
         }
 
         $application->loadMissing(['documentRequests.subjectCustomer', 'documentRequests.groupMember.customer']);
