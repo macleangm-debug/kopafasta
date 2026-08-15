@@ -149,4 +149,55 @@ class DocumentRequestBorrowerLocaleFeatureTest extends TestCase
         $this->assertStringContainsString('Kamera', $html);
         $this->assertStringContainsString('ring-1 ring-brand/20', $html);
     }
+
+    public function test_document_type_names_and_rejected_instructions_translate_for_swahili(): void
+    {
+        $service = app(ApplicationDocumentRequestService::class);
+
+        $this->assertSame(
+            'Taarifa ya benki (miezi 6 iliyopita)',
+            $service->localizedLabel('Bank statement (last 6 months)', 'sw')
+        );
+        $this->assertSame(
+            'Taarifa ya pesa kwa simu (miezi 6 iliyopita)',
+            $service->localizedLabel('Mobile money statement (last 6 months)', 'sw')
+        );
+        $this->assertSame(
+            'Kitambulisho cha taifa — mbele',
+            $service->localizedLabel('National ID — front', 'sw')
+        );
+        $this->assertSame(
+            'Mkataba wa ajira',
+            $service->localizedLabel('employment_contract', 'sw')
+        );
+
+        $englishNames = __('borrower.document_type_names', [], 'en');
+        $this->assertIsArray($englishNames);
+        foreach ($englishNames as $code => $english) {
+            $sw = $service->localizedLabel($english, 'sw');
+            $this->assertNotSame($english, $sw, "Missing Swahili type name for [{$code}] {$english}");
+        }
+
+        $sw = $service->localizedInstructions(
+            'Bank statement (last 6 months)',
+            ApplicationDocumentRequestService::REJECTED_UPLOAD_PREFIX.'Document incomplete or pages missing',
+            'sw'
+        );
+        $this->assertSame(
+            'Upakiaji uliopita ulikataliwa kwa ombi hili: Hati haijakamilika au kurasa zinakosekana',
+            $sw
+        );
+        $this->assertStringNotContainsString('Previous upload rejected', $sw);
+        $this->assertStringNotContainsString('Document incomplete', $sw);
+
+        $en = $service->localizedInstructions(
+            'Bank statement (last 6 months)',
+            ApplicationDocumentRequestService::REJECTED_UPLOAD_PREFIX.'Document incomplete or pages missing',
+            'en'
+        );
+        $this->assertSame(
+            'Previous upload rejected for this application: Document incomplete or pages missing',
+            $en
+        );
+    }
 }

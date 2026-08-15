@@ -168,7 +168,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Gate 2', $documents);
         $this->assertStringContainsString('Match statements to profile revenue', $documents);
         $this->assertStringContainsString('Statement totals', $documents);
-        $this->assertStringContainsString('Max repayment (1/3)', $documents);
+        $this->assertStringContainsString('Period is always 6 months', $documents);
+        $this->assertStringNotContainsString('Max repayment (1/3)', $documents);
         $this->assertStringNotContainsString('Partners for this file', $documents);
         $this->assertStringNotContainsString('Return for documents', $documents);
 

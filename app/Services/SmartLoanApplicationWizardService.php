@@ -88,7 +88,7 @@ class SmartLoanApplicationWizardService
             return [
                 'has_document' => true,
                 'status'       => $doc->status,
-                'label'        => $doc->documentType?->name,
+                'label'        => $doc->displayName(),
                 'can_skip'     => false,
             ];
         }
@@ -98,7 +98,7 @@ class SmartLoanApplicationWizardService
         return [
             'has_document' => true,
             'status'       => $status,
-            'label'        => $doc->documentType?->name,
+            'label'        => $doc->displayName(),
             'can_skip'     => in_array($status, ['approved', 'verified', 'pending', 'pending_review'], true),
         ];
     }

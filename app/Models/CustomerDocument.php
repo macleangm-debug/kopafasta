@@ -49,12 +49,18 @@ class CustomerDocument extends Model
 
     public function displayName(): string
     {
+        $svc = app(\App\Services\ApplicationDocumentRequestService::class);
+
         if (filled($this->documentType?->name)) {
-            return (string) $this->documentType->name;
+            return $svc->localizedLabel((string) $this->documentType->name);
+        }
+
+        if (filled($this->documentType?->code)) {
+            return $svc->localizedDocumentTypeName($this->documentType->code);
         }
 
         if (filled($this->documentRequest?->label)) {
-            return (string) $this->documentRequest->label;
+            return $svc->localizedLabel((string) $this->documentRequest->label);
         }
 
         $meta = [];
@@ -63,12 +69,12 @@ class CustomerDocument extends Model
             $meta = is_array($decoded) ? $decoded : [];
         }
         if (filled($meta['request_label'] ?? null)) {
-            return (string) $meta['request_label'];
+            return $svc->localizedLabel((string) $meta['request_label']);
         }
         if (filled($meta['original_name'] ?? null)) {
             return (string) $meta['original_name'];
         }
 
-        return 'Document';
+        return (string) __('borrower.document_review.document');
     }
 }

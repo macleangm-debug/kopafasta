@@ -14,6 +14,8 @@ use Illuminate\Support\Collection;
 
 class ApplicationDocumentRequestService
 {
+    public const REJECTED_UPLOAD_PREFIX = 'Previous upload rejected for this application: ';
+
     /** @var list<string> */
     public const PRESET_LABELS = [
         'Insurance About To Expire',
@@ -189,7 +191,23 @@ class ApplicationDocumentRequestService
     }
 
     /**
-     * Deep-link borrowers to profile for identity/signature/face requests,
+     * Notification CTA: loan application view, scrolled to this request.
+     * The application card then links to the exact profile section.
+     */
+    public function borrowerNotificationUrl(LoanApplicationDocumentRequest $request, ?Customer $viewer = null): string
+    {
+        $application = $request->application;
+        if (! $application) {
+            return $this->borrowerActionUrl($request, $viewer);
+        }
+
+        return route('site.borrower.application', $application)
+            .'?doc='.$request->id
+            .'#request-'.$request->id;
+    }
+
+    /**
+     * Deep-link borrowers to the exact profile card for identity/signature/face/income,
      * otherwise to the application document request anchor.
      */
     public function borrowerActionUrl(LoanApplicationDocumentRequest $request, ?Customer $viewer = null): string
@@ -199,72 +217,73 @@ class ApplicationDocumentRequestService
         // Owner assisting a member/guarantor: loan-file uploads stay on the application.
         // Profile-guided items (income, ID, face, collateral) are fulfilled on that person's profile.
         if ($viewer && $this->borrowerIsAssisting($viewer, $request) && $application && ! $this->isProfileGuidedRequest($request)) {
-            return route('site.borrower.application', $application).'#request-'.$request->id;
+            return route('site.borrower.application', $application).'?doc='.$request->id.'#request-'.$request->id;
         }
+
+        $kind = $this->borrowerActionKind($request);
+        $applicationId = $application?->id;
+
+        return match ($kind) {
+            'signature' => $this->soloProfileUrl('personal', 'signature', 'profile-signature', [], $applicationId),
+            'face' => $this->soloProfileUrl('personal', 'face', 'profile-face', [], $applicationId),
+            'identity' => $this->soloProfileUrl('personal', 'id_images', 'profile-id-images', [], $applicationId),
+            'income' => $this->soloProfileUrl('activity', 'income', 'profile-income-statement', [], $applicationId),
+            'residence' => $this->soloProfileUrl('residence', 'verification', 'profile-residence-verification', [], $applicationId),
+            'business' => $this->soloProfileUrl(
+                'activity',
+                'additional',
+                'profile-additional-documents',
+                $this->businessDocQuery($request),
+                $applicationId,
+            ),
+            'collateral' => $this->collateralProfileUrl($request, $application),
+            default => $application
+                ? route('site.borrower.application', $application).'?doc='.$request->id.'#request-'.$request->id
+                : route('site.borrower.loans', ['tab' => 'applications']),
+        };
+    }
+
+    /**
+     * @param  array<string, scalar>  $extra
+     */
+    private function soloProfileUrl(string $section, string $focus, string $hash, array $extra = [], ?int $applicationId = null): string
+    {
+        $query = array_merge(['focus' => $focus, 'solo' => 1], $extra);
+        if ($applicationId) {
+            $query['application'] = $applicationId;
+        }
+
+        return route('site.borrower.profile', ['section' => $section]).'?'.http_build_query($query).'#'.$hash;
+    }
+
+    /** @return array<string, string> */
+    private function businessDocQuery(LoanApplicationDocumentRequest $request): array
+    {
+        $doc = app(ProfileRevisionService::class)->documentCodesForLabel((string) $request->label)[0] ?? null;
+
+        return $doc ? ['doc' => $doc] : [];
+    }
+
+    private function collateralProfileUrl(LoanApplicationDocumentRequest $request, ?LoanApplication $application): string
+    {
+        $customer = $request->subjectCustomer
+            ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
+            ?? $application?->customer;
 
         $label = mb_strtolower((string) $request->label);
+        $add = str_contains($label, 'add collateral') || ! $customer;
 
-        if (str_contains($label, 'signature')) {
-            return route('site.borrower.profile', ['section' => 'personal']).'?focus=signature#profile-signature';
-        }
-        if (str_contains($label, 'national id') || str_contains($label, 'nida')) {
-            return route('site.borrower.profile', ['section' => 'personal']).'?focus=identity#profile-identity';
-        }
-        if (str_contains($label, 'face') || str_contains($label, 'selfie') || str_contains($label, 'identity verification photo')) {
-            return route('site.borrower.profile', ['section' => 'personal']).'?focus=face#profile-face';
-        }
-        if (
-            str_contains($label, 'bank statement')
-            || str_contains($label, 'mobile money')
-            || str_contains($label, 'salary slip')
-            || str_contains($label, 'income proof')
-            || str_contains($label, 'employment confirmation')
-            || str_contains($label, 'employment contract')
-        ) {
-            return route('site.borrower.profile', ['section' => 'activity']).'?focus=income#profile-income-statement';
-        }
-        if (str_contains($label, 'residence') || str_contains($label, 'lga')) {
-            return route('site.borrower.profile', ['section' => 'residence']).'?focus=verification#profile-residence-verification';
-        }
-        if ($this->isBusinessProfileLabel($label)) {
-            $doc = app(ProfileRevisionService::class)->documentCodesForLabel((string) $request->label)[0] ?? null;
-
-            return route('site.borrower.profile', ['section' => 'activity'])
-                .'?focus=additional'.($doc ? '&doc='.urlencode($doc) : '').'#profile-additional-documents';
-        }
-        if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')) {
-            $customer = $request->subjectCustomer
-                ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
-                ?? $application?->customer;
-
-            if (! $customer) {
-                return route('site.borrower.profile', [
-                    'section' => 'assets',
-                    'add' => 1,
-                    'uw' => 1,
-                    'application' => $application?->id,
-                ]);
-            }
-
-            $assetService = app(CustomerAssetService::class);
-            $assets = $assetService->forCustomer($customer);
-
-            return route('site.borrower.profile', array_filter([
-                'section' => 'assets',
-                'uw' => 1,
-                'application' => $application?->id,
-                'add' => $assets->isEmpty() ? 1 : null,
-            ], fn ($value) => $value !== null));
-        }
-        if (str_contains($label, 'asset photo') || str_contains($label, 'ownership document') || str_contains($label, 'insurance')) {
-            return route('site.borrower.profile', ['section' => 'assets']);
+        if ($customer && ! $add) {
+            $add = app(CustomerAssetService::class)->forCustomer($customer)->isEmpty();
         }
 
-        if ($application) {
-            return route('site.borrower.application', $application).'#request-'.$request->id;
-        }
-
-        return route('site.borrower.loans', ['tab' => 'applications']);
+        return route('site.borrower.profile', array_filter([
+            'section' => 'assets',
+            'solo' => 1,
+            'uw' => 1,
+            'application' => $application?->id,
+            'add' => $add ? 1 : null,
+        ], fn ($value) => $value !== null && $value !== false));
     }
 
     public function isProfileGuidedRequest(LoanApplicationDocumentRequest $request): bool
@@ -282,7 +301,10 @@ class ApplicationDocumentRequestService
         if (str_contains($label, 'signature')) {
             return 'signature';
         }
-        if (str_contains($label, 'face') || str_contains($label, 'selfie') || str_contains($label, 'identity verification photo')) {
+        if (str_contains($label, 'face')
+            || str_contains($label, 'selfie')
+            || str_contains($label, 'identity verification photo')
+            || str_contains($label, 'image not clear')) {
             return 'face';
         }
         if (str_contains($label, 'national id') || str_contains($label, 'nida')) {
@@ -459,15 +481,64 @@ class ApplicationDocumentRequestService
     public function __construct(private readonly NotificationService $notifier) {}
 
     /**
-     * Borrower-facing label for a stored (English) preset / custom request label.
+     * Borrower-facing label for a stored (English) preset / DocumentType name / custom request label.
      */
     public function localizedLabel(string $label, ?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
         $key = 'borrower.document_request_presets.labels.'.$label;
         $translated = __($key, [], $locale);
+        if ($translated !== $key) {
+            return $translated;
+        }
 
-        return $translated !== $key ? $translated : $label;
+        $typeKey = 'borrower.document_type_names.'.$label;
+        $byCode = __($typeKey, [], $locale);
+        if ($byCode !== $typeKey) {
+            return $byCode;
+        }
+
+        $code = $this->documentTypeCodeForEnglishName($label);
+        if ($code !== null) {
+            $fromType = __('borrower.document_type_names.'.$code, [], $locale);
+            if ($fromType !== 'borrower.document_type_names.'.$code) {
+                return $fromType;
+            }
+        }
+
+        return $label;
+    }
+
+    public function localizedDocumentTypeName(?string $code, ?string $englishName = null, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        if (filled($englishName)) {
+            $fromLabel = $this->localizedLabel($englishName, $locale);
+            if ($fromLabel !== $englishName) {
+                return $fromLabel;
+            }
+        }
+        if (filled($code)) {
+            $key = 'borrower.document_type_names.'.$code;
+            $translated = __($key, [], $locale);
+            if ($translated !== $key) {
+                return $translated;
+            }
+        }
+
+        return $englishName ?: (string) __('borrower.document_review.document', [], $locale);
+    }
+
+    /** @return string|null seeder code when $label matches an English DocumentType name */
+    private function documentTypeCodeForEnglishName(string $label): ?string
+    {
+        $names = __('borrower.document_type_names', [], 'en');
+        if (! is_array($names)) {
+            return null;
+        }
+        $code = array_search($label, $names, true);
+
+        return $code === false ? null : (string) $code;
     }
 
     /**
@@ -495,7 +566,38 @@ class ApplicationDocumentRequestService
             return (string) __('borrower.document_request_presets.default_instructions', [], $locale);
         }
 
+        if (str_starts_with($instructions, self::REJECTED_UPLOAD_PREFIX)) {
+            $reason = trim(substr($instructions, strlen(self::REJECTED_UPLOAD_PREFIX)));
+
+            return (string) __('borrower.document_review.rejected_prefix', [
+                'reason' => $this->localizedFailReason($reason, $locale),
+            ], $locale);
+        }
+
         return $instructions;
+    }
+
+    public function localizedFailReason(string $reason, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        $notes = '';
+        $main = $reason;
+        if (str_contains($reason, ' — ')) {
+            [$main, $notes] = explode(' — ', $reason, 2);
+        }
+
+        $reasons = config('application_document_review.fail_reasons', []);
+        $code = array_search($main, $reasons, true);
+        if ($code === false) {
+            return $reason;
+        }
+
+        $translated = __('borrower.document_review.fail_reasons.'.$code, [], $locale);
+        if ($translated === 'borrower.document_review.fail_reasons.'.$code) {
+            $translated = $main;
+        }
+
+        return $notes !== '' ? $translated.' — '.$notes : $translated;
     }
 
     /** @return list<string> */
@@ -580,7 +682,7 @@ class ApplicationDocumentRequestService
 
         $this->syncApplicationStatus($application->fresh());
         $this->notifyBorrower($request);
-        app(ProfileRevisionService::class)->applyForDocumentRequest($application->fresh(), $request);
+        app(ProfileRevisionService::class)->applyForDocumentRequest($application->fresh(), $request, notify: false);
 
         return $request;
     }
@@ -708,7 +810,7 @@ class ApplicationDocumentRequestService
         bool $inApp = true,
         bool $forLeader = false,
     ): void {
-        $uploadUrl = $this->borrowerActionUrl($request, $forLeader ? $customer : null);
+        $uploadUrl = $this->borrowerNotificationUrl($request, $forLeader ? $customer : null);
         $locale = $customer->user?->locale
             ?? $customer->preferred_locale
             ?? $customer->locale
@@ -719,9 +821,7 @@ class ApplicationDocumentRequestService
             $request->instructions,
             $locale,
         );
-        $cta = $this->isProfileGuidedRequest($request)
-            ? __('borrower.notifications.profile_revision_cta', [], $locale)
-            : __('borrower.notifications.document_request_cta', [], $locale);
+        $cta = __('borrower.notifications.document_request_cta', [], $locale);
 
         $subjectName = $request->subjectCustomer?->full_name
             ?? $request->groupMember?->customer?->full_name
@@ -760,6 +860,7 @@ class ApplicationDocumentRequestService
                 ?? __('borrower.notifications.document_request_due_asap', [], $locale),
             'upload_url'         => $uploadUrl,
             '_locale'            => $locale,
+            '_skip_in_app'       => $inApp,
             '_fallback_body'     => $fallbackBody,
             '_fallback_subject'  => $forLeader
                 ? __('borrower.notifications.document_request_subject_leader', [], $locale)
@@ -788,6 +889,8 @@ class ApplicationDocumentRequestService
                     'title_key' => 'borrower.notifications.document_request_title',
                     'body_key'  => 'borrower.notifications.document_request_body',
                     'params'    => $params,
+                    'loan_application_id' => $application->id,
+                    'loan_application_document_request_id' => $request->id,
                 ],
             );
         }
@@ -844,6 +947,10 @@ class ApplicationDocumentRequestService
                 ->map(fn ($req) => $this->localizedLabel((string) $req->label, $locale))
                 ->implode(', ');
             $suffix = $count > 3 ? '…' : '';
+            $first = $unique->first();
+            $actionUrl = ($count === 1 && $first)
+                ? $this->borrowerNotificationUrl($first, $customer)
+                : $uploadUrl.'#documents';
 
             $this->notifier->notifyInApp(
                 $customer,
@@ -855,7 +962,7 @@ class ApplicationDocumentRequestService
                 'document_request',
                 'application_document_request',
                 __('borrower.notifications.document_request_title', [], $locale),
-                $uploadUrl,
+                $actionUrl,
                 __('borrower.notifications.document_request_cta', [], $locale),
                 [
                     'title_key' => 'borrower.notifications.document_request_title',
@@ -865,6 +972,8 @@ class ApplicationDocumentRequestService
                         'count' => $count,
                         'labels' => $labels.$suffix,
                     ],
+                    'loan_application_id' => $application->id,
+                    'loan_application_document_request_id' => $count === 1 ? $first?->id : null,
                 ],
             );
         }

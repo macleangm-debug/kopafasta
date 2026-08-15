@@ -71,7 +71,7 @@ class ScreeningChecklistAutoVerdictService
             ];
         }
 
-        // Gate 2: statements vs declared monthly revenue (human). Capacity auto-reject is Gate 1.
+        // Gate 2: pre-save chips only (missing files / no declared income). Save-time totals decide pass/fail.
         $out['activity_income.income_evidence'] = $this->statementsVsDeclaredIncome($context);
         $out['activity_income.bank_or_mobile_money'] = $this->statementsPresent($context);
 
@@ -256,8 +256,8 @@ class ScreeningChecklistAutoVerdictService
 
     /** @param  array<string, mixed>  $afford */
     /**
-     * Gate 2 — after capacity auto-reject. System only flags missing statements;
-     * matching declared monthly revenue stays a human Pass/Fail.
+     * Gate 2 — after capacity auto-reject. Pre-save chips flag missing statements
+     * or undeclared income; matching revenue is decided at save from keyed totals.
      *
      * @param  array<string, mixed>  $ctx
      * @return array{verdict: string, fail_reason_code?: string|null, source: string}

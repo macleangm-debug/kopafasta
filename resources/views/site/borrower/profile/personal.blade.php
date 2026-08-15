@@ -13,7 +13,7 @@
         @php
             $personalGaps = app(\App\Services\ProfileValidationService::class)->personalGaps($customer);
         @endphp
-        @if ($personalGaps !== [])
+        @if ($personalGaps !== [] && ! ($solo ?? false))
             <div class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <span class="font-semibold text-amber-800">{{ __('borrower.profile.gaps.banner_compact') }}</span>
                 @foreach ($personalGaps as $gap)
@@ -69,6 +69,11 @@
             };
             $focusHash = $focusHash ?: $errorFocus;
             $editFocus = $errorFocus; // validation errors open the form; deep links expand view only
+            $solo = request()->boolean('solo') && ! ($wizardMode ?? false);
+            $soloFocus = (string) ($focusHash ?: '');
+            $showSoloCard = function (array $keys) use ($solo, $soloFocus): bool {
+                return ! $solo || in_array($soloFocus, $keys, true);
+            };
         @endphp
 
         @include('site.borrower.profile._nida_result', ['customer' => $customer])
@@ -104,6 +109,7 @@
             <div class="space-y-4">
                 {{-- Identity / NIDA --}}
                 <x-site.profile-section-card
+                    @class(['hidden' => ! $showSoloCard(['identity', 'nida'])])
                     section-id="profile-identity"
                     icon="🪪"
                     :title="__('borrower.profile.fields.national_id')"
@@ -155,6 +161,7 @@
 
                 {{-- ID images: NIDA card photos or alternate ID --}}
                 <x-site.profile-section-card
+                    @class(['hidden' => ! $showSoloCard(['id_images'])])
                     section-id="profile-id-images"
                     icon="🖼️"
                     :title="__('borrower.profile.id_images_title')"
@@ -321,6 +328,7 @@
 
                 {{-- Contact --}}
                 <x-site.profile-section-card
+                    @class(['hidden' => ! $showSoloCard(['contact'])])
                     section-id="profile-contact"
                     icon="📱"
                     :title="__('borrower.profile.contact_details')"
@@ -370,6 +378,7 @@
 
                 {{-- Family / marital --}}
                 <x-site.profile-section-card
+                    @class(['hidden' => ! $showSoloCard(['family'])])
                     section-id="profile-family"
                     icon="💍"
                     :title="__('borrower.profile.family_info')"
@@ -496,6 +505,7 @@
 
                 {{-- Next of kin --}}
                 <x-site.profile-section-card
+                    @class(['hidden' => ! $showSoloCard(['kin'])])
                     section-id="profile-kin"
                     icon="👨‍👩‍👧"
                     :title="__('borrower.profile.kin_info')"
@@ -553,6 +563,7 @@
 
                 {{-- Face photos — always available on personal profile --}}
                 <x-site.profile-section-card
+                    @class(['hidden' => ! $showSoloCard(['face'])])
                     section-id="profile-face"
                     icon="📷"
                     :title="__('borrower.nida.face_title')"
@@ -607,6 +618,7 @@
                     $hasLegalSignature = $signatureService->hasProfileSignature($customer);
                 @endphp
                 <x-site.profile-section-card
+                    @class(['hidden' => ! $showSoloCard(['signature'])])
                     section-id="profile-signature"
                     icon="✍️"
                     :title="__('borrower.profile.legal_signature')"
@@ -657,6 +669,8 @@
             </div>
         @endif
 
-        @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'nida'])
+        @unless (request()->boolean('solo'))
+            @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'nida'])
+        @endunless
     </div>
 </x-site.borrower-layout>

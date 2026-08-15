@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\LoanApplication;
+use App\Support\MoneyFormat;
 
 /**
  * Screening keys total deposits on the statement; the system derives monthly (canonical)
@@ -30,12 +31,12 @@ class StatementCapacityService
             return null;
         }
 
-        $total = round((float) $raw, 2);
+        $total = round(MoneyFormat::toNumber($raw), 2);
         if ($total <= 0) {
             return null;
         }
 
-        return $this->compute($total, (int) ($incoming['statement_months'] ?? self::DEFAULT_MONTHS));
+        return $this->compute($total, self::DEFAULT_MONTHS);
     }
 
     /**
@@ -130,6 +131,36 @@ class StatementCapacityService
         }
 
         return $this->provenMonthly($application, 'guarantor:'.$linkId);
+    }
+
+    /**
+     * Save-time Gate 2 verdict: statement monthly vs declared profile income.
+     *
+     * @return array{verdict: string, fail_reason_code: ?string, source: string}
+     */
+    public function verdictAgainstDeclared(float $monthly, ?Customer $customer): array
+    {
+        $declared = $customer instanceof Customer ? $this->declaredMonthly($customer) : 0.0;
+        if ($declared <= 0) {
+            return [
+                'verdict' => 'fail',
+                'fail_reason_code' => 'income_insufficient',
+                'source' => 'system',
+            ];
+        }
+        if ($monthly >= $declared) {
+            return [
+                'verdict' => 'pass',
+                'fail_reason_code' => null,
+                'source' => 'system',
+            ];
+        }
+
+        return [
+            'verdict' => 'fail',
+            'fail_reason_code' => 'revenue_mismatch',
+            'source' => 'system',
+        ];
     }
 
     /**

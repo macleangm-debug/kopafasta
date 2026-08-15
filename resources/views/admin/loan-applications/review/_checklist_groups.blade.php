@@ -40,16 +40,7 @@
                     x-data="{
                         verdict: @js($item['verdict'] ?? ''),
                         reason: @js($item['fail_reason_code'] ?? ''),
-                        needsStatementTotals: {{ ! empty($item['captures_statement']) ? 'true' : 'false' }},
-                        deposits: {{ (float) ($item['statement_deposits_total'] ?? 0) }},
-                        months: {{ (int) ($item['statement_months'] ?? 6) }},
-                        get monthly() {
-                            const months = Number(this.months) || 0;
-                            const deposits = Number(this.deposits) || 0;
-                            return months > 0 ? deposits / months : 0;
-                        },
-                        get weekly() { return this.monthly * 12 / 52 },
-                        money(n) { return Math.round(Number(n) || 0).toLocaleString() }
+                        needsStatementTotals: {{ ! empty($item['captures_statement']) ? 'true' : 'false' }}
                     }">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <button type="button" class="text-left min-w-0 flex-1" @click="toggleItem(@js($itemKey))">
@@ -92,24 +83,34 @@
                             @endif
                         </button>
                         <div class="flex flex-wrap gap-1.5 shrink-0">
-                            <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
-                                   :class="verdict === 'pass' ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-white text-gray-600 ring-gray-200'">
-                                <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="pass"
-                                       x-model="verdict" @change="openItem = @js($itemKey)">
-                                Pass ✓
-                            </label>
-                            <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
-                                   :class="verdict === 'fail' ? 'bg-rose-50 text-rose-900 ring-rose-200' : 'bg-white text-gray-600 ring-gray-200'">
-                                <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="fail"
-                                       x-model="verdict" @change="openItem = @js($itemKey)">
-                                Fail ✗
-                            </label>
-                            <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
-                                   :class="verdict === 'na' ? 'bg-sky-100 text-sky-900 ring-sky-300 shadow-sm' : 'bg-white text-gray-600 ring-gray-200'">
-                                <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="na"
-                                       x-model="verdict" @change="openItem = @js($itemKey)">
-                                N/A
-                            </label>
+                            @if (! empty($item['captures_statement']))
+                                @if (($item['verdict'] ?? '') === 'pass')
+                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200">Pass ✓</span>
+                                @elseif (($item['verdict'] ?? '') === 'fail')
+                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-rose-50 text-rose-900 ring-1 ring-rose-200">Fail ✗</span>
+                                @elseif (($item['verdict'] ?? '') === 'na')
+                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-sky-100 text-sky-900 ring-1 ring-sky-300">N/A</span>
+                                @endif
+                            @else
+                                <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
+                                       :class="verdict === 'pass' ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-white text-gray-600 ring-gray-200'">
+                                    <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="pass"
+                                           x-model="verdict" @change="openItem = @js($itemKey)">
+                                    Pass ✓
+                                </label>
+                                <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
+                                       :class="verdict === 'fail' ? 'bg-rose-50 text-rose-900 ring-rose-200' : 'bg-white text-gray-600 ring-gray-200'">
+                                    <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="fail"
+                                           x-model="verdict" @change="openItem = @js($itemKey)">
+                                    Fail ✗
+                                </label>
+                                <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
+                                       :class="verdict === 'na' ? 'bg-sky-100 text-sky-900 ring-sky-300 shadow-sm' : 'bg-white text-gray-600 ring-gray-200'">
+                                    <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="na"
+                                           x-model="verdict" @change="openItem = @js($itemKey)">
+                                    N/A
+                                </label>
+                            @endif
                         </div>
                     </div>
 
@@ -283,53 +284,40 @@
                         @endif
 
                         @if (! empty($item['captures_statement']) && empty($item['auto_na']))
-                            <div class="rounded-xl ring-1 ring-brand/15 bg-brand-muted/30 p-3.5 space-y-3">
-                                <div>
-                                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Statement totals</p>
-                                    <p class="text-[11px] text-gray-600 mt-0.5">
-                                        Add up all credits / deposits on the statement. The system divides by the months covered — monthly is used for capacity; weekly is shown for weekly products.
-                                    </p>
-                                </div>
-                                <div class="grid sm:grid-cols-2 gap-3">
-                                    <label class="block">
-                                        <span class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Total deposits (TZS)</span>
-                                        <input type="number" min="0" step="1000"
-                                               name="{{ $fieldBase }}[statement_deposits_total]"
-                                               x-model.number="deposits"
-                                               @if (! $canEdit) disabled @endif
-                                               placeholder="e.g. 6,000,000"
-                                               class="mt-1 w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2 focus:ring-2 focus:ring-brand/30">
-                                    </label>
-                                    <label class="block">
-                                        <span class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Period covered</span>
-                                        <select name="{{ $fieldBase }}[statement_months]"
-                                                x-model.number="months"
-                                                @if (! $canEdit) disabled @endif
-                                                class="mt-1 w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2 focus:ring-2 focus:ring-brand/30">
-                                            <option value="3">3 months</option>
-                                            <option value="6">6 months</option>
-                                            <option value="12">12 months</option>
-                                        </select>
-                                    </label>
-                                </div>
-                                <div class="grid sm:grid-cols-3 gap-2">
-                                    <div class="rounded-lg bg-white ring-1 ring-brand/10 px-3 py-2">
-                                        <p class="text-[10px] uppercase tracking-widest text-gray-500">≈ per month</p>
-                                        <p class="text-sm font-bold text-gray-900 mt-0.5 tabular-nums" x-text="money(monthly)"></p>
-                                    </div>
-                                    <div class="rounded-lg bg-white ring-1 ring-brand/10 px-3 py-2">
-                                        <p class="text-[10px] uppercase tracking-widest text-gray-500">≈ per week</p>
-                                        <p class="text-sm font-bold text-gray-900 mt-0.5 tabular-nums" x-text="money(weekly)"></p>
-                                    </div>
-                                    <div class="rounded-lg bg-white ring-1 ring-brand/10 px-3 py-2">
-                                        <p class="text-[10px] uppercase tracking-widest text-gray-500">Max repayment (1/3)</p>
-                                        <p class="text-sm font-bold text-brand mt-0.5 tabular-nums" x-text="money(monthly * {{ (float) app(\App\Services\CountryCreditSettingsService::class)->repaymentRatio() }})"></p>
-                                    </div>
-                                </div>
-                                <p class="text-[11px] text-brand/80">Required to Pass this item. Capacity and any counter-offer use one-third of this monthly average (minus existing instalments) — not the full deposit total.</p>
-                            </div>
+            <div class="rounded-xl ring-1 ring-brand/15 bg-brand-muted/30 p-3.5 space-y-3">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Statement totals</p>
+                    <p class="text-[11px] text-gray-600 mt-0.5">
+                        Confirm the statement covers at least 6 months, then enter total deposits and Save. The system decides pass or fail. Period is always 6 months.
+                    </p>
+                </div>
+                <input type="hidden" name="{{ $fieldBase }}[statement_months]" value="6">
+                <label class="block">
+                    <span class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Total deposits (TZS) · 6 months</span>
+                    <input type="text"
+                           inputmode="decimal"
+                           autocomplete="off"
+                           name="{{ $fieldBase }}[statement_deposits_total]"
+                           value="{{ \App\Support\MoneyFormat::forInput($item['statement_deposits_total'] ?? null) }}"
+                           data-money-input="0"
+                           @if (! $canEdit) disabled @endif
+                           placeholder="e.g. 6,000,000"
+                           class="mt-1 w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2 focus:ring-2 focus:ring-brand/30">
+                </label>
+                <p class="text-[11px] text-gray-600">
+                    If this statement covers less than 6 months, do not enter deposits. Request a new 6-month statement instead.
+                </p>
+                @if ($canEdit)
+                    <button type="button"
+                            @click="window.dispatchEvent(new CustomEvent('kf-open-doc-composer', { detail: { labels: ['Updated Bank Statement'] } })); $nextTick(() => document.getElementById('request-more-documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))"
+                            class="inline-flex items-center rounded-lg bg-white text-brand text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-brand/20 hover:bg-brand-muted/40">
+                        Statement is shorter than 6 months — request a new file
+                    </button>
+                @endif
+            </div>
                         @endif
 
+                        @if (empty($item['captures_statement']))
                         <div x-show="verdict === 'fail'" x-cloak class="rounded-xl bg-rose-50/80 ring-1 ring-rose-100 p-3 space-y-2">
                             @if (($item['risk'] ?? '') === 'critical' || ($item['gate'] ?? null) === 'statements_vs_declared')
                                 <div class="rounded-lg bg-rose-100 ring-1 ring-rose-200 px-3 py-2">
@@ -354,6 +342,7 @@
                                       class="w-full rounded-lg border-rose-200 text-sm"
                                       placeholder="Explain the fail reason…">{{ $item['fail_reason_custom'] ?? '' }}</textarea>
                         </div>
+                        @endif
 
                         @if ($item['verdict'] === 'fail' && ($item['fail_reason_label'] ?? null))
                             <p class="text-[11px] text-rose-800 font-medium">Recorded: {{ $item['fail_reason_label'] }}</p>

@@ -429,10 +429,21 @@ class ScreeningChecklistService
             $items = $existing;
 
             foreach ($validKeys as $key) {
-                $incoming = (array) ($checks[$key] ?? []);
+                $incoming = $this->applyGate2AutoVerdict(
+                    $key,
+                    (array) ($checks[$key] ?? []),
+                    $application,
+                    $person,
+                    $guarantorLinkId,
+                    $memberId,
+                );
                 $verdict = $this->normalizeVerdict($incoming + ['checked' => $incoming['checked'] ?? null]);
 
                 if ($verdict === null && array_key_exists($key, $checks) && ($incoming['verdict'] ?? '') === '') {
+                    // Gate 2 posts months even when deposits are blank — keep a prior system verdict.
+                    if ($key === StatementCapacityService::CHECKLIST_KEY) {
+                        continue;
+                    }
                     unset($items[$key]);
                     continue;
                 }
@@ -452,14 +463,18 @@ class ScreeningChecklistService
                     if ($code === 'custom' && $custom === '') {
                         throw new \InvalidArgumentException("Write a custom fail reason for {$key}.");
                     }
-                    $items[$key] = $this->mergeStatementCapture($key, [
+                    $failEntry = [
                         'verdict' => 'fail',
                         'checked' => false,
                         'fail_reason_code' => $code,
                         'fail_reason_custom' => $code === 'custom' ? $custom : null,
                         'at' => now()->toIso8601String(),
                         'by' => $actor->id,
-                    ], $incoming, (array) ($items[$key] ?? []), $verdict);
+                    ];
+                    if (($incoming['source'] ?? '') === 'system') {
+                        $failEntry['source'] = 'system';
+                    }
+                    $items[$key] = $this->mergeStatementCapture($key, $failEntry, $incoming, (array) ($items[$key] ?? []), $verdict);
                 } else {
                     $entry = [
                         'verdict' => $verdict,
@@ -472,6 +487,9 @@ class ScreeningChecklistService
                     // Tag auto N/A on collateral when the loan is not on an asset path.
                     if (str_starts_with($key, 'collateral.') && $verdict === 'na' && ! $this->collateralReviewApplies($application)) {
                         $entry['source'] = 'auto_na';
+                    }
+                    if (($incoming['source'] ?? '') === 'system') {
+                        $entry['source'] = 'system';
                     }
                     $items[$key] = $this->mergeStatementCapture(
                         $key,
@@ -738,6 +756,10 @@ class ScreeningChecklistService
         if ($suggestion === null) {
             return $row;
         }
+        // Save-time Gate 2 totals are the source of truth — keep the recorded system verdict.
+        if ((float) ($row['statement_monthly'] ?? 0) > 0 && $this->normalizeVerdict($row) !== null) {
+            return $row;
+        }
         $source = (string) ($suggestion['source'] ?? '');
         $existing = $this->normalizeVerdict($row);
         $existingSource = (string) ($row['source'] ?? '');
@@ -889,12 +911,19 @@ class ScreeningChecklistService
         $autoSources = ['system', 'auto_na', 'documents'];
 
         foreach ($validKeys as $key) {
+            $current = (array) ($items[$key] ?? []);
+            // Save-time Gate 2 totals are the source of truth — do not let pre-save chips overwrite.
+            if ($key === StatementCapacityService::CHECKLIST_KEY
+                && (float) ($current['statement_monthly'] ?? 0) > 0
+                && $this->normalizeVerdict($current) !== null) {
+                continue;
+            }
+
             $suggestion = $suggestions[$key] ?? null;
             if ($suggestion === null) {
                 continue;
             }
 
-            $current = (array) ($items[$key] ?? []);
             $existing = $this->normalizeVerdict($current);
             $existingSource = (string) ($current['source'] ?? '');
             $suggestionSource = (string) ($suggestion['source'] ?? '');
@@ -1043,6 +1072,36 @@ class ScreeningChecklistService
         }
 
         return $reasons[$code] ?? (string) $code;
+    }
+
+    /**
+     * When screening keys deposits + months, the system sets Gate 2 pass/fail.
+     *
+     * @param  array<string, mixed>  $incoming
+     * @return array<string, mixed>
+     */
+    private function applyGate2AutoVerdict(
+        string $key,
+        array $incoming,
+        LoanApplication $application,
+        string $person,
+        ?int $guarantorLinkId,
+        ?int $memberId,
+    ): array {
+        if ($key !== StatementCapacityService::CHECKLIST_KEY) {
+            return $incoming;
+        }
+
+        $capacity = app(StatementCapacityService::class);
+        $capture = $capacity->fromIncoming($incoming);
+        if ($capture === null) {
+            return $incoming;
+        }
+
+        $customer = $this->resolveSubjectCustomer($application, $person, $guarantorLinkId, $memberId);
+        $auto = $capacity->verdictAgainstDeclared((float) $capture['statement_monthly'], $customer);
+
+        return array_merge($incoming, $auto);
     }
 
     /**

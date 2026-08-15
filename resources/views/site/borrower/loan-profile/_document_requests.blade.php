@@ -12,6 +12,19 @@
     $customer = $profile['customer'] ?? $application->customer ?? auth()->user()?->customer;
     $docSvc = app(\App\Services\ApplicationDocumentRequestService::class);
     $defaultTab = $openDocCount > 0 ? 'requested' : 'submitted';
+    $focusRequestId = (int) request('doc');
+    $focusedOnly = false;
+    $otherOpenCount = 0;
+    if ($focusRequestId > 0) {
+        $focused = $actionDocs->first(fn ($r) => (int) $r->id === $focusRequestId);
+        if ($focused) {
+            $otherOpenCount = $actionDocs->count() - 1;
+            $actionDocs = collect([$focused]);
+            $openDocCount = 1;
+            $focusedOnly = true;
+            $defaultTab = 'requested';
+        }
+    }
     $savedCollateral = collect();
     $collateralAvailabilities = collect();
     if ($customer) {
@@ -39,6 +52,7 @@
          class="mb-6"
          x-data="{ tab: @js($defaultTab) }">
         {{-- Segmented control: action vs receipt --}}
+        @unless ($focusedOnly)
         <div class="mb-4 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-brand/10"
              role="tablist"
              aria-label="{{ __('borrower.loan_profile.documents_tabs_nav') }}">
@@ -77,9 +91,11 @@
                 </button>
             </div>
         </div>
+        @endunless
 
         {{-- REQUESTED: do this now --}}
         <div x-show="tab === 'requested'" x-cloak x-transition.opacity.duration.180ms role="tabpanel" class="space-y-3">
+            @unless ($focusedOnly)
             <div class="rounded-2xl bg-gradient-to-br from-amber-50 via-white to-white px-4 py-3.5 ring-1 ring-amber-200/80 sm:px-5">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="min-w-0">
@@ -110,6 +126,15 @@
                     @endif
                 </div>
             </div>
+            @endunless
+
+            @if ($focusedOnly && $otherOpenCount > 0)
+                <p class="text-xs text-gray-500">
+                    <a href="{{ route('site.borrower.application', $application) }}#documents" class="font-semibold text-brand hover:underline">
+                        {{ __('borrower.loan_profile.documents_view_all_requested') }}
+                    </a>
+                </p>
+            @endif
 
             @if ($actionDocs->isEmpty())
                 <div class="rounded-2xl bg-white px-5 py-8 text-center ring-1 ring-brand/10">
@@ -251,6 +276,7 @@
             @endif
         </div>
 
+        @unless ($focusedOnly)
         {{-- SUBMITTED: quiet receipt --}}
         <div x-show="tab === 'submitted'" x-cloak x-transition.opacity.duration.180ms role="tabpanel">
             <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
@@ -317,5 +343,6 @@
                 @endif
             </div>
         </div>
+        @endunless
     </div>
 @endif

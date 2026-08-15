@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\AffordabilityService;
 use App\Services\ApplicationOfferService;
 use App\Services\ScreeningChecklistService;
+use App\Services\StatementCapacityService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -133,5 +134,58 @@ class StatementCapacityFeatureTest extends TestCase
         $this->assertSame('counter', $saved->recommendation_type);
         $this->assertEquals($system['amount'], (float) $saved->recommended_amount);
         $this->assertNotEquals(4_000_000, (float) $saved->recommended_amount);
+    }
+
+    public function test_from_incoming_parses_comma_formatted_deposits(): void
+    {
+        $capture = app(StatementCapacityService::class)->fromIncoming([
+            'statement_deposits_total' => '6,000,000',
+            'statement_months' => 6,
+        ]);
+
+        $this->assertNotNull($capture);
+        $this->assertEquals(6_000_000, $capture['statement_deposits_total']);
+        $this->assertSame(6, $capture['statement_months']);
+        $this->assertEquals(1_000_000, $capture['statement_monthly']);
+    }
+
+    public function test_from_incoming_always_uses_six_months(): void
+    {
+        $capture = app(StatementCapacityService::class)->fromIncoming([
+            'statement_deposits_total' => '3,000,000',
+            'statement_months' => 3,
+        ]);
+
+        $this->assertNotNull($capture);
+        $this->assertSame(6, $capture['statement_months']);
+        $this->assertEquals(500_000, $capture['statement_monthly']);
+    }
+
+    public function test_verdict_against_declared_pass_and_fail(): void
+    {
+        $capacity = app(StatementCapacityService::class);
+        $customer = Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-ST-VD-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Verdict',
+            'last_name' => 'Borrower',
+            'phone' => '25571'.random_int(1000000, 9999999),
+            'monthly_income' => 1_000_000,
+        ]);
+
+        $pass = $capacity->verdictAgainstDeclared(1_000_000, $customer);
+        $this->assertSame('pass', $pass['verdict']);
+        $this->assertNull($pass['fail_reason_code']);
+
+        $fail = $capacity->verdictAgainstDeclared(200_000, $customer);
+        $this->assertSame('fail', $fail['verdict']);
+        $this->assertSame('revenue_mismatch', $fail['fail_reason_code']);
+
+        $customer->update(['monthly_income' => 0]);
+        $noDeclared = $capacity->verdictAgainstDeclared(1_000_000, $customer->fresh());
+        $this->assertSame('fail', $noDeclared['verdict']);
+        $this->assertSame('income_insufficient', $noDeclared['fail_reason_code']);
     }
 }

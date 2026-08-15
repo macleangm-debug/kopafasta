@@ -63,7 +63,7 @@
             @endphp
             <x-site.profile-section-card
                 :section-id="'doc-type-'.$type->id"
-                :title="$type->name"
+                :title="$type->localizedName()"
                 :complete="$hasUpload && in_array($latest?->status, ['verified', 'approved'], true)"
                 :stale="$documentsStale && $hasUpload"
                 :empty="! $hasUpload"
@@ -82,7 +82,7 @@
                                 @endphp
                                 <li class="flex items-center justify-between gap-3 text-sm">
                                     <div class="min-w-0">
-                                        <p class="font-medium truncate">{{ $doc->documentType->name ?? $type->name }}</p>
+                                        <p class="font-medium truncate">{{ $doc->displayName() }}</p>
                                         <p class="text-xs text-gray-500">{{ optional($doc->created_at)->format('d M Y') }}</p>
                                     </div>
                                     <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $color }}">{{ ucfirst($doc->status) }}</span>

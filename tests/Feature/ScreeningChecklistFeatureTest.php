@@ -85,6 +85,10 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('Compare NIDA number to date of birth', $html);
         $this->assertStringContainsString('Pass ✓', $html);
         $this->assertStringContainsString('Fail ✗', $html);
+        $this->assertStringContainsString('data-money-input', $html);
+        $this->assertStringContainsString('items[activity_income][income_evidence][statement_deposits_total]', $html);
+        $this->assertStringNotContainsString('items[activity_income][income_evidence][verdict]', $html);
+        $this->assertStringContainsString('The system decides pass or fail', $html);
         $this->assertStringNotContainsString('tab=checklist', $html);
     }
 
@@ -125,6 +129,7 @@ class ScreeningChecklistFeatureTest extends TestCase
     {
         $admin = $this->staff();
         $app = $this->application($admin);
+        $app->customer->update(['monthly_income' => 2_000_000]);
 
         $response = $this->actingAs($admin, 'admin')
             ->post(route('admin.loan-applications.screening-checklist', $app), [
@@ -132,8 +137,8 @@ class ScreeningChecklistFeatureTest extends TestCase
                 'items' => [
                     'activity_income' => [
                         'income_evidence' => [
-                            'verdict' => 'fail',
-                            'fail_reason_code' => 'revenue_mismatch',
+                            'statement_deposits_total' => 600_000,
+                            'statement_months' => 6,
                         ],
                     ],
                 ],
@@ -143,6 +148,12 @@ class ScreeningChecklistFeatureTest extends TestCase
         $response->assertSessionHas('checklist_reject_codes');
 
         $app->refresh();
+        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $item = $items['activity_income.income_evidence'] ?? [];
+        $this->assertSame('fail', $item['verdict'] ?? null);
+        $this->assertSame('revenue_mismatch', $item['fail_reason_code'] ?? null);
+        $this->assertSame('system', $item['source'] ?? null);
+
         $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($app);
         $this->assertTrue($suggestion['prompt_reject']);
         $this->assertContains('insufficient_income', $suggestion['codes']);
@@ -321,6 +332,7 @@ class ScreeningChecklistFeatureTest extends TestCase
     {
         $admin = $this->staff();
         $app = $this->application($admin);
+        $app->customer->update(['monthly_income' => 1_000_000]);
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.loan-applications.screening-checklist', $app), [
@@ -346,5 +358,90 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertSame(6, (int) ($item['statement_months'] ?? 0));
         $this->assertEquals(1_000_000, (float) ($item['statement_monthly'] ?? 0));
         $this->assertEquals(round(1_000_000 * 12 / 52, 2), (float) ($item['statement_weekly'] ?? 0));
+    }
+
+    public function test_gate2_parses_comma_formatted_deposits(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $app->customer->update(['monthly_income' => 1_000_000]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'income_evidence' => [
+                            'statement_deposits_total' => '6,000,000',
+                            'statement_months' => 6,
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionMissing('error');
+
+        $app->refresh();
+        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $item = $items['activity_income.income_evidence'] ?? [];
+        $this->assertSame('pass', $item['verdict'] ?? null);
+        $this->assertEquals(6_000_000, (float) ($item['statement_deposits_total'] ?? 0));
+        $this->assertEquals(1_000_000, (float) ($item['statement_monthly'] ?? 0));
+        $this->assertSame('system', $item['source'] ?? null);
+    }
+
+    public function test_gate2_save_without_verdict_auto_passes_when_monthly_covers_declared(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $app->customer->update(['monthly_income' => 1_000_000]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'income_evidence' => [
+                            'statement_deposits_total' => 6_000_000,
+                            'statement_months' => 6,
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionMissing('error');
+
+        $app->refresh();
+        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $item = $items['activity_income.income_evidence'] ?? [];
+        $this->assertSame('pass', $item['verdict'] ?? null);
+        $this->assertSame('system', $item['source'] ?? null);
+        $this->assertNull($item['fail_reason_code'] ?? null);
+    }
+
+    public function test_gate2_explicit_fail_without_deposits_still_works(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'income_evidence' => [
+                            'verdict' => 'fail',
+                            'fail_reason_code' => 'statements_missing',
+                        ],
+                    ],
+                ],
+            ]);
+        $response->assertRedirect();
+        $this->assertStringContainsString('open_reject=1', $response->headers->get('Location'));
+
+        $items = data_get($app->fresh()->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $item = $items['activity_income.income_evidence'] ?? [];
+        $this->assertSame('fail', $item['verdict'] ?? null);
+        $this->assertSame('statements_missing', $item['fail_reason_code'] ?? null);
     }
 }

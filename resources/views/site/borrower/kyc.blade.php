@@ -75,7 +75,7 @@
                     @foreach ($missingList as $m)
                         <li class="flex items-start gap-1.5">
                             <span class="mt-1 inline-block w-1.5 h-1.5 rounded-full {{ $statusColor['bar'] }}"></span>
-                            <span>{{ $m->name }}</span>
+                            <span>{{ $m->localizedName() }}</span>
                         </li>
                     @endforeach
                 </ul>
@@ -99,7 +99,7 @@
                 <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                     <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-2">
                         <div class="min-w-0">
-                            <p class="font-semibold text-gray-900">{{ $type->name }}</p>
+                            <p class="font-semibold text-gray-900">{{ $type->localizedName() }}</p>
                             @if (!empty($type->code))
                                 <p class="text-xs text-gray-500 font-mono">{{ $type->code }}</p>
                             @endif

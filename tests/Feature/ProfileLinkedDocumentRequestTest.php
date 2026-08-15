@@ -447,6 +447,7 @@ class ProfileLinkedDocumentRequestTest extends TestCase
         $this->assertFalse($service->isProfileGuidedRequest($invoice->fresh()));
 
         $this->assertStringContainsString('focus=verification', $service->borrowerActionUrl($residence->fresh()));
+        $this->assertStringContainsString('solo=1', $service->borrowerActionUrl($residence->fresh()));
         $this->assertStringContainsString('profile-residence-verification', $service->borrowerActionUrl($residence->fresh()));
         $this->assertStringContainsString('focus=additional', $service->borrowerActionUrl($business->fresh()));
         $this->assertStringContainsString('doc=business_registration', $service->borrowerActionUrl($business->fresh()));
@@ -465,5 +466,144 @@ class ProfileLinkedDocumentRequestTest extends TestCase
             'document_type_id' => $businessType->id,
             'status' => 'pending_review',
         ]);
+    }
+
+    public function test_notification_opens_loan_then_profile_cta_is_the_exact_card(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = LoanProduct::create([
+            'code' => 'IL-NOTIF',
+            'name' => 'Installment',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 24,
+        ]);
+        $user = User::factory()->create(['role' => 'borrower']);
+        $customer = Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-DOC-NOTIF',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Rogathe',
+            'last_name' => 'Nyelle',
+            'phone' => '255712340099',
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-DOC-NOTIF',
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 500_000,
+            'requested_tenure_months' => 3,
+        ]);
+
+        $service = app(ApplicationDocumentRequestService::class);
+        $request = $service->create($application, $admin, 'Bank statement (last 6 months)');
+
+        $notifyUrl = $service->borrowerNotificationUrl($request->fresh());
+        $this->assertStringContainsString('/applications/'.$application->id, $notifyUrl);
+        $this->assertStringContainsString('doc='.$request->id, $notifyUrl);
+        $this->assertStringContainsString('#request-'.$request->id, $notifyUrl);
+        $this->assertStringNotContainsString('/borrower/profile', $notifyUrl);
+
+        $cardUrl = $service->borrowerActionUrl($request->fresh());
+        $this->assertStringContainsString('focus=income', $cardUrl);
+        $this->assertStringContainsString('solo=1', $cardUrl);
+        $this->assertStringContainsString('profile-income-statement', $cardUrl);
+
+        $this->assertEquals(1, \App\Models\NotificationLog::query()
+            ->where('customer_id', $customer->id)
+            ->where('channel', 'in_app')
+            ->where('template', 'application_document_request')
+            ->count());
+        $this->assertEquals(0, \App\Models\NotificationLog::query()
+            ->where('customer_id', $customer->id)
+            ->where('template', 'profile_revision_requested')
+            ->count());
+    }
+
+    public function test_every_profile_kind_opens_loan_then_the_exact_solo_card(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = LoanProduct::create([
+            'code' => 'IL-SOLO',
+            'name' => 'Installment',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 24,
+        ]);
+        $customer = Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-DOC-SOLO',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Solo',
+            'last_name' => 'Card',
+            'phone' => '255712340077',
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-DOC-SOLO',
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 500_000,
+            'requested_tenure_months' => 3,
+        ]);
+
+        $service = app(ApplicationDocumentRequestService::class);
+
+        $cases = [
+            ['Updated Bank Statement', 'income', 'focus=income', 'profile-income-statement'],
+            ['Updated Mobile Money Statement', 'income', 'focus=income', 'profile-income-statement'],
+            ['Latest salary slip', 'income', 'focus=income', 'profile-income-statement'],
+            ['New face verification photo', 'face', 'focus=face', 'profile-face'],
+            ['Identity verification photo', 'face', 'focus=face', 'profile-face'],
+            ['Image Not Clear', 'face', 'focus=face', 'profile-face'],
+            ['Updated National ID', 'identity', 'focus=id_images', 'profile-id-images'],
+            ['New National ID photo', 'identity', 'focus=id_images', 'profile-id-images'],
+            ['Signature Not Visible', 'signature', 'focus=signature', 'profile-signature'],
+            ['Guarantor residence letter', 'residence', 'focus=verification', 'profile-residence-verification'],
+            ['Business Registration Document', 'business', 'focus=additional', 'profile-additional-documents'],
+            ['Business Photos', 'business', 'focus=additional', 'profile-additional-documents'],
+            ['New Asset Photo', 'collateral', '/profile/assets', 'solo=1'],
+            ['New collateral photo', 'collateral', '/profile/assets', 'solo=1'],
+            ['Supplier Invoices', 'document', '/applications/'.$application->id, '#request-'],
+        ];
+
+        foreach ($cases as [$label, $kind, $needle, $needle2]) {
+            $request = \App\Models\LoanApplicationDocumentRequest::create([
+                'loan_application_id' => $application->id,
+                'requested_by' => $admin->id,
+                'type' => 'document',
+                'label' => $label,
+                'status' => 'pending',
+                'subject_kind' => 'borrower',
+                'subject_customer_id' => $customer->id,
+            ]);
+            $request->setRelation('application', $application);
+
+            $this->assertSame($kind, $service->borrowerActionKind($request), $label);
+            $this->assertSame($kind !== 'document', $service->isProfileGuidedRequest($request), $label);
+
+            $notifyUrl = $service->borrowerNotificationUrl($request);
+            $this->assertStringContainsString('/applications/'.$application->id, $notifyUrl, $label);
+            $this->assertStringContainsString('doc='.$request->id, $notifyUrl, $label);
+            $this->assertStringNotContainsString('/borrower/profile', $notifyUrl, $label);
+
+            $cardUrl = $service->borrowerActionUrl($request);
+            $this->assertStringContainsString($needle, $cardUrl, $label);
+            $this->assertStringContainsString($needle2, $cardUrl, $label);
+            if ($kind !== 'document') {
+                $this->assertStringContainsString('solo=1', $cardUrl, $label);
+            }
+        }
     }
 }

@@ -246,8 +246,7 @@
 
 @if ($canRequestDocs)
     @php
-        $composerStartsOpen = $openRequestCount === 0
-            || $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject']);
+        $composerStartsOpen = $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject']);
     @endphp
     <section id="request-more-documents" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" x-data="{
         open: {{ $composerStartsOpen ? 'true' : 'false' }},
@@ -259,9 +258,9 @@
                 });
             });
         }
-    }" @kf-open-doc-composer.window="open = true">
+    }" @kf-open-doc-composer.window="open = true; if ($event.detail?.labels) applyPack($event.detail.labels)">
         <div class="px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-            <div>
+            <div x-show="open" x-cloak>
                 <h2 class="text-sm font-semibold text-gray-900">Request documents</h2>
                 <p class="text-xs text-gray-500 mt-0.5">
                     Send a pack to the person on this screen. They are notified.
@@ -270,7 +269,11 @@
                     @endif
                 </p>
             </div>
-            <div class="flex flex-wrap gap-1.5">
+            <div x-show="!open">
+                <p class="text-sm font-semibold text-gray-900 sr-only">Request documents</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5 ml-auto">
+                <div x-show="open" x-cloak class="flex flex-wrap gap-1.5">
                 <button type="button" @click="applyPack(['Updated National ID', 'New National ID photo', 'New face verification photo', 'Image Not Clear'])"
                         class="rounded-lg bg-sky-50 text-sky-900 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-sky-100">ID pack</button>
                 <button type="button" @click="applyPack(['Updated Bank Statement'])"
@@ -279,10 +282,11 @@
                         class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Mobile money</button>
                 <button type="button" @click="applyPack(['Guarantor residence letter'])"
                         class="rounded-lg bg-emerald-50 text-emerald-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-emerald-100">Residence pack</button>
+                </div>
                 <button type="button"
                         @click="open = !open"
                         class="inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand-gold hover:brightness-95 px-2.5 py-1.5 rounded-lg">
-                    <span x-text="open ? 'Hide' : 'Custom'"></span>
+                    <span x-text="open ? 'Hide' : 'Request documents'"></span>
                 </button>
             </div>
         </div>

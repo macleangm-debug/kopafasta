@@ -222,6 +222,38 @@
         ];
     })->values();
 
+    $isIncomeAlternative = function ($req): bool {
+        $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
+        if (str_contains($hay, 'salary') || str_contains($hay, 'payslip') || str_contains($hay, 'employment contract')) {
+            return false;
+        }
+
+        return str_contains($hay, 'bank statement')
+            || str_contains($hay, 'mobile money')
+            || str_contains($hay, 'mpesa')
+            || str_contains($hay, 'income verification')
+            || str_contains($hay, 'income proof')
+            || str_contains($hay, 'source of income')
+            || str_contains($hay, 'proof of income');
+    };
+    $incomeAltRows = $rows->filter(fn ($row) => $isIncomeAlternative($row['req']));
+    if ($incomeAltRows->count() > 1) {
+        $priority = ['verified' => 0, 'uploaded' => 1, 'rejected' => 2, 'missing' => 3, 'optional' => 4];
+        $best = $incomeAltRows->sortBy(fn ($row) => $priority[$row['bucket']] ?? 9)->first();
+        $keepId = $best['req']->id;
+        $rows = $rows
+            ->reject(fn ($row) => $isIncomeAlternative($row['req']) && (int) $row['req']->id !== (int) $keepId)
+            ->map(function ($row) use ($keepId) {
+                if ((int) $row['req']->id !== (int) $keepId) {
+                    return $row;
+                }
+                $row['display_name'] = 'Income proof (bank or mobile money, 6 months)';
+
+                return $row;
+            })
+            ->values();
+    }
+
     $missingRows = $rows->where('bucket', 'missing')->values();
     $verifyRows = $rows->where('bucket', 'uploaded')->values();
     $rejectedRows = $rows->where('bucket', 'rejected')->values();
@@ -387,22 +419,7 @@
             </div>
         </div>
 
-        {{-- Always-visible document requests strip --}}
-        @if ($openRequestCount > 0)
-            <div class="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-brand-gold/25 via-amber-50 to-white border-b border-brand-gold/40 flex flex-wrap items-center justify-between gap-2">
-                <p class="text-xs font-bold text-gray-900">
-                    {{ $openRequestCount }} open request{{ $openRequestCount === 1 ? '' : 's' }}
-                    @if ($openRequestPreview->isNotEmpty())
-                        <span class="font-semibold text-gray-600">· {{ $openRequestPreview->first()->label }}</span>
-                    @endif
-                </p>
-                <button type="button"
-                        @click="showRequests()"
-                        class="shrink-0 inline-flex items-center rounded-lg bg-brand text-white text-[11px] font-bold px-3 py-1.5 hover:bg-brand-light">
-                    Open →
-                </button>
-            </div>
-        @endif
+        {{-- Checklist --}}
 
         {{-- Checklist --}}
         <div x-show="panel === 'checklist'" role="tabpanel" class="p-4 sm:p-5 space-y-4">
@@ -472,7 +489,7 @@
                                                     @click="openId = openId === {{ (int) $req->id }} ? null : {{ (int) $req->id }}">
                                                 <div class="min-w-0 flex-1">
                                                     <div class="flex flex-wrap items-center gap-1.5">
-                                                        <p class="text-sm font-semibold text-gray-900 truncate">{{ $req->name }}</p>
+                                                        <p class="text-sm font-semibold text-gray-900 truncate">{{ $row['display_name'] ?? $req->name }}</p>
                                                         <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold {{ $row['badgeMap'] }}">{{ $row['statusLabel'] }}</span>
                                                         @if ($req->is_required)
                                                             <span class="text-[10px] uppercase tracking-widest font-semibold text-gray-400">Req</span>

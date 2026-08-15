@@ -7,9 +7,11 @@ use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\DocumentType;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDocumentRequest;
 use App\Models\LoanApplicationDocumentReview;
 use App\Models\LoanProduct;
 use App\Models\User;
+use App\Services\ApplicationDocumentRequestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -353,5 +355,42 @@ class ApplicationDocumentReviewFeatureTest extends TestCase
             ->where('loan_application_id', $app->id)
             ->where('status', 'verified')
             ->count());
+    }
+
+    public function test_request_again_stores_english_type_name_and_rejected_prefix(): void
+    {
+        $admin = $this->staff();
+        ['app' => $app, 'doc' => $doc] = $this->application($admin);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.documents.reject', [$app, $doc]), [
+                'review_person' => 'borrower',
+                'fail_reason_code' => 'incomplete',
+                'remedy' => 'request_again',
+            ])
+            ->assertRedirect();
+
+        $request = LoanApplicationDocumentRequest::query()
+            ->where('loan_application_id', $app->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($request);
+        $this->assertSame('Bank statement (last 6 months)', $request->label);
+        $this->assertStringStartsWith(
+            ApplicationDocumentRequestService::REJECTED_UPLOAD_PREFIX,
+            (string) $request->instructions
+        );
+        $this->assertStringContainsString('Document incomplete or pages missing', (string) $request->instructions);
+
+        $service = app(ApplicationDocumentRequestService::class);
+        $this->assertSame(
+            'Taarifa ya benki (miezi 6 iliyopita)',
+            $service->localizedLabel((string) $request->label, 'sw')
+        );
+        $this->assertSame(
+            'Upakiaji uliopita ulikataliwa kwa ombi hili: Hati haijakamilika au kurasa zinakosekana',
+            $service->localizedInstructions((string) $request->label, $request->instructions, 'sw')
+        );
     }
 }

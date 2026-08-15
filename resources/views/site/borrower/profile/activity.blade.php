@@ -33,8 +33,14 @@
             <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
         @endif
 
+        @php
+            $solo = request()->boolean('solo') && ! ($wizardMode ?? false);
+            $soloFocus = (string) ($focus ?? request()->query('focus', ''));
+        @endphp
+
         {{-- 1. Activity details --}}
         <x-site.profile-section-card
+            @class(['hidden' => $solo && ! in_array($soloFocus, ['activity', ''], true)])
             section-id="profile-activity"
             icon="💼"
             :title="__('borrower.profile.activity')"
@@ -94,12 +100,18 @@
         </x-site.profile-section-card>
 
         {{-- 2. Account / bank statement (proof of income) --}}
-        @include('site.borrower.profile._income_statement_card')
+        <div @class(['hidden' => $solo && $soloFocus === 'additional'])>
+            @include('site.borrower.profile._income_statement_card')
+        </div>
 
         {{-- 3. Additional documents (type dropdown → attach) --}}
-        @include('site.borrower.profile._additional_documents_card')
+        <div @class(['hidden' => $solo && in_array($soloFocus, ['income', 'statement', 'documents'], true)])>
+            @include('site.borrower.profile._additional_documents_card')
+        </div>
 
-        @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'activity'])
+        @unless (request()->boolean('solo'))
+            @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'activity'])
+        @endunless
     </div>
 
     @stack('scripts')

@@ -72,8 +72,7 @@ class NotificationCtaService
             'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
             'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
             'membership_issued', 'membership_renewed' => __('borrower.membership.notification_cta'),
-            'document_request', 'document_requests', 'application_document_request', 'application_document_request_reminder_1' => __('borrower.dashboard.document_requests_cta'),
-            'profile_revision_requested' => __('borrower.notifications.profile_revision_cta'),
+            'document_request', 'document_requests', 'application_document_request', 'application_document_request_reminder_1', 'profile_revision_requested' => __('borrower.notifications.document_request_cta'),
             default => __('borrower.notifications.view_application'),
         };
 
@@ -120,6 +119,7 @@ class NotificationCtaService
                 'document_requests',
                 'application_document_request',
                 'application_document_request_reminder_1',
+                'profile_revision_requested',
             ]);
 
         $query->where(function ($q) use ($applicationId, $requestId) {

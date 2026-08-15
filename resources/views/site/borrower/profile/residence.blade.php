@@ -22,6 +22,7 @@
                 && filled($customer->lga_officer_phone);
             $verificationComplete = (! $requiresLetter || $hasLetter) && $hasOfficer;
             $focus = (string) request()->query('focus', '');
+            $solo = request()->boolean('solo') && ! ($wizardMode ?? false);
             $openAddress = ($wizardMode ?? false)
                 || $errors->hasAny(['region', 'district', 'ward', 'street'])
                 || $focus === 'address';
@@ -45,6 +46,7 @@
 
         {{-- Card 1: Address --}}
         <x-site.profile-section-card
+            @class(['hidden' => $solo && $focus === 'verification'])
             section-id="profile-residence-address"
             icon="🏠"
             :title="__('borrower.profile.residence_address_card')"
@@ -101,6 +103,7 @@
         {{-- Card 2: Verification --}}
         <div class="mt-5">
             <x-site.profile-section-card
+                @class(['hidden' => $solo && $focus === 'address'])
                 section-id="profile-residence-verification"
                 icon="✅"
                 :title="__('borrower.profile.residence_verification_section')"
@@ -245,7 +248,9 @@
             </x-site.profile-section-card>
         </div>
 
-        @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'residence'])
+        @unless (request()->boolean('solo'))
+            @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'residence'])
+        @endunless
     </div>
 
     @stack('scripts')

@@ -261,7 +261,7 @@ class ApplicationDocumentReviewService
                 $application,
                 $user,
                 $label,
-                'Previous upload rejected for this application: '.$combinedNotes,
+                ApplicationDocumentRequestService::REJECTED_UPLOAD_PREFIX.$combinedNotes,
                 null,
                 'document',
                 (string) ($subject['subject_kind'] ?? 'borrower'),

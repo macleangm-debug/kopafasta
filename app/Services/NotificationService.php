@@ -153,6 +153,10 @@ class NotificationService
             ));
         }
 
+        if (! empty($vars['_skip_in_app'])) {
+            $allowed = array_values(array_filter($allowed, fn (string $ch) => $ch !== 'in_app'));
+        }
+
         foreach ($allowed as $channel) {
             if ($channel === 'sms' && $customer->phone) {
                 $this->sendSms($customer->phone, $body, $customer, $templateCode);
@@ -179,7 +183,7 @@ class NotificationService
 
         // Critical borrower receipts always land in the in-app inbox even if SMS is the only selected channel.
         $config = $this->messaging->eventConfig($templateCode);
-        if (($config['critical'] ?? false) && ! in_array('in_app', $allowed, true)) {
+        if (($config['critical'] ?? false) && ! in_array('in_app', $allowed, true) && empty($vars['_skip_in_app'])) {
             $this->notifyInApp(
                 $customer,
                 $body,
@@ -221,13 +225,14 @@ class NotificationService
             $payload['user_id'] = $customer->user_id;
         }
 
-        if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null) || isset($i18n['customer_guarantor_id']) || isset($i18n['loan_application_id']) || isset($i18n['due_on']))) {
+        if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null) || isset($i18n['customer_guarantor_id']) || isset($i18n['loan_application_id']) || isset($i18n['loan_application_document_request_id']) || isset($i18n['due_on']))) {
             $payload['meta'] = array_filter([
                 'title_key' => $i18n['title_key'] ?? null,
                 'body_key'  => $i18n['body_key'] ?? null,
                 'params'    => is_array($i18n['params'] ?? null) ? $i18n['params'] : [],
                 'customer_guarantor_id' => $i18n['customer_guarantor_id'] ?? null,
                 'loan_application_id' => $i18n['loan_application_id'] ?? null,
+                'loan_application_document_request_id' => $i18n['loan_application_document_request_id'] ?? null,
                 'due_on' => $i18n['due_on'] ?? null,
             ], static fn ($v) => $v !== null && $v !== []);
         }

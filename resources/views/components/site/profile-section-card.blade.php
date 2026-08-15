@@ -33,7 +33,10 @@
 
 <div
     @if ($sectionId) id="{{ $sectionId }}" @endif
-    class="glass-card scroll-mt-24 {{ ($allowOverflow ?? false) ? 'overflow-visible' : 'overflow-hidden' }}"
+    {{ $attributes->class([
+        'glass-card scroll-mt-24',
+        ($allowOverflow ?? false) ? 'overflow-visible' : 'overflow-hidden',
+    ]) }}
     x-data="profileSectionCard(@js([
         'open' => $startOpen,
         'expanded' => $startExpanded,

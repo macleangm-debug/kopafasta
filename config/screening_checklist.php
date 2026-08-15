@@ -177,7 +177,7 @@ return [
         'phase_label' => '2 · Capacity and evidence',
         'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
-            // Gate 2 (after capacity auto-reject): human must confirm statements support profile revenue.
+            // Gate 2 (after capacity auto-reject): screening keys deposits + months; the system decides pass/fail.
             'income_evidence' => [
                 'label' => 'Match statements to profile revenue — key total deposits',
                 'evidence' => 'income_statements',
