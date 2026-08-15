@@ -26,14 +26,14 @@
     } else {
         $profile = app(\App\Services\ProfileCompletionService::class)->calculate($customer);
         $sections = collect($profile['sections'] ?? [])->keyBy('key');
-        $nidaVerified = app(\App\Services\NidaVerificationService::class)->isVerified($customer);
         $nidaUploaded = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
-        $faceVerified = app(\App\Services\FaceVerificationService::class)->profileStepComplete($customer);
+        $nidaNumberSaved = filled($customer->national_id);
+        $faceComplete = app(\App\Services\FaceVerificationService::class)->profileStepComplete($customer);
         $documentsComplete = app(\App\Services\ProfileCompletionService::class)->isDocumentsComplete($customer);
 
         $steps = [
-            ['key' => 'nida', 'label' => __('borrower.kyc_progress.nida'), 'complete' => $nidaUploaded && $nidaVerified, 'route' => route('site.borrower.profile', ['section' => 'personal'])],
-            ['key' => 'face', 'label' => __('borrower.kyc_progress.face'), 'complete' => $faceVerified, 'route' => route('site.borrower.face-verification')],
+            ['key' => 'nida', 'label' => __('borrower.kyc_progress.nida'), 'complete' => $nidaUploaded && $nidaNumberSaved, 'route' => route('site.borrower.profile', ['section' => 'personal'])],
+            ['key' => 'face', 'label' => __('borrower.kyc_progress.face'), 'complete' => $faceComplete, 'route' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face'],
             ['key' => 'residence', 'label' => __('borrower.profile.residence'), 'complete' => (bool) ($sections['residence']['complete'] ?? false) && (! app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter() || app(\App\Services\ProfileValidationService::class)->hasResidenceLetter($customer)), 'route' => route('site.borrower.profile', ['section' => 'residence'])],
             ['key' => 'activity', 'label' => __('borrower.profile.activity'), 'complete' => (bool) ($sections['activity']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'activity'])],
             ['key' => 'documents', 'label' => __('borrower.profile.documents_proof'), 'complete' => $documentsComplete, 'route' => route('site.borrower.profile', ['section' => 'kyc'])],

@@ -2,6 +2,7 @@
     $optionalItems = collect($incomeProofChecklist ?? [])->where('required', false)->values();
     $uploadedOptional = $optionalItems->filter(fn ($item) => ! empty($item['document']));
     $focusOpen = request()->query('focus') === 'additional'
+        || filled(request()->query('doc'))
         || $errors->hasAny($optionalItems->pluck('key')->all());
     $optionMap = $optionalItems->mapWithKeys(fn ($item) => [$item['key'] => [
         'label' => $item['label'],
@@ -17,7 +18,8 @@
         :title="__('borrower.profile.additional_documents_title')"
         :complete="$uploadedOptional->isNotEmpty()"
         :empty="$uploadedOptional->isEmpty()"
-        :default-open="$focusOpen">
+        :default-open="$focusOpen"
+        :default-edit="$focusOpen">
         <x-slot:view>
             @if ($uploadedOptional->isNotEmpty())
                 <div class="space-y-4">
@@ -48,7 +50,7 @@
                   action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
                   enctype="multipart/form-data"
                   x-data="{
-                      docType: @js(old('additional_document_type', '')),
+                      docType: @js(old('additional_document_type', request()->query('doc', ''))),
                       uploading: false,
                       ready: false,
                       pickerOpen: false,

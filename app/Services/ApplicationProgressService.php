@@ -182,7 +182,7 @@ class ApplicationProgressService
                 'key'        => 'face',
                 'label'      => __('borrower.nida.face_title'),
                 'complete'   => app(ProfileRevisionService::class)->faceStepComplete($customer),
-                'action_url' => route('site.borrower.face-verification'),
+                'action_url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
             ];
         }
 

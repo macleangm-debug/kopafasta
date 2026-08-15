@@ -238,4 +238,120 @@ class ApplicationDocumentReviewFeatureTest extends TestCase
         $this->assertSame('verified', $review->status);
         $this->assertStringContainsString('checklist', (string) ($review->notes ?? ''));
     }
+
+    public function test_verifying_multiple_untyped_member_documents_then_reloading_documents_tab(): void
+    {
+        $admin = $this->staff();
+        $product = LoanProduct::create([
+            'code' => 'GL-VR',
+            'name' => 'Group Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.18,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 1,
+            'tenure_max_months' => 12,
+        ]);
+        $leader = Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-VR-L',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Leader',
+            'last_name' => 'Verify',
+            'phone' => '25571'.random_int(1000000, 9999999),
+            'branch_id' => $admin->branch_id,
+        ]);
+        $member = Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-VR-M',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Member',
+            'last_name' => 'Verify',
+            'phone' => '25571'.random_int(1000000, 9999999),
+            'branch_id' => $admin->branch_id,
+        ]);
+        $app = LoanApplication::create([
+            'customer_id' => $leader->id,
+            'loan_product_id' => $product->id,
+            'branch_id' => $admin->branch_id,
+            'application_number' => 'APP-VR-'.random_int(1000, 9999),
+            'requested_amount' => 900_000,
+            'requested_tenure_months' => 6,
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'submitted_at' => now(),
+        ]);
+        $group = \App\Models\LoanGroup::create([
+            'group_number' => 'GRP-VR-001',
+            'name' => 'Verify Group',
+            'leader_customer_id' => $leader->id,
+            'primary_application_id' => $app->id,
+            'status' => 'active',
+            'target_member_count' => 2,
+        ]);
+        \App\Models\LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $leader->id,
+            'loan_application_id' => $app->id,
+            'role' => 'leader',
+            'requested_amount' => 450_000,
+            'sort_order' => 1,
+            'onboarding_status' => 'complete',
+            'underwriting_status' => 'pending',
+        ]);
+        $memberRow = \App\Models\LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $member->id,
+            'loan_application_id' => $app->id,
+            'role' => 'member',
+            'requested_amount' => 450_000,
+            'sort_order' => 2,
+            'onboarding_status' => 'complete',
+            'underwriting_status' => 'pending',
+        ]);
+        $app->update(['loan_group_id' => $group->id]);
+
+        $docs = collect(range(1, 3))->map(fn (int $i) => CustomerDocument::create([
+            'customer_id' => $member->id,
+            'document_type_id' => null,
+            'file_path' => "documents/member-page-{$i}.jpg",
+            'status' => 'pending_review',
+            'notes' => json_encode(['request_label' => 'Updated Bank Statement']),
+        ]));
+
+        foreach ($docs as $doc) {
+            $this->actingAs($admin, 'admin')
+                ->post(route('admin.loan-applications.documents.verify', [$app, $doc]), [
+                    'review_person' => 'member',
+                ])
+                ->assertRedirect();
+        }
+
+        $location = $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.documents.verify-all', $app), [
+                'review_person' => 'member',
+            ])
+            ->assertRedirect()
+            ->headers
+            ->get('Location');
+
+        $this->assertStringContainsString('review_m='.$memberRow->id, (string) $location);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'review_person' => 'member',
+                'workspace' => 'checklist',
+                'capacity_tab' => 'documents',
+            ]))
+            ->assertOk();
+
+        $this->assertSame(3, LoanApplicationDocumentReview::query()
+            ->where('loan_application_id', $app->id)
+            ->where('status', 'verified')
+            ->count());
+    }
 }

@@ -420,8 +420,10 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('tab=collateral', $html);
-        $this->assertStringContainsString('tab=activity', $html);
+        $this->assertStringContainsString('tab=documents', $html);
+        $this->assertStringContainsString('#review-documents', $html);
         $this->assertStringContainsString('person=member', $html);
+        $this->assertStringNotContainsString('tab=activity', $html);
 
         $alerts = app(\App\Services\AdminAlertService::class)->alerts();
         $this->assertTrue($alerts->contains(

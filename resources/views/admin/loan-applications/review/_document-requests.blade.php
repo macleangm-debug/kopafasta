@@ -273,8 +273,10 @@
             <div class="flex flex-wrap gap-1.5">
                 <button type="button" @click="applyPack(['Updated National ID', 'New National ID photo', 'New face verification photo', 'Image Not Clear'])"
                         class="rounded-lg bg-sky-50 text-sky-900 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-sky-100">ID pack</button>
-                <button type="button" @click="applyPack(['Updated Bank Statement', 'Updated Mobile Money Statement', 'Latest salary slip', 'Additional Income Proof'])"
-                        class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Income pack</button>
+                <button type="button" @click="applyPack(['Updated Bank Statement'])"
+                        class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Bank statement</button>
+                <button type="button" @click="applyPack(['Updated Mobile Money Statement'])"
+                        class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Mobile money</button>
                 <button type="button" @click="applyPack(['Guarantor residence letter'])"
                         class="rounded-lg bg-emerald-50 text-emerald-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-emerald-100">Residence pack</button>
                 <button type="button"

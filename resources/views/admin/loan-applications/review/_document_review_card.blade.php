@@ -34,7 +34,7 @@
     <div class="min-w-0 flex-1">
         <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
-                <p class="font-semibold text-sm text-gray-900">{{ $doc->documentType?->name ?? 'Document' }}</p>
+                <p class="font-semibold text-sm text-gray-900">{{ $doc->displayName() }}</p>
                 <p class="text-[11px] text-gray-500 mt-0.5">
                     @if ($doc->created_at)
                         Uploaded {{ format_app_date($doc->created_at) }}

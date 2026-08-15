@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\FaceVerification;
 use App\Models\User;
+use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -19,6 +20,11 @@ class ProfileFaceSectionTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Asha',
+            'primary_school' => 'Uhuru Primary',
+            'nida_middle4' => '4582',
+        ]);
 
         return Customer::create([
             'user_id'                  => $user->id,
@@ -60,13 +66,13 @@ class ProfileFaceSectionTest extends TestCase
             ->assertSee(__('borrower.nida.face_captured_photos'), false)
             ->assertSee(__('borrower.nida.face_view'), false)
             ->assertSee(__('borrower.profile.tap_to_enlarge'), false)
-            ->assertSee(__('borrower.nida.face_retake_pending_blocked'), false)
-            ->assertDontSee(__('borrower.nida.face_replace'), false)
+            ->assertSee(__('borrower.nida.face_replace'), false)
+            ->assertDontSee(__('borrower.nida.face_retake_pending_blocked'), false)
             ->assertSee('Face front', false)
             ->assertSee('x-teleport="body"', false);
     }
 
-    public function test_verified_face_photos_are_locked_without_self_retake(): void
+    public function test_verified_face_photos_stay_editable_in_the_profile_card(): void
     {
         Storage::fake('public');
         $customer = $this->borrower('verified');
@@ -81,8 +87,9 @@ class ProfileFaceSectionTest extends TestCase
         $this->actingAs($customer->user)
             ->get(route('site.borrower.profile', ['section' => 'personal']))
             ->assertOk()
-            ->assertSee(__('borrower.nida.face_locked_hint'), false)
-            ->assertDontSee(__('borrower.nida.face_replace'), false);
+            ->assertSee(__('borrower.nida.face_replace'), false)
+            ->assertSee('profile-card-open-edit', false)
+            ->assertDontSee(__('borrower.nida.face_locked_hint'), false);
     }
 
     public function test_revision_required_opens_face_replace_wizard(): void

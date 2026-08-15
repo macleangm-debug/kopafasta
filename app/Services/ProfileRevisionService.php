@@ -116,11 +116,18 @@ class ProfileRevisionService
 
         return match (true) {
             str_contains($lower, 'bank statement') => ['bank_statement'],
-            str_contains($lower, 'mobile money') || str_contains($lower, 'mpesa') => ['mobile_money_statement', 'mpesa_statement'],
+            str_contains($lower, 'mobile money') || str_contains($lower, 'mobile statement') || str_contains($lower, 'mpesa') => ['mobile_money_statement', 'mpesa_statement'],
             str_contains($lower, 'salary slip') => ['salary_slip'],
             str_contains($lower, 'employment contract') => ['employment_contract'],
             str_contains($lower, 'national id') || str_contains($lower, 'nida') => ['national_id_front', 'national_id_back'],
             str_contains($lower, 'residence') => ['residence_letter'],
+            str_contains($lower, 'business registration') => ['business_registration'],
+            str_contains($lower, 'business licence') || str_contains($lower, 'business license') => ['business_license'],
+            str_contains($lower, 'tin') => ['tin_certificate'],
+            str_contains($lower, 'vat') => ['vat_certificate'],
+            str_contains($lower, 'workshop') => ['workshop_photos'],
+            str_contains($lower, 'business photo') => ['business_photos'],
+            str_contains($lower, 'marriage') => ['marriage_certificate'],
             default => [],
         };
     }
@@ -189,6 +196,7 @@ class ProfileRevisionService
                 || str_contains($lower, 'mobile money')
                 || str_contains($lower, 'salary slip')
                 || str_contains($lower, 'income proof') => ['income'],
+            str_contains($lower, 'residence') => ['residence'],
             default => [],
         };
     }

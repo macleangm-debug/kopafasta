@@ -115,10 +115,10 @@
                         @if ($nidaSaved)
                             <div>
                                 <p class="text-lg font-mono font-semibold text-gray-900">{{ $customer->national_id }}</p>
-                                <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                                    <span aria-hidden="true">🔒</span>{{ $locked ? __('borrower.nida.locked_title') : __('borrower.nida.saved_locked_title') }}
+                                <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+                                    <span aria-hidden="true">🔒</span>{{ __('borrower.nida.saved_locked_title') }}
                                 </p>
-                                <p class="text-xs text-gray-500 mt-1">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ __('borrower.nida.saved_locked_hint') }}</p>
                             </div>
                         @else
                             <p class="text-sm text-gray-500">{{ __('borrower.profile.section_empty') }}</p>
@@ -130,9 +130,9 @@
                     </x-slot:view>
                     <x-slot:form>
                         @if ($nidaReadonly)
-                            <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900 mb-4">
-                                <p class="font-semibold">{{ $locked ? __('borrower.nida.locked_title') : __('borrower.nida.saved_locked_title') }}</p>
-                                <p class="mt-1 text-emerald-800">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm text-gray-800 mb-4">
+                                <p class="font-semibold">{{ __('borrower.nida.saved_locked_title') }}</p>
+                                <p class="mt-1 text-gray-600">{{ __('borrower.nida.saved_locked_hint') }}</p>
                             </div>
                         @endif
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}">
@@ -574,16 +574,7 @@
                                 {{ __('borrower.profile.edit_face_photos') }}
                             </button>
                         @else
-                            @php
-                                $faceStatus = match ($faceKey) {
-                                    'verified' => [__('borrower.nida.face_status.verified'), 'text-emerald-700'],
-                                    'pending'  => [__('borrower.nida.face_status.submitted'), 'text-sky-700'],
-                                    'rejected' => [__('borrower.nida.face_status.failed'), 'text-red-700'],
-                                    'revision_required' => [__('borrower.nida.face_status.revision_required'), 'text-amber-700'],
-                                    default    => [__('borrower.nida.face_status.incomplete'), 'text-amber-700'],
-                                };
-                            @endphp
-                            <p class="text-sm font-semibold {{ $faceStatus[1] }}">{{ $faceStatus[0] }}</p>
+                            <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
                             <button type="button" @click="openEdit()" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
                                 {{ __('borrower.profile.add_details') }}
                             </button>

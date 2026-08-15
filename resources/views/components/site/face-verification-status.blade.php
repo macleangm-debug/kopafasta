@@ -8,13 +8,6 @@
 
 @php
     $statusKey = $customer->face_verification_status ?? 'incomplete';
-    $statusBadge = match ($statusKey) {
-        'verified' => [__('borrower.nida.face_status.verified'), 'bg-emerald-100 text-emerald-800'],
-        'pending'  => [__('borrower.nida.face_status.submitted'), 'bg-sky-100 text-sky-800'],
-        'rejected' => [__('borrower.nida.face_status.failed'), 'bg-red-100 text-red-800'],
-        'revision_required' => [__('borrower.nida.face_status.revision_required'), 'bg-amber-100 text-amber-800'],
-        default    => [__('borrower.nida.face_status.incomplete'), 'bg-amber-100 text-amber-800'],
-    };
     $photoEntries = collect($angles)->map(function ($meta, $key) use ($photos) {
         $photo = $photos[$key] ?? null;
         $path = is_object($photo) ? ($photo->file_path ?? null) : null;
@@ -27,8 +20,6 @@
         ];
     })->values();
     $captured = $photoEntries->filter(fn ($p) => filled($p['url']))->values();
-    // Face photos stay editable — underwriting can still verify; borrowers must be able to replace.
-    $canReplaceFace = true;
 @endphp
 
 {{-- Mirror NIDA card + collateral lightbox: no overflow trap, teleport escape glass-card backdrop-filter --}}
@@ -64,12 +55,10 @@
                 <h2 class="font-semibold text-gray-900 mt-0.5">{{ __('borrower.nida.face_captured_photos') }}</h2>
                 <p class="text-sm text-gray-500 mt-0.5">{{ __('borrower.nida.face_compare_hint') }}</p>
             </div>
-            <span class="text-xs font-semibold rounded-full px-3 py-1 {{ $statusBadge[1] }}">{{ $statusBadge[0] }}</span>
         </div>
     @else
         <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p class="text-sm font-semibold text-gray-900">{{ __('borrower.nida.face_captured_photos') }}</p>
-            <span class="text-xs font-semibold rounded-full px-3 py-1 {{ $statusBadge[1] }}">{{ $statusBadge[0] }}</span>
         </div>
     @endunless
 
@@ -128,16 +117,11 @@
                 {{ __('borrower.nida.face_view') }}
             </button>
         @endif
-        @if ($canReplaceFace)
-            <a href="{{ route('site.borrower.face-verification') }}"
-               class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
-                {{ __('borrower.nida.face_replace') }}
-            </a>
-        @elseif ($statusKey === 'pending')
-            <p class="text-xs text-gray-500 self-center">{{ __('borrower.nida.face_retake_pending_blocked') }}</p>
-        @elseif ($statusKey === 'verified')
-            <p class="text-xs text-gray-500 self-center">{{ __('borrower.nida.face_locked_hint') }}</p>
-        @endif
+        <button type="button"
+                @click="window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }))"
+                class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
+            {{ __('borrower.nida.face_replace') }}
+        </button>
     </div>
 
     <template x-teleport="body">
@@ -163,12 +147,13 @@
                         if (Math.abs(dx) > 40) { dx < 0 ? next() : prev(); }
                      ">
             </div>
-            @if ($canReplaceFace)
+            @if (true)
                 <div class="absolute bottom-6 left-1/2 -translate-x-1/2">
-                    <a href="{{ route('site.borrower.face-verification') }}"
-                       class="inline-flex font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
+                    <button type="button"
+                            @click="closePreview(); window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }))"
+                            class="inline-flex font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
                         {{ __('borrower.nida.face_replace') }}
-                    </a>
+                    </button>
                 </div>
             @endif
         </div>

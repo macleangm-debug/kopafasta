@@ -83,7 +83,7 @@ class ApplicationRequirementsService
                     'revision_required' => __('borrower.apply.checklist.face_revision'),
                     default    => __('borrower.apply.checklist.face_incomplete'),
                 },
-                'action_url' => $faceSubmitted ? null : route('site.borrower.face-verification'),
+                'action_url' => $faceSubmitted ? null : route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
             ];
 
             $items[] = [
@@ -99,7 +99,7 @@ class ApplicationRequirementsService
                     default    => __('borrower.apply.checklist.face_submit_first'),
                 },
                 'action_url' => in_array($faceStatus, ['rejected', 'revision_required'], true)
-                    ? route('site.borrower.face-verification')
+                    ? route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face'
                     : null,
             ];
         }
@@ -411,7 +411,7 @@ class ApplicationRequirementsService
                 'status'     => $faceComplete
                     ? 'complete'
                     : ($facePending ? 'pending' : ($faceRevision ? 'stale' : 'missing')),
-                'action_url' => $faceComplete ? null : route('site.borrower.face-verification'),
+                'action_url' => $faceComplete ? null : route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
             ];
         }
 

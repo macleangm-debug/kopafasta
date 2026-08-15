@@ -159,7 +159,7 @@ class ProfileValidationService
     {
         $gaps = [];
         $personalUrl = route('site.borrower.profile', ['section' => 'personal']);
-        $faceUrl = route('site.borrower.face-verification');
+        $faceUrl = route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face';
 
         if (! filled($customer->first_name) || ! filled($customer->last_name)) {
             $gaps[] = [

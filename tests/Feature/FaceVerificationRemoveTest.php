@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\FaceVerification;
 use App\Models\User;
 use App\Services\FaceVerificationService;
+use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -20,6 +21,11 @@ class FaceVerificationRemoveTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Asha',
+            'primary_school' => 'Uhuru Primary',
+            'nida_middle4' => '4582',
+        ]);
 
         return Customer::create([
             'user_id'                  => $user->id,
@@ -60,7 +66,7 @@ class FaceVerificationRemoveTest extends TestCase
         Storage::disk('public')->assertMissing($path);
     }
 
-    public function test_borrower_cannot_remove_face_photo_when_pending_review(): void
+    public function test_borrower_can_remove_face_photo_when_pending_review(): void
     {
         Storage::fake('public');
         $customer = $this->borrower();
@@ -76,10 +82,10 @@ class FaceVerificationRemoveTest extends TestCase
 
         $this->actingAs($customer->user)
             ->deleteJson(route('site.borrower.face-verification.destroy', ['angle' => 'front']))
-            ->assertStatus(422)
-            ->assertJson(['ok' => false]);
+            ->assertOk()
+            ->assertJson(['ok' => true]);
 
-        $this->assertDatabaseHas('face_verifications', [
+        $this->assertDatabaseMissing('face_verifications', [
             'customer_id' => $customer->id,
             'angle'       => 'front',
         ]);
@@ -140,13 +146,16 @@ class FaceVerificationRemoveTest extends TestCase
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.face-verification'))
+            ->assertRedirect(route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']));
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']))
             ->assertOk()
             ->assertSee('removePhoto', false)
             ->assertSee('retakeStep', false)
             ->assertSee('submitVerification', false)
             ->assertSee('from-brand', false)
-            ->assertSee(__('borrower.face_verification_page.hero_start'), false)
-            ->assertSee(__('borrower.face_verification_page.start_cta'), false);
+            ->assertSee('faceVerificationWizard', false);
     }
 
     public function test_fourth_upload_stays_incomplete_until_explicit_submit(): void
@@ -195,8 +204,8 @@ class FaceVerificationRemoveTest extends TestCase
 
         $this->actingAs($customer->user)
             ->deleteJson(route('site.borrower.face-verification.destroy', ['angle' => 'front']))
-            ->assertStatus(422)
-            ->assertJson(['ok' => false]);
+            ->assertOk()
+            ->assertJson(['ok' => true]);
     }
 
     public function test_submit_requires_all_photos(): void

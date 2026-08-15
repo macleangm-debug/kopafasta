@@ -510,7 +510,9 @@
                                                         <form method="POST" action="{{ route('admin.loan-applications.documents.verify', [$record, $upload]) }}" class="inline">
                                                             @csrf
                                                             <input type="hidden" name="review_person" value="{{ $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : ($deskPerson ?? $panelPerson ?? request('review_person', 'borrower'))) }}">
-                                                            @if ($deskM ?? $panelM ?? request('review_m'))
+                                                            @if ($isMemberSubject && $memberId)
+                                                                <input type="hidden" name="review_m" value="{{ $memberId }}">
+                                                            @elseif ($deskM ?? $panelM ?? request('review_m'))
                                                                 <input type="hidden" name="review_m" value="{{ $deskM ?? $panelM ?? request('review_m') }}">
                                                             @endif
                                                             @if ($deskG ?? $panelG ?? request('review_g'))
@@ -534,8 +536,13 @@
                                                                   tone: 'warning',
                                                               })">
                                                             @csrf
+                                                            <input type="hidden" name="fail_reason_code" value="incomplete">
                                                             <input type="hidden" name="review_person" value="{{ $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : ($deskPerson ?? $panelPerson ?? request('review_person', 'borrower'))) }}">
-                                                            <input type="hidden" name="review_m" value="{{ $deskM ?? $panelM ?? request('review_m') }}">
+                                                            @if ($isMemberSubject && $memberId)
+                                                                <input type="hidden" name="review_m" value="{{ $memberId }}">
+                                                            @else
+                                                                <input type="hidden" name="review_m" value="{{ $deskM ?? $panelM ?? request('review_m') }}">
+                                                            @endif
                                                             <input type="hidden" name="review_g" value="{{ $deskG ?? $panelG ?? request('review_g') }}">
                                                             <button type="submit" class="self-start text-xs font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">
                                                                 Reject
@@ -657,8 +664,12 @@
                           })">
                         @csrf
                         <input type="hidden" name="review_person" value="{{ $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : 'borrower') }}">
-                        @if (request('review_g'))<input type="hidden" name="review_g" value="{{ request('review_g') }}">@endif
-                        @if (request('review_m'))<input type="hidden" name="review_m" value="{{ request('review_m') }}">@endif
+                        @if ($isGuarantorSubject)
+                            <input type="hidden" name="review_g" value="{{ request('review_g', request('g')) }}">
+                        @endif
+                        @if ($isMemberSubject && $memberId)
+                            <input type="hidden" name="review_m" value="{{ $memberId }}">
+                        @endif
                         <button type="submit" class="inline-flex rounded-lg bg-brand text-white text-[11px] font-bold px-3 py-1.5">
                             Verify all ({{ $libraryPending }})
                         </button>
@@ -681,8 +692,8 @@
                                         'doc' => $doc,
                                         'appReview' => $appReviews->get($doc->id),
                                         'reviewPerson' => $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : 'borrower'),
-                                        'reviewG' => request('review_g'),
-                                        'reviewM' => request('review_m'),
+                                        'reviewG' => request('review_g', request('g')),
+                                        'reviewM' => $isMemberSubject ? $memberId : request('review_m', request('m')),
                                     ])
                                 @endforeach
                             </div>

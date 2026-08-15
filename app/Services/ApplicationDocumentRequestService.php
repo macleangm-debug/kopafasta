@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\CustomerDocument;
+use App\Models\DocumentType;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
 use App\Models\NotificationLog;
@@ -25,7 +26,6 @@ class ApplicationDocumentRequestService
         'Signature Not Visible',
         'Updated Bank Statement',
         'Updated Mobile Money Statement',
-        'Additional Income Proof',
         'Business Registration Document',
         'Business Photos',
         'Supplier Invoices',
@@ -73,7 +73,6 @@ class ApplicationDocumentRequestService
             'Signature Not Visible'          => 'Update your signature in your profile.',
             'Updated Bank Statement'         => 'Upload a recent bank statement.',
             'Updated Mobile Money Statement' => 'Upload a recent mobile money statement.',
-            'Additional Income Proof'        => 'Upload extra proof of income.',
             'Business Registration Document' => 'Upload your business registration.',
             'Business Photos'                => 'Upload clear photos of your business.',
             'Supplier Invoices'              => 'Upload the supplier invoices.',
@@ -197,8 +196,9 @@ class ApplicationDocumentRequestService
     {
         $application = $request->application;
 
-        // Owner assisting a member/guarantor: stay on the application upload, not the owner's profile.
-        if ($viewer && $this->borrowerIsAssisting($viewer, $request) && $application) {
+        // Owner assisting a member/guarantor: loan-file uploads stay on the application.
+        // Profile-guided items (income, ID, face, collateral) are fulfilled on that person's profile.
+        if ($viewer && $this->borrowerIsAssisting($viewer, $request) && $application && ! $this->isProfileGuidedRequest($request)) {
             return route('site.borrower.application', $application).'#request-'.$request->id;
         }
 
@@ -222,6 +222,15 @@ class ApplicationDocumentRequestService
             || str_contains($label, 'employment contract')
         ) {
             return route('site.borrower.profile', ['section' => 'activity']).'?focus=income#profile-income-statement';
+        }
+        if (str_contains($label, 'residence') || str_contains($label, 'lga')) {
+            return route('site.borrower.profile', ['section' => 'residence']).'?focus=verification#profile-residence-verification';
+        }
+        if ($this->isBusinessProfileLabel($label)) {
+            $doc = app(ProfileRevisionService::class)->documentCodesForLabel((string) $request->label)[0] ?? null;
+
+            return route('site.borrower.profile', ['section' => 'activity'])
+                .'?focus=additional'.($doc ? '&doc='.urlencode($doc) : '').'#profile-additional-documents';
         }
         if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')) {
             $customer = $request->subjectCustomer
@@ -260,7 +269,9 @@ class ApplicationDocumentRequestService
 
     public function isProfileGuidedRequest(LoanApplicationDocumentRequest $request): bool
     {
-        return in_array($this->borrowerActionKind($request), ['signature', 'face', 'identity', 'collateral', 'income'], true);
+        return in_array($this->borrowerActionKind($request), [
+            'signature', 'face', 'identity', 'collateral', 'income', 'residence', 'business',
+        ], true);
     }
 
     /** Classify UW requests for borrower CTAs (docs, signature, face, identity, clarification). */
@@ -283,12 +294,18 @@ class ApplicationDocumentRequestService
             || str_contains($label, 'mobile statement')
             || str_contains($label, 'account statement')
             || str_contains($label, 'income verification')
-            || str_contains($label, 'salary slip')
             || str_contains($label, 'income proof')
+            || str_contains($label, 'salary slip')
             || str_contains($label, 'employment confirmation')
             || str_contains($label, 'employment contract')
         ) {
             return 'income';
+        }
+        if (str_contains($label, 'residence') || str_contains($label, 'lga')) {
+            return 'residence';
+        }
+        if ($this->isBusinessProfileLabel($label)) {
+            return 'business';
         }
         if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')
             || str_contains($label, 'asset photo') || str_contains($label, 'ownership document')
@@ -307,9 +324,11 @@ class ApplicationDocumentRequestService
         return match ($this->borrowerActionKind($request)) {
             'income' => 'Income verification',
             'collateral' => 'Collateral',
-            'face' => 'Face verification',
+            'face' => 'Face photos',
             'identity' => 'National ID',
             'signature' => 'Signature',
+            'residence' => 'Residence',
+            'business' => 'Business documents',
             default => (string) $request->label,
         };
     }
@@ -326,7 +345,7 @@ class ApplicationDocumentRequestService
     ): string {
         $kind = $this->borrowerActionKind($request);
         $tab = match ($kind) {
-            'income' => 'activity',
+            'income' => 'documents',
             'collateral' => 'collateral',
             'face' => 'face',
             'identity' => 'personal',
@@ -357,7 +376,7 @@ class ApplicationDocumentRequestService
             'review_g' => $g,
         ], fn ($v) => $v !== null && $v !== '');
 
-        return route('admin.loan-applications.show', $params).'#borrower-file';
+        return route('admin.loan-applications.show', $params).($kind === 'income' ? '#review-documents' : '#borrower-file');
     }
 
     /**
@@ -391,6 +410,8 @@ class ApplicationDocumentRequestService
                 'identity' => __('borrower.loan_profile.uw_cta.update_identity'),
                 'collateral' => $collateralCta,
                 'income' => __('borrower.loan_profile.uw_cta.update_income'),
+                'residence' => __('borrower.loan_profile.uw_cta.update_residence'),
+                'business' => __('borrower.loan_profile.uw_cta.update_business'),
                 'clarification' => __('borrower.loan_profile.uw_cta.respond'),
                 default => $rejected
                     ? __('borrower.loan_profile.reupload')
@@ -865,23 +886,53 @@ class ApplicationDocumentRequestService
             ?? $actor->id
         );
 
-        $stored = collect();
+        $files = array_values(array_filter(
+            $files,
+            fn ($file) => $file instanceof UploadedFile && $file->isValid()
+        ));
+        if ($files === []) {
+            return collect();
+        }
 
-        foreach ($files as $file) {
-            $path = $file->store(
-                "borrower/{$documentCustomerId}/applications/{$application->id}/requests/{$request->id}",
-                'public'
-            );
+        $revision = app(ProfileRevisionService::class);
+        $codes = $revision->documentCodesForLabel((string) $request->label);
+        $type = $codes === []
+            ? null
+            : DocumentType::query()->whereIn('code', $codes)->where('is_active', true)->first();
+        $profileGuided = $this->isProfileGuidedRequest($request);
+        $basename = $type?->code ?: \Illuminate\Support\Str::slug((string) $request->label) ?: 'document';
+        $path = count($files) === 1 && ($files[0]->getMimeType() ?? '') === 'application/pdf' && ! $profileGuided
+            ? $files[0]->store("borrower/{$documentCustomerId}/applications/{$application->id}/requests/{$request->id}", 'public')
+            : app(DocumentPageMerger::class)->merge($files, $documentCustomerId, $basename);
 
-            $stored->push(CustomerDocument::create([
+        if ($profileGuided && $type) {
+            $existing = CustomerDocument::query()
+                ->where('customer_id', $documentCustomerId)
+                ->where('document_type_id', $type->id)
+                ->whereNull('loan_application_id')
+                ->whereNotIn('status', ['replaced', 'archived'])
+                ->latest('id')
+                ->first();
+            if ($existing) {
+                $existing->update(['status' => 'replaced']);
+            }
+        }
+
+        $stored = collect([
+            CustomerDocument::create([
                 'customer_id'                          => $documentCustomerId,
-                'loan_application_id'                  => $application->id,
+                'loan_application_id'                  => $profileGuided ? null : $application->id,
                 'loan_application_document_request_id' => $request->id,
-                'document_type_id'                     => null,
+                'document_type_id'                     => $type?->id,
                 'file_path'                            => $path,
                 'status'                               => 'pending_review',
-            ]));
-        }
+                'notes'                                => json_encode(array_filter([
+                    'page_count' => count($files),
+                    'request_label' => $request->label,
+                    'original_name' => count($files) === 1 ? $files[0]->getClientOriginalName() : null,
+                ])),
+            ]),
+        ]);
 
         $request->update([
             'status'                   => 'uploaded',
@@ -1157,22 +1208,30 @@ class ApplicationDocumentRequestService
         $marked = 0;
 
         $requests = LoanApplicationDocumentRequest::query()
-            ->whereHas('application', function ($q) use ($customer) {
-                $q->where('customer_id', $customer->id)
-                    ->whereNotIn('status', ['withdrawn', 'rejected', 'disbursed']);
+            ->where(function ($q) use ($customer) {
+                $q->whereHas('application', function ($app) use ($customer) {
+                    $app->where('customer_id', $customer->id)
+                        ->whereNotIn('status', ['withdrawn', 'rejected', 'disbursed']);
+                })->orWhere(function ($q2) use ($customer) {
+                    $q2->where('subject_customer_id', $customer->id)
+                        ->whereHas('application', function ($app) {
+                            $app->whereNotIn('status', ['withdrawn', 'rejected', 'disbursed']);
+                        });
+                });
             })
             ->whereIn('status', ['pending', 'rejected'])
             ->with('application')
             ->get();
 
         foreach ($requests as $request) {
-            if ($this->borrowerActionKind($request) !== 'income') {
+            $kind = $this->borrowerActionKind($request);
+            if (! in_array($kind, ['income', 'residence', 'business'], true)) {
                 continue;
             }
 
             $labelCodes = $revision->documentCodesForLabel((string) $request->label);
             $matches = $labelCodes === []
-                ? true
+                ? $kind === 'income'
                 : count(array_intersect($labelCodes, $uploadedCodes)) > 0;
 
             if (! $matches) {
@@ -1199,6 +1258,19 @@ class ApplicationDocumentRequestService
         }
 
         return $marked;
+    }
+
+    private function isBusinessProfileLabel(string $label): bool
+    {
+        $label = mb_strtolower($label);
+
+        return str_contains($label, 'business registration')
+            || str_contains($label, 'business photo')
+            || str_contains($label, 'business licence')
+            || str_contains($label, 'business license')
+            || str_contains($label, 'workshop')
+            || str_contains($label, 'tin')
+            || str_contains($label, 'vat certificate');
     }
 
     /**

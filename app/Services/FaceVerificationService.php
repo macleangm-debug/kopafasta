@@ -41,16 +41,11 @@ class FaceVerificationService
     }
 
     /**
-     * Unlock face capture so the borrower can retake photos (same idea as replacing NIDA images).
-     * Pending review stays locked until staff acts; verified / revision can start a new capture.
+     * Unlock face capture so the borrower can retake photos.
      * Pass $force=true from underwriting when photos are unclear and a retake is required.
      */
     public function beginRetake(Customer $customer, bool $force = false): void
     {
-        if (! $force && $customer->face_verification_status === 'pending') {
-            throw new \InvalidArgumentException(__('borrower.nida.face_retake_pending_blocked'));
-        }
-
         $customer->update([
             'face_verification_status' => 'incomplete',
             'face_verified_at'         => null,
@@ -205,7 +200,7 @@ class FaceVerificationService
             $customer->refresh();
             $progress = $this->progress($customer);
 
-            if (! $progress['complete'] && in_array($customer->face_verification_status, ['pending', 'incomplete', 'rejected', 'revision_required'], true)) {
+            if (! $progress['complete'] && in_array($customer->face_verification_status, ['pending', 'incomplete', 'rejected', 'revision_required', 'verified'], true)) {
                 $customer->update([
                     'face_verification_status' => 'incomplete',
                     'face_rejection_notes'     => null,

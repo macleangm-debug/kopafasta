@@ -126,9 +126,7 @@
                 <ul class="space-y-3">
                     @foreach ($actionDocs as $docReq)
                         @php
-                            $profileGuided = $customer
-                                ? $docSvc->isProfileGuidedForCustomer($customer, $docReq)
-                                : $docSvc->isProfileGuidedRequest($docReq);
+                            $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
                             $profileUrl = $docSvc->borrowerActionUrl($docReq, $customer);
                             $isRejected = $docReq->status === 'rejected';
                             $displayDocs = $customer
@@ -192,6 +190,11 @@
 
                             @if ($docReq->needsBorrowerAction())
                                 <div class="bg-gray-50/80 px-4 py-4 sm:px-5">
+                                    @php
+                                        $assistingProfile = $profileGuided
+                                            && $customer
+                                            && $docSvc->borrowerIsAssisting($customer, $docReq);
+                                    @endphp
                                     @if ((string) $docReq->label === 'Add collateral asset')
                                         <div class="space-y-3">
                                             @include('site.borrower.loan-profile._collateral_request_picker', [
@@ -200,6 +203,12 @@
                                                 'application' => $application,
                                             ])
                                         </div>
+                                    @elseif ($assistingProfile)
+                                        <p class="text-sm text-gray-700">
+                                            {{ __('borrower.loan_profile.ask_subject_profile', [
+                                                'name' => $docSvc->localizedSubjectRoleLabel($docReq),
+                                            ]) }}
+                                        </p>
                                     @elseif ($profileGuided)
                                         <a href="{{ $profileUrl }}"
                                            class="inline-flex w-full items-center justify-center rounded-xl bg-brand-gold px-4 py-3 text-sm font-bold text-brand shadow-sm hover:brightness-95 sm:w-auto">

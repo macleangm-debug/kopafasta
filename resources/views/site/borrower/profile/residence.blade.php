@@ -108,8 +108,8 @@
                 :stale="$residenceStale"
                 :empty="! $verificationComplete"
                 :allow-overflow="true"
-                :default-open="$openVerification"
-                :default-edit="$errors->hasAny(['residence_letter', 'residence_letter_pages', 'lga_officer_name', 'lga_officer_position', 'lga_officer_phone'])">
+            :default-open="$openVerification"
+            :default-edit="$openVerification">
                 <x-slot:view>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.residence_verification_hint') }}</p>
 

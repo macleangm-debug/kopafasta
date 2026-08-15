@@ -46,4 +46,29 @@ class CustomerDocument extends Model
     {
         return $this->hasMany(LoanApplicationDocumentReview::class, 'customer_document_id');
     }
+
+    public function displayName(): string
+    {
+        if (filled($this->documentType?->name)) {
+            return (string) $this->documentType->name;
+        }
+
+        if (filled($this->documentRequest?->label)) {
+            return (string) $this->documentRequest->label;
+        }
+
+        $meta = [];
+        if (filled($this->notes)) {
+            $decoded = json_decode((string) $this->notes, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        }
+        if (filled($meta['request_label'] ?? null)) {
+            return (string) $meta['request_label'];
+        }
+        if (filled($meta['original_name'] ?? null)) {
+            return (string) $meta['original_name'];
+        }
+
+        return 'Document';
+    }
 }

@@ -827,14 +827,7 @@ class LoanApplicationController extends ResourceController
         $review->verify($document, $loan_application, auth()->user(), $subject);
 
         return redirect()
-            ->route("{$this->routePrefix}.show", array_filter([
-                'loan_application' => $loan_application,
-                'review_person' => $request->input('review_person'),
-                'review_g' => $request->input('review_g'),
-                'review_m' => $request->input('review_m'),
-                'workspace' => 'checklist',
-                'capacity_tab' => 'documents',
-            ]))
+            ->route("{$this->routePrefix}.show", $this->documentReviewReturnParams($request, $loan_application, $subject))
             ->with('status', 'Document marked reviewed for this application.')
             ->withFragment('review-documents');
     }
@@ -847,14 +840,22 @@ class LoanApplicationController extends ResourceController
         $subjectKind = 'borrower';
         $subjectCustomerId = (int) $loan_application->customer_id;
         $loanGroupMemberId = null;
+        $loan_application->loadMissing('loanGroup.members');
 
-        if ($person === 'member' && (int) $request->input('review_m', 0) > 0) {
-            $subjectKind = 'member';
-            $loanGroupMemberId = (int) $request->input('review_m');
-            $loan_application->loadMissing('loanGroup.members');
-            $member = $loan_application->loanGroup?->members?->firstWhere('id', $loanGroupMemberId);
-            if ($member?->customer_id) {
-                $subjectCustomerId = (int) $member->customer_id;
+        if ($person === 'member') {
+            $loanGroupMemberId = (int) $request->input('review_m', 0);
+            if ($loanGroupMemberId < 1) {
+                $firstMember = $loan_application->loanGroup?->members
+                    ?->first(fn ($row) => ($row->role ?? '') !== 'leader')
+                    ?? $loan_application->loanGroup?->members?->first();
+                $loanGroupMemberId = (int) ($firstMember?->id ?? 0);
+            }
+            if ($loanGroupMemberId > 0) {
+                $subjectKind = 'member';
+                $member = $loan_application->loanGroup?->members?->firstWhere('id', $loanGroupMemberId);
+                if ($member?->customer_id) {
+                    $subjectCustomerId = (int) $member->customer_id;
+                }
             }
         } elseif ($person === 'guarantor' && (int) $request->input('review_g', 0) > 0) {
             $subjectKind = 'guarantor';
@@ -874,14 +875,7 @@ class LoanApplicationController extends ResourceController
         $count = $review->verifyAllPending($loan_application, $customer, auth()->user(), $subject);
 
         return redirect()
-            ->route("{$this->routePrefix}.show", array_filter([
-                'loan_application' => $loan_application,
-                'review_person' => $request->input('review_person'),
-                'review_g' => $request->input('review_g'),
-                'review_m' => $request->input('review_m'),
-                'workspace' => 'checklist',
-                'capacity_tab' => 'documents',
-            ]))
+            ->route("{$this->routePrefix}.show", $this->documentReviewReturnParams($request, $loan_application, $subject))
             ->with('status', $count > 0
                 ? "Verified {$count} document".($count === 1 ? '' : 's').' for this application.'
                 : 'No pending documents to verify.')
@@ -913,16 +907,33 @@ class LoanApplicationController extends ResourceController
             : 'Document failed for this application.';
 
         return redirect()
-            ->route("{$this->routePrefix}.show", array_filter([
-                'loan_application' => $loan_application,
-                'review_person' => $request->input('review_person'),
-                'review_g' => $request->input('review_g'),
-                'review_m' => $request->input('review_m'),
-                'workspace' => 'checklist',
-                'capacity_tab' => 'documents',
-            ]))
+            ->route("{$this->routePrefix}.show", $this->documentReviewReturnParams($request, $loan_application, $subject))
             ->with('status', $status)
             ->withFragment('checklist-documents');
+    }
+
+    /**
+     * Keep the same person on Documents after verify / fail so the next click
+     * does not 422 or load the leader file by dropping review_m / review_g.
+     *
+     * @param  array{subject_kind?: string, subject_customer_id?: ?int, loan_group_member_id?: ?int}  $subject
+     * @return array<string, mixed>
+     */
+    private function documentReviewReturnParams(Request $request, LoanApplication $loan_application, array $subject = []): array
+    {
+        $person = (string) ($request->input('review_person') ?: ($subject['subject_kind'] ?? 'borrower'));
+        if (! in_array($person, ['borrower', 'guarantor', 'member'], true)) {
+            $person = 'borrower';
+        }
+
+        return array_filter([
+            'loan_application' => $loan_application,
+            'review_person' => $person,
+            'review_g' => $request->input('review_g'),
+            'review_m' => $request->input('review_m') ?: ($subject['loan_group_member_id'] ?? null),
+            'workspace' => 'checklist',
+            'capacity_tab' => 'documents',
+        ], fn ($value) => $value !== null && $value !== '' && $value !== 0 && $value !== '0');
     }
 
     /**
@@ -934,13 +945,20 @@ class LoanApplicationController extends ResourceController
         $subjectKind = 'borrower';
         $subjectCustomerId = (int) $document->customer_id;
         $loanGroupMemberId = null;
+        $loan_application->loadMissing('loanGroup.members');
 
-        if ($person === 'member' && (int) $request->input('review_m', 0) > 0) {
-            $subjectKind = 'member';
-            $loanGroupMemberId = (int) $request->input('review_m');
-            $member = $loan_application->loanGroup?->members?->firstWhere('id', $loanGroupMemberId);
-            if ($member?->customer_id) {
-                $subjectCustomerId = (int) $member->customer_id;
+        if ($person === 'member' || $loan_application->loanGroup?->members?->contains('customer_id', $document->customer_id)) {
+            $loanGroupMemberId = (int) $request->input('review_m', 0);
+            if ($loanGroupMemberId < 1) {
+                $match = $loan_application->loanGroup?->members?->firstWhere('customer_id', $document->customer_id);
+                $loanGroupMemberId = (int) ($match?->id ?? 0);
+            }
+            if ($loanGroupMemberId > 0) {
+                $subjectKind = 'member';
+                $member = $loan_application->loanGroup?->members?->firstWhere('id', $loanGroupMemberId);
+                if ($member?->customer_id) {
+                    $subjectCustomerId = (int) $member->customer_id;
+                }
             }
         } elseif ($person === 'guarantor' && (int) $request->input('review_g', 0) > 0) {
             $subjectKind = 'guarantor';

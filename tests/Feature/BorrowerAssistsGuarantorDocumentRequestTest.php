@@ -17,7 +17,7 @@ class BorrowerAssistsGuarantorDocumentRequestTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_borrower_can_see_and_fulfill_guarantor_document_request(): void
+    public function test_borrower_sees_guarantor_residence_as_profile_update(): void
     {
         Storage::fake('public');
 
@@ -35,6 +35,11 @@ class BorrowerAssistsGuarantorDocumentRequestTest extends TestCase
 
         $borrowerUser = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($borrowerUser, '1234');
+        app(\App\Services\PinRecoveryChallengeService::class)->enroll($borrowerUser, [
+            'mother_first_name' => 'Asha',
+            'primary_school' => 'Uhuru Primary',
+            'nida_middle4' => '4582',
+        ]);
         $borrower = Customer::create([
             'user_id' => $borrowerUser->id,
             'customer_number' => 'CU-BRW-G',
@@ -78,29 +83,23 @@ class BorrowerAssistsGuarantorDocumentRequestTest extends TestCase
 
         $this->assertTrue($service->customerCanFulfillRequest($borrower->fresh(), $request->fresh()));
         $this->assertTrue($service->borrowerIsAssisting($borrower->fresh(), $request->fresh()));
+        $this->assertTrue($service->isProfileGuidedRequest($request->fresh()));
         $this->assertFalse($service->isProfileGuidedForCustomer($borrower->fresh(), $request->fresh()));
         $this->assertStringContainsString(
-            '#request-'.$request->id,
-            $service->borrowerActionUrl($request->fresh(), $borrower->fresh())
+            'focus=verification',
+            $service->borrowerActionUrl($request->fresh(), $guarantor->fresh())
         );
 
-        $open = $service->openRequestsForCustomer($borrower->fresh());
-        $this->assertTrue($open->contains('id', $request->id));
+        $html = $this->actingAs($borrowerUser)
+            ->get(route('site.borrower.application', $application))
+            ->assertOk()
+            ->getContent();
 
-        $service->recordUploads(
-            $request->fresh(),
-            $borrower->fresh(),
-            [UploadedFile::fake()->image('residence.jpg')],
-            $guarantor->fresh()
+        $this->assertTrue(
+            str_contains($html, 'must update this in their profile')
+            || str_contains($html, 'lazima asasishe hii kwenye wasifu wake')
         );
-
-        $this->assertSame('uploaded', $request->fresh()->status);
-        $this->assertSame($borrower->id, $request->fresh()->uploaded_by_customer_id);
-        $this->assertDatabaseHas('customer_documents', [
-            'customer_id' => $guarantor->id,
-            'loan_application_document_request_id' => $request->id,
-            'status' => 'pending_review',
-        ]);
+        $this->assertStringNotContainsString('name="files"', $html);
     }
 
     public function test_borrower_http_upload_for_guarantor_request_is_allowed(): void
@@ -162,7 +161,7 @@ class BorrowerAssistsGuarantorDocumentRequestTest extends TestCase
         $request = $service->create(
             $application,
             $admin,
-            'Guarantor residence letter',
+            'Supplier Invoices',
             subjectKind: 'guarantor',
             subjectCustomerId: $guarantor->id,
         );

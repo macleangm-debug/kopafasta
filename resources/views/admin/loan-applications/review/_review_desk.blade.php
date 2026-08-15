@@ -13,7 +13,9 @@
         }
     }
     if ($deskPerson === 'member' && (! $deskM || $deskM < 1)) {
-        $firstM = collect($groupReview['members'] ?? [])->first();
+        $firstM = collect($groupReview['members'] ?? [])
+            ->first(fn ($row) => ($row['role'] ?? '') !== 'leader')
+            ?? collect($groupReview['members'] ?? [])->first();
         $deskM = (int) ($firstM['id'] ?? 0) ?: null;
         if (! $deskM) {
             $deskPerson = 'borrower';

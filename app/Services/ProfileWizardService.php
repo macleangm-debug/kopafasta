@@ -10,11 +10,10 @@ class ProfileWizardService
     public function steps(Customer $customer): array
     {
         $profile = app(ProfileCompletionService::class);
-        $nida = app(NidaVerificationService::class);
         $validation = app(ProfileValidationService::class);
         $sections = collect($profile->calculate($customer)['sections'] ?? [])->keyBy('key');
 
-        $nidaComplete = $nida->isVerified($customer)
+        $nidaComplete = filled($customer->national_id)
             && $validation->nationalIdUploadsComplete($customer);
         $faceComplete = app(FaceVerificationService::class)->profileStepComplete($customer);
         $residenceComplete = (bool) ($sections['residence']['complete'] ?? false)
@@ -32,7 +31,7 @@ class ProfileWizardService
                 'key'      => 'face',
                 'label'    => __('borrower.kyc_progress.face'),
                 'complete' => $faceComplete,
-                'url'      => route('site.borrower.face-verification', ['wizard' => 1]),
+                'url'      => route('site.borrower.profile', ['section' => 'personal', 'wizard' => 1, 'focus' => 'face']).'#profile-face',
             ],
             [
                 'key'      => 'residence',

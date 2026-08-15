@@ -184,7 +184,7 @@ class LoanProductReadinessService
                     'rejected' => __('borrower.apply.readiness.requirements.face.rejected'),
                     default    => __('borrower.apply.readiness.requirements.face.incomplete'),
                 },
-                'action_url' => $face->canApply($customer) ? null : route('site.borrower.face-verification'),
+                'action_url' => $face->canApply($customer) ? null : route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
             ];
         }
 

@@ -29,7 +29,7 @@ class SmartLoanApplicationWizardService
         $urls = [
             'personal'  => route('site.borrower.profile', ['section' => 'personal']),
             'nida'      => route('site.borrower.profile', ['section' => 'personal']),
-            'face'      => route('site.borrower.face-verification'),
+            'face'      => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
             'activity'  => route('site.borrower.profile', ['section' => 'activity']),
             'residence' => route('site.borrower.profile', ['section' => 'residence']),
             'kin'       => route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin',

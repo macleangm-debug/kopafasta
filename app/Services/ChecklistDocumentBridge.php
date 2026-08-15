@@ -81,7 +81,7 @@ class ChecklistDocumentBridge
             }
             $rows[] = [
                 'id' => (int) $doc->id,
-                'name' => (string) ($doc->documentType?->name ?? 'Document'),
+                'name' => $doc->displayName(),
                 'status' => (string) $status,
             ];
         }
@@ -201,13 +201,14 @@ class ChecklistDocumentBridge
     {
         if ($bundleKey === 'profile_all') {
             return CustomerDocument::query()
-                ->with('documentType')
+                ->with(['documentType', 'documentRequest'])
                 ->where('customer_id', $customer->id)
                 ->where(function ($q) use ($application) {
                     $q->whereNull('loan_application_id')
                         ->orWhere('loan_application_id', $application->id);
                 })
                 ->whereNotNull('file_path')
+                ->whereNotIn('status', ['replaced', 'archived'])
                 ->latest('id')
                 ->get()
                 ->unique(fn (CustomerDocument $doc) => (string) ($doc->document_type_id ?? $doc->id))

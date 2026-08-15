@@ -648,6 +648,12 @@ class BorrowerController extends Controller
             return back()->withErrors(['upload' => 'This request is no longer open for uploads.']);
         }
 
+        if ($docRequests->isProfileGuidedRequest($documentRequest)) {
+            return redirect()
+                ->to($docRequests->borrowerActionUrl($documentRequest, $customer))
+                ->with('status', __('borrower.loan_profile.document_go_to_profile'));
+        }
+
         $files = array_filter(array_merge(
             $request->file('files', []) ?? [],
             $request->file('file') ? [$request->file('file')] : [],
@@ -1954,6 +1960,15 @@ class BorrowerController extends Controller
                     $pageFiles,
                 );
 
+                if ($request->file('residence_letter') || $pageFiles !== []) {
+                    try {
+                        app(\App\Services\ApplicationDocumentRequestService::class)
+                            ->markIncomeRequestsUploadedFromProfile($customer->fresh(), ['residence_letter']);
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
+                }
+
                 $residenceParams = array_filter([
                     'section' => 'residence',
                     'focus'   => 'verification',
@@ -2128,6 +2143,7 @@ class BorrowerController extends Controller
                     'contact'  => 'profile-contact',
                     'kin'      => 'profile-kin',
                     'identity' => 'profile-identity',
+                    'face'     => 'profile-face',
                     default    => null,
                 },
                 'kyc' => match ((string) $request->input('focus')) {
@@ -2189,6 +2205,15 @@ class BorrowerController extends Controller
         }
 
         return $default;
+    }
+
+    private function redirectToFaceProfile(Request $request): RedirectResponse
+    {
+        return redirect()->route('site.borrower.profile', array_filter([
+            'section' => 'personal',
+            'focus' => 'face',
+            'wizard' => $request->boolean('wizard') ? 1 : null,
+        ]));
     }
 
     private function storePaymentAccount(Request $request, Customer $customer): RedirectResponse
@@ -2423,23 +2448,9 @@ class BorrowerController extends Controller
             ->with('nida_result', ['status' => 'failed', 'message' => $result->message ?? 'Could not confirm the selected match.']);
     }
 
-    public function faceVerification(Request $request, FaceVerificationService $faces): View
+    public function faceVerification(Request $request): RedirectResponse
     {
-        $customer = $this->customer();
-        $wizardMode = $request->boolean('wizard');
-        $returnUrl = $this->validatedReturnUrl($request);
-        $photos = $faces->latestByAngle($customer);
-        $progress = $faces->progress($customer);
-        $status = $faces->statusLabel($customer);
-        $angles = $faces->angles();
-        $wizard = $faces->wizardState($customer);
-        $uploadUrls = $faces->uploadUrls($customer);
-        $deleteUrls = $faces->deleteUrls($customer);
-        $steps = $faces->wizardSteps($customer);
-
-        return view('site.borrower.face-verification', compact(
-            'customer', 'photos', 'progress', 'status', 'angles', 'wizard', 'uploadUrls', 'deleteUrls', 'steps', 'wizardMode', 'returnUrl'
-        ))->with('wizardKey', 'face');
+        return $this->redirectToFaceProfile($request);
     }
 
     public function retakeFaceVerification(Request $request, FaceVerificationService $faces): RedirectResponse
@@ -2449,39 +2460,18 @@ class BorrowerController extends Controller
         try {
             $faces->beginRetake($customer);
         } catch (\InvalidArgumentException $e) {
-            return redirect()
-                ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face'])
-                ->with('error', $e->getMessage());
+            return $this->redirectToFaceProfile($request)->with('error', $e->getMessage());
         }
 
         $this->auditBorrower('face_verification.retake_started', $customer);
 
-        return redirect()
-            ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face'])
+        return $this->redirectToFaceProfile($request)
             ->with('status', __('borrower.nida.face_retake_started'));
     }
 
     public function uploadFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
-
-        if ($faces->isVerified($customer)) {
-            if ($request->expectsJson()) {
-                return response()->json(['ok' => false, 'message' => 'Your face verification is already approved.'], 422);
-            }
-
-            return redirect()->route('site.borrower.face-verification')
-                ->with('status', 'Your face verification is already approved.');
-        }
-
-        if ($customer->face_verification_status === 'pending') {
-            if ($request->expectsJson()) {
-                return response()->json(['ok' => false, 'message' => 'Your photos are under review.'], 422);
-            }
-
-            return redirect()->route('site.borrower.face-verification')
-                ->with('error', 'Your photos are under review. You cannot upload new ones until review is complete.');
-        }
 
         $request->validate([
             'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
@@ -2507,7 +2497,7 @@ class BorrowerController extends Controller
         $wizard = $faces->wizardState($customer);
         $previewUrl = $record->file_path ? asset('storage/'.$record->file_path) : null;
         $message = $progress['complete']
-            ? 'All face photos captured. Review them, then submit for verification.'
+            ? 'All face photos captured. Review them, then save.'
             : 'Photo saved.';
 
         if ($request->expectsJson()) {
@@ -2523,7 +2513,7 @@ class BorrowerController extends Controller
             ]);
         }
 
-        return redirect()->route('site.borrower.face-verification')->with('status', $message);
+        return $this->redirectToFaceProfile($request)->with('status', $message);
     }
 
     public function submitFaceVerification(Request $request, FaceVerificationService $faces): RedirectResponse|JsonResponse
@@ -2537,15 +2527,14 @@ class BorrowerController extends Controller
                 return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
             }
 
-            return redirect()->route('site.borrower.face-verification')
-                ->with('error', $e->getMessage());
+            return $this->redirectToFaceProfile($request)->with('error', $e->getMessage());
         }
 
         $this->auditBorrower('face_verification.submitted', $customer, [
             'complete' => true,
         ]);
 
-        $message = 'Face photos submitted. Our team will review them shortly.';
+        $message = 'Face photos saved.';
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -2562,31 +2551,13 @@ class BorrowerController extends Controller
         return $this->redirectWithGuarantorResume(
             $request,
             $customer,
-            redirect()->route('site.borrower.face-verification')->with('status', $message),
+            $this->redirectToFaceProfile($request)->with('status', $message),
         );
     }
 
     public function removeFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
-
-        if ($faces->isVerified($customer)) {
-            if ($request->expectsJson()) {
-                return response()->json(['ok' => false, 'message' => 'Your face verification is already approved.'], 422);
-            }
-
-            return redirect()->route('site.borrower.face-verification')
-                ->with('status', 'Your face verification is already approved.');
-        }
-
-        if ($customer->face_verification_status === 'pending') {
-            if ($request->expectsJson()) {
-                return response()->json(['ok' => false, 'message' => 'Your photos are under review.'], 422);
-            }
-
-            return redirect()->route('site.borrower.face-verification')
-                ->with('error', 'Your photos are under review. You cannot change them until review is complete.');
-        }
 
         try {
             $faces->remove($customer, $angle);
@@ -2617,7 +2588,7 @@ class BorrowerController extends Controller
             ]);
         }
 
-        return redirect()->route('site.borrower.face-verification')->with('status', $message);
+        return $this->redirectToFaceProfile($request)->with('status', $message);
     }
 
     public function kycReconfirm(KycFreshnessService $freshness): View|RedirectResponse

@@ -2,7 +2,18 @@
     $person = $person ?? 'borrower';
     $who = $person === 'guarantor' ? 'guarantor' : 'borrower';
     $isGuarantor = $person === 'guarantor';
-    $assets = collect($review['customer_assets'] ?? []);
+    $pledgeRows = collect();
+    $profileAssets = collect($review['customer_assets'] ?? []);
+    if (! $isGuarantor) {
+        $record->loadMissing('collateralAssets.customerAsset');
+        $pledgeRows = collect($record->collateralAssets);
+    }
+    $pledgeByAssetId = $pledgeRows->keyBy(fn ($row) => (int) $row->customer_asset_id);
+    $assets = $profileAssets
+        ->concat($pledgeRows->map(fn ($row) => $row->customerAsset)->filter())
+        ->unique(fn ($asset) => (int) $asset->id)
+        ->sortBy(fn ($asset) => $pledgeByAssetId->has((int) $asset->id) ? 0 : 1)
+        ->values();
     $canRequestDocs = auth()->user()?->hasPermission('applications.request_documents');
     $collateralPresets = \App\Services\ApplicationDocumentRequestService::COLLATERAL_PRESET_LABELS;
     $typeOptions = \App\Models\CustomerAsset::typeOptions();
@@ -23,7 +34,7 @@
             @if ($isGuarantor)
                 Assets on the guarantor’s profile. Read-only here — request updates below when something is missing.
             @else
-                Assets on the borrower’s profile. Read-only here — request updates below when something is missing.
+                All profile assets. Assets pledged on this loan are listed first.
             @endif
         </p>
     </div>
@@ -47,6 +58,9 @@
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
                     {{ $assets->count() }} saved
+                    @if (! $isGuarantor && $pledgeRows->isNotEmpty())
+                        · {{ $pledgeRows->count() }} on this loan
+                    @endif
                 </p>
                 <div class="-mx-1 px-1 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1"
                      style="scrollbar-width: thin;">
@@ -55,6 +69,14 @@
                             $thumb = $asset->thumbnailPath();
                             $gallery = $asset->galleryPaths();
                             $typeLabel = $typeOptions[$asset->asset_type] ?? $asset->asset_type;
+                            $pledge = $pledgeByAssetId->get((int) $asset->id);
+                            $pledgeStatus = (string) ($pledge->uw_status ?? '');
+                            $pledgeBadge = match (true) {
+                                $pledgeStatus === 'accepted' => ['On this loan', 'bg-emerald-500/90 text-white'],
+                                $pledgeStatus === 'declined' => ['Declined', 'bg-rose-500/90 text-white'],
+                                $pledge !== null => ['On this loan', 'bg-brand/90 text-white'],
+                                default => ['Saved', 'bg-slate-600/90 text-white'],
+                            };
                             $cardDetails = collect(\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type))
                                 ->map(function ($field) use ($asset) {
                                     $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
@@ -80,8 +102,8 @@
                                     <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] font-semibold bg-white/90 backdrop-blur px-2.5 py-1 rounded-full text-gray-800 ring-1 ring-black/5">
                                         {{ $typeIcons[$asset->asset_type] ?? '📦' }} {{ $typeLabel }}
                                     </span>
-                                    <span class="absolute top-3 right-3 inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/90 text-white px-2.5 py-1 rounded-full">
-                                        Saved
+                                    <span class="absolute top-3 right-3 inline-flex items-center gap-1 text-[11px] font-semibold {{ $pledgeBadge[1] }} px-2.5 py-1 rounded-full">
+                                        {{ $pledgeBadge[0] }}
                                     </span>
                                     @if (count($gallery) > 1)
                                         <span class="absolute bottom-3 right-3 text-[11px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full">

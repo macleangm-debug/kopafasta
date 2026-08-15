@@ -295,6 +295,41 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertDontSee('On this loan', false);
     }
 
+    public function test_admin_collateral_tab_lists_all_assets_with_pledged_first(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $pledged = $this->completeAsset($customer, 'Toyota Rav4');
+        $this->completeAsset($customer, 'Vitz');
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        LoanApplicationAsset::create([
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $pledged->id,
+            'asset_type' => 'vehicle',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Toyota Rav4', $html);
+        $this->assertStringContainsString('>Vitz<', $html);
+        $this->assertStringContainsString('On this loan', $html);
+        $this->assertStringContainsString('Saved', $html);
+        $this->assertTrue(
+            strpos($html, 'Toyota Rav4') < strpos($html, '>Vitz<'),
+            'Pledged asset should appear before other profile assets'
+        );
+    }
+
     public function test_add_collateral_opens_type_as_wizard_step(): void
     {
         $customer = $this->completeBorrower();

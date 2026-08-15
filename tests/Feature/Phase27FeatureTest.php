@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\User;
+use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,6 +17,11 @@ class Phase27FeatureTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Asha',
+            'primary_school' => 'Uhuru Primary',
+            'nida_middle4' => '4582',
+        ]);
 
         return Customer::create([
             'user_id'               => $user->id,
@@ -112,6 +118,10 @@ class Phase27FeatureTest extends TestCase
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.face-verification'))
+            ->assertRedirect(route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']));
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'personal']))
             ->assertOk()
             ->assertSee('max-w-7xl', false);
     }

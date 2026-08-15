@@ -118,7 +118,7 @@ class ProfileCompletionService
                     $faceRevision => 'stale',
                     default => 'missing',
                 },
-                'action_url' => route('site.borrower.face-verification'),
+                'action_url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
             ];
         }
 

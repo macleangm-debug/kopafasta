@@ -45,6 +45,7 @@
         'unsavedMessage' => __('borrower.profile.unsaved_photos_body'),
         'unsavedConfirm' => __('borrower.profile.unsaved_photos_confirm'),
     ]))"
+    @profile-card-open-edit.window="if ($event.detail === sectionHash) openEdit()"
 >
     <div class="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b border-gray-100/80">
         <button type="button"

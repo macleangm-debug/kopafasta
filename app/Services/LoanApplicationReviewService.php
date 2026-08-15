@@ -161,7 +161,8 @@ class LoanApplicationReviewService
                 $query->whereNull('loan_application_id')
                     ->orWhere('loan_application_id', $application->id);
             })
-            ->with('documentType')
+            ->whereNotIn('status', ['replaced', 'archived'])
+            ->with(['documentType', 'documentRequest'])
             ->latest()
             ->get();
 
@@ -530,7 +531,8 @@ class LoanApplicationReviewService
 
         $profileDocuments = CustomerDocument::query()
             ->where('customer_id', $customer->id)
-            ->with('documentType')
+            ->whereNotIn('status', ['replaced', 'archived'])
+            ->with(['documentType', 'documentRequest'])
             ->latest()
             ->get();
 
