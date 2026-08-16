@@ -63,31 +63,17 @@
     $openDocRequestCount = $allDocRequests
         ->filter(fn ($req) => in_array($req->status ?? '', ['pending', 'uploaded', 'rejected'], true))
         ->filter(function ($req) use ($person, $selectedMember, $selectedGuarantor, $leaderCustomerId) {
-            $kind = (string) ($req->subject_kind ?? 'borrower');
-            $reqCustomerId = (int) ($req->subject_customer_id ?? 0);
-            $reqMemberId = (int) ($req->loan_group_member_id ?? 0);
-
-            if ($person === 'member') {
-                $memberId = (int) ($selectedMember['id'] ?? 0);
-                $memberCustomerId = (int) ($selectedMember['customer_id'] ?? 0);
-                if ($memberId > 0 && $reqMemberId === $memberId) {
-                    return true;
-                }
-
-                return $kind === 'member' && $memberCustomerId > 0 && $reqCustomerId === $memberCustomerId;
-            }
-
-            if ($person === 'guarantor') {
-                $gCustomerId = (int) ($selectedGuarantor['customer_id'] ?? 0);
-
-                return $kind === 'guarantor' && ($gCustomerId <= 0 || $reqCustomerId === $gCustomerId);
-            }
-
-            if (in_array($kind, ['member', 'guarantor'], true)) {
-                return false;
-            }
-
-            return $reqCustomerId === 0 || $reqCustomerId === $leaderCustomerId;
+            return app(\App\Services\ApplicationDocumentRequestService::class)->targetsReviewSubject(
+                $req,
+                $person,
+                match ($person) {
+                    'member' => (int) data_get($selectedMember, 'customer_id', 0),
+                    'guarantor' => (int) data_get($selectedGuarantor, 'customer_id', 0),
+                    default => $leaderCustomerId,
+                },
+                (int) data_get($selectedMember, 'id', 0),
+                $leaderCustomerId,
+            );
         })
         ->count();
 

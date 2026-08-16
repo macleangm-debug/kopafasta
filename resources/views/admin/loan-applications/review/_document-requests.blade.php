@@ -20,6 +20,22 @@
         ? array_values(array_diff($presets, $assetPresets, $collateralPresets, $identityPresets))
         : array_values(array_diff($presets, $collateralPresets, $identityPresets));
     $documentRequests = collect($documentRequests ?? []);
+    $lockRequestSubject = (bool) ($lockRequestSubject ?? false);
+    $requestMemberId = (int) ($requestMemberId ?? 0);
+    $requestSubjectCustomerId = (int) ($requestSubjectCustomerId ?? 0);
+    if ($lockRequestSubject) {
+        $documentRequests = $documentRequests->filter(
+            fn ($req) => $docService->targetsReviewSubject(
+                $req,
+                $person,
+                $requestSubjectCustomerId > 0
+                    ? $requestSubjectCustomerId
+                    : (int) ($record->customer_id ?? 0),
+                $requestMemberId > 0 ? $requestMemberId : null,
+                (int) ($record->customer_id ?? 0),
+            )
+        )->values();
+    }
     $canRequestDocs = auth()->user()?->hasPermission('applications.request_documents');
 
     $isLoanFileRequest = fn ($req) => ! $docService->isProfileGuidedRequest($req);
@@ -323,12 +339,18 @@
                     }
 
                     $defaultRequestSubject = 'borrower';
-                    $lockedMemberId = (int) ($requestMemberId ?? 0);
-                    $lockedSubjectCustomerId = (int) ($requestSubjectCustomerId ?? 0);
+                    $lockedMemberId = $requestMemberId;
+                    $lockedSubjectCustomerId = $requestSubjectCustomerId;
+                    $mId = 0;
+                    $gLinkId = 0;
 
                     if ($panelPerson === 'member') {
                         $mId = $lockedMemberId
                             ?: (int) request('review_m', request('m', 0));
+                        if ($mId < 1 && $lockedSubjectCustomerId > 0) {
+                            $match = $groupMembersForRequest->firstWhere('customer_id', $lockedSubjectCustomerId);
+                            $mId = (int) ($match['id'] ?? 0);
+                        }
                         if ($mId > 0) {
                             $defaultRequestSubject = 'member:'.$mId;
                         }
@@ -340,7 +362,9 @@
                                 : null)
                             ?? $guarantorsForRequest->first();
                         if ($gLink) {
-                            $defaultRequestSubject = 'guarantor:'.(int) ($gLink['customer_id'] ?? 0);
+                            $gLinkId = (int) ($gLink['link_id'] ?? $gLinkId);
+                            $lockedSubjectCustomerId = (int) ($gLink['customer_id'] ?? $lockedSubjectCustomerId);
+                            $defaultRequestSubject = 'guarantor:'.$lockedSubjectCustomerId;
                         }
                     } elseif (old('request_subject')) {
                         $defaultRequestSubject = (string) old('request_subject');
@@ -350,6 +374,18 @@
                     $showSubjectPicker = ! $lockRequestSubject
                         && ($groupMembersForRequest->isNotEmpty() || $guarantorsForRequest->isNotEmpty());
                 @endphp
+                <input type="hidden" name="review_person" value="{{ $panelPerson }}">
+                @if ($panelPerson === 'member' && $mId > 0)
+                    <input type="hidden" name="review_m" value="{{ $mId }}">
+                @endif
+                @if ($panelPerson === 'guarantor')
+                    @if ($gLinkId > 0)
+                        <input type="hidden" name="review_g" value="{{ $gLinkId }}">
+                    @endif
+                    @if ($lockedSubjectCustomerId > 0)
+                        <input type="hidden" name="subject_customer_id" value="{{ $lockedSubjectCustomerId }}">
+                    @endif
+                @endif
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Type</label>

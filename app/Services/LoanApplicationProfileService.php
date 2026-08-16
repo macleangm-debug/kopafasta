@@ -2,13 +2,18 @@
 
 namespace App\Services;
 
+use App\Models\AssetReservation;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
+use App\Models\GuarantorInvitation;
 use App\Models\Loan;
+use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
+use App\Models\LoanProductRequirement;
 use App\Models\RepaymentSchedule;
+use Illuminate\Support\Collection;
 
 class LoanApplicationProfileService
 {
@@ -30,9 +35,9 @@ class LoanApplicationProfileService
         $resumeTarget = $this->drafts->resumeTarget($customer, $draft);
         $profileCompletion = app(ProfileCompletionService::class)->calculate($customer);
         $profileSummary = [
-            'percent'   => (int) ($profileCompletion['percent'] ?? 0),
+            'percent' => (int) ($profileCompletion['percent'] ?? 0),
             'completed' => collect($profileCompletion['sections'] ?? [])->where('complete', true)->count(),
-            'missing'   => collect($profileCompletion['sections'] ?? [])->where('complete', false)->pluck('label')->values()->all(),
+            'missing' => collect($profileCompletion['sections'] ?? [])->where('complete', false)->pluck('label')->values()->all(),
         ];
         $applicationSummary = $this->progress->applicationDraftProgress($customer, $draft, $product);
         $profileUrl = route('site.borrower.loan-profile.draft', $draft);
@@ -54,44 +59,44 @@ class LoanApplicationProfileService
         $guarantorInvitations = $this->draftGuarantorInvitations($customer, $draft);
 
         return [
-            'is_draft'             => true,
-            'draft'                => $draft,
-            'application'          => null,
-            'loan'                 => null,
-            'summary'              => $this->draftSummary($customer, $draft, $product),
-            'status'               => $this->draftStatus($draft, $next),
-            'progress'             => [
-                'profile_percent'            => $profileSummary['percent'],
-                'profile_complete'         => $profileSummary['percent'] >= 100,
-                'application_percent'        => $applicationSummary['percent'],
+            'is_draft' => true,
+            'draft' => $draft,
+            'application' => null,
+            'loan' => null,
+            'summary' => $this->draftSummary($customer, $draft, $product),
+            'status' => $this->draftStatus($draft, $next),
+            'progress' => [
+                'profile_percent' => $profileSummary['percent'],
+                'profile_complete' => $profileSummary['percent'] >= 100,
+                'application_percent' => $applicationSummary['percent'],
                 'application_status_label' => $applicationSummary['label'],
-                'percent'                    => $applicationSummary['percent'],
-                'completed'                  => $profileSummary['completed'],
-                'missing'                    => $profileSummary['missing'],
-                'timeline'                   => $applicationSummary['steps'],
+                'percent' => $applicationSummary['percent'],
+                'completed' => $profileSummary['completed'],
+                'missing' => $profileSummary['missing'],
+                'timeline' => $applicationSummary['steps'],
             ],
             'missing_requirements' => $missingRequirements,
-            'next_action'          => $next,
-            'can_submit'           => (bool) ($next['can_submit'] ?? false) && ($next['code'] ?? '') === 'submit_application',
-            'actions'              => $this->primaryActions($next),
-            'resume_target'        => $resumeTarget,
-            'wizard_url'           => $wizardUrl,
-            'edit_quote_url'       => $editQuoteUrl,
-            'edit_guarantor_url'   => $editGuarantorUrl,
-            'snapshot'             => $this->drafts->adminSnapshot($draft),
-            'product_details'      => $this->productDetailsForDraft($draft, $product),
-            'document_requests'    => [],
+            'next_action' => $next,
+            'can_submit' => (bool) ($next['can_submit'] ?? false) && ($next['code'] ?? '') === 'submit_application',
+            'actions' => $this->primaryActions($next),
+            'resume_target' => $resumeTarget,
+            'wizard_url' => $wizardUrl,
+            'edit_quote_url' => $editQuoteUrl,
+            'edit_guarantor_url' => $editGuarantorUrl,
+            'snapshot' => $this->drafts->adminSnapshot($draft),
+            'product_details' => $this->productDetailsForDraft($draft, $product),
+            'document_requests' => [],
             'underwriting_actions' => [],
             'guarantor_invitations' => $guarantorInvitations,
-            'customer_guarantors'  => collect(),
-            'requires_guarantor'   => (bool) ($product?->requires_guarantor
+            'customer_guarantors' => collect(),
+            'requires_guarantor' => (bool) ($product?->requires_guarantor
                 ?? app(LoanPolicyService::class)->requiresGuarantorForApplication(
                     $product,
                     (float) (($draft->payload['form']['requested_amount'] ?? 0) ?: ($product?->min_amount ?? 0)),
                 )),
             'product_requirements' => collect(),
-            'requirement_uploads'  => collect(),
-            'offer'                => null,
+            'requirement_uploads' => collect(),
+            'offer' => null,
         ];
     }
 
@@ -128,12 +133,12 @@ class LoanApplicationProfileService
                 ->first();
         }
 
-        $guarantorInvitations = \App\Models\GuarantorInvitation::query()
+        $guarantorInvitations = GuarantorInvitation::query()
             ->where('loan_application_id', $application->id)
             ->latest()
             ->get();
 
-        $offer = \App\Models\LoanAgreement::query()
+        $offer = LoanAgreement::query()
             ->where('loan_application_id', $application->id)
             ->where('document_type', 'offer_letter')
             ->latest('id')
@@ -141,18 +146,18 @@ class LoanApplicationProfileService
 
         $profileCompletion = app(ProfileCompletionService::class)->calculate($customer);
         $profileProgress = [
-            'percent'   => (int) ($profileCompletion['percent'] ?? 0),
+            'percent' => (int) ($profileCompletion['percent'] ?? 0),
             'completed' => collect($profileCompletion['sections'] ?? [])->where('complete', true)->count(),
-            'missing'   => collect($profileCompletion['sections'] ?? [])->where('complete', false)->pluck('label')->values()->all(),
+            'missing' => collect($profileCompletion['sections'] ?? [])->where('complete', false)->pluck('label')->values()->all(),
         ];
         $missingRequirements = $this->submittedMissingRequirements($customer, $application, $requirements, $uploads);
         $next = $this->nextAction->forApplication($customer, $application, $missingRequirements);
 
         $pipelineSteps = collect($pipelineProgress['steps'] ?? [])
             ->map(fn (array $step) => [
-                'label'    => $step['label'],
+                'label' => $step['label'],
                 'complete' => (bool) ($step['complete'] ?? false),
-                'current'  => (bool) ($step['current'] ?? ($step['active'] ?? false)),
+                'current' => (bool) ($step['current'] ?? ($step['active'] ?? false)),
             ])
             ->values()
             ->all();
@@ -165,87 +170,93 @@ class LoanApplicationProfileService
                 ->first();
 
             $repaymentSummary = [
-                'disbursed_at'        => $loan->disbursement_date,
-                'first_repayment_at'  => $firstSchedule?->due_date ?? $nextDue?->due_date,
-                'frequency'           => $loan->product?->repayment_cadence ?? 'weekly',
+                'disbursed_at' => $loan->disbursement_date,
+                'first_repayment_at' => $firstSchedule?->due_date ?? $nextDue?->due_date,
+                'frequency' => $loan->product?->repayment_cadence ?? 'weekly',
             ];
         }
 
         $borrowerStatus = $this->borrowerStatus->forApplication($application);
         $disbursementChecklist = app(ApplicationDisbursementReadinessService::class)
             ->borrowerDisbursementChecklist($application);
+        $docRequestService = app(ApplicationDocumentRequestService::class);
+        $documentRequests = $application->documentRequests()->with('uploads')->latest()->get();
+        $requestsForCustomer = $documentRequests->filter(
+            fn ($request) => $docRequestService->isSubjectOfRequest($customer, $request)
+                || $docRequestService->borrowerIsAssisting($customer, $request)
+        )->values();
 
         return [
-            'is_draft'             => false,
-            'draft'                => null,
-            'application'          => $application,
-            'loan'                 => $loan,
-            'next_due'             => $nextDue,
-            'summary'              => $this->applicationSummary($application, $loan),
-            'status'               => [
-                'code'    => $borrowerStatus['code'],
-                'label'   => $borrowerStatus['label'],
-                'tone'    => $borrowerStatus['tone'],
-                'detail'  => $this->statusDetail($application),
+            'is_draft' => false,
+            'draft' => null,
+            'application' => $application,
+            'loan' => $loan,
+            'next_due' => $nextDue,
+            'summary' => $this->applicationSummary($application, $loan),
+            'status' => [
+                'code' => $borrowerStatus['code'],
+                'label' => $borrowerStatus['label'],
+                'tone' => $borrowerStatus['tone'],
+                'detail' => $this->statusDetail($application),
                 'rejection_reasons' => $borrowerStatus['code'] === 'rejected'
                     ? $this->rejectionReasonLabelsForBorrower($application)
                     : [],
                 'rejection_advice' => $borrowerStatus['code'] === 'rejected'
-                    ? app(\App\Services\LoanRejectionReasonService::class)->resolveBorrowerAdvice(
+                    ? app(LoanRejectionReasonService::class)->resolveBorrowerAdvice(
                         $application->rejection_advice_code,
                         $application->rejection_advice,
                     )
                     : null,
             ],
-            'progress'             => [
-                'profile_percent'            => $profileProgress['percent'],
-                'profile_complete'         => $profileProgress['percent'] >= 100,
-                'application_percent'        => $pipelineProgress['percent'],
-                'application_status_label'   => $borrowerStatus['label'],
-                'percent'                    => $pipelineProgress['percent'],
-                'completed'                  => $profileProgress['completed'],
-                'missing'                    => $profileProgress['missing'],
-                'timeline'                   => $pipelineSteps,
-                'is_loan_progress'           => (bool) ($pipelineProgress['is_loan_progress'] ?? false),
-                'timeline_title'             => ($pipelineProgress['is_loan_progress'] ?? false)
+            'progress' => [
+                'profile_percent' => $profileProgress['percent'],
+                'profile_complete' => $profileProgress['percent'] >= 100,
+                'application_percent' => $pipelineProgress['percent'],
+                'application_status_label' => $borrowerStatus['label'],
+                'percent' => $pipelineProgress['percent'],
+                'completed' => $profileProgress['completed'],
+                'missing' => $profileProgress['missing'],
+                'timeline' => $pipelineSteps,
+                'is_loan_progress' => (bool) ($pipelineProgress['is_loan_progress'] ?? false),
+                'timeline_title' => ($pipelineProgress['is_loan_progress'] ?? false)
                     ? __('borrower.loan_progress.title')
                     : __('borrower.loan_profile.application_progress'),
             ],
             'missing_requirements' => $missingRequirements,
-            'next_action'          => $next,
-            'can_submit'           => false,
-            'actions'              => $this->primaryActions($next),
-            'resume_target'        => null,
-            'wizard_url'           => null,
-            'edit_quote_url'       => null,
-            'edit_guarantor_url'   => app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)
-                ? app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application)
+            'next_action' => $next,
+            'can_submit' => false,
+            'actions' => $this->primaryActions($next),
+            'resume_target' => null,
+            'wizard_url' => null,
+            'edit_quote_url' => null,
+            'edit_guarantor_url' => app(GuarantorSupplementService::class)->hasOpenRequest($application)
+                ? app(GuarantorSupplementService::class)->borrowerWizardUrl($application)
                 : null,
             'can_change_guarantor_while_held' => in_array((string) $application->status, ['awaiting_guarantor'], true)
                 || (string) $application->current_stage === 'awaiting_guarantor',
-            'document_requests'    => $application->documentRequests()->with('uploads')->latest()->get(),
+            'document_requests' => $requestsForCustomer,
             'document_request_groups' => $this->borrowerStatus->groupedDocumentRequests(
-                $application->documentRequests()->with('uploads')->latest()->get()
+                $requestsForCustomer
             ),
-            'customer'             => $customer,
-            'underwriting_actions' => app(ApplicationDocumentRequestService::class)
+            'customer' => $customer,
+            'underwriting_actions' => $docRequestService
                 ->openGuidedActionsForApplication($application),
             'guarantor_invitations' => $guarantorInvitations,
-            'customer_guarantors'  => $application->customerGuarantors,
-            'requires_guarantor'   => (bool) ($application->product?->requires_guarantor ?? false),
+            'customer_guarantors' => $application->customerGuarantors,
+            'requires_guarantor' => (bool) ($application->product?->requires_guarantor ?? false),
             'product_requirements' => $requirements,
-            'requirement_uploads'  => $uploads,
-            'offer'                => $offer,
-            'schedule_preview'     => $this->shouldShowSchedulePreview($application, $loan)
+            'requirement_uploads' => $uploads,
+            'offer' => $offer,
+            'schedule_preview' => $this->shouldShowSchedulePreview($application, $loan)
                 ? $this->schedulePreview($application)
                 : null,
-            'repayment_summary'    => $repaymentSummary,
+            'repayment_summary' => $repaymentSummary,
             'disbursement_details' => app(CustomerDisbursementDetailsService::class)
                 ->snapshotForApplication($application),
             'disbursement_checklist' => $disbursementChecklist,
-            'handover_milestones'    => app(AssetHandoverMilestoneService::class)->forApplication($application),
-            'product_details'        => $this->productDetailsForApplication($application),
-            'collateral_secure'      => app(\App\Services\CollateralSecureService::class)->viewModel($application),
+            'handover_milestones' => app(AssetHandoverMilestoneService::class)->forApplication($application),
+            'product_details' => $this->productDetailsForApplication($application),
+            'collateral_secure' => app(CollateralSecureService::class)->viewModel($application),
         ];
     }
 
@@ -269,12 +280,12 @@ class LoanApplicationProfileService
             $progress = app(GroupMemberProgressService::class)->forDraftPayload($group);
 
             return [
-                'type'     => 'group',
-                'title'    => __('borrower.loan_profile.special.group_title'),
-                'group'    => [
-                    'name'                => $group['name'] ?? null,
-                    'purpose'             => $group['purpose'] ?? null,
-                    'amount_per_member'   => $group['amount_per_member'] ?? ($form['requested_amount'] ?? null),
+                'type' => 'group',
+                'title' => __('borrower.loan_profile.special.group_title'),
+                'group' => [
+                    'name' => $group['name'] ?? null,
+                    'purpose' => $group['purpose'] ?? null,
+                    'amount_per_member' => $group['amount_per_member'] ?? ($form['requested_amount'] ?? null),
                     'target_member_count' => $group['target_member_count'] ?? ($progress['target'] ?? null),
                 ],
                 'progress' => $progress,
@@ -283,18 +294,18 @@ class LoanApplicationProfileService
 
         if (is_asset_backed_loan_product($product->code ?? null)) {
             return [
-                'type'                => 'asset_backed',
-                'title'               => __('borrower.loan_profile.special.asset_backed_title'),
-                'asset'               => [
+                'type' => 'asset_backed',
+                'title' => __('borrower.loan_profile.special.asset_backed_title'),
+                'asset' => [
                     'description' => $form['asset_description'] ?? $form['collateral_description'] ?? ($payload['asset']['description'] ?? null),
-                    'type'        => $form['asset_type'] ?? ($payload['asset']['type'] ?? null),
-                    'value'       => $form['asset_value'] ?? $form['estimated_value'] ?? ($payload['asset']['value'] ?? null),
-                    'location'    => $form['asset_location'] ?? ($payload['asset']['location'] ?? null),
+                    'type' => $form['asset_type'] ?? ($payload['asset']['type'] ?? null),
+                    'value' => $form['asset_value'] ?? $form['estimated_value'] ?? ($payload['asset']['value'] ?? null),
+                    'location' => $form['asset_location'] ?? ($payload['asset']['location'] ?? null),
                 ],
-                'photos'              => $snapshot['asset_photos'] ?? [],
+                'photos' => $snapshot['asset_photos'] ?? [],
                 'ownership_documents' => $snapshot['ownership_documents'] ?? [],
                 'insurance_documents' => $snapshot['insurance_documents'] ?? [],
-                'steps'               => $this->assetBackedSteps($snapshot, $form),
+                'steps' => $this->assetBackedSteps($snapshot, $form),
             ];
         }
 
@@ -302,29 +313,29 @@ class LoanApplicationProfileService
             || filled($draft->asset_reservation_id)) {
             $reservation = null;
             if ($draft->asset_reservation_id) {
-                $reservation = \App\Models\AssetReservation::query()
+                $reservation = AssetReservation::query()
                     ->with('asset')
                     ->find($draft->asset_reservation_id);
             }
 
             return [
-                'type'                => 'asset_lending',
-                'title'               => __('borrower.loan_profile.special.asset_lending_title'),
-                'asset'               => [
-                    'name'      => $reservation?->asset?->name
+                'type' => 'asset_lending',
+                'title' => __('borrower.loan_profile.special.asset_lending_title'),
+                'asset' => [
+                    'name' => $reservation?->asset?->name
                         ?? $form['asset_name']
                         ?? ($payload['asset']['name'] ?? null),
                     'reference' => $reservation?->asset?->sku
                         ?? $reservation?->asset?->reference
                         ?? null,
-                    'price'     => $reservation?->asset?->price
+                    'price' => $reservation?->asset?->price
                         ?? $form['asset_price']
                         ?? null,
                     'remaining' => $form['remaining_loan'] ?? ($payload['asset_application']['remaining_loan'] ?? null),
                 ],
-                'photos'              => $snapshot['asset_photos'] ?? [],
+                'photos' => $snapshot['asset_photos'] ?? [],
                 'insurance_documents' => $snapshot['insurance_documents'] ?? [],
-                'steps'               => $this->assetLendingSteps($draft, $reservation),
+                'steps' => $this->assetLendingSteps($draft, $reservation),
             ];
         }
 
@@ -346,12 +357,12 @@ class LoanApplicationProfileService
             $group = $application->loanGroup;
 
             return [
-                'type'     => 'group',
-                'title'    => __('borrower.loan_profile.special.group_title'),
-                'group'    => [
-                    'name'                => $group?->name,
-                    'purpose'             => $group?->purpose,
-                    'amount_per_member'   => $group?->amount_per_member,
+                'type' => 'group',
+                'title' => __('borrower.loan_profile.special.group_title'),
+                'group' => [
+                    'name' => $group?->name,
+                    'purpose' => $group?->purpose,
+                    'amount_per_member' => $group?->amount_per_member,
                     'target_member_count' => $group?->target_member_count ?? ($progress['target'] ?? null),
                 ],
                 'progress' => $progress,
@@ -360,13 +371,13 @@ class LoanApplicationProfileService
 
         if (is_asset_backed_loan_product($product->code ?? null)) {
             return [
-                'type'  => 'asset_backed',
+                'type' => 'asset_backed',
                 'title' => __('borrower.loan_profile.special.asset_backed_title'),
                 'asset' => [
                     'description' => $meta['asset_description'] ?? $application->purpose,
-                    'type'        => $meta['asset_type'] ?? null,
-                    'value'       => $meta['asset_value'] ?? null,
-                    'location'    => $meta['asset_location'] ?? null,
+                    'type' => $meta['asset_type'] ?? null,
+                    'value' => $meta['asset_value'] ?? null,
+                    'location' => $meta['asset_location'] ?? null,
                 ],
                 'steps' => [
                     ['key' => 'details', 'label' => __('borrower.loan_profile.special.step_details'), 'complete' => filled($meta['asset_description'] ?? $application->purpose)],
@@ -379,12 +390,12 @@ class LoanApplicationProfileService
 
         if (in_array((string) ($product->category ?? ''), ['asset_finance', 'asset_lending'], true)) {
             return [
-                'type'  => 'asset_lending',
+                'type' => 'asset_lending',
                 'title' => __('borrower.loan_profile.special.asset_lending_title'),
                 'asset' => [
-                    'name'      => $meta['asset_name'] ?? null,
+                    'name' => $meta['asset_name'] ?? null,
                     'reference' => $meta['asset_reference'] ?? null,
-                    'price'     => $meta['asset_price'] ?? null,
+                    'price' => $meta['asset_price'] ?? null,
                 ],
                 'steps' => [
                     ['key' => 'reservation', 'label' => __('borrower.loan_profile.special.step_reservation'), 'complete' => true],
@@ -441,20 +452,20 @@ class LoanApplicationProfileService
         $amount = (float) $this->drafts->requestedAmount($draft);
 
         return [
-            'loan_type'           => $this->loanTypeLabel($product),
-            'product_name'        => $product?->localizedName() ?? __('borrower.apply.title'),
-            'requested_amount'    => $amount,
-            'requested_tenure'    => (int) ($form['requested_tenure_months'] ?? 0),
+            'loan_type' => $this->loanTypeLabel($product),
+            'product_name' => $product?->localizedName() ?? __('borrower.apply.title'),
+            'requested_amount' => $amount,
+            'requested_tenure' => (int) ($form['requested_tenure_months'] ?? 0),
             'interest_rate_label' => $product
                 ? $this->displayedRate->formatPercent(
                     $this->displayedRate->displayedMonthlyRate($product, $amount > 0 ? $amount : null)
                 )
                 : null,
-            'application_number'  => $draft->draft_reference ?: __('borrower.applications_list.draft_reference'),
-            'date_label'          => __('borrower.loan_profile.started_date'),
-            'primary_date'        => $draft->created_at,
-            'created_at'          => $draft->created_at,
-            'updated_at'          => $draft->saved_at ?? $draft->updated_at,
+            'application_number' => $draft->draft_reference ?: __('borrower.applications_list.draft_reference'),
+            'date_label' => __('borrower.loan_profile.started_date'),
+            'primary_date' => $draft->created_at,
+            'created_at' => $draft->created_at,
+            'updated_at' => $draft->saved_at ?? $draft->updated_at,
         ];
     }
 
@@ -466,23 +477,23 @@ class LoanApplicationProfileService
         $primaryDate = $application->submitted_at ?? $application->created_at;
 
         return [
-            'loan_type'           => $this->loanTypeLabel($product),
-            'product_name'        => $product?->localizedName() ?? '—',
-            'requested_amount'    => $amount,
-            'requested_tenure'    => (int) $application->requested_tenure_months,
+            'loan_type' => $this->loanTypeLabel($product),
+            'product_name' => $product?->localizedName() ?? '—',
+            'requested_amount' => $amount,
+            'requested_tenure' => (int) $application->requested_tenure_months,
             'interest_rate_label' => $product
                 ? $this->displayedRate->formatPercent(
                     $this->displayedRate->displayedMonthlyRate($product, $amount > 0 ? $amount : null)
                 )
                 : null,
-            'application_number'  => $application->application_number,
-            'loan_number'         => $loan?->loan_number,
-            'date_label'          => $application->submitted_at
+            'application_number' => $application->application_number,
+            'loan_number' => $loan?->loan_number,
+            'date_label' => $application->submitted_at
                 ? __('borrower.loan_profile.submitted_date')
                 : __('borrower.loan_profile.started_date'),
-            'primary_date'        => $primaryDate,
-            'created_at'          => $application->created_at,
-            'updated_at'          => $application->updated_at,
+            'primary_date' => $primaryDate,
+            'created_at' => $application->created_at,
+            'updated_at' => $application->updated_at,
         ];
     }
 
@@ -506,10 +517,10 @@ class LoanApplicationProfileService
             }
 
             $items[] = [
-                'key'        => $requirement['key'],
-                'label'      => $requirement['label'],
+                'key' => $requirement['key'],
+                'label' => $requirement['label'],
                 'upload_url' => $this->appendReturn($requirement['action_url'], $returnUrl),
-                'complete'   => false,
+                'complete' => false,
             ];
         }
 
@@ -517,15 +528,15 @@ class LoanApplicationProfileService
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, \App\Models\LoanProductRequirement>  $requirements
-     * @param  \Illuminate\Support\Collection<int|string, \Illuminate\Support\Collection<int, CustomerDocument>>  $uploads
+     * @param  Collection<int, LoanProductRequirement>  $requirements
+     * @param  Collection<int|string, Collection<int, CustomerDocument>>  $uploads
      * @return list<array{key: string, label: string, upload_url: string, complete: bool}>
      */
     private function submittedMissingRequirements(
         Customer $customer,
         LoanApplication $application,
-        \Illuminate\Support\Collection $requirements,
-        \Illuminate\Support\Collection $uploads,
+        Collection $requirements,
+        Collection $uploads,
     ): array {
         $items = [];
 
@@ -536,24 +547,28 @@ class LoanApplicationProfileService
 
             if (! $satisfied) {
                 $items[] = [
-                    'key'        => 'requirement-'.$requirement->id,
-                    'label'      => $requirement->name,
+                    'key' => 'requirement-'.$requirement->id,
+                    'label' => $requirement->name,
                     'upload_url' => route('site.borrower.application', $application->id).'#requirement-'.$requirement->id,
-                    'complete'   => false,
+                    'complete' => false,
                 ];
             }
         }
 
         foreach ($application->documentRequests as $request) {
-            if ($request->needsBorrowerAction()) {
-                $docService = app(ApplicationDocumentRequestService::class);
-                $items[] = [
-                    'key'        => 'request-'.$request->id,
-                    'label'      => $docService->localizedLabel((string) $request->label),
-                    'upload_url' => $docService->borrowerActionUrl($request),
-                    'complete'   => false,
-                ];
+            if (! $request->needsBorrowerAction()) {
+                continue;
             }
+            if (! app(ApplicationDocumentRequestService::class)->isSubjectOfRequest($customer, $request)) {
+                continue;
+            }
+            $docService = app(ApplicationDocumentRequestService::class);
+            $items[] = [
+                'key' => 'request-'.$request->id,
+                'label' => $docService->localizedLabel((string) $request->label),
+                'upload_url' => $docService->borrowerActionUrl($request),
+                'complete' => false,
+            ];
         }
 
         return $items;
@@ -584,8 +599,8 @@ class LoanApplicationProfileService
     {
         return [[
             'label' => $next['button_label'],
-            'url'   => $next['url'],
-            'tone'  => $next['tone'] ?? 'primary',
+            'url' => $next['url'],
+            'tone' => $next['tone'] ?? 'primary',
         ]];
     }
 
@@ -610,32 +625,32 @@ class LoanApplicationProfileService
 
         if ($hasSignature) {
             return [
-                'code'  => 'ready_for_submission',
+                'code' => 'ready_for_submission',
                 'label' => __('borrower.loan_profile.statuses.ready_for_submission'),
-                'tone'  => 'emerald',
+                'tone' => 'emerald',
             ];
         }
 
         return match ($next['code'] ?? 'continue_application') {
             'sign_application' => [
-                'code'  => 'ready_for_signature',
+                'code' => 'ready_for_signature',
                 'label' => __('borrower.loan_profile.statuses.ready_for_signature'),
-                'tone'  => 'amber',
+                'tone' => 'amber',
             ],
             'review_application' => [
-                'code'  => 'ready_for_review',
+                'code' => 'ready_for_review',
                 'label' => __('borrower.loan_profile.statuses.ready_for_review'),
-                'tone'  => 'sky',
+                'tone' => 'sky',
             ],
             'submit_application' => [
-                'code'  => 'ready_for_submission',
+                'code' => 'ready_for_submission',
                 'label' => __('borrower.loan_profile.statuses.ready_for_submission'),
-                'tone'  => 'emerald',
+                'tone' => 'emerald',
             ],
             default => [
-                'code'  => 'draft',
+                'code' => 'draft',
                 'label' => $this->dashboard->borrowerStatusLabel('draft'),
-                'tone'  => 'gray',
+                'tone' => 'gray',
             ],
         };
     }
@@ -649,13 +664,13 @@ class LoanApplicationProfileService
         $category = (string) ($product->category ?? '');
 
         return match ($category) {
-            'salary_loan'   => __('borrower.apply.product_type.salary'),
+            'salary_loan' => __('borrower.apply.product_type.salary'),
             'business_loan' => __('borrower.apply.product_type.business'),
-            'agriculture'   => __('borrower.apply.product_type.agriculture'),
+            'agriculture' => __('borrower.apply.product_type.agriculture'),
             'asset_finance' => __('borrower.apply.product_type.asset'),
-            'emergency'     => __('borrower.apply.product_type.emergency'),
-            'group'         => __('borrower.applications_list.loan_type_group'),
-            default         => ucfirst(str_replace('_', ' ', $category ?: $product->name)),
+            'emergency' => __('borrower.apply.product_type.emergency'),
+            'group' => __('borrower.applications_list.loan_type_group'),
+            default => ucfirst(str_replace('_', ' ', $category ?: $product->name)),
         };
     }
 
@@ -701,11 +716,11 @@ class LoanApplicationProfileService
         $installmentAmount = (float) ($rows[0]['total_due'] ?? 0);
 
         return [
-            'term_months'         => $tenure,
-            'installment_amount'  => $installmentAmount,
-            'frequency'           => $cadence,
-            'installment_count'   => count($rows),
-            'total_repayable'     => round(collect($rows)->sum('total_due'), 2),
+            'term_months' => $tenure,
+            'installment_amount' => $installmentAmount,
+            'frequency' => $cadence,
+            'installment_count' => count($rows),
+            'total_repayable' => round(collect($rows)->sum('total_due'), 2),
         ];
     }
 
@@ -746,7 +761,7 @@ class LoanApplicationProfileService
         return false;
     }
 
-    /** @return \Illuminate\Support\Collection<int, \App\Models\GuarantorInvitation> */
+    /** @return Collection<int, GuarantorInvitation> */
     private function draftGuarantorInvitations(Customer $customer, LoanApplicationDraft $draft)
     {
         $payload = $draft->payload ?? [];
@@ -759,7 +774,7 @@ class LoanApplicationProfileService
             return collect();
         }
 
-        return \App\Models\GuarantorInvitation::query()
+        return GuarantorInvitation::query()
             ->with('customerGuarantor')
             ->where('customer_id', $customer->id)
             ->whereIn('id', $ids->all())

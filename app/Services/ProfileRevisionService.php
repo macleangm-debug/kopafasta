@@ -10,24 +10,18 @@ class ProfileRevisionService
 {
     /** @var array<string, list<string>> */
     private const LABEL_TARGETS = [
-        'Updated National ID'            => ['nida', 'nida_docs'],
-        'Image Not Clear'                => ['face', 'nida_docs'],
-        'New face verification photo'    => ['face'],
-        'New National ID photo'          => ['nida', 'nida_docs'],
-        'Identity verification photo'    => ['face'],
-        'Signature Not Visible'          => ['signature'],
+        'Updated National ID' => ['nida', 'nida_docs'],
+        'Image Not Clear' => ['face', 'nida_docs'],
+        'New face verification photo' => ['face'],
+        'New National ID photo' => ['nida', 'nida_docs'],
+        'Identity verification photo' => ['face'],
+        'Signature Not Visible' => ['signature'],
     ];
 
     public function applyForDocumentRequest(LoanApplication $application, LoanApplicationDocumentRequest $request, bool $notify = true): void
     {
         $application->loadMissing('customer');
-        $request->loadMissing(['subjectCustomer', 'groupMember.customer']);
-
-        // Clear/revise the subject profile (group member / guarantor), never the wrong person.
-        $customer = $request->subjectCustomer
-            ?? $request->groupMember?->customer
-            ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
-            ?? $application->customer;
+        $customer = $this->subjectCustomerForRequest($application, $request);
         if (! $customer) {
             return;
         }
@@ -79,21 +73,44 @@ class ProfileRevisionService
      */
     public function ensureClearedForOpenRequests(LoanApplication $application): void
     {
-        $application->loadMissing(['customer', 'documentRequests']);
-        $customer = $application->customer;
-        if (! $customer) {
-            return;
-        }
+        $application->loadMissing(['customer', 'documentRequests.subjectCustomer', 'documentRequests.groupMember.customer']);
 
         foreach ($application->documentRequests as $request) {
             if (! $request->needsBorrowerAction()) {
                 continue;
             }
             $targets = $this->targetsForLabel((string) $request->label);
-            if ($targets !== []) {
+            if ($targets === []) {
+                continue;
+            }
+            $customer = $this->subjectCustomerForRequest($application, $request);
+            if ($customer) {
                 $this->markRevisionRequired($customer->fresh(), $targets);
             }
         }
+    }
+
+    /**
+     * Profile that must replace the file. Member / guarantor asks never fall back to the leader.
+     */
+    public function subjectCustomerForRequest(LoanApplication $application, LoanApplicationDocumentRequest $request): ?Customer
+    {
+        $request->loadMissing(['subjectCustomer', 'groupMember.customer']);
+        $kind = (string) ($request->subject_kind ?? 'borrower');
+
+        $customer = $request->subjectCustomer
+            ?? $request->groupMember?->customer
+            ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null);
+
+        if ($customer) {
+            return $customer;
+        }
+
+        if (in_array($kind, ['member', 'guarantor'], true)) {
+            return null;
+        }
+
+        return $application->customer;
     }
 
     public function clearProfileDocumentsForLabel(Customer $customer, string $label): void
@@ -272,8 +289,8 @@ class ProfileRevisionService
             __('borrower.notifications.profile_revision_cta', [], $locale),
             [
                 'title_key' => 'borrower.notifications.profile_revision_title',
-                'body_key'  => 'borrower.notifications.profile_revision_body',
-                'params'    => $params,
+                'body_key' => 'borrower.notifications.profile_revision_body',
+                'params' => $params,
             ],
         );
     }

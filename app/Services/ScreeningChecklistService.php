@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class ScreeningChecklistService
@@ -445,6 +446,7 @@ class ScreeningChecklistService
                         continue;
                     }
                     unset($items[$key]);
+
                     continue;
                 }
 
@@ -933,6 +935,7 @@ class ScreeningChecklistService
                 if ($existing !== null && in_array($existingSource, $autoSources, true)) {
                     unset($items[$key]);
                 }
+
                 continue;
             }
 
@@ -1048,6 +1051,7 @@ class ScreeningChecklistService
                     'at' => now()->toIso8601String(),
                     'by' => $actor->id,
                 ];
+
                 continue;
             }
 
@@ -1174,9 +1178,6 @@ class ScreeningChecklistService
         return $flat;
     }
 
-    /**
-     * @return Customer|null
-     */
     private function resolveSubjectCustomer(
         LoanApplication $application,
         string $person,
@@ -1358,6 +1359,9 @@ class ScreeningChecklistService
             'collateral_secure' => $collateral,
             'anomalies' => $anomalies,
             'application' => $application,
+            'subject_person' => $person,
+            'subject_member_id' => $memberId,
+            'subject_guarantor_link_id' => $guarantorLinkId,
         ];
     }
 
@@ -1514,7 +1518,7 @@ class ScreeningChecklistService
 
             case 'face_nida':
                 $facePhotos = $ctx['face_photos'] ?? [];
-                if ($facePhotos instanceof \Illuminate\Support\Collection) {
+                if ($facePhotos instanceof Collection) {
                     $facePhotos = $facePhotos->all();
                 }
                 $frontPhoto = null;

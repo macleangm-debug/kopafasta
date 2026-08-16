@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\LoanApplication;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Deterministic Pass / Fail / N/A for screening checklist items the platform can decide.
@@ -24,6 +25,7 @@ class ScreeningChecklistAutoVerdictService
         $docs = (array) ($context['documents'] ?? []);
         $afford = (array) ($context['affordability'] ?? []);
         $collateralApplies = app(ScreeningChecklistService::class)->collateralReviewApplies($application);
+        $application->loadMissing('documentRequests');
 
         // Identity — NIDA vs DOB
         $out['identity.nida_vs_dob'] = $this->nidaVsDob($customer);
@@ -54,11 +56,19 @@ class ScreeningChecklistAutoVerdictService
         // Documents completeness
         $out['documents.required_docs_complete'] = $this->requiredDocs($docs);
 
-        // Follow-up requests
-        $openRequests = $application->documentRequests
-            ?->whereIn('status', ['pending', 'rejected'])
-            ->count() ?? 0;
-        if ($openRequests > 0) {
+        // Follow-up requests — only asks for the person on this desk.
+        $docRequests = app(ApplicationDocumentRequestService::class);
+        $openForSubject = collect($application->documentRequests ?? [])
+            ->whereIn('status', ['pending', 'rejected'])
+            ->filter(fn ($req) => $docRequests->targetsReviewSubject(
+                $req,
+                (string) ($context['subject_person'] ?? $subjectKind),
+                $customer instanceof Customer ? $customer->id : null,
+                isset($context['subject_member_id']) ? (int) $context['subject_member_id'] : null,
+                $application->customer_id,
+            ))
+            ->count();
+        if ($openForSubject > 0) {
             $out['documents.requested_docs_reviewed'] = [
                 'verdict' => 'fail',
                 'fail_reason_code' => 'still_open',
@@ -185,7 +195,7 @@ class ScreeningChecklistAutoVerdictService
     private function facePhotosPresent(array $ctx): array
     {
         $photos = $ctx['face_photos'] ?? [];
-        if ($photos instanceof \Illuminate\Support\Collection) {
+        if ($photos instanceof Collection) {
             $photos = $photos->all();
         }
         $count = 0;

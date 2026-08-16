@@ -11,6 +11,7 @@ use App\Models\NotificationLog;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class ApplicationDocumentRequestService
 {
@@ -62,32 +63,32 @@ class ApplicationDocumentRequestService
     public static function presetInstructions(): array
     {
         return [
-            'Insurance About To Expire'      => 'Upload an updated insurance certificate.',
-            'New Insurance Certificate'      => 'Upload a clear insurance certificate.',
-            'New Ownership Document'         => 'Upload the ownership or logbook document.',
-            'New Asset Photo'                => 'Upload a clear photo of the asset.',
-            'Updated National ID'            => 'Upload a clear national ID photo.',
-            'New National ID photo'          => 'Upload a clearer national ID photo from your profile.',
-            'New face verification photo'    => 'Retake face photos in your profile.',
-            'Identity verification photo'    => 'Upload a photo of you holding your national ID.',
-            'Image Not Clear'                => 'Upload a sharper photo.',
+            'Insurance About To Expire' => 'Upload an updated insurance certificate.',
+            'New Insurance Certificate' => 'Upload a clear insurance certificate.',
+            'New Ownership Document' => 'Upload the ownership or logbook document.',
+            'New Asset Photo' => 'Upload a clear photo of the asset.',
+            'Updated National ID' => 'Upload a clear national ID photo.',
+            'New National ID photo' => 'Upload a clearer national ID photo from your profile.',
+            'New face verification photo' => 'Retake face photos in your profile.',
+            'Identity verification photo' => 'Upload a photo of you holding your national ID.',
+            'Image Not Clear' => 'Upload a sharper photo.',
             'Ownership Certificate Missing Page' => 'Upload every page of the ownership document.',
-            'Signature Not Visible'          => 'Update your signature in your profile.',
-            'Updated Bank Statement'         => 'Upload a recent bank statement.',
+            'Signature Not Visible' => 'Update your signature in your profile.',
+            'Updated Bank Statement' => 'Upload a recent bank statement.',
             'Updated Mobile Money Statement' => 'Upload a recent mobile money statement.',
             'Business Registration Document' => 'Upload your business registration.',
-            'Business Photos'                => 'Upload clear photos of your business.',
-            'Supplier Invoices'              => 'Upload the supplier invoices.',
-            'Tax Documents'                  => 'Upload the requested tax documents.',
+            'Business Photos' => 'Upload clear photos of your business.',
+            'Supplier Invoices' => 'Upload the supplier invoices.',
+            'Tax Documents' => 'Upload the requested tax documents.',
             'Employment Confirmation Letter' => 'Upload an employment confirmation letter.',
-            'Guarantor residence letter'     => 'Upload a residence letter for the guarantor.',
-            'Updated employment contract'    => 'Upload your updated employment contract.',
-            'Latest salary slip'             => 'Upload your latest salary slip.',
-            'Add collateral asset'           => 'Add collateral with ownership and insurance in your profile.',
+            'Guarantor residence letter' => 'Upload a residence letter for the guarantor.',
+            'Updated employment contract' => 'Upload your updated employment contract.',
+            'Latest salary slip' => 'Upload your latest salary slip.',
+            'Add collateral asset' => 'Add collateral with ownership and insurance in your profile.',
             'Updated collateral ownership document' => 'Upload an updated ownership document.',
             'Updated collateral insurance certificate' => 'Upload an updated insurance certificate.',
-            'New collateral photo'           => 'Upload a clear photo of the collateral.',
-            'Collateral valuation document'  => 'Upload the valuation document.',
+            'New collateral photo' => 'Upload a clear photo of the collateral.',
+            'Collateral valuation document' => 'Upload the valuation document.',
         ];
     }
 
@@ -441,13 +442,13 @@ class ApplicationDocumentRequestService
             };
 
         return [
-            'id'           => (int) $request->id,
-            'kind'         => $assisting ? 'document' : $kind,
-            'label'        => $this->localizedLabel((string) $request->label),
-            'cta_label'    => $ctaLabel,
-            'url'          => $this->borrowerActionUrl($request, $viewer),
-            'status'       => (string) $request->status,
-            'rejected'     => $rejected,
+            'id' => (int) $request->id,
+            'kind' => $assisting ? 'document' : $kind,
+            'label' => $this->localizedLabel((string) $request->label),
+            'cta_label' => $ctaLabel,
+            'url' => $this->borrowerActionUrl($request, $viewer),
+            'status' => (string) $request->status,
+            'rejected' => $rejected,
             'instructions' => $this->localizedInstructions(
                 (string) $request->label,
                 $request->instructions
@@ -468,12 +469,18 @@ class ApplicationDocumentRequestService
 
         $application->loadMissing('documentRequests');
 
+        $owner = $application->customer;
+        if (! $owner) {
+            return [];
+        }
+
         return $application->documentRequests
             ->filter(fn (LoanApplicationDocumentRequest $request) => $request->needsBorrowerAction())
+            ->filter(fn (LoanApplicationDocumentRequest $request) => $this->isSubjectOfRequest($owner, $request))
             ->values()
             ->map(fn (LoanApplicationDocumentRequest $request) => $this->borrowerGuidedAction(
                 $request,
-                $application->customer
+                $owner
             ))
             ->all();
     }
@@ -668,16 +675,16 @@ class ApplicationDocumentRequestService
         );
 
         $request = LoanApplicationDocumentRequest::create([
-            'loan_application_id'   => $application->id,
-            'subject_kind'          => $subjectKind,
-            'subject_customer_id'   => $subjectCustomerId,
-            'loan_group_member_id'  => $loanGroupMemberId,
-            'requested_by'          => $requester->id,
-            'type'                  => $type,
-            'label'                 => $label,
-            'instructions'          => $instructions,
-            'status'                => 'pending',
-            'due_at'                => $dueAt,
+            'loan_application_id' => $application->id,
+            'subject_kind' => $subjectKind,
+            'subject_customer_id' => $subjectCustomerId,
+            'loan_group_member_id' => $loanGroupMemberId,
+            'requested_by' => $requester->id,
+            'type' => $type,
+            'label' => $label,
+            'instructions' => $instructions,
+            'status' => 'pending',
+            'due_at' => $dueAt,
         ]);
 
         $this->syncApplicationStatus($application->fresh());
@@ -720,16 +727,16 @@ class ApplicationDocumentRequestService
 
         foreach ($labels as $label) {
             $request = LoanApplicationDocumentRequest::create([
-                'loan_application_id'  => $application->id,
-                'subject_kind'         => $subjectKind,
-                'subject_customer_id'  => $subjectCustomerId,
+                'loan_application_id' => $application->id,
+                'subject_kind' => $subjectKind,
+                'subject_customer_id' => $subjectCustomerId,
                 'loan_group_member_id' => $loanGroupMemberId,
-                'requested_by'         => $requester->id,
-                'type'                 => $type,
-                'label'                => $label,
-                'instructions'         => $instructions ?: (self::presetInstructions()[$label] ?? null),
-                'status'               => 'pending',
-                'due_at'               => $dueAt,
+                'requested_by' => $requester->id,
+                'type' => $type,
+                'label' => $label,
+                'instructions' => $instructions ?: (self::presetInstructions()[$label] ?? null),
+                'status' => 'pending',
+                'due_at' => $dueAt,
             ]);
             $created->push($request);
             $this->notifyBorrower($request, inApp: false);
@@ -775,6 +782,76 @@ class ApplicationDocumentRequestService
         return ['borrower', $application->customer_id ? (int) $application->customer_id : null, null];
     }
 
+    /**
+     * True when this request is for the person on a screening desk (leader / member / guarantor).
+     * Member and guarantor asks never attach to the leader, and never to a sibling on the file.
+     */
+    public function targetsReviewSubject(
+        LoanApplicationDocumentRequest $request,
+        string $panelPerson,
+        ?int $subjectCustomerId = null,
+        ?int $memberId = null,
+        ?int $applicationOwnerId = null,
+    ): bool {
+        $kind = (string) ($request->subject_kind ?? 'borrower');
+        if (! in_array($kind, ['borrower', 'member', 'guarantor'], true)) {
+            $kind = 'borrower';
+        }
+        $reqCustomerId = (int) ($request->subject_customer_id ?? 0);
+        $reqMemberId = (int) ($request->loan_group_member_id ?? 0);
+        $subjectCustomerId = (int) ($subjectCustomerId ?? 0);
+        $memberId = (int) ($memberId ?? 0);
+        $applicationOwnerId = (int) ($applicationOwnerId ?? 0);
+
+        if ($panelPerson === 'member') {
+            if ($kind !== 'member') {
+                return false;
+            }
+            if ($memberId > 0 && $reqMemberId > 0) {
+                return $reqMemberId === $memberId;
+            }
+
+            return $subjectCustomerId > 0 && $reqCustomerId === $subjectCustomerId;
+        }
+
+        if ($panelPerson === 'guarantor') {
+            if ($kind !== 'guarantor') {
+                return false;
+            }
+
+            return $subjectCustomerId <= 0 || $reqCustomerId === $subjectCustomerId;
+        }
+
+        if (in_array($kind, ['member', 'guarantor'], true)) {
+            return false;
+        }
+        if ($reqCustomerId > 0 && $subjectCustomerId > 0) {
+            return $reqCustomerId === $subjectCustomerId;
+        }
+        if ($reqCustomerId > 0 && $applicationOwnerId > 0) {
+            return $reqCustomerId === $applicationOwnerId;
+        }
+
+        return $reqCustomerId === 0 || $reqCustomerId === $applicationOwnerId;
+    }
+
+    /** The person who must replace the file — never the leader standing in for a member/guarantor. */
+    public function isSubjectOfRequest(Customer $customer, LoanApplicationDocumentRequest $request): bool
+    {
+        $request->loadMissing('application');
+        $kind = (string) ($request->subject_kind ?? 'borrower');
+
+        if ((int) ($request->subject_customer_id ?? 0) > 0) {
+            return (int) $request->subject_customer_id === (int) $customer->id;
+        }
+
+        if (in_array($kind, ['member', 'guarantor'], true)) {
+            return false;
+        }
+
+        return (int) $request->application?->customer_id === (int) $customer->id;
+    }
+
     public function notifyBorrower(LoanApplicationDocumentRequest $request, bool $inApp = true): void
     {
         $application = $request->application()->with(['customer', 'loanGroup'])->first();
@@ -784,9 +861,12 @@ class ApplicationDocumentRequestService
 
         $request->loadMissing(['subjectCustomer', 'groupMember.customer']);
 
+        $kind = (string) ($request->subject_kind ?? 'borrower');
         $subject = $request->subjectCustomer
-            ?? ($request->subject_customer_id ? Customer::find($request->subject_customer_id) : null)
-            ?? $application->customer;
+            ?? ($request->subject_customer_id ? Customer::find($request->subject_customer_id) : null);
+        if (! $subject && ! in_array($kind, ['member', 'guarantor'], true)) {
+            $subject = $application->customer;
+        }
 
         if ($subject) {
             $this->notifyDocumentRequestCustomer($subject, $application, $request, $inApp, forLeader: false);
@@ -852,17 +932,17 @@ class ApplicationDocumentRequestService
             ], $locale);
 
         $this->notifier->notifyCustomer($customer, 'application_document_request', [
-            'name'               => $customer->first_name ?? 'Customer',
+            'name' => $customer->first_name ?? 'Customer',
             'application_number' => $application->application_number,
-            'label'              => $label,
-            'instructions'       => $instructionText,
-            'due_date'           => optional($request->due_at)->format('d M Y')
+            'label' => $label,
+            'instructions' => $instructionText,
+            'due_date' => optional($request->due_at)->format('d M Y')
                 ?? __('borrower.notifications.document_request_due_asap', [], $locale),
-            'upload_url'         => $uploadUrl,
-            '_locale'            => $locale,
-            '_skip_in_app'       => $inApp,
-            '_fallback_body'     => $fallbackBody,
-            '_fallback_subject'  => $forLeader
+            'upload_url' => $uploadUrl,
+            '_locale' => $locale,
+            '_skip_in_app' => $inApp,
+            '_fallback_body' => $fallbackBody,
+            '_fallback_subject' => $forLeader
                 ? __('borrower.notifications.document_request_subject_leader', [], $locale)
                 : __('borrower.notifications.document_request_subject', [], $locale),
         ]);
@@ -887,8 +967,8 @@ class ApplicationDocumentRequestService
                 $cta,
                 [
                     'title_key' => 'borrower.notifications.document_request_title',
-                    'body_key'  => 'borrower.notifications.document_request_body',
-                    'params'    => $params,
+                    'body_key' => 'borrower.notifications.document_request_body',
+                    'params' => $params,
                     'loan_application_id' => $application->id,
                     'loan_application_document_request_id' => $request->id,
                 ],
@@ -966,8 +1046,8 @@ class ApplicationDocumentRequestService
                 __('borrower.notifications.document_request_cta', [], $locale),
                 [
                     'title_key' => 'borrower.notifications.document_request_title',
-                    'body_key'  => 'borrower.notifications.document_request_batch_body',
-                    'params'    => [
+                    'body_key' => 'borrower.notifications.document_request_batch_body',
+                    'params' => [
                         'application' => $application->application_number,
                         'count' => $count,
                         'labels' => $labels.$suffix,
@@ -1009,7 +1089,7 @@ class ApplicationDocumentRequestService
             ? null
             : DocumentType::query()->whereIn('code', $codes)->where('is_active', true)->first();
         $profileGuided = $this->isProfileGuidedRequest($request);
-        $basename = $type?->code ?: \Illuminate\Support\Str::slug((string) $request->label) ?: 'document';
+        $basename = $type?->code ?: Str::slug((string) $request->label) ?: 'document';
         $path = count($files) === 1 && ($files[0]->getMimeType() ?? '') === 'application/pdf' && ! $profileGuided
             ? $files[0]->store("borrower/{$documentCustomerId}/applications/{$application->id}/requests/{$request->id}", 'public')
             : app(DocumentPageMerger::class)->merge($files, $documentCustomerId, $basename);
@@ -1029,13 +1109,13 @@ class ApplicationDocumentRequestService
 
         $stored = collect([
             CustomerDocument::create([
-                'customer_id'                          => $documentCustomerId,
-                'loan_application_id'                  => $profileGuided ? null : $application->id,
+                'customer_id' => $documentCustomerId,
+                'loan_application_id' => $profileGuided ? null : $application->id,
                 'loan_application_document_request_id' => $request->id,
-                'document_type_id'                     => $type?->id,
-                'file_path'                            => $path,
-                'status'                               => 'pending_review',
-                'notes'                                => json_encode(array_filter([
+                'document_type_id' => $type?->id,
+                'file_path' => $path,
+                'status' => 'pending_review',
+                'notes' => json_encode(array_filter([
                     'page_count' => count($files),
                     'request_label' => $request->label,
                     'original_name' => count($files) === 1 ? $files[0]->getClientOriginalName() : null,
@@ -1044,9 +1124,9 @@ class ApplicationDocumentRequestService
         ]);
 
         $request->update([
-            'status'                   => 'uploaded',
-            'admin_notes'              => null,
-            'uploaded_by_customer_id'  => $actor->id,
+            'status' => 'uploaded',
+            'admin_notes' => null,
+            'uploaded_by_customer_id' => $actor->id,
         ]);
 
         $this->syncApplicationStatus($application->fresh());
@@ -1061,8 +1141,8 @@ class ApplicationDocumentRequestService
     ): LoanApplicationDocumentRequest {
         $request->update([
             'borrower_response' => $response,
-            'status'            => 'uploaded',
-            'admin_notes'       => null,
+            'status' => 'uploaded',
+            'admin_notes' => null,
         ]);
 
         $this->syncApplicationStatus($request->application->fresh());
@@ -1076,14 +1156,14 @@ class ApplicationDocumentRequestService
         ?string $notes = null,
     ): LoanApplicationDocumentRequest {
         $request->update([
-            'status'       => 'satisfied',
+            'status' => 'satisfied',
             'satisfied_by' => $admin->id,
             'satisfied_at' => now(),
-            'admin_notes'  => $notes,
+            'admin_notes' => $notes,
         ]);
 
         $request->uploads()->where('status', 'pending_review')->update([
-            'status'      => 'verified',
+            'status' => 'verified',
             'verified_at' => now(),
             'verified_by' => $admin->id,
         ]);
@@ -1103,13 +1183,13 @@ class ApplicationDocumentRequestService
         string $notes,
     ): LoanApplicationDocumentRequest {
         $request->update([
-            'status'      => 'rejected',
+            'status' => 'rejected',
             'admin_notes' => $notes,
         ]);
 
         $request->uploads()->where('status', 'pending_review')->update([
             'status' => 'rejected',
-            'notes'  => $notes,
+            'notes' => $notes,
         ]);
 
         $application = $request->application()->with('customer')->first();
@@ -1119,14 +1199,14 @@ class ApplicationDocumentRequestService
             $uploadUrl = route('site.borrower.application', $application);
 
             $this->notifier->notifyCustomer($customer, 'application_document_request', [
-                'name'               => $customer->first_name ?? 'Customer',
+                'name' => $customer->first_name ?? 'Customer',
                 'application_number' => $application->application_number,
-                'label'              => $request->label,
-                'instructions'       => "Please re-upload. Reason: {$notes}",
-                'due_date'           => optional($request->due_at)->format('d M Y') ?? 'as soon as possible',
-                'upload_url'         => $uploadUrl,
-                '_fallback_body'     => "Hi {$customer->first_name}, your upload for \"{$request->label}\" was rejected. {$notes}. Open your application to re-upload: {$uploadUrl}",
-                '_fallback_subject'  => 'Document upload rejected — action required',
+                'label' => $request->label,
+                'instructions' => "Please re-upload. Reason: {$notes}",
+                'due_date' => optional($request->due_at)->format('d M Y') ?? 'as soon as possible',
+                'upload_url' => $uploadUrl,
+                '_fallback_body' => "Hi {$customer->first_name}, your upload for \"{$request->label}\" was rejected. {$notes}. Open your application to re-upload: {$uploadUrl}",
+                '_fallback_subject' => 'Document upload rejected — action required',
             ]);
 
             $this->notifier->notifyInApp(
@@ -1173,7 +1253,7 @@ class ApplicationDocumentRequestService
         $status = match ($application->current_stage) {
             'credit_appraisal', 'pre_approval', 'approval', 'disbursement' => 'under_review',
             'screening' => 'submitted',
-            default     => 'submitted',
+            default => 'submitted',
         };
 
         $application->update(['status' => $status]);
@@ -1318,21 +1398,28 @@ class ApplicationDocumentRequestService
 
         $requests = LoanApplicationDocumentRequest::query()
             ->where(function ($q) use ($customer) {
-                $q->whereHas('application', function ($app) use ($customer) {
-                    $app->where('customer_id', $customer->id)
-                        ->whereNotIn('status', ['withdrawn', 'rejected', 'disbursed']);
-                })->orWhere(function ($q2) use ($customer) {
-                    $q2->where('subject_customer_id', $customer->id)
-                        ->whereHas('application', function ($app) {
-                            $app->whereNotIn('status', ['withdrawn', 'rejected', 'disbursed']);
-                        });
-                });
+                $q->where('subject_customer_id', $customer->id)
+                    ->orWhere(function ($inner) use ($customer) {
+                        $inner->where(function ($kind) {
+                            $kind->whereNull('subject_kind')
+                                ->orWhere('subject_kind', 'borrower');
+                        })->where(function ($subject) {
+                            $subject->whereNull('subject_customer_id')
+                                ->orWhere('subject_customer_id', 0);
+                        })->whereHas('application', fn ($app) => $app->where('customer_id', $customer->id));
+                    });
+            })
+            ->whereHas('application', function ($app) {
+                $app->whereNotIn('status', ['withdrawn', 'rejected', 'disbursed']);
             })
             ->whereIn('status', ['pending', 'rejected'])
             ->with('application')
             ->get();
 
         foreach ($requests as $request) {
+            if (! $this->isSubjectOfRequest($customer, $request)) {
+                continue;
+            }
             $kind = $this->borrowerActionKind($request);
             if (! in_array($kind, ['income', 'residence', 'business'], true)) {
                 continue;

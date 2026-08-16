@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
@@ -126,7 +127,7 @@ class LoanApplicationNextActionService
         $profileUrl = route('site.borrower.application', $application->id);
 
         if ($status === 'disbursed') {
-            $loan = \App\Models\Loan::query()->where('loan_application_id', $application->id)->first();
+            $loan = Loan::query()->where('loan_application_id', $application->id)->first();
 
             return $this->action(
                 'view_loan',
@@ -136,7 +137,7 @@ class LoanApplicationNextActionService
             );
         }
 
-        $loan = \App\Models\Loan::query()->where('loan_application_id', $application->id)->first();
+        $loan = Loan::query()->where('loan_application_id', $application->id)->first();
         if ($loan && in_array((string) $loan->status, ['active', 'disbursed', 'arrears'], true)) {
             return $this->action(
                 'view_loan',
@@ -167,7 +168,7 @@ class LoanApplicationNextActionService
         }
 
         if ($application->offer_status === 'declined'
-            || app(\App\Services\ApplicationOfferService::class)->offerDeclinedByBorrower($application)) {
+            || app(ApplicationOfferService::class)->offerDeclinedByBorrower($application)) {
             return $this->action(
                 'offer_declined',
                 __('borrower.loan_profile.next_actions.offer_declined'),
@@ -197,20 +198,20 @@ class LoanApplicationNextActionService
             );
         }
 
-        if (app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)) {
+        if (app(GuarantorSupplementService::class)->hasOpenRequest($application)) {
             return $this->action(
                 'add_guarantor',
                 __('borrower.loan_profile.next_actions.add_guarantor'),
                 __('borrower.guarantor_supplement.cta'),
-                app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application),
+                app(GuarantorSupplementService::class)->borrowerWizardUrl($application),
                 tone: 'primary',
             );
         }
 
-        $collateralSecure = app(\App\Services\CollateralSecureService::class);
+        $collateralSecure = app(CollateralSecureService::class);
         if ($collateralSecure->needsValuationFeePayment($application)
             || ($collateralSecure->isOpen($application)
-                && data_get($collateralSecure->state($application), 'status') === \App\Services\CollateralSecureService::STATUS_AWAITING_VALUATION_FEE)
+                && data_get($collateralSecure->state($application), 'status') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE)
         ) {
             $quote = $collateralSecure->valuationFeeQuote($application);
             $amount = (int) ($quote['due'] ?? 0);
@@ -229,14 +230,14 @@ class LoanApplicationNextActionService
         if ($collateralSecure->isOpen($application)) {
             $statusCode = data_get($collateralSecure->state($application), 'status');
             $label = match ($statusCode) {
-                \App\Services\CollateralSecureService::STATUS_AWAITING_FEE => __('borrower.collateral_secure.fee_title'),
-                \App\Services\CollateralSecureService::STATUS_AWAITING_GUARANTOR => __('borrower.collateral_secure.waiting_guarantor'),
-                \App\Services\CollateralSecureService::STATUS_AWAITING_INSURANCE => __('borrower.collateral_secure.insurance_needed'),
+                CollateralSecureService::STATUS_AWAITING_FEE => __('borrower.collateral_secure.fee_title'),
+                CollateralSecureService::STATUS_AWAITING_GUARANTOR => __('borrower.collateral_secure.waiting_guarantor'),
+                CollateralSecureService::STATUS_AWAITING_INSURANCE => __('borrower.collateral_secure.insurance_needed'),
                 default => __('borrower.collateral_secure.why'),
             };
             $button = match ($statusCode) {
-                \App\Services\CollateralSecureService::STATUS_AWAITING_FEE => __('borrower.collateral_secure.pay_now'),
-                \App\Services\CollateralSecureService::STATUS_AWAITING_BORROWER_ADD => __('borrower.collateral_secure.add_collateral'),
+                CollateralSecureService::STATUS_AWAITING_FEE => __('borrower.collateral_secure.pay_now'),
+                CollateralSecureService::STATUS_AWAITING_BORROWER_ADD => __('borrower.collateral_secure.add_collateral'),
                 default => __('borrower.collateral_secure.cta_open'),
             };
 
@@ -249,7 +250,7 @@ class LoanApplicationNextActionService
             );
         }
 
-        $groupDashboard = app(\App\Services\GroupMemberReplacementService::class)
+        $groupDashboard = app(GroupMemberReplacementService::class)
             ->leaderDashboard($application, $customer);
         if ($groupDashboard && ($groupDashboard['can_replace'] ?? false)) {
             return $this->action(
@@ -282,7 +283,7 @@ class LoanApplicationNextActionService
             );
         }
 
-        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+        $readiness = app(ApplicationDisbursementReadinessService::class);
         $isPostApproval = (string) $application->offer_status === 'accepted'
             || in_array($status, ['approved', 'pre_approved'], true)
             || in_array((string) ($application->current_stage ?? ''), $readiness->borrowerPostApprovalStages(), true);
@@ -329,7 +330,7 @@ class LoanApplicationNextActionService
             }
 
             if ($readiness->isAssetLendingApplication($application)) {
-                $loan = \App\Models\Loan::query()->where('loan_application_id', $application->id)->first();
+                $loan = Loan::query()->where('loan_application_id', $application->id)->first();
                 $disbursed = (string) $application->status === 'disbursed'
                     || in_array((string) ($loan?->status ?? ''), ['active', 'disbursed'], true);
 
@@ -390,9 +391,12 @@ class LoanApplicationNextActionService
         $openUwRequests = $application->relationLoaded('documentRequests')
             ? $application->documentRequests->filter(fn ($r) => $r->needsBorrowerAction())->values()
             : $application->documentRequests()->whereIn('status', ['pending', 'rejected'])->latest()->get();
+        $docService = app(ApplicationDocumentRequestService::class);
+        $openUwRequests = $openUwRequests
+            ->filter(fn ($r) => $docService->isSubjectOfRequest($customer, $r))
+            ->values();
 
         if ($openUwRequests->isNotEmpty()) {
-            $docService = app(ApplicationDocumentRequestService::class);
             $first = $openUwRequests->first();
             $guided = $docService->borrowerGuidedAction($first);
             $count = $openUwRequests->count();
@@ -478,13 +482,13 @@ class LoanApplicationNextActionService
         bool $ready = false,
     ): array {
         return [
-            'code'          => $code,
-            'label'         => $label,
-            'button_label'  => $buttonLabel,
-            'url'           => $url,
-            'tone'          => $tone,
-            'can_submit'    => $canSubmit,
-            'ready'         => $ready,
+            'code' => $code,
+            'label' => $label,
+            'button_label' => $buttonLabel,
+            'url' => $url,
+            'tone' => $tone,
+            'can_submit' => $canSubmit,
+            'ready' => $ready,
         ];
     }
 

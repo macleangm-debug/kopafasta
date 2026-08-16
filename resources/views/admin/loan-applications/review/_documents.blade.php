@@ -20,43 +20,16 @@
     $documentRequestsForPanel = collect($documentRequests ?? []);
     $subjectCustomerId = (int) ($review['customer']->id ?? 0);
     $memberId = (int) ($review['member_row']['id'] ?? 0);
-    $documentRequestsForPanel = $documentRequestsForPanel->filter(function ($req) use (
-        $subjectCustomerId,
-        $memberId,
-        $isMemberSubject,
-        $isGuarantorSubject,
-        $record
-    ) {
-        $kind = (string) ($req->subject_kind ?? 'borrower');
-        $reqCustomerId = (int) ($req->subject_customer_id ?? 0);
-        $reqMemberId = (int) ($req->loan_group_member_id ?? 0);
-
-        if ($isMemberSubject) {
-            if ($memberId > 0 && $reqMemberId === $memberId) {
-                return true;
-            }
-
-            return $kind === 'member'
-                && $subjectCustomerId > 0
-                && $reqCustomerId === $subjectCustomerId;
-        }
-
-        if ($isGuarantorSubject) {
-            return $kind === 'guarantor'
-                && ($subjectCustomerId <= 0 || $reqCustomerId === $subjectCustomerId);
-        }
-
-        if (in_array($kind, ['member', 'guarantor'], true)) {
-            return false;
-        }
-
-        if ($reqCustomerId > 0 && $subjectCustomerId > 0) {
-            return $reqCustomerId === $subjectCustomerId;
-        }
-
-        return $reqCustomerId === 0
-            || $reqCustomerId === (int) ($record->customer_id ?? 0);
-    })->values();
+    $panelPerson = $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : 'borrower');
+    $documentRequestsForPanel = $documentRequestsForPanel->filter(
+        fn ($req) => $docRequestService->targetsReviewSubject(
+            $req,
+            $panelPerson,
+            $subjectCustomerId,
+            $memberId,
+            (int) ($record->customer_id ?? 0),
+        )
+    )->values();
 
     $subjectHasIncomeRequest = $documentRequestsForPanel->contains(
         fn ($req) => $docRequestService->borrowerActionKind($req) === 'income'
@@ -155,10 +128,13 @@
         $subjectProfileDoc,
         $docReviewService,
         $appReviews,
-        $record
+        $record,
+        $isSubjectPanel
     ) {
         $category = $categoryFor($req);
-        $upload = $uploads->get($req->id);
+        // Loan-file requirement uploads belong to the application (leader / borrower).
+        // Member and guarantor desks only show that person's profile files.
+        $upload = $isSubjectPanel ? null : $uploads->get($req->id);
         $history = $histories->get($req->id, collect());
         $fromProfile = false;
         $bucket = 'optional';
