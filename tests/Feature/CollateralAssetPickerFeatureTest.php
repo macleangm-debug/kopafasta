@@ -328,6 +328,84 @@ class CollateralAssetPickerFeatureTest extends TestCase
             strpos($html, 'Toyota Rav4') < strpos($html, '>Vitz<'),
             'Pledged asset should appear before other profile assets'
         );
+        $this->assertStringContainsString('Send to valuer', $html);
+        $this->assertStringContainsString('x-show="openSecure"', $html);
+        $this->assertStringContainsString('kfOpenDocumentPreview', $html);
+        $this->assertSame(
+            2,
+            substr_count($html, 'min-h-[4.5rem]'),
+            'Both asset cards should use the same details grid even when values are empty'
+        );
+    }
+
+    public function test_admin_collateral_cards_use_the_same_detail_grid_for_vehicles(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $full = CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Toyota Rav4',
+            'is_active' => true,
+            'registration_number' => 'T123ABC',
+            'photo_paths' => ['assets/rav4.jpg'],
+            'metadata' => [
+                'details' => [
+                    'make' => 'Toyota',
+                    'year' => '2025',
+                    'chassis_number' => '23456789',
+                ],
+            ],
+        ]);
+        CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Vitz',
+            'is_active' => true,
+            'registration_number' => '1234',
+            'photo_paths' => ['assets/vitz.jpg'],
+            'metadata' => [],
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        LoanApplicationAsset::create([
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $full->id,
+            'asset_type' => 'vehicle',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(2, substr_count($html, 'min-h-[4.5rem]'), 'Both vehicle cards should use the same details grid');
+        $this->assertGreaterThanOrEqual(2, substr_count($html, 'Registration number'));
+        $this->assertGreaterThanOrEqual(2, substr_count($html, 'Year of manufacture'));
+        $this->assertGreaterThanOrEqual(2, substr_count($html, '>Make<'));
+        $this->assertGreaterThanOrEqual(2, substr_count($html, 'Chassis number'));
+        $this->assertStringContainsString('T123ABC', $html);
+        $this->assertStringContainsString('1234', $html);
+        $this->assertStringContainsString('Send to valuer', $html);
+        $this->assertStringContainsString('Toyota Rav4 photo', $html);
+        $this->assertStringContainsString('x-show="openSecure"', $html);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'personal',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->assertSee('NIDA number', false)
+            ->assertDontSee('NIDA status', false);
     }
 
     public function test_add_collateral_opens_type_as_wizard_step(): void

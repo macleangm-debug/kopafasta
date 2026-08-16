@@ -5,7 +5,7 @@
     $pledgeRows = collect();
     $profileAssets = collect($review['customer_assets'] ?? []);
     if (! $isGuarantor) {
-        $record->loadMissing('collateralAssets.customerAsset');
+        $record->loadMissing('collateralAssets.customerAsset', 'valuationAssignments.vendor');
         $pledgeRows = collect($record->collateralAssets);
     }
     $pledgeByAssetId = $pledgeRows->keyBy(fn ($row) => (int) $row->customer_asset_id);
@@ -18,11 +18,21 @@
     $collateralPresets = \App\Services\ApplicationDocumentRequestService::COLLATERAL_PRESET_LABELS;
     $typeOptions = \App\Models\CustomerAsset::typeOptions();
     $typeIcons = \App\Models\CustomerAsset::typeIcons();
+    $isAb = app(\App\Services\AssetBackedLoanService::class)->isAssetBackedApplication($record);
+    $openValuation = collect($record->valuationAssignments ?? [])
+        ->first(fn ($a) => in_array($a->status, ['assigned', 'in_progress'], true));
+    $pledgedForValuation = $pledgeRows->first(fn ($row) => ($row->uw_status ?? '') !== \App\Models\LoanApplicationAsset::UW_DECLINED);
+    $showValuerCta = ! $isGuarantor && $pledgedForValuation && ! $isAb;
+    $csSvc = app(\App\Services\CollateralSecureService::class);
+    $csState = $csSvc->state($record);
+    $coverage = app(\App\Services\CollateralCoverageService::class)->forApplication($record);
+    $valuationFeeDue = $csSvc->needsValuationFeePayment($record)
+        || ($csState['status'] ?? '') === \App\Services\CollateralSecureService::STATUS_AWAITING_VALUATION_FEE;
 @endphp
 
 <section
     class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden"
-    x-data="{ openAsset: null, lightbox: null }"
+    x-data="{ openAsset: null, lightbox: null, openSecure: false }"
     @keydown.escape.window="if (lightbox) { lightbox = null } else { openAsset = null }"
 >
     <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white">
@@ -78,24 +88,26 @@
                                 default => ['Saved', 'bg-slate-600/90 text-white'],
                             };
                             $cardDetails = collect(\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type))
+                                ->take(4)
                                 ->map(function ($field) use ($asset) {
                                     $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
+                                    $display = filled($val) ? (string) $val : '—';
 
-                                    return filled($val) ? [
+                                    return [
                                         'key' => $field['key'],
                                         'label' => __('borrower.profile.collateral_fields.'.$field['key']),
-                                        'value' => $val,
-                                    ] : null;
+                                        'value' => $display,
+                                        'missing' => ! filled($val),
+                                    ];
                                 })
-                                ->filter()
-                                ->take(4)
                                 ->values();
+                            $previewUrl = $thumb ? asset('storage/'.$thumb) : null;
                         @endphp
                         <div class="snap-start shrink-0 w-[80%] sm:w-72">
                             <div class="overflow-hidden rounded-2xl ring-1 ring-gray-200/80 bg-white h-full flex flex-col">
-                                <div class="relative h-40 bg-gradient-to-br from-brand-muted/60 to-white">
+                                <div class="relative h-40 bg-gradient-to-br from-brand-muted/60 to-white shrink-0">
                                     @if ($thumb)
-                                        <img src="{{ asset('storage/'.$thumb) }}" alt="" class="absolute inset-0 h-full w-full object-cover">
+                                        <img src="{{ $previewUrl }}" alt="" class="absolute inset-0 h-full w-full object-cover">
                                     @else
                                         <span class="absolute inset-0 grid place-items-center text-5xl" aria-hidden="true">{{ $typeIcons[$asset->asset_type] ?? '📦' }}</span>
                                     @endif
@@ -105,6 +117,11 @@
                                     <span class="absolute top-3 right-3 inline-flex items-center gap-1 text-[11px] font-semibold {{ $pledgeBadge[1] }} px-2.5 py-1 rounded-full">
                                         {{ $pledgeBadge[0] }}
                                     </span>
+                                    @if ($previewUrl)
+                                        <div class="absolute bottom-3 left-3 z-10">
+                                            <x-admin.document-preview :url="$previewUrl" :label="$asset->label.' photo'" variant="icon" />
+                                        </div>
+                                    @endif
                                     @if (count($gallery) > 1)
                                         <span class="absolute bottom-3 right-3 text-[11px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full">
                                             {{ count($gallery) }} 📷
@@ -113,27 +130,33 @@
                                 </div>
                                 <div class="p-4 flex-1 flex flex-col">
                                     <h3 class="font-bold text-gray-900 truncate">{{ $asset->label }}</h3>
-                                    @if ($asset->estimated_value)
-                                        <p class="text-sm text-brand font-semibold mt-1 tabular-nums">{{ format_money($asset->estimated_value) }}</p>
-                                    @elseif (! $isGuarantor)
-                                        <p class="text-xs text-gray-500 mt-1">Awaiting valuation by our team</p>
-                                    @endif
-                                    @if ($cardDetails->isNotEmpty())
-                                        <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
-                                            @foreach ($cardDetails as $detail)
-                                                <div class="min-w-0">
-                                                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold truncate">{{ $detail['label'] }}</dt>
-                                                    <dd class="text-xs font-semibold text-gray-900 truncate" title="{{ $detail['value'] }}">{{ $detail['value'] }}</dd>
-                                                </div>
-                                            @endforeach
-                                        </dl>
-                                    @elseif (filled($asset->description))
-                                        <p class="mt-2 text-xs text-gray-500 line-clamp-2">{{ $asset->description }}</p>
-                                    @endif
-                                    <button type="button" @click="openAsset = {{ $asset->id }}"
-                                            class="mt-4 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                                        View
-                                    </button>
+                                    <p class="mt-1 min-h-[1.25rem] {{ $asset->estimated_value ? 'text-sm text-brand font-semibold tabular-nums' : 'text-xs text-gray-500' }}">
+                                        @if ($asset->estimated_value)
+                                            {{ format_money($asset->estimated_value) }}
+                                        @elseif (! $isGuarantor)
+                                            Awaiting valuation by our team
+                                        @else
+                                            &nbsp;
+                                        @endif
+                                    </p>
+                                    <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 min-h-[4.5rem]">
+                                        @foreach ($cardDetails as $detail)
+                                            <div class="min-w-0">
+                                                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold truncate">{{ $detail['label'] }}</dt>
+                                                <dd @class([
+                                                    'text-xs font-semibold truncate',
+                                                    'text-gray-900' => empty($detail['missing']),
+                                                    'text-gray-400' => ! empty($detail['missing']),
+                                                ]) title="{{ $detail['value'] }}">{{ $detail['value'] }}</dd>
+                                            </div>
+                                        @endforeach
+                                    </dl>
+                                    <div class="mt-auto pt-4">
+                                        <button type="button" @click="openAsset = {{ $asset->id }}"
+                                                class="inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                            View
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -248,12 +271,13 @@
                                                 <p class="text-[11px] text-gray-500 mt-1">Set by the team after this collateral is pledged.</p>
                                             @endunless
                                         @endif
-                                    </div>                                </dl>
+                                    </div>
+                                </dl>
                             </div>
 
                             <div>
                                 <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">Photos</p>
-                                <p class="text-[11px] text-gray-400 mb-3">Swipe across photos · tap to enlarge</p>
+                                <p class="text-[11px] text-gray-400 mb-3">Swipe across photos · use the preview icon to enlarge</p>
                                 @if (count($gallerySlides))
                                     <div x-data="{
                                             gIndex: 0,
@@ -265,6 +289,10 @@
                                             onTouchEnd(e) {
                                                 const diff = e.changedTouches[0].screenX - this.touchStartX;
                                                 if (Math.abs(diff) > 50) diff > 0 ? this.prev() : this.next();
+                                            },
+                                            previewCurrent() {
+                                                const slide = this.slides[this.gIndex] || {};
+                                                window.kfOpenDocumentPreview(slide.url, slide.label || 'Photo', 'image');
                                             }
                                          }" class="space-y-3">
                                         <div class="relative aspect-square sm:aspect-[4/3] rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-gray-100"
@@ -272,13 +300,15 @@
                                             <template x-for="(slide, i) in slides" :key="'ag-'+i">
                                                 <div class="absolute inset-0 transition-opacity duration-300"
                                                      :class="i === gIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'">
-                                                    <button type="button" @click="lightbox = slide.url"
-                                                            class="absolute inset-0 block w-full h-full cursor-zoom-in">
-                                                        <img :src="slide.url" alt="" class="h-full w-full object-cover">
-                                                    </button>
+                                                    <img :src="slide.url" alt="" class="h-full w-full object-cover">
                                                     <p x-show="slide.label" x-cloak class="absolute bottom-3 left-3 z-20 text-[11px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full" x-text="slide.label"></p>
                                                 </div>
                                             </template>
+                                            <button type="button" @click="previewCurrent()"
+                                                    class="absolute top-3 left-3 z-30 size-9 grid place-items-center rounded-full bg-black/55 hover:bg-black/75 text-white shadow-sm"
+                                                    aria-label="Preview photo">
+                                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"/></svg>
+                                            </button>
                                             <template x-if="slides.length > 1">
                                                 <div>
                                                     <button type="button" @click="prev()"
@@ -311,15 +341,10 @@
                                 <div class="rounded-2xl ring-1 ring-gray-200 p-4">
                                     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">Ownership document</p>
                                     @if ($ownershipDoc)
-                                        @if (str_ends_with(strtolower($ownershipDoc), '.pdf'))
-                                            <a href="{{ asset('storage/'.$ownershipDoc) }}" target="_blank" rel="noopener"
-                                               class="inline-flex items-center gap-2 text-sm text-brand font-semibold">📄 View document</a>
-                                        @else
-                                            <button type="button" @click="lightbox = @js(asset('storage/'.$ownershipDoc))"
-                                                    class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
-                                                <img src="{{ asset('storage/'.$ownershipDoc) }}" alt="" class="h-full w-full object-cover">
-                                            </button>
-                                        @endif
+                                        <x-admin.document-preview
+                                            :url="asset('storage/'.$ownershipDoc)"
+                                            label="Ownership document"
+                                            variant="thumbnail" />
                                     @else
                                         <p class="text-xs text-gray-500">No document on file.</p>
                                     @endif
@@ -329,15 +354,10 @@
                                     <div class="rounded-2xl ring-1 ring-brand/20 bg-brand-muted/20 p-4">
                                         <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">Comprehensive insurance</p>
                                         @if ($insuranceDoc)
-                                            @if (str_ends_with(strtolower($insuranceDoc), '.pdf'))
-                                                <a href="{{ asset('storage/'.$insuranceDoc) }}" target="_blank" rel="noopener"
-                                                   class="inline-flex items-center gap-2 text-sm text-brand font-semibold">📄 View document</a>
-                                            @else
-                                                <button type="button" @click="lightbox = @js(asset('storage/'.$insuranceDoc))"
-                                                        class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
-                                                    <img src="{{ asset('storage/'.$insuranceDoc) }}" alt="" class="h-full w-full object-cover">
-                                                </button>
-                                            @endif
+                                            <x-admin.document-preview
+                                                :url="asset('storage/'.$insuranceDoc)"
+                                                label="Insurance certificate"
+                                                variant="thumbnail" />
                                         @else
                                             <p class="text-xs text-amber-700">No insurance certificate on file.</p>
                                         @endif
@@ -350,23 +370,84 @@
             @endforeach
         @endif
 
+        @if ($showValuerCta)
+            <div class="rounded-xl bg-amber-50/80 ring-1 ring-amber-200 px-4 py-4 space-y-3">
+                <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-widest text-amber-900">Next step for screening</p>
+                    <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Send to valuer</h3>
+                    <p class="text-xs text-gray-600 mt-1">
+                        This is not the AB product. The group leader (or individual borrower) pays the valuation fee on their loan profile — same payment card as membership / group application fee. A valuer is auto-assigned by region only after that payment clears.
+                    </p>
+                </div>
+                @if (data_get($valuationReport ?? null, 'status') === 'completed')
+                    <div class="rounded-xl bg-white ring-1 ring-sky-100 px-4 py-3 text-sm space-y-2">
+                        <p class="font-semibold text-sky-950">{{ $valuationReport['valuer_name'] ?? 'Valuer' }} · Forced sale value in</p>
+                        <dl class="grid sm:grid-cols-2 gap-2 text-xs">
+                            <div><dt class="text-sky-800">Forced sale value</dt><dd class="font-semibold">{{ format_money($valuationReport['forced_sale_value'] ?? 0) }}</dd></div>
+                            <div><dt class="text-sky-800">Max loan (LTV {{ (int) ($coverage['ltv_percent'] ?? $valuationReport['ltv_percent'] ?? 0) }}%)</dt><dd class="font-semibold">{{ format_money($coverage['max_loan_amount'] ?? $valuationReport['max_loan_amount'] ?? 0) }}</dd></div>
+                            <div><dt class="text-sky-800">Requested</dt><dd class="font-semibold">{{ format_money($coverage['requested_amount'] ?? $record->requested_amount) }}</dd></div>
+                        </dl>
+                        @if (! empty($coverage['sufficient']))
+                            @if (($coverage['next'] ?? '') === 'insurance_update')
+                                <p class="text-amber-900 text-xs">LTV covers the requested amount. Insurance on the pledged asset is not sufficient — the asset owner must update cover.</p>
+                            @else
+                                <p class="text-emerald-800 text-xs">LTV covers the requested amount and insurance is in order.</p>
+                            @endif
+                        @elseif ($coverage)
+                            <p class="text-rose-800 text-xs font-semibold">Collateral is not sufficient (shortfall {{ format_money($coverage['shortfall'] ?? 0) }}).</p>
+                            <ul class="text-xs text-gray-700 list-disc pl-4 space-y-1">
+                                @foreach ($coverage['scenarios'] ?? [] as $scenario)
+                                    <li>{{ $scenario['label'] }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                @elseif ($openValuation)
+                    <p class="text-sm text-amber-900">
+                        Valuation is in progress with <strong>{{ $openValuation->vendor?->name ?? 'assigned valuer' }}</strong>
+                        ({{ ucfirst(str_replace('_', ' ', $openValuation->status)) }}).
+                    </p>
+                @elseif ($valuationFeeDue)
+                    <p class="text-sm text-amber-900">
+                        Waiting for the borrower{{ is_group_loan_product($record->product ?? null) ? ' (group leader)' : '' }} to pay the valuation fee. No valuer is assigned yet.
+                    </p>
+                @else
+                    <form method="POST" action="{{ route('admin.loan-applications.request-valuation', $record) }}">
+                        @csrf
+                        <input type="text" name="notes" class="w-full rounded-lg border-gray-300 text-sm mb-2" placeholder="Optional internal note">
+                        <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
+                            Send to valuer
+                        </button>
+                    </form>
+                @endif
+            </div>
+        @endif
+
         @if ($canRequestDocs)
             @php
-                $csSvc = app(\App\Services\CollateralSecureService::class);
-                $csState = $csSvc->state($record);
-                $csBlocking = $csSvc->isOpen($record) || in_array($csState['status'] ?? '', ['secured'], true);
+                $csBlocking = $csSvc->isOpen($record) || in_array($csState['status'] ?? '', [
+                    'secured', 'awaiting_valuer', 'awaiting_valuation_fee', 'collateral_shortfall', 'awaiting_insurance',
+                ], true);
             @endphp
             @unless ($csBlocking)
-                <form method="POST" action="{{ route('admin.loan-applications.request-collateral-secure', $record) }}" class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-4 space-y-2">
-                    @csrf
-                    <p class="text-xs font-semibold uppercase tracking-widest text-brand">{{ __('borrower.collateral_secure.admin_start') }}</p>
-                    <p class="text-xs text-gray-600">{{ __('borrower.collateral_secure.admin_start_hint') }}</p>
-                    <textarea name="notes" rows="2" maxlength="1000" placeholder="Optional internal note"
-                              class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5"></textarea>
-                    <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+                <div class="space-y-2">
+                    <button type="button" @click="openSecure = !openSecure"
+                            class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
                         {{ __('borrower.collateral_secure.admin_start') }}
+                        <svg class="size-4 transition-transform" :class="openSecure && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
                     </button>
-                </form>
+                    <form method="POST" action="{{ route('admin.loan-applications.request-collateral-secure', $record) }}"
+                          x-show="openSecure" x-cloak x-transition
+                          class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-4 space-y-2">
+                        @csrf
+                        <p class="text-xs text-gray-600">{{ __('borrower.collateral_secure.admin_start_hint') }}</p>
+                        <textarea name="notes" rows="2" maxlength="1000" placeholder="Optional internal note"
+                                  class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5"></textarea>
+                        <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+                            {{ __('borrower.collateral_secure.admin_start') }}
+                        </button>
+                    </form>
+                </div>
             @else
                 @php
                     $selectedId = data_get($csState, 'customer_asset_id');

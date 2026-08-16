@@ -28,6 +28,22 @@ class OriginationPartnerController extends Controller
         return view('admin.origination.valuation-partners', compact('valuers'));
     }
 
+    public function autoAssign(): View
+    {
+        $boards = app(\App\Services\PartnerAutoAssignOverviewService::class)->originationBoards();
+
+        return view('admin.partners.origination-auto-assign', compact('boards'));
+    }
+
+    public function saveAutoAssign(Request $request): RedirectResponse
+    {
+        app(\App\Services\PartnerAutoAssignPolicy::class)->saveOriginationFromRequest($request->all());
+
+        return redirect()
+            ->route('admin.partners.origination-auto-assign')
+            ->with('status', 'Origination auto-assignment saved.');
+    }
+
     public function assignValuer(Request $request, LoanApplication $loanApplication, ValuationPartnerService $service): RedirectResponse
     {
         $data = $request->validate([

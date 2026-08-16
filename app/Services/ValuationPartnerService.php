@@ -66,6 +66,18 @@ class ValuationPartnerService
             ]);
         }
 
+        if (! app(AssetBackedLoanService::class)->isAssetBackedApplication($application)) {
+            $due = (int) quoted_valuation_fee($application->customer);
+            $state = app(CollateralSecureService::class)->state($application);
+            $assetPaid = filled($asset->valuation_fee_paid_at);
+            $statePaid = filled($state['valuation_fee_paid_at'] ?? null);
+            if ($due > 0 && ! $assetPaid && ! $statePaid) {
+                throw ValidationException::withMessages([
+                    'valuation' => 'The borrower must pay the valuation fee before a valuer is assigned.',
+                ]);
+            }
+        }
+
         return DB::transaction(function () use ($application, $valuer, $actor, $notes, $asset) {
             $customer = $application->customer;
             $assetDescription = trim(collect([
@@ -210,19 +222,29 @@ class ValuationPartnerService
             }
 
             $application = $assignment->application;
-            $assetType = LoanApplicationAsset::query()
+            $assetRow = LoanApplicationAsset::query()
                 ->where('loan_application_id', $application->id)
-                ->value('asset_type') ?? 'saloon_car';
+                ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+                ->orderByDesc('is_primary')
+                ->orderBy('id')
+                ->first();
+            $assetType = $assetRow?->asset_type
+                ?? LoanApplicationAsset::query()->where('loan_application_id', $application->id)->value('asset_type')
+                ?? 'saloon_car';
 
-            $ltvPercent = (float) (config("repossession_charges.ltv_percent.{$assetType}")
-                ?? config('repossession_charges.ltv_percent.default', 60));
+            $coverage = app(CollateralCoverageService::class);
+            $ltvPercent = $coverage->ltvPercentFor((string) $assetType);
+            $maxLoan = $coverage->maxLoanFromForcedSale($forcedSaleValue, (string) $assetType);
+            $gpsRequired = in_array($assetType, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery', 'vehicle'], true);
 
-            $maxLoan = round($forcedSaleValue * ($ltvPercent / 100), 2);
-            $gpsRequired = in_array($assetType, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery'], true);
+            $keys = $assetRow
+                ? ['id' => $assetRow->id]
+                : ['loan_application_id' => $application->id];
 
             LoanApplicationAsset::query()->updateOrCreate(
-                ['loan_application_id' => $application->id],
+                $keys,
                 [
+                    'loan_application_id' => $application->id,
                     'market_value'      => $marketValue,
                     'forced_sale_value' => $forcedSaleValue,
                     'ltv_percent'       => $ltvPercent,
@@ -233,7 +255,10 @@ class ValuationPartnerService
                 ],
             );
 
-            return $assignment->fresh(['application.collateralAsset']);
+            $fresh = $assignment->fresh(['application.collateralAsset']);
+            $coverage->evaluate($application->fresh());
+
+            return $fresh;
         });
     }
 

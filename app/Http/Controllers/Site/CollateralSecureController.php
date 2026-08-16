@@ -189,8 +189,10 @@ class CollateralSecureController extends Controller
         );
 
         $due = (int) quoted_valuation_fee($customer);
-        $ab = $service->assetBackedFeeProduct();
-        abort_unless($ab, 422);
+        $feeProduct = ($state['path'] ?? '') === CollateralSecureService::PATH_SCREENING_VALUATION
+            ? $application->product
+            : $service->assetBackedFeeProduct();
+        abort_unless($feeProduct, 422);
 
         if ($due > 0) {
             $phone = $customer->phone;
@@ -201,7 +203,7 @@ class CollateralSecureController extends Controller
                 'payment_type'   => 'valuation_fee',
                 'payment_method' => 'mobile_money',
                 'amount'         => $due,
-                'loan_product'   => $ab,
+                'loan_product'   => $feeProduct,
                 'reference'      => 'VAL-CS-'.strtoupper(uniqid()),
                 'source'         => $application,
                 'mobile_number'  => $phone,
@@ -226,6 +228,21 @@ class CollateralSecureController extends Controller
                 'confirm' => __('borrower.feedback.ok'),
                 'tone' => 'success',
             ]);
+    }
+
+    public function acceptLtvCap(LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless((int) $application->customer_id === (int) $customer->id, 403);
+
+        $state = app(\App\Services\CollateralSecureService::class)->state($application);
+        abort_unless(($state['status'] ?? '') === \App\Services\CollateralSecureService::STATUS_SHORTFALL, 422);
+
+        app(\App\Services\CollateralCoverageService::class)->acceptLtvCap($application);
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('status', __('borrower.collateral_secure.ltv_cap_accepted'));
     }
 
     public function buyInsurance(Request $request, LoanApplication $application, CollateralSecureService $service): RedirectResponse

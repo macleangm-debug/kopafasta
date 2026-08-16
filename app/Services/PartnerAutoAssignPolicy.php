@@ -72,6 +72,26 @@ class PartnerAutoAssignPolicy
         Setting::setMany($settings);
     }
 
+    /**
+     * Persist origination / service auto-assign only (valuer, GPS, insurance).
+     * Recovery rows are left unchanged.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    public function saveOriginationFromRequest(array $input): void
+    {
+        $settings = [];
+
+        foreach (array_keys(config('partner_auto_assign.service', [])) as $category) {
+            $row = $this->normalizeRow($input, 'service', $category);
+            foreach ($row as $key => $value) {
+                $settings["partner_auto_assign.service.{$category}.{$key}"] = $value;
+            }
+        }
+
+        Setting::setMany($settings);
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function allRecoverySettings(): array
     {

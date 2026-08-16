@@ -363,6 +363,28 @@ class LoanApplicationController extends ResourceController
         return back()->with('status', 'Collateral request sent to the borrower loan profile.');
     }
 
+    public function requestValuation(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.request_documents')
+            || auth()->user()?->hasPermission('applications.review'), 403);
+
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            app(\App\Services\CollateralSecureService::class)->requestValuation(
+                $loan_application,
+                $request->user(),
+                $data['notes'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Valuation requested. The borrower (group leader on group loans) must pay the valuation fee before a valuer is assigned.');
+    }
+
     public function saveScreeningChecklist(Request $request, LoanApplication $loan_application): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);

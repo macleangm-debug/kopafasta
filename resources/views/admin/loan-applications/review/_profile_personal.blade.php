@@ -27,12 +27,10 @@
         ])
         @if (! $customer->date_of_birth || ! filled($customer->gender))
             <p class="mt-3 text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
-                Date of birth and gender should come from registration / NIDA. Missing values need a profile update before committee can rely on them.
+                Date of birth and gender are missing. Request a profile update before committee can rely on them.
             </p>
         @endif
         <div class="mt-4 flex flex-wrap gap-2">
-            <x-admin.badge :value="$customer->nida_verification_status ?? 'unverified'" group="nida_verification_status"
-                :map="['verified'=>'bg-emerald-100 text-emerald-800','name_mismatch'=>'bg-amber-100 text-amber-800','multihit'=>'bg-amber-100 text-amber-800','unverified'=>'bg-gray-100 text-gray-700']" />
             <x-admin.badge :value="$customer->face_verification_status ?? 'none'" group="face_verification_status"
                 :map="['verified'=>'bg-emerald-100 text-emerald-800','pending'=>'bg-amber-100 text-amber-800','rejected'=>'bg-red-100 text-red-800']" />
         </div>

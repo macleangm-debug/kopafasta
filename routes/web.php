@@ -269,6 +269,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/applications/{application}/collateral-secure/link-asset', [\App\Http\Controllers\Site\CollateralSecureController::class, 'linkAsset'])->name('borrower.collateral-secure.link');
             Route::post('/borrower/applications/{application}/collateral-secure/pay', [\App\Http\Controllers\Site\CollateralSecureController::class, 'payFee'])->name('borrower.collateral-secure.pay');
             Route::post('/borrower/applications/{application}/collateral-secure/pay-valuation', [\App\Http\Controllers\Site\CollateralSecureController::class, 'payValuationFee'])->name('borrower.collateral-secure.pay-valuation');
+            Route::post('/borrower/applications/{application}/collateral-secure/accept-ltv', [\App\Http\Controllers\Site\CollateralSecureController::class, 'acceptLtvCap'])->name('borrower.collateral-secure.accept-ltv');
             Route::post('/borrower/applications/{application}/collateral-secure/buy-insurance', [\App\Http\Controllers\Site\CollateralSecureController::class, 'buyInsurance'])->name('borrower.collateral-secure.buy-insurance');
             Route::post('/borrower/applications/{application}/post-approval-fees/fast-track', [\App\Http\Controllers\Site\BorrowerController::class, 'toggleFastTrack'])->name('borrower.application.post-approval-fees.fast-track');
             Route::post('/borrower/guaranteed/{customerGuarantor}/collateral-secure/respond', [\App\Http\Controllers\Site\CollateralSecureController::class, 'guarantorRespond'])->name('borrower.collateral-secure.guarantor-respond');
@@ -612,6 +613,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.request-guarantor-supplement');
         Route::post('loan-applications/{loan_application}/request-collateral-secure', [LoanApplicationController::class, 'requestCollateralSecure'])
             ->name('loan-applications.request-collateral-secure');
+        Route::post('loan-applications/{loan_application}/request-valuation', [LoanApplicationController::class, 'requestValuation'])
+            ->name('loan-applications.request-valuation');
         Route::post('loan-applications/{loan_application}/screening-checklist', [LoanApplicationController::class, 'saveScreeningChecklist'])
             ->name('loan-applications.screening-checklist');
         Route::post('loan-applications/{loan_application}/guarantors/{customerGuarantor}/change', [LoanApplicationController::class, 'requestGuarantorChange'])

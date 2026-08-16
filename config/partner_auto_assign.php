@@ -2,7 +2,8 @@
 
 /**
  * Defaults for partner auto-assignment (recovery + origination/service).
- * Editable under Admin → Settings → Recovery Policy.
+ * Editable under Admin → Partners → Origination auto-assignment (service)
+ * and Admin → Settings → Recovery Policy (recovery + service).
  */
 return [
     'strategies' => [

@@ -9,6 +9,8 @@ return function (): void {
     Route::view('partners/gps-installers', 'admin.partners.gps-installers')->name('partners.gps-installers');
     Route::view('partners/insurance-providers', 'admin.partners.insurance-providers')->name('partners.insurance-providers');
     Route::view('partners/valuers', 'admin.partners.valuers')->name('partners.valuers');
+    Route::get('partners/origination-auto-assign', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'autoAssign'])->name('partners.origination-auto-assign');
+    Route::post('partners/origination-auto-assign', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'saveAutoAssign'])->name('partners.origination-auto-assign.save');
     Route::view('partners/suppliers', 'admin.partners.suppliers')->name('partners.suppliers');
     Route::view('partners/affiliates', 'admin.partners.affiliates')->name('partners.affiliates');
     Route::view('partners/tasks', 'admin.partners.tasks')->name('partners.tasks');

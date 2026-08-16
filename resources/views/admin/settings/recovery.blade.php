@@ -371,7 +371,9 @@
                 <p class="font-semibold">Auto-assign &amp; KPI rules</p>
                 <p class="text-xs mt-1 text-emerald-900/80">
                     Rules only — who gets work is decided from active partners of each type (managed under Partners).
-                    Click Edit on a card to change values, then save this page. Open Page guide for term meanings.
+                    Origination (valuer, GPS, insurance) can also be edited under
+                    <a href="{{ route('admin.partners.origination-auto-assign') }}" class="font-semibold underline">Partners → Origination auto-assignment</a>.
+                    Click Edit on a card to change values, then save this page.
                 </p>
             </div>
 

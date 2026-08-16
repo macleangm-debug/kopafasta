@@ -61,6 +61,15 @@ class PartnerAutoAssignOverviewService
         return $boards;
     }
 
+    /** Valuer, GPS, and insurance boards for Admin → Partners. */
+    public function originationBoards(): array
+    {
+        return array_values(array_filter(
+            $this->boards(),
+            fn (array $board) => ($board['group'] ?? '') === 'service',
+        ));
+    }
+
     private function activePartnerCount(string $category): int
     {
         return (int) Vendor::query()

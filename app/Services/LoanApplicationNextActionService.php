@@ -227,6 +227,31 @@ class LoanApplicationNextActionService
             );
         }
 
+        $secureStatus = data_get($collateralSecure->state($application), 'status');
+        if ($secureStatus === \App\Services\CollateralSecureService::STATUS_SHORTFALL) {
+            $coverage = app(\App\Services\CollateralCoverageService::class)->forApplication($application);
+
+            return $this->action(
+                'collateral_shortfall',
+                __('borrower.collateral_secure.shortfall_next_action', [
+                    'max' => format_money((float) ($coverage['max_loan_amount'] ?? 0)),
+                    'shortfall' => format_money((float) ($coverage['shortfall'] ?? 0)),
+                ]),
+                __('borrower.collateral_secure.cta_open'),
+                $profileUrl.'#collateral-secure',
+                tone: 'primary',
+            );
+        }
+        if ($secureStatus === \App\Services\CollateralSecureService::STATUS_AWAITING_INSURANCE) {
+            return $this->action(
+                'update_insurance',
+                __('borrower.collateral_secure.insurance_needed'),
+                __('borrower.collateral_secure.cta_open'),
+                $profileUrl.'#collateral-secure',
+                tone: 'primary',
+            );
+        }
+
         if ($collateralSecure->isOpen($application)) {
             $statusCode = data_get($collateralSecure->state($application), 'status');
             $label = match ($statusCode) {

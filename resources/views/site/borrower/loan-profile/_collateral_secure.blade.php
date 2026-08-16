@@ -23,6 +23,15 @@
                 @if ($status === 'awaiting_valuation_fee')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_valuation_fee') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_valuation_fee') }}</p>
+                @elseif ($status === 'awaiting_valuer')
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.awaiting_valuer_title') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.awaiting_valuer_body') }}</p>
+                @elseif ($status === 'collateral_shortfall')
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.shortfall_title') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.shortfall_body', [
+                        'max' => format_money((float) data_get($secure, 'coverage.max_loan_amount', 0)),
+                        'shortfall' => format_money((float) data_get($secure, 'coverage.shortfall', 0)),
+                    ]) }}</p>
                 @elseif ($status === 'secured')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_secured') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_secured') }}</p>
@@ -272,6 +281,27 @@
                         @csrf
                         <button type="submit" class="w-full sm:w-auto inline-flex justify-center font-extrabold px-7 py-3.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
                             {{ __('borrower.collateral_secure.pay_valuation_now') }}
+                        </button>
+                    </form>
+                </div>
+            @elseif ($status === 'awaiting_valuer')
+                <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.awaiting_valuer_body') }}</p>
+            @elseif ($status === 'collateral_shortfall')
+                @php $coverage = $secure['coverage'] ?? []; @endphp
+                <ul class="text-sm text-gray-700 list-disc pl-5 space-y-1">
+                    @foreach ($coverage['scenarios'] ?? [] as $scenario)
+                        <li>{{ $scenario['label'] }}</li>
+                    @endforeach
+                </ul>
+                <div class="flex flex-wrap gap-3">
+                    <a href="{{ $secure['add_collateral_url'] ?? route('site.borrower.profile', ['section' => 'assets', 'add' => 1]) }}"
+                       class="inline-flex font-extrabold px-7 py-3.5 rounded-xl text-sm bg-white ring-1 ring-brand/20 text-brand">
+                        {{ __('borrower.collateral_secure.add_more_collateral') }}
+                    </a>
+                    <form method="POST" action="{{ route('site.borrower.collateral-secure.accept-ltv', $application) }}">
+                        @csrf
+                        <button type="submit" class="inline-flex font-extrabold px-7 py-3.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                            {{ __('borrower.collateral_secure.accept_ltv_cap', ['amount' => format_money((float) ($coverage['max_loan_amount'] ?? 0))]) }}
                         </button>
                     </form>
                 </div>

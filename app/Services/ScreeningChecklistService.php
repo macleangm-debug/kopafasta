@@ -1464,7 +1464,6 @@ class ScreeningChecklistService
                 $rows = [
                     ['label' => 'NIDA / National ID', 'value' => (string) ($customer?->national_id ?: '—')],
                     ['label' => 'Date of birth', 'value' => optional($customer?->date_of_birth)->format('d M Y') ?: '—'],
-                    ['label' => 'NIDA status', 'value' => display_label($customer?->nida_verification_status, 'nida_verification_status') ?: '—'],
                 ];
                 $hint = 'Do the ID digits and year of birth line up?';
                 break;

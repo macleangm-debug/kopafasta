@@ -487,7 +487,7 @@
 </script>
 
 {{-- Centered document preview popup (underwriting) --}}
-<div id="kf-doc-drawer" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+<div id="kf-doc-drawer" class="fixed inset-0 z-[100] hidden" aria-hidden="true">
     <div class="absolute inset-0 bg-black/50" onclick="window.kfCloseDocumentPreview()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4 sm:p-8 pointer-events-none">
         <div class="pointer-events-auto w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl ring-1 ring-black/10 flex flex-col overflow-hidden"

@@ -33,11 +33,21 @@ class CollateralSecureService
 
     public const STATUS_AWAITING_VALUATION_FEE = 'awaiting_valuation_fee';
 
+    public const STATUS_AWAITING_VALUER = 'awaiting_valuer';
+
+    public const STATUS_SHORTFALL = 'collateral_shortfall';
+
     public const STATUS_SECURED = 'secured';
 
     public const STATUS_REJECTED = 'rejected';
 
     public const STATUS_EXPIRED = 'expired';
+
+    /** Existing ladder: borrower/guarantor ask + AB fee delta + valuation. */
+    public const PATH_SECURE = 'collateral_secure';
+
+    /** Screening reviewed pledged collateral: valuation fee only (product stays IL/GL). */
+    public const PATH_SCREENING_VALUATION = 'screening_valuation';
 
     public function state(LoanApplication $application): ?array
     {
@@ -55,6 +65,7 @@ class CollateralSecureService
 
         return ! in_array($state['status'] ?? '', [
             self::STATUS_SECURED,
+            self::STATUS_AWAITING_VALUER,
             self::STATUS_REJECTED,
             self::STATUS_EXPIRED,
         ], true);
@@ -188,6 +199,7 @@ class CollateralSecureService
             'requested_by' => $admin->id,
             'notes'        => $notes,
             'due_at'       => $dueAt->toIso8601String(),
+            'path'         => self::PATH_SECURE,
             'status'       => self::STATUS_AWAITING_BORROWER,
             'borrower_has_collateral' => null,
             'ask_guarantor' => null,
@@ -226,6 +238,104 @@ class CollateralSecureService
         }
 
         return $state;
+    }
+
+    /**
+     * Screening has reviewed pledged collateral. Collect valuation fee from the
+     * application owner (group leader / individual borrower). Do not assign a valuer yet.
+     */
+    public function requestValuation(LoanApplication $application, User $admin, ?string $notes = null): array
+    {
+        if (is_asset_backed_loan_product($application->product?->code) || is_marketplace_loan_product($application->product?->code)) {
+            throw new \InvalidArgumentException('Asset-backed applications assign a valuer after the apply-flow valuation fee, not from this CTA.');
+        }
+
+        $existing = $this->state($application);
+        if (($existing['status'] ?? '') === self::STATUS_AWAITING_VALUATION_FEE) {
+            return $existing;
+        }
+        if (in_array($existing['status'] ?? '', [self::STATUS_AWAITING_VALUER, self::STATUS_AWAITING_INSURANCE, self::STATUS_SHORTFALL], true)) {
+            return $existing;
+        }
+        if ($this->isOpen($application)) {
+            throw new \InvalidArgumentException('Finish the open collateral request first, or wait for the valuation fee to be paid.');
+        }
+
+        $application->loadMissing('collateralAssets.customerAsset');
+        $pledge = $application->collateralAssets
+            ->first(fn (LoanApplicationAsset $row) => ($row->uw_status ?? '') !== LoanApplicationAsset::UW_DECLINED && $row->customerAsset);
+
+        if (! $pledge?->customerAsset) {
+            throw new \InvalidArgumentException('Pledge an asset on this loan before sending to the valuer.');
+        }
+
+        $asset = $pledge->customerAsset;
+        $isGuarantor = (int) $asset->customer_id !== (int) $application->customer_id;
+        $due = (int) quoted_valuation_fee($application->customer);
+        $dueAt = now()->addDays($this->decisionDays());
+
+        $state = [
+            'requested_at' => now()->toIso8601String(),
+            'requested_by' => $admin->id,
+            'notes'        => $notes,
+            'due_at'       => $dueAt->toIso8601String(),
+            'path'         => self::PATH_SCREENING_VALUATION,
+            'status'       => $due > 0 ? self::STATUS_AWAITING_VALUATION_FEE : self::STATUS_AWAITING_VALUER,
+            'source'       => $isGuarantor ? 'guarantor' : 'borrower',
+            'customer_asset_id' => $asset->id,
+            'guarantor_customer_id' => $isGuarantor ? $asset->customer_id : null,
+            'valuation_fee_due' => $due,
+            'valuation_fee_paid_at' => $due > 0 ? null : now()->toIso8601String(),
+            'preserve_product' => true,
+        ];
+
+        $this->saveState($application, $state);
+
+        if ($due <= 0) {
+            app(ValuationPartnerService::class)->autoAssignIfPossible($application->fresh(), $admin);
+
+            return $state;
+        }
+
+        $payer = $application->customer;
+        if ($payer instanceof Customer) {
+            app(NotificationService::class)->notifyInApp(
+                $payer,
+                __('borrower.collateral_secure.notify_valuation_fee_body', [
+                    'amount' => format_money($due),
+                ]),
+                category: 'loan_application',
+                template: 'collateral_secure_valuation_fee',
+                title: __('borrower.collateral_secure.notify_valuation_fee_title'),
+                actionUrl: route('site.borrower.application', $application),
+                actionLabel: __('borrower.collateral_secure.cta_pay_valuation'),
+            );
+        }
+
+        return $state;
+    }
+
+    public function applyCoverageOutcome(LoanApplication $application, array $coverage): void
+    {
+        $state = $this->state($application);
+        if (! $state || ($state['path'] ?? self::PATH_SECURE) !== self::PATH_SCREENING_VALUATION) {
+            return;
+        }
+
+        $next = (string) ($coverage['next'] ?? CollateralCoverageService::NEXT_OK);
+        if ($next === CollateralCoverageService::NEXT_INSURANCE) {
+            $state['status'] = self::STATUS_AWAITING_INSURANCE;
+            $state['insurance'] = $coverage['insurance'] ?? null;
+            $state['insurance_due_at'] = now()->addDays($this->insuranceRenewalDays())->toIso8601String();
+        } elseif (! ($coverage['sufficient'] ?? false)) {
+            $state['status'] = self::STATUS_SHORTFALL;
+            $state['due_at'] = now()->addDays($this->decisionDays())->toIso8601String();
+        } else {
+            $state['status'] = self::STATUS_SECURED;
+            $state['secured_at'] = now()->toIso8601String();
+        }
+
+        $this->saveState($application, $state);
     }
 
     public function borrowerHasCollateral(LoanApplication $application, Customer $borrower, bool $has): array
@@ -392,6 +502,12 @@ class CollateralSecureService
 
         if ((int) ($state['customer_asset_id'] ?? 0) !== (int) $asset->id) {
             return $state;
+        }
+
+        if (($state['path'] ?? self::PATH_SECURE) === self::PATH_SCREENING_VALUATION) {
+            app(CollateralCoverageService::class)->evaluate($application);
+
+            return $this->state($application->fresh());
         }
 
         return $this->advanceAfterFee($application, $state, $asset);
@@ -625,6 +741,8 @@ class CollateralSecureService
             return ['active' => false];
         }
 
+        $coverage = app(CollateralCoverageService::class)->forApplication($application);
+
         $daysLeft = null;
         $inGrace = false;
         $due = $this->effectiveDueAt($state);
@@ -649,16 +767,20 @@ class CollateralSecureService
             : (int) $application->customer_id;
 
         return [
-            'active' => $this->isOpen($application) || ($state['status'] ?? '') === self::STATUS_SECURED,
+            'active' => ! in_array($state['status'] ?? '', [self::STATUS_REJECTED, self::STATUS_EXPIRED], true),
             'open' => $this->isOpen($application),
             'state' => $state,
             'status' => $state['status'] ?? null,
+            'path' => $state['path'] ?? self::PATH_SECURE,
             'days_left' => $daysLeft,
             'in_grace' => $inGrace,
             'grace_days' => $this->graceDays(),
-            'fee_quote' => $this->feeQuote($application),
+            'fee_quote' => ($state['path'] ?? self::PATH_SECURE) === self::PATH_SCREENING_VALUATION
+                ? null
+                : $this->feeQuote($application),
             'valuation_fee_quote' => $this->valuationFeeQuote($application),
             'valuation_progress' => $this->valuationProgress($application, $state),
+            'coverage' => $coverage,
             'add_collateral_url' => route('site.borrower.profile', ['section' => 'assets', 'add' => 1]),
             'owner_assets_url' => route('site.borrower.profile', [
                 'section' => 'assets',
@@ -812,15 +934,28 @@ class CollateralSecureService
         abort_unless(($state['status'] ?? '') === self::STATUS_AWAITING_VALUATION_FEE, 422);
 
         $asset = CustomerAsset::query()->find($state['customer_asset_id'] ?? 0);
-        $ab = $this->assetBackedFeeProduct();
-        abort_unless($asset && $ab, 422);
+        abort_unless($asset, 422);
 
         $state['valuation_fee_paid_at'] = now()->toIso8601String();
         $state['valuation_fee_due'] = 0;
 
-        $state = $this->finalizeSecured($application, $state, $asset, $ab, $this->feeQuote($application));
+        if (($state['path'] ?? self::PATH_SECURE) === self::PATH_SCREENING_VALUATION) {
+            $state['status'] = self::STATUS_AWAITING_VALUER;
+            $this->saveState($application, $state);
+            LoanApplicationAsset::query()
+                ->where('loan_application_id', $application->id)
+                ->where('customer_asset_id', $asset->id)
+                ->update(['valuation_fee_paid_at' => now()]);
+            app(ValuationPartnerService::class)->autoAssignIfPossible($application->fresh());
 
-        // Non-blocking: place the job with a suggested valuer when one is available.
+            return $state;
+        }
+
+        $ab = $this->assetBackedFeeProduct();
+        abort_unless($ab, 422);
+
+        $state = $this->finalizeSecured($application, $state, $asset, $ab, $this->feeQuote($application) ?? []);
+
         app(ValuationPartnerService::class)->autoAssignIfPossible($application->fresh());
 
         return $state;
