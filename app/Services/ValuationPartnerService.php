@@ -17,9 +17,10 @@ class ValuationPartnerService
         private readonly PartnerMatchingService $matching,
     ) {}
 
-    public function suggestValuer(LoanApplication $application): ?Vendor
+    /** @param  list<int>  $excludeIds */
+    public function suggestValuer(LoanApplication $application, array $excludeIds = []): ?Vendor
     {
-        return $this->matching->suggestValuer($application);
+        return $this->matching->suggestValuer($application, $excludeIds);
     }
 
     /** @return \Illuminate\Support\Collection<int, Vendor> */
@@ -139,8 +140,15 @@ class ValuationPartnerService
      * After valuation fee is paid, try to place the job with the nearest/suggested valuer.
      * Failures are non-blocking — ops can still assign manually.
      */
-    public function autoAssignIfPossible(LoanApplication $application, ?User $actor = null): ?ValuationAssignment
-    {
+    /**
+     * @param  list<int>  $excludeIds
+     */
+    public function autoAssignIfPossible(
+        LoanApplication $application,
+        ?User $actor = null,
+        array $excludeIds = [],
+        ?string $notes = null,
+    ): ?ValuationAssignment {
         if (! app(PartnerAutoAssignPolicy::class)->enabledForService('valuer')) {
             return null;
         }
@@ -154,13 +162,18 @@ class ValuationPartnerService
             return null;
         }
 
-        $valuer = $this->suggestValuer($application);
+        $valuer = $this->suggestValuer($application, $excludeIds);
         if (! $valuer) {
             return null;
         }
 
         try {
-            return $this->assign($application, $valuer, $actor, 'Auto-assigned after valuation fee payment.');
+            return $this->assign(
+                $application,
+                $valuer,
+                $actor,
+                $notes ?? 'Auto-assigned after valuation fee payment.',
+            );
         } catch (\Throwable) {
             return null;
         }

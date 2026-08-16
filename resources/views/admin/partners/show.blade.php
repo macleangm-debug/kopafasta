@@ -239,10 +239,55 @@
     </div>
 @endif
 
+@php
+    $openTasks = $openTasks ?? collect();
+    $openValuations = $openValuations ?? collect();
+    $openCount = max($openTasks->count(), $openValuations->count());
+@endphp
+
+@if ($openCount > 0)
+    <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-amber-200 p-6">
+        <h3 class="text-sm font-semibold text-amber-900 mb-1">Open tasks</h3>
+        <p class="text-xs text-gray-600 mb-3">
+            Halt cancels assigned / in-progress jobs and offers them to another active partner in the same region.
+            Completed valuations stay on file.
+        </p>
+        <ul class="text-sm text-gray-800 space-y-1.5 mb-4">
+            @foreach ($openTasks as $task)
+                <li>
+                    {{ ucfirst(str_replace('_', ' ', (string) $task->task_type)) }}
+                    · {{ ucfirst(str_replace('_', ' ', (string) $task->status)) }}
+                    @if ($task->loan_application_id)
+                        · <a href="{{ route('admin.loan-applications.show', $task->loan_application_id) }}" class="text-brand font-semibold hover:underline">Application #{{ $task->loan_application_id }}</a>
+                    @endif
+                    @if ($task->customer_name)
+                        · {{ $task->customer_name }}
+                    @endif
+                </li>
+            @endforeach
+        </ul>
+        <form method="POST" action="{{ route('admin.partners.halt-open-work', $record) }}"
+              x-data
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js('Halt open tasks?'),
+                  message: @js('Open jobs will be cancelled. If another valuer covers the region, the work is reassigned. Completed reports are not deleted.'),
+                  confirmLabel: @js('Halt open tasks'),
+                  confirmClass: 'bg-amber-500 hover:bg-amber-600 text-white',
+                  tone: 'warning',
+              })">
+            @csrf
+            <button type="submit"
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-amber-950 bg-amber-200 hover:bg-amber-300 ring-1 ring-amber-400 px-4 py-2 rounded-xl">
+                Halt open tasks
+            </button>
+        </form>
+    </div>
+@endif
+
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-red-200/80 p-6">
     <h3 class="text-sm font-semibold text-red-700 mb-1">Danger zone</h3>
     <p class="text-xs text-gray-500 mb-3">
-        Delete permanently removes empty partners. Deactivate keeps history and disables portal login.
+        Create the replacement partner first. Halt open work, then deactivate. Delete is only for partners with no history.
     </p>
     <div class="flex flex-wrap items-center gap-3">
         <form method="POST" action="{{ route('admin.partners.destroy', $record) }}"
@@ -250,7 +295,7 @@
               x-data
               @submit.prevent="window.confirmForm($el, {
                   title: @js('Delete this partner?'),
-                  message: @js('This permanently deletes the partner. Partners with tasks, payments, or assignments cannot be deleted — use Deactivate instead.'),
+                  message: @js('This permanently deletes the partner. Open or completed jobs cannot be deleted with them — halt open tasks, then Deactivate.'),
                   confirmLabel: @js('Delete'),
                   confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
                   tone: 'warning',
@@ -266,7 +311,7 @@
               x-data
               @submit.prevent="window.confirmForm($el, {
                   title: @js('Deactivate this partner?'),
-                  message: @js('The partner will be suspended and portal login disabled. History is kept.'),
+                  message: @js('Open jobs are halted and offered to another partner. This partner is suspended, login is disabled, and history is kept.'),
                   confirmLabel: @js('Deactivate'),
                   confirmClass: 'bg-amber-500 hover:bg-amber-600 text-white',
                   tone: 'warning',

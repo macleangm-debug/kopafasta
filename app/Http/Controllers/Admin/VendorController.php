@@ -405,6 +405,9 @@ class VendorController extends ResourceController
         }
 
         $record = Vendor::findOrFail($id);
+        $deletion = app(\App\Services\PartnerDeletionService::class);
+        $openTasks = $deletion->openTasks($record);
+        $openValuations = $deletion->openValuationAssignments($record);
         $affiliateStats = $record->isAffiliate()
             ? app(AffiliateService::class)->stats($record)
             : null;
@@ -419,7 +422,15 @@ class VendorController extends ResourceController
             : null;
 
         return view("admin.{$this->viewFolder}.show", array_merge(
-            ['record' => $record, 'affiliateStats' => $affiliateStats, 'affiliateEvaluations' => $affiliateEvaluations, 'recoveryStats' => $recoveryStats, 'membership' => $membership],
+            [
+                'record' => $record,
+                'affiliateStats' => $affiliateStats,
+                'affiliateEvaluations' => $affiliateEvaluations,
+                'recoveryStats' => $recoveryStats,
+                'membership' => $membership,
+                'openTasks' => $openTasks,
+                'openValuations' => $openValuations,
+            ],
             $this->formData($record),
         ));
     }
@@ -547,6 +558,25 @@ class VendorController extends ResourceController
         return redirect()
             ->route("{$this->routePrefix}.show", $vendor)
             ->with('status', 'Affiliate KYC rejected. Partner can re-upload documents.');
+    }
+
+    public function haltOpenWork($id)
+    {
+        $record = Vendor::findOrFail($id);
+        $this->authorize('delete', $record);
+
+        $result = app(\App\Services\PartnerDeletionService::class)
+            ->haltOpenWork($record, auth('admin')->user());
+
+        $this->auditAdmin('vendor.open_work.halted', $record, [
+            'halted_tasks' => $result['halted_tasks'],
+            'halted_assignments' => $result['halted_assignments'],
+            'reassigned' => $result['reassigned'],
+        ]);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $record)
+            ->with('status', $result['message']);
     }
 
     public function destroy($id)

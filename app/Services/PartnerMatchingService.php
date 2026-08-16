@@ -30,14 +30,19 @@ class PartnerMatchingService
         return $this->coverage->filterAvailable($all, $region, $requireRegion);
     }
 
-    public function suggestValuer(LoanApplication $application): ?Vendor
+    /** @param  list<int>  $excludeIds */
+    public function suggestValuer(LoanApplication $application, array $excludeIds = []): ?Vendor
     {
         $application->loadMissing('customer');
         $region = $application->customer?->region;
         $candidates = $this->valuersForRegion($region);
+        $exclude = array_map('intval', $excludeIds);
+        $eligible = $candidates->reject(
+            fn (Vendor $vendor) => in_array((int) $vendor->id, $exclude, true)
+        )->values();
 
-        return $this->selector->pickService('valuer', $candidates)
-            ?? $candidates->first();
+        return $this->selector->pickService('valuer', $eligible, $exclude)
+            ?? $eligible->first();
     }
 
     /** @return list<string> */
