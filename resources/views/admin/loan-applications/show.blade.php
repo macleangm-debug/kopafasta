@@ -13,6 +13,8 @@
     $isDisbursementStage = $stage === 'disbursement' || $record->status === 'disbursed';
     $isOpsStage = $isManagementStage || $isDisbursementStage;
     $isCreditWorkspace = $isScreeningStage || $isCommitteeStage;
+    $fileIsClosed = $record->isClosed();
+    $closedStatus = $fileIsClosed ? $record->closedStatus() : null;
 @endphp
 
 <x-admin.layout
@@ -52,22 +54,31 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 shrink-0">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
-                        {{ display_label($record->status, 'application_status') }}
-                    </span>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-gold/20 text-brand-gold ring-1 ring-brand-gold/40">
-                        {{ $workflow->stageLabel($record->current_stage ?? 'submitted') }}
-                    </span>
-                    @if ($record->assignedAnalyst)
+                    @if ($fileIsClosed)
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
-                            Analyst: {{ $record->assignedAnalyst->name }}
+                            {{ display_label($closedStatus, 'application_status') }}
                         </span>
-                    @endif
-                    @if (! in_array(auth()->user()?->role, ['credit_analyst'], true) && auth()->user()?->hasPermission('applications.edit'))
-                    <a href="{{ route('admin.loan-applications.edit', $record) }}"
-                       class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">
-                        Edit application
-                    </a>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/80 ring-1 ring-white/15">
+                            View only
+                        </span>
+                    @else
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
+                            {{ display_label($record->status, 'application_status') }}
+                        </span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-gold/20 text-brand-gold ring-1 ring-brand-gold/40">
+                            {{ $workflow->stageLabel($record->current_stage ?? 'submitted') }}
+                        </span>
+                        @if ($record->assignedAnalyst)
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
+                                Analyst: {{ $record->assignedAnalyst->name }}
+                            </span>
+                        @endif
+                        @if (! in_array(auth()->user()?->role, ['credit_analyst'], true) && auth()->user()?->hasPermission('applications.edit'))
+                        <a href="{{ route('admin.loan-applications.edit', $record) }}"
+                           class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">
+                            Edit application
+                        </a>
+                        @endif
                     @endif
                 </div>
             </div>
@@ -87,7 +98,7 @@
         $capacityHours = $capacityPending ? $capacityAutoReject->hoursRemaining($record) : null;
         $capacityState = $capacityPending ? ($capacityAutoReject->state($record) ?? []) : [];
     @endphp
-    @if ($capacityPending)
+    @if ($capacityPending && ! $fileIsClosed)
         <div class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div class="min-w-0">
                 <p class="text-xs uppercase tracking-widest text-amber-800 font-bold">System sorted</p>

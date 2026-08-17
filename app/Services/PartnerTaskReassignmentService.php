@@ -6,8 +6,10 @@ use App\Models\LoanApplication;
 use App\Models\PartnerTask;
 use App\Models\RecoveryAssignment;
 use App\Models\User;
+use App\Models\ValuationAssignment;
 use App\Models\Vendor;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PartnerTaskReassignmentService
@@ -103,6 +105,58 @@ class PartnerTaskReassignmentService
         app(PartnerTaskLifecycleService::class)->closeTask($task, $reason);
 
         return $task->fresh();
+    }
+
+    public function canRemove(User $user, PartnerTask $task): bool
+    {
+        if (! in_array($user->role, ['admin', 'super_admin'], true)) {
+            return false;
+        }
+
+        if (! $this->isOrigination($task) || ! $this->fileIsClosed($task)) {
+            return false;
+        }
+
+        if ((string) $task->status === 'completed') {
+            return false;
+        }
+
+        $payment = $task->relationLoaded('payment') ? $task->payment : $task->payment()->first();
+        if ($payment) {
+            return false;
+        }
+
+        $assignment = $task->relationLoaded('valuationAssignment')
+            ? $task->valuationAssignment
+            : $task->valuationAssignment()->first();
+        if ($assignment && filled($assignment->forced_sale_value)) {
+            return false;
+        }
+
+        $cancelled = in_array((string) $task->status, ['cancelled', 'failed'], true);
+        $overdueOpen = $this->isOpen($task) && $task->due_at && $task->due_at->isPast();
+
+        return $cancelled || $overdueOpen;
+    }
+
+    public function remove(PartnerTask $task, User $actor): void
+    {
+        if (! $this->canRemove($actor, $task)) {
+            throw ValidationException::withMessages([
+                'task' => 'This job cannot be deleted. Close or reassign live work; completed reports stay on file.',
+            ]);
+        }
+
+        DB::transaction(function () use ($task): void {
+            app(PartnerTaskLifecycleService::class)->closeLinkedValuation(
+                $task,
+                'Removed because the application is no longer active.',
+            );
+
+            ValuationAssignment::query()->where('partner_task_id', $task->id)->delete();
+            $task->documents()->delete();
+            $task->delete();
+        });
     }
 
     /** @return Collection<int, Vendor> */

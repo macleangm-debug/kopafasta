@@ -152,6 +152,37 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
         $this->assertFalse(app(\App\Services\PartnerDeletionService::class)->hasOpenWork($current->fresh()));
     }
 
+    public function test_cancelled_job_on_rejected_file_can_be_deleted(): void
+    {
+        [$application, $current] = $this->gpsSetup();
+        $admin = User::factory()->create(['role' => 'admin']);
+        $task = app(GpsPartnerService::class)->assign($application, $current, $admin);
+        $application->update(['status' => 'rejected', 'current_stage' => 'rejected']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.tasks'))
+            ->assertOk()
+            ->assertSee('Delete task', false);
+
+        Livewire::actingAs($admin, 'admin')
+            ->test(VendorTasksTable::class)
+            ->call('remove', $task->id)
+            ->assertHasNoErrors()
+            ->assertSet('notice', 'Job removed from the partner queue.');
+
+        $this->assertDatabaseMissing('partner_tasks', ['id' => $task->id]);
+    }
+
+    public function test_overdue_job_on_a_live_file_cannot_be_deleted(): void
+    {
+        [$application, $current] = $this->gpsSetup();
+        $admin = User::factory()->create(['role' => 'admin']);
+        $task = app(GpsPartnerService::class)->assign($application, $current, $admin);
+        $task->update(['due_at' => now()->subDay()]);
+
+        $this->assertFalse(app(PartnerTaskReassignmentService::class)->canRemove($admin, $task->fresh()));
+    }
+
     public function test_rejecting_an_application_cancels_open_origination_tasks(): void
     {
         [$application, $current] = $this->gpsSetup();

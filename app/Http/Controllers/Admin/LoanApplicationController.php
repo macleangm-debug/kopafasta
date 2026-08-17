@@ -91,8 +91,17 @@ class LoanApplicationController extends ResourceController
     public function edit($id)
     {
         $record = LoanApplication::findOrFail($id);
+        $this->assertApplicationMutable($record);
 
         return view("admin.{$this->viewFolder}.edit", ['record' => $record] + $this->formData($record));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $record = LoanApplication::findOrFail($id);
+        $this->assertApplicationMutable($record);
+
+        return parent::update($request, $id);
     }
 
     public function create()
@@ -273,6 +282,7 @@ class LoanApplicationController extends ResourceController
     public function fireCapacityAutoReject(LoanApplication $loan_application): RedirectResponse
     {
         abort_unless($this->canManageCapacityAutoReject(), 403);
+        $this->assertApplicationMutable($loan_application);
 
         app(\App\Services\CapacityAutoRejectService::class)->fireNow($loan_application, auth()->user());
 
@@ -282,6 +292,7 @@ class LoanApplicationController extends ResourceController
     public function cancelCapacityAutoReject(LoanApplication $loan_application): RedirectResponse
     {
         abort_unless($this->canManageCapacityAutoReject(), 403);
+        $this->assertApplicationMutable($loan_application);
 
         app(\App\Services\CapacityAutoRejectService::class)->cancel($loan_application, auth()->user(), 'Kept in screening by management');
 
@@ -293,8 +304,14 @@ class LoanApplicationController extends ResourceController
         return app(\App\Services\CapacityAutoRejectService::class)->canAct(auth()->user());
     }
 
+    private function assertApplicationMutable(LoanApplication $application): void
+    {
+        abort_if($application->isClosed(), 403, 'This application is closed and can only be viewed.');
+    }
+
     public function assignAnalyst(Request $request, LoanApplication $loan_application): RedirectResponse
     {
+        $this->assertApplicationMutable($loan_application);
         $data = $request->validate([
             'assigned_analyst_id' => ['nullable', 'exists:users,id'],
         ]);
@@ -323,6 +340,7 @@ class LoanApplicationController extends ResourceController
     public function requestGuarantorSupplement(Request $request, LoanApplication $loan_application): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -345,6 +363,7 @@ class LoanApplicationController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('applications.request_documents')
             || auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -367,6 +386,7 @@ class LoanApplicationController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('applications.request_documents')
             || auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -388,6 +408,7 @@ class LoanApplicationController extends ResourceController
     public function saveScreeningChecklist(Request $request, LoanApplication $loan_application): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $person = match ($request->input('person', 'borrower')) {
             'guarantor' => 'guarantor',
@@ -448,6 +469,7 @@ class LoanApplicationController extends ResourceController
     ): RedirectResponse {
         abort_unless(auth()->user()?->hasPermission('applications.review')
             || auth()->user()?->hasPermission('applications.view'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -472,6 +494,7 @@ class LoanApplicationController extends ResourceController
     public function runWorkflow(Request $request, LoanApplication $loan_application, LoanApplicationWorkflowService $workflow): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $data = $request->validate([
             'action'                   => ['required', 'string', 'in:'.implode(',', array_keys(LoanApplicationWorkflowService::ACTIONS))],
@@ -844,6 +867,7 @@ class LoanApplicationController extends ResourceController
     public function verifyDocument(Request $request, LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $subject = $this->resolveDocumentReviewSubject($request, $loan_application, $document);
         $review->verify($document, $loan_application, auth()->user(), $subject);
@@ -857,6 +881,7 @@ class LoanApplicationController extends ResourceController
     public function verifyAllDocuments(Request $request, LoanApplication $loan_application, ApplicationDocumentReviewService $review): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $person = (string) $request->input('review_person', 'borrower');
         $subjectKind = 'borrower';
@@ -907,6 +932,7 @@ class LoanApplicationController extends ResourceController
     public function rejectDocument(Request $request, LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:500'],

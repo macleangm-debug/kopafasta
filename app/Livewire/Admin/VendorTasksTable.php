@@ -82,6 +82,25 @@ class VendorTasksTable extends Component
         $this->notice = 'Job closed. It is no longer ongoing.';
     }
 
+    public function remove(int $taskId): void
+    {
+        $task = VendorTask::query()->with(['loanApplication', 'payment', 'valuationAssignment'])->findOrFail($taskId);
+        $actor = auth('admin')->user() ?? auth()->user();
+        $service = app(PartnerTaskReassignmentService::class);
+
+        abort_unless($actor && $service->canRemove($actor, $task), 403);
+
+        try {
+            $service->remove($task, $actor);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->addError('reassignTo.'.$taskId, $e->validator->errors()->first() ?: 'Could not delete.');
+
+            return;
+        }
+
+        $this->notice = 'Job removed from the partner queue.';
+    }
+
     public function render()
     {
         app(PartnerTaskLifecycleService::class)->reconcileOpenTasksOnClosedFiles();
@@ -118,13 +137,15 @@ class VendorTasksTable extends Component
         $candidates = [];
         $canReassign = [];
         $canClose = [];
+        $canRemove = [];
         foreach ($rows as $row) {
             $can = $actor && $reassign->can($actor, $row);
             $canReassign[$row->id] = $can;
             $canClose[$row->id] = $actor && $reassign->canClose($actor, $row);
+            $canRemove[$row->id] = $actor && $reassign->canRemove($actor, $row);
             $candidates[$row->id] = $can ? $reassign->candidates($row) : collect();
         }
 
-        return view('livewire.admin.vendor-tasks-table', compact('rows', 'statuses', 'candidates', 'canReassign', 'canClose', 'regionCoverage'));
+        return view('livewire.admin.vendor-tasks-table', compact('rows', 'statuses', 'candidates', 'canReassign', 'canClose', 'canRemove', 'regionCoverage'));
     }
 }

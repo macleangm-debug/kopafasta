@@ -282,6 +282,28 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->get(route('admin.loan-applications.show', $app))
             ->assertOk()
             ->assertSee($app->application_number, false)
-            ->assertSee('Facility summary', false);
+            ->assertSee('Facility summary', false)
+            ->assertSee('View only', false)
+            ->assertSee('Closed file', false)
+            ->assertDontSee('Edit application')
+            ->assertDontSee('What you need to decide');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.edit', $app))
+            ->assertForbidden();
+    }
+
+    public function test_withdrawn_file_shows_withdrawn_status_only(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'rejected');
+        $app->update(['status' => 'withdrawn', 'current_stage' => 'rejected']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->assertSee('Withdrawn', false)
+            ->assertSee('View only', false)
+            ->assertDontSee('Edit application');
     }
 }

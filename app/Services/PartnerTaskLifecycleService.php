@@ -15,12 +15,7 @@ class PartnerTaskLifecycleService
 
     public function applicationIsClosed(?LoanApplication $application): bool
     {
-        if (! $application) {
-            return false;
-        }
-
-        return in_array((string) $application->status, self::CLOSED_APPLICATION_STATUSES, true)
-            || in_array((string) $application->current_stage, self::CLOSED_APPLICATION_STATUSES, true);
+        return $application?->isClosed() ?? false;
     }
 
     public function closeForApplication(LoanApplication $application, string $reason): int

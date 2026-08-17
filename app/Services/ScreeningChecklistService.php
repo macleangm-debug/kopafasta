@@ -352,7 +352,8 @@ class ScreeningChecklistService
             'checked' => $passed,
             'total' => $total,
             'percent' => $total > 0 ? (int) round(($decided / $total) * 100) : 0,
-            'can_edit' => $actor?->hasPermission('applications.review') ?? false,
+            'can_edit' => ($actor?->hasPermission('applications.review') ?? false)
+                && ! $application->isClosed(),
             'updated_at' => $state['updated_at'] ?? null,
             'updated_by' => isset($state['updated_by']) ? (int) $state['updated_by'] : null,
         ];

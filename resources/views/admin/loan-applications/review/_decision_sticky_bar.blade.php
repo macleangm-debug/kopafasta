@@ -26,9 +26,11 @@
     ]).'#review-recommendation';
 
     // Show sticky on checklist when guiding next step; on decision when recording.
-    $showScreeningSticky = $isScreeningSticky && $canReview && empty($recType)
+    $showScreeningSticky = ! ($fileIsClosed ?? $record->isClosed())
+        && $isScreeningSticky && $canReview && empty($recType)
         && in_array($workspace, ['checklist', 'decision'], true);
-    $showCommitteeSticky = $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty() && $workspace === 'decision';
+    $showCommitteeSticky = ! ($fileIsClosed ?? $record->isClosed())
+        && $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty() && $workspace === 'decision';
 @endphp
 
 @if ($showScreeningSticky || $showCommitteeSticky)

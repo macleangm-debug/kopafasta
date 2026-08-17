@@ -19,6 +19,8 @@
     $groupVerified = (int) ($groupReview['verified_count'] ?? $groupMembers->where('kyc_complete', true)->count());
     $groupMemberCount = (int) ($groupReview['member_count'] ?? $groupMembers->count());
     $groupTarget = (int) ($groupReview['target_member_count'] ?? $groupMemberCount);
+    $fileIsClosed = $fileIsClosed ?? $record->isClosed();
+    $closedStatus = $closedStatus ?? ($fileIsClosed ? $record->closedStatus() : null);
 
     $crbTone = match ($crbRec) {
         'approve' => ['card' => 'from-emerald-600 to-emerald-800', 'badge' => 'bg-emerald-100 text-emerald-900'],
@@ -100,21 +102,34 @@
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">
-                {{ $isCommitteeStage ? 'Committee workspace' : 'Screening workspace' }}
-                @if ($isGroupLoan)
-                    · Group loan
+                @if ($fileIsClosed)
+                    Closed file
+                    @if ($isGroupLoan)
+                        · Group loan
+                    @endif
+                @else
+                    {{ $isCommitteeStage ? 'Committee workspace' : 'Screening workspace' }}
+                    @if ($isGroupLoan)
+                        · Group loan
+                    @endif
                 @endif
             </p>
-            <h2 class="text-lg font-bold text-gray-900 mt-0.5">What you need to decide</h2>
+            <h2 class="text-lg font-bold text-gray-900 mt-0.5">
+                {{ $fileIsClosed ? 'Application record' : 'What you need to decide' }}
+            </h2>
             <p class="text-sm text-gray-500 mt-0.5">
-                {{ $isCommitteeStage
-                    ? 'Sprint critical areas on the same evidence screening used, change anything that needs a reason, then record the committee decision.'
-                    : ($isGroupLoan
-                        ? 'Review the leader and each member on the checklist, then record your recommendation.'
-                        : 'Review CRB, affordability and the borrower file — then submit your credit recommendation.') }}
+                @if ($fileIsClosed)
+                    This file is {{ display_label($closedStatus, 'application_status') }}. It is view-only — no edit, withdraw, or workflow actions.
+                @else
+                    {{ $isCommitteeStage
+                        ? 'Sprint critical areas on the same evidence screening used, change anything that needs a reason, then record the committee decision.'
+                        : ($isGroupLoan
+                            ? 'Review the leader and each member on the checklist, then record your recommendation.'
+                            : 'Review CRB, affordability and the borrower file — then submit your credit recommendation.') }}
+                @endif
             </p>
         </div>
-        @if ($isScreeningStage || $isCommitteeStage)
+        @if (! $fileIsClosed && ($isScreeningStage || $isCommitteeStage))
             <details class="group rounded-xl bg-white ring-1 ring-brand/15 overflow-hidden">
                 <summary class="cursor-pointer list-none px-4 py-2.5 text-xs font-semibold text-brand flex items-center gap-2 [&::-webkit-details-marker]:hidden">
                     Assign analyst
@@ -141,7 +156,7 @@
         @endif
     </div>
 
-    @if (is_array($screeningReadiness ?? null))
+    @if (is_array($screeningReadiness ?? null) && ! $fileIsClosed)
         @include('admin.loan-applications.review._screening_readiness', [
             'screeningReadiness' => $screeningReadiness,
         ])
@@ -649,6 +664,13 @@
                 @include('admin.loan-applications.review._review_desk')
             @elseif ($workspace === 'profiles')
                 @include('admin.loan-applications.review._borrower_file_tabs')
+            @elseif ($fileIsClosed)
+                <div class="rounded-2xl bg-white ring-1 ring-gray-200 px-5 py-4">
+                    <p class="text-sm font-semibold text-gray-900">No further actions on this file</p>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Status is {{ display_label($closedStatus, 'application_status') }}. Use Checklist or Profiles to read the record.
+                    </p>
+                </div>
             @else
                 @if ($isCommitteeStage)
                     @include('admin.loan-applications.review._committee_inputs')

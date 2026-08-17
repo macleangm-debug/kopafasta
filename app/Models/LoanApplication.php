@@ -19,6 +19,8 @@ class LoanApplication extends Model
         'rejected',
     ];
 
+    public const CLOSED_STATUSES = ['rejected', 'withdrawn', 'expired', 'cancelled'];
+
     /** Borrower-facing post-approval pipeline stages (stored in current_stage). */
     public const BORROWER_STAGE_POST_APPROVAL_FEES = 'post_approval_fees';
 
@@ -68,6 +70,25 @@ class LoanApplication extends Model
     public function hasPendingOffer(): bool
     {
         return $this->offer_status === 'pending_borrower';
+    }
+
+    public function isClosed(): bool
+    {
+        return in_array((string) $this->status, self::CLOSED_STATUSES, true)
+            || in_array((string) $this->current_stage, self::CLOSED_STATUSES, true);
+    }
+
+    public function closedStatus(): string
+    {
+        if (in_array((string) $this->status, self::CLOSED_STATUSES, true)) {
+            return (string) $this->status;
+        }
+
+        if (in_array((string) $this->current_stage, self::CLOSED_STATUSES, true)) {
+            return (string) $this->current_stage;
+        }
+
+        return (string) $this->status;
     }
 
     public function customer(): BelongsTo

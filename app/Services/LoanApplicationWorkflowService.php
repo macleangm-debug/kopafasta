@@ -85,6 +85,10 @@ class LoanApplicationWorkflowService
     /** @return Collection<int, array{key: string, label: string, to_stage: string, permission: string}> */
     public function availableActions(LoanApplication $application, User $user): Collection
     {
+        if ($application->isClosed()) {
+            return collect();
+        }
+
         $stage = $application->current_stage ?? 'submitted';
 
         return collect(self::ACTIONS)
@@ -142,6 +146,12 @@ class LoanApplicationWorkflowService
 
         if (! $this->sameBranch($user, $application)) {
             throw ValidationException::withMessages(['action' => 'This application belongs to another branch.']);
+        }
+
+        if ($application->isClosed()) {
+            throw ValidationException::withMessages([
+                'action' => 'This application is closed and can only be viewed.',
+            ]);
         }
 
         $from = $application->current_stage ?? 'submitted';

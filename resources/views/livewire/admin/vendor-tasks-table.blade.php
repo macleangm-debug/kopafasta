@@ -305,6 +305,18 @@
                                 @endif
                             </div>
                         @endif
+                        @if ($canRemove[$r->id] ?? false)
+                            <div class="pt-1 border-t border-gray-100" @click.stop>
+                                <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Remove job</p>
+                                <p class="mt-1 text-sm text-gray-700">Deletes this leftover origination job. Completed reports and paid fees stay on file.</p>
+                                <button type="button"
+                                        wire:click="remove({{ $r->id }})"
+                                        wire:confirm="Remove this job from the partner queue? This cannot be undone."
+                                        class="mt-2 inline-flex items-center rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">
+                                    Delete task
+                                </button>
+                            </div>
+                        @endif
                     </div>
                 </td>
             </tr>

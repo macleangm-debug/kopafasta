@@ -20,6 +20,8 @@ class LoanApplicationDocumentRequestController extends Controller
         LoanApplication $loanApplication,
         ApplicationDocumentRequestService $service,
     ): RedirectResponse {
+        abort_if($loanApplication->isClosed(), 403, 'This application is closed and can only be viewed.');
+
         $data = $request->validate([
             'type' => ['required', 'in:document,clarification'],
             'label' => ['nullable', 'string', 'max:120'],
@@ -195,6 +197,8 @@ class LoanApplicationDocumentRequestController extends Controller
         LoanApplicationDocumentRequest $documentRequest,
         ApplicationDocumentRequestService $service,
     ): RedirectResponse {
+        abort_if($documentRequest->application?->isClosed(), 403, 'This application is closed and can only be viewed.');
+
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
@@ -220,6 +224,8 @@ class LoanApplicationDocumentRequestController extends Controller
         LoanApplicationDocumentRequest $documentRequest,
         ApplicationDocumentRequestService $service,
     ): RedirectResponse {
+        abort_if($documentRequest->application?->isClosed(), 403, 'This application is closed and can only be viewed.');
+
         $data = $request->validate([
             'notes' => ['required', 'string', 'max:500'],
         ]);
