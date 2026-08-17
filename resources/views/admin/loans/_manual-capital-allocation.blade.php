@@ -4,7 +4,7 @@
         $preferredId = $loan->application?->preferred_lender_id;
         $oldRows = old('allocations', [['lender_id' => $preferredId, 'amount' => $principal]]);
     @endphp
-    <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-amber-200 p-6">
+    <div class="mt-4 bg-white rounded-2xl shadow-sm ring-1 ring-amber-200 p-6">
         <h3 class="text-sm font-semibold text-gray-800 mb-1">Manual capital allocation</h3>
         <p class="text-xs text-gray-500 mb-4">
             Finance settings require manual partner assignment before disbursement.
@@ -185,7 +185,7 @@
 @endif
 
 @if ($loan->status === 'pending' && $loan->capitalAllocations->isNotEmpty())
-    <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+    <div class="mt-4 bg-white rounded-2xl shadow-sm ring-1 ring-brand/10 p-6">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
                 <h3 class="text-sm font-semibold text-gray-800">Capital allocation (pending disbursement)</h3>

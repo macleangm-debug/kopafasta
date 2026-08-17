@@ -282,6 +282,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->get(route('admin.loan-applications.show', $app))
             ->assertOk()
             ->assertSee($app->application_number, false)
+            ->assertSee('Credit file', false)
             ->assertSee('Facility summary', false)
             ->assertSee('View only', false)
             ->assertSee('Closed file', false)

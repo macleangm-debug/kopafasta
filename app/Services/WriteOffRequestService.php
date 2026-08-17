@@ -231,9 +231,9 @@ class WriteOffRequestService
 
     private function assertLoanEligible(Loan $loan): void
     {
-        if (! in_array($loan->status, ['active', 'arrears', 'defaulted'], true)) {
+        if (! in_array($loan->status, ['arrears', 'defaulted'], true)) {
             throw ValidationException::withMessages([
-                'loan' => 'Only active, arrears, or defaulted loans can be recommended for write-off.',
+                'loan' => 'Only loans in arrears or default can be recommended for write-off.',
             ]);
         }
 
@@ -255,8 +255,33 @@ class WriteOffRequestService
 
     public function canRecommend(User $user): bool
     {
-        return in_array($user->role, ['collector', 'officer', 'manager', 'admin', 'super_admin'], true)
-            || $user->hasPermission('finance.methods');
+        return in_array($user->role, ['collector', 'manager', 'admin', 'super_admin'], true);
+    }
+
+    public function canSeeWriteOffActions(User $user): bool
+    {
+        return $this->canRecommend($user)
+            || $this->canManagerApprove($user)
+            || $this->canFinanceApprove($user);
+    }
+
+    public function loanEligibleForRecommendation(Loan $loan): bool
+    {
+        return in_array($loan->status, ['arrears', 'defaulted'], true)
+            && (float) $loan->outstanding_balance > 0;
+    }
+
+    public function canAccessWriteOffForm(User $user, Loan $loan): bool
+    {
+        if (! $this->loanEligibleForRecommendation($loan)) {
+            return false;
+        }
+
+        $approvalRequired = (bool) Setting::get('finance.write_off_approval_required');
+
+        return $approvalRequired
+            ? $this->canRecommend($user)
+            : $this->canFinanceApprove($user);
     }
 
     public function canManagerApprove(User $user): bool

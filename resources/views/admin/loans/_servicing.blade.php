@@ -1,5 +1,5 @@
 @if ($servicing)
-    <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+    <div class="mt-4 bg-white rounded-2xl shadow-sm ring-1 ring-brand/10 p-6">
         <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>
                 <h3 class="text-sm font-semibold text-gray-700">Loan servicing</h3>

@@ -80,6 +80,7 @@ class ArrearCaseController extends Controller
         $approvalRequired = (bool) \App\Models\Setting::get('finance.write_off_approval_required');
         $canRecommendWriteOff = $arrearCase->loan
             && $writeOffService->canRecommend(auth()->user())
+            && $writeOffService->loanEligibleForRecommendation($arrearCase->loan)
             && ! $writeOffService->hasOpenRequest($arrearCase->loan);
 
         $recoveryPartners = app(RecoveryPartnerService::class)

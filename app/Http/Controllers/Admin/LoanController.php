@@ -402,13 +402,28 @@ class LoanController extends Controller
 
     public function writeOffForm(Loan $loan)
     {
+        $loan->loadMissing(['customer', 'product', 'application']);
         $approvalRequired = (bool) \App\Models\Setting::get('finance.write_off_approval_required');
+        $service = app(\App\Services\WriteOffRequestService::class);
+        abort_unless(
+            $service->canAccessWriteOffForm(auth()->user(), $loan),
+            403,
+            'You are not authorized to recommend or execute write-offs.',
+        );
 
         return view('admin.loans.write-off', compact('loan', 'approvalRequired'));
     }
 
     public function writeOff(Request $request, Loan $loan, LoanWriteOffService $service)
     {
+        $writeOffRequests = app(\App\Services\WriteOffRequestService::class);
+        abort_unless(
+            $writeOffRequests->canFinanceApprove(auth()->user())
+                && $writeOffRequests->loanEligibleForRecommendation($loan),
+            403,
+            'You are not authorized to execute write-offs.',
+        );
+
         if ((bool) \App\Models\Setting::get('finance.write_off_approval_required')) {
             return back()->withErrors([
                 'reason' => 'Write-off requires manager and finance approval. Use the collections workflow to recommend a write-off.',
