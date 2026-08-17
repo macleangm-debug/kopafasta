@@ -408,6 +408,7 @@ class VendorController extends ResourceController
         $deletion = app(\App\Services\PartnerDeletionService::class);
         $openTasks = $deletion->openTasks($record);
         $openValuations = $deletion->openValuationAssignments($record);
+        $recentTasks = $record->tasks()->orderByDesc('id')->limit(8)->get();
         $affiliateStats = $record->isAffiliate()
             ? app(AffiliateService::class)->stats($record)
             : null;
@@ -430,6 +431,7 @@ class VendorController extends ResourceController
                 'membership' => $membership,
                 'openTasks' => $openTasks,
                 'openValuations' => $openValuations,
+                'recentTasks' => $recentTasks,
             ],
             $this->formData($record),
         ));

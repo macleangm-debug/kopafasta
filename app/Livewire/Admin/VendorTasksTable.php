@@ -13,6 +13,7 @@ class VendorTasksTable extends Component
 
     #[Url(as: 'q')] public string $search = '';
     #[Url] public string $status = '';
+    #[Url] public ?int $partner = null;
     #[Url] public string $sort = 'created_at';
     #[Url] public string $direction = 'desc';
     public int $perPage = 15;
@@ -40,6 +41,7 @@ class VendorTasksTable extends Component
                 });
             })
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
+            ->when($this->partner, fn ($q) => $q->where('partner_id', $this->partner))
             ->orderBy($this->sort, $this->direction)
             ->paginate($this->perPage);
 

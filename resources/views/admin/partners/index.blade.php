@@ -8,6 +8,16 @@
         <a href="{{ route('admin.partners.create') }}" class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">+ New partner</a>
     </div>
 
+    <a href="{{ route('admin.partners.tasks') }}"
+       class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Work</p>
+            <p class="text-sm font-bold text-gray-900 mt-0.5">Partner tasks</p>
+            <p class="text-xs text-gray-500 mt-1">Assigned, in-progress, and completed jobs for valuers, GPS, and other partners.</p>
+        </div>
+        <span class="text-sm font-semibold text-brand">Open →</span>
+    </a>
+
     <a href="{{ route('admin.partners.origination-auto-assign') }}"
        class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
         <div>

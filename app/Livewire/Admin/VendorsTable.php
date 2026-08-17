@@ -46,6 +46,9 @@ class VendorsTable extends Component
     public function render()
     {
         $rows = Vendor::query()
+            ->withCount([
+                'tasks as open_tasks_count' => fn ($q) => $q->whereIn('status', ['assigned', 'in_progress']),
+            ])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($qq) use ($term) {

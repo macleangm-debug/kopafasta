@@ -273,4 +273,31 @@ class PartnerDeletionFeatureTest extends TestCase
             'status' => 'cancelled',
         ]);
     }
+
+    public function test_partner_show_page_lists_open_tasks(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $partner = Vendor::query()->create([
+            'name' => 'Visible Tasks Valuer',
+            'category' => 'valuer',
+            'status' => 'active',
+            'vendor_number' => 'PV-TASKS-SHOW',
+            'phone' => '255700000009',
+        ]);
+        PartnerTask::query()->create([
+            'partner_id' => $partner->id,
+            'task_type' => 'asset_valuation',
+            'status' => 'assigned',
+            'customer_name' => 'Asha Test',
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.show', $partner))
+            ->assertOk()
+            ->assertSee('Tasks', false)
+            ->assertSee('1 ongoing', false)
+            ->assertSee('Asset valuation', false)
+            ->assertSee('Asha Test', false)
+            ->assertSee('Halt open tasks', false);
+    }
 }

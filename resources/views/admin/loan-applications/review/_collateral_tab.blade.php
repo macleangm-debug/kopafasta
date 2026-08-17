@@ -384,7 +384,7 @@
                         <p class="font-semibold text-sky-950">{{ $valuationReport['valuer_name'] ?? 'Valuer' }} · Forced sale value in</p>
                         <dl class="grid sm:grid-cols-2 gap-2 text-xs">
                             <div><dt class="text-sky-800">Forced sale value</dt><dd class="font-semibold">{{ format_money($valuationReport['forced_sale_value'] ?? 0) }}</dd></div>
-                            <div><dt class="text-sky-800">Max loan (LTV {{ (int) ($coverage['ltv_percent'] ?? $valuationReport['ltv_percent'] ?? 0) }}%)</dt><dd class="font-semibold">{{ format_money($coverage['max_loan_amount'] ?? $valuationReport['max_loan_amount'] ?? 0) }}</dd></div>
+                            <div><dt class="text-sky-800">This asset can cover (FSV × LTV {{ (int) ($coverage['ltv_percent'] ?? $valuationReport['ltv_percent'] ?? 0) }}%)</dt><dd class="font-semibold">{{ format_money($coverage['max_loan_amount'] ?? $valuationReport['max_loan_amount'] ?? 0) }}</dd></div>
                             <div><dt class="text-sky-800">Requested</dt><dd class="font-semibold">{{ format_money($coverage['requested_amount'] ?? $record->requested_amount) }}</dd></div>
                         </dl>
                         @if (! empty($coverage['sufficient']))
