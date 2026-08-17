@@ -131,11 +131,18 @@ return [
 
         'vendor_task_type' => [
             'gps_installation'    => 'GPS installation',
+            'gps_install'         => 'GPS install',
             'gps_removal'         => 'GPS removal',
+            'asset_valuation'     => 'Asset valuation',
+            'vehicle_insurance'   => 'Vehicle insurance',
             'insurance_policy'    => 'Insurance policy',
             'valuation'           => 'Valuation',
+            'collection_call'     => 'Collection call',
+            'field_visit'         => 'Field visit',
             'repossession'        => 'Repossession',
+            'auction'             => 'Auction',
             'legal_notice'        => 'Legal notice',
+            'collection'          => 'Collection',
         ],
 
         'vendor_task_status' => [

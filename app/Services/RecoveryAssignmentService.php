@@ -154,6 +154,60 @@ class RecoveryAssignmentService
         });
     }
 
+    public function reassignTo(
+        RecoveryAssignment $assignment,
+        Vendor $replacement,
+        User $actor,
+        string $reason = 'Reassigned by staff.',
+    ): RecoveryAssignment {
+        if (! in_array($assignment->status, [RecoveryAssignment::STATUS_ASSIGNED, RecoveryAssignment::STATUS_IN_PROGRESS], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'This recovery assignment is already closed.',
+            ]);
+        }
+
+        $assignment->loadMissing(['arrearCase.loan.customer', 'vendorTask', 'vendor']);
+
+        return DB::transaction(function () use ($assignment, $replacement, $actor, $reason) {
+            $assignment->update([
+                'status' => RecoveryAssignment::STATUS_CANCELLED,
+                'completed_at' => now(),
+                'outcome' => 'reassigned',
+                'notes' => trim(($assignment->notes ? $assignment->notes."\n" : '').$reason),
+            ]);
+
+            if ($assignment->vendorTask && ! in_array($assignment->vendorTask->status, ['completed', 'cancelled'], true)) {
+                $assignment->vendorTask->update([
+                    'status' => 'cancelled',
+                    'completed_at' => now(),
+                    'notes' => trim(($assignment->vendorTask->notes ? $assignment->vendorTask->notes."\n" : '').$reason),
+                ]);
+            }
+
+            $fresh = $this->assign(
+                $assignment->arrearCase,
+                $replacement,
+                (string) $assignment->partner_type,
+                $actor,
+                $reason,
+            );
+
+            if ($assignment->arrearCase) {
+                $this->collectionActions->logForCase(
+                    $assignment->arrearCase,
+                    $actor,
+                    'recovery_partner_reassigned',
+                    'Reassigned from '.($assignment->vendor?->name ?? 'previous partner').' to '.$replacement->name.'. '.$reason,
+                    'reassigned',
+                    null,
+                    $fresh,
+                );
+            }
+
+            return $fresh;
+        });
+    }
+
     public function start(RecoveryAssignment $assignment, User $actor): RecoveryAssignment
     {
         if ($assignment->status !== RecoveryAssignment::STATUS_ASSIGNED) {

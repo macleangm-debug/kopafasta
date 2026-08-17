@@ -16,6 +16,7 @@ class RecoveryAssignment extends Model
     public const STATUS_IN_PROGRESS = 'in_progress';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_FAILED = 'failed';
+    public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_ESCALATED = 'escalated';
 
     protected $fillable = [

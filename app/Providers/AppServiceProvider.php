@@ -14,6 +14,7 @@ use App\Models\Repayment;
 use App\Models\RestructureRequest;
 use App\Models\Partner;
 use App\Models\Vendor;
+use App\Models\PartnerTask;
 use App\Models\VendorTask;
 use App\Observers\CustomerKycObserver;
 use App\Policies\ArrearCasePolicy;
@@ -84,6 +85,7 @@ class AppServiceProvider extends ServiceProvider
 
         CustomerKyc::observe(CustomerKycObserver::class);
         Gate::policy(VendorTask::class, VendorTaskPolicy::class);
+        Gate::policy(PartnerTask::class, VendorTaskPolicy::class);
 
         foreach (array_keys(config('permissions.permissions', [])) as $permission) {
             Gate::define($permission, fn (User $user) => app(PermissionService::class)->has($user, $permission));

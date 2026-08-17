@@ -48,7 +48,7 @@ class ServicePartnerReassignmentService
 
             foreach ($tasks as $task) {
                 try {
-                    if ($this->reassignTask($task, $category, $actor)) {
+                    if ($this->reassignTask($task, $category, $actor, reason: 'Reassigned after SLA expiry.')) {
                         $reassigned++;
                     } else {
                         $skipped++;
@@ -66,8 +66,51 @@ class ServicePartnerReassignmentService
         return compact('reassigned', 'skipped');
     }
 
-    private function reassignTask(PartnerTask $task, string $category, ?User $actor): bool
+    /**
+     * @return \Illuminate\Support\Collection<int, Vendor>
+     */
+    public function candidatesFor(PartnerTask $task): \Illuminate\Support\Collection
     {
+        $category = $this->categoryFor($task);
+        $application = $task->loan_application_id
+            ? LoanApplication::query()->with('customer')->find($task->loan_application_id)
+            : null;
+
+        if (! $category || ! $application) {
+            return collect();
+        }
+
+        $exclude = [(int) $task->partner_id];
+
+        $pool = match ($category) {
+            'valuer' => app(PartnerMatchingService::class)->valuersForRegion($application->customer?->region),
+            'gps_installer' => $this->gps->installersForApplication($application),
+            'insurance' => app(CollateralInsurancePartnerService::class)->insurersForRegion($application->customer?->region),
+            default => collect(),
+        };
+
+        return $pool
+            ->reject(fn (Vendor $vendor) => in_array((int) $vendor->id, $exclude, true))
+            ->values();
+    }
+
+    public function categoryFor(PartnerTask $task): ?string
+    {
+        return match ((string) $task->task_type) {
+            'asset_valuation' => 'valuer',
+            'gps_install' => 'gps_installer',
+            CollateralInsurancePartnerService::TASK_TYPE => 'insurance',
+            default => null,
+        };
+    }
+
+    public function reassignTask(
+        PartnerTask $task,
+        string $category,
+        ?User $actor,
+        ?Vendor $replacement = null,
+        string $reason = 'Reassigned after SLA expiry.',
+    ): bool {
         $application = $task->loan_application_id
             ? LoanApplication::query()->find($task->loan_application_id)
             : null;
@@ -77,7 +120,7 @@ class ServicePartnerReassignmentService
         }
 
         $exclude = [(int) $task->partner_id];
-        $replacement = match ($category) {
+        $replacement ??= match ($category) {
             'valuer' => $this->selector->pickService('valuer', app(PartnerMatchingService::class)->valuersForRegion($application->customer?->region), $exclude),
             'gps_installer' => $this->selector->pickService('gps_installer', $this->gps->installersForApplication($application), $exclude),
             'insurance' => $this->selector->pickService(
@@ -92,10 +135,10 @@ class ServicePartnerReassignmentService
             return false;
         }
 
-        return DB::transaction(function () use ($task, $replacement, $category, $application, $actor) {
+        return DB::transaction(function () use ($task, $replacement, $category, $application, $actor, $reason) {
             $task->update([
                 'status' => 'cancelled',
-                'notes' => trim(($task->notes ? $task->notes."\n" : '').'Reassigned after SLA expiry.'),
+                'notes' => trim(($task->notes ? $task->notes."\n" : '').$reason),
                 'completed_at' => now(),
             ]);
 
@@ -107,17 +150,17 @@ class ServicePartnerReassignmentService
                     ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])
                     ->update([
                         'status' => ValuationAssignment::STATUS_CANCELLED,
-                        'notes' => 'Cancelled for SLA reassignment.',
+                        'notes' => $reason,
                         'completed_at' => now(),
                     ]);
 
-                $this->valuation->assign($application, $replacement, $actor, 'Auto-reassigned after valuation SLA expired.');
+                $this->valuation->assign($application, $replacement, $actor, $reason);
 
                 return true;
             }
 
             if ($category === 'gps_installer' && $actor) {
-                $this->gps->assign($application, $replacement, $actor, 'Auto-reassigned after GPS SLA expired.');
+                $this->gps->assign($application, $replacement, $actor, $reason);
 
                 return true;
             }
@@ -136,13 +179,13 @@ class ServicePartnerReassignmentService
                     'vehicle_details' => $task->vehicle_details,
                     'location' => $task->location,
                     'instructions' => $task->instructions,
-                    'notes' => 'Auto-reassigned after insurance SLA expired. Prior task #'.$task->id,
+                    'notes' => $reason.' Prior task #'.$task->id,
                     'fee_amount' => $task->fee_amount,
                 ]);
 
                 $this->notifier->notifyAssigned($replacement, 'Insurance cover (reassigned)', [
                     'title' => 'Insurance task reassigned to you',
-                    'body' => 'Previous partner missed SLA. New due date in '.$slaDays.' day(s).',
+                    'body' => $reason,
                     'action_url' => '/partner/tasks',
                     'staff_url' => route('admin.loan-applications.show', $application),
                 ]);

@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
+use App\Models\PartnerTask;
 use App\Models\User;
-use App\Models\VendorTask;
 
 class VendorTaskPolicy
 {
@@ -12,7 +12,7 @@ class VendorTaskPolicy
         return in_array($user->role, ['officer', 'manager', 'admin', 'collector'], true);
     }
 
-    public function view(User $user, VendorTask $vendorTask): bool
+    public function view(User $user, PartnerTask $vendorTask): bool
     {
         return $this->viewAny($user);
     }
@@ -22,18 +22,23 @@ class VendorTaskPolicy
         return in_array($user->role, ['officer', 'manager', 'admin'], true);
     }
 
-    public function update(User $user, VendorTask $vendorTask): bool
+    public function update(User $user, PartnerTask $vendorTask): bool
     {
         return $this->create($user);
     }
 
-    public function complete(User $user, VendorTask $vendorTask): bool
+    public function complete(User $user, PartnerTask $vendorTask): bool
     {
         return in_array($user->role, ['officer', 'manager', 'admin', 'collector'], true);
     }
 
-    public function delete(User $user, VendorTask $vendorTask): bool
+    public function delete(User $user, PartnerTask $vendorTask): bool
     {
         return in_array($user->role, ['manager', 'admin'], true);
+    }
+
+    public function reassign(User $user, PartnerTask $vendorTask): bool
+    {
+        return app(\App\Services\PartnerTaskReassignmentService::class)->can($user, $vendorTask);
     }
 }

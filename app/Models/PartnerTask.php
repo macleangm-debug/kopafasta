@@ -56,6 +56,42 @@ class PartnerTask extends Model
         return $this->belongsTo(Loan::class);
     }
 
+    public function assigner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
+
+    public function valuationAssignment(): HasOne
+    {
+        return $this->hasOne(ValuationAssignment::class, 'partner_task_id');
+    }
+
+    public function recoveryAssignment(): HasOne
+    {
+        return $this->hasOne(RecoveryAssignment::class, 'partner_task_id');
+    }
+
+    public function borrowerName(): string
+    {
+        if (filled($this->customer_name)) {
+            return (string) $this->customer_name;
+        }
+
+        $customer = $this->loanApplication?->customer ?? $this->loan?->customer;
+        $name = trim((string) ($customer?->full_name ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''))));
+
+        return $name !== '' ? $name : '—';
+    }
+
+    public function borrowerPhone(): string
+    {
+        if (filled($this->customer_phone)) {
+            return (string) $this->customer_phone;
+        }
+
+        return (string) (($this->loanApplication?->customer ?? $this->loan?->customer)?->phone ?: '—');
+    }
+
     /** @return array{label: string, tone: string} */
     public function priorityMeta(): array
     {

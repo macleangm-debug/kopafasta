@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\VendorTask;
+use App\Services\PartnerTaskReassignmentService;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -18,6 +19,11 @@ class VendorTasksTable extends Component
     #[Url] public string $direction = 'desc';
     public int $perPage = 15;
 
+    /** @var array<int, int|string> */
+    public array $reassignTo = [];
+
+    public ?string $notice = null;
+
     public function updatingSearch(): void { $this->resetPage(); }
     public function updatingStatus(): void { $this->resetPage(); }
 
@@ -29,10 +35,48 @@ class VendorTasksTable extends Component
         $this->sort = $col;
     }
 
+    public function reassign(int $taskId): void
+    {
+        $task = VendorTask::query()->findOrFail($taskId);
+        $actor = auth('admin')->user() ?? auth()->user();
+        $service = app(PartnerTaskReassignmentService::class);
+
+        abort_unless($actor && $service->can($actor, $task), 403);
+
+        $to = (int) ($this->reassignTo[$taskId] ?? 0);
+
+        try {
+            $service->reassign(
+                $task,
+                $actor,
+                $to > 0 ? $to : null,
+                'Reassigned from partner tasks.',
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->addError('reassignTo.'.$taskId, $e->validator->errors()->first() ?: 'Could not reassign.');
+
+            return;
+        }
+
+        unset($this->reassignTo[$taskId]);
+        $this->notice = 'Task reassigned to another partner.';
+    }
+
     public function render()
     {
         $rows = VendorTask::query()
-            ->with(['vendor', 'loanApplication:id,application_number', 'loan:id,loan_number', 'documents', 'payment'])
+            ->with([
+                'vendor',
+                'assigner:id,name',
+                'loanApplication.customer',
+                'loanApplication.product:id,code,name',
+                'loan.customer',
+                'loan.product:id,code,name',
+                'documents',
+                'payment',
+                'valuationAssignment',
+                'recoveryAssignment',
+            ])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($qq) use ($term) {
@@ -46,7 +90,16 @@ class VendorTasksTable extends Component
             ->paginate($this->perPage);
 
         $statuses = ['assigned', 'in_progress', 'completed', 'failed', 'cancelled'];
+        $reassign = app(PartnerTaskReassignmentService::class);
+        $actor = auth('admin')->user() ?? auth()->user();
+        $candidates = [];
+        $canReassign = [];
+        foreach ($rows as $row) {
+            $can = $actor && $reassign->can($actor, $row);
+            $canReassign[$row->id] = $can;
+            $candidates[$row->id] = $can ? $reassign->candidates($row) : collect();
+        }
 
-        return view('livewire.admin.vendor-tasks-table', compact('rows', 'statuses'));
+        return view('livewire.admin.vendor-tasks-table', compact('rows', 'statuses', 'candidates', 'canReassign'));
     }
 }
