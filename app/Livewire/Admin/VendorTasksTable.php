@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\VendorTask;
+use App\Services\PartnerTaskLifecycleService;
 use App\Services\PartnerTaskReassignmentService;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -62,8 +63,29 @@ class VendorTasksTable extends Component
         $this->notice = 'Task reassigned to another partner.';
     }
 
+    public function close(int $taskId): void
+    {
+        $task = VendorTask::query()->with('loanApplication')->findOrFail($taskId);
+        $actor = auth('admin')->user() ?? auth()->user();
+        $service = app(PartnerTaskReassignmentService::class);
+
+        abort_unless($actor && $service->canClose($actor, $task), 403);
+
+        try {
+            $service->close($task, $actor, 'Closed from partner tasks because the application is no longer active.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->addError('reassignTo.'.$taskId, $e->validator->errors()->first() ?: 'Could not close.');
+
+            return;
+        }
+
+        $this->notice = 'Job closed. It is no longer ongoing.';
+    }
+
     public function render()
     {
+        app(PartnerTaskLifecycleService::class)->reconcileOpenTasksOnClosedFiles();
+
         $rows = VendorTask::query()
             ->with([
                 'vendor',
@@ -91,15 +113,18 @@ class VendorTasksTable extends Component
 
         $statuses = ['assigned', 'in_progress', 'completed', 'failed', 'cancelled'];
         $reassign = app(PartnerTaskReassignmentService::class);
+        $regionCoverage = app(\App\Services\PartnerRegionCoverage::class);
         $actor = auth('admin')->user() ?? auth()->user();
         $candidates = [];
         $canReassign = [];
+        $canClose = [];
         foreach ($rows as $row) {
             $can = $actor && $reassign->can($actor, $row);
             $canReassign[$row->id] = $can;
+            $canClose[$row->id] = $actor && $reassign->canClose($actor, $row);
             $candidates[$row->id] = $can ? $reassign->candidates($row) : collect();
         }
 
-        return view('livewire.admin.vendor-tasks-table', compact('rows', 'statuses', 'candidates', 'canReassign'));
+        return view('livewire.admin.vendor-tasks-table', compact('rows', 'statuses', 'candidates', 'canReassign', 'canClose', 'regionCoverage'));
     }
 }

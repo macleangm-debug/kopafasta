@@ -94,6 +94,37 @@ class ServicePartnerReassignmentService
             ->values();
     }
 
+    /**
+     * Staff pick list: every active partner of that type, not only the region pool.
+     *
+     * @return \Illuminate\Support\Collection<int, Vendor>
+     */
+    public function manualCandidatesFor(PartnerTask $task): \Illuminate\Support\Collection
+    {
+        $category = $this->categoryFor($task);
+        if (! $category) {
+            return collect();
+        }
+
+        return $this->allActiveForCategory($category)
+            ->reject(fn (Vendor $vendor) => (int) $vendor->id === (int) $task->partner_id)
+            ->values();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, Vendor>
+     */
+    public function allActiveForCategory(string $category): \Illuminate\Support\Collection
+    {
+        return Vendor::query()
+            ->where('status', 'active')
+            ->where(function ($q) use ($category): void {
+                $q->where('category', $category)->orWhere('roles', 'like', '%"'.$category.'"%');
+            })
+            ->orderBy('name')
+            ->get();
+    }
+
     public function categoryFor(PartnerTask $task): ?string
     {
         return match ((string) $task->task_type) {

@@ -96,6 +96,7 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Assign another', false)
             ->assertSee($replacement->name, false)
+            ->assertSee('outside region', false)
             ->assertSee('Amina Kopa', false)
             ->assertSee('Visit location', false)
             ->assertSee('Dar es Salaam', false)
@@ -127,6 +128,42 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
         $task->update(['status' => 'completed', 'completed_at' => now()]);
 
         $this->assertFalse(app(PartnerTaskReassignmentService::class)->can($admin, $task->fresh()));
+    }
+
+    public function test_rejected_application_closes_open_job_instead_of_assign_another(): void
+    {
+        [$application, $current, $replacement] = $this->gpsSetup();
+        $admin = User::factory()->create(['role' => 'admin']);
+        $task = app(GpsPartnerService::class)->assign($application, $current, $admin);
+        $application->update(['status' => 'rejected', 'current_stage' => 'rejected']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.tasks'))
+            ->assertOk()
+            ->assertDontSee('Assign another');
+
+        $this->assertSame('cancelled', $task->fresh()->status);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $application))
+            ->assertOk()
+            ->assertSee($application->application_number, false);
+
+        $this->assertFalse(app(\App\Services\PartnerDeletionService::class)->hasOpenWork($current->fresh()));
+    }
+
+    public function test_rejecting_an_application_cancels_open_origination_tasks(): void
+    {
+        [$application, $current] = $this->gpsSetup();
+        $admin = User::factory()->create(['role' => 'admin']);
+        $task = app(GpsPartnerService::class)->assign($application, $current, $admin);
+
+        app(\App\Services\PartnerTaskLifecycleService::class)->closeForApplication(
+            $application,
+            'Closed because the application was rejected.',
+        );
+
+        $this->assertSame('cancelled', $task->fresh()->status);
     }
 
     /** @return array{0: LoanApplication, 1: Vendor, 2: Vendor} */
@@ -179,7 +216,8 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
             'category' => 'gps_installer',
             'status' => 'active',
             'phone' => '255700'.random_int(100000, 999999),
-            'coverage_type' => 'nationwide',
+            'coverage_type' => 'regions',
+            'regions' => ['Arusha'],
         ]);
 
         return [$application, $current, $replacement];

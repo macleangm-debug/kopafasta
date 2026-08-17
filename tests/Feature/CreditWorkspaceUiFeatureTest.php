@@ -271,4 +271,17 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Draft on file — not pushed to committee', $draft);
         $this->assertStringNotContainsString('Recommendation on file:', $draft);
     }
+
+    public function test_rejected_individual_application_show_page_loads(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'rejected');
+        $app->update(['status' => 'rejected']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->assertSee($app->application_number, false)
+            ->assertSee('Facility summary', false);
+    }
 }

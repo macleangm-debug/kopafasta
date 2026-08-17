@@ -12,7 +12,8 @@
     $affordWarn = ($afford['verdict'] ?? '') === 'warn';
     $crbRec = strtolower((string) ($crb['recommendation'] ?? ''));
     $riskBand = $risk['band'] ?? 'high';
-    $isGroupLoan = is_array($groupReview ?? null) && ! empty($groupReview);
+    $groupReview = is_array($groupReview ?? null) ? $groupReview : [];
+    $isGroupLoan = $groupReview !== [] && ! empty($groupReview['members']);
     $groupMembers = collect($groupReview['members'] ?? []);
     $groupScoring = $groupReview['scoring'] ?? null;
     $groupVerified = (int) ($groupReview['verified_count'] ?? $groupMembers->where('kyc_complete', true)->count());

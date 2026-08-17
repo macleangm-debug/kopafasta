@@ -140,6 +140,8 @@ class PartnerDeletionService
     /** @return Collection<int, PartnerTask> */
     public function openTasks(Partner $partner): Collection
     {
+        app(PartnerTaskLifecycleService::class)->reconcilePartner($partner);
+
         return PartnerTask::query()
             ->where('partner_id', $partner->id)
             ->whereIn('status', self::OPEN_TASK_STATUSES)

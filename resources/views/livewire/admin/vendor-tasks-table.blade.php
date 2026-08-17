@@ -81,6 +81,7 @@
                                 : (implode(', ', array_values(array_filter($r->vendor->regions ?? []))) ?: 'No regions set');
                         }
                         $fileAmount = $loan?->approved_amount ?? $loan?->principal_amount ?? $application?->requested_amount;
+                        $borrowerRegion = $application?->customer?->region ?? $loan?->customer?->region;
                     @endphp
                     <div class="rounded-xl bg-white ring-1 ring-gray-200 p-5 space-y-4">
                         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -258,7 +259,17 @@
                             </div>
                         @endif
 
-                        @if ($canReassign[$r->id] ?? false)
+                        @if ($canClose[$r->id] ?? false)
+                            <div class="pt-1 border-t border-gray-100" @click.stop>
+                                <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">File closed</p>
+                                <p class="mt-1 text-sm text-gray-700">This application is no longer active, so the job should not stay ongoing.</p>
+                                <button type="button"
+                                        wire:click="close({{ $r->id }})"
+                                        class="mt-2 inline-flex items-center rounded-lg bg-gray-800 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700">
+                                    Close job
+                                </button>
+                            </div>
+                        @elseif ($canReassign[$r->id] ?? false)
                             <div class="pt-1 border-t border-gray-100" @click.stop>
                                 <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Assign another</p>
                                 @if (($candidates[$r->id] ?? collect())->isNotEmpty())
@@ -267,7 +278,17 @@
                                                 class="min-w-[16rem] rounded-lg border-gray-300 text-sm">
                                             <option value="">Next eligible partner (auto)</option>
                                             @foreach ($candidates[$r->id] as $vendor)
-                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @php
+                                                    $covers = $regionCoverage->covers($vendor, $borrowerRegion ?? null);
+                                                @endphp
+                                                <option value="{{ $vendor->id }}">
+                                                    {{ $vendor->name }}
+                                                    @if ($covers)
+                                                        · covers region
+                                                    @else
+                                                        · outside region
+                                                    @endif
+                                                </option>
                                             @endforeach
                                         </select>
                                         <button type="button"
@@ -280,7 +301,7 @@
                                         <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                                     @enderror
                                 @else
-                                    <p class="mt-1 text-sm text-gray-600">No other eligible partner covers this region. Add coverage or a nationwide partner first.</p>
+                                    <p class="mt-1 text-sm text-gray-600">No other active partner of this type exists yet. Add one, then assign.</p>
                                 @endif
                             </div>
                         @endif

@@ -397,6 +397,10 @@ class VendorController extends Controller
                     'completed_at' => now(),
                     'notes'        => $data['notes'] ?? $task->notes,
                 ]);
+                app(\App\Services\PartnerTaskLifecycleService::class)->closeLinkedValuation(
+                    $task->fresh(),
+                    'Aligned with the completed partner task.',
+                );
             }
 
             return redirect()->route('site.partner.task', $task)

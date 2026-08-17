@@ -2,8 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
+use App\Models\LoanApplication;
+use App\Models\LoanProduct;
 use App\Models\PartnerTask;
 use App\Models\User;
+use App\Models\ValuationAssignment;
 use App\Models\Vendor;
 use App\Services\PartnerDeletionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -299,5 +303,79 @@ class PartnerDeletionFeatureTest extends TestCase
             ->assertSee('Asset valuation', false)
             ->assertSee('Asha Test', false)
             ->assertSee('Halt open tasks', false);
+    }
+
+    public function test_completed_task_with_stale_valuation_is_not_treated_as_open_work(): void
+    {
+        $partner = Vendor::query()->create([
+            'name' => 'Copper Fasta Valuer',
+            'category' => 'valuer',
+            'status' => 'active',
+            'vendor_number' => 'PV-STALE-1',
+            'phone' => '255700000010',
+        ]);
+
+        $customer = Customer::create([
+            'customer_number' => 'CU-STALE-1',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Stale',
+            'last_name' => 'Valuation',
+            'phone' => '255700000011',
+            'region' => 'Dar es Salaam',
+        ]);
+
+        $product = LoanProduct::create([
+            'code' => 'IL-STALE-1',
+            'name' => 'Installment',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-STALE-1',
+            'status' => 'disbursed',
+            'current_stage' => 'disbursement',
+            'requested_amount' => 1_500_000,
+            'requested_tenure_months' => 6,
+        ]);
+
+        $task = PartnerTask::query()->create([
+            'partner_id' => $partner->id,
+            'loan_application_id' => $application->id,
+            'task_type' => 'asset_valuation',
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
+        ValuationAssignment::query()->create([
+            'loan_application_id' => $application->id,
+            'vendor_id' => $partner->id,
+            'vendor_task_id' => $task->id,
+            'status' => ValuationAssignment::STATUS_ASSIGNED,
+            'assigned_at' => now(),
+        ]);
+
+        $deletion = app(PartnerDeletionService::class);
+
+        $this->assertFalse($deletion->hasOpenWork($partner->fresh()));
+        $this->assertSame(
+            \App\Models\ValuationAssignment::STATUS_COMPLETED,
+            \App\Models\ValuationAssignment::query()->where('partner_task_id', $task->id)->value('status')
+        );
+
+        try {
+            $deletion->hardDelete($partner->fresh());
+            $this->fail('Expected history to block hard delete.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertStringContainsString('Deactivate', $e->validator->errors()->first());
+            $this->assertStringNotContainsString('open tasks', strtolower($e->validator->errors()->first()));
+        }
     }
 }

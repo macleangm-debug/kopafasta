@@ -290,6 +290,10 @@ class LoanApplicationWorkflowService
 
         if ($to === 'rejected') {
             $fresh = $application->fresh(['customer', 'product']);
+            app(PartnerTaskLifecycleService::class)->closeForApplication(
+                $fresh,
+                'Closed because the application was rejected.',
+            );
             try {
                 app(LoanAgreementService::class)->generateRejectionLetter($fresh);
             } catch (\Throwable $e) {

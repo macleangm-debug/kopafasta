@@ -81,6 +81,11 @@ class VendorTaskController extends Controller
             'completed_at' => now(),
         ]);
 
+        app(\App\Services\PartnerTaskLifecycleService::class)->closeLinkedValuation(
+            $vendorTask->fresh(),
+            'Aligned with the completed partner task.',
+        );
+
         return response()->json($vendorTask->fresh());
     }
 }

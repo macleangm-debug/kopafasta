@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\LoanApplication;
 use App\Models\PartnerTask;
 use App\Models\RecoveryAssignment;
 use App\Models\User;
@@ -44,6 +45,10 @@ class PartnerTaskReassignmentService
             return false;
         }
 
+        if ($this->fileIsClosed($task)) {
+            return false;
+        }
+
         if (in_array($user->role, ['admin', 'super_admin'], true)) {
             return $this->isOrigination($task) || $this->isRecovery($task);
         }
@@ -59,11 +64,52 @@ class PartnerTaskReassignmentService
         return false;
     }
 
+    public function canClose(User $user, PartnerTask $task): bool
+    {
+        if (! $this->isOpen($task) || ! $this->fileIsClosed($task)) {
+            return false;
+        }
+
+        if (in_array($user->role, ['admin', 'super_admin'], true)) {
+            return true;
+        }
+
+        if ($this->isOrigination($task)) {
+            return $user->hasPermission('applications.review');
+        }
+
+        return $user->role === 'manager';
+    }
+
+    public function fileIsClosed(PartnerTask $task): bool
+    {
+        $application = $task->relationLoaded('loanApplication')
+            ? $task->loanApplication
+            : ($task->loan_application_id
+                ? LoanApplication::query()->find($task->loan_application_id)
+                : null);
+
+        return app(PartnerTaskLifecycleService::class)->applicationIsClosed($application);
+    }
+
+    public function close(PartnerTask $task, User $actor, string $reason = 'Closed by staff.'): PartnerTask
+    {
+        if (! $this->canClose($actor, $task) && ! $this->can($actor, $task)) {
+            throw ValidationException::withMessages([
+                'task' => 'You cannot close this task.',
+            ]);
+        }
+
+        app(PartnerTaskLifecycleService::class)->closeTask($task, $reason);
+
+        return $task->fresh();
+    }
+
     /** @return Collection<int, Vendor> */
     public function candidates(PartnerTask $task): Collection
     {
         if ($this->isOrigination($task)) {
-            return app(ServicePartnerReassignmentService::class)->candidatesFor($task);
+            return app(ServicePartnerReassignmentService::class)->manualCandidatesFor($task);
         }
 
         if ($this->isRecovery($task)) {
@@ -72,12 +118,8 @@ class PartnerTaskReassignmentService
                 return collect();
             }
 
-            $region = $assignment->arrearCase?->loan?->customer?->region
-                ?? $assignment->loan?->customer?->region
-                ?? null;
-
             return app(RecoveryPartnerService::class)
-                ->activePartnersForTypeInRegion((string) $assignment->partner_type, $region)
+                ->activePartnersForType((string) $assignment->partner_type)
                 ->reject(fn (Vendor $vendor) => (int) $vendor->id === (int) $task->partner_id)
                 ->values();
         }
@@ -100,7 +142,7 @@ class PartnerTaskReassignmentService
 
         if (! $replacement instanceof Vendor) {
             throw ValidationException::withMessages([
-                'partner_id' => 'No other eligible partner covers this region. Add coverage or assign nationwide.',
+                'partner_id' => 'No other active partner of this type is available.',
             ]);
         }
 
