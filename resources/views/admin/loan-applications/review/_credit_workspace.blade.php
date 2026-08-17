@@ -21,6 +21,8 @@
     $groupTarget = (int) ($groupReview['target_member_count'] ?? $groupMemberCount);
     $fileIsClosed = $fileIsClosed ?? $record->isClosed();
     $closedStatus = $closedStatus ?? ($fileIsClosed ? $record->closedStatus() : null);
+    $isServicingFile = $isServicingFile ?? $record->hasActiveFacility();
+    $linkedLoan = $linkedLoan ?? $record->loan;
 
     $crbTone = match ($crbRec) {
         'approve' => ['card' => 'from-emerald-600 to-emerald-800', 'badge' => 'bg-emerald-100 text-emerald-900'],
@@ -36,11 +38,14 @@
 
     // Deep-links: profile ?tab=… opens Profiles; review desk subject switches stay on Checklist.
     $workspace = request('workspace');
-    if (! in_array($workspace, ['checklist', 'profiles', 'decision'], true)) {
-        if (request()->has('tab') || (request('person') === 'guarantor' && request()->filled('g'))) {
+    $allowedWorkspaces = $isServicingFile
+        ? ['facility', 'checklist', 'profiles']
+        : ['checklist', 'profiles', 'decision'];
+    if (! in_array($workspace, $allowedWorkspaces, true)) {
+        if ($isServicingFile) {
+            $workspace = 'facility';
+        } elseif (request()->has('tab') || (request('person') === 'guarantor' && request()->filled('g'))) {
             $workspace = 'profiles';
-        } elseif (request()->has('review_person') || request()->has('review_m') || request()->has('review_g')) {
-            $workspace = 'checklist';
         } else {
             $workspace = 'checklist';
         }
@@ -102,7 +107,12 @@
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">
-                @if ($fileIsClosed)
+                @if ($isServicingFile)
+                    Credit management workspace
+                    @if ($isGroupLoan)
+                        · Group loan
+                    @endif
+                @elseif ($fileIsClosed)
                     Closed file
                     @if ($isGroupLoan)
                         · Group loan
@@ -115,10 +125,18 @@
                 @endif
             </p>
             <h2 class="text-lg font-bold text-gray-900 mt-0.5">
-                {{ $fileIsClosed ? 'Application record' : 'What you need to decide' }}
+                @if ($isServicingFile)
+                    {{ $linkedLoan && $linkedLoan->status === 'arrears' ? 'Loan in arrears' : ($linkedLoan && $linkedLoan->status === 'defaulted' ? 'Defaulted facility' : 'Active facility') }}
+                @elseif ($fileIsClosed)
+                    Application record
+                @else
+                    What you need to decide
+                @endif
             </h2>
             <p class="text-sm text-gray-500 mt-0.5">
-                @if ($fileIsClosed)
+                @if ($isServicingFile)
+                    Outstanding, repayments and collections on the same credit file used at screening.
+                @elseif ($fileIsClosed)
                     This file is {{ display_label($closedStatus, 'application_status') }}. It is view-only — no edit, withdraw, or workflow actions.
                 @else
                     {{ $isCommitteeStage
@@ -179,10 +197,18 @@
     <div class="grid lg:grid-cols-12 gap-4">
         <div class="lg:col-span-3 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 py-4 text-white">
-                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">Facility summary</p>
-                <p class="text-2xl font-bold mt-1 tabular-nums">{{ format_money((float) $record->requested_amount) }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">
+                    {{ $isServicingFile ? 'Outstanding' : 'Facility summary' }}
+                </p>
+                <p class="text-2xl font-bold mt-1 tabular-nums">
+                    {{ format_money((float) ($isServicingFile ? ($linkedLoan->outstanding_balance ?? $record->offered_amount ?? $record->requested_amount) : $record->requested_amount)) }}
+                </p>
                 <p class="text-sm text-white/75 mt-1">
-                    {{ $record->requested_tenure_months }} months
+                    @if ($isServicingFile && $linkedLoan)
+                        {{ $linkedLoan->tenure_months ?? $record->requested_tenure_months }} months
+                    @else
+                        {{ $record->requested_tenure_months }} months
+                    @endif
                     @if ($product) · {{ $product->name }} @endif
                 </p>
             </div>
@@ -585,19 +611,18 @@
         @endif
     </div>
 
-    {{-- Person switcher is for Checklist / Profiles only. Decision is for the whole file. --}}
-    @if ($workspace !== 'decision')
+    {{-- Person switcher is for Checklist / Profiles only. --}}
+    @if (! in_array($workspace, ['decision', 'facility'], true))
         @include('admin.loan-applications.review._workspace_person_switcher')
     @endif
 
     {{-- Top workspace tabs --}}
     <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-        <nav class="flex gap-1 overflow-x-auto px-2 pt-2 border-b border-gray-100" aria-label="Screening workspace">
-            @foreach ([
-                'checklist' => 'Review checklist',
-                'profiles' => 'Profiles',
-                'decision' => 'Decision',
-            ] as $key => $label)
+        <nav class="flex gap-1 overflow-x-auto px-2 pt-2 border-b border-gray-100" aria-label="{{ $isServicingFile ? 'Credit management workspace' : 'Screening workspace' }}">
+            @foreach (($isServicingFile
+                ? ['facility' => 'Facility', 'checklist' => 'Review checklist', 'profiles' => 'Profiles']
+                : ['checklist' => 'Review checklist', 'profiles' => 'Profiles', 'decision' => 'Decision']
+            ) as $key => $label)
                 <a href="{{ $workspaceUrl($key) }}"
                    @class([
                        'shrink-0 px-4 py-3 text-sm font-semibold rounded-t-xl border-b-2 transition',
@@ -616,7 +641,9 @@
         </nav>
 
         <div class="p-4 sm:p-5 space-y-4">
-            @if ($workspace === 'checklist')
+            @if ($workspace === 'facility')
+                @include('admin.loan-applications.review._facility_tab')
+            @elseif ($workspace === 'checklist')
                 @if (! empty($anomalies))
                     <details class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden group">
                         <summary class="cursor-pointer list-none px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
@@ -688,7 +715,9 @@
     </div>
 </section>
 
+@unless ($isServicingFile)
 @include('admin.loan-applications.review._decision_sticky_bar', [
     'workspace' => $workspace,
     'screeningReadiness' => $screeningReadiness ?? null,
 ])
+@endunless

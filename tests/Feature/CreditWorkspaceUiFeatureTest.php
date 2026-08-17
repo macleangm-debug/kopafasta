@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
+use App\Models\LoanGroup;
+use App\Models\LoanGroupMember;
 use App\Models\LoanProduct;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -306,5 +309,127 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertSee('Withdrawn', false)
             ->assertSee('View only', false)
             ->assertDontSee('Edit application');
+    }
+
+    public function test_disbursed_and_arrears_files_use_credit_management_tabs(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'disbursement');
+        $app->update(['status' => 'disbursed', 'disbursed_at' => now()->subMonths(2)]);
+
+        $loan = Loan::create([
+            'customer_id'         => $app->customer_id,
+            'loan_product_id'     => $app->loan_product_id,
+            'loan_application_id' => $app->id,
+            'loan_number'         => 'LN-CW-ARRS',
+            'principal_amount'    => 50_000,
+            'approved_amount'     => 50_000,
+            'outstanding_balance' => 79_934,
+            'interest_rate'       => 0.18,
+            'tenure_months'       => 2,
+            'status'              => 'arrears',
+            'disbursement_date'   => now()->subMonths(2),
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Credit management', $html);
+        $this->assertStringContainsString('Facility', $html);
+        $this->assertStringContainsString('Review checklist', $html);
+        $this->assertStringContainsString('Profiles', $html);
+        $this->assertStringContainsString('Loan in arrears', $html);
+        $this->assertStringContainsString($loan->loan_number, $html);
+        $this->assertStringNotContainsString('What you need to decide', $html);
+        $this->assertStringNotContainsString('>Decision</a>', $html);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loans.show', $loan))
+            ->assertRedirect(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'facility',
+            ]));
+    }
+
+    public function test_disbursed_group_application_show_page_loads(): void
+    {
+        $admin = $this->staff();
+        $product = LoanProduct::create([
+            'code'              => 'GL-CW-'.random_int(100, 999),
+            'name'              => 'Group Loan',
+            'category'          => 'group',
+            'is_active'         => true,
+            'interest_rate'     => 0.18,
+            'min_amount'        => 50_000,
+            'max_amount'        => 5_000_000,
+            'tenure_min_months' => 1,
+            'tenure_max_months' => 12,
+        ]);
+        $leader = Customer::create([
+            'user_id'         => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-GL-L-'.random_int(100, 999),
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Gaspari',
+            'last_name'       => 'Shiliba',
+            'phone'           => '25571'.random_int(1000000, 9999999),
+            'branch_id'       => $admin->branch_id,
+            'monthly_income'  => 400_000,
+        ]);
+        $app = LoanApplication::create([
+            'customer_id'             => $leader->id,
+            'loan_product_id'         => $product->id,
+            'branch_id'               => $admin->branch_id,
+            'application_number'      => 'APP-GL-C74S',
+            'requested_amount'        => 150_000,
+            'requested_tenure_months' => 2,
+            'status'                  => 'disbursed',
+            'current_stage'           => 'disbursement',
+            'submitted_at'            => now()->subMonths(2),
+            'disbursed_at'            => now()->subMonths(2),
+        ]);
+        $group = LoanGroup::create([
+            'group_number'           => 'GRP-CW-001',
+            'name'                   => 'Demo Group',
+            'leader_customer_id'     => $leader->id,
+            'primary_application_id' => $app->id,
+            'status'                 => 'active',
+            'target_member_count'    => 1,
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id'        => $group->id,
+            'customer_id'          => $leader->id,
+            'loan_application_id'  => $app->id,
+            'role'                 => 'leader',
+            'requested_amount'     => 50_000,
+            'sort_order'           => 1,
+            'onboarding_status'    => 'complete',
+            'underwriting_status'  => 'pending',
+        ]);
+        $app->update(['loan_group_id' => $group->id]);
+        Loan::create([
+            'customer_id'         => $leader->id,
+            'loan_product_id'     => $product->id,
+            'loan_application_id' => $app->id,
+            'loan_number'         => 'LN-GL-X6C8',
+            'principal_amount'    => 50_000,
+            'approved_amount'     => 50_000,
+            'outstanding_balance' => 79_934,
+            'interest_rate'       => 0.18,
+            'tenure_months'       => 2,
+            'status'              => 'arrears',
+            'disbursement_date'   => now()->subMonths(2),
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->assertSee('Credit management', false)
+            ->assertSee('LN-GL-X6C8', false)
+            ->assertSee('Facility', false)
+            ->assertSee('Review checklist', false)
+            ->assertSee('Profiles', false);
     }
 }

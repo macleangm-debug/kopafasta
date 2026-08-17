@@ -24,7 +24,7 @@
     };
     $canPushDisburse = $readiness->canMarkDisbursement($record) && $offerStatus !== 'declined';
     $loan = $record->loan;
-    $isActiveLoan = $loan && in_array((string) $loan->status, ['active', 'disbursed'], true);
+    $isActiveLoan = $loan && in_array((string) $loan->status, ['active', 'disbursed', 'arrears', 'defaulted'], true);
 @endphp
 
 <section class="space-y-4 mb-6" id="credit-management-desk">
@@ -186,7 +186,7 @@
                 </div>
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Disbursed</p>
-                    <p class="font-bold text-gray-900 mt-1">{{ optional($record->disbursed_at ?? $loan->disbursed_at)->format('d M Y') ?? '—' }}</p>
+                    <p class="font-bold text-gray-900 mt-1">{{ optional($record->disbursed_at ?? $loan->disbursement_date)->format('d M Y') ?? '—' }}</p>
                 </div>
             </div>
         </div>

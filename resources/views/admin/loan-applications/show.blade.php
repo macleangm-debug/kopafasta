@@ -11,10 +11,26 @@
         'contract_generation',
     ], true);
     $isDisbursementStage = $stage === 'disbursement' || $record->status === 'disbursed';
-    $isOpsStage = $isManagementStage || $isDisbursementStage;
-    $isCreditWorkspace = $isScreeningStage || $isCommitteeStage;
+    $linkedLoan = $record->loan;
+    $isServicingFile = $record->hasActiveFacility();
+    $isOpsStage = ($isManagementStage || $isDisbursementStage) && ! $isServicingFile;
+    $isCreditWorkspace = $isScreeningStage || $isCommitteeStage || $isServicingFile;
     $fileIsClosed = $record->isClosed();
     $closedStatus = $fileIsClosed ? $record->closedStatus() : null;
+    $writeOffService = app(\App\Services\WriteOffRequestService::class);
+    $writeOffApprovalRequired = (bool) \App\Models\Setting::get('finance.write_off_approval_required');
+    $canRecommendWriteOff = $isServicingFile
+        && $linkedLoan
+        && $writeOffApprovalRequired
+        && $writeOffService->canRecommend(auth()->user())
+        && $writeOffService->loanEligibleForRecommendation($linkedLoan)
+        && ! $writeOffService->hasOpenRequest($linkedLoan);
+    $canSeeWriteOffQueue = $isServicingFile && $writeOffService->canSeeWriteOffActions(auth()->user());
+    $canDirectWriteOff = $isServicingFile
+        && $linkedLoan
+        && ! $writeOffApprovalRequired
+        && $writeOffService->canFinanceApprove(auth()->user())
+        && $writeOffService->loanEligibleForRecommendation($linkedLoan);
 @endphp
 
 <x-admin.layout
@@ -32,7 +48,9 @@
                         <x-site.brand-mark size="sm" variant="light" />
                     </div>
                     <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">{{ brand_name() }} · Credit file</p>
+                        <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">
+                            {{ brand_name() }} · {{ $isServicingFile ? 'Credit management' : 'Credit file' }}
+                        </p>
                         <h1 class="text-xl sm:text-2xl font-bold tracking-tight mt-1 truncate">{{ $record->application_number }}</h1>
                         <p class="text-sm text-white/75 mt-1 truncate">
                             {{ $customer->full_name }}
@@ -41,6 +59,9 @@
                             @endif
                             @if ($product)
                                 <span class="text-white/50">·</span> {{ $product->name }}
+                            @endif
+                            @if ($linkedLoan)
+                                <span class="text-white/50">·</span> {{ $linkedLoan->loan_number }}
                             @endif
                         </p>
                         <p class="text-xs text-white/70 mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
@@ -61,6 +82,33 @@
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/80 ring-1 ring-white/15">
                             View only
                         </span>
+                    @elseif ($isServicingFile)
+                        @if ($linkedLoan)
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
+                                {{ display_label($linkedLoan->status, 'loan_status') }}
+                            </span>
+                        @endif
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-gold/20 text-brand-gold ring-1 ring-brand-gold/40">
+                            Credit management
+                        </span>
+                        @if ($canRecommendWriteOff)
+                            <a href="{{ route('admin.loans.write-off-form', $linkedLoan) }}"
+                               class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 hover:bg-rose-400 text-white">
+                                Recommend write-off
+                            </a>
+                        @endif
+                        @if ($canDirectWriteOff)
+                            <a href="{{ route('admin.loans.write-off-form', $linkedLoan) }}"
+                               class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 hover:bg-rose-400 text-white">
+                                Write off
+                            </a>
+                        @endif
+                        @if ($canSeeWriteOffQueue && $linkedLoan && in_array($linkedLoan->status, ['arrears', 'defaulted', 'written_off'], true))
+                            <a href="{{ route('admin.write-off-requests.index') }}"
+                               class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-white ring-1 ring-white/20">
+                                Write-off queue
+                            </a>
+                        @endif
                     @else
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
                             {{ display_label($record->status, 'application_status') }}

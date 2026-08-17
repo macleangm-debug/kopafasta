@@ -91,6 +91,14 @@ class LoanApplication extends Model
         return (string) $this->status;
     }
 
+    /** Linked loan is past origination — credit management / servicing desk. */
+    public function hasActiveFacility(): bool
+    {
+        $status = (string) ($this->loan?->status ?? '');
+
+        return in_array($status, ['active', 'disbursed', 'arrears', 'defaulted', 'written_off', 'closed'], true);
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);

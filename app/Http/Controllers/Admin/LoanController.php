@@ -137,6 +137,13 @@ class LoanController extends Controller
 
     public function show(Loan $loan)
     {
+        if ($loan->loan_application_id) {
+            return redirect()->route('admin.loan-applications.show', [
+                'loan_application' => $loan->loan_application_id,
+                'workspace' => 'facility',
+            ]);
+        }
+
         $loan->load([
             'customer',
             'product',

@@ -1,4 +1,4 @@
-@if ($groupReview ?? null)
+@if (! empty($groupReview['group_number'] ?? null) || ! empty($groupReview['members'] ?? null))
     <div id="review-group"
          class="rounded-2xl ring-1 ring-brand/15 bg-white overflow-hidden shadow-sm"
          x-data="{ groupPanel: @js(request('m') ? 'members' : 'overview') }">
@@ -251,7 +251,7 @@
                         <div class="sm:col-span-2">
                             <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">{{ __('admin.group_review.col_review') }}</label>
                             <select name="underwriting_status" class="w-full rounded-xl border-gray-200 text-sm">
-                                @foreach ($groupReview['statuses'] as $status)
+                                @foreach ($groupReview['statuses'] ?? [] as $status)
                                     <option value="{{ $status }}" @selected(($selectedMember['underwriting_status'] ?? 'pending') === $status)>
                                         {{ __('admin.group_review.underwriting_status.'.$status) }}
                                     </option>

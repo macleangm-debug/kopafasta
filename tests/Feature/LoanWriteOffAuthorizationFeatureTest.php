@@ -28,11 +28,12 @@ class LoanWriteOffAuthorizationFeatureTest extends TestCase
         $loan = $this->loan($admin, 'pending');
 
         $html = $this->actingAs($admin, 'admin')
+            ->followingRedirects()
             ->get(route('admin.loans.show', $loan))
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Loan file', $html);
+        $this->assertStringContainsString('Credit file', $html);
         $this->assertStringContainsString($loan->loan_number, $html);
         $this->assertStringNotContainsString('Recommend write-off', $html);
     }
@@ -43,11 +44,13 @@ class LoanWriteOffAuthorizationFeatureTest extends TestCase
         $loan = $this->loan($officer, 'arrears');
 
         $html = $this->actingAs($officer, 'admin')
+            ->followingRedirects()
             ->get(route('admin.loans.show', $loan))
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Loan file', $html);
+        $this->assertStringContainsString('Credit management', $html);
+        $this->assertStringContainsString('Facility', $html);
         $this->assertStringNotContainsString('Recommend write-off', $html);
         $this->assertStringNotContainsString('Write-off queue', $html);
 
@@ -70,12 +73,14 @@ class LoanWriteOffAuthorizationFeatureTest extends TestCase
         $active = $this->loan($collector, 'active');
 
         $html = $this->actingAs($collector, 'admin')
+            ->followingRedirects()
             ->get(route('admin.loans.show', $arrears))
             ->assertOk()
             ->getContent();
 
         $this->assertStringContainsString('Recommend write-off', $html);
         $this->assertStringContainsString('Write-off queue', $html);
+        $this->assertStringContainsString('Credit management', $html);
 
         $this->actingAs($collector, 'admin')
             ->get(route('admin.loans.write-off-form', $arrears))
@@ -83,6 +88,7 @@ class LoanWriteOffAuthorizationFeatureTest extends TestCase
             ->assertSee('Write-off', false);
 
         $activeHtml = $this->actingAs($collector, 'admin')
+            ->followingRedirects()
             ->get(route('admin.loans.show', $active))
             ->assertOk()
             ->getContent();
@@ -104,6 +110,7 @@ class LoanWriteOffAuthorizationFeatureTest extends TestCase
         $this->assertFalse($service->canAccessWriteOffForm($analyst, $loan));
 
         $this->actingAs($analyst, 'admin')
+            ->followingRedirects()
             ->get(route('admin.loans.show', $loan))
             ->assertOk()
             ->assertDontSee('Recommend write-off');
@@ -115,10 +122,11 @@ class LoanWriteOffAuthorizationFeatureTest extends TestCase
         $loan = $this->loan($admin, 'defaulted');
 
         $this->actingAs($admin, 'admin')
+            ->followingRedirects()
             ->get(route('admin.loans.show', $loan))
             ->assertOk()
             ->assertSee('Recommend write-off')
-            ->assertSee('Loan file');
+            ->assertSee('Credit management');
     }
 
     private function staff(string $role): User
