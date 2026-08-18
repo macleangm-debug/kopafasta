@@ -3,11 +3,17 @@
 namespace App\Services;
 
 use App\Models\CollectionAction;
+use App\Models\Customer;
+use App\Models\CustomerGuarantor;
 use App\Models\GuarantorInvitation;
+use App\Models\Loan;
+use App\Models\LoanAgreement;
+use App\Models\LoanGroupMember;
 use App\Models\RecoveryAssignment;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\VendorDocument;
+use App\Support\PhoneNumber;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -41,6 +47,7 @@ class RecoveryPartnerPortalService
             'arrearCase.loan.customer.branch',
             'arrearCase.loan.product',
             'arrearCase.loan.application.collateralAssets.customerAsset',
+            'arrearCase.loan.application.loanGroup.members.customer',
             'arrearCase.loan.repaymentSchedules',
             'vendorTask.documents',
         ]);
@@ -134,6 +141,7 @@ class RecoveryPartnerPortalService
             : null;
 
         $collateral = app(GpsDeviceService::class)->collateralForLoan($loan);
+        $collectionFile = $this->collectionFile($loan);
         $talkTrack = $assignment->partner_type === 'call_center'
             ? $this->talkTrack(
                 $assignment,
@@ -143,6 +151,7 @@ class RecoveryPartnerPortalService
                 $nextInstallment,
                 $slaDaysRemaining,
                 $nextPartnerLabel,
+                $collectionFile['contacts'],
             )
             : null;
         $auctionHold = $loan
@@ -152,36 +161,67 @@ class RecoveryPartnerPortalService
         $gpsInstallerContact = $loan ? $gpsService->installerContactForLoan($loan) : null;
         $showGpsInstallerContact = $assignment->partner_type === 'debt_collector'
             && $gpsInstallerContact !== null;
+        $letters = app(LoanAgreementService::class)->creditFileLetters($loan?->application);
 
         return [
-            'loan'                => $loan,
-            'customer'            => $customer,
-            'guarantor'           => $guarantor,
-            'guarantor_name'      => $guarantor?->guarantorCustomer?->full_name
+            'loan' => $loan,
+            'customer' => $customer,
+            'guarantor' => $guarantor,
+            'guarantor_name' => $guarantor?->guarantorCustomer?->full_name
                 ?? $guarantor?->invitee_name,
-            'guarantor_phone'     => $guarantor?->contact
+            'guarantor_phone' => $guarantor?->contact
                 ?? $guarantor?->guarantorCustomer?->phone,
-            'sla_days_remaining'  => $slaDaysRemaining,
-            'portal_actions'      => $this->portalActions($assignment->partner_type),
-            'activity'            => $actions,
-            'live_outstanding'    => $liveOutstanding,
+            'sla_days_remaining' => $slaDaysRemaining,
+            'portal_actions' => $this->portalActions($assignment->partner_type),
+            'activity' => $actions,
+            'live_outstanding' => $liveOutstanding,
             'penalty_outstanding' => $penaltyOutstanding,
-            'days_past_due'       => $daysPastDue,
-            'product_name'        => $productName,
-            'borrower_region'     => $region,
-            'borrower_address'    => $addressLine !== '' ? $addressLine : null,
-            'branch_name'         => $branchName,
-            'next_partner_label'  => $nextPartnerLabel,
-            'next_installment'    => $nextInstallment,
-            'mini_schedule'       => $miniSchedule,
-            'collateral_items'    => $collateral,
-            'talk_track'          => $talkTrack,
-            'wallet_url'          => route('site.partner.recovery-wallet'),
-            'auction_hold'        => $auctionHold,
+            'days_past_due' => $daysPastDue,
+            'product_name' => $productName,
+            'borrower_region' => $region,
+            'borrower_address' => $addressLine !== '' ? $addressLine : null,
+            'branch_name' => $branchName,
+            'next_partner_label' => $nextPartnerLabel,
+            'next_installment' => $nextInstallment,
+            'mini_schedule' => $miniSchedule,
+            'collateral_items' => $collateral,
+            'talk_track' => $talkTrack,
+            'wallet_url' => route('site.partner.recovery-wallet'),
+            'auction_hold' => $auctionHold,
             'gps_installer_contact' => $gpsInstallerContact,
             'show_gps_installer_contact' => $showGpsInstallerContact,
-            'gps_map_enabled'     => $gpsService->mapEnabled(),
+            'gps_map_enabled' => $gpsService->mapEnabled(),
+            'record' => $loan?->application,
+            'product' => $loan?->product,
+            'servicing' => $servicing,
+            'letters' => $letters,
+            'offer' => $letters['offer'],
+            'contract' => $letters['contract'],
+            'finalContract' => $letters['final'],
+            'signedContract' => $letters['signed'],
+            'collection_contacts' => $collectionFile['contacts'],
+            'collection_subjects' => $collectionFile['subjects'],
         ];
+    }
+
+    public function assignmentMayViewAgreement(RecoveryAssignment $assignment, LoanAgreement $agreement): bool
+    {
+        $assignment->loadMissing('arrearCase.loan');
+        $loan = $assignment->arrearCase?->loan;
+        if (! $loan) {
+            return false;
+        }
+
+        $applicationId = (int) ($loan->loan_application_id ?? 0);
+        if ($applicationId <= 0 || (int) $agreement->loan_application_id !== $applicationId) {
+            return false;
+        }
+
+        return in_array($agreement->document_type, [
+            'offer_letter',
+            'loan_contract',
+            'final_loan_contract',
+        ], true);
     }
 
     public function sendBorrowerReminder(
@@ -260,6 +300,7 @@ class RecoveryPartnerPortalService
         ?float $auctionProceeds = null,
         ?string $buyerName = null,
         ?string $lotReference = null,
+        ?string $contactedParty = null,
     ): RecoveryAssignment {
         $this->assertVendorOwnsAssignment($assignment, $vendor);
 
@@ -279,6 +320,7 @@ class RecoveryPartnerPortalService
         $notes = trim((string) $notes);
         $buyerName = trim((string) $buyerName);
         $lotReference = trim((string) $lotReference);
+        $contactedParty = trim((string) $contactedParty);
 
         if (($config['notes'] ?? null) === 'required' && $notes === '' && ! ($config['accepts_file'] ?? false)) {
             throw ValidationException::withMessages([
@@ -298,6 +340,18 @@ class RecoveryPartnerPortalService
             ]);
         }
 
+        $contact = null;
+        if ($config['requires_contact'] ?? false) {
+            $assignment->loadMissing('arrearCase.loan');
+            $contacts = collect($this->collectionFile($assignment->arrearCase?->loan)['contacts'] ?? []);
+            $contact = $contacts->firstWhere('key', $contactedParty);
+            if (! $contact) {
+                throw ValidationException::withMessages([
+                    'contacted_party' => 'Select who you contacted — borrower, guarantor, next of kin, or group member.',
+                ]);
+            }
+        }
+
         return DB::transaction(function () use (
             $assignment,
             $vendor,
@@ -309,6 +363,7 @@ class RecoveryPartnerPortalService
             $auctionProceeds,
             $buyerName,
             $lotReference,
+            $contact,
         ) {
             if ($assignment->status === RecoveryAssignment::STATUS_ASSIGNED) {
                 $assignment = $this->assignments->start($assignment, $actor);
@@ -319,6 +374,9 @@ class RecoveryPartnerPortalService
             }
 
             $label = (string) ($config['label'] ?? $actionKey);
+            if (is_array($contact)) {
+                $label .= ' · '.($contact['role'] ?? 'Contact').' · '.($contact['name'] ?? '');
+            }
             $extra = [];
             if ($lotReference !== '') {
                 $extra[] = 'Lot '.$lotReference;
@@ -396,7 +454,200 @@ class RecoveryPartnerPortalService
     }
 
     /**
+     * Contacts and profile subjects the collection partner may call — no CRB, no screening.
+     *
+     * @return array{contacts: list<array<string, mixed>>, subjects: list<array<string, mixed>>}
+     */
+    public function collectionFile(?Loan $loan): array
+    {
+        if (! $loan) {
+            return ['contacts' => [], 'subjects' => []];
+        }
+
+        $loan->loadMissing(['customer', 'application.loanGroup.members.customer']);
+        $application = $loan->application;
+        $reviewer = app(LoanApplicationReviewService::class);
+        $contacts = [];
+        $subjects = [];
+        $seen = [];
+
+        $pushContact = function (array $row) use (&$contacts, &$seen): void {
+            $phoneKey = preg_replace('/\D+/', '', (string) ($row['phone'] ?? '')) ?: 'none';
+            $dedupe = $row['key'].':'.$phoneKey;
+            if (isset($seen[$dedupe])) {
+                return;
+            }
+            $seen[$dedupe] = true;
+            $contacts[] = $row;
+        };
+
+        $borrower = $loan->customer;
+        if ($borrower) {
+            $pushContact($this->makeContact('borrower', 'Borrower', $borrower->full_name, $borrower->phone, $borrower));
+            $nok = $this->nextOfKinContact($borrower, 'borrower', 'Next of kin (borrower)');
+            if ($nok) {
+                $pushContact($nok);
+            }
+            $subjects[] = [
+                'key' => 'borrower',
+                'person' => 'borrower',
+                'label' => 'Borrower',
+                'sublabel' => $borrower->full_name,
+                'phone' => $borrower->phone,
+                'file' => $reviewer->subjectFileForCustomer($borrower),
+            ];
+        }
+
+        if ($application) {
+            $links = CustomerGuarantor::query()
+                ->where('loan_application_id', $application->id)
+                ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'rejected'))
+                ->with('guarantor')
+                ->get();
+
+            foreach ($links as $link) {
+                $invitation = GuarantorInvitation::query()
+                    ->where('customer_guarantor_id', $link->id)
+                    ->latest('id')
+                    ->first();
+                $gCustomer = $invitation?->guarantor_customer_id
+                    ? Customer::query()->find($invitation->guarantor_customer_id)
+                    : null;
+                $gRecord = $link->guarantor;
+                $name = $gCustomer?->full_name
+                    ?: trim(($gRecord?->first_name ?? '').' '.($gRecord?->last_name ?? ''))
+                    ?: ($invitation?->invitee_name ?: 'Guarantor');
+                $phone = $gCustomer?->phone ?: ($gRecord?->phone ?: $invitation?->contact);
+                $key = 'guarantor:'.$link->id;
+                $pushContact($this->makeContact(
+                    $key,
+                    'Guarantor',
+                    $name,
+                    $phone,
+                    $gCustomer,
+                    $gRecord?->relationship,
+                ));
+                if ($gCustomer) {
+                    $nok = $this->nextOfKinContact($gCustomer, $key, 'Next of kin (guarantor)');
+                    if ($nok) {
+                        $pushContact($nok);
+                    }
+                    $subjects[] = [
+                        'key' => $key,
+                        'person' => 'guarantor',
+                        'g' => $link->id,
+                        'label' => 'Guarantor',
+                        'sublabel' => $name,
+                        'phone' => $phone,
+                        'file' => $reviewer->subjectFileForCustomer($gCustomer),
+                    ];
+                }
+            }
+
+            foreach ($application->loanGroup?->members ?? [] as $member) {
+                if (! $member instanceof LoanGroupMember || ! $member->customer) {
+                    continue;
+                }
+                $mCustomer = $member->customer;
+                if ((int) $mCustomer->id === (int) ($borrower?->id ?? 0) && ($member->role ?? '') === 'leader') {
+                    continue;
+                }
+                $role = ($member->role ?? '') === 'leader' ? 'Group leader' : 'Group member';
+                $key = 'member:'.$member->id;
+                $pushContact($this->makeContact($key, $role, $mCustomer->full_name, $mCustomer->phone, $mCustomer));
+                $nok = $this->nextOfKinContact($mCustomer, $key, 'Next of kin ('.$role.')');
+                if ($nok) {
+                    $pushContact($nok);
+                }
+                $subjects[] = [
+                    'key' => $key,
+                    'person' => 'member',
+                    'm' => $member->id,
+                    'label' => $role,
+                    'sublabel' => $mCustomer->full_name,
+                    'phone' => $mCustomer->phone,
+                    'file' => $reviewer->subjectFileForCustomer($mCustomer),
+                ];
+            }
+        }
+
+        return ['contacts' => $contacts, 'subjects' => $subjects];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function makeContact(
+        string $key,
+        string $role,
+        ?string $name,
+        ?string $phone,
+        ?Customer $customer = null,
+        ?string $relationship = null,
+    ): array {
+        $address = collect([
+            $customer?->street ?: $customer?->address,
+            $customer?->ward,
+            $customer?->district,
+            $customer?->region,
+        ])->filter()->implode(', ');
+
+        return [
+            'key' => $key,
+            'role' => $role,
+            'name' => filled($name) ? $name : '—',
+            'phone' => $phone,
+            'phone_label' => PhoneNumber::format($phone) ?: $phone,
+            'relationship' => $relationship,
+            'address' => $address !== '' ? $address : null,
+            'tel' => $this->telHref($phone),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function nextOfKinContact(Customer $customer, string $ownerKey, string $role): ?array
+    {
+        if (! filled($customer->nok_name) && ! filled($customer->nok_phone)) {
+            return null;
+        }
+
+        $address = collect([
+            $customer->nok_street ?? null,
+            $customer->nok_ward ?? null,
+            $customer->nok_district ?? null,
+            $customer->nok_region ?? null,
+        ])->filter()->implode(', ');
+        $phone = $customer->nok_phone;
+
+        return [
+            'key' => 'nok:'.$ownerKey,
+            'role' => $role,
+            'name' => filled($customer->nok_name) ? $customer->nok_name : '—',
+            'phone' => $phone,
+            'phone_label' => PhoneNumber::format($phone) ?: $phone,
+            'relationship' => function_exists('kin_relationship_label')
+                ? kin_relationship_label($customer->nok_relationship)
+                : $customer->nok_relationship,
+            'address' => $address !== '' ? $address : null,
+            'tel' => $this->telHref($phone),
+        ];
+    }
+
+    private function telHref(?string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
+        if ($digits === '') {
+            return null;
+        }
+
+        return 'tel:+'.$digits;
+    }
+
+    /**
      * @param  array{amount?: float, due_date?: mixed}|null  $nextInstallment
+     * @param  list<array<string, mixed>>  $contacts
      * @return array{title: string, lines: list<string>}
      */
     private function talkTrack(
@@ -407,6 +658,7 @@ class RecoveryPartnerPortalService
         ?array $nextInstallment,
         ?int $slaDaysRemaining,
         ?string $nextPartnerLabel,
+        array $contacts = [],
     ): array {
         $brand = function_exists('brand_name') ? brand_name() : 'KopaFasta';
         $lines = [
@@ -438,6 +690,15 @@ class RecoveryPartnerPortalService
 
         $lines[] = 'I will note your commitment and follow up if payment is not received.';
 
+        $otherReach = collect($contacts)
+            ->reject(fn (array $row) => ($row['key'] ?? '') === 'borrower')
+            ->filter(fn (array $row) => filled($row['phone'] ?? null));
+        if ($otherReach->isNotEmpty()) {
+            $lines[] = 'You may also call: '.$otherReach
+                ->map(fn (array $row) => ($row['role'] ?? 'Contact').' '.($row['name'] ?? '').' ('.($row['phone_label'] ?? $row['phone']).')')
+                ->implode('; ').'.';
+        }
+
         return [
             'title' => 'Suggested talk track',
             'lines' => $lines,
@@ -468,12 +729,12 @@ class RecoveryPartnerPortalService
         $path = $file->store("vendor/{$vendor->id}/recovery", 'public');
 
         VendorDocument::create([
-            'vendor_id'      => $vendor->id,
+            'vendor_id' => $vendor->id,
             'vendor_task_id' => $task->id,
-            'label'          => $label,
-            'file_path'      => $path,
-            'mime'           => $file->getMimeType(),
-            'size_bytes'     => $file->getSize(),
+            'label' => $label,
+            'file_path' => $path,
+            'mime' => $file->getMimeType(),
+            'size_bytes' => $file->getSize(),
         ]);
 
         if (! $task->proof_path) {

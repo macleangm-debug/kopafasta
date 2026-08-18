@@ -3,24 +3,39 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoanAgreement;
 use App\Models\NotificationLog;
 use App\Models\PartnerPayment;
+use App\Models\RecoveryAssignment;
+use App\Models\ValuationAssignment;
 use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Models\VendorPayment;
 use App\Models\VendorTask;
+use App\Services\AffiliateService;
+use App\Services\CollateralInsurancePartnerService;
+use App\Services\GpsDeviceService;
+use App\Services\NotificationService;
+use App\Services\PartnerPayoutRequestService;
 use App\Services\PartnerProfileService;
+use App\Services\PartnerSettlementService;
+use App\Services\PartnerTaskLifecycleService;
+use App\Services\PartnerWalletService;
+use App\Services\RecoveryCommissionWalletService;
+use App\Services\RecoveryPartnerKpiService;
+use App\Services\RecoveryPartnerPortalService;
+use App\Services\RecoveryPartnerService;
+use App\Services\ValuationPartnerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class VendorController extends Controller
 {
     /* ------------------------------------------------------------------ */
-    /* Helpers                                                             */
+    /* Helpers */
     /* ------------------------------------------------------------------ */
 
     protected function vendor(): Vendor
@@ -43,7 +58,7 @@ class VendorController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
-    /* Dashboard                                                           */
+    /* Dashboard */
     /* ------------------------------------------------------------------ */
 
     public function dashboard()
@@ -51,14 +66,14 @@ class VendorController extends Controller
         $vendor = $this->vendor();
 
         $stats = [
-            'assigned'      => $this->tasksQuery($vendor)->where('status', 'assigned')->count(),
-            'in_progress'   => $this->tasksQuery($vendor)->where('status', 'in_progress')->count(),
-            'completed_mo'  => $this->tasksQuery($vendor)->where('status', 'completed')
-                                ->where('completed_at', '>=', now()->startOfMonth())->count(),
+            'assigned' => $this->tasksQuery($vendor)->where('status', 'assigned')->count(),
+            'in_progress' => $this->tasksQuery($vendor)->where('status', 'in_progress')->count(),
+            'completed_mo' => $this->tasksQuery($vendor)->where('status', 'completed')
+                ->where('completed_at', '>=', now()->startOfMonth())->count(),
             'payments_pend' => (int) VendorPayment::where('partner_id', $vendor->id)
-                                ->where('status', 'pending')->sum('amount'),
-            'earnings'      => (int) VendorPayment::where('partner_id', $vendor->id)
-                                ->where('status', 'paid')->sum('amount'),
+                ->where('status', 'pending')->sum('amount'),
+            'earnings' => (int) VendorPayment::where('partner_id', $vendor->id)
+                ->where('status', 'paid')->sum('amount'),
         ];
 
         $upcoming = $this->tasksQuery($vendor)
@@ -83,15 +98,15 @@ class VendorController extends Controller
         $recoveryWallet = null;
         $wallet = null;
 
-        if (app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
-            $recoveryKpi = app(\App\Services\RecoveryPartnerKpiService::class)->kpis($vendor);
-            $recoveryWallet = app(\App\Services\RecoveryCommissionWalletService::class)->summary($vendor);
+        if (app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            $recoveryKpi = app(RecoveryPartnerKpiService::class)->kpis($vendor);
+            $recoveryWallet = app(RecoveryCommissionWalletService::class)->summary($vendor);
         } else {
-            $wallet = app(\App\Services\PartnerWalletService::class)->summary($vendor);
+            $wallet = app(PartnerWalletService::class)->summary($vendor);
         }
 
         if ($vendor->category === 'affiliate') {
-            $affiliateService = app(\App\Services\AffiliateService::class);
+            $affiliateService = app(AffiliateService::class);
             $affiliateService->ensureCode($vendor);
             $vendor->refresh();
             $affiliateStats = $affiliateService->stats($vendor);
@@ -107,7 +122,7 @@ class VendorController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
-    /* Tasks                                                               */
+    /* Tasks */
     /* ------------------------------------------------------------------ */
 
     public function tasks(Request $request)
@@ -116,7 +131,9 @@ class VendorController extends Controller
         $status = $request->string('status')->toString();
 
         $q = $this->tasksQuery($vendor)->latest();
-        if ($status !== '' && $status !== 'all') $q->where('status', $status);
+        if ($status !== '' && $status !== 'all') {
+            $q->where('status', $status);
+        }
 
         $tasks = $q->paginate(15)->withQueryString();
 
@@ -130,6 +147,7 @@ class VendorController extends Controller
             ->whereIn('status', ['assigned', 'in_progress'])
             ->orderByRaw('COALESCE(due_at, created_at) ASC')
             ->paginate(15);
+
         return view('site.vendor.active', compact('vendor', 'tasks'));
     }
 
@@ -137,13 +155,13 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
 
-        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+        if (! app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
             abort(403, 'Recovery partner access only.');
         }
 
         $status = $request->string('status')->toString();
 
-        $query = \App\Models\RecoveryAssignment::query()
+        $query = RecoveryAssignment::query()
             ->with(['arrearCase.loan.customer', 'vendorTask'])
             ->where('partner_id', $vendor->id)
             ->latest('assigned_at');
@@ -154,8 +172,8 @@ class VendorController extends Controller
 
         $assignments = $query->paginate(15)->withQueryString();
 
-        $recoveryKpi = app(\App\Services\RecoveryPartnerKpiService::class)->kpis($vendor);
-        $recoveryWallet = app(\App\Services\RecoveryCommissionWalletService::class)->summary($vendor);
+        $recoveryKpi = app(RecoveryPartnerKpiService::class)->kpis($vendor);
+        $recoveryWallet = app(RecoveryCommissionWalletService::class)->summary($vendor);
 
         return view('site.vendor.recovery-cases', compact('vendor', 'assignments', 'status', 'recoveryKpi', 'recoveryWallet'));
     }
@@ -164,14 +182,14 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
 
-        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+        if (! app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
             abort(403, 'Recovery partner access only.');
         }
 
-        $wallet = app(\App\Services\RecoveryCommissionWalletService::class);
+        $wallet = app(RecoveryCommissionWalletService::class);
         $summary = $wallet->summary($vendor);
         $payments = $wallet->paginated($vendor, 15);
-        $recoveryKpi = app(\App\Services\RecoveryPartnerKpiService::class)->kpis($vendor);
+        $recoveryKpi = app(RecoveryPartnerKpiService::class)->kpis($vendor);
 
         return view('site.vendor.recovery-wallet', compact('vendor', 'summary', 'payments', 'recoveryKpi'));
     }
@@ -180,7 +198,7 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
 
-        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+        if (! app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
             abort(403, 'Recovery partner access only.');
         }
 
@@ -189,7 +207,7 @@ class VendorController extends Controller
         ]);
 
         try {
-            app(\App\Services\RecoveryCommissionWalletService::class)->dispute($payment, $vendor, $data['reason']);
+            app(RecoveryCommissionWalletService::class)->dispute($payment, $vendor, $data['reason']);
         } catch (\InvalidArgumentException $e) {
             return back()->withErrors(['reason' => $e->getMessage()]);
         }
@@ -201,17 +219,17 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
 
-        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+        if (! app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
             abort(403, 'Recovery partner access only.');
         }
 
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:1'],
-            'notes'  => ['nullable', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         try {
-            app(\App\Services\PartnerPayoutRequestService::class)->request(
+            app(PartnerPayoutRequestService::class)->request(
                 $vendor,
                 'recovery_commission',
                 (float) $data['amount'],
@@ -224,15 +242,15 @@ class VendorController extends Controller
         return back()->with('status', 'Payout request submitted for admin approval.');
     }
 
-    public function recoveryCase(\App\Models\RecoveryAssignment $recoveryAssignment)
+    public function recoveryCase(RecoveryAssignment $recoveryAssignment)
     {
         $vendor = $this->vendor();
 
-        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+        if (! app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
             abort(403, 'Recovery partner access only.');
         }
 
-        $portal = app(\App\Services\RecoveryPartnerPortalService::class);
+        $portal = app(RecoveryPartnerPortalService::class);
         $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
 
         $case = $portal->caseViewData($recoveryAssignment);
@@ -244,10 +262,27 @@ class VendorController extends Controller
         ));
     }
 
-    public function startRecoveryCase(\App\Models\RecoveryAssignment $recoveryAssignment)
+    public function downloadRecoveryLetter(RecoveryAssignment $recoveryAssignment, LoanAgreement $agreement)
     {
         $vendor = $this->vendor();
-        $portal = app(\App\Services\RecoveryPartnerPortalService::class);
+
+        abort_unless(app(RecoveryPartnerService::class)->isRecoveryPartner($vendor), 403);
+
+        $portal = app(RecoveryPartnerPortalService::class);
+        $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
+        abort_unless($portal->assignmentMayViewAgreement($recoveryAssignment, $agreement), 403);
+        abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
+
+        return response()->file(Storage::disk('public')->path($agreement->file_path), [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$agreement->reference.'.pdf"',
+        ]);
+    }
+
+    public function startRecoveryCase(RecoveryAssignment $recoveryAssignment)
+    {
+        $vendor = $this->vendor();
+        $portal = app(RecoveryPartnerPortalService::class);
         $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
 
         $portal->startCase($recoveryAssignment, $vendor, Auth::user());
@@ -255,19 +290,20 @@ class VendorController extends Controller
         return back()->with('status', 'Recovery case marked in progress.');
     }
 
-    public function recoveryCaseAction(Request $request, \App\Models\RecoveryAssignment $recoveryAssignment)
+    public function recoveryCaseAction(Request $request, RecoveryAssignment $recoveryAssignment)
     {
         $vendor = $this->vendor();
-        $portal = app(\App\Services\RecoveryPartnerPortalService::class);
+        $portal = app(RecoveryPartnerPortalService::class);
         $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
 
         $data = $request->validate([
-            'action'           => ['required', 'string', 'max:40'],
-            'notes'            => ['nullable', 'string', 'max:2000'],
-            'file'             => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'action' => ['required', 'string', 'max:40'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'auction_proceeds' => ['nullable', 'numeric', 'min:0.01'],
-            'buyer_name'       => ['nullable', 'string', 'max:120'],
-            'lot_reference'    => ['nullable', 'string', 'max:80'],
+            'buyer_name' => ['nullable', 'string', 'max:120'],
+            'lot_reference' => ['nullable', 'string', 'max:80'],
+            'contacted_party' => ['nullable', 'string', 'max:80'],
         ]);
 
         $portal->recordAction(
@@ -280,6 +316,7 @@ class VendorController extends Controller
             isset($data['auction_proceeds']) ? (float) $data['auction_proceeds'] : null,
             $data['buyer_name'] ?? null,
             $data['lot_reference'] ?? null,
+            $data['contacted_party'] ?? null,
         );
 
         $message = in_array($data['action'], ['resolved', 'sold', 'removed', 'repossession_complete'], true)
@@ -291,10 +328,10 @@ class VendorController extends Controller
             ->with('status', $message);
     }
 
-    public function remindRecoveryCase(\App\Models\RecoveryAssignment $recoveryAssignment)
+    public function remindRecoveryCase(RecoveryAssignment $recoveryAssignment)
     {
         $vendor = $this->vendor();
-        $portal = app(\App\Services\RecoveryPartnerPortalService::class);
+        $portal = app(RecoveryPartnerPortalService::class);
         $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
 
         $portal->sendBorrowerReminder($recoveryAssignment, $vendor, Auth::user());
@@ -309,6 +346,7 @@ class VendorController extends Controller
             ->where('status', 'completed')
             ->latest('completed_at')
             ->paginate(15);
+
         return view('site.vendor.completed', compact('vendor', 'tasks'));
     }
 
@@ -323,6 +361,7 @@ class VendorController extends Controller
             'loanApplication.customer',
             'loanApplication.assetReservation.asset',
         ]);
+
         return view('site.vendor.task', compact('vendor', 'task'));
     }
 
@@ -352,12 +391,12 @@ class VendorController extends Controller
             return;
         }
 
-        $assignment = \App\Models\ValuationAssignment::query()
+        $assignment = ValuationAssignment::query()
             ->where('partner_task_id', $task->id)
             ->first();
 
         if ($assignment) {
-            app(\App\Services\ValuationPartnerService::class)->markInProgress($assignment);
+            app(ValuationPartnerService::class)->markInProgress($assignment);
         }
     }
 
@@ -367,12 +406,12 @@ class VendorController extends Controller
         abort_unless($task->vendor_id === $vendor->id, 404);
 
         $data = $request->validate([
-            'gps_serial'        => ['nullable', 'string', 'max:60'],
-            'gps_provider'      => ['nullable', 'string', 'max:40'],
-            'gps_device_id'     => ['nullable', 'string', 'max:80'],
-            'gps_tracking_url'  => ['nullable', 'url', 'max:500'],
-            'notes'             => ['nullable', 'string', 'max:1000'],
-            'market_value'      => ['nullable', 'numeric', 'min:0'],
+            'gps_serial' => ['nullable', 'string', 'max:60'],
+            'gps_provider' => ['nullable', 'string', 'max:40'],
+            'gps_device_id' => ['nullable', 'string', 'max:80'],
+            'gps_tracking_url' => ['nullable', 'url', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'market_value' => ['nullable', 'numeric', 'min:0'],
             'forced_sale_value' => ['nullable', 'numeric', 'min:0'],
             'insurance_expires_at' => ['nullable', 'date'],
             'insurance_policy_number' => ['nullable', 'string', 'max:120'],
@@ -380,12 +419,12 @@ class VendorController extends Controller
         ]);
 
         if ($task->task_type === 'asset_valuation') {
-            $assignment = \App\Models\ValuationAssignment::query()
+            $assignment = ValuationAssignment::query()
                 ->where('partner_task_id', $task->id)
                 ->first();
 
             if ($assignment && filled($data['market_value'] ?? null) && filled($data['forced_sale_value'] ?? null)) {
-                app(\App\Services\ValuationPartnerService::class)->complete(
+                app(ValuationPartnerService::class)->complete(
                     $assignment,
                     (float) $data['market_value'],
                     (float) $data['forced_sale_value'],
@@ -393,11 +432,11 @@ class VendorController extends Controller
                 );
             } else {
                 $task->update([
-                    'status'       => 'completed',
+                    'status' => 'completed',
                     'completed_at' => now(),
-                    'notes'        => $data['notes'] ?? $task->notes,
+                    'notes' => $data['notes'] ?? $task->notes,
                 ]);
-                app(\App\Services\PartnerTaskLifecycleService::class)->closeLinkedValuation(
+                app(PartnerTaskLifecycleService::class)->closeLinkedValuation(
                     $task->fresh(),
                     'Aligned with the completed partner task.',
                 );
@@ -407,10 +446,10 @@ class VendorController extends Controller
                 ->with('status', 'Valuation submitted.');
         }
 
-        if ($task->task_type === \App\Services\CollateralInsurancePartnerService::TASK_TYPE) {
+        if ($task->task_type === CollateralInsurancePartnerService::TASK_TYPE) {
             abort_unless(filled($data['insurance_expires_at'] ?? null), 422);
 
-            app(\App\Services\CollateralInsurancePartnerService::class)->completeCover(
+            app(CollateralInsurancePartnerService::class)->completeCover(
                 $task,
                 (string) $data['insurance_expires_at'],
                 $data['insurance_policy_number'] ?? null,
@@ -429,7 +468,7 @@ class VendorController extends Controller
                 return back()->withErrors(['gps_tracking_url' => 'Enter this device’s tracking URL from your GPS provider portal.']);
             }
 
-            app(\App\Services\GpsDeviceService::class)->recordInstallFromTask($task, [
+            app(GpsDeviceService::class)->recordInstallFromTask($task, [
                 'gps_serial' => $data['gps_serial'] ?? $task->gps_serial,
                 'gps_provider' => $data['gps_provider'] ?? null,
                 'gps_device_id' => $data['gps_device_id'] ?? null,
@@ -437,22 +476,22 @@ class VendorController extends Controller
             ]);
 
             $task->update([
-                'status'       => 'completed',
+                'status' => 'completed',
                 'completed_at' => now(),
-                'notes'        => $data['notes'] ?? $task->notes,
+                'notes' => $data['notes'] ?? $task->notes,
             ]);
         } else {
             $task->update([
-                'status'       => 'completed',
+                'status' => 'completed',
                 'completed_at' => now(),
-                'gps_serial'   => $data['gps_serial'] ?? $task->gps_serial,
-                'notes'        => $data['notes'] ?? $task->notes,
+                'gps_serial' => $data['gps_serial'] ?? $task->gps_serial,
+                'notes' => $data['notes'] ?? $task->notes,
             ]);
         }
 
         // auto-issue invoice if fee set and no payment yet
         if ($task->fee_amount > 0 && ! $task->payment()->exists()) {
-            app(\App\Services\PartnerSettlementService::class)->accrue(
+            app(PartnerSettlementService::class)->accrue(
                 $vendor,
                 (int) $task->fee_amount,
                 'vendor_task',
@@ -474,27 +513,29 @@ class VendorController extends Controller
 
         $data = $request->validate([
             'label' => ['required', 'string', 'max:80'],
-            'file'  => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         $path = $request->file('file')->store("vendor/{$vendor->id}/proofs", 'public');
 
         VendorDocument::create([
-            'vendor_id'      => $vendor->id,
+            'vendor_id' => $vendor->id,
             'vendor_task_id' => $task->id,
-            'label'          => $data['label'],
-            'file_path'      => $path,
-            'mime'           => $request->file('file')->getMimeType(),
-            'size_bytes'     => $request->file('file')->getSize(),
+            'label' => $data['label'],
+            'file_path' => $path,
+            'mime' => $request->file('file')->getMimeType(),
+            'size_bytes' => $request->file('file')->getSize(),
         ]);
 
-        if (! $task->proof_path) $task->update(['proof_path' => $path]);
+        if (! $task->proof_path) {
+            $task->update(['proof_path' => $path]);
+        }
 
         return back()->with('status', 'Proof uploaded.');
     }
 
     /* ------------------------------------------------------------------ */
-    /* Documents                                                           */
+    /* Documents */
     /* ------------------------------------------------------------------ */
 
     public function documents()
@@ -503,6 +544,7 @@ class VendorController extends Controller
         $documents = VendorDocument::where('partner_id', $vendor->id)
             ->with('task')
             ->latest()->paginate(20);
+
         return view('site.vendor.documents', compact('vendor', 'documents'));
     }
 
@@ -513,16 +555,16 @@ class VendorController extends Controller
         $data = $request->validate([
             'label' => ['required', 'string', 'max:80'],
             'doc_type' => ['nullable', 'string', 'in:'.implode(',', $types)],
-            'file'  => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         $path = $request->file('file')->store("vendor/{$vendor->id}/documents", 'public');
 
         $payload = [
-            'vendor_id'  => $vendor->id,
-            'label'      => $data['label'],
-            'file_path'  => $path,
-            'mime'       => $request->file('file')->getMimeType(),
+            'vendor_id' => $vendor->id,
+            'label' => $data['label'],
+            'file_path' => $path,
+            'mime' => $request->file('file')->getMimeType(),
             'size_bytes' => $request->file('file')->getSize(),
         ];
         if (Schema::hasColumn('partner_documents', 'doc_type') || Schema::hasColumn('vendor_documents', 'doc_type')) {
@@ -535,24 +577,24 @@ class VendorController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
-    /* Payments                                                            */
+    /* Payments */
     /* ------------------------------------------------------------------ */
 
     public function payments()
     {
         $vendor = $this->vendor();
-        $walletService = app(\App\Services\PartnerWalletService::class);
+        $walletService = app(PartnerWalletService::class);
         $wallet = $walletService->summary($vendor);
 
         $payments = VendorPayment::where('partner_id', $vendor->id)
             ->with('task')->latest()->paginate(15);
 
         $totals = [
-            'paid'      => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'paid')->sum('amount'),
-            'pending'   => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
-            'approved'  => (int) round($wallet['approved']),
+            'paid' => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'paid')->sum('amount'),
+            'pending' => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
+            'approved' => (int) round($wallet['approved']),
             'available' => (int) round($wallet['available']),
-            'count'     => VendorPayment::where('partner_id', $vendor->id)->count(),
+            'count' => VendorPayment::where('partner_id', $vendor->id)->count(),
         ];
 
         return view('site.vendor.payments', compact('vendor', 'payments', 'totals', 'wallet'));
@@ -561,27 +603,27 @@ class VendorController extends Controller
     public function requestPayout(Request $request)
     {
         $vendor = $this->vendor();
-        $walletService = app(\App\Services\PartnerWalletService::class);
+        $walletService = app(PartnerWalletService::class);
         $sourceType = $walletService->sourceTypeFor($vendor);
 
-        if (app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+        if (app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
             return redirect()->route('site.partner.recovery-wallet');
         }
 
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:1'],
-            'notes'  => ['nullable', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         try {
-            $payout = app(\App\Services\PartnerPayoutRequestService::class)->request(
+            $payout = app(PartnerPayoutRequestService::class)->request(
                 $vendor,
                 $sourceType,
                 (float) $data['amount'],
                 $data['notes'] ?? null,
             );
 
-            app(\App\Services\NotificationService::class)->notifyPartner(
+            app(NotificationService::class)->notifyPartner(
                 $vendor,
                 'partner_payout_requested',
                 [
@@ -602,11 +644,12 @@ class VendorController extends Controller
         $vendor = $this->vendor();
         abort_unless($payment->vendor_id === $vendor->id || $payment->partner_id === $vendor->id, 404);
         $payment->load('task');
+
         return view('site.vendor.invoice', compact('vendor', 'payment'));
     }
 
     /* ------------------------------------------------------------------ */
-    /* Calendar                                                            */
+    /* Calendar */
     /* ------------------------------------------------------------------ */
 
     public function calendar()
@@ -614,16 +657,16 @@ class VendorController extends Controller
         $vendor = $this->vendor();
 
         $start = now()->startOfWeek();
-        $end   = now()->endOfWeek()->addWeeks(3);
+        $end = now()->endOfWeek()->addWeeks(3);
 
         $items = $this->tasksQuery($vendor)
             ->whereNotNull('due_at')
             ->whereBetween('due_at', [$start, $end])
             ->orderBy('due_at')->get();
 
-        $today    = $items->filter(fn ($t) => Carbon::parse($t->due_at)->isToday());
+        $today = $items->filter(fn ($t) => Carbon::parse($t->due_at)->isToday());
         $upcoming = $items->filter(fn ($t) => Carbon::parse($t->due_at)->isFuture() && ! Carbon::parse($t->due_at)->isToday());
-        $overdue  = $this->tasksQuery($vendor)
+        $overdue = $this->tasksQuery($vendor)
             ->whereNotIn('status', ['completed', 'cancelled', 'rejected'])
             ->whereNotNull('due_at')->where('due_at', '<', now()->startOfDay())->get();
 
@@ -631,7 +674,7 @@ class VendorController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
-    /* Notifications                                                       */
+    /* Notifications */
     /* ------------------------------------------------------------------ */
 
     public function notifications()
@@ -652,7 +695,7 @@ class VendorController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
-    /* Profile                                                             */
+    /* Profile */
     /* ------------------------------------------------------------------ */
 
     public function profile(Request $request, ?string $section = null)
@@ -667,17 +710,17 @@ class VendorController extends Controller
         }
 
         if ($vendor->isAffiliate()) {
-            app(\App\Services\AffiliateService::class)->ensureCode($vendor);
+            app(AffiliateService::class)->ensureCode($vendor);
         }
 
         $common = [
-            'partner'         => $vendor,
-            'portal'          => 'vendor',
-            'profileRoute'    => 'site.partner.profile',
-            'updateRoute'     => 'site.partner.profile.update',
+            'partner' => $vendor,
+            'portal' => 'vendor',
+            'profileRoute' => 'site.partner.profile',
+            'updateRoute' => 'site.partner.profile.update',
             'layoutComponent' => 'site.vendor-layout',
-            'eyebrow'         => ucfirst(str_replace('_', ' ', $vendor->category ?? 'partner')),
-            'accountTabs'     => [
+            'eyebrow' => ucfirst(str_replace('_', ' ', $vendor->category ?? 'partner')),
+            'accountTabs' => [
                 ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.partner.profile')],
                 ['key' => 'documents', 'label' => __('site.partner_account.tab_documents'), 'url' => route('site.partner.documents')],
                 ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.partner.settings')],
@@ -686,14 +729,14 @@ class VendorController extends Controller
 
         if ($section === 'hub') {
             return view('site.partner-account.hub', $common + [
-                'title'    => __('site.partner_account.hub_title'),
+                'title' => __('site.partner_account.hub_title'),
                 'subtitle' => __('site.partner_account.hub_subtitle'),
             ]);
         }
 
         return view('site.partner-account.'.$section, $common + [
-            'title'         => __('site.partner_account.'.$section.'_section'),
-            'canChangeCode' => $vendor->isAffiliate() ? app(\App\Services\AffiliateService::class)->canChangeCode($vendor) : false,
+            'title' => __('site.partner_account.'.$section.'_section'),
+            'canChangeCode' => $vendor->isAffiliate() ? app(AffiliateService::class)->canChangeCode($vendor) : false,
         ]);
     }
 
@@ -722,7 +765,7 @@ class VendorController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
-    /* Support                                                             */
+    /* Support */
     /* ------------------------------------------------------------------ */
 
     public function support()
@@ -732,7 +775,7 @@ class VendorController extends Controller
             $vendor->isInsurance() => 'insurance',
             $vendor->isValuer() => 'valuer',
             $vendor->isGpsInstaller() => 'gps',
-            app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor) => 'recovery',
+            app(RecoveryPartnerService::class)->isRecoveryPartner($vendor) => 'recovery',
             default => 'default',
         };
         $faqs = __('site.partner_portal.faq.'.$faqKey);

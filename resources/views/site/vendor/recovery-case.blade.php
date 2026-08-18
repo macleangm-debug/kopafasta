@@ -96,8 +96,61 @@
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-4">
+            @if ($loan)
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Credit file</p>
+                    <h2 class="text-lg font-bold text-gray-900 mt-0.5">
+                        {{ $loan->status === 'defaulted' ? 'Defaulted facility' : 'Loan in arrears' }}
+                    </h2>
+                    <p class="text-sm text-gray-500 mt-0.5">Same servicing file as credit management, simplified for collections. No write-off or screening actions.</p>
+                </div>
+
+                @include('admin.loan-applications.review._management_summary_cards', [
+                    'record' => $record ?? $loan->application,
+                    'customer' => $customer,
+                    'product' => $product ?? $loan->product,
+                    'linkedLoan' => $loan,
+                    'servicing' => $servicing,
+                    'signedContract' => $signedContract ?? null,
+                    'workspaceUrl' => null,
+                    'letterDownloadUrl' => fn ($agreement) => route('site.partner.recovery-case.letter', [$assignment, $agreement]),
+                    'previewMode' => 'partner',
+                ])
+
+                @if (! empty($servicing['balance_breakdown']))
+                    <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+                        <h2 class="font-bold mb-1">Amount owed</h2>
+                        <p class="text-xs text-gray-500 mb-4">Principal, interest, penalty and recovery charges as configured in Settings.</p>
+                        <x-loan-balance-breakdown
+                            :breakdown="$servicing['balance_breakdown']"
+                            :recovery-charges="$servicing['recovery_charges'] ?? null"
+                            :expanded="true" />
+                    </div>
+                @endif
+
+                @include('site.vendor._recovery_collection_contacts')
+                @include('site.vendor._recovery_profiles')
+
+                <div id="loan-letters" class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 scroll-mt-24">
+                    <h2 class="font-bold mb-4">Letters on file</h2>
+                    @include('admin.loan-applications.review._file_letters', [
+                        'record' => $record ?? $loan->application,
+                        'offerLetter' => $offer ?? null,
+                        'loanContract' => $contract ?? null,
+                        'finalContract' => $finalContract ?? null,
+                        'signedContract' => $signedContract ?? null,
+                        'rejectionLetter' => null,
+                        'allowMutations' => false,
+                        'featureSignedContract' => true,
+                        'useAdminPreview' => false,
+                        'embedDocuments' => false,
+                        'letterDownloadUrl' => fn ($agreement) => route('site.partner.recovery-case.letter', [$assignment, $agreement]),
+                    ])
+                </div>
+            @endif
+
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-                <h2 class="font-bold mb-3">Case summary</h2>
+                <h2 class="font-bold mb-3">Assignment</h2>
                 <dl class="grid sm:grid-cols-2 gap-3 text-sm">
                     <div>
                         <dt class="text-gray-500 text-xs">Borrower</dt>
@@ -144,32 +197,6 @@
                         <dd class="font-semibold text-red-700">{{ format_money($assignment->original_outstanding) }}</dd>
                     </div>
                     <div>
-                        <dt class="text-gray-500 text-xs">Live outstanding now</dt>
-                        <dd class="font-semibold text-red-800">{{ format_money($live_outstanding ?? $assignment->original_outstanding) }}</dd>
-                    </div>
-                    @if (($penalty_outstanding ?? 0) > 0)
-                        <div>
-                            <dt class="text-gray-500 text-xs">Penalty / late fees</dt>
-                            <dd class="font-semibold text-red-700">{{ format_money($penalty_outstanding) }}</dd>
-                        </div>
-                    @endif
-                    @if (($days_past_due ?? 0) > 0)
-                        <div>
-                            <dt class="text-gray-500 text-xs">Days past due</dt>
-                            <dd class="font-semibold">{{ $days_past_due }}</dd>
-                        </div>
-                    @endif
-                    @if (! empty($next_installment))
-                        <div>
-                            <dt class="text-gray-500 text-xs">Next installment</dt>
-                            <dd class="font-semibold">{{ format_money($next_installment['amount'] ?? 0) }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-gray-500 text-xs">Next due date</dt>
-                            <dd class="font-medium">{{ optional($next_installment['due_date'] ?? null)->format('d M Y') ?? '—' }}</dd>
-                        </div>
-                    @endif
-                    <div>
                         <dt class="text-gray-500 text-xs">Your commission on this case</dt>
                         <dd class="font-semibold">{{ format_money($assignment->commission_earned) }}</dd>
                         <a href="{{ $wallet_url ?? route('site.partner.recovery-wallet') }}" class="text-xs text-brand hover:underline">Open commission wallet →</a>
@@ -186,10 +213,6 @@
                                 <span class="text-xs text-gray-500">({{ $sla_days_remaining }} days left)</span>
                             @endif
                         </dd>
-                    </div>
-                    <div class="sm:col-span-2">
-                        <dt class="text-gray-500 text-xs">Loan / contract ref</dt>
-                        <dd class="font-mono font-medium">{{ $loan?->loan_number ?? '—' }}</dd>
                     </div>
                 </dl>
                 @if ($assignment->notes)
@@ -312,6 +335,23 @@
                                     </button>
                                 </div>
                                 <div class="mt-3 space-y-2">
+                                    @if (! empty($action['requires_contact']))
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Who you contacted</label>
+                                            <select name="contacted_party" required
+                                                    class="w-full rounded-lg border-gray-300 text-sm">
+                                                <option value="">Select borrower, guarantor, next of kin, or member</option>
+                                                @foreach (($collection_contacts ?? []) as $party)
+                                                    <option value="{{ $party['key'] }}">
+                                                        {{ $party['role'] }} — {{ $party['name'] }}
+                                                        @if (! empty($party['phone_label']))
+                                                            · {{ $party['phone_label'] }}
+                                                        @endif
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    @endif
                                     @if ($needsProceeds)
                                         <div>
                                             <label class="block text-xs font-medium text-gray-600 mb-1">Auction proceeds (TZS)</label>

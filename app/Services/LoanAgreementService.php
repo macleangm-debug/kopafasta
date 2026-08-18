@@ -12,9 +12,53 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class LoanAgreementService
 {
+    /**
+     * Offer letter, pre-disbursement contract, executed contract, and the letter to show as signed.
+     *
+     * @return array{offer: ?LoanAgreement, contract: ?LoanAgreement, final: ?LoanAgreement, signed: ?LoanAgreement}
+     */
+    public function creditFileLetters(?LoanApplication $application): array
+    {
+        if (! $application) {
+            return ['offer' => null, 'contract' => null, 'final' => null, 'signed' => null];
+        }
+
+        $offer = LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'offer_letter')
+            ->latest('id')
+            ->first();
+
+        $contract = LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'loan_contract')
+            ->latest('id')
+            ->first();
+
+        $final = LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'final_loan_contract')
+            ->latest('id')
+            ->first();
+
+        $signed = null;
+        if ($final?->file_path) {
+            $signed = $final;
+        } elseif ($contract && $contract->isSigned() && $contract->file_path) {
+            $signed = $contract;
+        } elseif ($final) {
+            $signed = $final;
+        } elseif ($contract?->isSigned()) {
+            $signed = $contract;
+        }
+
+        return compact('offer', 'contract', 'final', 'signed');
+    }
+
     /**
      * Generate (or regenerate) an offer letter PDF for a loan application.
      */
@@ -34,16 +78,16 @@ class LoanAgreementService
 
         $agreement = $existing ?: new LoanAgreement([
             'loan_application_id' => $application->id,
-            'customer_id'         => $application->customer_id,
-            'document_type'       => 'offer_letter',
-            'reference'           => 'OL-'.strtoupper(Str::random(8)),
+            'customer_id' => $application->customer_id,
+            'document_type' => 'offer_letter',
+            'reference' => 'OL-'.strtoupper(Str::random(8)),
         ]);
 
         $wasSigned = $existing && $existing->isSigned();
 
         $fill = [
-            'snapshot'             => $snapshot,
-            'expires_at'           => now()->addDays(app(LegalSettingsService::class)->offerValidityDays()),
+            'snapshot' => $snapshot,
+            'expires_at' => now()->addDays(app(LegalSettingsService::class)->offerValidityDays()),
             'generated_by_user_id' => Auth::id(),
         ];
 
@@ -61,8 +105,8 @@ class LoanAgreementService
         // Render PDF
         $viewData = [
             'application' => $application,
-            'snapshot'    => $snapshot,
-            'agreement'   => $agreement,
+            'snapshot' => $snapshot,
+            'agreement' => $agreement,
         ];
         $pdf = $this->renderAgreementPdf(
             $application->product?->offerLetterTemplate,
@@ -143,22 +187,22 @@ class LoanAgreementService
 
         $agreement = $existing ?: new LoanAgreement([
             'loan_application_id' => $application->id,
-            'customer_id'         => $application->customer_id,
-            'document_type'       => 'rejection_letter',
-            'reference'           => 'RJ-'.strtoupper(Str::random(8)),
+            'customer_id' => $application->customer_id,
+            'document_type' => 'rejection_letter',
+            'reference' => 'RJ-'.strtoupper(Str::random(8)),
         ]);
 
         $agreement->fill([
-            'snapshot'             => $snapshot,
-            'status'               => 'sent',
-            'sent_at'              => now(),
+            'snapshot' => $snapshot,
+            'status' => 'sent',
+            'sent_at' => now(),
             'generated_by_user_id' => Auth::id(),
         ]);
 
         $viewData = [
             'application' => $application,
-            'snapshot'    => $snapshot,
-            'agreement'   => $agreement,
+            'snapshot' => $snapshot,
+            'agreement' => $agreement,
         ];
 
         $pdf = $this->renderAgreementPdf(null, 'pdf.rejection-letter', $viewData);
@@ -189,15 +233,15 @@ class LoanAgreementService
 
         $agreement = $existing ?: new LoanAgreement([
             'loan_application_id' => $application->id,
-            'customer_id'         => $application->customer_id,
-            'document_type'       => 'loan_contract',
-            'reference'           => 'LC-'.strtoupper(Str::random(8)),
+            'customer_id' => $application->customer_id,
+            'document_type' => 'loan_contract',
+            'reference' => 'LC-'.strtoupper(Str::random(8)),
         ]);
 
         $wasSigned = $existing && $existing->isSigned();
 
         $fill = [
-            'snapshot'             => $snapshot,
+            'snapshot' => $snapshot,
             'generated_by_user_id' => Auth::id(),
         ];
 
@@ -210,8 +254,8 @@ class LoanAgreementService
 
         $viewData = [
             'application' => $application,
-            'snapshot'    => $snapshot,
-            'agreement'   => $agreement,
+            'snapshot' => $snapshot,
+            'agreement' => $agreement,
         ];
         $template = ($application->product?->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL')
             ? ($application->product?->assetLendingAgreementTemplate ?? $application->product?->loanContractTemplate)
@@ -249,8 +293,8 @@ class LoanAgreementService
 
             $viewData = [
                 'application' => $application,
-                'snapshot'    => $snapshot,
-                'agreement'   => $agreement,
+                'snapshot' => $snapshot,
+                'agreement' => $agreement,
             ];
 
             $template = $documentType === 'offer_letter'
@@ -285,18 +329,19 @@ class LoanAgreementService
     public function issueSigningOtp(LoanAgreement $agreement): string
     {
         if ($agreement->document_type === 'offer_letter' && $agreement->isOfferExpired()) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'otp' => 'This offer has expired. Please contact the lender for a new offer letter.',
             ]);
         }
 
         $code = (string) random_int(100000, 999999);
         $agreement->update([
-            'otp_code'        => $code,
-            'otp_sent_at'     => now(),
-            'otp_expires_at'  => now()->addMinutes(10),
-            'otp_attempts'    => 0,
+            'otp_code' => $code,
+            'otp_sent_at' => now(),
+            'otp_expires_at' => now()->addMinutes(10),
+            'otp_attempts' => 0,
         ]);
+
         return $code;
     }
 
@@ -424,34 +469,34 @@ class LoanAgreementService
         $snapshot['last_due_date'] = $schedules->last()?->due_date?->toDateString();
         $snapshot['repayment_schedule'] = $schedules->map(fn ($row) => [
             'installment_no' => $row->installment_no,
-            'label'          => ($loan->product->repayment_cadence ?? 'weekly') === 'monthly'
+            'label' => ($loan->product->repayment_cadence ?? 'weekly') === 'monthly'
                 ? 'Month '.$row->installment_no
                 : 'Week '.$row->installment_no,
-            'due_date'       => $row->due_date?->toDateString(),
-            'principal_due'  => (float) $row->principal_due,
-            'interest_due'   => (float) $row->interest_due,
-            'total_due'      => (float) $row->total_due,
+            'due_date' => $row->due_date?->toDateString(),
+            'principal_due' => (float) $row->principal_due,
+            'interest_due' => (float) $row->interest_due,
+            'total_due' => (float) $row->total_due,
         ])->all();
 
         $agreement = $existing ?: new LoanAgreement([
             'loan_application_id' => $application->id,
-            'customer_id'         => $application->customer_id,
-            'document_type'       => 'repayment_schedule',
-            'reference'           => 'RS-'.strtoupper(Str::random(8)),
+            'customer_id' => $application->customer_id,
+            'document_type' => 'repayment_schedule',
+            'reference' => 'RS-'.strtoupper(Str::random(8)),
         ]);
 
         $agreement->fill([
-            'snapshot'             => $snapshot,
-            'status'               => 'sent',
-            'sent_at'              => now(),
+            'snapshot' => $snapshot,
+            'status' => 'sent',
+            'sent_at' => now(),
             'generated_by_user_id' => Auth::id(),
         ]);
 
         $viewData = [
             'application' => $application,
-            'snapshot'    => $snapshot,
-            'agreement'   => $agreement,
-            'loan'        => $loan,
+            'snapshot' => $snapshot,
+            'agreement' => $agreement,
+            'loan' => $loan,
         ];
 
         $pdf = $this->withBorrowerLocale($application, fn () => Pdf::loadView('pdf.repayment-schedule', $viewData)->setPaper('a4'));
@@ -505,14 +550,14 @@ class LoanAgreementService
             $totalDue = (float) $row->total_due;
             $outstandingAfter = max(0, round($runningBalance - (float) $row->principal_due, 2));
             $entry = [
-                'installment_no'      => $row->installment_no,
-                'label'               => ($loan->product->repayment_cadence ?? 'weekly') === 'monthly'
+                'installment_no' => $row->installment_no,
+                'label' => ($loan->product->repayment_cadence ?? 'weekly') === 'monthly'
                     ? 'Month '.$row->installment_no
                     : 'Week '.$row->installment_no,
-                'due_date'            => $row->due_date?->toDateString(),
-                'principal_due'       => (float) $row->principal_due,
-                'interest_due'        => (float) $row->interest_due,
-                'total_due'           => $totalDue,
+                'due_date' => $row->due_date?->toDateString(),
+                'principal_due' => (float) $row->principal_due,
+                'interest_due' => (float) $row->interest_due,
+                'total_due' => $totalDue,
                 'outstanding_balance' => $outstandingAfter,
             ];
             $runningBalance = $outstandingAfter;
@@ -524,31 +569,31 @@ class LoanAgreementService
             $customer = $application->customer;
             $snapshot['borrower_signature'] = (object) [
                 'signature_data' => $signedContract->acceptance_signature_data,
-                'signer_name'    => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Borrower',
-                'signed_at'      => $signedContract->signed_at,
+                'signer_name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Borrower',
+                'signed_at' => $signedContract->signed_at,
             ];
         }
 
         $agreement = $existing ?: new LoanAgreement([
             'loan_application_id' => $application->id,
-            'customer_id'         => $application->customer_id,
-            'document_type'       => 'final_loan_contract',
-            'reference'           => 'FLC-'.strtoupper(Str::random(8)),
+            'customer_id' => $application->customer_id,
+            'document_type' => 'final_loan_contract',
+            'reference' => 'FLC-'.strtoupper(Str::random(8)),
         ]);
 
         $agreement->fill([
-            'snapshot'             => $snapshot,
-            'status'               => 'signed',
-            'sent_at'              => now(),
-            'signed_at'            => now(),
+            'snapshot' => $snapshot,
+            'status' => 'signed',
+            'sent_at' => now(),
+            'signed_at' => now(),
             'generated_by_user_id' => Auth::id(),
         ]);
 
         $viewData = [
-            'application'    => $application,
-            'snapshot'       => $snapshot,
-            'agreement'      => $agreement,
-            'loan'           => $loan,
+            'application' => $application,
+            'snapshot' => $snapshot,
+            'agreement' => $agreement,
+            'loan' => $loan,
             'signedContract' => $signedContract,
         ];
 
@@ -591,13 +636,13 @@ class LoanAgreementService
         }
 
         $agreement->update([
-            'status'                    => 'signed',
-            'signed_at'                 => now(),
-            'signed_ip'                 => $ip,
-            'signed_user_agent'         => $ua ? substr($ua, 0, 255) : null,
-            'signature_method'          => $method,
+            'status' => 'signed',
+            'signed_at' => now(),
+            'signed_ip' => $ip,
+            'signed_user_agent' => $ua ? substr($ua, 0, 255) : null,
+            'signature_method' => $method,
             'acceptance_signature_data' => $acceptanceSignature,
-            'otp_code'                  => null,
+            'otp_code' => null,
         ]);
 
         if ($agreement->document_type === 'loan_contract' && $application) {
@@ -615,7 +660,7 @@ class LoanAgreementService
         $readiness = app(ApplicationDisbursementReadinessService::class);
 
         $updates = [
-            'offer_status'       => 'accepted',
+            'offer_status' => 'accepted',
             'offer_responded_at' => now(),
         ];
 
@@ -675,11 +720,11 @@ class LoanAgreementService
         ], true);
 
         $application->update([
-            'status'               => $postApproval ? 'approved' : 'awaiting_offer',
-            'offer_status'         => 'pending_borrower',
-            'offer_responded_at'   => null,
+            'status' => $postApproval ? 'approved' : 'awaiting_offer',
+            'offer_status' => 'pending_borrower',
+            'offer_responded_at' => null,
             'offer_decline_reason' => null,
-            'offer_issued_at'      => now(),
+            'offer_issued_at' => now(),
         ]);
     }
 
@@ -783,104 +828,104 @@ class LoanAgreementService
                 $groupMembers = $group->members
                     ->filter(fn ($member) => ($member->member_status ?? 'active') === 'active')
                     ->map(function ($member) use ($a) {
-                    $memberCustomer = $member->customer;
-                    $signature = $a->signatures
-                        ->where('signer_type', 'group_member')
-                        ->first(fn ($sig) => (int) ($sig->group_member_invitation_id ?? 0) === (int) ($member->group_member_invitation_id ?? 0)
-                            || ($member->role === 'leader' && $sig->signer_type === 'borrower'));
+                        $memberCustomer = $member->customer;
+                        $signature = $a->signatures
+                            ->where('signer_type', 'group_member')
+                            ->first(fn ($sig) => (int) ($sig->group_member_invitation_id ?? 0) === (int) ($member->group_member_invitation_id ?? 0)
+                                || ($member->role === 'leader' && $sig->signer_type === 'borrower'));
 
-                    if ($member->role === 'leader') {
-                        $signature = $a->signatures->firstWhere('signer_type', 'borrower') ?: $signature;
-                    }
+                        if ($member->role === 'leader') {
+                            $signature = $a->signatures->firstWhere('signer_type', 'borrower') ?: $signature;
+                        }
 
-                    $contractStatus = $member->contract_signature_status ?: 'pending';
-                    if ($contractStatus === 'pending' && $signature) {
-                        $contractStatus = 'signed';
-                    }
+                        $contractStatus = $member->contract_signature_status ?: 'pending';
+                        if ($contractStatus === 'pending' && $signature) {
+                            $contractStatus = 'signed';
+                        }
 
-                    return [
-                        'name'              => $memberCustomer?->full_name ?? '—',
-                        'customer_number'   => $memberCustomer?->customer_number,
-                        'national_id'       => $memberCustomer?->national_id,
-                        'phone'             => $memberCustomer?->phone,
-                        'role'              => $member->role,
-                        'requested_amount'  => (float) ($member->requested_amount ?? 0),
-                        'signature'         => $signature,
-                        'signature_status'  => $contractStatus,
-                    ];
-                })->values()->all();
+                        return [
+                            'name' => $memberCustomer?->full_name ?? '—',
+                            'customer_number' => $memberCustomer?->customer_number,
+                            'national_id' => $memberCustomer?->national_id,
+                            'phone' => $memberCustomer?->phone,
+                            'role' => $member->role,
+                            'requested_amount' => (float) ($member->requested_amount ?? 0),
+                            'signature' => $signature,
+                            'signature_status' => $contractStatus,
+                        ];
+                    })->values()->all();
                 $totalGroupLiability = collect($groupMembers)->sum('requested_amount');
             }
         }
 
         return [
-            'application_number'   => $a->application_number,
-            'product_name'         => $a->product->name ?? null,
-            'product_code'         => $a->product->code ?? null,
-            'principal'            => $amount,
-            'interest_rate'        => $monthlyRate,
-            'bot_regulated_rate'   => $rateBreakdown['bot_regulated_rate'],
-            'internal_fee_rate'    => $rateBreakdown['internal_fee_rate'],
+            'application_number' => $a->application_number,
+            'product_name' => $a->product->name ?? null,
+            'product_code' => $a->product->code ?? null,
+            'principal' => $amount,
+            'interest_rate' => $monthlyRate,
+            'bot_regulated_rate' => $rateBreakdown['bot_regulated_rate'],
+            'internal_fee_rate' => $rateBreakdown['internal_fee_rate'],
             'displayed_monthly_rate' => $monthlyRate,
-            'rate_breakdown'       => $rateBreakdown,
-            'hides_interest'       => (bool) ($a->product?->hidesInterest() ?? false),
-            'tenure_months'        => $tenure,
-            'repayment_cadence'    => $cadence,
-            'installment_count'    => count($schedule),
-            'estimated_emi'        => $instalment,
-            'installment_label'    => app(RepaymentScheduleGenerator::class)->installmentLabel($cadence),
-            'total_interest'       => $totalInterest,
-            'total_fees'           => $totalFees,
-            'total_repayable'      => $totalRepayable,
-            'repayment_schedule'   => $schedule,
+            'rate_breakdown' => $rateBreakdown,
+            'hides_interest' => (bool) ($a->product?->hidesInterest() ?? false),
+            'tenure_months' => $tenure,
+            'repayment_cadence' => $cadence,
+            'installment_count' => count($schedule),
+            'estimated_emi' => $instalment,
+            'installment_label' => app(RepaymentScheduleGenerator::class)->installmentLabel($cadence),
+            'total_interest' => $totalInterest,
+            'total_fees' => $totalFees,
+            'total_repayable' => $totalRepayable,
+            'repayment_schedule' => $schedule,
             'schedule_is_estimate' => true,
             'repayment_commencement_days' => $offerSettings->repaymentCommencementDays(),
-            'customer_name'        => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
-            'customer_id'          => $customer->national_id ?? null,
-            'customer_phone'       => $customer->phone ?? null,
-            'customer_address'     => $borrowerAddress ?: null,
-            'customer_activity'    => $activityLabel,
-            'customer_income'      => $customer->monthly_income
+            'customer_name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
+            'customer_id' => $customer->national_id ?? null,
+            'customer_phone' => $customer->phone ?? null,
+            'customer_address' => $borrowerAddress ?: null,
+            'customer_activity' => $activityLabel,
+            'customer_income' => $customer->monthly_income
                 ? format_money((float) $customer->monthly_income)
                 : (income_range_label($customer->income_range ?? '') ?: $customer->income_range),
-            'guarantor_name'       => $guarantor ? trim(($guarantor->first_name ?? '').' '.($guarantor->last_name ?? '')) : null,
-            'guarantor_nida'       => $guarantor?->national_id,
-            'guarantor_address'    => $guarantor?->address,
-            'guarantor_phone'      => $guarantor?->phone,
+            'guarantor_name' => $guarantor ? trim(($guarantor->first_name ?? '').' '.($guarantor->last_name ?? '')) : null,
+            'guarantor_nida' => $guarantor?->national_id,
+            'guarantor_address' => $guarantor?->address,
+            'guarantor_phone' => $guarantor?->phone,
             'guarantor_relationship' => $guarantor?->relationship,
-            'purpose'              => $a->purpose ?? null,
-            'offer_expires_at'     => ($existing = LoanAgreement::query()
+            'purpose' => $a->purpose ?? null,
+            'offer_expires_at' => ($existing = LoanAgreement::query()
                 ->where('loan_application_id', $a->id)
                 ->where('document_type', 'offer_letter')
                 ->latest('id')
                 ->first())?->expires_at?->toDateString()
                 ?? now()->addDays($legal->offerValidityDays())->toDateString(),
-            'offer_validity_days'  => $legal->offerValidityDays(),
-            'legal_clauses'        => $legal->contractClauses(),
-            'contract_sections'    => $legal->contractSections(),
-            'generated_at'         => now()->toIso8601String(),
-            'borrower_signature'   => $this->borrowerSignatureForPdf($a, 'loan_contract'),
-            'guarantor_signature'  => $a->signatures->firstWhere('signer_type', 'guarantor'),
-            'company_signatory'    => brand('legal_name'),
+            'offer_validity_days' => $legal->offerValidityDays(),
+            'legal_clauses' => $legal->contractClauses(),
+            'contract_sections' => $legal->contractSections(),
+            'generated_at' => now()->toIso8601String(),
+            'borrower_signature' => $this->borrowerSignatureForPdf($a, 'loan_contract'),
+            'guarantor_signature' => $a->signatures->firstWhere('signer_type', 'guarantor'),
+            'company_signatory' => brand('legal_name'),
             ...$this->companySignatorySnapshot($legal),
-            'is_asset_loan'        => $isAssetLoan,
-            'asset_title'          => $reservation?->asset?->title ?? ($collateral?->description),
-            'asset_supplier'       => $reservation?->asset?->supplier_name,
-            'asset_serial_number'  => $reservation?->asset?->serial_number,
+            'is_asset_loan' => $isAssetLoan,
+            'asset_title' => $reservation?->asset?->title ?? ($collateral?->description),
+            'asset_supplier' => $reservation?->asset?->supplier_name,
+            'asset_serial_number' => $reservation?->asset?->serial_number,
             'asset_chassis_number' => $reservation?->asset?->chassis_number,
-            'asset_engine_number'  => $reservation?->asset?->engine_number,
+            'asset_engine_number' => $reservation?->asset?->engine_number,
             'asset_insurance_policy' => $reservation?->asset?->insurance_policy_number,
             'asset_ownership_note' => $isAssetLoan ? config('asset_marketplace.ownership_note') : null,
-            'collateral_asset_type'=> $collateral?->asset_type,
-            'collateral_description'=> $collateral?->description,
+            'collateral_asset_type' => $collateral?->asset_type,
+            'collateral_description' => $collateral?->description,
             'collateral_market_value' => $collateral?->market_value,
             'collateral_forced_sale_value' => $collateral?->forced_sale_value,
             'collateral_gps_required' => (bool) ($collateral?->gps_required ?? false),
             'collateral_ltv_percent' => $collateral?->ltv_percent,
-            'is_group_loan'        => $isGroupLoan,
-            'group_name'           => $groupName,
-            'group_members'        => $groupMembers,
-            'total_group_liability'=> $totalGroupLiability,
+            'is_group_loan' => $isGroupLoan,
+            'group_name' => $groupName,
+            'group_members' => $groupMembers,
+            'total_group_liability' => $totalGroupLiability,
         ];
     }
 
@@ -898,8 +943,8 @@ class LoanAgreementService
 
             return (object) [
                 'signature_data' => $agreement->acceptance_signature_data,
-                'signer_name'    => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Borrower',
-                'signed_at'      => $agreement->signed_at,
+                'signer_name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Borrower',
+                'signed_at' => $agreement->signed_at,
             ];
         }
 
@@ -930,23 +975,23 @@ class LoanAgreementService
 
         $company = $signatory
             ? [
-                'company_signatory_name'  => $signatory->name,
+                'company_signatory_name' => $signatory->name,
                 'company_signatory_title' => $signatory->position,
-                'company_signature_path'  => $signatory->signatureFilesystemPath(),
-                'company_stamp_path'      => $legal->stampFilesystemPath(),
+                'company_signature_path' => $signatory->signatureFilesystemPath(),
+                'company_stamp_path' => $legal->stampFilesystemPath(),
             ]
             : [
-                'company_signatory_name'  => $legal->signatoryName() ?: brand('legal_name'),
+                'company_signatory_name' => $legal->signatoryName() ?: brand('legal_name'),
                 'company_signatory_title' => $legal->signatoryTitle(),
-                'company_signature_path'  => $legal->signatureFilesystemPath(),
-                'company_stamp_path'      => $legal->stampFilesystemPath(),
+                'company_signature_path' => $legal->signatureFilesystemPath(),
+                'company_stamp_path' => $legal->stampFilesystemPath(),
             ];
 
         $advocate = [
-            'legal_signatory_name'  => $legalSignatory?->name,
+            'legal_signatory_name' => $legalSignatory?->name,
             'legal_signatory_title' => $legalSignatory?->position,
-            'legal_signature_path'  => $legalSignatory?->signatureFilesystemPath(),
-            'legal_stamp_path'      => $legalSignatory?->stampFilesystemPath() ?? null,
+            'legal_signature_path' => $legalSignatory?->signatureFilesystemPath(),
+            'legal_stamp_path' => $legalSignatory?->stampFilesystemPath() ?? null,
         ];
 
         return array_merge($company, $advocate);

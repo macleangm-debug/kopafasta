@@ -1,5 +1,6 @@
 @php
     $customer = $review['customer'] ?? null;
+    $hideAdminLinks = $hideAdminLinks ?? false;
 @endphp
 @if (! $customer)
     <p class="text-sm text-gray-500">Personal details are not available for this file.</p>
@@ -12,7 +13,9 @@
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Personal information</p>
                 <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $customer->full_name }}</p>
             </div>
-            <a href="{{ route('admin.customers.show', $customer) }}" class="text-xs font-semibold text-brand hover:underline">Full customer record →</a>
+            @unless ($hideAdminLinks)
+                <a href="{{ route('admin.customers.show', $customer) }}" class="text-xs font-semibold text-brand hover:underline">Full customer record →</a>
+            @endunless
         </div>
         @include('admin.loan-applications.review._field-grid', [
             'fields' => [
@@ -28,7 +31,7 @@
                 ['label' => 'Membership', 'value' => $customer->isMembershipActive() ? 'Active' : 'Inactive / expired'],
             ],
         ])
-        @if (! $customer->date_of_birth || ! filled($customer->gender))
+        @if (! $hideAdminLinks && (! $customer->date_of_birth || ! filled($customer->gender)))
             <p class="mt-3 text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
                 Date of birth and gender are missing. Request a profile update before committee can rely on them.
             </p>
@@ -53,11 +56,16 @@
                     ['label' => 'Name', 'value' => $customer->nok_name],
                     ['label' => 'Relationship', 'value' => kin_relationship_label($customer->nok_relationship)],
                     ['label' => 'Phone', 'value' => $customer->nok_phone],
+                    ['label' => 'Region', 'value' => $customer->nok_region],
+                    ['label' => 'District', 'value' => $customer->nok_district],
+                    ['label' => 'Ward', 'value' => $customer->nok_ward],
+                    ['label' => 'Street / address', 'value' => $customer->nok_street, 'span' => true],
                 ],
             ])
         </div>
     </details>
 
+    @unless ($hideAdminLinks)
     <details class="group rounded-2xl ring-1 ring-gray-200 bg-white overflow-hidden">
         <summary class="cursor-pointer list-none px-5 py-3.5 flex items-center justify-between gap-3 border-b border-gray-100 [&::-webkit-details-marker]:hidden">
             <div>
@@ -66,20 +74,25 @@
             </div>
         </summary>
         <div class="p-5">
-            <a href="{{ route('admin.loan-applications.show', array_filter([
-                    'loan_application' => $record,
-                    'tab' => 'face',
-                    'person' => request('person', 'borrower'),
-                    'g' => request('g'),
-                ])) }}#borrower-file"
-               class="inline-flex text-sm font-semibold text-brand hover:underline">
-                Open Face tab →
-            </a>
+            @unless ($hideAdminLinks)
+                <a href="{{ route('admin.loan-applications.show', array_filter([
+                        'loan_application' => $record,
+                        'tab' => 'face',
+                        'person' => request('person', 'borrower'),
+                        'g' => request('g'),
+                    ])) }}#borrower-file"
+                   class="inline-flex text-sm font-semibold text-brand hover:underline">
+                    Open Face tab →
+                </a>
+            @else
+                <p class="text-sm text-gray-600">Use the Face tab on this collection file to compare the person with their ID.</p>
+            @endunless
             <div class="mt-3 flex flex-wrap gap-2">
                 <x-admin.badge :value="$customer->face_verification_status ?? 'none'" group="face_verification_status"
                     :map="['verified'=>'bg-emerald-100 text-emerald-800','pending'=>'bg-amber-100 text-amber-800','rejected'=>'bg-red-100 text-red-800']" />
             </div>
         </div>
     </details>
+    @endunless
 </div>
 @endif

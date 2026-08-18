@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Loan;
+use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
 use App\Models\LoanGroup;
@@ -12,6 +13,7 @@ use App\Models\LoanGroupMember;
 use App\Models\LoanProduct;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CreditWorkspaceUiFeatureTest extends TestCase
@@ -21,14 +23,14 @@ class CreditWorkspaceUiFeatureTest extends TestCase
     private function staff(string $role = 'admin'): User
     {
         $branch = Branch::create([
-            'code'      => 'CW'.random_int(10, 99),
-            'name'      => 'CW Branch',
-            'region'    => 'Dar',
+            'code' => 'CW'.random_int(10, 99),
+            'name' => 'CW Branch',
+            'region' => 'Dar',
             'is_active' => true,
         ]);
 
         return User::factory()->create([
-            'role'      => $role,
+            'role' => $role,
             'branch_id' => $branch->id,
             'is_active' => true,
         ]);
@@ -37,37 +39,37 @@ class CreditWorkspaceUiFeatureTest extends TestCase
     private function application(User $actor, string $stage): LoanApplication
     {
         $product = LoanProduct::create([
-            'code'              => 'CW-'.random_int(100, 999),
-            'name'              => 'CW Product',
-            'is_active'         => true,
-            'interest_rate'     => 0.18,
-            'min_amount'        => 100_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'CW-'.random_int(100, 999),
+            'name' => 'CW Product',
+            'is_active' => true,
+            'interest_rate' => 0.18,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 1,
             'tenure_max_months' => 12,
         ]);
 
         $customer = Customer::create([
-            'user_id'         => User::factory()->create(['role' => 'borrower'])->id,
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
             'customer_number' => 'CU-CW-'.random_int(100, 999),
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Workspace',
-            'last_name'       => 'Borrower',
-            'phone'           => '25571'.random_int(1000000, 9999999),
-            'branch_id'       => $actor->branch_id,
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Workspace',
+            'last_name' => 'Borrower',
+            'phone' => '25571'.random_int(1000000, 9999999),
+            'branch_id' => $actor->branch_id,
         ]);
 
         return LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $product->id,
-            'branch_id'               => $actor->branch_id,
-            'application_number'      => 'APP-CW-'.random_int(1000, 9999),
-            'requested_amount'        => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'branch_id' => $actor->branch_id,
+            'application_number' => 'APP-CW-'.random_int(1000, 9999),
+            'requested_amount' => 500_000,
             'requested_tenure_months' => 6,
-            'status'                  => 'under_review',
-            'current_stage'           => $stage,
-            'submitted_at'            => now(),
+            'status' => 'under_review',
+            'current_stage' => $stage,
+            'submitted_at' => now(),
         ]);
     }
 
@@ -101,8 +103,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             $this->assertStringNotContainsString('Partners unavailable', $profiles);
             $this->assertStringNotContainsString('>Group</a>', $profiles);
             $this->assertStringContainsString('tab=personal', $profiles);
-            $this->assertStringNotContainsString("tab=affordability", $profiles);
-            $this->assertStringNotContainsString("tab=crb", $profiles);
+            $this->assertStringNotContainsString('tab=affordability', $profiles);
+            $this->assertStringNotContainsString('tab=crb', $profiles);
         }
 
         $app = $this->application($admin, 'screening');
@@ -209,8 +211,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $app = $this->application($admin, 'approval');
         $app->forceFill([
             'offered_amount' => 400_000,
-            'offer_status'   => 'accepted',
-            'approved_at'    => now(),
+            'offer_status' => 'accepted',
+            'approved_at' => now(),
         ])->save();
 
         $html = $this->actingAs($admin, 'admin')
@@ -321,17 +323,17 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $app->update(['status' => 'disbursed', 'disbursed_at' => now()->subMonths(2)]);
 
         $loan = Loan::create([
-            'customer_id'         => $app->customer_id,
-            'loan_product_id'     => $app->loan_product_id,
+            'customer_id' => $app->customer_id,
+            'loan_product_id' => $app->loan_product_id,
             'loan_application_id' => $app->id,
-            'loan_number'         => 'LN-CW-ARRS',
-            'principal_amount'    => 50_000,
-            'approved_amount'     => 50_000,
+            'loan_number' => 'LN-CW-ARRS',
+            'principal_amount' => 50_000,
+            'approved_amount' => 50_000,
             'outstanding_balance' => 79_934,
-            'interest_rate'       => 0.18,
-            'tenure_months'       => 2,
-            'status'              => 'arrears',
-            'disbursement_date'   => now()->subMonths(2),
+            'interest_rate' => 0.18,
+            'tenure_months' => 2,
+            'status' => 'arrears',
+            'disbursement_date' => now()->subMonths(2),
         ]);
 
         $html = $this->actingAs($admin, 'admin')
@@ -344,7 +346,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Letters', $html);
         $this->assertStringContainsString('Outstanding', $html);
         $this->assertStringContainsString('Repayment health', $html);
-        $this->assertStringContainsString('Offer letter', $html);
+        $this->assertStringContainsString('Signed contract', $html);
         $this->assertStringContainsString('Loan in arrears', $html);
         $this->assertStringContainsString($loan->loan_number, $html);
         $this->assertStringNotContainsString('What you need to decide', $html);
@@ -360,74 +362,144 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ]));
     }
 
+    public function test_disbursed_letters_tab_shows_signed_contract_then_offer_letter(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('agreements/cw-offer.pdf', '%PDF-1.4 offer');
+        Storage::disk('public')->put('agreements/cw-final.pdf', '%PDF-1.4 final');
+
+        $admin = $this->staff();
+        $app = $this->application($admin, 'disbursement');
+        $app->update(['status' => 'disbursed', 'disbursed_at' => now()->subMonths(2)]);
+
+        Loan::create([
+            'customer_id' => $app->customer_id,
+            'loan_product_id' => $app->loan_product_id,
+            'loan_application_id' => $app->id,
+            'loan_number' => 'LN-CW-SIGN',
+            'principal_amount' => 50_000,
+            'approved_amount' => 50_000,
+            'outstanding_balance' => 40_000,
+            'interest_rate' => 0.18,
+            'tenure_months' => 2,
+            'status' => 'active',
+            'disbursement_date' => now()->subMonths(2),
+        ]);
+
+        LoanAgreement::create([
+            'loan_application_id' => $app->id,
+            'customer_id' => $app->customer_id,
+            'document_type' => 'offer_letter',
+            'reference' => 'OL-CW-SIGN',
+            'status' => 'signed',
+            'signed_at' => now()->subMonths(2),
+            'file_path' => 'agreements/cw-offer.pdf',
+        ]);
+        $final = LoanAgreement::create([
+            'loan_application_id' => $app->id,
+            'customer_id' => $app->customer_id,
+            'document_type' => 'final_loan_contract',
+            'reference' => 'FLC-CW-SIGN',
+            'status' => 'signed',
+            'signed_at' => now()->subMonths(2),
+            'file_path' => 'agreements/cw-final.pdf',
+        ]);
+
+        $home = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Signed contract', $home);
+        $this->assertStringContainsString('Executed', $home);
+        $this->assertStringContainsString('FLC-CW-SIGN', $home);
+
+        $letters = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'letters',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $signedPos = strpos($letters, 'Signed contract');
+        $offerPos = strpos($letters, 'Offer letter');
+        $this->assertNotFalse($signedPos);
+        $this->assertNotFalse($offerPos);
+        $this->assertLessThan($offerPos, $signedPos);
+        $this->assertStringContainsString('FLC-CW-SIGN', $letters);
+        $this->assertStringContainsString('OL-CW-SIGN', $letters);
+        $this->assertStringContainsString(route('admin.loan-agreements.download', $final), $letters);
+        $this->assertStringNotContainsString('Review checklist', $letters);
+    }
+
     public function test_disbursed_group_application_show_page_loads(): void
     {
         $admin = $this->staff();
         $product = LoanProduct::create([
-            'code'              => 'GL-CW-'.random_int(100, 999),
-            'name'              => 'Group Loan',
-            'category'          => 'group',
-            'is_active'         => true,
-            'interest_rate'     => 0.18,
-            'min_amount'        => 50_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'GL-CW-'.random_int(100, 999),
+            'name' => 'Group Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.18,
+            'min_amount' => 50_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 1,
             'tenure_max_months' => 12,
         ]);
         $leader = Customer::create([
-            'user_id'         => User::factory()->create(['role' => 'borrower'])->id,
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
             'customer_number' => 'CU-GL-L-'.random_int(100, 999),
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Gaspari',
-            'last_name'       => 'Shiliba',
-            'phone'           => '25571'.random_int(1000000, 9999999),
-            'branch_id'       => $admin->branch_id,
-            'monthly_income'  => 400_000,
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Gaspari',
+            'last_name' => 'Shiliba',
+            'phone' => '25571'.random_int(1000000, 9999999),
+            'branch_id' => $admin->branch_id,
+            'monthly_income' => 400_000,
         ]);
         $app = LoanApplication::create([
-            'customer_id'             => $leader->id,
-            'loan_product_id'         => $product->id,
-            'branch_id'               => $admin->branch_id,
-            'application_number'      => 'APP-GL-C74S',
-            'requested_amount'        => 150_000,
+            'customer_id' => $leader->id,
+            'loan_product_id' => $product->id,
+            'branch_id' => $admin->branch_id,
+            'application_number' => 'APP-GL-C74S',
+            'requested_amount' => 150_000,
             'requested_tenure_months' => 2,
-            'status'                  => 'disbursed',
-            'current_stage'           => 'disbursement',
-            'submitted_at'            => now()->subMonths(2),
-            'disbursed_at'            => now()->subMonths(2),
+            'status' => 'disbursed',
+            'current_stage' => 'disbursement',
+            'submitted_at' => now()->subMonths(2),
+            'disbursed_at' => now()->subMonths(2),
         ]);
         $group = LoanGroup::create([
-            'group_number'           => 'GRP-CW-001',
-            'name'                   => 'Demo Group',
-            'leader_customer_id'     => $leader->id,
+            'group_number' => 'GRP-CW-001',
+            'name' => 'Demo Group',
+            'leader_customer_id' => $leader->id,
             'primary_application_id' => $app->id,
-            'status'                 => 'active',
-            'target_member_count'    => 1,
+            'status' => 'active',
+            'target_member_count' => 1,
         ]);
         LoanGroupMember::create([
-            'loan_group_id'        => $group->id,
-            'customer_id'          => $leader->id,
-            'loan_application_id'  => $app->id,
-            'role'                 => 'leader',
-            'requested_amount'     => 50_000,
-            'sort_order'           => 1,
-            'onboarding_status'    => 'complete',
-            'underwriting_status'  => 'pending',
+            'loan_group_id' => $group->id,
+            'customer_id' => $leader->id,
+            'loan_application_id' => $app->id,
+            'role' => 'leader',
+            'requested_amount' => 50_000,
+            'sort_order' => 1,
+            'onboarding_status' => 'complete',
+            'underwriting_status' => 'pending',
         ]);
         $app->update(['loan_group_id' => $group->id]);
         Loan::create([
-            'customer_id'         => $leader->id,
-            'loan_product_id'     => $product->id,
+            'customer_id' => $leader->id,
+            'loan_product_id' => $product->id,
             'loan_application_id' => $app->id,
-            'loan_number'         => 'LN-GL-X6C8',
-            'principal_amount'    => 50_000,
-            'approved_amount'     => 50_000,
+            'loan_number' => 'LN-GL-X6C8',
+            'principal_amount' => 50_000,
+            'approved_amount' => 50_000,
             'outstanding_balance' => 79_934,
-            'interest_rate'       => 0.18,
-            'tenure_months'       => 2,
-            'status'              => 'arrears',
-            'disbursement_date'   => now()->subMonths(2),
+            'interest_rate' => 0.18,
+            'tenure_months' => 2,
+            'status' => 'arrears',
+            'disbursement_date' => now()->subMonths(2),
         ]);
 
         $this->actingAs($admin, 'admin')

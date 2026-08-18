@@ -2,48 +2,78 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
+use App\Models\CustomerGuarantor;
+use App\Models\Department;
+use App\Models\Lender;
+use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDocumentRequest;
+use App\Models\LoanGroupMember;
 use App\Models\LoanProduct;
 use App\Models\Setting;
+use App\Models\User;
+use App\Services\AffordabilityService;
+use App\Services\ApplicationBorrowerStatusService;
+use App\Services\ApplicationDisbursementReadinessService;
+use App\Services\ApplicationDocumentRequestService;
 use App\Services\ApplicationDocumentReviewService;
 use App\Services\ApplicationOfferService;
+use App\Services\AssetReservationService;
+use App\Services\CapacityAutoRejectService;
+use App\Services\CollateralSecureService;
+use App\Services\CreditDeskAssignmentService;
+use App\Services\GpsPartnerService;
+use App\Services\GroupLoanMemberReviewService;
+use App\Services\GroupLoanReviewService;
+use App\Services\GuarantorSupplementService;
+use App\Services\LoanAgreementService;
 use App\Services\LoanApplicationReviewService;
 use App\Services\LoanApplicationWorkflowService;
 use App\Services\LoanOriginationService;
+use App\Services\LoanRejectionReasonService;
 use App\Services\ReferenceNumberService;
 use App\Services\ScreeningChecklistService;
+use App\Services\ScreeningPartnerAvailabilityService;
 use App\Services\SmartLoanApplicationWizardService;
+use App\Services\UnderwritingAnomalyService;
+use App\Services\ValuationPartnerService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class LoanApplicationController extends ResourceController
 {
     protected string $model = LoanApplication::class;
+
     protected string $routePrefix = 'admin.loan-applications';
+
     protected string $viewFolder = 'loan-applications';
+
     protected string $singular = 'application';
 
     protected function rules(?Model $model = null): array
     {
         return [
-            'customer_id'              => ['required', 'exists:customers,id'],
-            'loan_product_id'          => ['required', 'exists:loan_products,id'],
-            'branch_id'                => ['nullable', 'exists:branches,id'],
-            'application_number'       => ['nullable', 'string', 'max:50'],
-            'requested_amount'         => ['required', 'numeric', 'min:0'],
-            'requested_tenure_months'  => ['required', 'integer', 'min:1', 'max:120'],
-            'recommended_amount'       => ['nullable', 'numeric', 'min:0'],
-            'status'                   => ['required', 'in:draft,submitted,under_review,pre_approved,approved,rejected,withdrawn,disbursed'],
-            'current_stage'            => ['nullable', 'string', 'max:80'],
-            'purpose'                  => ['nullable', 'string', 'max:500'],
-            'rejection_reason'         => ['nullable', 'string', 'max:500'],
+            'customer_id' => ['required', 'exists:customers,id'],
+            'loan_product_id' => ['required', 'exists:loan_products,id'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
+            'application_number' => ['nullable', 'string', 'max:50'],
+            'requested_amount' => ['required', 'numeric', 'min:0'],
+            'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:120'],
+            'recommended_amount' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', 'in:draft,submitted,under_review,pre_approved,approved,rejected,withdrawn,disbursed'],
+            'current_stage' => ['nullable', 'string', 'max:80'],
+            'purpose' => ['nullable', 'string', 'max:500'],
+            'rejection_reason' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -78,9 +108,9 @@ class LoanApplicationController extends ResourceController
 
         return [
             'customers' => $customers,
-            'products'  => $products,
-            'branches'  => $branches,
-            'statuses'  => [
+            'products' => $products,
+            'branches' => $branches,
+            'statuses' => [
                 'draft' => 'Draft', 'submitted' => 'Submitted', 'under_review' => 'Under review',
                 'pre_approved' => 'Pre-approved', 'approved' => 'Approved', 'rejected' => 'Rejected',
                 'withdrawn' => 'Withdrawn', 'disbursed' => 'Disbursed',
@@ -110,28 +140,28 @@ class LoanApplicationController extends ResourceController
         $formData = $this->formData();
 
         $products = LoanProduct::where('is_active', true)->orderBy('name')->get()->map(fn (LoanProduct $p) => [
-            'id'                 => $p->id,
-            'code'               => $p->code,
-            'name'               => $p->name,
-            'rate'               => (float) $p->interest_rate,
-            'min'                => (float) $p->min_amount,
-            'max'                => (float) $p->max_amount,
-            'tmin'               => (int) $p->tenure_min_months,
-            'tmax'               => (int) $p->tenure_max_months,
-            'desc'               => $p->description,
+            'id' => $p->id,
+            'code' => $p->code,
+            'name' => $p->name,
+            'rate' => (float) $p->interest_rate,
+            'min' => (float) $p->min_amount,
+            'max' => (float) $p->max_amount,
+            'tmin' => (int) $p->tenure_min_months,
+            'tmax' => (int) $p->tenure_max_months,
+            'desc' => $p->description,
             'requires_guarantor' => (bool) $p->requires_guarantor,
         ])->values();
 
         return view("admin.{$this->viewFolder}.create", [
             ...$formData,
-            'products'      => $products,
-            'wizardSteps'   => $wizard->adminStepLabels(),
-            'loanPurposes'  => config('loan_purposes', []),
+            'products' => $products,
+            'wizardSteps' => $wizard->adminStepLabels(),
+            'loanPurposes' => config('loan_purposes', []),
             'wizardDataUrl' => route('admin.loan-applications.wizard-data', ['customer' => '__ID__']),
         ]);
     }
 
-    public function wizardCustomerData(Customer $customer): \Illuminate\Http\JsonResponse
+    public function wizardCustomerData(Customer $customer): JsonResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
 
@@ -139,7 +169,7 @@ class LoanApplicationController extends ResourceController
 
         return response()->json([
             'eligibility' => $wizard->eligibilityForCustomer($customer),
-            'profile'     => $wizard->profileSections($customer),
+            'profile' => $wizard->profileSections($customer),
         ]);
     }
 
@@ -183,7 +213,7 @@ class LoanApplicationController extends ResourceController
 
         if ($record->isClosed() && $record->closedStatus() === 'rejected') {
             abort_unless(
-                app(\App\Services\CreditDeskAssignmentService::class)->canViewRejected(auth()->user()),
+                app(CreditDeskAssignmentService::class)->canViewRejected(auth()->user()),
                 403,
                 'Rejected applications are for screening and committee only.'
             );
@@ -193,7 +223,7 @@ class LoanApplicationController extends ResourceController
         $review = app(LoanApplicationReviewService::class)->dossier($record);
         $availableActions = $workflow->availableActions($record, auth()->user());
         $stageHistory = $record->stageHistory()->latest()->get();
-        $auditLogs = \App\Models\AuditLog::query()
+        $auditLogs = AuditLog::query()
             ->where('auditable_type', $record->getMorphClass())
             ->where('auditable_id', $record->id)
             ->latest()
@@ -201,54 +231,51 @@ class LoanApplicationController extends ResourceController
             ->with('user')
             ->get();
 
-        $offer = \App\Models\LoanAgreement::where('loan_application_id', $record->id)
-            ->where('document_type', 'offer_letter')
-            ->latest('id')
-            ->first();
-        $rejectionLetter = \App\Models\LoanAgreement::where('loan_application_id', $record->id)
+        $letters = app(LoanAgreementService::class)->creditFileLetters($record);
+        $offer = $letters['offer'];
+        $contract = $letters['contract'];
+        $finalContract = $letters['final'];
+        $signedContract = $letters['signed'];
+        $rejectionLetter = LoanAgreement::where('loan_application_id', $record->id)
             ->where('document_type', 'rejection_letter')
             ->latest('id')
             ->first();
 
-        $documentRequests = \App\Models\LoanApplicationDocumentRequest::with(['uploads', 'requester', 'subjectCustomer', 'groupMember.customer'])
+        $documentRequests = LoanApplicationDocumentRequest::with(['uploads', 'requester', 'subjectCustomer', 'groupMember.customer'])
             ->where('loan_application_id', $record->id)
             ->latest()
             ->get();
 
-        $affordability = app(\App\Services\AffordabilityService::class)->evaluate(
+        $affordability = app(AffordabilityService::class)->evaluate(
             $record->loadMissing(['customer', 'product'])
         );
-        $rejectionReasons = app(\App\Services\LoanRejectionReasonService::class)->grouped();
-        $rejectionAdviceOptions = app(\App\Services\LoanRejectionReasonService::class)->adviceOptions();
-        $underwritingAnomalies = app(\App\Services\UnderwritingAnomalyService::class)->forApplication($record, $review);
-        $groupedDocumentRequests = app(\App\Services\ApplicationBorrowerStatusService::class)
+        $rejectionReasons = app(LoanRejectionReasonService::class)->grouped();
+        $rejectionAdviceOptions = app(LoanRejectionReasonService::class)->adviceOptions();
+        $underwritingAnomalies = app(UnderwritingAnomalyService::class)->forApplication($record, $review);
+        $groupedDocumentRequests = app(ApplicationBorrowerStatusService::class)
             ->groupedDocumentRequests($documentRequests);
         $counterOffer = app(ApplicationOfferService::class)->maxCounterOffer($record);
-        $assetAlternativeProduct = \App\Models\LoanProduct::where('code', 'AB')->where('is_active', true)->first();
-        $contract = \App\Models\LoanAgreement::where('loan_application_id', $record->id)
-            ->where('document_type', 'loan_contract')
-            ->latest('id')
-            ->first();
-        $disbursementReadiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+        $assetAlternativeProduct = LoanProduct::where('code', 'AB')->where('is_active', true)->first();
+        $disbursementReadiness = app(ApplicationDisbursementReadinessService::class);
 
-        $valuers = app(\App\Services\ValuationPartnerService::class)->valuersForApplication($record);
-        $suggestedValuer = app(\App\Services\ValuationPartnerService::class)->suggestValuer($record);
-        $valuationReport = app(\App\Services\ValuationPartnerService::class)->reportForApplication($record);
+        $valuers = app(ValuationPartnerService::class)->valuersForApplication($record);
+        $suggestedValuer = app(ValuationPartnerService::class)->suggestValuer($record);
+        $valuationReport = app(ValuationPartnerService::class)->reportForApplication($record);
 
-        $externalLenders = \App\Models\Lender::query()
+        $externalLenders = Lender::query()
             ->where('status', 'active')
             ->when(
-                \Illuminate\Support\Facades\Schema::hasColumn('lenders', 'funding_source'),
+                Schema::hasColumn('lenders', 'funding_source'),
                 fn ($q) => $q->where(fn ($inner) => $inner->where('funding_source', 'external')->orWhereNull('funding_source'))
             )
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
-        $gpsInstallers = app(\App\Services\GpsPartnerService::class)->installersForApplication($record);
-        $suggestedGpsInstaller = app(\App\Services\GpsPartnerService::class)->suggestInstaller($record);
-        $partnerAvailability = app(\App\Services\ScreeningPartnerAvailabilityService::class)->forApplication($record);
+        $gpsInstallers = app(GpsPartnerService::class)->installersForApplication($record);
+        $suggestedGpsInstaller = app(GpsPartnerService::class)->suggestInstaller($record);
+        $partnerAvailability = app(ScreeningPartnerAvailabilityService::class)->forApplication($record);
         try {
-            $groupReview = app(\App\Services\GroupLoanReviewService::class)->dossier($record) ?? [];
+            $groupReview = app(GroupLoanReviewService::class)->dossier($record) ?? [];
         } catch (\Throwable $e) {
             report($e);
             $groupReview = [];
@@ -257,8 +284,8 @@ class LoanApplicationController extends ResourceController
             $groupReview = [];
         }
 
-        $underwritingDeptId = \App\Models\Department::query()->where('code', 'UND')->value('id');
-        $assignableAnalysts = \App\Models\User::query()
+        $underwritingDeptId = Department::query()->where('code', 'UND')->value('id');
+        $assignableAnalysts = User::query()
             ->where('is_active', true)
             ->where(function ($q) use ($underwritingDeptId) {
                 $q->whereIn('role', ['credit_analyst', 'officer', 'manager']);
@@ -279,6 +306,8 @@ class LoanApplicationController extends ResourceController
             'offer',
             'rejectionLetter',
             'contract',
+            'finalContract',
+            'signedContract',
             'documentRequests',
             'affordability',
             'rejectionReasons',
@@ -305,7 +334,7 @@ class LoanApplicationController extends ResourceController
         abort_unless($this->canManageCapacityAutoReject(), 403);
         $this->assertApplicationMutable($loan_application);
 
-        app(\App\Services\CapacityAutoRejectService::class)->fireNow($loan_application, auth()->user());
+        app(CapacityAutoRejectService::class)->fireNow($loan_application, auth()->user());
 
         return back()->with('status', 'Capacity rejection feedback sent to the borrower.');
     }
@@ -315,14 +344,14 @@ class LoanApplicationController extends ResourceController
         abort_unless($this->canManageCapacityAutoReject(), 403);
         $this->assertApplicationMutable($loan_application);
 
-        app(\App\Services\CapacityAutoRejectService::class)->cancel($loan_application, auth()->user(), 'Kept in screening by management');
+        app(CapacityAutoRejectService::class)->cancel($loan_application, auth()->user(), 'Kept in screening by management');
 
         return back()->with('status', 'Auto-reject cancelled — application stays in screening.');
     }
 
     private function canManageCapacityAutoReject(): bool
     {
-        return app(\App\Services\CapacityAutoRejectService::class)->canAct(auth()->user());
+        return app(CapacityAutoRejectService::class)->canAct(auth()->user());
     }
 
     private function assertApplicationMutable(LoanApplication $application): void
@@ -339,7 +368,7 @@ class LoanApplicationController extends ResourceController
 
         $analystId = $data['assigned_analyst_id'] ?? null;
         if ($analystId) {
-            $analyst = \App\Models\User::query()->findOrFail($analystId);
+            $analyst = User::query()->findOrFail($analystId);
             abort_unless(
                 in_array($analyst->role, ['credit_analyst', 'officer', 'manager', 'admin', 'super_admin'], true),
                 422
@@ -368,7 +397,7 @@ class LoanApplicationController extends ResourceController
         ]);
 
         try {
-            app(\App\Services\GuarantorSupplementService::class)->request(
+            app(GuarantorSupplementService::class)->request(
                 $loan_application,
                 $request->user(),
                 $data['notes'] ?? null,
@@ -391,7 +420,7 @@ class LoanApplicationController extends ResourceController
         ]);
 
         try {
-            app(\App\Services\CollateralSecureService::class)->request(
+            app(CollateralSecureService::class)->request(
                 $loan_application,
                 $request->user(),
                 $data['notes'] ?? null,
@@ -414,7 +443,7 @@ class LoanApplicationController extends ResourceController
         ]);
 
         try {
-            app(\App\Services\CollateralSecureService::class)->requestValuation(
+            app(CollateralSecureService::class)->requestValuation(
                 $loan_application,
                 $request->user(),
                 $data['notes'] ?? null,
@@ -486,7 +515,7 @@ class LoanApplicationController extends ResourceController
     public function requestGuarantorChange(
         Request $request,
         LoanApplication $loan_application,
-        \App\Models\CustomerGuarantor $customerGuarantor,
+        CustomerGuarantor $customerGuarantor,
     ): RedirectResponse {
         abort_unless(auth()->user()?->hasPermission('applications.review')
             || auth()->user()?->hasPermission('applications.view'), 403);
@@ -497,7 +526,7 @@ class LoanApplicationController extends ResourceController
         ]);
 
         try {
-            app(\App\Services\GuarantorSupplementService::class)->requestChange(
+            app(GuarantorSupplementService::class)->requestChange(
                 $loan_application,
                 $customerGuarantor,
                 $request->user(),
@@ -518,29 +547,29 @@ class LoanApplicationController extends ResourceController
         $this->assertApplicationMutable($loan_application);
 
         $data = $request->validate([
-            'action'                   => ['required', 'string', 'in:'.implode(',', array_keys(LoanApplicationWorkflowService::ACTIONS))],
-            'remarks'                  => ['nullable', 'string', 'max:1000'],
-            'rejection_reason_code'    => ['nullable', 'string', 'max:80'],
-            'rejection_reason_codes'   => ['nullable', 'array'],
+            'action' => ['required', 'string', 'in:'.implode(',', array_keys(LoanApplicationWorkflowService::ACTIONS))],
+            'remarks' => ['nullable', 'string', 'max:1000'],
+            'rejection_reason_code' => ['nullable', 'string', 'max:80'],
+            'rejection_reason_codes' => ['nullable', 'array'],
             'rejection_reason_codes.*' => ['string', 'max:80'],
             'rejection_internal_notes' => ['nullable', 'string', 'max:2000'],
-            'rejection_advice_code'    => ['nullable', 'string', 'max:80'],
-            'rejection_advice'         => ['nullable', 'string', 'max:2000'],
+            'rejection_advice_code' => ['nullable', 'string', 'max:80'],
+            'rejection_advice' => ['nullable', 'string', 'max:2000'],
             'screening_rejection_reason_code' => ['nullable', 'string', 'max:80'],
-            'recommendation_type'      => ['nullable', 'in:approve,counter,asset_alternative'],
+            'recommendation_type' => ['nullable', 'in:approve,counter,asset_alternative'],
             'recommendation_rationale' => ['nullable', 'string', 'max:80'],
-            'recommendation_notes'     => ['nullable', 'string', 'max:1000'],
-            'committee_rationale'      => ['nullable', 'string', 'max:80'],
-            'approval_reason_code'     => ['nullable', 'string', 'max:80'],
-            'approval_reason_notes'    => ['nullable', 'string', 'max:1000'],
-            'recommended_amount'       => ['nullable', 'numeric', 'min:0'],
-            'offered_amount'           => ['nullable', 'numeric', 'min:0'],
-            'offered_tenure_months'    => ['nullable', 'integer', 'min:1', 'max:120'],
-            'alternative_product_id'   => ['nullable', 'integer', 'exists:loan_products,id'],
-            'funding_source'           => ['nullable', 'in:internal,external'],
-            'preferred_lender_id'      => ['nullable', 'integer', 'exists:lenders,id'],
-            'document_presets'         => ['nullable', 'array'],
-            'document_presets.*'       => ['string', 'max:120'],
+            'recommendation_notes' => ['nullable', 'string', 'max:1000'],
+            'committee_rationale' => ['nullable', 'string', 'max:80'],
+            'approval_reason_code' => ['nullable', 'string', 'max:80'],
+            'approval_reason_notes' => ['nullable', 'string', 'max:1000'],
+            'recommended_amount' => ['nullable', 'numeric', 'min:0'],
+            'offered_amount' => ['nullable', 'numeric', 'min:0'],
+            'offered_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
+            'alternative_product_id' => ['nullable', 'integer', 'exists:loan_products,id'],
+            'funding_source' => ['nullable', 'in:internal,external'],
+            'preferred_lender_id' => ['nullable', 'integer', 'exists:lenders,id'],
+            'document_presets' => ['nullable', 'array'],
+            'document_presets.*' => ['string', 'max:120'],
         ]);
 
         if ($data['action'] === 'approve' && application_needs_funding_choice($loan_application->product)) {
@@ -622,7 +651,7 @@ class LoanApplicationController extends ResourceController
                     }
                     if (application_needs_funding_choice($loan_application->product)) {
                         $loan_application->update([
-                            'funding_source'      => $data['funding_source'],
+                            'funding_source' => $data['funding_source'],
                             'preferred_lender_id' => $data['funding_source'] === 'external'
                                 ? ($data['preferred_lender_id'] ?? null)
                                 : null,
@@ -741,8 +770,8 @@ class LoanApplicationController extends ResourceController
 
                 if ($data['action'] === 'approve' && application_needs_funding_choice($loan_application->product)) {
                     $loan_application->update([
-                        'funding_source'        => $data['funding_source'],
-                        'preferred_lender_id'   => $data['funding_source'] === 'external'
+                        'funding_source' => $data['funding_source'],
+                        'preferred_lender_id' => $data['funding_source'] === 'external'
                             ? ($data['preferred_lender_id'] ?? null)
                             : null,
                     ]);
@@ -764,7 +793,7 @@ class LoanApplicationController extends ResourceController
                 );
 
                 if ($data['action'] === 'return_for_documents' && ! empty($data['document_presets'])) {
-                    app(\App\Services\ApplicationDocumentRequestService::class)->createMany(
+                    app(ApplicationDocumentRequestService::class)->createMany(
                         $loan_application->fresh(),
                         auth()->user(),
                         $data['document_presets'],
@@ -772,7 +801,7 @@ class LoanApplicationController extends ResourceController
                     );
                 }
             }
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
 
@@ -786,8 +815,8 @@ class LoanApplicationController extends ResourceController
     public function reviewGroupMember(
         Request $request,
         LoanApplication $loan_application,
-        \App\Models\LoanGroupMember $loan_group_member,
-        \App\Services\GroupLoanMemberReviewService $review,
+        LoanGroupMember $loan_group_member,
+        GroupLoanMemberReviewService $review,
     ): RedirectResponse {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
@@ -800,8 +829,8 @@ class LoanApplicationController extends ResourceController
 
         $data = $request->validate([
             'underwriting_status' => ['required', 'string', 'in:'.implode(',', $review->allowedStatuses())],
-            'underwriting_notes'  => ['nullable', 'string', 'max:2000'],
-            'leader_feedback'     => ['nullable', 'string', 'max:2000'],
+            'underwriting_notes' => ['nullable', 'string', 'max:2000'],
+            'leader_feedback' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $review->reviewMember(
@@ -826,7 +855,7 @@ class LoanApplicationController extends ResourceController
     public function updateGroupLeaderFeedback(
         Request $request,
         LoanApplication $loan_application,
-        \App\Services\GroupLoanMemberReviewService $review,
+        GroupLoanMemberReviewService $review,
     ): RedirectResponse {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
@@ -844,15 +873,15 @@ class LoanApplicationController extends ResourceController
 
     public function groupContractProgress(
         LoanApplication $loan_application,
-        \App\Services\GroupLoanReviewService $review,
-    ): \Illuminate\Http\JsonResponse {
+        GroupLoanReviewService $review,
+    ): JsonResponse {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
         $dossier = $review->dossier($loan_application);
         abort_unless($dossier, 404);
 
         return response()->json([
-            'ok'                  => true,
+            'ok' => true,
             'contract_signatures' => $dossier['contract_signatures'] ?? null,
         ]);
     }
@@ -860,8 +889,8 @@ class LoanApplicationController extends ResourceController
     public function requestGroupMemberReplacement(
         Request $request,
         LoanApplication $loan_application,
-        \App\Models\LoanGroupMember $loan_group_member,
-        \App\Services\GroupLoanMemberReviewService $review,
+        LoanGroupMember $loan_group_member,
+        GroupLoanMemberReviewService $review,
     ): RedirectResponse {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
@@ -939,7 +968,7 @@ class LoanApplicationController extends ResourceController
             'loan_group_member_id' => $loanGroupMemberId,
         ];
 
-        $customer = \App\Models\Customer::query()->findOrFail($subjectCustomerId);
+        $customer = Customer::query()->findOrFail($subjectCustomerId);
         $count = $review->verifyAllPending($loan_application, $customer, auth()->user(), $subject);
 
         return redirect()
@@ -1050,7 +1079,7 @@ class LoanApplicationController extends ResourceController
 
         try {
             $loan = $origination->createFromApplication($loan_application);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }
 
@@ -1067,13 +1096,13 @@ class LoanApplicationController extends ResourceController
             'action' => ['required', 'in:gps_installation,insurance_active,registration_complete,release'],
         ])['action'];
 
-        $reservation = app(\App\Services\AssetReservationService::class)->reservationForApplication($loan_application);
+        $reservation = app(AssetReservationService::class)->reservationForApplication($loan_application);
         abort_unless($reservation, 404, 'No asset reservation linked to this application.');
 
-        app(\App\Services\AssetReservationService::class)->advance($reservation, $action);
+        app(AssetReservationService::class)->advance($reservation, $action);
 
         if ($action === 'release') {
-            app(\App\Services\ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($loan_application->fresh());
+            app(ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($loan_application->fresh());
         }
 
         return back()->with('status', 'Reservation status updated.');
@@ -1083,13 +1112,13 @@ class LoanApplicationController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
-        $reservation = app(\App\Services\AssetReservationService::class)->reservationForApplication($loan_application);
+        $reservation = app(AssetReservationService::class)->reservationForApplication($loan_application);
         abort_unless($reservation?->asset, 404, 'No marketplace asset linked to this application.');
 
         $data = $request->validate([
-            'serial_number'           => ['nullable', 'string', 'max:80'],
-            'chassis_number'          => ['nullable', 'string', 'max:80'],
-            'engine_number'           => ['nullable', 'string', 'max:80'],
+            'serial_number' => ['nullable', 'string', 'max:80'],
+            'chassis_number' => ['nullable', 'string', 'max:80'],
+            'engine_number' => ['nullable', 'string', 'max:80'],
             'insurance_policy_number' => ['nullable', 'string', 'max:80'],
         ]);
 

@@ -3,24 +3,37 @@
 namespace Tests\Feature;
 
 use App\Models\ArrearCase;
+use App\Models\CollectionAction;
 use App\Models\Customer;
+use App\Models\CustomerAsset;
+use App\Models\CustomerGuarantor;
+use App\Models\Guarantor;
+use App\Models\GuarantorInvitation;
 use App\Models\Loan;
+use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationAsset;
+use App\Models\LoanGroup;
+use App\Models\LoanGroupMember;
 use App\Models\LoanProduct;
 use App\Models\PartnerPayment;
 use App\Models\PartnerSettlement;
+use App\Models\PartnerTask;
 use App\Models\RecoveryAssignment;
 use App\Models\RepaymentSchedule;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\AuctionHoldService;
+use App\Services\GpsDeviceService;
 use App\Services\PartnerSettlementService;
 use App\Services\PinService;
 use App\Services\RecoveryCommissionWalletService;
 use App\Services\RecoveryPartnerKpiService;
 use App\Services\RecoveryPolicyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class Phase65RecoveryPhase2FeatureTest extends TestCase
@@ -33,55 +46,55 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
 
         $customer = Customer::create([
             'customer_number' => 'CU-P65-'.$tag,
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Borrower',
-            'last_name'       => 'Test',
-            'phone'           => '255712346'.str_pad((string) abs(crc32($tag) % 1000), 3, '0', STR_PAD_LEFT),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Borrower',
+            'last_name' => 'Test',
+            'phone' => '255712346'.str_pad((string) abs(crc32($tag) % 1000), 3, '0', STR_PAD_LEFT),
         ]);
 
         $product = LoanProduct::create([
-            'code'                => $secured ? 'AB' : 'IL',
-            'name'                => $secured ? 'Asset Backed' : 'Individual Loan',
-            'category'            => $secured ? 'asset' : 'individual',
-            'interest_rate'       => 0.15,
-            'min_amount'          => 100_000,
-            'max_amount'          => 5_000_000,
-            'tenure_min_months'   => 3,
-            'tenure_max_months'   => 12,
+            'code' => $secured ? 'AB' : 'IL',
+            'name' => $secured ? 'Asset Backed' : 'Individual Loan',
+            'category' => $secured ? 'asset' : 'individual',
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
             'requires_collateral' => $secured,
-            'is_active'           => true,
+            'is_active' => true,
         ]);
 
         $application = LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $product->id,
-            'application_number'      => 'APP-P65-'.$tag,
-            'requested_amount'        => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-P65-'.$tag,
+            'requested_amount' => 500_000,
             'requested_tenure_months' => 6,
-            'status'                  => 'disbursed',
-            'current_stage'           => 'disbursement',
+            'status' => 'disbursed',
+            'current_stage' => 'disbursement',
         ]);
 
         $loan = Loan::create([
-            'customer_id'         => $customer->id,
-            'loan_product_id'     => $product->id,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
             'loan_application_id' => $application->id,
-            'loan_number'         => 'LN-P65-'.$tag,
-            'principal_amount'    => 500_000,
-            'approved_amount'     => 500_000,
+            'loan_number' => 'LN-P65-'.$tag,
+            'principal_amount' => 500_000,
+            'approved_amount' => 500_000,
             'outstanding_balance' => 400_000,
-            'interest_rate'       => 0.15,
-            'tenure_months'       => 6,
-            'status'              => 'active',
+            'interest_rate' => 0.15,
+            'tenure_months' => 6,
+            'status' => 'active',
         ]);
 
         $arrearCase = ArrearCase::create([
-            'loan_id'           => $loan->id,
-            'days_past_due'     => 14,
+            'loan_id' => $loan->id,
+            'days_past_due' => 14,
             'amount_in_arrears' => 50_000,
-            'penalty_amount'    => 2_500,
-            'status'            => 'open',
+            'penalty_amount' => 2_500,
+            'status' => 'open',
         ]);
 
         return compact('customer', 'product', 'application', 'loan', 'arrearCase');
@@ -91,18 +104,18 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
     {
         return Vendor::create([
             'vendor_number' => 'PTR-P65-RC',
-            'name'          => 'Call Center Partner',
-            'category'      => 'call_center',
-            'status'        => 'active',
-            'phone'         => '255712346110',
+            'name' => 'Call Center Partner',
+            'category' => 'call_center',
+            'status' => 'active',
+            'phone' => '255712346110',
         ]);
     }
 
     public function test_recovery_policy_matrix_fields(): void
     {
         Setting::setMany([
-            'recovery.priority.auctioneer'         => 3,
-            'recovery.loan_types.auctioneer'       => 'AB,AL',
+            'recovery.priority.auctioneer' => 3,
+            'recovery.loan_types.auctioneer' => 'AB,AL',
             'recovery.collateral_scope.auctioneer' => 'secured',
             'recovery.auto_escalate_type.gps_partner' => false,
         ]);
@@ -137,27 +150,27 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $fixture = $this->loanFixture();
 
         RecoveryAssignment::create([
-            'arrear_case_id'       => $fixture['arrearCase']->id,
-            'vendor_id'            => $partner->id,
-            'partner_type'         => 'call_center',
-            'status'               => RecoveryAssignment::STATUS_IN_PROGRESS,
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'call_center',
+            'status' => RecoveryAssignment::STATUS_IN_PROGRESS,
             'original_outstanding' => 400_000,
-            'commission_earned'    => 10_000,
-            'sla_due_at'           => now()->addDays(3),
-            'assigned_at'          => now()->subDays(2),
+            'commission_earned' => 10_000,
+            'sla_due_at' => now()->addDays(3),
+            'assigned_at' => now()->subDays(2),
         ]);
 
         RecoveryAssignment::create([
-            'arrear_case_id'       => $fixture['arrearCase']->id,
-            'vendor_id'            => $partner->id,
-            'partner_type'         => 'call_center',
-            'status'               => RecoveryAssignment::STATUS_COMPLETED,
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'call_center',
+            'status' => RecoveryAssignment::STATUS_COMPLETED,
             'original_outstanding' => 400_000,
-            'commission_earned'    => 15_000,
-            'commission_paid'      => 0,
-            'outcome'              => 'resolved',
-            'assigned_at'          => now()->subDays(10),
-            'completed_at'         => now()->subDays(3),
+            'commission_earned' => 15_000,
+            'commission_paid' => 0,
+            'outcome' => 'resolved',
+            'assigned_at' => now()->subDays(10),
+            'completed_at' => now()->subDays(3),
         ]);
 
         $kpi = app(RecoveryPartnerKpiService::class)->kpis($partner);
@@ -174,19 +187,19 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $partner = $this->recoveryPartner();
 
         $pending = PartnerPayment::create([
-            'vendor_id'      => $partner->id,
+            'vendor_id' => $partner->id,
             'invoice_number' => 'INV-P65-P',
-            'amount'         => 12_000,
-            'status'         => 'pending',
-            'source_type'    => RecoveryCommissionWalletService::SOURCE_TYPE,
+            'amount' => 12_000,
+            'status' => 'pending',
+            'source_type' => RecoveryCommissionWalletService::SOURCE_TYPE,
         ]);
 
         PartnerPayment::create([
-            'vendor_id'      => $partner->id,
+            'vendor_id' => $partner->id,
             'invoice_number' => 'INV-P65-D',
-            'amount'         => 8_000,
-            'status'         => 'disputed',
-            'source_type'    => RecoveryCommissionWalletService::SOURCE_TYPE,
+            'amount' => 8_000,
+            'status' => 'disputed',
+            'source_type' => RecoveryCommissionWalletService::SOURCE_TYPE,
         ]);
 
         $wallet = app(RecoveryCommissionWalletService::class);
@@ -206,34 +219,34 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $fixture = $this->loanFixture();
 
         $assignment = RecoveryAssignment::create([
-            'arrear_case_id'       => $fixture['arrearCase']->id,
-            'vendor_id'            => $partner->id,
-            'partner_type'         => 'call_center',
-            'status'               => RecoveryAssignment::STATUS_COMPLETED,
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'call_center',
+            'status' => RecoveryAssignment::STATUS_COMPLETED,
             'original_outstanding' => 400_000,
-            'commission_earned'    => 20_000,
-            'commission_paid'      => 0,
-            'outcome'              => 'resolved',
-            'assigned_at'          => now()->subDays(5),
-            'completed_at'         => now(),
+            'commission_earned' => 20_000,
+            'commission_paid' => 0,
+            'outcome' => 'resolved',
+            'assigned_at' => now()->subDays(5),
+            'completed_at' => now(),
         ]);
 
         $payment = PartnerPayment::create([
-            'vendor_id'      => $partner->id,
+            'vendor_id' => $partner->id,
             'invoice_number' => 'INV-P65-PAID',
-            'amount'         => 20_000,
-            'status'         => 'approved',
-            'source_type'    => RecoveryCommissionWalletService::SOURCE_TYPE,
-            'source_id'      => $assignment->id,
+            'amount' => 20_000,
+            'status' => 'approved',
+            'source_type' => RecoveryCommissionWalletService::SOURCE_TYPE,
+            'source_id' => $assignment->id,
         ]);
 
         $settlement = PartnerSettlement::create([
-            'vendor_id'    => $partner->id,
-            'reference'    => 'PS-P65-001',
+            'vendor_id' => $partner->id,
+            'reference' => 'PS-P65-001',
             'period_start' => now()->subWeek()->toDateString(),
-            'period_end'   => now()->toDateString(),
+            'period_end' => now()->toDateString(),
             'total_amount' => 20_000,
-            'status'       => 'approved',
+            'status' => 'approved',
         ]);
 
         $payment->update(['partner_settlement_id' => $settlement->id]);
@@ -251,58 +264,58 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
 
         $response = $this->actingAs($admin, 'admin')->put(route('admin.settings.recovery.save'), [
-            'grace_period_days'       => 2,
-            'auction_hold_days'       => 4,
-            'gps_map_enabled'         => 1,
-            'fee_base'                => 'principal',
-            'auto_escalate'           => 1,
+            'grace_period_days' => 2,
+            'auction_hold_days' => 4,
+            'gps_map_enabled' => 1,
+            'fee_base' => 'principal',
+            'auto_escalate' => 1,
             'auto_assign_call_center' => 1,
-            'call_center_lead_days'   => 1,
-            'sla_days_call_center'    => 7,
+            'call_center_lead_days' => 1,
+            'sla_days_call_center' => 7,
             'commission_percent_call_center' => 10,
-            'markup_percent_call_center'     => 3,
-            'fee_type_call_center'           => 'percentage',
-            'fixed_amount_call_center'       => '',
-            'priority_call_center'             => 1,
-            'loan_types_call_center'           => 'IL,GL',
-            'collateral_scope_call_center'     => 'all',
-            'auto_escalate_type_call_center'   => 1,
-            'sla_days_debt_collector'    => 10,
+            'markup_percent_call_center' => 3,
+            'fee_type_call_center' => 'percentage',
+            'fixed_amount_call_center' => '',
+            'priority_call_center' => 1,
+            'loan_types_call_center' => 'IL,GL',
+            'collateral_scope_call_center' => 'all',
+            'auto_escalate_type_call_center' => 1,
+            'sla_days_debt_collector' => 10,
             'commission_percent_debt_collector' => 15,
-            'markup_percent_debt_collector'     => 3,
-            'fee_type_debt_collector'           => 'percentage',
-            'fixed_amount_debt_collector'       => '',
-            'priority_debt_collector'             => 2,
-            'loan_types_debt_collector'           => 'all',
-            'collateral_scope_debt_collector'     => 'all',
-            'auto_escalate_type_debt_collector'   => 1,
-            'sla_days_auctioneer'    => 11,
+            'markup_percent_debt_collector' => 3,
+            'fee_type_debt_collector' => 'percentage',
+            'fixed_amount_debt_collector' => '',
+            'priority_debt_collector' => 2,
+            'loan_types_debt_collector' => 'all',
+            'collateral_scope_debt_collector' => 'all',
+            'auto_escalate_type_debt_collector' => 1,
+            'sla_days_auctioneer' => 11,
             'commission_percent_auctioneer' => 8,
-            'markup_percent_auctioneer'     => 2,
-            'fee_type_auctioneer'           => 'percentage',
-            'fixed_amount_auctioneer'       => '',
-            'priority_auctioneer'             => 3,
-            'loan_types_auctioneer'           => 'AB',
-            'collateral_scope_auctioneer'     => 'secured',
-            'auto_escalate_type_auctioneer'   => 1,
-            'sla_days_legal_partner'    => 21,
+            'markup_percent_auctioneer' => 2,
+            'fee_type_auctioneer' => 'percentage',
+            'fixed_amount_auctioneer' => '',
+            'priority_auctioneer' => 3,
+            'loan_types_auctioneer' => 'AB',
+            'collateral_scope_auctioneer' => 'secured',
+            'auto_escalate_type_auctioneer' => 1,
+            'sla_days_legal_partner' => 21,
             'commission_percent_legal_partner' => 10,
-            'markup_percent_legal_partner'     => 5,
-            'fee_type_legal_partner'           => 'percentage',
-            'fixed_amount_legal_partner'       => '',
-            'priority_legal_partner'             => 4,
-            'loan_types_legal_partner'           => 'all',
-            'collateral_scope_legal_partner'     => 'all',
-            'auto_escalate_type_legal_partner'   => 1,
-            'sla_days_gps_partner'    => 5,
+            'markup_percent_legal_partner' => 5,
+            'fee_type_legal_partner' => 'percentage',
+            'fixed_amount_legal_partner' => '',
+            'priority_legal_partner' => 4,
+            'loan_types_legal_partner' => 'all',
+            'collateral_scope_legal_partner' => 'all',
+            'auto_escalate_type_legal_partner' => 1,
+            'sla_days_gps_partner' => 5,
             'commission_percent_gps_partner' => 5,
-            'markup_percent_gps_partner'     => 2,
-            'fee_type_gps_partner'           => 'percentage',
-            'fixed_amount_gps_partner'       => '',
-            'priority_gps_partner'             => 5,
-            'loan_types_gps_partner'           => 'all',
-            'collateral_scope_gps_partner'     => 'secured',
-            'auto_escalate_type_gps_partner'   => 0,
+            'markup_percent_gps_partner' => 2,
+            'fee_type_gps_partner' => 'percentage',
+            'fixed_amount_gps_partner' => '',
+            'priority_gps_partner' => 5,
+            'loan_types_gps_partner' => 'all',
+            'collateral_scope_gps_partner' => 'secured',
+            'auto_escalate_type_gps_partner' => 0,
             'insurance_rate_percent' => 3.5,
             'insurance_has_markup' => 0,
             'insurance_markup_percent' => 0,
@@ -344,6 +357,10 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
             'district' => 'Ilala',
             'ward' => 'Kariakoo',
             'street' => 'Uhuru St 12',
+            'nok_name' => 'Amina Kin',
+            'nok_phone' => '255712346777',
+            'nok_relationship' => 'sister',
+            'nok_district' => 'Ilala',
         ]);
 
         RepaymentSchedule::create([
@@ -363,15 +380,15 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $partner->update(['user_id' => $user->id]);
 
         $assignment = RecoveryAssignment::create([
-            'arrear_case_id'         => $fixture['arrearCase']->id,
-            'vendor_id'              => $partner->id,
-            'partner_type'           => 'call_center',
-            'status'                 => RecoveryAssignment::STATUS_IN_PROGRESS,
-            'original_outstanding'   => 400_000,
-            'commission_percent'     => 5,
-            'commission_earned'      => 20_000,
-            'sla_due_at'             => now()->addDay(),
-            'assigned_at'            => now()->subDay(),
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'call_center',
+            'status' => RecoveryAssignment::STATUS_IN_PROGRESS,
+            'original_outstanding' => 400_000,
+            'commission_percent' => 5,
+            'commission_earned' => 20_000,
+            'sla_due_at' => now()->addDay(),
+            'assigned_at' => now()->subDay(),
         ]);
 
         Setting::set('messaging.enabled', true);
@@ -391,7 +408,20 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
             ->assertSee('Send in-app reminder', false)
             ->assertSee('Uhuru St 12', false)
             ->assertSee('Open commission wallet', false)
-            ->assertSee('Activity on this assignment', false);
+            ->assertSee('Activity on this assignment', false)
+            ->assertSee('Outstanding', false)
+            ->assertSee('Repayment health', false)
+            ->assertSee('Signed contract', false)
+            ->assertSee('Credit file', false)
+            ->assertSee('Collection contacts', false)
+            ->assertSee('Amina Kin', false)
+            ->assertSee('Next of kin (borrower)', false)
+            ->assertSee('Amount owed', false)
+            ->assertSee('Principal outstanding', false)
+            ->assertSee('Profile sections', false)
+            ->assertSee('Who you contacted', false)
+            ->assertDontSee('Review checklist', false)
+            ->assertDontSee('Full customer record', false);
 
         $this->actingAs($user)
             ->post(route('site.partner.recovery-case.remind', $assignment))
@@ -402,6 +432,252 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
             'recovery_assignment_id' => $assignment->id,
             'action_type' => 'reminder_sent',
         ]);
+    }
+
+    public function test_recovery_case_shows_guarantor_group_members_and_records_who_was_called(): void
+    {
+        $fixture = $this->loanFixture(false, 'BOOK');
+        $borrower = $fixture['customer'];
+        $borrower->update([
+            'nok_name' => 'Neema Sister',
+            'nok_phone' => '255712346801',
+            'nok_relationship' => 'sister',
+        ]);
+
+        $guarantorCustomer = Customer::create([
+            'customer_number' => 'CU-P65-GBOOK',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Mama',
+            'last_name' => 'Guarantee',
+            'phone' => '255712346802',
+            'nok_name' => 'Juma Uncle',
+            'nok_phone' => '255712346803',
+        ]);
+        $guarantorRecord = Guarantor::create([
+            'first_name' => 'Mama',
+            'last_name' => 'Guarantee',
+            'phone' => '255712346802',
+            'relationship' => 'parent',
+        ]);
+        $link = CustomerGuarantor::create([
+            'customer_id' => $borrower->id,
+            'guarantor_id' => $guarantorRecord->id,
+            'loan_application_id' => $fixture['application']->id,
+            'status' => 'approved',
+        ]);
+        GuarantorInvitation::create([
+            'customer_id' => $borrower->id,
+            'loan_application_id' => $fixture['application']->id,
+            'loan_product_id' => $fixture['product']->id,
+            'customer_guarantor_id' => $link->id,
+            'guarantor_customer_id' => $guarantorCustomer->id,
+            'type' => 'internal',
+            'channel' => 'in_app',
+            'token' => 'p65-book-token',
+            'short_code' => 'P65BK',
+            'contact' => $guarantorCustomer->phone,
+            'status' => 'accepted',
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $member = Customer::create([
+            'customer_number' => 'CU-P65-MBR',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Fatma',
+            'last_name' => 'Member',
+            'phone' => '255712346804',
+        ]);
+        $group = LoanGroup::create([
+            'group_number' => 'GRP-P65-BOOK',
+            'name' => 'Collection Group',
+            'leader_customer_id' => $borrower->id,
+            'primary_application_id' => $fixture['application']->id,
+            'status' => 'active',
+            'target_member_count' => 2,
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $borrower->id,
+            'loan_application_id' => $fixture['application']->id,
+            'role' => 'leader',
+            'requested_amount' => 250_000,
+            'sort_order' => 1,
+            'member_status' => 'active',
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $member->id,
+            'loan_application_id' => $fixture['application']->id,
+            'role' => 'member',
+            'requested_amount' => 250_000,
+            'sort_order' => 2,
+            'member_status' => 'active',
+        ]);
+        $fixture['application']->update(['loan_group_id' => $group->id]);
+
+        $partner = Vendor::create([
+            'vendor_number' => 'PTR-P65-BOOK',
+            'name' => 'Book Partner',
+            'category' => 'call_center',
+            'status' => 'active',
+            'phone' => '255712346805',
+        ]);
+        $user = User::factory()->create(['role' => 'vendor']);
+        app(PinService::class)->setPin($user, '1234');
+        $partner->update(['user_id' => $user->id]);
+
+        $assignment = RecoveryAssignment::create([
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'call_center',
+            'status' => RecoveryAssignment::STATUS_IN_PROGRESS,
+            'original_outstanding' => 400_000,
+            'commission_percent' => 5,
+            'commission_earned' => 20_000,
+            'sla_due_at' => now()->addDays(3),
+            'assigned_at' => now()->subDay(),
+        ]);
+
+        $html = $this->actingAs($user)
+            ->get(route('site.partner.recovery-case', $assignment))
+            ->assertOk()
+            ->assertSee('Mama Guarantee', false)
+            ->assertSee('Neema Sister', false)
+            ->assertSee('Fatma Member', false)
+            ->assertSee('Juma Uncle', false)
+            ->assertSee('Collection contacts', false)
+            ->assertSee('Profile sections', false)
+            ->assertSee('Amount owed', false)
+            ->assertDontSee('Review checklist', false)
+            ->assertDontSee('Borrower CRB', false)
+            ->getContent();
+
+        $this->assertStringContainsString('person=guarantor', $html);
+        $this->assertStringContainsString('person=member', $html);
+
+        $this->actingAs($user)
+            ->get(route('site.partner.recovery-case', [
+                'recoveryAssignment' => $assignment,
+                'person' => 'guarantor',
+                'g' => $link->id,
+                'tab' => 'personal',
+            ]))
+            ->assertOk()
+            ->assertSee('Mama Guarantee', false)
+            ->assertSee('Juma Uncle', false);
+
+        $this->actingAs($user)
+            ->post(route('site.partner.recovery-case.action', $assignment), [
+                'action' => 'called',
+            ])
+            ->assertSessionHasErrors('contacted_party');
+
+        $this->actingAs($user)
+            ->post(route('site.partner.recovery-case.action', $assignment), [
+                'action' => 'called',
+                'contacted_party' => 'nok:borrower',
+                'notes' => 'Reached sister this morning',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('collection_actions', [
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'recovery_assignment_id' => $assignment->id,
+            'action_type' => 'phone_call',
+        ]);
+        $this->assertTrue(
+            CollectionAction::query()
+                ->where('recovery_assignment_id', $assignment->id)
+                ->where('notes', 'like', '%Next of kin (borrower)%Neema Sister%')
+                ->exists()
+        );
+    }
+
+    public function test_recovery_partner_can_open_signed_contract_from_simplified_credit_file(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('agreements/p65-final.pdf', '%PDF-1.4 signed-contract');
+        Storage::disk('public')->put('agreements/p65-offer.pdf', '%PDF-1.4 offer');
+
+        $fixture = $this->loanFixture(false, 'LETTER');
+        $fixture['loan']->update(['status' => 'arrears']);
+
+        $partner = Vendor::create([
+            'vendor_number' => 'PTR-P65-LET',
+            'name' => 'Collections Partner',
+            'category' => 'call_center',
+            'status' => 'active',
+            'phone' => '255712346199',
+        ]);
+        $user = User::factory()->create(['role' => 'vendor']);
+        app(PinService::class)->setPin($user, '1234');
+        $partner->update(['user_id' => $user->id]);
+
+        $assignment = RecoveryAssignment::create([
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'call_center',
+            'status' => RecoveryAssignment::STATUS_IN_PROGRESS,
+            'original_outstanding' => 400_000,
+            'commission_percent' => 5,
+            'commission_earned' => 20_000,
+            'sla_due_at' => now()->addDay(),
+            'assigned_at' => now()->subDay(),
+        ]);
+
+        $offer = LoanAgreement::create([
+            'loan_application_id' => $fixture['application']->id,
+            'customer_id' => $fixture['customer']->id,
+            'document_type' => 'offer_letter',
+            'reference' => 'OL-P65-LET',
+            'status' => 'signed',
+            'signed_at' => now()->subMonths(2),
+            'file_path' => 'agreements/p65-offer.pdf',
+        ]);
+        $final = LoanAgreement::create([
+            'loan_application_id' => $fixture['application']->id,
+            'customer_id' => $fixture['customer']->id,
+            'document_type' => 'final_loan_contract',
+            'reference' => 'FLC-P65-LET',
+            'status' => 'signed',
+            'signed_at' => now()->subMonths(2),
+            'file_path' => 'agreements/p65-final.pdf',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.partner.recovery-case', $assignment))
+            ->assertOk()
+            ->assertSee('Signed contract', false)
+            ->assertSee('FLC-P65-LET', false)
+            ->assertSee('OL-P65-LET', false)
+            ->assertSee('Letters on file', false)
+            ->assertDontSee('Review checklist', false);
+
+        $this->actingAs($user)
+            ->get(route('site.partner.recovery-case.letter', [$assignment, $final]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->actingAs($user)
+            ->get(route('site.partner.recovery-case.letter', [$assignment, $offer]))
+            ->assertOk();
+
+        $other = User::factory()->create(['role' => 'vendor']);
+        app(PinService::class)->setPin($other, '1234');
+        Vendor::create([
+            'vendor_number' => 'PTR-P65-OTH',
+            'name' => 'Other Collector',
+            'category' => 'call_center',
+            'status' => 'active',
+            'phone' => '255712346198',
+            'user_id' => $other->id,
+        ]);
+
+        $this->actingAs($other)
+            ->get(route('site.partner.recovery-case.letter', [$assignment, $final]))
+            ->assertNotFound();
     }
 
     public function test_repossession_starts_auction_hold_and_borrower_sees_countdown(): void
@@ -419,16 +695,16 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $fixture = $this->loanFixture(true, 'REPO');
         $partner = Vendor::create([
             'vendor_number' => 'PTR-P65-DC',
-            'name'          => 'Debt Collector Co',
-            'category'      => 'debt_collector',
-            'status'        => 'active',
-            'phone'         => '255712346120',
+            'name' => 'Debt Collector Co',
+            'category' => 'debt_collector',
+            'status' => 'active',
+            'phone' => '255712346120',
         ]);
         $user = User::factory()->create(['role' => 'vendor']);
         app(PinService::class)->setPin($user, '1234');
         $partner->update(['user_id' => $user->id]);
 
-        $task = \App\Models\PartnerTask::create([
+        $task = PartnerTask::create([
             'partner_id' => $partner->id,
             'loan_id' => $fixture['loan']->id,
             'loan_application_id' => $fixture['application']->id,
@@ -438,19 +714,19 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         ]);
 
         $assignment = RecoveryAssignment::create([
-            'arrear_case_id'       => $fixture['arrearCase']->id,
-            'vendor_id'            => $partner->id,
-            'partner_type'         => 'debt_collector',
-            'status'               => RecoveryAssignment::STATUS_IN_PROGRESS,
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'debt_collector',
+            'status' => RecoveryAssignment::STATUS_IN_PROGRESS,
             'original_outstanding' => 400_000,
-            'commission_percent'   => 10,
-            'commission_earned'    => 40_000,
-            'sla_due_at'           => now()->addDays(5),
-            'assigned_at'          => now()->subDay(),
-            'vendor_task_id'       => $task->id,
+            'commission_percent' => 10,
+            'commission_earned' => 40_000,
+            'sla_due_at' => now()->addDays(5),
+            'assigned_at' => now()->subDay(),
+            'vendor_task_id' => $task->id,
         ]);
 
-        $file = \Illuminate\Http\UploadedFile::fake()->image('repo.jpg');
+        $file = UploadedFile::fake()->image('repo.jpg');
 
         $this->actingAs($user)
             ->post(route('site.partner.recovery-case.action', $assignment), [
@@ -483,7 +759,7 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
     public function test_gps_install_persists_tracking_url_for_collateral_map(): void
     {
         $fixture = $this->loanFixture(true, 'GPS');
-        $asset = \App\Models\CustomerAsset::create([
+        $asset = CustomerAsset::create([
             'customer_id' => $fixture['customer']->id,
             'asset_type' => 'vehicle',
             'label' => 'Bajaj Boxer',
@@ -491,7 +767,7 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
             'is_active' => true,
             'metadata' => [],
         ]);
-        \App\Models\LoanApplicationAsset::create([
+        LoanApplicationAsset::create([
             'loan_application_id' => $fixture['application']->id,
             'customer_asset_id' => $asset->id,
             'asset_type' => 'vehicle',
@@ -511,7 +787,7 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         app(PinService::class)->setPin($user, '1234');
         $installer->update(['user_id' => $user->id]);
 
-        $task = \App\Models\PartnerTask::create([
+        $task = PartnerTask::create([
             'partner_id' => $installer->id,
             'loan_application_id' => $fixture['application']->id,
             'task_type' => 'gps_install',
@@ -535,17 +811,17 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $this->assertSame('https://track.example.com/device/IMEI-55', $task->gps_tracking_url);
 
         Setting::set('gps.map_enabled', false);
-        $itemsOff = app(\App\Services\GpsDeviceService::class)->collateralForLoan($fixture['loan']->fresh());
+        $itemsOff = app(GpsDeviceService::class)->collateralForLoan($fixture['loan']->fresh());
         $this->assertFalse($itemsOff[0]['can_view_asset']);
 
         Setting::set('gps.map_enabled', true);
-        $items = app(\App\Services\GpsDeviceService::class)->collateralForLoan($fixture['loan']->fresh());
+        $items = app(GpsDeviceService::class)->collateralForLoan($fixture['loan']->fresh());
         $this->assertNotEmpty($items);
         $this->assertSame('https://track.example.com/device/IMEI-55', $items[0]['tracking_url']);
         $this->assertTrue($items[0]['can_view_asset']);
         $this->assertSame('secured', $items[0]['gps_status']);
 
-        $contact = app(\App\Services\GpsDeviceService::class)->installerContactForLoan($fixture['loan']->fresh());
+        $contact = app(GpsDeviceService::class)->installerContactForLoan($fixture['loan']->fresh());
         $this->assertSame('GPS Install Co', $contact['name']);
         $this->assertSame('255712346130', $contact['phone']);
     }

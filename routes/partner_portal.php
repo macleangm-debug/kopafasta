@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Site\PartnerAccountController;
 use App\Http\Controllers\Site\VendorController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::post('/recovery-wallet/{payment}/dispute', [VendorController::class, 'disputeRecoveryPayment'])->name('recovery-wallet.dispute');
         Route::post('/recovery-wallet/payout-request', [VendorController::class, 'requestRecoveryPayout'])->name('recovery-wallet.payout-request');
         Route::get('/recovery-cases/{recoveryAssignment}', [VendorController::class, 'recoveryCase'])->name('recovery-case');
+        Route::get('/recovery-cases/{recoveryAssignment}/letters/{agreement}', [VendorController::class, 'downloadRecoveryLetter'])->name('recovery-case.letter');
         Route::post('/recovery-cases/{recoveryAssignment}/start', [VendorController::class, 'startRecoveryCase'])->name('recovery-case.start');
         Route::post('/recovery-cases/{recoveryAssignment}/actions', [VendorController::class, 'recoveryCaseAction'])->name('recovery-case.action');
         Route::post('/recovery-cases/{recoveryAssignment}/remind', [VendorController::class, 'remindRecoveryCase'])->name('recovery-case.remind');
@@ -35,7 +37,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/profile/{section?}', [VendorController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment');
         Route::put('/profile/{section}', [VendorController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
         Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
-        Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
+        Route::put('/settings/pin', [PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         Route::get('/support', [VendorController::class, 'support'])->name('support');
     });
 };
