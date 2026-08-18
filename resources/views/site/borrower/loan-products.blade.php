@@ -59,8 +59,7 @@
                     <div data-product-wrapper
                          data-category="{{ $cardCategory }}"
                          data-search="{{ $cardSearch }}"
-                         x-show="matchesWrapper($el)"
-                         x-transition.opacity.duration.200ms>
+                         x-show="matchesWrapper($el)">
                         <x-site.premium-loan-product-card :product="$product" :customer="$customer" />
                     </div>
                 @endforeach

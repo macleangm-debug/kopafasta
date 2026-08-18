@@ -79,7 +79,7 @@
                 </div>
             </div>
 
-            <div x-show="valuationFeeChannel === 'mobile_money'" x-transition>
+            <div x-show="valuationFeeChannel === 'mobile_money'" x-cloak>
                 <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.membership.mobile_money') }}</label>
                 <input type="tel" x-model="valuationFeePhone" class="w-full rounded-xl border-gray-300 px-4 py-3 text-sm focus:ring-brand" placeholder="+255 7XX XXX XXX">
             </div>

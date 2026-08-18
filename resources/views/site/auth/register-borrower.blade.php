@@ -110,7 +110,7 @@
                         @endif
 
                         {{-- Step 1: Country & phone --}}
-                        <div x-show="step === 1" x-transition>
+                        <div x-show="step === 1">
                             <h2 class="text-2xl font-bold text-gray-900">{{ __('borrower.register.country_phone_title') }}</h2>
                             <p class="mt-1 text-sm text-gray-600">{{ __('borrower.register.country_phone_body') }}</p>
 
@@ -224,7 +224,7 @@
                         </div>
 
                         {{-- Step 2: Personal --}}
-                        <div x-show="step === 2" x-cloak x-transition>
+                        <div x-show="step === 2" x-cloak>
                             <h2 class="text-2xl font-bold text-gray-900" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details')) : @js(__('borrower.register.details_title'))"></h2>
                             <p class="mt-1 text-sm text-gray-600" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details_hint')) : @js(__('borrower.register.details_body'))"></p>
 
@@ -265,7 +265,7 @@
                         </div>
 
                         {{-- Step 3: Password --}}
-                        <div x-show="step === 3" x-cloak x-transition>
+                        <div x-show="step === 3" x-cloak>
                             <h2 class="text-2xl font-bold text-gray-900">{{ __('borrower.register.password_title') }}</h2>
                             <p class="mt-1 text-sm text-gray-600">{{ __('borrower.register.password_body') }}</p>
 

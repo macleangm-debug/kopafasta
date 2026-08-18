@@ -70,7 +70,7 @@
                         @csrf
 
                         {{-- Step 1: Business --}}
-                        <div x-show="step === 1" x-transition>
+                        <div x-show="step === 1">
                             <h2 class="text-2xl font-bold text-gray-900">Tell us about your business</h2>
                             <p class="mt-1 text-sm text-gray-600">This is what borrowers will see when matched with you.</p>
 
@@ -105,7 +105,7 @@
                         </div>
 
                         {{-- Step 2: Contact --}}
-                        <div x-show="step === 2" x-cloak x-transition>
+                        <div x-show="step === 2" x-cloak>
                             <h2 class="text-2xl font-bold text-gray-900">How can we reach you?</h2>
                             <p class="mt-1 text-sm text-gray-600">We'll use these to assign jobs and confirm payments.</p>
 
@@ -123,7 +123,7 @@
                         </div>
 
                         {{-- Step 3: Password --}}
-                        <div x-show="step === 3" x-cloak x-transition>
+                        <div x-show="step === 3" x-cloak>
                             <h2 class="text-2xl font-bold text-gray-900">Secure your account</h2>
                             <p class="mt-1 text-sm text-gray-600">Choose a strong password. At least 8 characters.</p>
 

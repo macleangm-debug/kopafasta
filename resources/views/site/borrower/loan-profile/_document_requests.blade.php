@@ -94,7 +94,7 @@
         @endunless
 
         {{-- REQUESTED: do this now --}}
-        <div x-show="tab === 'requested'" x-cloak x-transition.opacity.duration.180ms role="tabpanel" class="space-y-3">
+        <div x-show="tab === 'requested'" x-cloak role="tabpanel" class="space-y-3">
             @unless ($focusedOnly)
             <div class="rounded-2xl bg-gradient-to-br from-amber-50 via-white to-white px-4 py-3.5 ring-1 ring-amber-200/80 sm:px-5">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -278,7 +278,7 @@
 
         @unless ($focusedOnly)
         {{-- SUBMITTED: quiet receipt --}}
-        <div x-show="tab === 'submitted'" x-cloak x-transition.opacity.duration.180ms role="tabpanel">
+        <div x-show="tab === 'submitted'" x-cloak role="tabpanel">
             <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
                 <div class="border-b border-gray-100 bg-gradient-to-r from-brand-muted/35 to-white px-4 py-4 sm:px-5">
                     <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand">
