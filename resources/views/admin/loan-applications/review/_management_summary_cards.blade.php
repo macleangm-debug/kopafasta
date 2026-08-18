@@ -7,7 +7,7 @@
     $workspaceUrl = $workspaceUrl ?? null;
     $letterDownloadUrl = $letterDownloadUrl ?? fn ($agreement) => route('admin.loan-agreements.download', $agreement);
     $previewMode = $previewMode ?? 'admin';
-    $lettersHref = is_callable($workspaceUrl) ? $workspaceUrl('letters') : '#loan-letters';
+    $lettersHref = is_callable($workspaceUrl) ? $workspaceUrl('documents') : '#loan-letters';
 
     $healthInArrears = (bool) ($servicing['in_arrears'] ?? false);
     $healthTone = match (true) {

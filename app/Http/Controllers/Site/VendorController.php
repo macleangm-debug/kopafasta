@@ -275,9 +275,10 @@ class VendorController extends Controller
         abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
         $service = app(LoanAgreementService::class);
-        $pdf = $service->refreshBrandedPdf($agreement);
+        $agreement = $service->ensureBrandedPdf($agreement);
+        abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
-        return response($pdf->output(), 200, $service->brandedPdfHeaders(
+        return response(Storage::disk('public')->get($agreement->file_path), 200, $service->brandedPdfHeaders(
             $agreement,
             request()->boolean('download'),
         ));

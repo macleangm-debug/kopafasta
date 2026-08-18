@@ -237,8 +237,19 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         ]);
 
         $letters = app(LoanAgreementService::class)->creditFileLetters($application);
+        $this->assertNotSame(
+            LoanAgreementDisclosureService::DOCUMENT_VERSION,
+            data_get($letters['final']?->snapshot, 'document_version'),
+        );
 
-        $this->assertSame(LoanAgreementDisclosureService::DOCUMENT_VERSION, data_get($letters['final']?->snapshot, 'document_version'));
+        $this->actingAs(User::factory()->create(['role' => 'admin']), 'admin')
+            ->get(route('admin.loan-agreements.download', $letters['final']))
+            ->assertOk();
+
+        $this->assertSame(
+            LoanAgreementDisclosureService::DOCUMENT_VERSION,
+            data_get($letters['final']->fresh()->snapshot, 'document_version'),
+        );
         $this->assertNotSame(
             '%PDF-1.4 Final Loan Contract',
             Storage::disk('public')->get('agreements/FLC-STALE.pdf'),

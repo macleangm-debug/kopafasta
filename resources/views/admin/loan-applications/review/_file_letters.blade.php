@@ -83,7 +83,7 @@
         ];
     }
 
-    $defaultTab = collect($previewTabs)->first()['key'] ?? null;
+    $defaultTab = collect($previewTabs)->pluck('key')->first();
 @endphp
 
 <div class="space-y-5">

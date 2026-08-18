@@ -73,7 +73,7 @@ class LegalSettingsService
             return $full;
         }
 
-        $hash = md5($full.'|'.(string) filemtime($full).'|v1');
+        $hash = md5($full.'|'.(string) filemtime($full).'|v2');
         $dir = storage_path('app/pdf-cache/stamps');
         $cache = $dir.'/'.$hash.'.png';
         if (is_file($cache)) {
@@ -92,26 +92,52 @@ class LegalSettingsService
 
         $width = imagesx($src);
         $height = imagesy($src);
+        $maxEdge = 400;
+        if ($width > $maxEdge || $height > $maxEdge) {
+            $scale = $maxEdge / max($width, $height);
+            $newWidth = max(1, (int) round($width * $scale));
+            $newHeight = max(1, (int) round($height * $scale));
+            $resized = imagecreatetruecolor($newWidth, $newHeight);
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+            $clearResize = imagecolorallocatealpha($resized, 0, 0, 0, 127);
+            imagefilledrectangle($resized, 0, 0, $newWidth, $newHeight, $clearResize);
+            imagealphablending($resized, true);
+            imagecopyresampled($resized, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+            imagedestroy($src);
+            $src = $resized;
+            $width = $newWidth;
+            $height = $newHeight;
+        }
+
         $dst = imagecreatetruecolor($width, $height);
         imagealphablending($dst, false);
         imagesavealpha($dst, true);
         $clear = imagecolorallocatealpha($dst, 0, 0, 0, 127);
         imagefilledrectangle($dst, 0, 0, $width, $height, $clear);
 
+        $trueColor = imageistruecolor($src);
         for ($x = 0; $x < $width; $x++) {
             for ($y = 0; $y < $height; $y++) {
-                $index = imagecolorat($src, $x, $y);
-                $rgba = imagecolorsforindex($src, $index);
-                $alpha = (int) ($rgba['alpha'] ?? 0);
-                $r = (int) ($rgba['red'] ?? 0);
-                $g = (int) ($rgba['green'] ?? 0);
-                $b = (int) ($rgba['blue'] ?? 0);
+                $pixel = imagecolorat($src, $x, $y);
+                if ($trueColor) {
+                    $alpha = ($pixel & 0x7F000000) >> 24;
+                    $r = ($pixel >> 16) & 0xFF;
+                    $g = ($pixel >> 8) & 0xFF;
+                    $b = $pixel & 0xFF;
+                } else {
+                    $rgba = imagecolorsforindex($src, $pixel);
+                    $alpha = (int) ($rgba['alpha'] ?? 0);
+                    $r = (int) ($rgba['red'] ?? 0);
+                    $g = (int) ($rgba['green'] ?? 0);
+                    $b = (int) ($rgba['blue'] ?? 0);
+                }
 
                 if ($alpha >= 120 || ($r >= 245 && $g >= 245 && $b >= 245)) {
                     continue;
                 }
 
-                imagesetpixel($dst, $x, $y, imagecolorallocatealpha($dst, $r, $g, $b, $alpha));
+                imagesetpixel($dst, $x, $y, imagecolorallocatealpha($dst, $r, $g, $b, min(127, $alpha)));
             }
         }
 

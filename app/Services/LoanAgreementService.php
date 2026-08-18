@@ -45,16 +45,6 @@ class LoanAgreementService
             ->latest('id')
             ->first();
 
-        if ($offer?->file_path) {
-            $offer = $this->ensureBrandedPdf($offer);
-        }
-        if ($contract?->file_path) {
-            $contract = $this->ensureBrandedPdf($contract);
-        }
-        if ($final?->file_path) {
-            $final = $this->ensureBrandedPdf($final);
-        }
-
         $signed = null;
         if ($final?->file_path) {
             $signed = $final;
@@ -1021,6 +1011,10 @@ class LoanAgreementService
      */
     public function refreshBrandedPdf(LoanAgreement $agreement): \Barryvdh\DomPDF\PDF
     {
+        if (function_exists('set_time_limit')) {
+            set_time_limit(120);
+        }
+
         $application = $agreement->loanApplication;
         $application?->loadMissing([
             'customer.user',

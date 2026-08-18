@@ -9,8 +9,13 @@ use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
 use App\Rules\FourDigitPin;
 use App\Services\ApplicationDisbursementReadinessService;
+use App\Services\BorrowerSignatureService;
+use App\Services\CustomerDisbursementDetailsService;
+use App\Services\GroupContractSignatureService;
 use App\Services\LoanAgreementService;
 use App\Services\NotificationService;
+use App\Services\OfferLetterExpiryService;
+use App\Services\OfferSettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -41,14 +46,14 @@ class LoanAgreementController extends Controller
             ->first();
 
         if ($agreement) {
-            $agreement = app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+            $agreement = app(OfferLetterExpiryService::class)->expireIfStale($agreement);
         }
 
         return view('site.borrower.agreement', compact('application', 'agreement', 'customer'))
             ->with([
-                'requireAcceptanceCode' => app(\App\Services\OfferSettingsService::class)->requireOfferAcceptanceCode(),
-                'canRespondToOffer'     => $this->service->borrowerCanRespondToOffer($application, $agreement),
-                'offerDeclined'         => $this->service->borrowerOfferDeclined($application, $agreement),
+                'requireAcceptanceCode' => app(OfferSettingsService::class)->requireOfferAcceptanceCode(),
+                'canRespondToOffer' => $this->service->borrowerCanRespondToOffer($application, $agreement),
+                'offerDeclined' => $this->service->borrowerOfferDeclined($application, $agreement),
             ]);
     }
 
@@ -127,13 +132,13 @@ class LoanAgreementController extends Controller
 
         $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor', 'loan.repaymentSchedules']);
         $checklist = $this->readiness->borrowerDisbursementChecklist($application);
-        $disbursementDetails = app(\App\Services\CustomerDisbursementDetailsService::class)
+        $disbursementDetails = app(CustomerDisbursementDetailsService::class)
             ->snapshotForApplication($application);
-        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $detailsService = app(CustomerDisbursementDetailsService::class);
         $snap = $contract->snapshot ?? [];
         $needsGuarantor = $this->readiness->requiresGuarantorSignature($application);
         $guarantorSigned = $this->readiness->guarantorSigned($application);
-        $borrowerSignatureAvailable = app(\App\Services\BorrowerSignatureService::class)->hasSignature($application);
+        $borrowerSignatureAvailable = app(BorrowerSignatureService::class)->hasSignature($application);
 
         $disbursed = (string) $application->status === 'disbursed'
             || in_array((string) ($application->loan?->status ?? ''), ['active', 'disbursed'], true);
@@ -144,8 +149,8 @@ class LoanAgreementController extends Controller
                 ->sortBy('installment_no')
                 ->map(fn ($row) => [
                     'installment_no' => $row->installment_no,
-                    'amount'         => (float) $row->total_due,
-                    'due_date'       => $row->due_date,
+                    'amount' => (float) $row->total_due,
+                    'due_date' => $row->due_date,
                 ])
                 ->values()
                 ->all();
@@ -153,8 +158,8 @@ class LoanAgreementController extends Controller
             $scheduleRows = collect($snap['repayment_schedule'] ?? [])
                 ->map(fn ($row) => [
                     'installment_no' => $row['installment_no'] ?? null,
-                    'amount'         => (float) ($row['total_due'] ?? 0),
-                    'due_date'       => null,
+                    'amount' => (float) ($row['total_due'] ?? 0),
+                    'due_date' => null,
                 ])
                 ->values()
                 ->all();
@@ -180,7 +185,7 @@ class LoanAgreementController extends Controller
             'scheduleRows',
             'guarantorName',
         ))->with([
-            'requireAcceptanceCode' => app(\App\Services\OfferSettingsService::class)->requireContractAcceptanceCode(),
+            'requireAcceptanceCode' => app(OfferSettingsService::class)->requireContractAcceptanceCode(),
         ]);
     }
 
@@ -189,7 +194,7 @@ class LoanAgreementController extends Controller
         $this->customerOrFail($application);
 
         $agreement = $this->offerOrFail($application);
-        app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+        app(OfferLetterExpiryService::class)->expireIfStale($agreement);
 
         if ($agreement->fresh()->isOfferExpired()) {
             return back()->with('error', 'This offer has expired. Please contact the lender for a new offer letter.');
@@ -262,7 +267,7 @@ class LoanAgreementController extends Controller
     {
         $this->customerOrFail($application);
         $agreement = $this->offerOrFail($application);
-        app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+        app(OfferLetterExpiryService::class)->expireIfStale($agreement);
         $agreement = $agreement->fresh();
 
         if (! $this->service->borrowerCanRespondToOffer($application, $agreement)) {
@@ -288,7 +293,7 @@ class LoanAgreementController extends Controller
             $this->service->generateOfferLetter($application, regenerate: true);
             $this->auditBorrower('agreement.signed', $application, [
                 'agreement_id' => $agreement->id,
-                'reference'    => $agreement->reference,
+                'reference' => $agreement->reference,
             ]);
 
             return $this->redirectAfterOfferAccepted($application, $message);
@@ -301,7 +306,7 @@ class LoanAgreementController extends Controller
     {
         $this->customerOrFail($application);
         $agreement = $this->offerOrFail($application);
-        app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+        app(OfferLetterExpiryService::class)->expireIfStale($agreement);
         $agreement = $agreement->fresh();
 
         if (! $this->service->borrowerCanRespondToOffer($application, $agreement)) {
@@ -312,7 +317,7 @@ class LoanAgreementController extends Controller
             return back()->with('error', 'This offer has expired. Please contact the lender for a new offer letter.');
         }
 
-        if (app(\App\Services\OfferSettingsService::class)->requireOfferAcceptanceCode()) {
+        if (app(OfferSettingsService::class)->requireOfferAcceptanceCode()) {
             return back()->with('error', __('borrower.agreement.pin_required'));
         }
 
@@ -326,7 +331,7 @@ class LoanAgreementController extends Controller
             $this->service->generateOfferLetter($application, regenerate: true);
             $this->auditBorrower('agreement.accepted', $application, [
                 'agreement_id' => $agreement->id,
-                'reference'    => $agreement->reference,
+                'reference' => $agreement->reference,
             ]);
 
             return $this->redirectAfterOfferAccepted($application, $message);
@@ -349,15 +354,15 @@ class LoanAgreementController extends Controller
 
         $this->service->declineOfferLetter($agreement);
         $application->update([
-            'status'               => 'withdrawn',
-            'offer_status'         => 'declined',
-            'offer_responded_at'   => now(),
+            'status' => 'withdrawn',
+            'offer_status' => 'declined',
+            'offer_responded_at' => now(),
             'offer_decline_reason' => filled($request->input('reason')) ? $request->input('reason') : null,
         ]);
 
         $this->auditBorrower('agreement.declined', $application, [
             'agreement_id' => $agreement->id,
-            'reason'       => $request->input('reason'),
+            'reason' => $request->input('reason'),
         ]);
 
         return redirect()
@@ -384,10 +389,10 @@ class LoanAgreementController extends Controller
         if ($ok) {
             $this->service->generateLoanContract($application, regenerate: true);
             app(ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($application->fresh());
-            app(\App\Services\GroupContractSignatureService::class)->syncLeaderFromContract($application->fresh());
+            app(GroupContractSignatureService::class)->syncLeaderFromContract($application->fresh());
             $this->auditBorrower('contract.signed', $application, [
                 'agreement_id' => $contract->id,
-                'reference'    => $contract->reference,
+                'reference' => $contract->reference,
             ]);
         }
 
@@ -401,7 +406,7 @@ class LoanAgreementController extends Controller
         $this->customerOrFail($application);
         $contract = $this->contractOrFail($application);
 
-        if (app(\App\Services\OfferSettingsService::class)->requireContractAcceptanceCode()) {
+        if (app(OfferSettingsService::class)->requireContractAcceptanceCode()) {
             return back()->with('error', __('borrower.contract.code_required'));
         }
 
@@ -414,10 +419,10 @@ class LoanAgreementController extends Controller
         if ($ok) {
             $this->service->generateLoanContract($application, regenerate: true);
             app(ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($application->fresh());
-            app(\App\Services\GroupContractSignatureService::class)->syncLeaderFromContract($application->fresh());
+            app(GroupContractSignatureService::class)->syncLeaderFromContract($application->fresh());
             $this->auditBorrower('contract.accepted', $application, [
                 'agreement_id' => $contract->id,
-                'reference'    => $contract->reference,
+                'reference' => $contract->reference,
             ]);
         }
 
@@ -443,7 +448,7 @@ class LoanAgreementController extends Controller
 
         $this->auditBorrower('contract.declined', $application, [
             'agreement_id' => $contract->id,
-            'reason'       => $request->input('reason'),
+            'reason' => $request->input('reason'),
         ]);
 
         return redirect()
@@ -467,9 +472,10 @@ class LoanAgreementController extends Controller
 
     private function brandedPdfResponse(LoanAgreement $agreement, Request $request): Response
     {
-        $pdf = $this->service->refreshBrandedPdf($agreement);
+        $agreement = $this->service->ensureBrandedPdf($agreement);
+        abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
-        return response($pdf->output(), 200, $this->service->brandedPdfHeaders(
+        return response(Storage::disk('public')->get($agreement->file_path), 200, $this->service->brandedPdfHeaders(
             $agreement,
             $request->boolean('download'),
         ));
