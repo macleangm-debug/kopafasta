@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CompanySignatory;
 use App\Models\Setting;
 
 class LegalSettingsService
@@ -16,10 +17,10 @@ class LegalSettingsService
 
         // Legacy keys stored under company.* before Legal settings existed.
         return match ($key) {
-            'signatory_name'  => Setting::get('company.signatory_name', $default),
+            'signatory_name' => Setting::get('company.signatory_name', $default),
             'signatory_title' => Setting::get('company.signatory_title', $default),
-            'signature_path'  => Setting::get('company.signature_path', $default),
-            default           => $default,
+            'signature_path' => Setting::get('company.signature_path', $default),
+            default => $default,
         };
     }
 
@@ -60,7 +61,69 @@ class LegalSettingsService
 
         $full = storage_path('app/public/'.ltrim((string) $path, '/'));
 
-        return is_file($full) ? $full : null;
+        return is_file($full) ? $this->transparentStampPath($full) : null;
+    }
+
+    /**
+     * Strip near-white pixels so the company stamp sits on the page without a square background.
+     */
+    public function transparentStampPath(string $full): string
+    {
+        if (! is_file($full) || ! function_exists('imagecreatefromstring') || ! function_exists('imagecreatetruecolor')) {
+            return $full;
+        }
+
+        $hash = md5($full.'|'.(string) filemtime($full).'|v1');
+        $dir = storage_path('app/pdf-cache/stamps');
+        $cache = $dir.'/'.$hash.'.png';
+        if (is_file($cache)) {
+            return $cache;
+        }
+
+        $raw = @file_get_contents($full);
+        if ($raw === false) {
+            return $full;
+        }
+
+        $src = @imagecreatefromstring($raw);
+        if ($src === false) {
+            return $full;
+        }
+
+        $width = imagesx($src);
+        $height = imagesy($src);
+        $dst = imagecreatetruecolor($width, $height);
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $clear = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+        imagefilledrectangle($dst, 0, 0, $width, $height, $clear);
+
+        for ($x = 0; $x < $width; $x++) {
+            for ($y = 0; $y < $height; $y++) {
+                $index = imagecolorat($src, $x, $y);
+                $rgba = imagecolorsforindex($src, $index);
+                $alpha = (int) ($rgba['alpha'] ?? 0);
+                $r = (int) ($rgba['red'] ?? 0);
+                $g = (int) ($rgba['green'] ?? 0);
+                $b = (int) ($rgba['blue'] ?? 0);
+
+                if ($alpha >= 120 || ($r >= 245 && $g >= 245 && $b >= 245)) {
+                    continue;
+                }
+
+                imagesetpixel($dst, $x, $y, imagecolorallocatealpha($dst, $r, $g, $b, $alpha));
+            }
+        }
+
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        imagepng($dst, $cache);
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        return is_file($cache) ? $cache : $full;
     }
 
     public function offerValidityDays(): int
@@ -77,17 +140,17 @@ class LegalSettingsService
     public function contractSections(): array
     {
         $defaults = [
-            'definitions'            => true,
-            'loan_terms'             => true,
-            'repayment_obligations'  => true,
-            'default_events'         => true,
-            'penalty_clauses'        => true,
-            'recovery_clauses'       => true,
-            'guarantor_obligations'  => true,
-            'legal_costs'            => true,
-            'jurisdiction'           => true,
-            'data_privacy'           => true,
-            'signatures'             => true,
+            'definitions' => true,
+            'loan_terms' => true,
+            'repayment_obligations' => true,
+            'default_events' => true,
+            'penalty_clauses' => true,
+            'recovery_clauses' => true,
+            'guarantor_obligations' => true,
+            'legal_costs' => true,
+            'jurisdiction' => true,
+            'data_privacy' => true,
+            'signatures' => true,
         ];
 
         $stored = Setting::get('legal.contract_sections');
@@ -98,14 +161,14 @@ class LegalSettingsService
         return array_merge($defaults, array_map('boolval', $stored));
     }
 
-    public function activeSignatory(): ?\App\Models\CompanySignatory
+    public function activeSignatory(): ?CompanySignatory
     {
         return $this->activeCeoSignatory();
     }
 
-    public function activeCeoSignatory(): ?\App\Models\CompanySignatory
+    public function activeCeoSignatory(): ?CompanySignatory
     {
-        $ceo = \App\Models\CompanySignatory::query()
+        $ceo = CompanySignatory::query()
             ->where('is_active', true)
             ->where('signatory_type', 'ceo')
             ->orderBy('id')
@@ -115,7 +178,7 @@ class LegalSettingsService
             return $ceo;
         }
 
-        $company = \App\Models\CompanySignatory::query()
+        $company = CompanySignatory::query()
             ->where('is_active', true)
             ->where(function ($q) {
                 $q->where('signatory_type', 'company')->orWhereNull('signatory_type');
@@ -127,23 +190,23 @@ class LegalSettingsService
             return $company;
         }
 
-        return \App\Models\CompanySignatory::query()
+        return CompanySignatory::query()
             ->where('is_active', true)
             ->whereNotIn('signatory_type', ['legal_advocate', 'finance_manager'])
             ->orderBy('id')
             ->first();
     }
 
-    public function activeFinanceSignatory(): ?\App\Models\CompanySignatory
+    public function activeFinanceSignatory(): ?CompanySignatory
     {
-        return \App\Models\CompanySignatory::query()
+        return CompanySignatory::query()
             ->where('is_active', true)
             ->where('signatory_type', 'finance_manager')
             ->orderBy('id')
             ->first();
     }
 
-    public function activeLegalSignatory(): ?\App\Models\CompanySignatory
+    public function activeLegalSignatory(): ?CompanySignatory
     {
         return $this->activeFinanceSignatory();
     }
@@ -158,24 +221,24 @@ class LegalSettingsService
 
         $basisLabel = match ($penaltyBasis) {
             'per_month' => 'per month',
-            'one_time'  => 'one-time',
-            default     => 'per day',
+            'one_time' => 'one-time',
+            default => 'per day',
         };
 
         return [
-            'penalty_rate'        => $penaltyRate,
-            'penalty_rate_label'  => format_number($penaltyRate, 2).'% '.$basisLabel.' on overdue balance',
-            'grace_days'          => $graceDays,
+            'penalty_rate' => $penaltyRate,
+            'penalty_rate_label' => format_number($penaltyRate, 2).'% '.$basisLabel.' on overdue balance',
+            'grace_days' => $graceDays,
             'penalty_cap_percent' => $penaltyCap,
-            'collection_charge'   => (string) $this->get('collection_fee_text', 'Actual cost incurred'),
-            'legal_recovery'      => (string) $this->get('legal_recovery_text', 'Borrower responsible for all legal recovery costs'),
-            'jurisdiction'        => $this->jurisdiction(),
-            'default_clause'      => (string) $this->get('default_clause', 'Failure to pay any instalment by the due date constitutes default after the grace period.'),
-            'collection_clause'   => (string) $this->get('collection_clause', 'The lender may contact the borrower by phone, SMS, email, or in person to recover overdue amounts.'),
-            'recovery_clause'     => (string) $this->get('recovery_clause', 'Persistent default may result in legal recovery action and reporting to credit reference bureaus.'),
-            'penalty_clause'      => (string) $this->get('penalty_clause', 'Penalty interest applies as stated in the schedule of charges. Collection fees are added on top of amount owed when a recovery partner is assigned.'),
-            'legal_cost_clause'   => (string) $this->get('legal_cost_clause', 'The borrower shall bear all reasonable legal costs incurred in recovering overdue amounts.'),
-            'guarantor_clause'    => (string) $this->get('guarantor_clause', 'Where a guarantor has signed, they become jointly and severally liable for repayment.'),
+            'collection_charge' => (string) $this->get('collection_fee_text', 'Actual cost incurred'),
+            'legal_recovery' => (string) $this->get('legal_recovery_text', 'Borrower responsible for all legal recovery costs'),
+            'jurisdiction' => $this->jurisdiction(),
+            'default_clause' => (string) $this->get('default_clause', 'Failure to pay any instalment by the due date constitutes default after the grace period.'),
+            'collection_clause' => (string) $this->get('collection_clause', 'The lender may contact the borrower by phone, SMS, email, or in person to recover overdue amounts.'),
+            'recovery_clause' => (string) $this->get('recovery_clause', 'Persistent default may result in legal recovery action and reporting to credit reference bureaus.'),
+            'penalty_clause' => (string) $this->get('penalty_clause', 'Penalty interest applies as stated in the schedule of charges. Collection fees are added on top of amount owed when a recovery partner is assigned.'),
+            'legal_cost_clause' => (string) $this->get('legal_cost_clause', 'The borrower shall bear all reasonable legal costs incurred in recovering overdue amounts.'),
+            'guarantor_clause' => (string) $this->get('guarantor_clause', 'Where a guarantor has signed, they become jointly and severally liable for repayment.'),
             'asset_recovery_clause' => (string) $this->get('asset_recovery_clause', 'The lender may recover financed assets or collateral in accordance with applicable law and the asset lending terms.'),
         ];
     }

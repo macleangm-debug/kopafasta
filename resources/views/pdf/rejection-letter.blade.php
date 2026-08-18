@@ -2,59 +2,27 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
 <meta charset="UTF-8">
-<title>{{ __('borrower.rejection_letter.pdf.title', ['reference' => $agreement->reference]) }}</title>
+<title>{{ pdf_text(__('borrower.rejection_letter.pdf.title', ['reference' => $agreement->reference])) }}</title>
+@include('pdf.loan-agreement._styles')
 <style>
-    @page { margin: 0; }
-    body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1c2b24; line-height: 1.55; margin: 0; }
-    .band { background: #0f3d2e; color: #fff; padding: 22px 28px 18px; }
-    .band h1 { font-size: 20px; margin: 0; letter-spacing: 0.5px; color: #f5c842; }
-    .band .tag { font-size: 10px; color: rgba(255,255,255,0.75); margin-top: 4px; }
-    .gold-bar { height: 4px; background: #f5c842; }
-    .wrap { padding: 22px 28px 28px; }
-    h2 { font-size: 12px; margin: 18px 0 8px; color: #0f3d2e; text-transform: uppercase; letter-spacing: 1.2px; border-bottom: 1px solid #e5ebe7; padding-bottom: 4px; }
-    .muted { color: #6b7c74; font-size: 10px; }
-    .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; background: #f5c842; color: #0f3d2e; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-    table.kv { width: 100%; border-collapse: collapse; }
-    table.kv td { padding: 7px 0; vertical-align: top; border-bottom: 1px solid #eef2ef; }
-    table.kv td.label { color: #6b7c74; width: 40%; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
-    table.kv td.value { color: #12241c; font-weight: 600; }
-    .notice { margin-top: 14px; padding: 12px 14px; background: #faf6f1; border-left: 3px solid #b45309; font-size: 10.5px; }
+    .notice { background: #faf6f1; border-left: 3px solid #b45309; }
     .fail-box { margin-top: 12px; padding: 12px 14px; background: #fff7f7; border: 1px solid #fecaca; font-size: 10.5px; }
     .fail-box li { margin: 4px 0; }
     .advice { margin-top: 12px; padding: 12px 14px; background: #f7faf8; border-left: 3px solid #f5c842; font-size: 10.5px; }
-    .footer { margin-top: 22px; font-size: 9px; color: #8a9a92; border-top: 1px solid #e5ebe7; padding-top: 8px; }
-    .sig-img { max-height: 46px; max-width: 150px; margin: 8px 0 4px; }
-    .stamp-img { max-height: 70px; max-width: 70px; margin-top: 4px; }
-    .meta { text-align: right; }
-    .logo { max-height: 36px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
 @php
-    $logo = public_path('images/brand/kopafasta-mark.png');
-    if (! is_file($logo)) {
-        $logo = public_path('images/brand/kopafasta-logo.png');
-    }
     $failed = $snapshot['failed_members'] ?? data_get($snapshot, 'capacity_auto_reject.failed_members', []);
 @endphp
 
-<div class="band">
-    <table style="width:100%"><tr>
-        <td>
-            @if (is_file($logo))
-                <img src="{{ $logo }}" class="logo" alt="">
-            @endif
-            <h1>{{ brand('legal_name') }}</h1>
-            <div class="tag">{{ __('borrower.rejection_letter.pdf.tagline') }}</div>
-        </td>
-        <td class="meta">
-            <div class="pill">{{ __('borrower.rejection_letter.pdf.pill') }}</div>
-            <div class="tag" style="margin-top:8px;color:rgba(255,255,255,0.85)">{{ __('borrower.rejection_letter.pdf.reference') }}: <strong>{{ $agreement->reference }}</strong></div>
-            <div class="tag" style="color:rgba(255,255,255,0.85)">{{ __('borrower.rejection_letter.pdf.date') }}: {{ \Illuminate\Support\Carbon::parse($snapshot['rejected_at'] ?? now())->format('d M Y') }}</div>
-        </td>
-    </tr></table>
-</div>
-<div class="gold-bar"></div>
+@include('pdf._brand_band', [
+    'bandTitle' => $snapshot['company_legal_name'] ?? brand('legal_name'),
+    'bandTag' => pdf_text(__('borrower.rejection_letter.pdf.tagline')),
+    'bandMeta' => '<div class="pill">'.e(pdf_text(__('borrower.rejection_letter.pdf.pill'))).'</div>'
+        .'<div class="tag" style="margin-top:8px">'.e(pdf_text(__('borrower.rejection_letter.pdf.reference'))).': <strong>'.e($agreement->reference).'</strong></div>'
+        .'<div class="tag">'.e(pdf_text(__('borrower.rejection_letter.pdf.date'))).': '.e(\Illuminate\Support\Carbon::parse($snapshot['rejected_at'] ?? now())->format('d M Y')).'</div>',
+])
 
 <div class="wrap">
     <p>{{ __('borrower.rejection_letter.pdf.greeting', ['name' => $snapshot['customer_name'] ?: __('borrower.rejection_letter.pdf.customer_fallback')]) }}</p>

@@ -1,4 +1,4 @@
-@include('pdf.loan-agreement._locale')
+@php require resource_path('views/pdf/loan-agreement/locale.php'); @endphp
 @php
     $company = $snapshot['company_legal_name'] ?? brand('legal_name');
     $cadences = __('borrower.agreement.repayment_cadences');
@@ -168,7 +168,7 @@
     @if ($isSw)
         <p>Mdhamini amekagua wajibu wa Mkopaji na, kwa kuzingatia sheria, anakubali kuwajibika kwa pamoja na kwa kila mmoja. Hiyo inamaanisha Kopafasta inaweza kudai malipo kutoka kwa Mkopaji, Mdhamini, au wote wawili, bila kwanza kumaliza urejeshaji dhidi ya mmoja, kwa kiwango kinachoruhusiwa na sheria. Wajibu unaweza kujumuisha msingi, riba, adhabu na gharama za urejeshaji zilizoingia na kurekodiwa ipasavyo. Udhamini unaendelea hadi wajibu uliodhaminiwa utakapotimilika kabisa, kwa kuzingatia sheria.</p>
     @else
-        <p>The Guarantor has reviewed the Borrower’s obligations and, subject to applicable law, agrees to be jointly and severally liable. That means Kopafasta may seek payment from the Borrower, the Guarantor, or both, without first exhausting recovery against one of them, to the extent permitted by law. Liability may include principal, interest, penalties and recovery charges that have properly accrued and been posted. The guarantee remains until the guaranteed obligations are fully discharged, subject to applicable law.</p>
+        <p>The Guarantor has reviewed the Borrower's obligations and, subject to applicable law, agrees to be jointly and severally liable. That means Kopafasta may seek payment from the Borrower, the Guarantor, or both, without first exhausting recovery against one of them, to the extent permitted by law. Liability may include principal, interest, penalties and recovery charges that have properly accrued and been posted. The guarantee remains until the guaranteed obligations are fully discharged, subject to applicable law.</p>
     @endif
 @else
 <p class="na">{{ $na }}</p>
@@ -190,7 +190,7 @@
     <tbody>
         @foreach (($snapshot['group_members'] ?? []) as $member)
             <tr>
-                <td>{{ ucfirst($member['role'] ?? 'member') }}</td>
+                <td>{{ $roleLabel($member['role'] ?? null) }}</td>
                 <td>{{ $member['name'] ?? '—' }}</td>
                 <td>{{ $member['national_id'] ?? '—' }}</td>
                 <td>{{ $member['phone'] ?? '—' }}</td>

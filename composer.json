@@ -35,6 +35,7 @@
             "app/Helpers/currency.php",
             "app/Helpers/profile_labels.php",
             "app/Helpers/branding.php",
+            "app/Helpers/pdf.php",
             "app/Helpers/payments.php",
             "app/Helpers/loan_products.php",
             "app/Helpers/locations.php",

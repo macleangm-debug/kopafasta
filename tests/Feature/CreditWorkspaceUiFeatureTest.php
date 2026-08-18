@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\CustomerPayment;
 use App\Models\Loan;
 use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
@@ -434,6 +435,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('OL-CW-SIGN', $letters);
         $this->assertStringContainsString(route('admin.loan-agreements.download', $final), $letters);
         $this->assertStringContainsString('Download PDF', $letters);
+        $this->assertStringContainsString('document-holder', $letters);
+        $this->assertSame(1, substr_count($letters, 'document-holder'));
+        $this->assertStringContainsString('A4 preview', $letters);
         $this->assertStringContainsString('<iframe', $letters);
         $this->assertStringNotContainsString('Review checklist', $letters);
     }
@@ -465,7 +469,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ])
             ->assertRedirect();
 
-        $payment = \App\Models\CustomerPayment::query()->where('loan_id', $loan->id)->first();
+        $payment = CustomerPayment::query()->where('loan_id', $loan->id)->first();
         $this->assertNotNull($payment);
         $this->assertSame('loan_repayment', $payment->payment_type);
         $this->assertSame('awaiting_payment', $payment->status);

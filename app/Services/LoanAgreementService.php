@@ -568,7 +568,7 @@ class LoanAgreementService
             ->latest('id')
             ->first();
 
-        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor', 'loanGroup.members.customer']);
         $snapshot = $this->snapshotFromApplication($application);
         $snapshot['disbursement_date'] = $loan->disbursement_date?->toDateString();
         $snapshot['first_due_date'] = $schedules->first()?->due_date?->toDateString();
@@ -626,7 +626,7 @@ class LoanAgreementService
             'signedContract' => $signedContract,
         ];
 
-        $pdf = $this->withBorrowerLocale($application, fn () => Pdf::loadView('pdf.final-loan-contract', $viewData)->setPaper('a4'));
+        $pdf = $this->renderAgreementPdf(null, 'pdf.final-loan-contract', $viewData);
         $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
         return $agreement;
@@ -1028,18 +1028,12 @@ class LoanAgreementService
             'loan.repaymentSchedules',
             'signatures',
             'customerGuarantors.guarantor',
+            'loanGroup.members.customer',
         ]);
 
-        $stored = is_array($agreement->snapshot) ? $agreement->snapshot : [];
-        $kept = [];
-        foreach ($stored as $key => $value) {
-            if ($value !== null && $value !== '') {
-                $kept[$key] = $value;
-            }
-        }
         $snapshot = $application
-            ? array_replace($this->snapshotFromApplication($application), $kept)
-            : $kept;
+            ? $this->hydrateSnapshot($agreement, $application)
+            : (is_array($agreement->snapshot) ? $agreement->snapshot : []);
 
         $view = match ($agreement->document_type) {
             'offer_letter' => 'pdf.offer-letter',
@@ -1107,11 +1101,83 @@ class LoanAgreementService
             if ($template && filled($template->content)) {
                 $html = Blade::render($template->content, $data);
 
-                return Pdf::loadHTML($html)->setPaper('a4');
+                return $this->decoratePdf(Pdf::loadHTML($html)->setPaper('a4'));
             }
 
-            return Pdf::loadView($fallbackView, $data)->setPaper('a4');
+            return $this->decoratePdf(Pdf::loadView($fallbackView, $data)->setPaper('a4'));
         });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function hydrateSnapshot(LoanAgreement $agreement, LoanApplication $application): array
+    {
+        $fresh = $this->snapshotFromApplication($application);
+        $stored = is_array($agreement->snapshot) ? $agreement->snapshot : [];
+        $kept = [];
+        foreach ($stored as $key => $value) {
+            if ($value === null || $value === '' || $value === []) {
+                continue;
+            }
+            $kept[$key] = $value;
+        }
+
+        $snapshot = array_replace($fresh, $kept);
+        foreach ([
+            'is_group_loan',
+            'group_members',
+            'group_name',
+            'total_group_liability',
+            'customer_name',
+            'customer_id',
+            'customer_phone',
+            'customer_address',
+            'guarantor_name',
+            'guarantor_nida',
+            'guarantor_address',
+            'guarantor_phone',
+            'guarantor_relationship',
+            'company_stamp_path',
+            'company_signature_path',
+            'ceo_signature_path',
+            'finance_signature_path',
+            'ceo_signatory_name',
+            'ceo_signatory_title',
+            'finance_signatory_name',
+            'finance_signatory_title',
+            'document_version',
+        ] as $key) {
+            if (array_key_exists($key, $fresh)) {
+                $snapshot[$key] = $fresh[$key];
+            }
+        }
+
+        return $snapshot;
+    }
+
+    private function decoratePdf(\Barryvdh\DomPDF\PDF $pdf): \Barryvdh\DomPDF\PDF
+    {
+        $pdf->setOption('defaultFont', 'DejaVu Sans');
+        $pdf->setOption('isRemoteEnabled', true);
+        $pdf->setOption('isFontSubsettingEnabled', false);
+
+        try {
+            $pdf->render();
+            $canvas = $pdf->getDomPDF()->getCanvas();
+            if ($canvas && method_exists($canvas, 'page_text')) {
+                $font = null;
+                $metrics = $pdf->getDomPDF()->getFontMetrics();
+                if (method_exists($metrics, 'getFont')) {
+                    $font = $metrics->getFont('DejaVu Sans');
+                }
+                $canvas->page_text(42, 820, 'Page {PAGE_NUM} of {PAGE_COUNT}', $font, 8, [0.42, 0.49, 0.45]);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $pdf;
     }
 
     /** @return array<string, mixed> */
