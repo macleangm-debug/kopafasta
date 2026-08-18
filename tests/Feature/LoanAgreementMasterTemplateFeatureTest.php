@@ -162,6 +162,49 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $this->assertStringNotContainsString('Loan facility', $html);
     }
 
+    public function test_download_rewrites_stored_pdf_with_branded_template(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $customer = $this->borrower();
+        $customer->user->update(['preferences' => ['preferred_locale' => 'en']]);
+        $application = LoanApplication::create([
+            'customer_id'             => $customer->id,
+            'loan_product_id'         => $this->product()->id,
+            'application_number'      => 'APP-AGR-BRAND',
+            'requested_amount'        => 500_000,
+            'requested_tenure_months' => 12,
+            'status'                  => 'approved',
+        ]);
+        \Illuminate\Support\Facades\Storage::disk('public')->put('agreements/LC-OLD.pdf', '%PDF-1.4 old unbranded');
+        $agreement = LoanAgreement::create([
+            'loan_application_id' => $application->id,
+            'customer_id'         => $customer->id,
+            'document_type'       => 'loan_contract',
+            'reference'           => 'LC-OLD',
+            'status'              => 'signed',
+            'signed_at'           => now(),
+            'file_path'           => 'agreements/LC-OLD.pdf',
+            'snapshot'            => [
+                'customer_name' => 'Asha Mushi',
+                'principal' => 500_000,
+            ],
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $response = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-agreements.download', $agreement))
+            ->assertOk();
+
+        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('Content-Type'));
+        $this->assertGreaterThan(2000, strlen((string) $response->getContent()));
+        $this->assertStringStartsWith('%PDF', (string) $response->getContent());
+        $this->assertNotSame(
+            '%PDF-1.4 old unbranded',
+            \Illuminate\Support\Facades\Storage::disk('public')->get('agreements/LC-OLD.pdf'),
+        );
+    }
+
     public function test_recovery_disclosure_states_percentage_of_shared_base(): void
     {
         Setting::set('recovery.fee_base', 'principal');

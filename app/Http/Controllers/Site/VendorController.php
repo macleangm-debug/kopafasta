@@ -15,6 +15,7 @@ use App\Models\VendorTask;
 use App\Services\AffiliateService;
 use App\Services\CollateralInsurancePartnerService;
 use App\Services\GpsDeviceService;
+use App\Services\LoanAgreementService;
 use App\Services\NotificationService;
 use App\Services\PartnerPayoutRequestService;
 use App\Services\PartnerProfileService;
@@ -273,12 +274,13 @@ class VendorController extends Controller
         abort_unless($portal->assignmentMayViewAgreement($recoveryAssignment, $agreement), 403);
         abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
-        $disposition = request()->boolean('download') ? 'attachment' : 'inline';
+        $service = app(LoanAgreementService::class);
+        $pdf = $service->refreshBrandedPdf($agreement);
 
-        return response()->file(Storage::disk('public')->path($agreement->file_path), [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $disposition.'; filename="'.$agreement->reference.'.pdf"',
-        ]);
+        return response($pdf->output(), 200, $service->brandedPdfHeaders(
+            $agreement,
+            request()->boolean('download'),
+        ));
     }
 
     public function startRecoveryCase(RecoveryAssignment $recoveryAssignment)

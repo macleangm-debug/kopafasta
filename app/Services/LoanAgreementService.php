@@ -109,7 +109,7 @@ class LoanAgreementService
             'agreement' => $agreement,
         ];
         $pdf = $this->renderAgreementPdf(
-            $application->product?->offerLetterTemplate,
+            null,
             'pdf.offer-letter',
             $viewData,
         );
@@ -254,11 +254,7 @@ class LoanAgreementService
             'snapshot' => $snapshot,
             'agreement' => $agreement,
         ];
-        $template = ($application->product?->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL')
-            ? ($application->product?->assetLendingAgreementTemplate ?? $application->product?->loanContractTemplate)
-            : $application->product?->loanContractTemplate;
-
-        $pdf = $this->renderAgreementPdf($template, 'pdf.loan-contract', $viewData);
+        $pdf = $this->renderAgreementPdf(null, 'pdf.loan-contract', $viewData);
 
         $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
@@ -291,14 +287,8 @@ class LoanAgreementService
                 'agreement' => $agreement,
             ];
 
-            $template = $documentType === 'offer_letter'
-                ? $application->product?->offerLetterTemplate
-                : (($application->product?->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL')
-                    ? ($application->product?->assetLendingAgreementTemplate ?? $application->product?->loanContractTemplate)
-                    : $application->product?->loanContractTemplate);
-
             $fallbackView = $documentType === 'offer_letter' ? 'pdf.offer-letter' : 'pdf.loan-contract';
-            $pdf = $this->renderAgreementPdf($template, $fallbackView, $viewData);
+            $pdf = $this->renderAgreementPdf(null, $fallbackView, $viewData);
             $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
             if (! $wasSigned && $agreement->status !== 'signed') {
@@ -1013,6 +1003,67 @@ class LoanAgreementService
         }
 
         return $application->signatures->firstWhere('signer_type', 'borrower');
+    }
+
+    /**
+     * Re-render the stored letter with the current Kopafasta branded Blade template.
+     * Existing files were generated before this letterhead and would otherwise stay stale.
+     */
+    public function refreshBrandedPdf(LoanAgreement $agreement): \Barryvdh\DomPDF\PDF
+    {
+        $application = $agreement->loanApplication;
+        $application?->loadMissing([
+            'customer.user',
+            'product',
+            'loan.repaymentSchedules',
+            'signatures',
+            'customerGuarantors.guarantor',
+        ]);
+
+        $stored = is_array($agreement->snapshot) ? $agreement->snapshot : [];
+        $kept = [];
+        foreach ($stored as $key => $value) {
+            if ($value !== null && $value !== '') {
+                $kept[$key] = $value;
+            }
+        }
+        $snapshot = $application
+            ? array_replace($this->snapshotFromApplication($application), $kept)
+            : $kept;
+
+        $view = match ($agreement->document_type) {
+            'offer_letter' => 'pdf.offer-letter',
+            'rejection_letter' => 'pdf.rejection-letter',
+            'repayment_schedule' => 'pdf.repayment-schedule',
+            'final_loan_contract' => $application?->loan ? 'pdf.final-loan-contract' : 'pdf.loan-contract',
+            default => 'pdf.loan-contract',
+        };
+
+        $viewData = [
+            'application' => $application,
+            'snapshot' => $snapshot,
+            'agreement' => $agreement,
+            'loan' => $application?->loan,
+            'signedContract' => $agreement,
+            'includeScheduleAnnex' => $agreement->document_type === 'final_loan_contract',
+        ];
+
+        $pdf = $this->renderAgreementPdf(null, $view, $viewData);
+        $this->writeAgreementPdf($agreement, $pdf, $snapshot);
+
+        return $pdf;
+    }
+
+    /** @return array<string, string> */
+    public function brandedPdfHeaders(LoanAgreement $agreement, bool $download): array
+    {
+        $disposition = $download ? 'attachment' : 'inline';
+
+        return [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => $disposition.'; filename="'.$agreement->reference.'.pdf"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ];
     }
 
     /** @param array<string, mixed> $data */

@@ -13,10 +13,10 @@ use App\Services\LoanAgreementService;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class LoanAgreementController extends Controller
 {
@@ -70,7 +70,7 @@ class LoanAgreementController extends Controller
         return view('site.borrower.rejection-letter', compact('application', 'agreement', 'customer'));
     }
 
-    public function downloadRejectionLetter(LoanApplication $application): BinaryFileResponse
+    public function downloadRejectionLetter(LoanApplication $application): Response
     {
         $this->customerOrFail($application);
         abort_unless(in_array((string) $application->status, ['rejected'], true)
@@ -83,7 +83,7 @@ class LoanAgreementController extends Controller
 
         abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
-        return $this->pdfFileResponse($agreement, request());
+        return $this->brandedPdfResponse($agreement, request());
     }
 
     public function showContract(LoanApplication $application): View|RedirectResponse
@@ -451,7 +451,7 @@ class LoanAgreementController extends Controller
             ->with('status', __('borrower.contract.declined'));
     }
 
-    public function download(LoanAgreement $agreement, Request $request): BinaryFileResponse
+    public function download(LoanAgreement $agreement, Request $request): Response
     {
         $user = Auth::user();
         $customer = Customer::where('user_id', $user->id ?? 0)->first();
@@ -462,17 +462,17 @@ class LoanAgreementController extends Controller
         abort_unless($isOwner || $isAdmin, 403);
         abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
-        return $this->pdfFileResponse($agreement, $request);
+        return $this->brandedPdfResponse($agreement, $request);
     }
 
-    private function pdfFileResponse(LoanAgreement $agreement, Request $request): BinaryFileResponse
+    private function brandedPdfResponse(LoanAgreement $agreement, Request $request): Response
     {
-        $disposition = $request->boolean('download') ? 'attachment' : 'inline';
+        $pdf = $this->service->refreshBrandedPdf($agreement);
 
-        return response()->file(Storage::disk('public')->path($agreement->file_path), [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => $disposition.'; filename="'.$agreement->reference.'.pdf"',
-        ]);
+        return response($pdf->output(), 200, $this->service->brandedPdfHeaders(
+            $agreement,
+            $request->boolean('download'),
+        ));
     }
 
     private function redirectAfterOfferAccepted(LoanApplication $application, string $message): RedirectResponse
