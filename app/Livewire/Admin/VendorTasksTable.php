@@ -23,7 +23,14 @@ class VendorTasksTable extends Component
     /** @var array<int, int|string> */
     public array $reassignTo = [];
 
+    public ?int $expanded = null;
+
     public ?string $notice = null;
+
+    public function toggleExpanded(int $taskId): void
+    {
+        $this->expanded = $this->expanded === $taskId ? null : $taskId;
+    }
 
     public function updatingSearch(): void { $this->resetPage(); }
     public function updatingStatus(): void { $this->resetPage(); }
@@ -54,13 +61,26 @@ class VendorTasksTable extends Component
                 'Reassigned from partner tasks.',
             );
         } catch (\Illuminate\Validation\ValidationException $e) {
-            $this->addError('reassignTo.'.$taskId, $e->validator->errors()->first() ?: 'Could not reassign.');
+            $message = $e->validator->errors()->first() ?: 'Could not reassign.';
+            $this->addError('reassignTo.'.$taskId, $message);
+            $this->expanded = $taskId;
+            $this->js('window.showAdminFeedback('.json_encode([
+                'tone' => 'error',
+                'title' => 'Could not reassign',
+                'message' => $message,
+            ]).')');
 
             return;
         }
 
         unset($this->reassignTo[$taskId]);
+        $this->expanded = $taskId;
         $this->notice = 'Task reassigned to another partner.';
+        $this->js('window.showAdminFeedback('.json_encode([
+            'tone' => 'success',
+            'title' => 'Partner reassigned',
+            'message' => 'Task reassigned to another partner.',
+        ]).')');
     }
 
     public function close(int $taskId): void
@@ -80,6 +100,12 @@ class VendorTasksTable extends Component
         }
 
         $this->notice = 'Job closed. It is no longer ongoing.';
+        $this->expanded = $taskId;
+        $this->js('window.showAdminFeedback('.json_encode([
+            'tone' => 'success',
+            'title' => 'Job closed',
+            'message' => 'Job closed. It is no longer ongoing.',
+        ]).')');
     }
 
     public function remove(int $taskId): void
@@ -99,6 +125,12 @@ class VendorTasksTable extends Component
         }
 
         $this->notice = 'Job removed from the partner queue.';
+        $this->expanded = null;
+        $this->js('window.showAdminFeedback('.json_encode([
+            'tone' => 'success',
+            'title' => 'Job removed',
+            'message' => 'Job removed from the partner queue.',
+        ]).')');
     }
 
     public function render()

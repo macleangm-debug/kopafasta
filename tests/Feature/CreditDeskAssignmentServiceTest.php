@@ -50,4 +50,24 @@ class CreditDeskAssignmentServiceTest extends TestCase
 
         $this->assertTrue(true);
     }
+
+    public function test_rejected_files_are_for_screening_and_committee_not_management(): void
+    {
+        $und = Department::query()->create(['name' => 'Underwriting', 'code' => 'UND']);
+        $crc = Department::query()->create(['name' => 'Credit Committee', 'code' => 'CRC']);
+        $crm = Department::query()->create(['name' => 'Credit Management', 'code' => 'CRM']);
+        $desk = app(CreditDeskAssignmentService::class);
+
+        $analyst = \App\Models\User::factory()->create(['role' => 'credit_analyst', 'department_id' => $und->id]);
+        $committee = \App\Models\User::factory()->create(['role' => 'credit_committee', 'department_id' => $crc->id]);
+        $manager = \App\Models\User::factory()->create(['role' => 'manager', 'department_id' => $crm->id]);
+        $admin = \App\Models\User::factory()->create(['role' => 'admin']);
+
+        $this->assertTrue($desk->canViewRejected($analyst));
+        $this->assertTrue($desk->canViewRejected($committee));
+        $this->assertTrue($desk->canViewRejected($admin));
+        $this->assertFalse($desk->canViewRejected($manager));
+        $this->assertTrue($desk->isManagementOnly($manager));
+        $this->assertFalse($desk->isManagementOnly($committee));
+    }
 }

@@ -6,14 +6,25 @@
         'committee'      => ['Credit committee', 'admin.loan-applications.pre-approvals'],
         'approved'       => ['Management queue', 'admin.loan-applications.pipeline.approved'],
         'disbursement'   => ['Release queue', 'admin.loan-applications.pipeline.disbursement'],
+        'rejected'       => ['Rejected', 'admin.loan-applications.rejected'],
     ];
-    $role = (string) (auth()->user()?->role ?? '');
-    if ($role === 'manager') {
-        $tabs = array_intersect_key($tabs, array_flip(['approved', 'disbursement']));
-    } elseif ($role === 'credit_committee') {
-        $tabs = array_intersect_key($tabs, array_flip(['system_sorted', 'committee']));
-    } elseif ($role === 'credit_analyst') {
-        $tabs = array_intersect_key($tabs, array_flip(['under_review', 'system_sorted']));
+    $desk = app(\App\Services\CreditDeskAssignmentService::class);
+    $user = auth()->user();
+    $onScreening = $desk->onScreeningDesk($user);
+    $onCommittee = $desk->onCommitteeDesk($user);
+    $onManagement = $desk->onManagementDesk($user);
+    if ($user && ! $desk->isExempt($user->role) && ($onScreening || $onCommittee || $onManagement)) {
+        $keep = [];
+        if ($onScreening) {
+            $keep = array_merge($keep, ['under_review', 'system_sorted', 'rejected']);
+        }
+        if ($onCommittee) {
+            $keep = array_merge($keep, ['system_sorted', 'committee', 'rejected']);
+        }
+        if ($onManagement) {
+            $keep = array_merge($keep, ['approved', 'disbursement']);
+        }
+        $tabs = array_intersect_key($tabs, array_flip(array_unique($keep)));
     }
 @endphp
 <nav class="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-3">

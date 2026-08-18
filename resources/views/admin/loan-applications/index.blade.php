@@ -4,16 +4,20 @@
 
     @php
         $route = request()->route()?->getName();
-    @endphp
-    <div class="mb-4 flex flex-wrap gap-2">
-        @foreach ([
+        $desk = app(\App\Services\CreditDeskAssignmentService::class);
+        $appTabs = [
             ['All', 'admin.loan-applications.index'],
             ['New / submitted', 'admin.loan-applications.new'],
-            ['Rejected', 'admin.loan-applications.rejected'],
             ['Incomplete drafts', 'admin.loan-applications.incomplete'],
             ['Credit screening', 'admin.loan-applications.pipeline.under-review'],
             ['Committee', 'admin.loan-applications.pre-approvals'],
-        ] as [$label, $name])
+        ];
+        if ($desk->canViewRejected(auth()->user())) {
+            array_splice($appTabs, 2, 0, [['Rejected', 'admin.loan-applications.rejected']]);
+        }
+    @endphp
+    <div class="mb-4 flex flex-wrap gap-2">
+        @foreach ($appTabs as [$label, $name])
             <a href="{{ route($name) }}"
                class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $route === $name ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $label }}

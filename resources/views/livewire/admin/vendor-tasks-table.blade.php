@@ -1,4 +1,4 @@
-<div x-data="{ expanded: null }">
+<div>
 @if ($notice)
     <p class="mb-3 text-sm font-medium text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200 rounded-lg px-4 py-2">{{ $notice }}</p>
 @endif
@@ -19,9 +19,11 @@
             @php
                 $overdue = $r->due_at && $r->due_at->isPast() && ! in_array($r->status, ['completed', 'cancelled'], true);
             @endphp
-            <tr class="hover:bg-gray-50 cursor-pointer" @click="expanded = expanded === {{ $r->id }} ? null : {{ $r->id }}">
+            <tr class="hover:bg-gray-50 cursor-pointer {{ $expanded === $r->id ? 'bg-brand-muted/30' : '' }}"
+                wire:key="task-row-{{ $r->id }}"
+                wire:click="toggleExpanded({{ $r->id }})">
                 <td class="px-5 py-3 text-gray-400">
-                    <svg class="w-4 h-4 transition" :class="expanded === {{ $r->id }} && 'rotate-90'" viewBox="0 0 20 20" fill="currentColor"><path d="M7 5l6 5-6 5V5z"/></svg>
+                    <svg class="w-4 h-4 transition {{ $expanded === $r->id ? 'rotate-90' : '' }}" viewBox="0 0 20 20" fill="currentColor"><path d="M7 5l6 5-6 5V5z"/></svg>
                 </td>
                 <td class="px-5 py-3 font-medium">{{ display_label((string) $r->task_type, 'vendor_task_type') }}</td>
                 <td class="px-5 py-3 text-gray-600">
@@ -33,11 +35,11 @@
                 </td>
                 <td class="px-5 py-3 text-xs text-gray-600">
                     @if ($r->loanApplication)
-                        <a href="{{ route('admin.loan-applications.show', $r->loanApplication) }}" class="text-brand hover:underline" @click.stop>
+                        <a href="{{ route('admin.loan-applications.show', $r->loanApplication) }}" class="text-brand hover:underline" onclick="event.stopPropagation()">
                             App #{{ $r->loanApplication->application_number ?? $r->loanApplication->id }}
                         </a>
                     @elseif ($r->loan)
-                        <a href="{{ route('admin.loans.show', $r->loan) }}" class="text-brand hover:underline" @click.stop>
+                        <a href="{{ route('admin.loans.show', $r->loan) }}" class="text-brand hover:underline" onclick="event.stopPropagation()">
                             Loan {{ $r->loan->loan_number ?? $r->loan->id }}
                         </a>
                     @else
@@ -61,8 +63,9 @@
                 </td>
                 <td class="px-5 py-3 text-gray-500">{{ $r->completed_at?->format('Y-m-d') ?? '—' }}</td>
             </tr>
-            <tr x-show="expanded === {{ $r->id }}" x-cloak class="bg-brand-muted/20">
-                <td colspan="7" class="px-5 py-4">
+            @if ($expanded === $r->id)
+            <tr wire:key="task-detail-{{ $r->id }}" class="bg-brand-muted/20">
+                <td colspan="7" class="px-5 py-4" wire:click.stop>
                     @php
                         $priority = $r->priorityMeta();
                         $priorityClass = match ($priority['tone']) {
@@ -260,21 +263,29 @@
                         @endif
 
                         @if ($canClose[$r->id] ?? false)
-                            <div class="pt-1 border-t border-gray-100" @click.stop>
+                            <div class="pt-1 border-t border-gray-100">
                                 <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">File closed</p>
                                 <p class="mt-1 text-sm text-gray-700">This application is no longer active, so the job should not stay ongoing.</p>
                                 <button type="button"
-                                        wire:click="close({{ $r->id }})"
+                                        @click="window.confirmAction({
+                                            title: 'Close this job?',
+                                            message: 'Close this partner job because the application is no longer active? The partner will no longer see it as ongoing work.',
+                                            confirmLabel: 'Close job',
+                                            confirmClass: 'bg-gray-800 hover:bg-gray-700 text-white',
+                                            tone: 'warning',
+                                            onConfirm: () => $wire.close({{ $r->id }}),
+                                        })"
                                         class="mt-2 inline-flex items-center rounded-lg bg-gray-800 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700">
                                     Close job
                                 </button>
                             </div>
                         @elseif ($canReassign[$r->id] ?? false)
-                            <div class="pt-1 border-t border-gray-100" @click.stop>
+                            <div class="pt-1 border-t border-gray-100" x-data>
                                 <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Assign another</p>
                                 @if (($candidates[$r->id] ?? collect())->isNotEmpty())
                                     <div class="mt-2 flex flex-wrap items-end gap-2">
-                                        <select wire:model="reassignTo.{{ $r->id }}"
+                                        <select wire:model.live="reassignTo.{{ $r->id }}"
+                                                x-ref="partnerSelect"
                                                 class="min-w-[16rem] rounded-lg border-gray-300 text-sm">
                                             <option value="">Next eligible partner (auto)</option>
                                             @foreach ($candidates[$r->id] as $vendor)
@@ -292,7 +303,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button"
-                                                wire:click="reassign({{ $r->id }})"
+                                                @click="
+                                                    const option = $refs.partnerSelect?.selectedOptions?.[0];
+                                                    const name = (option && option.value) ? option.text.trim() : 'the next eligible partner';
+                                                    window.confirmAction({
+                                                        title: 'Assign another partner?',
+                                                        message: 'Reassign this job to ' + name + '? The current partner will no longer see it as their open job.',
+                                                        confirmLabel: 'Assign another',
+                                                        confirmClass: 'bg-brand hover:bg-brand/90 text-white',
+                                                        tone: 'confirm',
+                                                        onConfirm: () => $wire.reassign({{ $r->id }}),
+                                                    })
+                                                "
                                                 class="inline-flex items-center rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-brand/90">
                                             Assign another
                                         </button>
@@ -306,12 +328,18 @@
                             </div>
                         @endif
                         @if ($canRemove[$r->id] ?? false)
-                            <div class="pt-1 border-t border-gray-100" @click.stop>
+                            <div class="pt-1 border-t border-gray-100">
                                 <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Remove job</p>
                                 <p class="mt-1 text-sm text-gray-700">Deletes this leftover origination job. Completed reports and paid fees stay on file.</p>
                                 <button type="button"
-                                        wire:click="remove({{ $r->id }})"
-                                        wire:confirm="Remove this job from the partner queue? This cannot be undone."
+                                        @click="window.confirmAction({
+                                            title: 'Remove this job?',
+                                            message: 'Remove this leftover job from the partner queue? This cannot be undone. Completed reports and paid fees stay on file.',
+                                            confirmLabel: 'Delete task',
+                                            confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                            tone: 'warning',
+                                            onConfirm: () => $wire.remove({{ $r->id }}),
+                                        })"
                                         class="mt-2 inline-flex items-center rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">
                                     Delete task
                                 </button>
@@ -320,6 +348,7 @@
                     </div>
                 </td>
             </tr>
+            @endif
         @empty
             <tr>
                 <td colspan="7" class="px-5 py-2">

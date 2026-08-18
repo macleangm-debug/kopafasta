@@ -181,6 +181,14 @@ class LoanApplicationController extends ResourceController
             ->with(['customer', 'product', 'loan', 'loanGroup.members.customer', 'loanGroup.leader', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'assignedAnalyst', 'collateralAsset', 'collateralAssets.customerAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees', 'valuationAssignments.vendor'])
             ->findOrFail($id);
 
+        if ($record->isClosed() && $record->closedStatus() === 'rejected') {
+            abort_unless(
+                app(\App\Services\CreditDeskAssignmentService::class)->canViewRejected(auth()->user()),
+                403,
+                'Rejected applications are for screening and committee only.'
+            );
+        }
+
         $workflow = app(LoanApplicationWorkflowService::class);
         $review = app(LoanApplicationReviewService::class)->dossier($record);
         $availableActions = $workflow->availableActions($record, auth()->user());
@@ -195,6 +203,10 @@ class LoanApplicationController extends ResourceController
 
         $offer = \App\Models\LoanAgreement::where('loan_application_id', $record->id)
             ->where('document_type', 'offer_letter')
+            ->latest('id')
+            ->first();
+        $rejectionLetter = \App\Models\LoanAgreement::where('loan_application_id', $record->id)
+            ->where('document_type', 'rejection_letter')
             ->latest('id')
             ->first();
 
@@ -265,6 +277,7 @@ class LoanApplicationController extends ResourceController
             'auditLogs',
             'workflow',
             'offer',
+            'rejectionLetter',
             'contract',
             'documentRequests',
             'affordability',

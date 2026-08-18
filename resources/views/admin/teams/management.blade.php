@@ -51,7 +51,7 @@
         </div>
         <p class="text-xs text-gray-500 mt-4">
             Spine: <span class="font-semibold text-gray-700">Offer → Fees → Destination → Contract → Release → Payout → Active loan</span>.
-            Screening and committee stay on their desks. Capital is not waited on here.
+            Screening and committee stay on their desks. Rejected files do not come here.
         </p>
     </div>
 

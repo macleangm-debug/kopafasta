@@ -31,6 +31,10 @@
            class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm ring-1 ring-brand/15">
             Open screening queue
         </a>
+        <a href="{{ route('admin.loan-applications.rejected') }}"
+           class="inline-flex items-center gap-2 bg-white hover:bg-brand-muted/40 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl ring-1 ring-brand/20">
+            Rejected files
+        </a>
         <a href="{{ route('admin.credit-team.index') }}"
            class="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900 px-4 py-2.5">
             Team roster →

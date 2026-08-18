@@ -285,12 +285,15 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->get(route('admin.loan-applications.show', $app))
             ->assertOk()
             ->assertSee($app->application_number, false)
-            ->assertSee('Credit file', false)
-            ->assertSee('Facility summary', false)
+            ->assertSee('Rejected file', false)
             ->assertSee('View only', false)
-            ->assertSee('Closed file', false)
+            ->assertSee('Decision on file', false)
+            ->assertSee('Decision reason', false)
+            ->assertSee('Feedback letter', false)
             ->assertDontSee('Edit application')
-            ->assertDontSee('What you need to decide');
+            ->assertDontSee('What you need to decide')
+            ->assertDontSee('Review checklist')
+            ->assertDontSee('Borrower CRB');
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.edit', $app))
@@ -338,11 +341,15 @@ class CreditWorkspaceUiFeatureTest extends TestCase
 
         $this->assertStringContainsString('Credit management', $html);
         $this->assertStringContainsString('Facility', $html);
-        $this->assertStringContainsString('Review checklist', $html);
-        $this->assertStringContainsString('Profiles', $html);
+        $this->assertStringContainsString('Letters', $html);
+        $this->assertStringContainsString('Outstanding', $html);
+        $this->assertStringContainsString('Repayment health', $html);
+        $this->assertStringContainsString('Offer letter', $html);
         $this->assertStringContainsString('Loan in arrears', $html);
         $this->assertStringContainsString($loan->loan_number, $html);
         $this->assertStringNotContainsString('What you need to decide', $html);
+        $this->assertStringNotContainsString('Review checklist', $html);
+        $this->assertStringNotContainsString('Borrower CRB', $html);
         $this->assertStringNotContainsString('>Decision</a>', $html);
 
         $this->actingAs($admin, 'admin')
@@ -429,8 +436,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertSee('Credit management', false)
             ->assertSee('LN-GL-X6C8', false)
             ->assertSee('Facility', false)
-            ->assertSee('Review checklist', false)
-            ->assertSee('Profiles', false);
+            ->assertSee('Letters', false)
+            ->assertDontSee('Review checklist')
+            ->assertDontSee('Borrower CRB');
     }
 
     public function test_checklist_affordability_survives_stale_payload_without_pass_key(): void
@@ -455,5 +463,57 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Affordability', false)
             ->assertDontSee('Undefined array key', false);
+    }
+
+    public function test_credit_management_cannot_open_rejected_files(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'rejected');
+        $app->update([
+            'status' => 'rejected',
+            'rejection_reason' => 'Capacity below the proposed instalment.',
+        ]);
+
+        $manager = User::factory()->create([
+            'role' => 'manager',
+            'branch_id' => $admin->branch_id,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($manager, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertForbidden();
+
+        $this->actingAs($manager, 'admin')
+            ->get(route('admin.loan-applications.rejected'))
+            ->assertForbidden();
+    }
+
+    public function test_screening_can_open_rejected_file_with_reason_and_without_checklist(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'rejected');
+        $app->update([
+            'status' => 'rejected',
+            'rejection_reason' => 'Capacity below the proposed instalment.',
+        ]);
+
+        $analyst = User::factory()->create([
+            'role' => 'credit_analyst',
+            'branch_id' => $admin->branch_id,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($analyst, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->assertSee('Capacity below the proposed instalment.', false)
+            ->assertSee('Feedback letter', false)
+            ->assertDontSee('Review checklist');
+
+        $this->actingAs($analyst, 'admin')
+            ->get(route('admin.loan-applications.rejected'))
+            ->assertOk()
+            ->assertSee('Rejected applications', false);
     }
 }

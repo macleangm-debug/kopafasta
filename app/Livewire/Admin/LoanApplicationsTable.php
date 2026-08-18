@@ -71,19 +71,9 @@ class LoanApplicationsTable extends Component
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
             ->when($this->stage !== '', fn ($q) => $q->where('current_stage', $this->stage))
             ->when($this->pipeline === 'under_review', function ($q) {
-                $q->where(function ($q) {
-                    $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
-                        ->orWhere(function ($q) {
-                            $q->where(function ($inner) {
-                                $inner->where('current_stage', 'rejected')
-                                    ->orWhere('status', 'rejected');
-                            })->where(function ($inner) {
-                                $inner->whereNull('current_stage')
-                                    ->orWhereNotIn('current_stage', ['pre_approval', 'approval', 'disbursement']);
-                            });
-                        });
-                })->whereNotIn('status', ['approved', 'disbursed', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
-                    ->whereNotIn('current_stage', ['awaiting_guarantor', 'expired']);
+                $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
+                    ->whereNotIn('status', ['approved', 'disbursed', 'rejected', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
+                    ->whereNotIn('current_stage', ['awaiting_guarantor', 'expired', 'rejected']);
             })
             ->when($this->pipeline === 'system_sorted', function ($q) {
                 $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
@@ -127,6 +117,14 @@ class LoanApplicationsTable extends Component
                         ->orWhere('status', 'disbursed');
                 });
             })
+            ->when(
+                app(\App\Services\CreditDeskAssignmentService::class)->isManagementOnly(auth()->user())
+                    && $this->stage !== 'rejected',
+                function ($q) {
+                    $q->where('status', '!=', 'rejected')
+                        ->where('current_stage', '!=', 'rejected');
+                }
+            )
             ->when($this->pipeline === 'under_review', function ($q) {
                 $q->orderByDesc('engagement_priority');
             })

@@ -33,7 +33,7 @@ class LoanWriteOffAuthorizationFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Credit file', $html);
+        $this->assertStringContainsString('Credit management', $html);
         $this->assertStringContainsString($loan->loan_number, $html);
         $this->assertStringNotContainsString('Recommend write-off', $html);
     }

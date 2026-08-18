@@ -25,6 +25,81 @@ class CreditDeskAssignmentService
         return in_array($role, ['admin', 'super_admin'], true);
     }
 
+    /** @return list<string> */
+    public function departmentCodes(?User $user): array
+    {
+        if (! $user) {
+            return [];
+        }
+
+        $codes = collect();
+        if ($user->department) {
+            $codes->push($user->department->code);
+        }
+
+        $codes = $codes->merge($user->departments->pluck('code'));
+
+        return $codes
+            ->map(fn ($code) => strtoupper((string) $code))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function onScreeningDesk(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return in_array($user->role, self::SCREENING_ROLES, true)
+            || in_array(self::SCREENING_DEPT, $this->departmentCodes($user), true);
+    }
+
+    public function onCommitteeDesk(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return in_array($user->role, self::COMMITTEE_ROLES, true)
+            || in_array(self::COMMITTEE_DEPT, $this->departmentCodes($user), true);
+    }
+
+    public function onManagementDesk(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->role === 'manager'
+            || in_array(self::MANAGEMENT_DEPT, $this->departmentCodes($user), true);
+    }
+
+    public function isManagementOnly(?User $user): bool
+    {
+        if (! $user || $this->isExempt($user->role)) {
+            return false;
+        }
+
+        return $this->onManagementDesk($user)
+            && ! $this->onScreeningDesk($user)
+            && ! $this->onCommitteeDesk($user);
+    }
+
+    /** Rejected files stay with screening and committee — not credit management. */
+    public function canViewRejected(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $this->isExempt($user->role)
+            || $this->onScreeningDesk($user)
+            || $this->onCommitteeDesk($user);
+    }
+
     /**
      * @param  list<int>  $departmentIds
      */

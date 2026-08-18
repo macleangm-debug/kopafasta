@@ -2,8 +2,6 @@
     $customer = $review['customer'] ?? null;
     $product = $review['product'] ?? null;
     $stage = $record->current_stage ?? 'submitted';
-    $isScreeningStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
-    $isCommitteeStage = $stage === 'pre_approval';
     $isManagementStage = in_array($stage, [
         'approval',
         'post_approval_fees',
@@ -14,9 +12,9 @@
     $linkedLoan = $record->loan;
     $isServicingFile = $record->hasActiveFacility();
     $isOpsStage = ($isManagementStage || $isDisbursementStage) && ! $isServicingFile;
-    $isCreditWorkspace = $isScreeningStage || $isCommitteeStage || $isServicingFile;
     $fileIsClosed = $record->isClosed();
     $closedStatus = $fileIsClosed ? $record->closedStatus() : null;
+    $isRejectedArchive = $fileIsClosed && $closedStatus === 'rejected';
     $writeOffService = app(\App\Services\WriteOffRequestService::class);
     $writeOffApprovalRequired = (bool) \App\Models\Setting::get('finance.write_off_approval_required');
     $canRecommendWriteOff = $isServicingFile
@@ -49,7 +47,7 @@
                     </div>
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">
-                            {{ brand_name() }} · {{ $isServicingFile ? 'Credit management' : 'Credit file' }}
+                            {{ brand_name() }} · {{ $isServicingFile || $isOpsStage ? 'Credit management' : ($isRejectedArchive ? 'Rejected file' : 'Credit file') }}
                         </p>
                         <h1 class="text-xl sm:text-2xl font-bold tracking-tight mt-1 truncate">{{ $record->application_number }}</h1>
                         <p class="text-sm text-white/75 mt-1 truncate">
@@ -187,12 +185,13 @@
         </div>
     @endif
 
-    @if ($isCreditWorkspace)
-        @include('admin.loan-applications.review._credit_workspace')
+    @if ($fileIsClosed)
+        @include('admin.loan-applications.review._closed_file_workspace')
+    @elseif ($isServicingFile)
+        @include('admin.loan-applications.review._management_workspace')
     @elseif ($isOpsStage)
         @include('admin.loan-applications.review._ops_workspace')
     @else
-        {{-- Fallback for odd stages: still use the premium credit workspace so tabs/cards are never missing --}}
         @include('admin.loan-applications.review._credit_workspace')
     @endif
 

@@ -94,7 +94,13 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.tasks'))
             ->assertOk()
+            ->assertSee($current->name, false);
+
+        Livewire::actingAs($admin, 'admin')
+            ->test(VendorTasksTable::class)
+            ->call('toggleExpanded', $task->id)
             ->assertSee('Assign another', false)
+            ->assertSee('window.confirmAction', false)
             ->assertSee($replacement->name, false)
             ->assertSee('outside region', false)
             ->assertSee('Amina Kopa', false)
@@ -102,10 +108,7 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
             ->assertSee('Dar es Salaam', false)
             ->assertSee('Instructions', false)
             ->assertSee('Partner fee', false)
-            ->assertSee('Related file', false);
-
-        Livewire::actingAs($admin, 'admin')
-            ->test(VendorTasksTable::class)
+            ->assertSee('Related file', false)
             ->set('reassignTo.'.$task->id, $replacement->id)
             ->call('reassign', $task->id)
             ->assertHasNoErrors()
@@ -159,13 +162,11 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
         $task = app(GpsPartnerService::class)->assign($application, $current, $admin);
         $application->update(['status' => 'rejected', 'current_stage' => 'rejected']);
 
-        $this->actingAs($admin, 'admin')
-            ->get(route('admin.partners.tasks'))
-            ->assertOk()
-            ->assertSee('Delete task', false);
-
         Livewire::actingAs($admin, 'admin')
             ->test(VendorTasksTable::class)
+            ->call('toggleExpanded', $task->id)
+            ->assertSee('Delete task', false)
+            ->assertDontSee('Assign another')
             ->call('remove', $task->id)
             ->assertHasNoErrors()
             ->assertSet('notice', 'Job removed from the partner queue.');
