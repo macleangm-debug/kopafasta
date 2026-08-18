@@ -273,9 +273,11 @@ class VendorController extends Controller
         abort_unless($portal->assignmentMayViewAgreement($recoveryAssignment, $agreement), 403);
         abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
+        $disposition = request()->boolean('download') ? 'attachment' : 'inline';
+
         return response()->file(Storage::disk('public')->path($agreement->file_path), [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$agreement->reference.'.pdf"',
+            'Content-Disposition' => $disposition.'; filename="'.$agreement->reference.'.pdf"',
         ]);
     }
 

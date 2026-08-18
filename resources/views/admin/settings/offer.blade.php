@@ -6,8 +6,8 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Offer acceptance</h3>
             <p class="text-xs text-gray-500 mb-4">
-                For the pilot, keep acceptance codes disabled until bulk SMS is integrated.
-                When disabled, borrowers accept with one click — no OTP required.
+                For the pilot, keep PIN confirmation disabled until you are ready.
+                When disabled, borrowers accept with one click — no PIN required.
             </p>
             <div class="space-y-3">
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
@@ -15,14 +15,14 @@
                     <input type="checkbox" name="require_offer_acceptance_code" value="1"
                            @checked(! empty($values['require_offer_acceptance_code']))
                            class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
-                    <span class="text-gray-800">Require offer acceptance code (SMS OTP)</span>
+                    <span class="text-gray-800">Require PIN to accept the offer letter</span>
                 </label>
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
                     <input type="hidden" name="require_contract_acceptance_code" value="0">
                     <input type="checkbox" name="require_contract_acceptance_code" value="1"
                            @checked(! empty($values['require_contract_acceptance_code']))
                            class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
-                    <span class="text-gray-800">Require contract acceptance code (SMS OTP)</span>
+                    <span class="text-gray-800">Require PIN to accept the loan agreement</span>
                 </label>
             </div>
         </div>

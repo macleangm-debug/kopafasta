@@ -85,7 +85,8 @@ class LoanWriteOffAuthorizationFeatureTest extends TestCase
         $this->actingAs($collector, 'admin')
             ->get(route('admin.loans.write-off-form', $arrears))
             ->assertOk()
-            ->assertSee('Write-off', false);
+            ->assertSee('Write-off', false)
+            ->assertSee('data-money-input', false);
 
         $activeHtml = $this->actingAs($collector, 'admin')
             ->followingRedirects()

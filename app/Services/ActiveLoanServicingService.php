@@ -77,6 +77,8 @@ class ActiveLoanServicingService
             'disbursement_date'   => $loan->disbursement_date,
             'tenure_months'       => (int) $loan->tenure_months,
             'interest_rate'       => (float) $loan->interest_rate,
+            'upcoming_rows'       => $remainingRows->take(8)->values(),
+            'overdue_rows'        => $overdueRows->values(),
         ];
     }
 

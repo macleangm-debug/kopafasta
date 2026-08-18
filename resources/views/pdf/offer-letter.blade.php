@@ -22,12 +22,20 @@
     .footer { margin-top: 22px; font-size: 9px; color: #8a9a92; border-top: 1px solid #e5ebe7; padding-top: 8px; }
     .sig-img { max-height: 46px; max-width: 150px; margin: 8px 0 4px; }
     .stamp-img { max-height: 70px; max-width: 70px; margin-top: 4px; }
+    .signbox { margin-top: 16px; padding: 10px; border: 1px dashed #0f3d2e; background: #f7faf8; }
+    table.grid { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9px; }
+    table.grid th, table.grid td { border: 1px solid #e5ebe7; padding: 3px 5px; }
+    .na { color: #8a9a92; font-style: italic; }
     .meta { text-align: right; }
     .logo { max-height: 36px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
 @php
+    $locale = $snapshot['locale'] ?? app()->getLocale();
+    $locale = in_array($locale, ['en', 'sw'], true) ? $locale : (str_starts_with((string) $locale, 'sw') ? 'sw' : 'en');
+    $isSw = $locale === 'sw';
+    $t = static fn (string $en, string $sw): string => $isSw ? $sw : $en;
     $validityDays = (int) ($snapshot['offer_validity_days'] ?? 14);
     $expiresAt = $agreement->expires_at?->toDateString()
         ?? $snapshot['offer_expires_at']
@@ -62,6 +70,21 @@
     <p>{{ __('borrower.offer_letter.pdf.greeting', ['name' => $snapshot['customer_name'] ?: __('borrower.offer_letter.pdf.customer_fallback')]) }}</p>
     <p>{{ __('borrower.offer_letter.pdf.intro') }}</p>
 
+    <table class="kv">
+        <tr><td class="label">NIDA / ID</td><td class="value">{{ $snapshot['customer_id'] ?? '—' }}</td></tr>
+        <tr><td class="label">{{ $t('Residential address', 'Anwani ya makazi') }}</td><td class="value">{{ $snapshot['customer_address'] ?? '—' }}</td></tr>
+        <tr><td class="label">{{ $t('Phone', 'Simu') }}</td><td class="value">{{ $snapshot['customer_phone'] ?? '—' }}</td></tr>
+    </table>
+
+    @if (! empty($snapshot['guarantor_name']))
+        <h2>{{ $t('Guarantor', 'Mdhamini') }}</h2>
+        <table class="kv">
+            <tr><td class="label">{{ $t('Name', 'Jina') }}</td><td class="value">{{ $snapshot['guarantor_name'] }}</td></tr>
+            <tr><td class="label">NIDA</td><td class="value">{{ $snapshot['guarantor_nida'] ?? '—' }}</td></tr>
+            <tr><td class="label">{{ $t('Phone', 'Simu') }}</td><td class="value">{{ $snapshot['guarantor_phone'] ?? '—' }}</td></tr>
+        </table>
+    @endif
+
     @if (! empty($snapshot['is_group_loan']) && ! empty($snapshot['group_members']))
         <h2>{{ __('borrower.offer_letter.pdf.group_heading') }}</h2>
         <p class="muted">{{ $snapshot['group_name'] ?? '' }}</p>
@@ -69,7 +92,7 @@
             @foreach ($snapshot['group_members'] as $member)
                 <tr>
                     <td class="label">{{ $member['name'] ?? '—' }}{{ ($member['role'] ?? '') === 'leader' ? ' · '.__('borrower.offer_letter.pdf.leader') : '' }}</td>
-                    <td class="value">{{ format_money($member['requested_amount'] ?? 0) }}</td>
+                    <td class="value">{{ format_money($member['requested_amount'] ?? 0) }} · {{ $member['national_id'] ?? '—' }}</td>
                 </tr>
             @endforeach
         </table>
@@ -90,35 +113,19 @@
     </table>
 
     <div class="notice">
-        <strong>{{ __('borrower.offer_letter.pdf.next_steps_heading') }}</strong> {{ __('borrower.offer_letter.pdf.next_steps_body') }}
+        <strong>{{ $t('Acceptance of commercial terms', 'Kukubali masharti ya kibiashara') }}</strong>
+        @if ($isSw)
+            <p>Kwa kusaini Barua hii ya Ofa, Mkopaji na, pale inapohusika, Mdhamini na Wanachama wa Kikundi wanathibitisha wamesoma na kukubali kiasi, riba, ratiba, ada, masharti ya default na wajibu, kulingana na kutia saini Mkataba wa Mkopo na Masharti ya Huduma ya Mkopo.</p>
+        @else
+            <p>By signing this Offer Letter, the Borrower and, where applicable, the Guarantor and Group Members acknowledge that they have reviewed and accepted the principal amount, interest, repayment schedule, applicable charges, default provisions and the obligations described herein, subject to execution of the Loan Agreement and Facility Terms.</p>
+        @endif
+        <p><strong>{{ __('borrower.offer_letter.pdf.next_steps_heading') }}</strong> {{ __('borrower.offer_letter.pdf.next_steps_body') }}</p>
     </div>
 
-    <table style="width:100%;margin-top:28px">
-        <tr>
-            <td style="width:55%;vertical-align:top">
-                <strong>{{ __('borrower.offer_letter.pdf.for_company', ['company' => brand('legal_name')]) }}</strong>
-                @if (! empty($snapshot['company_signature_path']))
-                    <div><img src="{{ $snapshot['company_signature_path'] }}" class="sig-img" alt=""></div>
-                @else
-                    <div style="height:36px"></div>
-                @endif
-                <div class="muted">{{ $snapshot['company_signatory_name'] ?? brand('legal_name') }}</div>
-                @if (! empty($snapshot['company_signatory_title']))
-                    <div class="muted">{{ $snapshot['company_signatory_title'] }}</div>
-                @endif
-            </td>
-            <td style="width:45%;vertical-align:top;text-align:center">
-                <strong>{{ __('borrower.offer_letter.pdf.company_stamp') }}</strong>
-                @if (! empty($snapshot['company_stamp_path']))
-                    <div><img src="{{ $snapshot['company_stamp_path'] }}" class="stamp-img" alt=""></div>
-                @endif
-                <div class="muted" style="margin-top:6px">{{ __('borrower.offer_letter.pdf.company_stamp_only') }}</div>
-            </td>
-        </tr>
-    </table>
+    @include('pdf.loan-agreement._signatories')
 
     <div class="footer">
-        {{ __('borrower.offer_letter.pdf.footer', ['company' => brand('legal_name'), 'email' => brand('support_email')]) }}
+        {{ __('borrower.offer_letter.pdf.footer', ['company' => $snapshot['company_legal_name'] ?? brand('legal_name'), 'email' => $snapshot['complaints_email'] ?? brand('support_email')]) }}
     </div>
 </div>
 </body>

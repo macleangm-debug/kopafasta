@@ -197,7 +197,11 @@
                 <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
                     <h2 class="text-sm font-semibold text-gray-900 mb-3">Quick links</h2>
                     <div class="space-y-2 text-sm">
-                        <a href="{{ route('admin.repayments.create', ['loan_id' => $loan->id]) }}" class="block text-emerald-700 font-semibold hover:underline">Record repayment</a>
+                        @if ($loan->loan_application_id)
+                            <a href="{{ route('admin.loan-applications.show', ['loan_application' => $loan->loan_application_id, 'workspace' => 'facility', 'section' => 'owed']) }}#credit-workspace" class="block text-brand font-semibold hover:underline">Ask for payment</a>
+                        @else
+                            <a href="{{ route('admin.loans.show', $loan) }}" class="block text-brand font-semibold hover:underline">Ask for payment</a>
+                        @endif
                         <a href="{{ route('admin.restructure-requests.index') }}" class="block text-amber-700 font-semibold hover:underline">Restructure requests</a>
                     </div>
                 </div>

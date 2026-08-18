@@ -68,12 +68,12 @@
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Contract clauses</h3>
             <p class="text-xs text-gray-500 mb-4">
                 Penalty rate, grace period, and cap are taken from
-                <a href="{{ route('admin.settings.loan-rules') }}" class="text-brand hover:underline">Loan Rules</a>.
-                Configure display text for fees and recovery below — all contract PDFs pull these dynamically.
+                <a href="{{ route('admin.settings.loan-rules') }}" class="text-brand hover:underline">Loan Rules</a>
+                and printed on the contract. Collection and recovery wording below is disclosure text — actual collection fees come from
+                <a href="{{ route('admin.settings.recovery') }}" class="text-brand hover:underline">Recovery</a>
+                when a partner is assigned.
             </p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-admin.input name="late_fee_amount" label="Late fee (TZS)" type="number" step="1" min="0"
-                               :value="$values['late_fee_amount'] ?? 2000" required />
                 <x-admin.input name="jurisdiction" label="Jurisdiction" :value="$values['jurisdiction'] ?? 'United Republic of Tanzania'" required />
                 <div class="md:col-span-2">
                     <x-admin.input name="collection_fee_text" label="Collection charge" :value="$values['collection_fee_text'] ?? 'Actual cost incurred'" />
@@ -95,7 +95,7 @@
                 </div>
                 <div class="md:col-span-2">
                     <x-admin.textarea name="penalty_clause" label="Penalty clause" rows="2"
-                                      :value="$values['penalty_clause'] ?? 'Penalty interest and late fees apply as stated in the schedule of charges.'" />
+                                      :value="$values['penalty_clause'] ?? 'Penalty interest applies as stated in the schedule of charges. Collection fees are added on top of amount owed when a recovery partner is assigned.'" />
                 </div>
                 <div class="md:col-span-2">
                     <x-admin.textarea name="legal_cost_clause" label="Legal costs clause" rows="2"

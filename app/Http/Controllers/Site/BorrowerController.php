@@ -951,6 +951,13 @@ class BorrowerController extends Controller
         $canTopUp = $policy->canSubmitTopUpRequest($loan) === null;
         $timeline = app(\App\Services\LoanServicingTimelineService::class)->forLoan($loan);
         $auctionHold = app(\App\Services\AuctionHoldService::class)->statusForLoan($loan);
+        $openPayment = \App\Models\CustomerPayment::query()
+            ->where('loan_id', $loan->id)
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'loan_repayment')
+            ->where('status', 'awaiting_payment')
+            ->latest('id')
+            ->first();
 
         return view('site.borrower.loan-show', compact(
             'customer',
@@ -963,6 +970,7 @@ class BorrowerController extends Controller
             'canTopUp',
             'timeline',
             'auctionHold',
+            'openPayment',
         ));
     }
 

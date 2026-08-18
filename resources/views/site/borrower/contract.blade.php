@@ -225,30 +225,19 @@
                             <p class="text-xs text-emerald-700 mt-1 font-medium">{{ __('borrower.contract.signature_reuse_help') }}</p>
                         @endif
                         @if ($requireAcceptanceCode ?? false)
-                            <p class="text-xs text-gray-600 mt-1">{{ __('borrower.contract.accept_help') }}</p>
-
-                            <form method="POST" action="{{ route('site.borrower.application.contract.otp', $application) }}" class="mt-3">
-                                @csrf
-                                <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
-                                    @if ($contract->otp_sent_at) {{ __('borrower.contract.resend_code') }} @else {{ __('borrower.contract.send_code') }} @endif
-                                </button>
-                                @if ($contract->otp_sent_at)
-                                    <span class="ml-2 text-xs text-gray-500">{{ __('borrower.contract.last_sent', ['time' => $contract->otp_sent_at->diffForHumans()]) }}</span>
-                                @endif
-                            </form>
-
+                            <p class="text-xs text-gray-600 mt-1">{{ __('borrower.agreement.pin_help') }}</p>
                             <form method="POST" action="{{ route('site.borrower.application.contract.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3"
                                   @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.contract.confirm_title')), message: @js(__('borrower.contract.confirm_message')), confirmLabel: @js(__('borrower.contract.accept_button')), confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
                                 @csrf
                                 <div>
-                                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.contract.otp_label') }}</label>
-                                    <input type="text" name="otp" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required
-                                           class="font-mono text-lg tracking-[0.4em] w-44 rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.contract.pin_label') }}</label>
+                                    <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" required
+                                           class="font-mono text-lg tracking-[0.4em] w-36 rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
                                 </div>
                                 <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
                                     {{ __('borrower.contract.accept_button') }}
                                 </button>
-                                @error('otp') <p class="text-xs text-red-600 w-full">{{ $message }}</p> @enderror
+                                @error('pin') <p class="text-xs text-red-600 w-full">{{ $message }}</p> @enderror
                             </form>
                         @else
                             <p class="text-xs text-gray-600 mt-1">{{ __('borrower.contract.accept_direct_help') }}</p>

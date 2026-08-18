@@ -101,6 +101,68 @@ class CustomerPaymentService
     }
 
     /**
+     * Staff creates a borrower payment gate for a specific amount on a live loan.
+     * Money is not recorded here — the borrower pays on payments.show.
+     */
+    public function requestLoanRepayment(Loan $loan, float $amount, \App\Models\User $actor, ?string $note = null): CustomerPayment
+    {
+        $amount = round($amount, 2);
+        if ($amount < 100) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'amount' => 'Amount must be at least TZS 100.',
+            ]);
+        }
+        if (! in_array($loan->status, ['active', 'arrears', 'defaulted'], true) || (float) $loan->outstanding_balance <= 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'amount' => 'This loan is not open for collection.',
+            ]);
+        }
+
+        $loan->loadMissing(['customer', 'product']);
+        $customer = $loan->customer;
+        if (! $customer) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'amount' => 'This loan has no borrower on file.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($loan, $amount, $actor, $note, $customer) {
+            $reference = $this->generateReference();
+            $resolved = $this->accounts->resolve('loan_repayment', 'mobile_money', $loan->product);
+
+            $repayment = Repayment::create([
+                'loan_id'   => $loan->id,
+                'reference' => $reference,
+                'channel'   => 'mobile_money',
+                'amount'    => $amount,
+                'status'    => 'pending',
+            ]);
+
+            return CustomerPayment::create([
+                'reference'               => $reference,
+                'customer_id'             => $customer->id,
+                'payment_type'            => 'loan_repayment',
+                'payment_method'          => 'mobile_money',
+                'amount'                  => $amount,
+                'currency'                => 'TZS',
+                'status'                  => 'awaiting_payment',
+                'mobile_money_account_id' => $resolved['mobile_money_account']?->id,
+                'payment_instructions'    => $resolved['instructions'],
+                'source_type'             => Repayment::class,
+                'source_id'               => $repayment->id,
+                'loan_id'                 => $loan->id,
+                'loan_product_id'         => $loan->loan_product_id,
+                'created_by'              => $actor->id,
+                'provider_meta'           => array_filter([
+                    'staff_requested' => true,
+                    'requested_by'    => $actor->id,
+                    'note'            => $note,
+                ]),
+            ]);
+        });
+    }
+
+    /**
      * @param  array{
      *   payment_type: string,
      *   payment_method: string,

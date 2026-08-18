@@ -81,12 +81,17 @@
         </div>
 
         @if (! empty($approvalRequired) && $canRecommend)
-            <form method="POST" action="{{ route('admin.loans.write-off-requests.store', $loan) }}" class="space-y-4 pt-4 border-t border-gray-100">
+            <form method="POST" action="{{ route('admin.loans.write-off-requests.store', $loan) }}" class="space-y-4 pt-4 border-t border-gray-100"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: @js('Recommend write-off for '.$loan->loan_number.'?'),
+                      message: @js('This does not write the loan off. It sends a request to the write-off queue. A manager must approve, then finance executes it to the General Ledger.'),
+                      confirmLabel: @js('Send recommendation'),
+                      confirmClass: 'bg-rose-600 hover:bg-rose-500 text-white',
+                      tone: 'warning',
+                  })">
                 @csrf
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount to write off (TZS)</label>
-                    <input type="number" step="0.01" name="amount" value="{{ old('amount', (float) $loan->outstanding_balance) }}"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                    <x-admin.money-input name="amount" label="Amount to write off (TZS)" :value="old('amount', (float) $loan->outstanding_balance)" :decimals="2" required />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Reason</label>
@@ -113,10 +118,7 @@
                   })">
                 @csrf
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount to write off (TZS)</label>
-                    <input type="number" step="0.01" name="amount" value="{{ old('amount', (float) $loan->outstanding_balance) }}"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-                    <p class="text-xs text-gray-500 mt-1">Defaults to the full outstanding balance.</p>
+                    <x-admin.money-input name="amount" label="Amount to write off (TZS)" :value="old('amount', (float) $loan->outstanding_balance)" :decimals="2" required help="Defaults to the full outstanding balance." />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Reason</label>

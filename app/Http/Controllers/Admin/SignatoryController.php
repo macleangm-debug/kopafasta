@@ -97,7 +97,7 @@ class SignatoryController extends Controller
             'name'           => ['required', 'string', 'max:120'],
             'position'       => ['nullable', 'string', 'max:120'],
             'email'          => ['nullable', 'email', 'max:150'],
-            'signatory_type' => ['required', 'in:company,legal_advocate'],
+            'signatory_type' => ['required', 'in:ceo,finance_manager,company,legal_advocate'],
             'is_active'      => ['nullable', 'boolean'],
             'signature_image'=> ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'stamp_image'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],

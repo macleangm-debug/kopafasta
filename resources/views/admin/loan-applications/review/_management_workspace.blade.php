@@ -7,15 +7,24 @@
         ? app(\App\Services\ActiveLoanServicingService::class)->forLoan($linkedLoan)
         : null;
     $workspace = request('workspace');
-    $allowedWorkspaces = $isServicingFile ? ['facility', 'letters'] : ['release', 'letters'];
+    $allowedWorkspaces = $isServicingFile ? ['facility', 'documents', 'letters'] : ['release', 'documents', 'letters'];
+    if ($workspace === 'letters') {
+        $workspace = 'documents';
+    }
     if (! in_array($workspace, $allowedWorkspaces, true)) {
         $workspace = $isServicingFile ? 'facility' : 'release';
     }
-    $workspaceUrl = function (string $key) use ($record) {
-        return route('admin.loan-applications.show', [
+    $section = request('section');
+    $allowedSections = ['owed', 'upcoming', 'schedule', 'follow-up'];
+    if (! in_array($section, $allowedSections, true)) {
+        $section = 'owed';
+    }
+    $workspaceUrl = function (string $key, ?string $sectionKey = null) use ($record, $section) {
+        return route('admin.loan-applications.show', array_filter([
             'loan_application' => $record,
             'workspace' => $key,
-        ]).'#credit-workspace';
+            'section' => $key === 'facility' ? ($sectionKey ?? $section) : null,
+        ])).'#credit-workspace';
     };
 @endphp
 
@@ -54,8 +63,8 @@
     <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
         <nav class="flex gap-1 overflow-x-auto px-2 pt-2 border-b border-gray-100" aria-label="Credit management workspace">
             @foreach (($isServicingFile
-                ? ['facility' => 'Facility', 'letters' => 'Letters']
-                : ['release' => 'Release', 'letters' => 'Letters']
+                ? ['facility' => 'Facility', 'documents' => 'Documents']
+                : ['release' => 'Release', 'documents' => 'Documents']
             ) as $key => $label)
                 <a href="{{ $workspaceUrl($key) }}"
                    @class([
@@ -71,8 +80,8 @@
 
         <div class="p-4 sm:p-5 space-y-4">
             @if ($workspace === 'facility')
-                @include('admin.loan-applications.review._facility_tab')
-            @elseif ($workspace === 'letters')
+                @include('admin.loan-applications.review._facility_tab', ['section' => $section, 'workspaceUrl' => $workspaceUrl])
+            @elseif ($workspace === 'documents')
                 @include('admin.loan-applications.review._file_letters', [
                     'offerLetter' => $offer ?? null,
                     'loanContract' => $contract ?? null,
@@ -81,6 +90,8 @@
                     'rejectionLetter' => null,
                     'allowMutations' => ! $isServicingFile,
                     'featureSignedContract' => $isServicingFile,
+                    'embedDocuments' => true,
+                    'documentCards' => true,
                 ])
             @else
                 @include('admin.loan-applications.review._ops_workspace')

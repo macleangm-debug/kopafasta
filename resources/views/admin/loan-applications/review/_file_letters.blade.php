@@ -8,7 +8,9 @@
     $featureSignedContract = $featureSignedContract ?? false;
     $useAdminPreview = $useAdminPreview ?? true;
     $embedDocuments = $embedDocuments ?? $useAdminPreview;
+    $documentCards = $documentCards ?? false;
     $letterDownloadUrl = $letterDownloadUrl ?? fn ($agreement) => route('admin.loan-agreements.download', $agreement);
+    $showEmbeddedPdf = $documentCards || $embedDocuments;
 
     if (! $signedContract && $featureSignedContract) {
         $signedContract = ($finalContract?->file_path ? $finalContract : null)
@@ -22,18 +24,15 @@
         && (! $featureSignedContract || (int) $loanContract->id !== (int) $signedId);
 @endphp
 
-@php
-    $letterPreview = function ($agreement, string $label) use ($letterDownloadUrl) {
-        return [
-            'url' => $letterDownloadUrl($agreement),
-            'label' => $label,
-        ];
-    };
-@endphp
-
 <div class="space-y-5">
+    @if ($documentCards)
+        <div>
+            <h3 class="text-sm font-semibold text-gray-900">Documents</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Offer letter and contract as PDF — preview here or download.</p>
+        </div>
+    @endif
     @if ($rejectionLetter?->file_path)
-        @php $preview = $letterPreview($rejectionLetter, 'Open letter'); @endphp
+        @php $url = $letterDownloadUrl($rejectionLetter); @endphp
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -41,15 +40,11 @@
                     <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $rejectionLetter->reference }}</p>
                     <p class="text-xs text-gray-500 mt-0.5">Sent to the applicant · {{ optional($rejectionLetter->sent_at ?? $record->updated_at)->format('d M Y') }}</p>
                 </div>
-                @if ($useAdminPreview)
-                    <x-admin.document-preview :url="$preview['url']" :label="$preview['label']" />
-                @else
-                    <x-site.document-view-button :url="$preview['url']" type="pdf" :label="$preview['label']" class="text-brand hover:underline text-xs font-semibold" />
-                @endif
+                <x-admin.letter-actions :url="$url" preview-label="Open letter" :use-admin-preview="$useAdminPreview" />
             </div>
-            @if ($embedDocuments)
-                <iframe src="{{ $preview['url'] }}"
-                        class="w-full min-h-[70vh] bg-gray-50"
+            @if ($showEmbeddedPdf)
+                <iframe src="{{ $url }}"
+                        class="w-full min-h-[80vh] bg-gray-50"
                         title="Rejected feedback letter"></iframe>
             @endif
         </div>
@@ -66,7 +61,7 @@
                 $signedTitle = $signedContract->document_type === 'final_loan_contract'
                     ? 'Signed contract'
                     : 'Signed loan contract';
-                $preview = $letterPreview($signedContract, 'Open signed contract');
+                $url = $letterDownloadUrl($signedContract);
             @endphp
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
@@ -80,15 +75,11 @@
                             @endif
                         </p>
                     </div>
-                    @if ($useAdminPreview)
-                        <x-admin.document-preview :url="$preview['url']" :label="$preview['label']" />
-                    @else
-                        <x-site.document-view-button :url="$preview['url']" type="pdf" :label="$preview['label']" class="text-brand hover:underline text-xs font-semibold" />
-                    @endif
+                    <x-admin.letter-actions :url="$url" preview-label="Open signed contract" :use-admin-preview="$useAdminPreview" />
                 </div>
-                @if ($embedDocuments)
-                    <iframe src="{{ $preview['url'] }}"
-                            class="w-full min-h-[70vh] bg-gray-50"
+                @if ($showEmbeddedPdf)
+                    <iframe src="{{ $url }}"
+                            class="w-full min-h-[80vh] bg-gray-50"
                             title="Signed contract"></iframe>
                 @endif
             </div>
@@ -101,7 +92,7 @@
     @endif
 
     @if ($offerLetter)
-        @php $preview = $offerLetter->file_path ? $letterPreview($offerLetter, 'Open offer letter') : null; @endphp
+        @php $url = $offerLetter->file_path ? $letterDownloadUrl($offerLetter) : null; @endphp
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -114,17 +105,13 @@
                         @endif
                     </p>
                 </div>
-                @if ($preview)
-                    @if ($useAdminPreview)
-                        <x-admin.document-preview :url="$preview['url']" :label="$preview['label']" />
-                    @else
-                        <x-site.document-view-button :url="$preview['url']" type="pdf" :label="$preview['label']" class="text-brand hover:underline text-xs font-semibold" />
-                    @endif
+                @if ($url)
+                    <x-admin.letter-actions :url="$url" preview-label="Open offer letter" :use-admin-preview="$useAdminPreview" />
                 @endif
             </div>
-            @if ($preview && $embedDocuments)
-                <iframe src="{{ $preview['url'] }}"
-                        class="w-full min-h-[70vh] bg-gray-50"
+            @if ($url && $showEmbeddedPdf)
+                <iframe src="{{ $url }}"
+                        class="w-full min-h-[80vh] bg-gray-50"
                         title="Offer letter"></iframe>
             @endif
         </div>
@@ -135,22 +122,18 @@
     @endif
 
     @if ($showOriginalContract)
-        @php $preview = $letterPreview($loanContract, 'Open contract'); @endphp
+        @php $url = $letterDownloadUrl($loanContract); @endphp
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Loan contract</p>
                     <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $loanContract->reference }}</p>
                 </div>
-                @if ($useAdminPreview)
-                    <x-admin.document-preview :url="$preview['url']" :label="$preview['label']" />
-                @else
-                    <x-site.document-view-button :url="$preview['url']" type="pdf" :label="$preview['label']" class="text-brand hover:underline text-xs font-semibold" />
-                @endif
+                <x-admin.letter-actions :url="$url" preview-label="Open contract" :use-admin-preview="$useAdminPreview" />
             </div>
-            @if ($embedDocuments)
-                <iframe src="{{ $preview['url'] }}"
-                        class="w-full min-h-[70vh] bg-gray-50"
+            @if ($showEmbeddedPdf)
+                <iframe src="{{ $url }}"
+                        class="w-full min-h-[80vh] bg-gray-50"
                         title="Loan contract"></iframe>
             @endif
         </div>

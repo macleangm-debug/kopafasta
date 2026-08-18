@@ -2,10 +2,16 @@
     'url',
     'label' => 'Preview',
     'variant' => 'button',
+    'type' => null,
 ])
 
 @php
-    $isPdf = str_contains(strtolower((string) $url), '.pdf');
+    $urlString = strtolower((string) $url);
+    $isPdf = $type === 'pdf'
+        || str_contains($urlString, '.pdf')
+        || str_contains($urlString, 'loan-agreements')
+        || str_contains($urlString, 'rejection-letter')
+        || str_contains($urlString, 'final-contract');
 @endphp
 
 @if ($variant === 'link')

@@ -59,4 +59,14 @@ class CompanySignatory extends Model
     {
         return $this->signatory_type === 'legal_advocate';
     }
+
+    public function isCeo(): bool
+    {
+        return $this->signatory_type === 'ceo';
+    }
+
+    public function isFinanceManager(): bool
+    {
+        return $this->signatory_type === 'finance_manager';
+    }
 }

@@ -119,8 +119,17 @@
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('site.borrower.schedule', $loan->id) }}" class="bg-brand hover:bg-brand-light text-white text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.view_schedule') }}</a>
-            <a href="{{ route('site.borrower.payments.create', ['loan' => $loan->id]) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.make_payment') }}</a>
+            @if (! empty($openPayment))
+                <a href="{{ route('site.borrower.payments.show', $openPayment) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">
+                    {{ __('borrower.loans_page.make_payment') }} · {{ format_money((float) $openPayment->amount) }}
+                </a>
+            @else
+                <a href="{{ route('site.borrower.payments.create', ['loan' => $loan->id]) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.make_payment') }}</a>
+            @endif
         </div>
+        @if (! empty($openPayment))
+            <p class="text-xs text-gray-500 mt-2">Kopafasta asked you to pay {{ format_money((float) $openPayment->amount) }} ({{ $openPayment->reference }}). Paying this amount is applied to penalty, then interest, then principal — including overdue instalments.</p>
+        @endif
     </div>
 
     {{-- Documents --}}

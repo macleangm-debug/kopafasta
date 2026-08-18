@@ -73,5 +73,6 @@ class ApplyWizardLocaleFeatureTest extends TestCase
             ->assertRedirect('/borrower/apply?resume=1');
 
         $this->assertSame('sw', session('locale'));
+        $this->assertSame('sw', $customer->user->fresh()->preferences['preferred_locale'] ?? null);
     }
 }

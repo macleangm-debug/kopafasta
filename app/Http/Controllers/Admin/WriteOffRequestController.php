@@ -9,6 +9,7 @@ use App\Models\Loan;
 use App\Models\Setting;
 use App\Models\WriteOffRequest;
 use App\Services\WriteOffRequestService;
+use App\Support\MoneyFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -77,6 +78,10 @@ class WriteOffRequestController extends Controller
     {
         $service->assertCanRecommend($request->user());
 
+        if ($request->filled('amount')) {
+            $request->merge(['amount' => MoneyFormat::toNumber($request->input('amount'))]);
+        }
+
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
             'amount' => ['nullable', 'numeric', 'min:0'],
@@ -103,6 +108,10 @@ class WriteOffRequestController extends Controller
     {
         $service->assertCanRecommend($request->user());
         abort_unless($arrearCase->loan, 404);
+
+        if ($request->filled('amount')) {
+            $request->merge(['amount' => MoneyFormat::toNumber($request->input('amount'))]);
+        }
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],

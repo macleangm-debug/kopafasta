@@ -711,6 +711,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::post('write-off-requests/{writeOffRequest}/manager-approve', [WriteOffRequestController::class, 'managerApprove'])->name('write-off-requests.manager-approve');
         Route::post('write-off-requests/{writeOffRequest}/finance-approve', [WriteOffRequestController::class, 'financeApprove'])->name('write-off-requests.finance-approve');
         Route::post('write-off-requests/{writeOffRequest}/reject', [WriteOffRequestController::class, 'reject'])->name('write-off-requests.reject');
+        Route::post('loans/{loan}/payment-requests', [LoanController::class, 'requestPayment'])->name('loans.payment-requests.store');
         Route::get('loans/{loan}/write-off',  [LoanController::class, 'writeOffForm'])->name('loans.write-off-form');
         Route::post('loans/{loan}/write-off', [LoanController::class, 'writeOff'])->name('loans.write-off');
         $registerResource('repayments', 'repayment', RepaymentController::class);

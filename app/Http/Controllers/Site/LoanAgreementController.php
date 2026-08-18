@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
+use App\Rules\FourDigitPin;
 use App\Services\ApplicationDisbursementReadinessService;
 use App\Services\LoanAgreementService;
 use App\Services\NotificationService;
@@ -82,13 +83,7 @@ class LoanAgreementController extends Controller
 
         abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
-        return response()->file(
-            Storage::disk('public')->path($agreement->file_path),
-            [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$agreement->reference.'.pdf"',
-            ]
-        );
+        return $this->pdfFileResponse($agreement, request());
     }
 
     public function showContract(LoanApplication $application): View|RedirectResponse
@@ -279,12 +274,12 @@ class LoanAgreementController extends Controller
         }
 
         $data = $request->validate([
-            'otp' => ['required', 'string', 'size:6'],
+            'pin' => ['required', 'string', new FourDigitPin],
         ]);
 
-        [$ok, $message] = $this->service->signWithOtp(
+        [$ok, $message] = $this->service->signWithPin(
             $agreement,
-            $data['otp'],
+            $data['pin'],
             $request->ip(),
             (string) $request->userAgent()
         );
@@ -318,7 +313,7 @@ class LoanAgreementController extends Controller
         }
 
         if (app(\App\Services\OfferSettingsService::class)->requireOfferAcceptanceCode()) {
-            return back()->with('error', 'Acceptance code is required. Request a code and enter it to accept.');
+            return back()->with('error', __('borrower.agreement.pin_required'));
         }
 
         [$ok, $message] = $this->service->acceptDirectly(
@@ -376,12 +371,12 @@ class LoanAgreementController extends Controller
         $contract = $this->contractOrFail($application);
 
         $data = $request->validate([
-            'otp' => ['required', 'string', 'size:6'],
+            'pin' => ['required', 'string', new FourDigitPin],
         ]);
 
-        [$ok, $message] = $this->service->signWithOtp(
+        [$ok, $message] = $this->service->signWithPin(
             $contract,
-            $data['otp'],
+            $data['pin'],
             $request->ip(),
             (string) $request->userAgent()
         );
@@ -456,7 +451,7 @@ class LoanAgreementController extends Controller
             ->with('status', __('borrower.contract.declined'));
     }
 
-    public function download(LoanAgreement $agreement): BinaryFileResponse
+    public function download(LoanAgreement $agreement, Request $request): BinaryFileResponse
     {
         $user = Auth::user();
         $customer = Customer::where('user_id', $user->id ?? 0)->first();
@@ -467,9 +462,16 @@ class LoanAgreementController extends Controller
         abort_unless($isOwner || $isAdmin, 403);
         abort_unless($agreement->file_path && Storage::disk('public')->exists($agreement->file_path), 404);
 
+        return $this->pdfFileResponse($agreement, $request);
+    }
+
+    private function pdfFileResponse(LoanAgreement $agreement, Request $request): BinaryFileResponse
+    {
+        $disposition = $request->boolean('download') ? 'attachment' : 'inline';
+
         return response()->file(Storage::disk('public')->path($agreement->file_path), [
             'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$agreement->reference.'.pdf"',
+            'Content-Disposition' => $disposition.'; filename="'.$agreement->reference.'.pdf"',
         ]);
     }
 

@@ -114,10 +114,7 @@ class LoanAgreementService
             $viewData,
         );
 
-        $path = "agreements/{$agreement->reference}.pdf";
-        Storage::disk('public')->put($path, $pdf->output());
-        $agreement->file_path = $path;
-        $agreement->save();
+        $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
         return $agreement;
     }
@@ -263,10 +260,7 @@ class LoanAgreementService
 
         $pdf = $this->renderAgreementPdf($template, 'pdf.loan-contract', $viewData);
 
-        $path = "agreements/{$agreement->reference}.pdf";
-        Storage::disk('public')->put($path, $pdf->output());
-        $agreement->file_path = $path;
-        $agreement->save();
+        $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
         return $agreement;
     }
@@ -305,16 +299,12 @@ class LoanAgreementService
 
             $fallbackView = $documentType === 'offer_letter' ? 'pdf.offer-letter' : 'pdf.loan-contract';
             $pdf = $this->renderAgreementPdf($template, $fallbackView, $viewData);
+            $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
-            $path = $agreement->file_path ?: "agreements/{$agreement->reference}.pdf";
-            Storage::disk('public')->put($path, $pdf->output());
-            $agreement->file_path = $path;
-
-            if (! $wasSigned) {
+            if (! $wasSigned && $agreement->status !== 'signed') {
                 $agreement->status = 'sent';
+                $agreement->save();
             }
-
-            $agreement->save();
         }
 
         $loan = $application->loan;
@@ -385,6 +375,45 @@ class LoanAgreementService
         }
 
         $this->markSigned($agreement, 'otp', $ip, $ua);
+
+        return [true, 'Signed successfully.'];
+    }
+
+    /**
+     * Verify the borrower's account PIN and mark the agreement as signed.
+     *
+     * @return array{0:bool,1:string}
+     */
+    public function signWithPin(LoanAgreement $agreement, string $pin, ?string $ip = null, ?string $ua = null): array
+    {
+        if ($agreement->isSigned()) {
+            return [true, 'Already signed.'];
+        }
+
+        if ($agreement->isCancelled()) {
+            return [false, __('borrower.agreement.already_declined')];
+        }
+
+        if ($agreement->document_type === 'offer_letter' && $agreement->isOfferExpired()) {
+            return [false, 'This offer has expired. Please contact the lender for a new offer letter.'];
+        }
+
+        $application = $agreement->loanApplication;
+        $application?->loadMissing('customer.user');
+        if ($agreement->document_type === 'offer_letter' && $application && ! $this->borrowerCanRespondToOffer($application, $agreement)) {
+            return [false, __('borrower.agreement.already_declined')];
+        }
+
+        $user = $application?->customer?->user;
+        $pins = app(PinService::class);
+        if (! $user || ! $pins->hasPin($user)) {
+            return [false, __('borrower.agreement.pin_not_set')];
+        }
+        if (! $pins->verify($pin, $user->pin_hash)) {
+            return [false, __('borrower.agreement.pin_incorrect')];
+        }
+
+        $this->markSigned($agreement, 'pin', $ip, $ua);
 
         return [true, 'Signed successfully.'];
     }
@@ -598,10 +627,7 @@ class LoanAgreementService
         ];
 
         $pdf = $this->withBorrowerLocale($application, fn () => Pdf::loadView('pdf.final-loan-contract', $viewData)->setPaper('a4'));
-        $path = "agreements/{$agreement->reference}.pdf";
-        Storage::disk('public')->put($path, $pdf->output());
-        $agreement->file_path = $path;
-        $agreement->save();
+        $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
         return $agreement;
     }
@@ -851,12 +877,22 @@ class LoanAgreementService
                             'role' => $member->role,
                             'requested_amount' => (float) ($member->requested_amount ?? 0),
                             'signature' => $signature,
+                            'signature_data' => $member->contract_signature_data
+                                ?: ($signature->signature_data ?? null),
+                            'signer_name' => $member->contract_signer_name
+                                ?: ($memberCustomer?->full_name ?? null),
+                            'signed_at' => $member->contract_signed_at,
                             'signature_status' => $contractStatus,
                         ];
                     })->values()->all();
                 $totalGroupLiability = collect($groupMembers)->sum('requested_amount');
             }
         }
+
+        $disclosure = app(LoanAgreementDisclosureService::class);
+        $identity = $disclosure->companyIdentity();
+        $penalty = $disclosure->penaltyDisclosure($a);
+        $recovery = $disclosure->recoverySchedule($a);
 
         return [
             'application_number' => $a->application_number,
@@ -904,9 +940,15 @@ class LoanAgreementService
             'legal_clauses' => $legal->contractClauses(),
             'contract_sections' => $legal->contractSections(),
             'generated_at' => now()->toIso8601String(),
+            'locale' => $this->borrowerContractLocale($a),
+            'document_version' => $identity['document_version'],
+            ...$identity,
+            ...$penalty,
+            'recovery_schedule' => $recovery,
             'borrower_signature' => $this->borrowerSignatureForPdf($a, 'loan_contract'),
             'guarantor_signature' => $a->signatures->firstWhere('signer_type', 'guarantor'),
-            'company_signatory' => brand('legal_name'),
+            'offer_borrower_signature' => $this->borrowerSignatureForPdf($a, 'offer_letter'),
+            'company_signatory' => $identity['company_legal_name'],
             ...$this->companySignatorySnapshot($legal),
             'is_asset_loan' => $isAssetLoan,
             'asset_title' => $reservation?->asset?->title ?? ($collateral?->description),
@@ -927,6 +969,28 @@ class LoanAgreementService
             'group_members' => $groupMembers,
             'total_group_liability' => $totalGroupLiability,
         ];
+
+        $offerRecord = LoanAgreement::query()
+            ->where('loan_application_id', $a->id)
+            ->where('document_type', 'offer_letter')
+            ->latest('id')
+            ->first();
+        $contractRecord = LoanAgreement::query()
+            ->where('loan_application_id', $a->id)
+            ->where('document_type', 'loan_contract')
+            ->latest('id')
+            ->first();
+
+        $snapshot['offer_execution_method'] = $offerRecord?->signature_method;
+        $snapshot['offer_signed_at'] = $offerRecord?->signed_at?->toIso8601String();
+        $snapshot['contract_execution_method'] = $contractRecord?->signature_method;
+        $snapshot['contract_signed_at'] = $contractRecord?->signed_at?->toIso8601String();
+        $snapshot['contract_signed_ip'] = $contractRecord?->signed_ip;
+        $snapshot['pin_verified'] = in_array($contractRecord?->signature_method, ['pin', 'otp'], true)
+            || in_array($offerRecord?->signature_method, ['pin', 'otp'], true);
+        $snapshot['terms_hash'] = $disclosure->termsHash($snapshot);
+
+        return $snapshot;
     }
 
     /** @param 'offer_letter'|'loan_contract' $documentType */
@@ -970,39 +1034,73 @@ class LoanAgreementService
     /** @return array<string, mixed> */
     private function companySignatorySnapshot(LegalSettingsService $legal): array
     {
-        $signatory = $legal->activeSignatory();
-        $legalSignatory = $legal->activeLegalSignatory();
+        $ceo = $legal->activeCeoSignatory();
+        $finance = $legal->activeFinanceSignatory();
 
-        $company = $signatory
+        $company = $ceo
             ? [
-                'company_signatory_name' => $signatory->name,
-                'company_signatory_title' => $signatory->position,
-                'company_signature_path' => $signatory->signatureFilesystemPath(),
+                'company_signatory_name' => $ceo->name,
+                'company_signatory_title' => $ceo->position ?: 'Chief Executive Officer',
+                'company_signature_path' => $ceo->signatureFilesystemPath(),
                 'company_stamp_path' => $legal->stampFilesystemPath(),
+                'ceo_signatory_name' => $ceo->name,
+                'ceo_signatory_title' => $ceo->position ?: 'Chief Executive Officer',
+                'ceo_signature_path' => $ceo->signatureFilesystemPath(),
             ]
             : [
                 'company_signatory_name' => $legal->signatoryName() ?: brand('legal_name'),
-                'company_signatory_title' => $legal->signatoryTitle(),
+                'company_signatory_title' => $legal->signatoryTitle() ?: 'Chief Executive Officer',
                 'company_signature_path' => $legal->signatureFilesystemPath(),
                 'company_stamp_path' => $legal->stampFilesystemPath(),
+                'ceo_signatory_name' => $legal->signatoryName() ?: brand('legal_name'),
+                'ceo_signatory_title' => $legal->signatoryTitle() ?: 'Chief Executive Officer',
+                'ceo_signature_path' => $legal->signatureFilesystemPath(),
             ];
 
-        $advocate = [
-            'legal_signatory_name' => $legalSignatory?->name,
-            'legal_signatory_title' => $legalSignatory?->position,
-            'legal_signature_path' => $legalSignatory?->signatureFilesystemPath(),
-            'legal_stamp_path' => $legalSignatory?->stampFilesystemPath() ?? null,
+        $financeBlock = [
+            'finance_signatory_name' => $finance?->name,
+            'finance_signatory_title' => $finance?->position ?: 'Finance manager',
+            'finance_signature_path' => $finance?->signatureFilesystemPath(),
         ];
 
-        return array_merge($company, $advocate);
+        return array_merge($company, $financeBlock);
+    }
+
+    private function writeAgreementPdf(LoanAgreement $agreement, $pdf, array $snapshot): void
+    {
+        $path = $agreement->file_path ?: "agreements/{$agreement->reference}.pdf";
+        $bytes = $pdf->output();
+        Storage::disk('public')->put($path, $bytes);
+        $snapshot['document_hash'] = hash('sha256', $bytes);
+        $agreement->file_path = $path;
+        $agreement->snapshot = $snapshot;
+        $agreement->save();
     }
 
     private function borrowerContractLocale(?LoanApplication $application): string
     {
-        $locale = $application?->customer?->user?->preferences['locale']
-            ?? session('locale', config('app.locale', 'en'));
+        $application?->loadMissing('customer.user');
+        $user = $application?->customer?->user;
+        $prefs = is_array($user?->preferences) ? $user->preferences : [];
 
-        return in_array($locale, ['en', 'sw'], true) ? $locale : 'en';
+        foreach (['preferred_locale', 'locale'] as $key) {
+            $value = $prefs[$key] ?? null;
+            if (is_string($value) && in_array($value, ['en', 'sw'], true)) {
+                return $value;
+            }
+        }
+
+        if ($user && Auth::id() && (int) Auth::id() === (int) $user->id) {
+            $sessionLocale = session('locale');
+            if (is_string($sessionLocale) && in_array($sessionLocale, ['en', 'sw'], true)) {
+                return $sessionLocale;
+            }
+        }
+
+        $country = session('country', 'TZ');
+        $contractLocale = app(CountrySettingsService::class)->forCode(is_string($country) ? $country : 'TZ')['contract_locale'] ?? 'sw';
+
+        return in_array($contractLocale, ['en', 'sw'], true) ? $contractLocale : 'sw';
     }
 
     private function withBorrowerLocale(?LoanApplication $application, callable $callback): mixed

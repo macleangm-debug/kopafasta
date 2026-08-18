@@ -100,6 +100,21 @@ class LegalSettingsService
 
     public function activeSignatory(): ?\App\Models\CompanySignatory
     {
+        return $this->activeCeoSignatory();
+    }
+
+    public function activeCeoSignatory(): ?\App\Models\CompanySignatory
+    {
+        $ceo = \App\Models\CompanySignatory::query()
+            ->where('is_active', true)
+            ->where('signatory_type', 'ceo')
+            ->orderBy('id')
+            ->first();
+
+        if ($ceo) {
+            return $ceo;
+        }
+
         $company = \App\Models\CompanySignatory::query()
             ->where('is_active', true)
             ->where(function ($q) {
@@ -114,18 +129,23 @@ class LegalSettingsService
 
         return \App\Models\CompanySignatory::query()
             ->where('is_active', true)
-            ->where('signatory_type', '!=', 'legal_advocate')
+            ->whereNotIn('signatory_type', ['legal_advocate', 'finance_manager'])
+            ->orderBy('id')
+            ->first();
+    }
+
+    public function activeFinanceSignatory(): ?\App\Models\CompanySignatory
+    {
+        return \App\Models\CompanySignatory::query()
+            ->where('is_active', true)
+            ->where('signatory_type', 'finance_manager')
             ->orderBy('id')
             ->first();
     }
 
     public function activeLegalSignatory(): ?\App\Models\CompanySignatory
     {
-        return \App\Models\CompanySignatory::query()
-            ->where('is_active', true)
-            ->where('signatory_type', 'legal_advocate')
-            ->orderBy('id')
-            ->first();
+        return $this->activeFinanceSignatory();
     }
 
     /** @return array<string, mixed> */
@@ -135,7 +155,6 @@ class LegalSettingsService
         $graceDays = (int) Setting::get('loan.default_grace_days', 7);
         $penaltyCap = (float) Setting::get('loan.penalty_cap_percent', 30);
         $penaltyBasis = (string) Setting::get('loan.penalty_basis', 'per_day');
-        $lateFee = (float) $this->get('late_fee_amount', 2000);
 
         $basisLabel = match ($penaltyBasis) {
             'per_month' => 'per month',
@@ -148,15 +167,13 @@ class LegalSettingsService
             'penalty_rate_label'  => format_number($penaltyRate, 2).'% '.$basisLabel.' on overdue balance',
             'grace_days'          => $graceDays,
             'penalty_cap_percent' => $penaltyCap,
-            'late_fee'            => $lateFee,
-            'late_fee_label'      => format_money($lateFee),
             'collection_charge'   => (string) $this->get('collection_fee_text', 'Actual cost incurred'),
             'legal_recovery'      => (string) $this->get('legal_recovery_text', 'Borrower responsible for all legal recovery costs'),
             'jurisdiction'        => $this->jurisdiction(),
             'default_clause'      => (string) $this->get('default_clause', 'Failure to pay any instalment by the due date constitutes default after the grace period.'),
             'collection_clause'   => (string) $this->get('collection_clause', 'The lender may contact the borrower by phone, SMS, email, or in person to recover overdue amounts.'),
             'recovery_clause'     => (string) $this->get('recovery_clause', 'Persistent default may result in legal recovery action and reporting to credit reference bureaus.'),
-            'penalty_clause'      => (string) $this->get('penalty_clause', 'Penalty interest and late fees apply as stated in the schedule of charges.'),
+            'penalty_clause'      => (string) $this->get('penalty_clause', 'Penalty interest applies as stated in the schedule of charges. Collection fees are added on top of amount owed when a recovery partner is assigned.'),
             'legal_cost_clause'   => (string) $this->get('legal_cost_clause', 'The borrower shall bear all reasonable legal costs incurred in recovering overdue amounts.'),
             'guarantor_clause'    => (string) $this->get('guarantor_clause', 'Where a guarantor has signed, they become jointly and severally liable for repayment.'),
             'asset_recovery_clause' => (string) $this->get('asset_recovery_clause', 'The lender may recover financed assets or collateral in accordance with applicable law and the asset lending terms.'),

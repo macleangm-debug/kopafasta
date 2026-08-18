@@ -2,10 +2,12 @@
 
 @php
     $signatoryTypes = [
-        'company'        => 'Company signatory',
-        'legal_advocate' => 'Legal advocate',
+        'ceo'              => 'Chief Executive Officer',
+        'finance_manager'  => 'Finance manager',
+        'company'          => 'Company signatory (legacy)',
+        'legal_advocate'   => 'Legal advocate (legacy — not used on contracts)',
     ];
-    $selectedType = old('signatory_type', $signatory?->signatory_type ?? 'company');
+    $selectedType = old('signatory_type', $signatory?->signatory_type ?? 'ceo');
 @endphp
 
 <div x-data="{ signatoryType: @js($selectedType), replaceSignature: @js(! $signatory?->signature_path), removeSignature: false, removeStamp: false }">

@@ -155,6 +155,7 @@ class Phase34FeatureTest extends TestCase
             'application' => $application->load('product'),
             'agreement'   => $agreement,
             'snapshot'    => [
+                'locale'                 => 'en',
                 'customer_name'          => 'Complete Borrower',
                 'application_number'   => $application->application_number,
                 'principal'              => 450_000,
@@ -173,9 +174,12 @@ class Phase34FeatureTest extends TestCase
             ],
         ])->render();
 
-        $this->assertStringContainsString(__('borrower.loan_contract.pdf.facility_heading'), $html);
-        $this->assertStringContainsString(__('borrower.loan_contract.pdf.borrower_heading'), $html);
-        $this->assertStringContainsString(__('borrower.loan_contract.pdf.repayment_heading'), $html);
+        $this->assertStringContainsString('Loan facility', $html);
+        $this->assertStringContainsString('NIDA', $html);
+        $this->assertStringContainsString('Residential address', $html);
+        $this->assertStringContainsString('PIN verification', $html);
+        $this->assertStringContainsString('Finance manager', $html);
+        $this->assertStringNotContainsString(format_money(2000), $html);
     }
 
     public function test_loan_profile_application_page_uses_wide_layout(): void

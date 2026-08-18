@@ -98,6 +98,7 @@ class Phase55FeatureTest extends TestCase
             'loan'           => $loan,
             'signedContract' => null,
             'snapshot'       => [
+                'locale'                  => 'en',
                 'customer_name'           => 'Borrower P55',
                 'guarantor_name'          => 'Guarantor P55',
                 'principal'               => 500_000,

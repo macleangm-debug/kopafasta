@@ -1,9 +1,15 @@
+@php
+    $servicingPanel = $servicingPanel ?? 'all';
+    $showSummary = in_array($servicingPanel, ['all', 'summary'], true);
+    $showFollowup = in_array($servicingPanel, ['all', 'followup'], true);
+@endphp
 @if ($servicing)
+    @if ($showSummary)
     <div class="mt-4 bg-white rounded-2xl shadow-sm ring-1 ring-brand/10 p-6">
         <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>
                 <h3 class="text-sm font-semibold text-gray-700">Loan servicing</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Repayment progress and collections follow-up</p>
+                <p class="text-xs text-gray-500 mt-0.5">Repayment progress — reminders for upcoming and overdue instalments</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 @if ($arrearCase ?? null)
@@ -11,17 +17,6 @@
                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg ring-1 ring-red-200">
                         Collection case #{{ $arrearCase->id }}
                     </a>
-                @endif
-                @if (admin_repayment_recording_allowed() && in_array($loan->status, ['active', 'arrears', 'defaulted'], true) && (float) $loan->outstanding_balance > 0)
-                    <a href="{{ route('admin.repayments.create', ['loan_id' => $loan->id]) }}"
-                       class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg">
-                        Record repayment
-                    </a>
-                @elseif (collections_gateway_only() && in_array($loan->status, ['active', 'arrears', 'defaulted'], true))
-                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg ring-1 ring-gray-200"
-                          title="Manual recording disabled — repayments must come through the payment gateway">
-                        Gateway-only collections
-                    </span>
                 @endif
                 <a href="{{ route('admin.repayments.index') }}?loan={{ $loan->loan_number }}"
                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg">
@@ -133,7 +128,11 @@
             </div>
         @endif
 
-        @if (in_array($loan->status, ['active', 'arrears', 'defaulted'], true))
+    </div>
+    @endif
+
+    @if ($showFollowup && in_array($loan->status, ['active', 'arrears', 'defaulted'], true))
+    <div class="{{ $showSummary ? 'mt-4' : '' }} bg-white rounded-2xl shadow-sm ring-1 ring-brand/10 p-6">
             <div class="grid lg:grid-cols-2 gap-4">
                 <div>
                     <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Log collection action</h4>
@@ -203,40 +202,40 @@
                     @endif
                 </div>
             </div>
-        @endif
-
-        @if ($recentRepayments->isNotEmpty())
-            <div class="mt-5 pt-5 border-t border-gray-100">
-                <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Recent repayments</h4>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="text-xs uppercase text-gray-500 border-b border-gray-200">
-                            <tr>
-                                <th class="text-left py-2 pr-4">Reference</th>
-                                <th class="text-left py-2 pr-4">Paid</th>
-                                <th class="text-left py-2 pr-4">Channel</th>
-                                <th class="text-right py-2 pr-4">Amount</th>
-                                <th class="text-left py-2">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @foreach ($recentRepayments as $repayment)
-                                <tr>
-                                    <td class="py-2 pr-4">
-                                        <a href="{{ route('admin.repayments.show', $repayment) }}" class="font-mono text-xs text-brand hover:text-brand-light">
-                                            {{ $repayment->reference }}
-                                        </a>
-                                    </td>
-                                    <td class="py-2 pr-4 text-xs">{{ optional($repayment->paid_at)->format('d M Y') ?? '—' }}</td>
-                                    <td class="py-2 pr-4 capitalize text-xs">{{ str_replace('_', ' ', $repayment->channel) }}</td>
-                                    <td class="py-2 pr-4 text-right font-semibold">{{ format_money($repayment->amount) }}</td>
-                                    <td class="py-2 text-xs capitalize">{{ $repayment->status }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        @endif
     </div>
+    @endif
+
+    @if ($showSummary && $recentRepayments->isNotEmpty())
+    <div class="mt-4 bg-white rounded-2xl shadow-sm ring-1 ring-brand/10 p-6">
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Recent repayments</h4>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-xs uppercase text-gray-500 border-b border-gray-200">
+                        <tr>
+                            <th class="text-left py-2 pr-4">Reference</th>
+                            <th class="text-left py-2 pr-4">Paid</th>
+                            <th class="text-left py-2 pr-4">Channel</th>
+                            <th class="text-right py-2 pr-4">Amount</th>
+                            <th class="text-left py-2">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($recentRepayments as $repayment)
+                            <tr>
+                                <td class="py-2 pr-4">
+                                    <a href="{{ route('admin.repayments.show', $repayment) }}" class="font-mono text-xs text-brand hover:text-brand-light">
+                                        {{ $repayment->reference }}
+                                    </a>
+                                </td>
+                                <td class="py-2 pr-4 text-xs">{{ optional($repayment->paid_at)->format('d M Y') ?? '—' }}</td>
+                                <td class="py-2 pr-4 capitalize text-xs">{{ str_replace('_', ' ', $repayment->channel) }}</td>
+                                <td class="py-2 pr-4 text-right font-semibold">{{ format_money($repayment->amount) }}</td>
+                                <td class="py-2 text-xs capitalize">{{ $repayment->status }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+    </div>
+    @endif
 @endif

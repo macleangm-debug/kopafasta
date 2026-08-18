@@ -78,6 +78,7 @@ class GroupContractController extends Controller
         }
 
         $readiness->syncBorrowerProgress($application->fresh());
+        app(\App\Services\LoanAgreementService::class)->refreshGuarantorOnDocuments($application->fresh());
 
         $this->auditBorrower('group_contract.signed', $application, [
             'member_id' => $member->id,

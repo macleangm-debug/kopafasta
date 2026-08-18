@@ -21,6 +21,8 @@ use App\Services\GuarantorNotificationService;
 use App\Services\LoanOriginationService;
 use App\Services\RepaymentScheduleGenerator;
 use App\Services\LoanWriteOffService;
+use App\Services\CustomerPaymentService;
+use App\Support\MoneyFormat;
 use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -407,6 +409,51 @@ class LoanController extends Controller
         return back()->with('status', 'Collection action logged.');
     }
 
+    public function requestPayment(Request $request, Loan $loan, CustomerPaymentService $payments)
+    {
+        abort_unless($request->user()?->hasPermission('loans.view'), 403);
+        abort_unless(in_array($loan->status, ['active', 'arrears', 'defaulted'], true), 403);
+
+        if ($request->filled('amount')) {
+            $request->merge(['amount' => MoneyFormat::toNumber($request->input('amount'))]);
+        }
+
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:100'],
+            'note'   => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $payment = $payments->requestLoanRepayment(
+                $loan,
+                (float) $data['amount'],
+                $request->user(),
+                $data['note'] ?? null,
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return back()->withErrors(['amount' => $e->getMessage()])->withInput();
+        }
+
+        $this->auditAdmin('admin.loans.payment_requested', $loan, [
+            'payment_id' => $payment->id,
+            'reference'  => $payment->reference,
+            'amount'     => $payment->amount,
+        ]);
+
+        $returnTo = $loan->loan_application_id
+            ? route('admin.loan-applications.show', [
+                'loan_application' => $loan->loan_application_id,
+                'workspace' => 'facility',
+                'section' => 'owed',
+            ]).'#credit-workspace'
+            : route('admin.loans.show', $loan);
+
+        return redirect($returnTo)
+            ->with('status', 'Payment request '.$payment->reference.' is ready. The borrower pays it on their loan page — nothing is recorded until they complete payments.show.');
+    }
+
     public function writeOffForm(Loan $loan)
     {
         $loan->loadMissing(['customer', 'product', 'application']);
@@ -435,6 +482,10 @@ class LoanController extends Controller
             return back()->withErrors([
                 'reason' => 'Write-off requires manager and finance approval. Use the collections workflow to recommend a write-off.',
             ]);
+        }
+
+        if ($request->filled('amount')) {
+            $request->merge(['amount' => MoneyFormat::toNumber($request->input('amount'))]);
         }
 
         $data = $request->validate([

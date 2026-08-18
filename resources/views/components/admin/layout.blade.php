@@ -563,7 +563,8 @@ window.kfOpenDocumentPreview = function (url, title, type) {
     titleEl.textContent = title || 'Document';
     openTab.href = url;
 
-    if (type === 'pdf' || url.toLowerCase().indexOf('.pdf') !== -1) {
+    var urlLower = String(url || '').toLowerCase();
+    if (type === 'pdf' || urlLower.indexOf('.pdf') !== -1 || urlLower.indexOf('loan-agreements') !== -1 || urlLower.indexOf('rejection-letter') !== -1) {
         frame.classList.remove('hidden');
         imageWrap.classList.add('hidden');
         frame.src = url;

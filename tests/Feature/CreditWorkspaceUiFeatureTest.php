@@ -343,7 +343,11 @@ class CreditWorkspaceUiFeatureTest extends TestCase
 
         $this->assertStringContainsString('Credit management', $html);
         $this->assertStringContainsString('Facility', $html);
-        $this->assertStringContainsString('Letters', $html);
+        $this->assertStringContainsString('Documents', $html);
+        $this->assertStringContainsString('What they owe', $html);
+        $this->assertStringContainsString('Upcoming payments', $html);
+        $this->assertStringContainsString('Ask for payment', $html);
+        $this->assertStringNotContainsString('Record repayment', $html);
         $this->assertStringContainsString('Outstanding', $html);
         $this->assertStringContainsString('Repayment health', $html);
         $this->assertStringContainsString('Signed contract', $html);
@@ -416,7 +420,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $letters = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', [
                 'loan_application' => $app,
-                'workspace' => 'letters',
+                'workspace' => 'documents',
             ]))
             ->assertOk()
             ->getContent();
@@ -429,7 +433,55 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('FLC-CW-SIGN', $letters);
         $this->assertStringContainsString('OL-CW-SIGN', $letters);
         $this->assertStringContainsString(route('admin.loan-agreements.download', $final), $letters);
+        $this->assertStringContainsString('Download PDF', $letters);
+        $this->assertStringContainsString('<iframe', $letters);
         $this->assertStringNotContainsString('Review checklist', $letters);
+    }
+
+    public function test_staff_asks_for_payment_instead_of_recording_it(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'disbursement');
+        $app->update(['status' => 'disbursed', 'disbursed_at' => now()->subMonths(2)]);
+        $loan = Loan::create([
+            'customer_id' => $app->customer_id,
+            'loan_product_id' => $app->loan_product_id,
+            'loan_application_id' => $app->id,
+            'loan_number' => 'LN-CW-PAY',
+            'principal_amount' => 50_000,
+            'approved_amount' => 50_000,
+            'outstanding_balance' => 60_644,
+            'interest_rate' => 0.18,
+            'tenure_months' => 2,
+            'status' => 'arrears',
+            'disbursement_date' => now()->subMonths(2),
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'facility', 'section' => 'owed']))
+            ->post(route('admin.loans.payment-requests.store', $loan), [
+                'amount' => '25,000',
+                'note' => 'Catch-up',
+            ])
+            ->assertRedirect();
+
+        $payment = \App\Models\CustomerPayment::query()->where('loan_id', $loan->id)->first();
+        $this->assertNotNull($payment);
+        $this->assertSame('loan_repayment', $payment->payment_type);
+        $this->assertSame('awaiting_payment', $payment->status);
+        $this->assertEquals(25000.0, (float) $payment->amount);
+        $this->assertTrue((bool) data_get($payment->provider_meta, 'staff_requested'));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'facility',
+                'section' => 'owed',
+            ]))
+            ->assertOk()
+            ->assertSee($payment->reference, false)
+            ->assertSee('Open payment requests', false)
+            ->assertDontSee('Record repayment');
     }
 
     public function test_disbursed_group_application_show_page_loads(): void
@@ -508,7 +560,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertSee('Credit management', false)
             ->assertSee('LN-GL-X6C8', false)
             ->assertSee('Facility', false)
-            ->assertSee('Letters', false)
+            ->assertSee('Documents', false)
             ->assertDontSee('Review checklist')
             ->assertDontSee('Borrower CRB');
     }

@@ -16,6 +16,14 @@ class LocaleController extends Controller
         ]);
         $request->session()->put('locale', $data['locale']);
 
+        $user = $request->user();
+        if ($user) {
+            $prefs = $user->preferences ?? [];
+            $prefs['preferred_locale'] = $data['locale'];
+            $user->preferences = $prefs;
+            $user->save();
+        }
+
         $target = $this->safeRedirectTarget($request, $data['redirect'] ?? null);
 
         return $target ? redirect()->to($target) : back();

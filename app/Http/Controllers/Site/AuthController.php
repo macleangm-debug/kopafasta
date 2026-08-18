@@ -615,6 +615,13 @@ class AuthController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
+        $preferred = data_get($user->preferences, 'preferred_locale')
+            ?? data_get($user->preferences, 'locale');
+        if (is_string($preferred) && in_array($preferred, ['en', 'sw'], true)) {
+            $request->session()->put('locale', $preferred);
+            app()->setLocale($preferred);
+        }
+
         $request->session()->forget('login_portal');
 
         $trusted = $this->trustedDevices->extractToken($request);
@@ -1037,6 +1044,10 @@ class AuthController extends Controller
         $defaultLocale = app(\App\Services\CountrySettingsService::class)->defaultLocale($data['country']);
         $request->session()->put('locale', $defaultLocale);
         app()->setLocale($defaultLocale);
+        $prefs = $user->preferences ?? [];
+        $prefs['preferred_locale'] = $defaultLocale;
+        $user->preferences = $prefs;
+        $user->save();
 
         $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
         $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);

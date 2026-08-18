@@ -41,6 +41,9 @@ class SettingsController extends Controller
             'website'     => ['nullable', 'string', 'max:200'],
             'app_base_url' => ['nullable', 'url', 'max:255'],
             'address'     => ['nullable', 'string', 'max:500'],
+            'complaints_phone' => ['nullable', 'string', 'max:30'],
+            'complaints_email' => ['nullable', 'email', 'max:150'],
+            'complaints_address' => ['nullable', 'string', 'max:500'],
             'currency'    => ['required', 'string', 'size:3'],
             'timezone'    => ['required', 'string', 'max:50'],
             'fiscal_year_start' => ['nullable', 'string', 'max:5'],   // MM-DD
@@ -152,7 +155,6 @@ class SettingsController extends Controller
             'signatory_title'     => ['nullable', 'string', 'max:120'],
             'signatory_email'     => ['nullable', 'email', 'max:150'],
             'offer_validity_days' => ['required', 'integer', 'min:1', 'max:90'],
-            'late_fee_amount'     => ['required', 'numeric', 'min:0'],
             'jurisdiction'        => ['required', 'string', 'max:200'],
             'collection_fee_text' => ['nullable', 'string', 'max:500'],
             'legal_recovery_text' => ['nullable', 'string', 'max:500'],

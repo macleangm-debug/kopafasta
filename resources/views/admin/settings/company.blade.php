@@ -19,6 +19,23 @@
             <x-admin.input name="website"         label="Website"           :value="$values['website'] ?? ''" />
             <x-admin.input name="app_base_url"    label="App base URL"      :value="$values['app_base_url'] ?? ''" placeholder="https://app.kopafasta.com" />
             <x-admin.input name="address"         label="Address"           :value="$values['address'] ?? ''" />
+        </div>
+
+        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-5 py-4 space-y-3">
+            <div>
+                <p class="text-xs uppercase tracking-widest text-brand font-semibold">Complaints (printed on the loan agreement)</p>
+                <p class="text-sm text-gray-600 mt-1">If left blank, the agreement uses the company phone, support email, and address above.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <x-admin.input name="complaints_phone" label="Complaints phone" :value="$values['complaints_phone'] ?? ''" />
+                <x-admin.input name="complaints_email" label="Complaints email" type="email" :value="$values['complaints_email'] ?? ''" />
+                <div class="md:col-span-2">
+                    <x-admin.input name="complaints_address" label="Complaints physical address" :value="$values['complaints_address'] ?? ''" />
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <x-admin.input name="currency"        label="Default currency (ISO 3)" :value="$values['currency'] ?? 'TZS'" required />
             <x-admin.input name="timezone"        label="Timezone"          :value="$values['timezone'] ?? 'Africa/Dar_es_Salaam'" required />
             <x-admin.input name="fiscal_year_start" label="Fiscal year start (MM-DD)" :value="$values['fiscal_year_start'] ?? '01-01'" />

@@ -218,6 +218,7 @@
             @if ($offer->file_path)
                 <x-admin.document-preview
                     :url="route('admin.loan-agreements.download', $offer)"
+                    type="pdf"
                     label="View offer summary" />
             @endif
             <form method="POST" action="{{ route('admin.loan-applications.agreement.generate', $record) }}"
@@ -256,6 +257,7 @@
         <div class="flex flex-wrap items-center gap-2 mb-6">
             <x-admin.document-preview
                 :url="route('admin.loan-agreements.download', $finalContract)"
+                type="pdf"
                 label="Final contract + schedule" />
         </div>
     @endif
@@ -278,6 +280,7 @@
             <div class="flex flex-wrap items-center gap-2 mb-6">
                 <x-admin.document-preview
                     :url="route('admin.loan-agreements.download', $contract)"
+                    type="pdf"
                     label="Preview contract PDF" />
                 <form method="POST" action="{{ route('admin.loan-applications.contract.generate', $record) }}"
                       @submit.prevent="window.confirmForm($el, {

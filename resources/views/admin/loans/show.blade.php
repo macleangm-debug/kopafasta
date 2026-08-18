@@ -337,6 +337,7 @@
     </div>
 
     @if (in_array($loan->status, ['active', 'arrears', 'defaulted', 'closed'], true))
+        @include('admin.loans._payment_request', ['loan' => $loan, 'suggestedPay' => (float) $loan->outstanding_balance])
         @include('admin.loans._servicing')
     @endif
 
