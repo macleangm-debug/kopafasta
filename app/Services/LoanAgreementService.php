@@ -134,53 +134,10 @@ class LoanAgreementService
 
         $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
 
-        $snapshot = $this->snapshotFromApplication($application);
-        $locale = $this->borrowerContractLocale($application);
-
-        $codes = app(LoanRejectionReasonService::class)->normalizeCodes(
-            $application->rejection_reason_codes,
-            $application->rejection_reason_code,
+        $snapshot = $this->withRejectionLetterFields(
+            $application,
+            $this->snapshotFromApplication($application),
         );
-        $isCapacity = in_array(CapacityAutoRejectService::REASON_CODE, $codes, true)
-            || data_get($application->screening_payload, 'capacity_auto_reject.status') === CapacityAutoRejectService::STATUS_FIRED;
-
-        $reason = ($isCapacity && filled($application->rejection_reason))
-            ? (string) $application->rejection_reason
-            : app(LoanRejectionReasonService::class)->formatReasonsForBorrower(
-                $application->rejection_reason_codes,
-                $application->rejection_reason_code,
-                $application->rejection_reason,
-                $locale,
-            );
-
-        $advice = app(LoanRejectionReasonService::class)->resolveBorrowerAdvice(
-            $application->rejection_advice_code,
-            $application->rejection_advice,
-            $locale,
-        );
-
-        $snapshot['rejection_reason'] = $reason;
-        $snapshot['rejection_advice'] = $advice;
-        $snapshot['rejection_codes'] = $codes;
-        $snapshot['requested_amount'] = (float) ($application->requested_amount ?? 0);
-        $snapshot['rejected_at'] = now()->toDateString();
-        $snapshot['letter_kind'] = 'decision';
-        $snapshot['show_legal_stamp'] = false; // offer/decision: company stamp only
-
-        $capacity = data_get($application->screening_payload, 'capacity_auto_reject');
-        if (is_array($capacity)) {
-            $snapshot['capacity_auto_reject'] = [
-                'is_group' => (bool) ($capacity['is_group'] ?? false),
-                'proposed_installment' => (float) ($capacity['proposed_installment'] ?? 0),
-                'available_capacity' => (float) ($capacity['available_capacity'] ?? 0),
-                'requested_amount' => (float) ($capacity['requested_amount'] ?? $application->requested_amount ?? 0),
-                'failed_members' => $capacity['failed_members'] ?? [],
-                'group_members' => $capacity['group_members'] ?? [],
-                'repayment_ratio_pct' => (float) ($capacity['repayment_ratio_pct'] ?? 33.33),
-            ];
-            $snapshot['failed_members'] = $capacity['failed_members'] ?? [];
-            $snapshot['is_group_rejection'] = (bool) ($capacity['is_group'] ?? false);
-        }
 
         $agreement = $existing ?: new LoanAgreement([
             'loan_application_id' => $application->id,
@@ -203,11 +160,7 @@ class LoanAgreementService
         ];
 
         $pdf = $this->renderAgreementPdf(null, 'pdf.rejection-letter', $viewData);
-
-        $path = "agreements/{$agreement->reference}.pdf";
-        Storage::disk('public')->put($path, $pdf->output());
-        $agreement->file_path = $path;
-        $agreement->save();
+        $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
         return $agreement;
     }
@@ -984,6 +937,7 @@ class LoanAgreementService
             'group_name' => $groupName,
             'group_members' => $groupMembers,
             'total_group_liability' => $totalGroupLiability,
+            ...$this->offerApprovalFields($a),
         ];
 
         $offerRecord = LoanAgreement::query()
@@ -1167,6 +1121,9 @@ class LoanAgreementService
             'penalty_cap_percent',
             'offer_validity_days',
             'tenure_max_months',
+            'approval_reason_code',
+            'approval_reason_label',
+            'approval_reason_notes',
         ];
         $alwaysFresh = [
             'document_version',
@@ -1208,6 +1165,74 @@ class LoanAgreementService
                     $snapshot[$key] = $fresh[$key];
                 }
             }
+        }
+
+        if ($agreement->document_type === 'rejection_letter') {
+            $snapshot = $this->withRejectionLetterFields($application, $snapshot);
+        }
+
+        return $snapshot;
+    }
+
+    /** @return array<string, mixed> */
+    private function offerApprovalFields(LoanApplication $application): array
+    {
+        $approval = data_get($application->credit_appraisal_payload, 'committee_approval', []);
+        $code = $approval['reason_code'] ?? null;
+        $reasons = config('credit_recommendation.approval_reasons', []);
+        $label = $approval['reason_label'] ?? (is_string($code) ? ($reasons[$code] ?? null) : null);
+
+        return [
+            'approval_reason_code' => $code,
+            'approval_reason_label' => $label && $code !== 'custom' ? $label : ($approval['notes'] ?? $label),
+            'approval_reason_notes' => $approval['notes'] ?? null,
+        ];
+    }
+
+    /**
+     * Rejection reasons, advice and capacity figures from the application (platform source of truth).
+     *
+     * @param  array<string, mixed>  $snapshot
+     * @return array<string, mixed>
+     */
+    private function withRejectionLetterFields(LoanApplication $application, array $snapshot): array
+    {
+        $locale = $this->borrowerContractLocale($application);
+        $reasons = app(LoanRejectionReasonService::class)->reasonsForLetter(
+            $application->rejection_reason_codes,
+            $application->rejection_reason_code,
+            $application->rejection_reason,
+            $locale,
+        );
+
+        $snapshot['rejection_codes'] = $reasons['codes'];
+        $snapshot['rejection_reasons'] = $reasons['labels'];
+        $snapshot['rejection_reason'] = $reasons['summary'];
+        $snapshot['rejection_detail'] = $reasons['detail'];
+        $snapshot['rejection_advice'] = app(LoanRejectionReasonService::class)->resolveBorrowerAdvice(
+            $application->rejection_advice_code,
+            $application->rejection_advice,
+            $locale,
+        );
+        $snapshot['requested_amount'] = (float) ($application->requested_amount ?? $snapshot['principal'] ?? 0);
+        $snapshot['rejected_at'] = $application->updated_at?->toDateString() ?? now()->toDateString();
+        $snapshot['locale'] = $locale;
+        $snapshot['letter_kind'] = 'decision';
+        $snapshot['show_legal_stamp'] = false;
+
+        $capacity = data_get($application->screening_payload, 'capacity_auto_reject');
+        if (is_array($capacity)) {
+            $snapshot['capacity_auto_reject'] = [
+                'is_group' => (bool) ($capacity['is_group'] ?? false),
+                'proposed_installment' => (float) ($capacity['proposed_installment'] ?? 0),
+                'available_capacity' => (float) ($capacity['available_capacity'] ?? 0),
+                'requested_amount' => (float) ($capacity['requested_amount'] ?? $application->requested_amount ?? 0),
+                'failed_members' => $capacity['failed_members'] ?? [],
+                'group_members' => $capacity['group_members'] ?? [],
+                'repayment_ratio_pct' => (float) ($capacity['repayment_ratio_pct'] ?? 33.33),
+            ];
+            $snapshot['failed_members'] = $capacity['failed_members'] ?? [];
+            $snapshot['is_group_rejection'] = (bool) ($capacity['is_group'] ?? false);
         }
 
         return $snapshot;

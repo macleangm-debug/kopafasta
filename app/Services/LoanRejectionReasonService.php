@@ -249,4 +249,47 @@ class LoanRejectionReasonService
 
         return implode('; ', $labels);
     }
+
+    /**
+     * Borrower-facing rejection reasons from the platform catalog (Settings + lang),
+     * plus any extra file-specific narrative (capacity numbers, officer note).
+     *
+     * @param  list<string>|null  $codes
+     * @return array{codes: list<string>, labels: list<string>, summary: string, detail: ?string}
+     */
+    public function reasonsForLetter(
+        ?array $codes,
+        ?string $fallbackCode = null,
+        ?string $fallbackLabel = null,
+        ?string $locale = null,
+    ): array {
+        $normalized = $this->normalizeCodes($codes, $fallbackCode);
+        $labels = $this->labelsForCodes($normalized, $locale, $fallbackCode);
+        $detail = trim((string) $fallbackLabel);
+        $englishJoin = implode('; ', $this->labelsForCodes($normalized, 'en', $fallbackCode));
+        $currentJoin = implode('; ', $labels);
+
+        if ($labels === [] && $detail !== '') {
+            $labels = [$detail];
+            $detail = null;
+        } elseif ($detail !== '' && (
+            strcasecmp($detail, $currentJoin) === 0
+            || strcasecmp($detail, $englishJoin) === 0
+        )) {
+            $detail = null;
+        } elseif ($detail === '') {
+            $detail = null;
+        }
+
+        if ($labels === []) {
+            $labels = [__('borrower.applications_list.rejected_default', [], $locale ?? app()->getLocale())];
+        }
+
+        return [
+            'codes' => $normalized,
+            'labels' => array_values($labels),
+            'summary' => implode('; ', $labels),
+            'detail' => $detail !== null && $detail !== '' ? $detail : null,
+        ];
+    }
 }

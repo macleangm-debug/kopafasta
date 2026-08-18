@@ -13,6 +13,7 @@ use App\Services\LegalSettingsService;
 use App\Services\LoanAgreementDisclosureService;
 use App\Services\LoanAgreementProductProfile;
 use App\Services\LoanAgreementService;
+use App\Services\LoanRejectionReasonService;
 use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -722,6 +723,138 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
                 ],
             ],
         ])->render());
+    }
+
+    public function test_offer_letter_pulls_approval_purpose_and_charges_from_the_platform(): void
+    {
+        Storage::fake('public');
+
+        Setting::set('recovery.fee_type.legal_partner', 'fixed');
+        Setting::set('recovery.fixed_amount.legal_partner', 100_000);
+        Setting::set('recovery.charges_borrower.gps_partner', false);
+        Setting::set('partner_defaults.gps_installer.base_cost', 50_000);
+        Setting::set('partner_defaults.gps_installer.monitoring_monthly', 20_000);
+        Setting::set('partner_defaults.gps_installer.has_markup', false);
+        Setting::set('partner_defaults.gps_installer.markup_percent', 0);
+
+        $product = LoanProduct::create([
+            'code' => 'AB-OL',
+            'name' => 'Asset-Backed Offer',
+            'category' => 'asset',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 24,
+            'requires_collateral' => true,
+        ]);
+        $application = $this->applicationWithProduct($product, 'APP-OL-PLAT', 6);
+        $application->update([
+            'purpose' => 'working_capital',
+            'screening_payload' => ['purpose' => 'working_capital'],
+            'credit_appraisal_payload' => [
+                'committee_approval' => [
+                    'reason_code' => 'strong_affordability',
+                    'reason_label' => config('credit_recommendation.approval_reasons.strong_affordability'),
+                    'notes' => 'Capacity supports the instalment.',
+                ],
+            ],
+        ]);
+
+        $letter = app(LoanAgreementService::class)->generateOfferLetter($application->fresh(['customer', 'product']));
+        $snapshot = $letter->fresh()->snapshot;
+
+        $this->assertSame('strong_affordability', $snapshot['approval_reason_code'] ?? null);
+        $this->assertSame('Strong affordability / repayment capacity', $snapshot['approval_reason_label'] ?? null);
+        $this->assertSame('working_capital', $snapshot['purpose'] ?? null);
+        $this->assertEquals(170_000.0, $snapshot['gps_fee']['total'] ?? null);
+        $legal = collect(data_get($snapshot, 'recovery_schedule.stages'))->firstWhere('type', 'legal_partner');
+        $this->assertNotNull($legal);
+        $this->assertStringContainsString('100,000', $legal['display_en']);
+
+        $html = view('pdf.offer-letter', [
+            'application' => $application->fresh(['product']),
+            'agreement' => $letter,
+            'snapshot' => $snapshot,
+        ])->render();
+
+        $this->assertStringContainsString('Strong affordability / repayment capacity', $html);
+        $this->assertStringContainsString('Capacity supports the instalment.', $html);
+        $this->assertStringContainsString('Mtaji wa kufanya kazi', $html);
+        $this->assertStringContainsString('GPS (baada ya kuidhinishwa)', $html);
+        $this->assertStringContainsString(format_money(170_000), $html);
+        $this->assertStringContainsString('100,000', $html);
+        $this->assertStringContainsString('Muda wa msamaha', $html);
+    }
+
+    public function test_rejection_letter_lists_catalog_reasons_in_borrower_language_and_keeps_capacity_figures(): void
+    {
+        Storage::fake('public');
+
+        $this->borrower()->user->update(['preferences' => ['preferred_locale' => 'sw']]);
+
+        $capacity = __('borrower.loan_profile.capacity_auto_reject_reason', [
+            'amount' => format_money(2_000_000),
+            'installment' => format_money(380_000),
+            'capacity' => format_money(33_330),
+        ], 'en');
+
+        $application = LoanApplication::create([
+            'customer_id' => $this->borrower()->id,
+            'loan_product_id' => $this->product()->id,
+            'application_number' => 'APP-RJ-PLAT',
+            'requested_amount' => 2_000_000,
+            'requested_tenure_months' => 6,
+            'status' => 'rejected',
+            'current_stage' => 'rejected',
+            'rejection_reason_code' => 'repayment_exceeds_limit',
+            'rejection_reason_codes' => ['repayment_exceeds_limit', 'incomplete_kyc'],
+            'rejection_reason' => $capacity,
+            'rejection_advice_code' => 'reapply_smaller_amount',
+            'screening_payload' => [
+                'capacity_auto_reject' => [
+                    'is_group' => false,
+                    'requested_amount' => 2_000_000,
+                    'proposed_installment' => 380_000,
+                    'available_capacity' => 33_330,
+                ],
+            ],
+        ]);
+
+        $reasons = app(LoanRejectionReasonService::class)->reasonsForLetter(
+            $application->rejection_reason_codes,
+            $application->rejection_reason_code,
+            $application->rejection_reason,
+            'sw',
+        );
+        $this->assertSame([
+            __('rejection.reasons.repayment_exceeds_limit', [], 'sw'),
+            __('rejection.reasons.incomplete_kyc', [], 'sw'),
+        ], $reasons['labels']);
+        $this->assertSame($capacity, $reasons['detail']);
+
+        $letter = app(LoanAgreementService::class)->generateRejectionLetter($application->fresh(['customer', 'product']));
+        $snapshot = $letter->fresh()->snapshot;
+
+        $this->assertSame(['repayment_exceeds_limit', 'incomplete_kyc'], $snapshot['rejection_codes']);
+        $this->assertSame($reasons['labels'], $snapshot['rejection_reasons']);
+        $this->assertSame($capacity, $snapshot['rejection_detail']);
+        $this->assertSame(__('rejection.advice.reapply_smaller_amount', [], 'sw'), $snapshot['rejection_advice']);
+
+        $html = view('pdf.rejection-letter', [
+            'application' => $application,
+            'agreement' => $letter,
+            'snapshot' => $snapshot,
+        ])->render();
+
+        $this->assertStringContainsString(__('rejection.reasons.repayment_exceeds_limit', [], 'sw'), $html);
+        $this->assertStringContainsString(__('rejection.reasons.incomplete_kyc', [], 'sw'), $html);
+        $this->assertStringContainsString(format_money(2_000_000), $html);
+        $this->assertStringContainsString(format_money(380_000), $html);
+        $this->assertStringContainsString(format_money(33_330), $html);
+        $this->assertStringContainsString(__('rejection.advice.reapply_smaller_amount', [], 'sw'), $html);
+        $this->assertStringContainsString('<li>', $html);
     }
 
     public function test_company_stamp_white_background_is_removed(): void

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
 use App\Models\LoanProduct;
@@ -83,6 +84,18 @@ class CapacityAutoRejectFeatureTest extends TestCase
             'loan_application_id' => $application->id,
             'document_type' => 'rejection_letter',
         ]);
+
+        $letter = LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'rejection_letter')
+            ->first();
+        $this->assertNotNull($letter);
+        $this->assertContains('repayment_exceeds_limit', $letter->snapshot['rejection_codes'] ?? []);
+        $this->assertContains(
+            __('rejection.reasons.repayment_exceeds_limit', [], 'sw'),
+            $letter->snapshot['rejection_reasons'] ?? [],
+        );
+        $this->assertStringContainsString(format_money(2_000_000), (string) ($letter->snapshot['rejection_detail'] ?? ''));
 
         Carbon::setTestNow();
     }

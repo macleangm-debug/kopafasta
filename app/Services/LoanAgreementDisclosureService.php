@@ -13,7 +13,7 @@ use App\Models\Setting;
  */
 class LoanAgreementDisclosureService
 {
-    public const DOCUMENT_VERSION = '2026-08-18-v5';
+    public const DOCUMENT_VERSION = '2026-08-18-v6';
 
     public function __construct(
         private readonly RecoveryPolicyService $recovery,
