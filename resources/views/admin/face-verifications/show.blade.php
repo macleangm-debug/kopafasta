@@ -2,10 +2,15 @@
     $name = trim($customer->first_name.' '.$customer->last_name);
     $angles = config('face_verification.angles', []);
 @endphp
-<x-admin.layout :title="'Face review — '.$name" :heading="$name" subheading="Face verification review">
-    <div class="mb-4">
-        <a href="{{ route('admin.face-verifications.index') }}" class="text-sm text-brand hover:underline">← Back to queue</a>
-    </div>
+<x-admin.layout :title="'Face review — '.$name" heading="" subheading="">
+    <x-admin.letterhead
+        kicker="Face verification"
+        :title="$name"
+        subtitle="Face verification review">
+        <x-slot:actions>
+            <a href="{{ route('admin.face-verifications.index') }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">Back to queue</a>
+        </x-slot:actions>
+    </x-admin.letterhead>
 
 <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5 mb-6">
         <dl class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">

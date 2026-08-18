@@ -1,5 +1,5 @@
 @php
-    $crb = $review['crb'];
+    $crb = $review['crb'] ?? [];
     $crbExplain = app(\App\Services\CrbCreditCheckService::class)->recommendationExplanation($crb);
     $crbFreshnessDays = app(\App\Services\CrbFreshnessService::class)->freshnessDays();
 @endphp
@@ -119,7 +119,7 @@
 </x-admin.review-section>
 
 <x-admin.review-section id="review-appraisal" title="Affordability appraisal" subtitle="Debt-service ratio and repayment capacity">
-    @php $aff = $review['affordability']; @endphp
+    @php $aff = is_array($review['affordability'] ?? null) ? $review['affordability'] : []; @endphp
     <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
         <span @class([
             'inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold uppercase',

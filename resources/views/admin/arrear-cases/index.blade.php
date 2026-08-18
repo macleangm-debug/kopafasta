@@ -1,25 +1,32 @@
 <x-admin.layout
     title="Collection cases"
-    heading="Collection cases"
-    subheading="Open arrears cases with follow-up history and assigned collectors">
+    heading=""
+    subheading="">
 
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-wider text-gray-500">Open cases</p>
-            <p class="text-2xl font-bold text-gray-900">{{ $counts['open'] }}</p>
-        </div>
-        <div class="rounded-xl bg-red-50 ring-1 ring-red-200 p-4">
-            <p class="text-[10px] uppercase tracking-wider text-red-600">Arrears exposure</p>
-            <p class="text-2xl font-bold text-red-800">{{ format_money($totals['amount_in_arrears']) }}</p>
-        </div>
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-wider text-gray-500">Penalties accrued</p>
-            <p class="text-2xl font-bold text-gray-900">{{ format_money($totals['penalties']) }}</p>
-        </div>
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4 flex items-end">
-            <a href="{{ route('admin.loans.arrears') }}" class="text-sm font-semibold text-brand hover:text-brand-light">View loans in arrears →</a>
-        </div>
-    </div>
+    <x-admin.letterhead
+        kicker="Collections"
+        title="Collection cases"
+        subtitle="Open arrears cases with follow-up history and assigned collectors">
+        <x-slot:stats>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4">
+                    <p class="text-[10px] uppercase tracking-wider text-brand font-semibold">Open cases</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $counts['open'] }}</p>
+                </div>
+                <div class="rounded-xl bg-red-50 ring-1 ring-red-200 p-4">
+                    <p class="text-[10px] uppercase tracking-wider text-red-600">Arrears exposure</p>
+                    <p class="text-2xl font-bold text-red-800">{{ format_money($totals['amount_in_arrears']) }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500">Penalties accrued</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ format_money($totals['penalties']) }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 flex items-end">
+                    <a href="{{ route('admin.loans.arrears') }}" class="text-sm font-semibold text-brand hover:text-brand-light">View loans in arrears →</a>
+                </div>
+            </div>
+        </x-slot:stats>
+    </x-admin.letterhead>
 
     <div class="mb-4 flex flex-wrap gap-2">
         @foreach ([

@@ -1,4 +1,5 @@
-<x-admin.layout title="Credit Committee" heading="Credit Committee" subheading="Applications awaiting committee decision after analyst recommendation">
+<x-admin.layout title="Credit Committee" heading="" subheading="">
+    <x-admin.letterhead kicker="Credit committee" title="Credit committee" subtitle="Applications awaiting committee decision after analyst recommendation" />
 @include('admin.loan-applications._pipeline-tabs', ['active' => 'committee'])
 
     <div class="mb-4 rounded-xl bg-gradient-to-r from-amber-50 to-white ring-1 ring-amber-200 px-5 py-4 text-sm text-amber-950">

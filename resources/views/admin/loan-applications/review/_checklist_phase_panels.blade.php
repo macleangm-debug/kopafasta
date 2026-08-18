@@ -51,7 +51,7 @@
     $subjectLabel = match ($panelPerson) {
         'guarantor' => $panelGuarantor['name'] ?? 'Guarantor',
         'member' => $panelMember['name'] ?? 'Group member',
-        default => $review['customer']->full_name ?? 'Borrower / leader',
+        default => data_get($review, 'customer.full_name') ?: 'Borrower / leader',
     };
 @endphp
 

@@ -14,7 +14,7 @@ class RepaymentsTable extends Component
     #[Url(as: 'q')] public string $search = '';
     #[Url] public string $status = '';
     #[Url] public string $sort = 'created_at';
-    #[Url] public string $direction = 'desc';
+    #[Url(as: 'sortDir')] public string $direction = 'desc';
     public int $perPage = 15;
 
     public function updatingSearch(): void { $this->resetPage(); }
@@ -41,11 +41,16 @@ class RepaymentsTable extends Component
                 });
             })
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
-            ->orderBy($this->sort, $this->direction)
+            ->orderBy($this->sort, $this->safeDirection())
             ->paginate($this->perPage);
 
         $statuses = ['received', 'allocated', 'reversed', 'pending'];
 
         return view('livewire.admin.repayments-table', compact('rows', 'statuses'));
+    }
+
+    private function safeDirection(): string
+    {
+        return in_array($this->direction, ['asc', 'desc'], true) ? $this->direction : 'desc';
     }
 }

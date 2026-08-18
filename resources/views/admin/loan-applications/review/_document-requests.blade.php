@@ -1,7 +1,7 @@
 @php
-    $person = $person
-        ?? $deskPerson
-        ?? $panelPerson
+    $person = ($person ?? null)
+        ?? ($deskPerson ?? null)
+        ?? ($panelPerson ?? null)
         ?? request('review_person', request('person', 'borrower'));
     if (! in_array($person, ['borrower', 'guarantor', 'member'], true)) {
         $person = 'borrower';

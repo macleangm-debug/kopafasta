@@ -1,4 +1,5 @@
-<x-admin.layout title="Support chats" heading="Live support chats" subheading="Borrower AI chat escalations and human-assist queue">
+<x-admin.layout title="Support chats" heading="" subheading="">
+    <x-admin.letterhead kicker="Support" title="Live support chats" subtitle="Borrower AI chat escalations and human-assist queue" />
 <div class="mb-4 flex gap-3 text-sm">
         <a href="{{ route('admin.settings.chatbot') }}" class="font-semibold text-brand hover:underline">Manage chatbot FAQs →</a>
     </div>

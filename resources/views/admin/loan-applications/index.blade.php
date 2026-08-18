@@ -1,4 +1,5 @@
-<x-admin.layout title="Loan Applications" heading="Loan Applications" subheading="Submitted applications and unfinished drafts">
+<x-admin.layout title="Loan Applications" heading="" subheading="">
+    <x-admin.letterhead kicker="Applications" title="Loan applications" subtitle="Submitted applications and unfinished drafts" />
     <x-admin.index-toolbar route="admin.loan-applications" label="New application" />
 
     @php

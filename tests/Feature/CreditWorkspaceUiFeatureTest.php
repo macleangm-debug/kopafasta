@@ -432,4 +432,28 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertSee('Review checklist', false)
             ->assertSee('Profiles', false);
     }
+
+    public function test_checklist_affordability_survives_stale_payload_without_pass_key(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'screening');
+        $app->update([
+            'credit_appraisal_payload' => [
+                'affordability' => [
+                    'reason' => 'Stale stored row with no pass flag',
+                    'net_income' => 300_000,
+                ],
+            ],
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'checklist',
+                'capacity_tab' => 'affordability',
+            ]))
+            ->assertOk()
+            ->assertSee('Affordability', false)
+            ->assertDontSee('Undefined array key', false);
+    }
 }

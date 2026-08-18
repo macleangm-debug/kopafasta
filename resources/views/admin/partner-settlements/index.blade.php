@@ -1,4 +1,5 @@
-<x-admin.layout title="Partner settlements" heading="Partner settlement batches" subheading="Batch settlement of already-approved partner payouts — weekly batches for suppliers, GPS installers, and affiliates">
+<x-admin.layout title="Partner settlements" heading="" subheading="">
+    <x-admin.letterhead kicker="Partners" title="Partner settlement batches" subtitle="Batch settlement of already-approved partner payouts — weekly batches for suppliers, GPS installers, and affiliates" />
     <div class="mb-4 flex flex-wrap gap-2">
         <a href="{{ route('admin.partner-payments.index') }}" class="text-sm font-medium text-brand hover:text-brand-light">Review pending payments →</a>
     </div>

@@ -1,4 +1,5 @@
-<x-admin.layout title="Borrower Refunds" heading="Borrower Refunds" subheading="Auction surpluses and other refunds owed to borrowers">
+<x-admin.layout title="Borrower Refunds" heading="" subheading="">
+    <x-admin.letterhead kicker="Collections" title="Borrower refunds" subtitle="Auction surpluses and other refunds owed to borrowers" />
 <div class="mb-4 flex flex-wrap gap-2">
         @foreach (['awaiting_payout' => 'Awaiting payout', 'pending' => 'Needs details', 'paid' => 'Paid', 'all' => 'All'] as $key => $label)
             <a href="{{ route('admin.borrower-refunds.index', $key === 'all' ? [] : ['status' => $key]) }}"

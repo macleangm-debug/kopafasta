@@ -6,12 +6,17 @@
 
 <x-admin.layout
     :title="'Top-up #'.$record->id"
-    :heading="'Top-up request #'.$record->id"
-    :subheading="$loan?->loan_number.' · '.$name">
+    heading=""
+    subheading="">
 
-<div class="mb-4">
-        <a href="{{ route('admin.top-up-requests.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Back to top-up requests</a>
-    </div>
+    <x-admin.letterhead
+        kicker="Credit management"
+        :title="'Top-up request #'.$record->id"
+        :subtitle="($loan?->loan_number ?? '—').' · '.$name">
+        <x-slot:actions>
+            <a href="{{ route('admin.top-up-requests.index') }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">All requests</a>
+        </x-slot:actions>
+    </x-admin.letterhead>
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">

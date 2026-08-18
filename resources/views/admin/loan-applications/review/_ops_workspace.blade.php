@@ -1,6 +1,6 @@
 @php
-    $customer = $review['customer'];
-    $product = $review['product'];
+    $customer = $review['customer'] ?? null;
+    $product = $review['product'] ?? null;
     $stage = $record->current_stage ?? 'submitted';
     $isDisbursementStage = in_array($stage, ['disbursement'], true) || $record->status === 'disbursed';
     $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
@@ -63,11 +63,11 @@
             <div class="px-5 py-4 grid grid-cols-2 gap-3 text-sm">
                 <div>
                     <p class="text-[10px] uppercase tracking-widest text-gray-500">Borrower</p>
-                    <p class="font-semibold text-gray-900 mt-0.5 truncate">{{ $customer->full_name }}</p>
+                    <p class="font-semibold text-gray-900 mt-0.5 truncate">{{ $customer?->full_name ?? '—' }}</p>
                 </div>
                 <div>
                     <p class="text-[10px] uppercase tracking-widest text-gray-500">Member</p>
-                    <p class="font-semibold text-gray-900 mt-0.5 font-mono text-xs">{{ $customer->member_no ?? '—' }}</p>
+                    <p class="font-semibold text-gray-900 mt-0.5 font-mono text-xs">{{ $customer?->member_no ?? '—' }}</p>
                 </div>
                 <div>
                     <p class="text-[10px] uppercase tracking-widest text-gray-500">Approved</p>

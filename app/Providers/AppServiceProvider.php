@@ -48,6 +48,18 @@ class AppServiceProvider extends ServiceProvider
             \App\Contracts\CrbClientInterface::class,
             \App\Services\Crb\DnbLiveCrbClient::class,
         );
+        $this->app->bind(
+            \App\Services\LoanPenaltyPolicy::class,
+            fn () => new \App\Services\LoanPenaltyPolicy(
+                graceDaysAfterDefault: (int) config('loan_product_defaults.default_grace_days', 7),
+                penaltyRatePercent: (float) config(
+                    'loan_product_defaults.penalty_rate_percent',
+                    \App\Services\LoanPenaltyPolicy::DEFAULT_PENALTY_RATE_PERCENT_PER_DAY
+                ),
+                penaltyBasis: (string) config('loan_product_defaults.penalty_basis', 'per_day'),
+                penaltyCapPercent: \App\Services\LoanPenaltyPolicy::BOT_MAX_PENALTY_CAP_PERCENT,
+            ),
+        );
     }
 
     /**

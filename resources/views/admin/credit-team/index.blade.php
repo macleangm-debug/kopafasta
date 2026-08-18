@@ -1,4 +1,5 @@
-<x-admin.layout title="Credit teams" heading="Credit teams" subheading="Three teams own the loan journey — screening, committee decision, then credit management through disbursement">
+<x-admin.layout title="Credit teams" heading="" subheading="">
+    <x-admin.letterhead kicker="Credit desk" title="Credit teams" subtitle="Three teams own the loan journey — screening, committee decision, then credit management through disbursement" />
 
     <div class="mb-6 rounded-xl bg-gradient-to-r from-brand/5 to-white ring-1 ring-brand/10 px-5 py-4 text-sm text-gray-700">
         <p class="font-semibold text-gray-900">How the three teams work</p>

@@ -1,4 +1,9 @@
-<x-admin.layout title="Support chat" heading="Conversation #{{ $supportConversation->id }}" subheading="Reply to borrower or assign a support agent">
+<x-admin.layout title="Support chat" heading="" subheading="">
+    <x-admin.letterhead
+        kicker="Support"
+        :title="'Conversation #'.$supportConversation->id"
+        subtitle="Reply to borrower or assign a support agent" />
+
 <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-4">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5 max-h-[32rem] overflow-y-auto space-y-3">

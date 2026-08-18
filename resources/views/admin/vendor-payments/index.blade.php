@@ -1,4 +1,5 @@
-<x-admin.layout title="Partner payments" heading="Partner payments queue" subheading="Approve partner, supplier, and affiliate payouts before weekly batching">
+<x-admin.layout title="Partner payments" heading="" subheading="">
+    <x-admin.letterhead kicker="Partners" title="Partner payments queue" subtitle="Approve partner, supplier, and affiliate payouts before weekly batching" />
     <div class="mb-4 flex flex-wrap gap-2 text-sm">
         <a href="{{ route('admin.partner-payments.index') }}" @class(['font-medium', 'text-amber-700' => $status === '', 'text-gray-500' => $status !== ''])>All</a>
         @foreach ($statuses as $item)

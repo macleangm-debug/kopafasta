@@ -1,6 +1,6 @@
 @php
-    $customer = $review['customer'];
-    $product = $review['product'];
+    $customer = $review['customer'] ?? null;
+    $product = $review['product'] ?? null;
     $stage = $record->current_stage ?? 'submitted';
     $isScreeningStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
     $isCommitteeStage = $stage === 'pre_approval';
@@ -53,8 +53,8 @@
                         </p>
                         <h1 class="text-xl sm:text-2xl font-bold tracking-tight mt-1 truncate">{{ $record->application_number }}</h1>
                         <p class="text-sm text-white/75 mt-1 truncate">
-                            {{ $customer->full_name }}
-                            @if ($customer->member_no)
+                            {{ $customer?->full_name ?: '—' }}
+                            @if ($customer?->member_no)
                                 <span class="text-white/50">·</span> Member {{ $customer->member_no }}
                             @endif
                             @if ($product)
@@ -65,9 +65,9 @@
                             @endif
                         </p>
                         <p class="text-xs text-white/70 mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-                            <span>DOB {{ optional($customer->date_of_birth)->format('d M Y') ?? '—' }}</span>
-                            <span>Gender {{ ucfirst($customer->gender ?? '—') }}</span>
-                            @if ($customer->phone)
+                            <span>DOB {{ optional($customer?->date_of_birth)->format('d M Y') ?? '—' }}</span>
+                            <span>Gender {{ ucfirst($customer?->gender ?? '—') }}</span>
+                            @if ($customer?->phone)
                                 <span>{{ $customer->phone }}</span>
                             @endif
                             <span>Purpose {{ format_loan_purpose_display($record->purpose, data_get($record->screening_payload, 'purpose_other'), $record->screening_payload) }}</span>

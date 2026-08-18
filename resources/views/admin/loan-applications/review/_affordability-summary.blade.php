@@ -1,7 +1,19 @@
-@if (! empty($affordability))
+@php
+    $affordability = is_array($affordability ?? null) ? $affordability : [];
+    $hasCapacity = $affordability !== [] && (
+        array_key_exists('pass', $affordability)
+        || array_key_exists('proposed_installment', $affordability)
+        || array_key_exists('available_capacity', $affordability)
+        || array_key_exists('total_installment', $affordability)
+        || array_key_exists('verdict', $affordability)
+    );
+@endphp
+@if ($hasCapacity)
     @php
-        $pass = (bool) ($affordability['pass'] ?? false);
+        $pass = (bool) ($affordability['pass'] ?? (($affordability['verdict'] ?? '') === 'pass'));
         $warn = ($affordability['verdict'] ?? '') === 'warn';
+        $statusLabel = $affordability['status_label']
+            ?? ($pass ? 'Affordability Passed' : 'Affordability Failed');
         $embedded = $embedded ?? false;
         $cardClass = $pass && ! $warn
             ? 'bg-emerald-50 ring-emerald-200'
@@ -64,34 +76,34 @@
             </div>
             <div>
                 <dt class="text-[10px] uppercase tracking-widest text-gray-500">Proposed installment</dt>
-                <dd class="font-semibold {{ ($affordability['pass'] ?? false) ? 'text-emerald-800' : 'text-red-800' }} mt-1">
-                    {{ format_money($affordability['proposed_installment'] ?? $affordability['new_emi'] ?? 0) }}
+                <dd class="font-semibold {{ $pass ? 'text-emerald-800' : 'text-red-800' }} mt-1">
+                    {{ format_money($affordability['proposed_installment'] ?? $affordability['new_emi'] ?? $affordability['total_installment'] ?? 0) }}
                 </dd>
             </div>
         </dl>
 
-        <p class="text-xs {{ ($affordability['pass'] ?? false) ? 'text-emerald-800' : 'text-red-800' }}">
-            Status: <span class="font-semibold">{{ $affordability['status_label'] ?? ($affordability['pass'] ? 'Affordability Passed' : 'Affordability Failed') }}</span>
+        <p class="text-xs {{ $pass ? 'text-emerald-800' : 'text-red-800' }}">
+            Status: <span class="font-semibold">{{ $statusLabel }}</span>
             · {{ $affordability['reason'] ?? '' }}
         </p>
 
         @php
-            $capacityCeiling = (float) ($affordability['max_affordable_principal'] ?? ($counterOffer['amount'] ?? 0));
+            $capacityCeiling = (float) ($affordability['max_affordable_principal'] ?? data_get($counterOffer, 'amount', 0));
             $counterEnabled = app(\App\Services\UnderwritingSettingsService::class)->counterOffersEnabled();
         @endphp
         @if ($capacityCeiling > 0)
             <p class="text-xs text-violet-800 bg-violet-50 ring-1 ring-violet-100 rounded-lg px-3 py-2">
-                @if ($counterEnabled && ! ($affordability['pass'] ?? false))
+                @if ($counterEnabled && ! $pass)
                     System counter-offer:
                 @else
                     Max this income can support:
                 @endif
                 <span class="font-bold">{{ format_money($capacityCeiling) }}</span>
-                @if (! empty($counterOffer['tenure_months']) || $record->requested_tenure_months)
-                    over {{ $counterOffer['tenure_months'] ?? $record->requested_tenure_months }} months
+                @if (data_get($counterOffer, 'tenure_months') || $record->requested_tenure_months)
+                    over {{ data_get($counterOffer, 'tenure_months') ?? $record->requested_tenure_months }} months
                 @endif
-                @if (! empty($counterOffer['installment']))
-                    (est. {{ format_money((float) $counterOffer['installment']) }}/month)
+                @if (data_get($counterOffer, 'installment'))
+                    (est. {{ format_money((float) data_get($counterOffer, 'installment')) }}/month)
                 @endif
                 @if (! $counterEnabled)
                     · counter-offers are off — used for the decision only

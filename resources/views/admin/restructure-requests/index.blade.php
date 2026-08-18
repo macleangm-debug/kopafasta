@@ -1,7 +1,12 @@
 <x-admin.layout
     title="Restructure requests"
-    heading="Restructure requests"
-    subheading="Review borrower loan restructuring requests">
+    heading=""
+    subheading="">
+
+    <x-admin.letterhead
+        kicker="Credit management"
+        title="Restructure requests"
+        subtitle="Review borrower loan restructuring requests" />
 
 <div class="mb-4 flex flex-wrap gap-2">
         @foreach ([

@@ -1,4 +1,5 @@
-<x-admin.layout title="Origination auto-assignment" heading="Origination auto-assignment" subheading="Valuer, GPS, and insurance partners — assign by region after the borrower pays">
+<x-admin.layout title="Origination auto-assignment" heading="" subheading="">
+    <x-admin.letterhead kicker="Partners" title="Origination auto-assignment" subtitle="Valuer, GPS, and insurance partners — assign by region after the borrower pays" />
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600 max-w-2xl">
             Screening requests the job; the borrower (group leader on group loans) pays first.

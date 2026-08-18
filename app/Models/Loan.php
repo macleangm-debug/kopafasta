@@ -56,6 +56,11 @@ class Loan extends Model
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
     }
 
+    public function loanApplication(): BelongsTo
+    {
+        return $this->application();
+    }
+
     public function disbursements(): HasMany
     {
         return $this->hasMany(Disbursement::class);

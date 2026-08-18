@@ -1,4 +1,13 @@
-<x-admin.layout :title="'Refund '.$borrowerRefund->reference" :heading="'Refund '.$borrowerRefund->reference" subheading="Borrower auction surplus payout">
+<x-admin.layout :title="'Refund '.$borrowerRefund->reference" heading="" subheading="">
+    <x-admin.letterhead
+        kicker="Borrower refund"
+        :title="'Refund '.$borrowerRefund->reference"
+        subtitle="Borrower auction surplus payout">
+        <x-slot:actions>
+            <a href="{{ route('admin.borrower-refunds.index') }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">All refunds</a>
+        </x-slot:actions>
+    </x-admin.letterhead>
+
 @if ($errors->any())
         <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">
             @foreach ($errors->all() as $error)
@@ -6,10 +15,6 @@
             @endforeach
         </div>
     @endif
-
-    <div class="mb-4">
-        <a href="{{ route('admin.borrower-refunds.index') }}" class="text-sm font-semibold text-brand hover:underline">← All refunds</a>
-    </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 bg-white rounded-xl ring-1 ring-gray-200 p-6">

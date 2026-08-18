@@ -1,6 +1,9 @@
 @php
-    $customer = $review['customer'];
+    $customer = $review['customer'] ?? null;
 @endphp
+@if (! $customer)
+    <p class="text-sm text-gray-500">Borrower profile is not available for this file.</p>
+@else
 
 <x-admin.review-section id="review-borrower" title="Borrower profile" subtitle="Identity, residence, activity and next of kin">
     <div class="grid lg:grid-cols-2 gap-6">
@@ -36,7 +39,7 @@
                 </div>
                 <div>
                     <dt class="text-xs text-gray-500">Profile completion</dt>
-                    <dd class="font-semibold mt-0.5">{{ $review['profile']['percent'] }}%</dd>
+                    <dd class="font-semibold mt-0.5">{{ $review['profile']['percent'] ?? 0 }}%</dd>
                 </div>
                 <div>
                     <dt class="text-xs text-gray-500">Membership</dt>
@@ -66,7 +69,7 @@
             <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div><dt class="text-xs text-gray-500">Activity type</dt><dd class="font-medium mt-0.5">{{ $review['activity_label'] ?? '—' }}</dd></div>
                 <div><dt class="text-xs text-gray-500">Income range</dt><dd class="font-medium mt-0.5">{{ $review['income_label'] ?? '—' }}</dd></div>
-                @if ($review['business_name'])
+                @if (! empty($review['business_name']))
                     <div class="sm:col-span-2"><dt class="text-xs text-gray-500">Business / employer</dt><dd class="font-medium mt-0.5">{{ $review['business_name'] }}</dd></div>
                 @endif
                 <div class="sm:col-span-2"><dt class="text-xs text-gray-500">Loan purpose</dt>
@@ -91,3 +94,4 @@
         </div>
     </div>
 </x-admin.review-section>
+@endif

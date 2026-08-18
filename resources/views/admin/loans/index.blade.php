@@ -1,4 +1,5 @@
-<x-admin.layout title="Loans" heading="All loans" subheading="Portfolio — active, pending disbursement, closed, and written off">
+<x-admin.layout title="Loans" heading="" subheading="">
+    <x-admin.letterhead kicker="Loan book" title="All loans" subtitle="Portfolio — active, pending disbursement, closed, and written off" />
 
 @include('admin.loans._toolbar', ['showManualCreate' => true])
 

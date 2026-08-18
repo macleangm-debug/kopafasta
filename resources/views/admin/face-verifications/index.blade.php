@@ -1,4 +1,5 @@
-<x-admin.layout title="Face verification" heading="Face verification" subheading="Review borrower face capture submissions">
+<x-admin.layout title="Face verification" heading="" subheading="">
+    <x-admin.letterhead kicker="KYC" title="Face verification" subtitle="Review borrower face capture submissions" />
 <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">

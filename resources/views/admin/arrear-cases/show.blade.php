@@ -6,15 +6,20 @@
 
 <x-admin.layout
     :title="'Collection case #'.$arrearCase->id"
-    :heading="'Collection case #'.$arrearCase->id"
-    :subheading="($loan?->loan_number ?? '—').' · '.$name">
+    heading=""
+    subheading="">
 
-<div class="mb-4 flex flex-wrap gap-3">
-        <a href="{{ route('admin.arrear-cases.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← All collection cases</a>
-        @if ($loan)
-            <a href="{{ route('admin.loans.show', $loan) }}" class="text-sm font-semibold text-gray-600 hover:text-gray-800">Loan profile</a>
-        @endif
-    </div>
+    <x-admin.letterhead
+        kicker="Collections"
+        :title="'Collection case #'.$arrearCase->id"
+        :subtitle="($loan?->loan_number ?? '—').' · '.$name">
+        <x-slot:actions>
+            <a href="{{ route('admin.arrear-cases.index') }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">All cases</a>
+            @if ($loan)
+                <a href="{{ route('admin.loans.show', $loan) }}" class="inline-flex items-center text-xs font-semibold text-white/90 ring-1 ring-white/25 hover:bg-white/10 px-3 py-1.5 rounded-lg">Loan profile</a>
+            @endif
+        </x-slot:actions>
+    </x-admin.letterhead>
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">

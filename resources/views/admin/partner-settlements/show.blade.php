@@ -1,4 +1,9 @@
-<x-admin.layout :title="'Settlement '.$partnerSettlement->reference" :heading="'Batch '.$partnerSettlement->reference" subheading="Partner payout batch">
+<x-admin.layout :title="'Settlement '.$partnerSettlement->reference" heading="" subheading="">
+    <x-admin.letterhead
+        kicker="Partner payout"
+        :title="'Batch '.$partnerSettlement->reference"
+        subtitle="Partner payout batch" />
+
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2 bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100">

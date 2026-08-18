@@ -1,8 +1,8 @@
 @php
-    $customer = $review['customer'];
-    $product = $review['product'];
-    $risk = $review['risk'];
-    $riskTone = match ($risk['band']) {
+    $customer = $review['customer'] ?? null;
+    $product = $review['product'] ?? null;
+    $risk = $review['risk'] ?? [];
+    $riskTone = match ($risk['band'] ?? 'high') {
         'low'    => 'bg-emerald-50 text-emerald-800 ring-emerald-200',
         'medium' => 'bg-amber-50 text-amber-900 ring-amber-200',
         default  => 'bg-red-50 text-red-800 ring-red-200',
@@ -72,7 +72,7 @@
 </div>
 
 <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-    @foreach ($review['checklist'] as $item)
+    @foreach ($review['checklist'] ?? [] as $item)
         @php
             $tone = match ($item['tone']) {
                 'emerald' => 'bg-emerald-50 ring-emerald-200 text-emerald-800',

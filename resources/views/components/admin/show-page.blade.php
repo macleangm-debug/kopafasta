@@ -16,12 +16,17 @@
 
     <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
         <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-6 py-5 text-white flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
-                <h1 class="text-xl font-bold tracking-tight mt-1">{{ $heading }}</h1>
-                @if ($subheading)
-                    <p class="text-sm text-white/75 mt-1 font-mono">{{ $subheading }}</p>
-                @endif
+            <div class="flex items-start gap-4 min-w-0">
+                <div class="shrink-0 rounded-xl bg-white/10 ring-1 ring-white/20 p-2.5">
+                    <x-site.brand-mark size="sm" variant="light" />
+                </div>
+                <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
+                    <h1 class="text-xl font-bold tracking-tight mt-1">{{ $heading }}</h1>
+                    @if ($subheading)
+                        <p class="text-sm text-white/75 mt-1 font-mono">{{ $subheading }}</p>
+                    @endif
+                </div>
             </div>
             @if ($editUrl)
                 <a href="{{ $editUrl }}"

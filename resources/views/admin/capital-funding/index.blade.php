@@ -1,7 +1,11 @@
 <x-admin.layout
     :title="__('admin.capital_funding.title')"
-    :heading="__('admin.capital_funding.title')"
-    :subheading="__('admin.capital_funding.subtitle')">
+    heading=""
+    subheading="">
+    <x-admin.letterhead
+        kicker="Capital"
+        :title="__('admin.capital_funding.title')"
+        :subtitle="__('admin.capital_funding.subtitle')" />
 
     <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white shadow-sm ring-1 ring-brand/20">
         <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">How capital funding works</p>

@@ -1,6 +1,9 @@
 @php
-    $customer = $review['customer'];
+    $customer = $review['customer'] ?? null;
 @endphp
+@if (! $customer)
+    <p class="text-sm text-gray-500">Personal details are not available for this file.</p>
+@else
 
 <div class="space-y-5">
     <div class="rounded-2xl ring-1 ring-brand/10 bg-brand-muted/20 p-5">
@@ -79,3 +82,4 @@
         </div>
     </details>
 </div>
+@endif

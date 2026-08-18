@@ -1,4 +1,5 @@
-<x-admin.layout title="Partners" heading="Partners hub" subheading="Unified view of suppliers, affiliates, GPS, insurance, valuers, and other partner roles">
+<x-admin.layout title="Partners" heading="" subheading="">
+    <x-admin.letterhead kicker="Partners" title="Partners hub" subtitle="Unified view of suppliers, affiliates, GPS, insurance, valuers, and other partner roles" />
     @php
         $roleOptions = app(\App\Services\PartnerService::class)->roleOptions();
         $activeRole = request('role', '');

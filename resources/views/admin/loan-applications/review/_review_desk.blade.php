@@ -13,9 +13,10 @@
         }
     }
     if ($deskPerson === 'member' && (! $deskM || $deskM < 1)) {
-        $firstM = collect($groupReview['members'] ?? [])
+        $groupMembers = collect(is_array($groupReview ?? null) ? ($groupReview['members'] ?? []) : []);
+        $firstM = $groupMembers
             ->first(fn ($row) => ($row['role'] ?? '') !== 'leader')
-            ?? collect($groupReview['members'] ?? [])->first();
+            ?? $groupMembers->first();
         $deskM = (int) ($firstM['id'] ?? 0) ?: null;
         if (! $deskM) {
             $deskPerson = 'borrower';
@@ -167,7 +168,7 @@
     <div class="px-5 py-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-3 min-w-0">
             <h3 class="text-base font-bold text-gray-900">Review</h3>
-            <span class="text-sm font-bold text-brand tabular-nums">{{ $desk['decided'] }}/{{ $desk['total'] }}</span>
+            <span class="text-sm font-bold text-brand tabular-nums">{{ $desk['decided'] ?? 0 }}/{{ $desk['total'] ?? 0 }}</span>
             @if (($desk['failed'] ?? 0) > 0)
                 <span class="text-[11px] font-bold text-rose-700">{{ $desk['failed'] }} fail</span>
             @endif

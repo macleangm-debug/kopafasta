@@ -98,8 +98,9 @@ class LoanApplicationReviewService
             ? (int) round(($satisfiedCount / $requiredCount) * 100)
             : 100;
 
-        $affordability = $application->credit_appraisal_payload['affordability'] ?? null;
-        if (! $affordability) {
+        $storedAffordability = $application->credit_appraisal_payload['affordability'] ?? null;
+        $affordability = is_array($storedAffordability) ? $storedAffordability : null;
+        if (! is_array($affordability) || ! array_key_exists('pass', $affordability)) {
             $affordability = $this->affordability->evaluate($application);
         }
 

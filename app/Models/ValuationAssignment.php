@@ -45,6 +45,11 @@ class ValuationAssignment extends Model
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
     }
 
+    public function loanApplication(): BelongsTo
+    {
+        return $this->application();
+    }
+
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class, 'partner_id');

@@ -1,4 +1,5 @@
-<x-admin.layout title="Disbursement Queue" heading="Disbursement queue" subheading="Approved applications with pending loan payout">
+<x-admin.layout title="Disbursement Queue" heading="" subheading="">
+    <x-admin.letterhead kicker="Credit management" title="Disbursement queue" subtitle="Approved applications with pending loan payout" />
 @php
         $appsAwaitingLoan = \App\Models\LoanApplication::query()
             ->with(['customer', 'product'])

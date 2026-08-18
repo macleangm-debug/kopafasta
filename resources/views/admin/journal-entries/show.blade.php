@@ -1,11 +1,16 @@
 <x-admin.layout
     title="Journal Entry {{ $entry->entry_number }}"
-    heading="Journal Entry {{ $entry->entry_number }}"
-    subheading="{{ $entry->description }}">
+    heading=""
+    subheading="">
 
-    <a href="{{ route('admin.journal-entries.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 mb-4">
-        ← Back to journal
-    </a>
+    <x-admin.letterhead
+        kicker="Finance"
+        :title="'Journal '.$entry->entry_number"
+        :subtitle="$entry->description">
+        <x-slot:actions>
+            <a href="{{ route('admin.journal-entries.index') }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">Back to journal</a>
+        </x-slot:actions>
+    </x-admin.letterhead>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">

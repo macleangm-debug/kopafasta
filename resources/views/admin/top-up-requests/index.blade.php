@@ -1,7 +1,12 @@
 <x-admin.layout
     title="Top-up requests"
-    heading="Top-up requests"
-    subheading="Review borrower loan top-up requests">
+    heading=""
+    subheading="">
+
+    <x-admin.letterhead
+        kicker="Credit management"
+        title="Top-up requests"
+        subtitle="Review borrower loan top-up requests" />
 
 <div class="mb-4 flex flex-wrap gap-2">
         @foreach ([

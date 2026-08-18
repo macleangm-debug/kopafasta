@@ -1,8 +1,8 @@
 @php
-    $customer = $review['customer'];
-    $photos = $review['face_photos'];
-    $angles = $review['face_angles'];
-    $nidaPhotoPath = $review['nida_photo_path'];
+    $customer = $review['customer'] ?? null;
+    $photos = $review['face_photos'] ?? [];
+    $angles = $review['face_angles'] ?? [];
+    $nidaPhotoPath = $review['nida_photo_path'] ?? null;
     $idDocs = $review['id_documents'] ?? collect();
     $nidaFront = $idDocs->get('national_id_front');
     $nidaBack = $idDocs->get('national_id_back');
@@ -33,7 +33,7 @@
     <div class="mb-6 rounded-2xl ring-2 ring-brand/20 bg-white overflow-hidden">
         <div class="px-4 py-3 border-b border-gray-100 bg-brand-muted/30 flex flex-wrap items-center justify-between gap-2">
             <p class="text-sm font-bold text-gray-900">Side-by-side comparison</p>
-            <p class="text-xs text-gray-500 font-mono">{{ $customer->national_id ?: 'NIDA number not on file' }}</p>
+            <p class="text-xs text-gray-500 font-mono">{{ $customer?->national_id ?: 'NIDA number not on file' }}</p>
         </div>
         <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
             <div class="p-4">

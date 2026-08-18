@@ -31,9 +31,13 @@
         <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-7 text-white">
                 <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div>
+                    <div class="flex items-start gap-4 min-w-0">
+                        <div class="shrink-0 rounded-xl bg-white/10 ring-1 ring-white/20 p-2.5">
+                            <x-site.brand-mark size="sm" variant="light" />
+                        </div>
+                        <div>
                         <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">
-                            {{ $isBankQueue ? 'Bank matching desk' : 'Payment detail' }}
+                            {{ brand_name() }} · {{ $isBankQueue ? 'Bank matching desk' : 'Payment detail' }}
                         </p>
                         <h1 class="text-2xl sm:text-3xl font-bold mt-1 font-mono tracking-tight">{{ $payment->reference }}</h1>
                         <p class="text-sm text-white/75 mt-2 max-w-xl">
@@ -43,6 +47,7 @@
                                 Completed mobile payments are confirmed by the PSP. Context below links this payment to the loan / product / partner.
                             @endif
                         </p>
+                    </div>
                     </div>
                     <div class="text-right">
                         <p class="text-[10px] uppercase tracking-widest text-white/60 font-semibold">Amount</p>

@@ -1,7 +1,8 @@
 <x-admin.layout
     title="Membership Payments"
-    heading="Membership Payments"
-    subheading="Review and approve bank transfer payments for registration and renewal">
+    heading=""
+    subheading="">
+    <x-admin.letterhead kicker="Finance" title="Membership payments" subtitle="Review and approve bank transfer payments for registration and renewal" />
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600">

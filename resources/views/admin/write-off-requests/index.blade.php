@@ -1,30 +1,37 @@
 <x-admin.layout
     title="Write-off requests"
-    heading="Write-off requests"
-    subheading="Collections recommendations awaiting manager and finance approval">
+    heading=""
+    subheading="">
 
-<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-wider text-gray-500">Pending</p>
-            <p class="text-2xl font-bold text-gray-900">{{ $counts['pending'] }}</p>
-        </div>
-        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
-            <p class="text-[10px] uppercase tracking-wider text-amber-700">Awaiting manager</p>
-            <p class="text-2xl font-bold text-amber-900">{{ $counts['recommended'] }}</p>
-        </div>
-        <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 p-4">
-            <p class="text-[10px] uppercase tracking-wider text-sky-700">Awaiting finance</p>
-            <p class="text-2xl font-bold text-sky-900">{{ $counts['manager_approved'] }}</p>
-        </div>
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-wider text-gray-500">Completed</p>
-            <p class="text-2xl font-bold text-gray-900">{{ $counts['completed'] }}</p>
-        </div>
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-wider text-gray-500">Rejected</p>
-            <p class="text-2xl font-bold text-gray-900">{{ $counts['rejected'] }}</p>
-        </div>
-    </div>
+    <x-admin.letterhead
+        kicker="Write-off"
+        title="Write-off requests"
+        subtitle="Collections recommendations awaiting manager and finance approval">
+        <x-slot:stats>
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4">
+                    <p class="text-[10px] uppercase tracking-wider text-brand font-semibold">Pending</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $counts['pending'] }}</p>
+                </div>
+                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
+                    <p class="text-[10px] uppercase tracking-wider text-amber-700">Awaiting manager</p>
+                    <p class="text-2xl font-bold text-amber-900">{{ $counts['recommended'] }}</p>
+                </div>
+                <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 p-4">
+                    <p class="text-[10px] uppercase tracking-wider text-sky-700">Awaiting finance</p>
+                    <p class="text-2xl font-bold text-sky-900">{{ $counts['manager_approved'] }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500">Completed</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $counts['completed'] }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500">Rejected</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $counts['rejected'] }}</p>
+                </div>
+            </div>
+        </x-slot:stats>
+    </x-admin.letterhead>
 
     <div class="mb-4 flex flex-wrap gap-2">
         @foreach ([

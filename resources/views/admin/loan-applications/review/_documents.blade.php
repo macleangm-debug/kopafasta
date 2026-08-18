@@ -6,7 +6,7 @@
     $isMemberSubject = (bool) ($review['is_member_subject'] ?? false);
     $isGuarantorSubject = (bool) ($review['is_guarantor_subject'] ?? false);
     $isSubjectPanel = $isMemberSubject || $isGuarantorSubject;
-    $subjectName = ($review['customer']->full_name ?? null)
+    $subjectName = data_get($review, 'customer.full_name')
         ?: ($review['member_row']['name'] ?? null)
         ?: ($review['guarantor_row']['name'] ?? null)
         ?: 'this subject';
@@ -18,7 +18,7 @@
     $docRequestService = app(\App\Services\ApplicationDocumentRequestService::class);
 
     $documentRequestsForPanel = collect($documentRequests ?? []);
-    $subjectCustomerId = (int) ($review['customer']->id ?? 0);
+    $subjectCustomerId = (int) (data_get($review, 'customer.id') ?? 0);
     $memberId = (int) ($review['member_row']['id'] ?? 0);
     $panelPerson = $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : 'borrower');
     $documentRequestsForPanel = $documentRequestsForPanel->filter(

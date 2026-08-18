@@ -1,11 +1,14 @@
 @php
-    $customer = $review['customer'];
+    $customer = $review['customer'] ?? null;
     $purposeValue = format_loan_purpose_display(
         $record->purpose,
         data_get($record->screening_payload, 'purpose_other'),
         $record->screening_payload
     );
 @endphp
+@if (! $customer)
+    <p class="text-sm text-gray-500">Activity details are not available for this file.</p>
+@else
 
 <div class="rounded-2xl ring-1 ring-brand/10 bg-white p-5">
     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-1">Activity information</p>
@@ -20,3 +23,4 @@
         ],
     ])
 </div>
+@endif

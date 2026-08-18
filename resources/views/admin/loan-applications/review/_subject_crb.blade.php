@@ -104,8 +104,18 @@
             <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Freshness</p>
                 <p class="text-sm font-bold text-gray-900 mt-1">{{ $crb['freshness_label'] ?? '—' }}</p>
-                @if ($crb['checked_at'] ?? null)
-                    <p class="text-[11px] text-gray-500 mt-0.5">{{ $crb['checked_at']->diffForHumans() }}</p>
+                @php
+                    $checkedAt = $crb['checked_at'] ?? null;
+                    if (is_string($checkedAt) && $checkedAt !== '') {
+                        try {
+                            $checkedAt = \Illuminate\Support\Carbon::parse($checkedAt);
+                        } catch (\Throwable) {
+                            $checkedAt = null;
+                        }
+                    }
+                @endphp
+                @if ($checkedAt instanceof \DateTimeInterface)
+                    <p class="text-[11px] text-gray-500 mt-0.5">{{ \Illuminate\Support\Carbon::parse($checkedAt)->diffForHumans() }}</p>
                 @endif
             </div>
         </div>

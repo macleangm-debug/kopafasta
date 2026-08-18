@@ -7,22 +7,27 @@
 
 <x-admin.layout
     :title="'Write-off #'.$writeOffRequest->id"
-    :heading="'Write-off request #'.$writeOffRequest->id"
-    :subheading="($loan?->loan_number ?? '—').' · '.$name">
+    heading=""
+    subheading="">
+
+    <x-admin.letterhead
+        kicker="Write-off"
+        :title="'Write-off request #'.$writeOffRequest->id"
+        :subtitle="($loan?->loan_number ?? '—').' · '.$name">
+        <x-slot:actions>
+            <a href="{{ route('admin.write-off-requests.index') }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">All requests</a>
+            @if ($loan)
+                <a href="{{ route('admin.loans.show', $loan) }}" class="inline-flex items-center text-xs font-semibold text-white/90 ring-1 ring-white/25 hover:bg-white/10 px-3 py-1.5 rounded-lg">Loan profile</a>
+            @endif
+            @if ($writeOffRequest->arrearCase)
+                <a href="{{ route('admin.arrear-cases.show', $writeOffRequest->arrearCase) }}" class="inline-flex items-center text-xs font-semibold text-white/90 ring-1 ring-white/25 hover:bg-white/10 px-3 py-1.5 rounded-lg">Collection case</a>
+            @endif
+        </x-slot:actions>
+    </x-admin.letterhead>
 
 @if ($errors->any())
         <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
     @endif
-
-    <div class="mb-4 flex flex-wrap gap-3">
-        <a href="{{ route('admin.write-off-requests.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← All write-off requests</a>
-        @if ($loan)
-            <a href="{{ route('admin.loans.show', $loan) }}" class="text-sm font-semibold text-gray-600 hover:text-gray-800">Loan profile</a>
-        @endif
-        @if ($writeOffRequest->arrearCase)
-            <a href="{{ route('admin.arrear-cases.show', $writeOffRequest->arrearCase) }}" class="text-sm font-semibold text-gray-600 hover:text-gray-800">Collection case</a>
-        @endif
-    </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">

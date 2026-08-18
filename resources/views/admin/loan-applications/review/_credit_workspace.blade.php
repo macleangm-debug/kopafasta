@@ -1,6 +1,6 @@
 @php
-    $customer = $review['customer'];
-    $product = $review['product'];
+    $customer = $review['customer'] ?? null;
+    $product = $review['product'] ?? null;
     $risk = $review['risk'] ?? [];
     $crb = $review['crb'] ?? [];
     $crbExplain = app(\App\Services\CrbCreditCheckService::class)->recommendationExplanation($crb);
@@ -236,7 +236,7 @@
                     </div>
                     <div class="col-span-2">
                         <p class="text-[10px] uppercase tracking-widest text-gray-500">Leader</p>
-                        <p class="font-semibold text-gray-900 mt-0.5 truncate">{{ $groupReview['leader'] ?? $customer->full_name }}</p>
+                        <p class="font-semibold text-gray-900 mt-0.5 truncate">{{ is_string($groupReview['leader'] ?? null) ? $groupReview['leader'] : ($customer?->full_name ?? '—') }}</p>
                     </div>
                     @if (($groupReview['amount_per_member'] ?? 0) > 0)
                         <div class="col-span-2">
@@ -247,7 +247,7 @@
                 @else
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-500">Member</p>
-                        <p class="font-semibold text-gray-900 mt-0.5 font-mono text-xs">{{ $customer->member_no ?? '—' }}</p>
+                        <p class="font-semibold text-gray-900 mt-0.5 font-mono text-xs">{{ $customer?->member_no ?? '—' }}</p>
                     </div>
                 @endif
             </div>

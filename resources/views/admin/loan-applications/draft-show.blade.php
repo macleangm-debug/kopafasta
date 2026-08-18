@@ -1,15 +1,19 @@
 <x-admin.layout
     :title="__('admin.application_drafts.view_application')"
-    :heading="__('admin.application_drafts.view_application')"
-    :subheading="$draft->product?->name ?? __('admin.application_drafts.title')">
+    heading=""
+    subheading="">
 
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <a href="{{ route('admin.loan-applications.incomplete') }}" class="text-sm text-gray-500 hover:text-gray-700">← {{ __('admin.application_drafts.title') }}</a>
-        @if ($draft->customer)
-            <a href="{{ route('admin.customers.show', $draft->customer) }}"
-               class="text-sm font-semibold text-brand hover:underline">{{ __('admin.application_drafts.view_customer_profile') }} →</a>
-        @endif
-    </div>
+    <x-admin.letterhead
+        kicker="Incomplete draft"
+        :title="__('admin.application_drafts.view_application')"
+        :subtitle="$draft->product?->name ?? __('admin.application_drafts.title')">
+        <x-slot:actions>
+            <a href="{{ route('admin.loan-applications.incomplete') }}" class="inline-flex items-center text-xs font-semibold text-white/90 ring-1 ring-white/25 hover:bg-white/10 px-3 py-1.5 rounded-lg">{{ __('admin.application_drafts.title') }}</a>
+            @if ($draft->customer)
+                <a href="{{ route('admin.customers.show', $draft->customer) }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">{{ __('admin.application_drafts.view_customer_profile') }}</a>
+            @endif
+        </x-slot:actions>
+    </x-admin.letterhead>
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">

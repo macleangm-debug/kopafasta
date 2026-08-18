@@ -1,7 +1,8 @@
 <x-admin.layout
     title="Journal Entries"
-    heading="Journal Entries"
-    subheading="System-posted general ledger entries">
+    heading=""
+    subheading="">
+    <x-admin.letterhead kicker="Finance" title="Journal entries" subtitle="System-posted general ledger entries" />
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">

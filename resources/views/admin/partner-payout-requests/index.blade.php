@@ -1,4 +1,5 @@
-<x-admin.layout title="Partner payout requests" heading="Partner payout requests" subheading="Affiliate and recovery withdrawal requests — approve then mark paid when disbursed">
+<x-admin.layout title="Partner payout requests" heading="" subheading="">
+    <x-admin.letterhead kicker="Partners" title="Partner payout requests" subtitle="Affiliate and recovery withdrawal requests — approve then mark paid when disbursed" />
 <div class="mb-4 flex flex-wrap gap-2">
         @foreach (['pending' => 'Pending', 'approved' => 'Approved', 'paid' => 'Paid', 'rejected' => 'Rejected'] as $key => $label)
             <a href="{{ route('admin.partner-payout-requests.index', ['status' => $key]) }}"

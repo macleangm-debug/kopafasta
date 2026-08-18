@@ -1,14 +1,19 @@
 <x-admin.layout
     :title="$record->name"
-    :heading="$record->name"
-    :subheading="$record->code">
+    heading=""
+    subheading="">
 
-    <div class="flex flex-wrap items-center gap-3 mb-6">
-        <a href="{{ route('admin.capital-funding.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800">← {{ __('admin.capital_funding.title') }}</a>
-        <a href="{{ route('admin.lenders.index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">All partners</a>
-        <a href="{{ route('admin.lenders.adjust-capital', $record) }}" class="text-sm font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg ring-1 ring-amber-200">{{ __('admin.capital_partner.adjust_capital') }}</a>
-        <a href="{{ route('admin.lenders.edit', $record) }}" class="ml-auto text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg">Edit</a>
-    </div>
+    <x-admin.letterhead
+        kicker="Capital partner"
+        :title="$record->name"
+        :subtitle="$record->code">
+        <x-slot:actions>
+            <a href="{{ route('admin.capital-funding.index') }}" class="inline-flex items-center text-xs font-semibold text-white/90 ring-1 ring-white/25 hover:bg-white/10 px-3 py-1.5 rounded-lg">{{ __('admin.capital_funding.title') }}</a>
+            <a href="{{ route('admin.lenders.index') }}" class="inline-flex items-center text-xs font-semibold text-white/90 ring-1 ring-white/25 hover:bg-white/10 px-3 py-1.5 rounded-lg">All partners</a>
+            <a href="{{ route('admin.lenders.adjust-capital', $record) }}" class="inline-flex items-center text-xs font-semibold text-brand bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg">{{ __('admin.capital_partner.adjust_capital') }}</a>
+            <a href="{{ route('admin.lenders.edit', $record) }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">Edit</a>
+        </x-slot:actions>
+    </x-admin.letterhead>
 
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         @foreach ([

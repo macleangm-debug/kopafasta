@@ -8,7 +8,7 @@
             <button type="button" class="text-left min-w-0 flex-1" @click="toggleGroup(@js($groupKey))">
                 <h4 class="text-base font-extrabold tracking-tight inline-flex items-center gap-2">
                     <svg class="size-4 text-brand-gold transition" :class="openGroup === @js($groupKey) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                    <span>{{ $group['label'] }}</span>
+                    <span>{{ is_scalar($group['label'] ?? null) ? $group['label'] : ($groupKey ?: 'Checks') }}</span>
                 </h4>
                 <p class="text-[11px] text-white/80 mt-0.5 tabular-nums">
                     {{ $group['decided'] ?? 0 }}/{{ $group['total'] ?? count($group['items'] ?? []) }} reviewed

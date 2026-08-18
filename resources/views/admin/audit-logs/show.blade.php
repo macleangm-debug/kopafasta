@@ -1,7 +1,12 @@
-<x-admin.layout title="Audit Log Entry" heading="Audit Log Entry" :subheading="'#'.$log->id">
-    <div class="mb-4">
-        <a href="{{ route('admin.audit-logs.index') }}" class="text-sm text-gray-600 hover:text-gray-800">← Back to audit logs</a>
-    </div>
+<x-admin.layout title="Audit Log Entry" heading="" subheading="">
+    <x-admin.letterhead
+        kicker="Audit"
+        title="Audit log entry"
+        :subtitle="'#'.$log->id">
+        <x-slot:actions>
+            <a href="{{ route('admin.audit-logs.index') }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">Back to audit logs</a>
+        </x-slot:actions>
+    </x-admin.letterhead>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 mb-6">
         <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">

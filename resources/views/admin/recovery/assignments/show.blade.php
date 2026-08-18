@@ -5,12 +5,17 @@
 
 <x-admin.layout
     :title="'Recovery assignment #'.$assignment->id"
-    :heading="'Recovery assignment #'.$assignment->id"
-    :subheading="($assignment->vendor?->name ?? '—').' · '.display_label($assignment->partner_type, 'recovery_partner_type')">
+    heading=""
+    subheading="">
 
-<div class="mb-4">
-        <a href="{{ route('admin.recovery.assignments.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Recovery assignments</a>
-    </div>
+    <x-admin.letterhead
+        kicker="Recovery"
+        :title="'Recovery assignment #'.$assignment->id"
+        :subtitle="($assignment->vendor?->name ?? '—').' · '.display_label($assignment->partner_type, 'recovery_partner_type')">
+        <x-slot:actions>
+            <a href="{{ route('admin.recovery.assignments.index') }}" class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">All assignments</a>
+        </x-slot:actions>
+    </x-admin.letterhead>
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">

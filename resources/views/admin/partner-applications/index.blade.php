@@ -1,4 +1,5 @@
-<x-admin.layout title="Partner Applications" heading="Partner applications" subheading="Public partner enrollments awaiting review">
+<x-admin.layout title="Partner Applications" heading="" subheading="">
+    <x-admin.letterhead kicker="Partners" title="Partner applications" subtitle="Public partner enrollments awaiting review" />
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <a href="{{ route('admin.partners.index') }}" class="text-sm font-semibold text-brand hover:underline">← Partners hub</a>
         <div class="flex flex-wrap gap-2 text-xs">
