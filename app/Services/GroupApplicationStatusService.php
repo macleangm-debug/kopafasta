@@ -118,6 +118,10 @@ class GroupApplicationStatusService
             return $this->wrap('approved');
         }
 
+        if ($status === 'pending_documents') {
+            return $this->wrap('documents_requested');
+        }
+
         return $this->wrap('under_review');
     }
 
@@ -178,6 +182,7 @@ class GroupApplicationStatusService
      */
     public function resolveForGroup(LoanGroup $group, ?LoanApplication $application = null): array
     {
+        $application ??= $group->primaryApplication;
         if ($application) {
             return $this->resolveFromApplication($application);
         }

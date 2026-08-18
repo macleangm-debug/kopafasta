@@ -196,7 +196,7 @@ class GroupLendingService
                 'loan_group_id'              => $group->id,
                 'customer_id'                => $customerId,
                 'group_member_invitation_id' => isset($row['invitation_id']) ? (int) $row['invitation_id'] : null,
-                'loan_application_id'        => $customerId === (int) $application->customer_id ? $application->id : null,
+                'loan_application_id'        => $application->id,
                 'role'                       => $isLeader ? 'leader' : 'member',
                 'requested_amount'           => isset($row['requested_amount']) ? (float) $row['requested_amount'] : null,
                 'sort_order'                 => $index + 1,

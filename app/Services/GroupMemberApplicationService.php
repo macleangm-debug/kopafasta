@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\GroupMemberInvitation;
+use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
+use App\Models\LoanGroupMember;
 use Illuminate\Support\Collection;
 
 class GroupMemberApplicationService
@@ -156,24 +158,69 @@ class GroupMemberApplicationService
     }
 
     /**
-     * Pending group invitations shown in the borrower's applications list.
+     * Pending invitations plus the live group file after submission.
      *
      * @return list<array<string, mixed>>
      */
     public function applicationRowsForCustomer(Customer $customer): array
     {
+        $rows = [];
         $onboarding = app(GroupMemberOnboardingService::class);
         $invitation = $onboarding->pendingInvitationForCustomer($customer);
 
-        if (! $invitation || $invitation->status === 'completed') {
-            return [];
+        if ($invitation
+            && $invitation->status !== 'completed'
+            && ! $onboarding->isLeaderForInvitation($invitation, $customer)) {
+            $rows[] = $this->formatApplicationListRow($invitation->loadMissing(['leader', 'product', 'draft']), $customer);
         }
 
-        if ($onboarding->isLeaderForInvitation($invitation, $customer)) {
-            return [];
+        $dashboard = app(BorrowerApplicationsDashboardService::class);
+        $memberships = LoanGroupMember::query()
+            ->with([
+                'group.primaryApplication.product',
+                'group.primaryApplication.documentRequests',
+                'group.primaryApplication.loan',
+                'group.primaryApplication.customer',
+            ])
+            ->where('customer_id', $customer->id)
+            ->where('member_status', 'active')
+            ->get();
+
+        foreach ($memberships as $member) {
+            $application = $member->group?->primaryApplication;
+            if (! $application instanceof LoanApplication) {
+                continue;
+            }
+            if ((int) $application->customer_id === (int) $customer->id) {
+                continue;
+            }
+            if (in_array((string) $application->status, ['draft', 'disbursed'], true)) {
+                continue;
+            }
+            if ($application->loan && in_array((string) $application->loan->status, ['active', 'disbursed', 'arrears'], true)) {
+                continue;
+            }
+
+            $row = $dashboard->formatSubmitted($application);
+            if (filled($member->requested_amount)) {
+                $row['requested_amount'] = (float) $member->requested_amount;
+            }
+            $row['is_group_member'] = true;
+            $docService = app(ApplicationDocumentRequestService::class);
+            $memberActions = $application->documentRequests
+                ->filter(fn ($request) => $request->needsBorrowerAction()
+                    && $docService->isSubjectOfRequest($customer, $request))
+                ->values()
+                ->map(fn ($request) => $docService->borrowerGuidedAction($request, $customer))
+                ->all();
+            if ($memberActions !== []) {
+                $row['underwriting_actions'] = $memberActions;
+                $row['underwriting_active'] = false;
+            }
+            $rows[] = $row;
         }
 
-        return [$this->formatApplicationListRow($invitation->loadMissing(['leader', 'product', 'draft']), $customer)];
+        return $rows;
     }
 
     /** @return array<string, mixed> */

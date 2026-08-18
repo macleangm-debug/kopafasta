@@ -26,6 +26,10 @@ return [
             'label' => 'Under review',
             'tone'  => 'blue',
         ],
+        'documents_requested' => [
+            'label' => 'Documents requested',
+            'tone'  => 'amber',
+        ],
         'approved' => [
             'label' => 'Approved',
             'tone'  => 'emerald',
