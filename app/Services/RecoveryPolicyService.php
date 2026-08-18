@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\LoanApplication;
 use App\Models\RecoveryAssignment;
 use App\Models\Setting;
 use App\Models\Vendor;
@@ -57,11 +58,21 @@ class RecoveryPolicyService
     public function feeTypeForPartnerType(string $type): string
     {
         $stored = Setting::get("recovery.fee_type.{$type}");
-        if (in_array($stored, ['percentage', 'fixed'], true)) {
+        if (in_array($stored, ['percentage', 'fixed', 'hybrid'], true)) {
             return $stored;
         }
 
         return (string) (config("recovery.partner_types.{$type}.default_fee_type") ?? 'percentage');
+    }
+
+    public function chargesBorrowerForType(string $type): bool
+    {
+        $stored = Setting::get("recovery.charges_borrower.{$type}");
+        if ($stored !== null && $stored !== '') {
+            return (bool) $stored;
+        }
+
+        return (bool) (config("recovery.partner_types.{$type}.charges_borrower") ?? true);
     }
 
     public function fixedAmountForType(string $type): ?float
@@ -212,6 +223,38 @@ class RecoveryPolicyService
         };
     }
 
+    public function partnerTypeAppliesToApplication(string $type, LoanApplication $application): bool
+    {
+        $application->loadMissing('product', 'collateralAsset', 'loan');
+
+        if ($application->loan) {
+            return $this->partnerTypeAppliesToLoan($type, $application->loan);
+        }
+
+        $loanTypes = trim($this->loanTypesScopeForType($type));
+        if ($loanTypes !== '' && strtolower($loanTypes) !== 'all') {
+            $allowed = collect(explode(',', strtoupper($loanTypes)))
+                ->map(fn (string $code) => trim($code))
+                ->filter()
+                ->all();
+            $productCode = strtoupper((string) ($application->product?->code ?? ''));
+
+            if ($productCode !== '' && ! in_array($productCode, $allowed, true)) {
+                return false;
+            }
+        }
+
+        $isSecured = (bool) ($application->product?->requires_collateral ?? false)
+            || $application->collateralAsset !== null
+            || in_array(strtoupper((string) ($application->product?->code ?? '')), ['AL', 'AB'], true);
+
+        return match ($this->collateralScopeForType($type)) {
+            'secured' => $isSecured,
+            'unsecured' => ! $isSecured,
+            default => true,
+        };
+    }
+
     /** @return list<string> */
     public function partnerTypesForLoan(\App\Models\Loan $loan): array
     {
@@ -249,9 +292,21 @@ class RecoveryPolicyService
         $commissionPercent ??= (float) ($vendor?->recovery_commission_percent ?? $this->defaultCommissionPercent($partnerType));
         $markupPercent ??= (float) ($vendor?->recovery_markup_percent ?? $this->defaultMarkupPercent($partnerType));
 
+        if (! $this->chargesBorrowerForType($partnerType)) {
+            return [
+                'partner_amount' => 0.0,
+                'company_amount' => 0.0,
+                'total_charge' => 0.0,
+            ];
+        }
+
         if ($feeType === 'fixed') {
             $fixed = (float) ($vendor?->recovery_fixed_amount ?? $this->fixedAmountForType($partnerType) ?? 0);
             $partnerAmount = round(max(0, $fixed), 2);
+            $companyAmount = round($partnerAmount * ($markupPercent / 100), 2);
+        } elseif ($feeType === 'hybrid') {
+            $fixed = (float) ($vendor?->recovery_fixed_amount ?? $this->fixedAmountForType($partnerType) ?? 0);
+            $partnerAmount = round(max(0, $fixed) + ($baseAmount * ($commissionPercent / 100)), 2);
             $companyAmount = round($partnerAmount * ($markupPercent / 100), 2);
         } else {
             $partnerAmount = round($baseAmount * ($commissionPercent / 100), 2);

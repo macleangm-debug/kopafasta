@@ -1,10 +1,8 @@
 <div class="space-y-4">
     <div>
         <h3 class="text-sm font-semibold text-gray-900">Upcoming payments</h3>
-        <p class="text-xs text-gray-500 mt-0.5">Use this to remind the borrower what is due next. Overdue rows are due now.</p>
+        <p class="text-xs text-gray-500 mt-0.5">What is still on the schedule. Overdue rows belong on What they owe as missed instalments.</p>
     </div>
-
-    @include('admin.loans._servicing', ['servicingPanel' => 'summary'])
 
     @php
         $rows = $servicing['upcoming_rows'] ?? collect();

@@ -91,6 +91,9 @@ class PostApprovalFeeService
         $seenCodes = [];
 
         foreach ($templates as $fee) {
+            if ($this->isGpsFee($fee) && ! app(LoanAgreementProductProfile::class)->needsGpsPostApprovalFee($application)) {
+                continue;
+            }
             $code = strtoupper(trim((string) $fee->code));
             if ($code !== '' && isset($seenCodes[$code])) {
                 continue;

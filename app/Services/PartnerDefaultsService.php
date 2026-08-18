@@ -123,14 +123,14 @@ class PartnerDefaultsService
             return max(0, (float) $partner->partner_cost);
         }
 
-        return max(0, (float) ($defaults['base_cost'] ?? config('gps_pricing.device_cost', 100_000)));
+        return max(0, (float) ($defaults['base_cost'] ?? config('gps_pricing.device_cost', 50_000)));
     }
 
     public function gpsMonitoringMonthly(): float
     {
         $defaults = $this->defaultsFor('gps_installer');
 
-        return max(0, (float) ($defaults['monitoring_monthly'] ?? config('gps_pricing.monitoring_monthly', 10_000)));
+        return max(0, (float) ($defaults['monitoring_monthly'] ?? config('gps_pricing.monitoring_monthly', 20_000)));
     }
 
     public function gpsMarkupPercent(?Partner $partner = null): float
@@ -141,7 +141,7 @@ class PartnerDefaultsService
             return max(0, (float) $partner->markup_percent);
         }
 
-        return max(0, (float) ($defaults['markup_percent'] ?? config('gps_pricing.markup_percent', 10)));
+        return max(0, (float) ($defaults['markup_percent'] ?? config('gps_pricing.markup_percent', 0)));
     }
 
     public function valuerBaseCost(?Partner $partner = null): float

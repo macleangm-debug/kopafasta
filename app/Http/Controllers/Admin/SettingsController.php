@@ -1651,7 +1651,7 @@ class SettingsController extends Controller
             $rules["commission_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
             $rules["markup_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
             $rules["has_markup_{$type}"] = ['nullable', 'boolean'];
-            $rules["fee_type_{$type}"] = ['required', 'in:percentage,fixed'];
+            $rules["fee_type_{$type}"] = ['required', 'in:percentage,fixed,hybrid'];
             $rules["fixed_amount_{$type}"] = ['nullable', 'numeric', 'min:0'];
             $rules["priority_{$type}"] = ['required', 'integer', 'min:1', 'max:99'];
             $rules["loan_types_{$type}"] = ['nullable', 'string', 'max:120'];

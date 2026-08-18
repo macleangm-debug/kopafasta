@@ -13,7 +13,7 @@
     'bandMeta' => e($t('Ref', 'Rejea').': '.$agreement->reference).'<br>'.e($t('Loan', 'Mkopo').': '.($loan->loan_number ?? $loan->id ?? '-')).'<br>'.e(now()->format('d M Y')),
 ])
 <div class="wrap">
-    <p class="muted">{{ pdf_text($snapshot['company_address'] ?? '') }} - {{ $t('Licence', 'Leseni') }} {{ pdf_text($snapshot['licence_number'] ?? '-') }} - {{ pdf_text($snapshot['jurisdiction'] ?? 'United Republic of Tanzania') }}</p>
+    <p class="muted">{{ pdf_text($snapshot['company_address'] ?? '') }} - {{ $t('Licence', 'Leseni') }} {{ pdf_text($snapshot['licence_number'] ?? '-') }} - {{ pdf_text($jurisdictionLabel($snapshot['jurisdiction'] ?? null)) }}</p>
     @include('pdf.loan-agreement.body', ['includeScheduleAnnex' => true])
 </div>
 </body>

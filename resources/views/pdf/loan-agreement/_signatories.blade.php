@@ -2,47 +2,14 @@
 @php
     $isGroup = ! empty($snapshot['is_group_loan']);
     $hasGuarantor = filled($snapshot['guarantor_name'] ?? null);
-    $borrowerHeading = $isGroup
-        ? $t('Group leader (borrower)', 'Kiongozi wa kikundi (mkopaji)')
-        : $t('Borrower', 'Mkopaji');
+    $members = $snapshot['group_members'] ?? [];
 @endphp
 
 <div class="signbox">
     <h2>{{ $t('Signatures', 'Sahihi') }}</h2>
-    <table class="kv">
-        <tr>
-            <td style="width:{{ $hasGuarantor ? '50%' : '100%' }};vertical-align:top;padding-right:10px">
-                <strong>{{ $borrowerHeading }}</strong>
-                @php $bSig = $snapshot['borrower_signature'] ?? $snapshot['offer_borrower_signature'] ?? null; @endphp
-                @if (! empty($bSig->signature_data ?? $bSig['signature_data'] ?? null))
-                    <div><img src="{{ $bSig->signature_data ?? $bSig['signature_data'] }}" class="sig-img" alt=""></div>
-                    <div class="muted">{{ pdf_text($bSig->signer_name ?? $bSig['signer_name'] ?? $snapshot['customer_name'] ?? '') }}</div>
-                @elseif ($agreement->isSigned())
-                    <div class="muted" style="margin-top:8px">{{ $t('PIN accepted', 'PIN imekubaliwa') }} {{ $agreement->signed_at?->format('d M Y H:i') }}</div>
-                @else
-                    <div class="muted" style="margin-top:18px">______________________________</div>
-                @endif
-                <div class="muted">{{ pdf_text($snapshot['customer_name'] ?? '—') }}</div>
-                <div class="muted">NIDA: {{ pdf_text($snapshot['customer_id'] ?? '—') }}</div>
-            </td>
-            @if ($hasGuarantor)
-                <td style="width:50%;vertical-align:top">
-                    <strong>{{ $t('Guarantor', 'Mdhamini') }}</strong>
-                    @if (! empty($snapshot['guarantor_signature']->signature_data ?? $snapshot['guarantor_signature']['signature_data'] ?? null))
-                        <div><img src="{{ $snapshot['guarantor_signature']->signature_data ?? $snapshot['guarantor_signature']['signature_data'] }}" class="sig-img" alt=""></div>
-                        <div class="muted">{{ pdf_text($snapshot['guarantor_signature']->signer_name ?? $snapshot['guarantor_signature']['signer_name'] ?? $snapshot['guarantor_name']) }}</div>
-                    @else
-                        <div class="muted" style="margin-top:18px">______________________________</div>
-                    @endif
-                    <div class="muted">{{ pdf_text($snapshot['guarantor_name']) }}</div>
-                    <div class="muted">NIDA: {{ pdf_text($snapshot['guarantor_nida'] ?? '—') }}</div>
-                </td>
-            @endif
-        </tr>
-    </table>
 
-    @if ($isGroup && ! empty($snapshot['group_members']))
-        <h3>{{ $t('Group signatories', 'Wasaini wa kikundi') }}</h3>
+    @if ($isGroup)
+        <p class="muted">{{ $t('Every group member must sign. The leader does not sign for the other members.', 'Kila mwanachama lazima asaini. Kiongozi hasaini kwa niaba ya wanachama wengine.') }}</p>
         <table class="grid">
             <thead>
                 <tr>
@@ -52,7 +19,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($snapshot['group_members'] as $member)
+                @foreach ($members as $member)
                     <tr>
                         <td>{{ $roleLabel($member['role'] ?? null) }}</td>
                         <td>
@@ -64,12 +31,61 @@
                                 <img src="{{ $member['signature_data'] }}" class="sig-img" alt="">
                                 <div class="muted">{{ pdf_text($member['signer_name'] ?? $member['name'] ?? '') }}</div>
                             @else
-                                <span class="muted">{{ ucfirst($member['signature_status'] ?? 'pending') }}</span>
+                                <span class="muted">{{ $signStatusLabel($member['signature_status'] ?? 'pending') }}</span>
                             @endif
                         </td>
                     </tr>
                 @endforeach
             </tbody>
+        </table>
+        @if ($hasGuarantor)
+            <table class="kv" style="margin-top:10px">
+                <tr>
+                    <td style="vertical-align:top">
+                        <strong>{{ $t('Guarantor', 'Mdhamini') }}</strong>
+                        @if (! empty($snapshot['guarantor_signature']->signature_data ?? $snapshot['guarantor_signature']['signature_data'] ?? null))
+                            <div><img src="{{ $snapshot['guarantor_signature']->signature_data ?? $snapshot['guarantor_signature']['signature_data'] }}" class="sig-img" alt=""></div>
+                            <div class="muted">{{ pdf_text($snapshot['guarantor_signature']->signer_name ?? $snapshot['guarantor_signature']['signer_name'] ?? $snapshot['guarantor_name']) }}</div>
+                        @else
+                            <div class="muted" style="margin-top:18px">______________________________</div>
+                        @endif
+                        <div class="muted">{{ pdf_text($snapshot['guarantor_name']) }}</div>
+                        <div class="muted">NIDA: {{ pdf_text($snapshot['guarantor_nida'] ?? '—') }}</div>
+                    </td>
+                </tr>
+            </table>
+        @endif
+    @else
+        <table class="kv">
+            <tr>
+                <td style="width:{{ $hasGuarantor ? '50%' : '100%' }};vertical-align:top;padding-right:10px">
+                    <strong>{{ $t('Borrower', 'Mkopaji') }}</strong>
+                    @php $bSig = $snapshot['borrower_signature'] ?? $snapshot['offer_borrower_signature'] ?? null; @endphp
+                    @if (! empty($bSig->signature_data ?? $bSig['signature_data'] ?? null))
+                        <div><img src="{{ $bSig->signature_data ?? $bSig['signature_data'] }}" class="sig-img" alt=""></div>
+                        <div class="muted">{{ pdf_text($bSig->signer_name ?? $bSig['signer_name'] ?? $snapshot['customer_name'] ?? '') }}</div>
+                    @elseif ($agreement->isSigned())
+                        <div class="muted" style="margin-top:8px">{{ $t('PIN accepted', 'PIN imekubaliwa') }} {{ $agreement->signed_at?->format('d M Y H:i') }}</div>
+                    @else
+                        <div class="muted" style="margin-top:18px">______________________________</div>
+                    @endif
+                    <div class="muted">{{ pdf_text($snapshot['customer_name'] ?? '—') }}</div>
+                    <div class="muted">NIDA: {{ pdf_text($snapshot['customer_id'] ?? '—') }}</div>
+                </td>
+                @if ($hasGuarantor)
+                    <td style="width:50%;vertical-align:top">
+                        <strong>{{ $t('Guarantor', 'Mdhamini') }}</strong>
+                        @if (! empty($snapshot['guarantor_signature']->signature_data ?? $snapshot['guarantor_signature']['signature_data'] ?? null))
+                            <div><img src="{{ $snapshot['guarantor_signature']->signature_data ?? $snapshot['guarantor_signature']['signature_data'] }}" class="sig-img" alt=""></div>
+                            <div class="muted">{{ pdf_text($snapshot['guarantor_signature']->signer_name ?? $snapshot['guarantor_signature']['signer_name'] ?? $snapshot['guarantor_name']) }}</div>
+                        @else
+                            <div class="muted" style="margin-top:18px">______________________________</div>
+                        @endif
+                        <div class="muted">{{ pdf_text($snapshot['guarantor_name']) }}</div>
+                        <div class="muted">NIDA: {{ pdf_text($snapshot['guarantor_nida'] ?? '—') }}</div>
+                    </td>
+                @endif
+            </tr>
         </table>
     @endif
 

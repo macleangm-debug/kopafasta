@@ -67,7 +67,10 @@
         <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Repayment health</p>
         <p class="text-2xl font-bold mt-1">{{ $servicing['status_label'] ?? display_label($linkedLoan->status, 'loan_status') }}</p>
         <p class="text-sm text-white/85 mt-3">
-            @if (! empty($servicing['next_due_amount']))
+            @if ($healthInArrears)
+                {{ (int) ($servicing['overdue_installments'] ?? 0) }} missed
+                · {{ format_money((float) ($servicing['amount_in_arrears'] ?? 0)) }}
+            @elseif (! empty($servicing['next_due_amount']))
                 Next {{ format_money((float) $servicing['next_due_amount']) }}
                 @if (! empty($servicing['next_due_date']))
                     · {{ \Illuminate\Support\Carbon::parse($servicing['next_due_date'])->format('d M Y') }}
@@ -82,7 +85,7 @@
                 <p class="text-sm font-bold mt-0.5 tabular-nums">{{ (int) ($servicing['days_past_due'] ?? 0) }}</p>
             </div>
             <div class="rounded-xl bg-white/10 px-3 py-2.5">
-                <p class="text-[10px] uppercase tracking-wider text-white/60">In arrears</p>
+                <p class="text-[10px] uppercase tracking-wider text-white/60">Missed</p>
                 <p class="text-sm font-bold mt-0.5 tabular-nums">{{ format_money((float) ($servicing['amount_in_arrears'] ?? 0)) }}</p>
             </div>
         </div>

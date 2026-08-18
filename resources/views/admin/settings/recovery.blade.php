@@ -153,6 +153,7 @@
                         'fee_type' => $values['fee_type'][$type] ?? 'percentage',
                         'commission' => $values['commission_percent'][$type] ?? $meta['default_commission_percent'],
                         'fixed' => $values['fixed_amount'][$type] ?? '',
+                        'charges_borrower' => (bool) ($meta['charges_borrower'] ?? true),
                         'auto_escalate' => (bool) ($values['auto_escalate_type'][$type] ?? true),
                     ];
                 }
@@ -186,6 +187,9 @@
                                 <div class="mt-0.5 cursor-grab active:cursor-grabbing text-gray-400 select-none text-lg leading-none" title="Drag to reorder">⋮⋮</div>
                                 <div>
                                     <p class="text-sm font-semibold text-gray-900" x-text="item.label"></p>
+                                    <p class="text-xs text-amber-800 mt-1" x-show="item.charges_borrower === false" x-cloak>
+                                        No borrower recovery fee. GPS install/monitoring is a post-approval fee under Service rates. Deactivation is free.
+                                    </p>
                                     <p class="text-xs text-gray-500 mt-0.5">
                                         Priority <span class="font-semibold text-brand" x-text="item.priority"></span>
                                         · drag to reorder
@@ -221,30 +225,31 @@
                                 <input type="number" :name="'sla_days_' + item.type" x-model="item.sla" min="1" max="90"
                                        class="w-full rounded-lg border-gray-300 text-sm">
                             </div>
-                            <div>
+                            <div x-show="item.charges_borrower !== false">
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Fee type</label>
                                 <select :name="'fee_type_' + item.type" x-model="item.fee_type" class="w-full rounded-lg border-gray-300 text-sm">
                                     <option value="percentage">%</option>
                                     <option value="fixed">Fixed</option>
+                                    <option value="hybrid">Hybrid (fixed + %)</option>
                                 </select>
                             </div>
-                            <div>
+                            <div x-show="item.charges_borrower !== false">
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Commission %</label>
                                 <input type="number" :name="'commission_percent_' + item.type" x-model="item.commission" step="0.1" min="0" max="100"
                                        class="w-full rounded-lg border-gray-300 text-sm">
                             </div>
-                            <div>
+                            <div x-show="item.charges_borrower !== false">
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Fixed fee</label>
                                 <input type="number" :name="'fixed_amount_' + item.type" x-model="item.fixed" step="1" min="0"
                                        class="w-full rounded-lg border-gray-300 text-sm">
                             </div>
-                            <div class="flex items-center gap-2 pb-1">
+                            <div class="flex items-center gap-2 pb-1" x-show="item.charges_borrower !== false">
                                 <input type="hidden" :name="'has_markup_' + item.type" value="0">
                                 <input type="checkbox" :name="'has_markup_' + item.type" value="1" x-model="hasMarkup"
                                        class="rounded border-gray-300 text-brand">
                                 <label class="text-sm text-gray-700">Has markup</label>
                             </div>
-                            <div>
+                            <div x-show="item.charges_borrower !== false">
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Markup %</label>
                                 <input type="number" :name="'markup_percent_' + item.type" x-model="item.markup" step="0.1" min="0" max="100"
                                        x-bind:disabled="!hasMarkup"
@@ -296,8 +301,7 @@
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
                 <p class="font-semibold">Origination / service partners ({{ $serviceTypeCount }})</p>
                 <p class="text-xs mt-1 text-amber-900/80">
-                    Insurance, GPS device pricing, and Valuation defaults. These are separate from recovery escalation SLAs.
-                    GPS also appears under Recovery partners for tracking SLA/commission.
+                    Insurance, GPS device pricing, and Valuation defaults. GPS install + monthly monitoring is a post-approval fee (Settings here). Changing these amounts updates new contracts immediately. GPS deactivation during collection has no extra borrower charge and is not a recovery fee.
                 </p>
             </div>
 

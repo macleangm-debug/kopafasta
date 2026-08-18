@@ -68,7 +68,7 @@ class LoanAgreementService
             ->where('document_type', 'offer_letter')
             ->first();
 
-        if ($existing && ! $regenerate && $existing->isSigned()) {
+        if ($existing && $existing->isSigned()) {
             return $existing;
         }
 
@@ -221,7 +221,7 @@ class LoanAgreementService
             ->where('document_type', 'loan_contract')
             ->first();
 
-        if ($existing && ! $regenerate && $existing->isSigned()) {
+        if ($existing && $existing->isSigned()) {
             return $existing;
         }
 
@@ -265,7 +265,6 @@ class LoanAgreementService
     public function refreshGuarantorOnDocuments(LoanApplication $application): void
     {
         $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
-        $snapshot = $this->snapshotFromApplication($application);
 
         foreach (['offer_letter', 'loan_contract'] as $documentType) {
             $agreement = LoanAgreement::query()
@@ -279,6 +278,9 @@ class LoanAgreementService
             }
 
             $wasSigned = $agreement->isSigned();
+            $snapshot = $wasSigned
+                ? $this->hydrateSnapshot($agreement, $application)
+                : $this->snapshotFromApplication($application);
             $agreement->snapshot = $snapshot;
 
             $viewData = [
@@ -560,6 +562,11 @@ class LoanAgreementService
 
         $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor', 'loanGroup.members.customer']);
         $snapshot = $this->snapshotFromApplication($application);
+        if ($signedContract?->isSigned()) {
+            $snapshot = $this->hydrateSnapshot($signedContract, $application);
+        } elseif ($existing?->isSigned()) {
+            $snapshot = $this->hydrateSnapshot($existing, $application);
+        }
         $snapshot['disbursement_date'] = $loan->disbursement_date?->toDateString();
         $snapshot['first_due_date'] = $schedules->first()?->due_date?->toDateString();
         $snapshot['last_due_date'] = $schedules->last()?->due_date?->toDateString();
@@ -804,7 +811,8 @@ class LoanAgreementService
         $totalFees = (float) ($a->processing_fee ?? 0);
         $totalRepayable = round(collect($schedule)->sum('total_due') + $totalFees, 2);
         $offerSettings = app(OfferSettingsService::class);
-        $isAssetLoan = in_array(strtoupper((string) ($a->product->code ?? '')), ['AL', 'AB'], true);
+        $profile = app(LoanAgreementProductProfile::class)->for($a);
+        $isAssetLoan = (bool) ($profile['is_asset'] ?? false);
         $collateral = $a->collateralAsset;
         $reservation = AssetReservation::query()
             ->with('asset')
@@ -827,8 +835,7 @@ class LoanAgreementService
             $borrowerAddress = (string) $customer->address;
         }
 
-        $activityLabel = display_label($customer?->activity_type, 'activity_type')
-            ?: ($customer?->business_name ?? $customer?->employment_type);
+        $activityLabel = $customer?->activity_type;
 
         $groupLending = app(GroupLendingService::class);
         $isGroupLoan = $groupLending->isGroupProduct($a->product);
@@ -838,8 +845,17 @@ class LoanAgreementService
 
         if ($isGroupLoan) {
             $a->loadMissing('loanGroup.members.customer', 'signatures');
-            $group = $a->loanGroup;
+            $group = $a->loanGroup
+                ?? \App\Models\LoanGroup::query()->where('primary_application_id', $a->id)->first();
+            if (! $group) {
+                $memberRow = \App\Models\LoanGroupMember::query()
+                    ->with('group.members.customer')
+                    ->where('loan_application_id', $a->id)
+                    ->first();
+                $group = $memberRow?->group;
+            }
             if ($group) {
+                $group->loadMissing('members.customer');
                 $groupName = $group->name;
                 $groupMembers = $group->members
                     ->filter(fn ($member) => ($member->member_status ?? 'active') === 'active')
@@ -883,8 +899,11 @@ class LoanAgreementService
         $identity = $disclosure->companyIdentity();
         $penalty = $disclosure->penaltyDisclosure($a);
         $recovery = $disclosure->recoverySchedule($a);
+        $gpsFee = $disclosure->gpsPostApprovalFee($a);
+        $facilityCharges = $disclosure->facilityCharges($a);
+        $workedExamples = $disclosure->workedExamples($penalty, (float) $amount, (float) $instalment, $schedule);
 
-        return [
+        $snapshot = [
             'application_number' => $a->application_number,
             'product_name' => $a->product->name ?? null,
             'product_code' => $a->product->code ?? null,
@@ -910,7 +929,7 @@ class LoanAgreementService
             'customer_id' => $customer->national_id ?? null,
             'customer_phone' => $customer->phone ?? null,
             'customer_address' => $borrowerAddress ?: null,
-            'customer_activity' => $activityLabel,
+            'customer_activity' => $activityLabel ?: ($customer?->business_name ?? $customer?->employment_type),
             'customer_income' => $customer->monthly_income
                 ? format_money((float) $customer->monthly_income)
                 : (income_range_label($customer->income_range ?? '') ?: $customer->income_range),
@@ -919,7 +938,8 @@ class LoanAgreementService
             'guarantor_address' => $guarantor?->address,
             'guarantor_phone' => $guarantor?->phone,
             'guarantor_relationship' => $guarantor?->relationship,
-            'purpose' => $a->purpose ?? null,
+            'purpose' => $a->purpose ?? data_get($a->screening_payload, 'purpose'),
+            'purpose_other' => data_get($a->screening_payload, 'purpose_other'),
             'offer_expires_at' => ($existing = LoanAgreement::query()
                 ->where('loan_application_id', $a->id)
                 ->where('document_type', 'offer_letter')
@@ -935,6 +955,12 @@ class LoanAgreementService
             ...$identity,
             ...$penalty,
             'recovery_schedule' => $recovery,
+            'gps_fee' => $gpsFee,
+            'facility_charges' => $facilityCharges,
+            'worked_examples' => $workedExamples,
+            'is_salary_advance' => (bool) ($profile['is_salary_advance'] ?? false),
+            'tenure_max_months' => (int) ($product?->tenure_max_months ?? $tenure),
+            'contract_modules' => $profile,
             'borrower_signature' => $this->borrowerSignatureForPdf($a, 'loan_contract'),
             'guarantor_signature' => $a->signatures->firstWhere('signer_type', 'guarantor'),
             'offer_borrower_signature' => $this->borrowerSignatureForPdf($a, 'offer_letter'),
@@ -1054,7 +1080,10 @@ class LoanAgreementService
 
     public function ensureBrandedPdf(LoanAgreement $agreement): LoanAgreement
     {
-        if ($this->usesCurrentBrandedTemplate($agreement)) {
+        $needsRefresh = ! $this->usesCurrentBrandedTemplate($agreement)
+            || ! $agreement->isSigned();
+
+        if (! $needsRefresh) {
             return $agreement;
         }
 
@@ -1118,8 +1147,33 @@ class LoanAgreementService
         }
 
         $snapshot = array_replace($fresh, $kept);
-        foreach ([
+        $liveFromSettings = [
+            'customer_activity',
+            'purpose',
+            'purpose_other',
+            'recovery_schedule',
+            'gps_fee',
+            'facility_charges',
+            'worked_examples',
+            'legal_clauses',
+            'contract_sections',
+            'locale',
+            'jurisdiction',
+            'penalty_formula_sw',
+            'penalty_formula_en',
+            'penalty_basis_label_sw',
+            'penalty_rate',
+            'grace_days',
+            'penalty_cap_percent',
+            'offer_validity_days',
+            'tenure_max_months',
+        ];
+        $alwaysFresh = [
+            'document_version',
             'is_group_loan',
+            'is_asset_loan',
+            'is_salary_advance',
+            'contract_modules',
             'group_members',
             'group_name',
             'total_group_liability',
@@ -1140,10 +1194,19 @@ class LoanAgreementService
             'ceo_signatory_title',
             'finance_signatory_name',
             'finance_signatory_title',
-            'document_version',
-        ] as $key) {
+        ];
+
+        foreach ($alwaysFresh as $key) {
             if (array_key_exists($key, $fresh)) {
                 $snapshot[$key] = $fresh[$key];
+            }
+        }
+
+        if (! $agreement->isSigned()) {
+            foreach ($liveFromSettings as $key) {
+                if (array_key_exists($key, $fresh)) {
+                    $snapshot[$key] = $fresh[$key];
+                }
             }
         }
 

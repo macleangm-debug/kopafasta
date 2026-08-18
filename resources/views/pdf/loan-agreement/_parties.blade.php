@@ -25,7 +25,7 @@
         @endif
         <tr><td class="label">{{ $t('Phone', 'Simu') }}</td><td class="value">{{ pdf_text($snapshot['guarantor_phone'] ?? '—') }}</td></tr>
         @if (! empty($snapshot['guarantor_relationship']))
-            <tr><td class="label">{{ $t('Relationship', 'Uhusiano') }}</td><td class="value">{{ pdf_text($snapshot['guarantor_relationship']) }}</td></tr>
+    <tr><td class="label">{{ $t('Relationship', 'Uhusiano') }}</td><td class="value">{{ pdf_text($relationshipLabel($snapshot['guarantor_relationship'] ?? null)) }}</td></tr>
         @endif
     </table>
 @endif

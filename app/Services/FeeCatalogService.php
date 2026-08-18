@@ -35,8 +35,11 @@ class FeeCatalogService
     {
         return match ($fee->basis) {
             'percentage' => 'percent',
-            'fixed' => 'fixed',
-            default => 'fixed',
+            'fixed' => in_array(strtoupper((string) $fee->code), array_map('strtoupper', config('gps_pricing.fee_codes', ['GPS_FEE'])), true)
+                || $fee->type === 'gps'
+                ? 'gps'
+                : 'fixed',
+            default => $fee->type === 'gps' ? 'gps' : 'fixed',
         };
     }
 

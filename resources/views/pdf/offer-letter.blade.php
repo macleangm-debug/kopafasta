@@ -12,7 +12,7 @@
     $expiresAt = $agreement->expires_at?->toDateString()
         ?? $snapshot['offer_expires_at']
         ?? now()->addDays($validityDays)->toDateString();
-    $cadences = __('borrower.agreement.repayment_cadences');
+    $cadences = __('borrower.agreement.repayment_cadences', [], $locale);
     $cadenceKey = $snapshot['repayment_cadence'] ?? 'weekly';
     $customerName = $snapshot['customer_name'] ?: __('borrower.offer_letter.pdf.customer_fallback');
 @endphp
@@ -40,7 +40,7 @@
         <tr><td class="label">{{ pdf_text(__('borrower.offer_letter.pdf.tenure')) }}</td><td class="value">{{ pdf_text(__('borrower.offer_letter.pdf.tenure_months', ['months' => $snapshot['tenure_months']])) }}</td></tr>
         <tr><td class="label">{{ pdf_text(__('borrower.offer_letter.pdf.repayment_frequency')) }}</td><td class="value">{{ pdf_text($cadences[$cadenceKey] ?? ucfirst($cadenceKey)) }}</td></tr>
         <tr><td class="label">{{ pdf_text(__('borrower.offer_letter.pdf.installment_count')) }}</td><td class="value">{{ $snapshot['installment_count'] ?? count($snapshot['repayment_schedule'] ?? []) }}</td></tr>
-        <tr><td class="label">{{ pdf_text($snapshot['installment_label'] ?? __('borrower.offer_letter.pdf.installment_amount')) }}</td><td class="value">{{ format_money($snapshot['estimated_emi']) }}</td></tr>
+        <tr><td class="label">{{ pdf_text(__('borrower.offer_letter.pdf.installment_amount')) }}</td><td class="value">{{ format_money($snapshot['estimated_emi']) }}</td></tr>
         <tr><td class="label">{{ pdf_text(__('borrower.offer_letter.pdf.total_repayable')) }}</td><td class="value">{{ format_money($snapshot['total_repayable'] ?? 0) }}</td></tr>
         <tr><td class="label">{{ pdf_text(__('borrower.offer_letter.pdf.offer_expires')) }}</td><td class="value">{{ pdf_text(__('borrower.offer_letter.pdf.offer_expires_value', ['date' => \Illuminate\Support\Carbon::parse($expiresAt)->format('d M Y'), 'days' => $validityDays])) }}</td></tr>
     </table>
@@ -48,7 +48,7 @@
     <div class="notice">
         <strong>{{ $t('Acceptance of commercial terms', 'Kukubali masharti ya kibiashara') }}</strong>
         @if ($isSw)
-            <p>Kwa kusaini Barua hii ya Ofa, Mkopaji na, pale inapohusika, Mdhamini na Wanachama wa Kikundi wanathibitisha wamesoma na kukubali kiasi, riba, ratiba, ada, masharti ya default na wajibu, kulingana na kutia saini Mkataba wa Mkopo na Masharti ya Huduma ya Mkopo.</p>
+            <p>Kwa kusaini Barua hii ya Ofa, Mkopaji na, pale inapohusika, Mdhamini na Wanachama wa Kikundi wanathibitisha wamesoma na kukubali kiasi, riba, ratiba, ada, masharti ya ukiukaji na wajibu, kulingana na kutia saini Mkataba wa Mkopo na Masharti ya Huduma ya Mkopo.</p>
         @else
             <p>By signing this Offer Letter, the Borrower and, where applicable, the Guarantor and Group Members acknowledge that they have reviewed and accepted the principal amount, interest, repayment schedule, applicable charges, default provisions and the obligations described herein, subject to execution of the Loan Agreement and Facility Terms.</p>
         @endif

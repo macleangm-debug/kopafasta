@@ -9,10 +9,13 @@ use App\Models\Loan;
 use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
+use App\Models\LoanFee;
 use App\Models\LoanGroup;
 use App\Models\LoanGroupMember;
 use App\Models\LoanProduct;
+use App\Models\RepaymentSchedule;
 use App\Models\User;
+use App\Services\ActiveLoanServicingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -348,6 +351,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('What they owe', $html);
         $this->assertStringContainsString('Upcoming payments', $html);
         $this->assertStringContainsString('Ask for payment', $html);
+        $this->assertStringContainsString('Ask borrower to pay', $html);
+        $this->assertStringContainsString('Total outstanding', $html);
+        $this->assertStringContainsString('Missed instalments', $html);
         $this->assertStringNotContainsString('Record repayment', $html);
         $this->assertStringContainsString('Outstanding', $html);
         $this->assertStringContainsString('Repayment health', $html);
@@ -440,6 +446,85 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('A4 preview', $letters);
         $this->assertStringContainsString('<iframe', $letters);
         $this->assertStringNotContainsString('Review checklist', $letters);
+    }
+
+    public function test_owed_totals_split_missed_installments_from_outstanding(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin, 'disbursement');
+        $app->update(['status' => 'disbursed', 'disbursed_at' => now()->subMonths(2)]);
+        $loan = Loan::create([
+            'customer_id' => $app->customer_id,
+            'loan_product_id' => $app->loan_product_id,
+            'loan_application_id' => $app->id,
+            'loan_number' => 'LN-CW-OWE',
+            'principal_amount' => 50_000,
+            'approved_amount' => 50_000,
+            'outstanding_balance' => 65_000,
+            'interest_rate' => 0.18,
+            'tenure_months' => 2,
+            'status' => 'arrears',
+            'disbursement_date' => now()->subMonths(2),
+        ]);
+
+        RepaymentSchedule::create([
+            'loan_id' => $loan->id,
+            'installment_no' => 1,
+            'due_date' => now()->subDays(20)->toDateString(),
+            'principal_due' => 25_000,
+            'interest_due' => 5_000,
+            'total_due' => 30_000,
+            'amount_paid' => 0,
+            'status' => 'pending',
+        ]);
+        RepaymentSchedule::create([
+            'loan_id' => $loan->id,
+            'installment_no' => 2,
+            'due_date' => now()->addDays(10)->toDateString(),
+            'principal_due' => 25_000,
+            'interest_due' => 5_000,
+            'total_due' => 30_000,
+            'amount_paid' => 0,
+            'status' => 'pending',
+        ]);
+        LoanFee::create([
+            'loan_id' => $loan->id,
+            'code' => 'LATE_FEE',
+            'name' => 'Late payment fee',
+            'type' => 'fixed',
+            'basis' => 'overdue_balance',
+            'rate_or_amount' => 5_000,
+            'computed_amount' => 5_000,
+            'status' => 'charged',
+            'charge_when' => 'late',
+        ]);
+
+        $servicing = app(ActiveLoanServicingService::class)->forLoan($loan->fresh(['repaymentSchedules', 'fees']));
+
+        $this->assertEquals(65_000.0, $servicing['outstanding_balance']);
+        $this->assertEquals(30_000.0, $servicing['amount_in_arrears']);
+        $this->assertSame(1, $servicing['overdue_installments']);
+        $this->assertEquals(30_000.0, $servicing['next_due_amount']);
+        $this->assertEquals(0.0, $servicing['principal_paid']);
+        $this->assertEquals(0.0, $servicing['progress_pct']);
+        $this->assertCount(1, $servicing['upcoming_rows']);
+        $this->assertSame(2, $servicing['upcoming_rows']->first()->installment_no);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'facility',
+                'section' => 'owed',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Total outstanding', $html);
+        $this->assertStringContainsString('Missed instalments', $html);
+        $this->assertGreaterThan(
+            strpos($html, 'Total outstanding'),
+            strpos($html, 'Ask borrower to pay')
+        );
     }
 
     public function test_staff_asks_for_payment_instead_of_recording_it(): void

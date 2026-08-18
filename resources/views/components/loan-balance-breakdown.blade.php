@@ -10,7 +10,7 @@
 <div x-data="{ open: @json($expanded), recoveryOpen: false }" class="rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden">
     <button type="button" @click="open = !open" class="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50">
         <div>
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">Outstanding balance</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">How it adds up</p>
             <p class="text-xl font-bold text-gray-900">{{ format_money($breakdown['total_outstanding'] ?? 0) }}</p>
         </div>
         <span class="text-xs font-semibold text-amber-700" x-text="open ? 'Hide breakdown' : 'Show breakdown'"></span>

@@ -91,7 +91,7 @@ class ChargesFeeSeeder extends Seeder
                 'basis'       => 'fixed',
                 'amount'      => 50000,
                 'charge_when' => 'post_approval',
-                'description' => 'GPS device installation fee after approval.',
+                'description' => 'GPS installation plus monthly monitoring for the loan tenure, priced from Settings at the time the fee is generated. Paid after approval, before disbursement.',
             ],
             [
                 'name'        => 'Legal fee',

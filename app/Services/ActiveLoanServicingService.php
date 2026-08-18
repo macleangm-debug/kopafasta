@@ -17,8 +17,9 @@ class ActiveLoanServicingService
 
         $principal = (float) $loan->principal_amount;
         $outstanding = $breakdown['total_outstanding'];
-        $paid = max(0, $principal - $outstanding);
-        $progressPct = $principal > 0 ? min(100, round(($paid / $principal) * 100, 1)) : 0.0;
+        $principalOutstanding = (float) ($breakdown['principal_outstanding'] ?? 0);
+        $principalPaid = max(0, round($principal - $principalOutstanding, 2));
+        $progressPct = $principal > 0 ? min(100, round(($principalPaid / $principal) * 100, 1)) : 0.0;
 
         $schedules = $loan->repaymentSchedules->sortBy('installment_no');
         $paidRows = $schedules->filter(fn (RepaymentSchedule $row) => in_array($row->status, ['paid'], true)
@@ -26,18 +27,19 @@ class ActiveLoanServicingService
         $remainingRows = $schedules->reject(fn (RepaymentSchedule $row) => in_array($row->status, ['paid'], true)
             || (float) $row->amount_paid >= (float) $row->total_due);
 
-        $nextInstallment = $remainingRows->first();
+        $remainingOn = static fn (RepaymentSchedule $row): float => max(0, (float) $row->total_due - (float) $row->amount_paid);
+
+        $overdueRows = $schedules->filter(fn (RepaymentSchedule $row) => $this->isOverdue($row));
+        $amountInArrears = (float) $overdueRows->sum($remainingOn);
+        $nextUpcoming = $remainingRows->first(fn (RepaymentSchedule $row) => ! $this->isOverdue($row));
+        $nextInstallment = $overdueRows->first() ?? $nextUpcoming;
 
         $today = now()->startOfDay();
         $daysRemaining = null;
-        if ($nextInstallment?->due_date) {
-            $daysRemaining = (int) $today->diffInDays($nextInstallment->due_date->startOfDay(), false);
+        if ($nextUpcoming?->due_date) {
+            $daysRemaining = (int) $today->diffInDays($nextUpcoming->due_date->startOfDay(), false);
         }
 
-        $overdueRows = $schedules->filter(fn (RepaymentSchedule $row) => $this->isOverdue($row));
-        $amountInArrears = (float) $overdueRows->sum(
-            fn (RepaymentSchedule $row) => max(0, (float) $row->total_due - (float) $row->amount_paid)
-        );
         $daysPastDue = (int) $overdueRows
             ->map(fn (RepaymentSchedule $row) => (int) $row->due_date?->startOfDay()->diffInDays($today))
             ->max() ?? 0;
@@ -56,11 +58,11 @@ class ActiveLoanServicingService
             'outstanding_balance' => $outstanding,
             'balance_breakdown'   => $breakdown,
             'recovery_charges'    => $recoveryCharges,
-            'principal_paid'      => $paid,
+            'principal_paid'      => $principalPaid,
             'progress_pct'        => $progressPct,
             'next_installment'    => $nextInstallment,
-            'next_due_date'       => $nextInstallment?->due_date,
-            'next_due_amount'     => $nextInstallment ? (float) $nextInstallment->total_due : null,
+            'next_due_date'       => $nextUpcoming?->due_date,
+            'next_due_amount'     => $nextUpcoming ? $remainingOn($nextUpcoming) : null,
             'days_remaining'      => $daysRemaining,
             'days_to_maturity'    => $daysToMaturity,
             'maturity_date'       => $maturityDate,
@@ -77,7 +79,10 @@ class ActiveLoanServicingService
             'disbursement_date'   => $loan->disbursement_date,
             'tenure_months'       => (int) $loan->tenure_months,
             'interest_rate'       => (float) $loan->interest_rate,
-            'upcoming_rows'       => $remainingRows->take(8)->values(),
+            'upcoming_rows'       => $remainingRows
+                ->reject(fn (RepaymentSchedule $row) => $this->isOverdue($row))
+                ->take(8)
+                ->values(),
             'overdue_rows'        => $overdueRows->values(),
         ];
     }

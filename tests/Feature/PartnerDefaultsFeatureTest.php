@@ -32,6 +32,7 @@ class PartnerDefaultsFeatureTest extends TestCase
             ->assertSee('Recovery partners', false)
             ->assertSee('Insurance partner', false)
             ->assertSee('GPS partner', false)
+            ->assertSee('No borrower recovery fee', false)
             ->assertSee('Valuation partner', false)
             ->assertSee('Call Center Partner', false)
             ->assertSee('Debt Collection Partner', false)

@@ -9,7 +9,7 @@ class RecoveryPolicyDefaultsSeeder extends Seeder
 {
     public function run(): void
     {
-        Setting::setMany([
+        $defaults = [
             'recovery.grace_period_days'       => 2,
             'recovery.fee_base'                => 'principal',
             'recovery.auto_escalate'           => true,
@@ -23,18 +23,20 @@ class RecoveryPolicyDefaultsSeeder extends Seeder
             'recovery.commission_percent.call_center'    => 10,
             'recovery.commission_percent.debt_collector' => 15,
             'recovery.commission_percent.auctioneer'     => 8,
-            'recovery.commission_percent.legal_partner'  => 10,
-            'recovery.commission_percent.gps_partner'    => 5,
+            'recovery.commission_percent.legal_partner'  => 0,
+            'recovery.commission_percent.gps_partner'    => 0,
             'recovery.markup_percent.call_center'    => 3,
             'recovery.markup_percent.debt_collector' => 3,
             'recovery.markup_percent.auctioneer'     => 2,
-            'recovery.markup_percent.legal_partner'  => 5,
-            'recovery.markup_percent.gps_partner'    => 2,
+            'recovery.markup_percent.legal_partner'  => 0,
+            'recovery.markup_percent.gps_partner'    => 0,
             'recovery.fee_type.call_center'    => 'percentage',
             'recovery.fee_type.debt_collector' => 'percentage',
             'recovery.fee_type.auctioneer'     => 'percentage',
-            'recovery.fee_type.legal_partner'  => 'percentage',
-            'recovery.fee_type.gps_partner'    => 'percentage',
+            'recovery.fee_type.legal_partner'  => 'fixed',
+            'recovery.fee_type.gps_partner'    => 'fixed',
+            'recovery.fixed_amount.legal_partner' => 100_000,
+            'recovery.charges_borrower.gps_partner' => false,
             'recovery.priority.call_center'    => 1,
             'recovery.priority.debt_collector' => 2,
             'recovery.priority.auctioneer'     => 3,
@@ -55,6 +57,14 @@ class RecoveryPolicyDefaultsSeeder extends Seeder
             'recovery.auto_escalate_type.auctioneer'     => true,
             'recovery.auto_escalate_type.legal_partner'  => true,
             'recovery.auto_escalate_type.gps_partner'    => false,
-        ]);
+        ];
+
+        foreach ($defaults as $key => $value) {
+            if (Setting::query()->where('key', $key)->exists()) {
+                continue;
+            }
+
+            Setting::set($key, $value);
+        }
     }
 }
