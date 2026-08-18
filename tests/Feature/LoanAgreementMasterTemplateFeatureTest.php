@@ -205,6 +205,41 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         );
     }
 
+    public function test_credit_file_letters_refresh_stale_contract_onto_branded_template(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $customer = $this->borrower();
+        $customer->user->update(['preferences' => ['preferred_locale' => 'en']]);
+        $application = LoanApplication::create([
+            'customer_id'             => $customer->id,
+            'loan_product_id'         => $this->product()->id,
+            'application_number'      => 'APP-AGR-STALE',
+            'requested_amount'        => 500_000,
+            'requested_tenure_months' => 12,
+            'status'                  => 'disbursed',
+        ]);
+        \Illuminate\Support\Facades\Storage::disk('public')->put('agreements/FLC-STALE.pdf', '%PDF-1.4 Final Loan Contract');
+        LoanAgreement::create([
+            'loan_application_id' => $application->id,
+            'customer_id'         => $customer->id,
+            'document_type'       => 'final_loan_contract',
+            'reference'           => 'FLC-STALE',
+            'status'              => 'signed',
+            'signed_at'           => now(),
+            'file_path'           => 'agreements/FLC-STALE.pdf',
+            'snapshot'            => ['customer_name' => 'Asha Mushi', 'principal' => 500_000],
+        ]);
+
+        $letters = app(LoanAgreementService::class)->creditFileLetters($application);
+
+        $this->assertSame(LoanAgreementDisclosureService::DOCUMENT_VERSION, data_get($letters['final']?->snapshot, 'document_version'));
+        $this->assertNotSame(
+            '%PDF-1.4 Final Loan Contract',
+            \Illuminate\Support\Facades\Storage::disk('public')->get('agreements/FLC-STALE.pdf'),
+        );
+    }
+
     public function test_recovery_disclosure_states_percentage_of_shared_base(): void
     {
         Setting::set('recovery.fee_base', 'principal');

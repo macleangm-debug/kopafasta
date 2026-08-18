@@ -11,6 +11,14 @@
     $documentCards = $documentCards ?? false;
     $letterDownloadUrl = $letterDownloadUrl ?? fn ($agreement) => route('admin.loan-agreements.download', $agreement);
     $showEmbeddedPdf = $documentCards || $embedDocuments;
+    $letterUrl = function ($agreement) use ($letterDownloadUrl) {
+        $url = $letterDownloadUrl($agreement);
+        $version = (string) (data_get($agreement->snapshot, 'document_version')
+            ?: $agreement->updated_at?->timestamp
+            ?: 'branded');
+
+        return $url.(str_contains((string) $url, '?') ? '&' : '?').'v='.rawurlencode($version);
+    };
 
     if (! $signedContract && $featureSignedContract) {
         $signedContract = ($finalContract?->file_path ? $finalContract : null)
@@ -32,7 +40,7 @@
         </div>
     @endif
     @if ($rejectionLetter?->file_path)
-        @php $url = $letterDownloadUrl($rejectionLetter); @endphp
+        @php $url = $letterUrl($rejectionLetter); @endphp
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -61,7 +69,7 @@
                 $signedTitle = $signedContract->document_type === 'final_loan_contract'
                     ? 'Signed contract'
                     : 'Signed loan contract';
-                $url = $letterDownloadUrl($signedContract);
+                $url = $letterUrl($signedContract);
             @endphp
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
@@ -92,7 +100,7 @@
     @endif
 
     @if ($offerLetter)
-        @php $url = $offerLetter->file_path ? $letterDownloadUrl($offerLetter) : null; @endphp
+        @php $url = $offerLetter->file_path ? $letterUrl($offerLetter) : null; @endphp
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -122,7 +130,7 @@
     @endif
 
     @if ($showOriginalContract)
-        @php $url = $letterDownloadUrl($loanContract); @endphp
+        @php $url = $letterUrl($loanContract); @endphp
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                 <div>

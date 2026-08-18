@@ -45,6 +45,16 @@ class LoanAgreementService
             ->latest('id')
             ->first();
 
+        if ($offer?->file_path) {
+            $offer = $this->ensureBrandedPdf($offer);
+        }
+        if ($contract?->file_path) {
+            $contract = $this->ensureBrandedPdf($contract);
+        }
+        if ($final?->file_path) {
+            $final = $this->ensureBrandedPdf($final);
+        }
+
         $signed = null;
         if ($final?->file_path) {
             $signed = $final;
@@ -1052,6 +1062,28 @@ class LoanAgreementService
         $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
         return $pdf;
+    }
+
+    public function ensureBrandedPdf(LoanAgreement $agreement): LoanAgreement
+    {
+        if ($this->usesCurrentBrandedTemplate($agreement)) {
+            return $agreement;
+        }
+
+        try {
+            $this->refreshBrandedPdf($agreement);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $agreement->fresh() ?? $agreement;
+    }
+
+    private function usesCurrentBrandedTemplate(LoanAgreement $agreement): bool
+    {
+        return data_get($agreement->snapshot, 'document_version') === LoanAgreementDisclosureService::DOCUMENT_VERSION
+            && filled($agreement->file_path)
+            && Storage::disk('public')->exists($agreement->file_path);
     }
 
     /** @return array<string, string> */

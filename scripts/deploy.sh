@@ -129,6 +129,7 @@ rm -f public/hot
 "$PHP_BIN" artisan view:cache
 "$PHP_BIN" artisan event:cache
 "$PHP_BIN" artisan queue:restart || true
+systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php-fpm 2>/dev/null || service php8.3-fpm reload 2>/dev/null || true
 
 chgrp -R "${WEB_GROUP#*:}" storage bootstrap/cache || true
 chmod -R ug+rwx storage bootstrap/cache
