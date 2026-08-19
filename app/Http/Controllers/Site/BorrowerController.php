@@ -1172,11 +1172,13 @@ class BorrowerController extends Controller
         ]);
 
         try {
-            $type = $document->documentType;
-            app(\App\Services\MemberEngagementRewardService::class)->afterDocumentUploaded(
-                $customer,
-                (string) ($type?->code ?? 'document_'.$document->id),
-            );
+            $typeCode = trim((string) ($document->documentType?->code ?? ''));
+            if ($typeCode !== '') {
+                app(\App\Services\MemberEngagementRewardService::class)->afterDocumentUploaded(
+                    $customer,
+                    $typeCode,
+                );
+            }
         } catch (\Throwable $e) {
             report($e);
         }
@@ -1557,6 +1559,8 @@ class BorrowerController extends Controller
                 'focus'   => 'kin',
                 'wizard'  => $wizardMode ? 1 : null,
                 'return'  => $request->query('return'),
+                'application' => $request->query('application'),
+                'solo' => $request->boolean('solo') ? 1 : null,
             ]));
         }
 
@@ -1567,6 +1571,8 @@ class BorrowerController extends Controller
                 'focus'   => $request->query('focus', 'income'),
                 'wizard'  => $wizardMode ? 1 : null,
                 'return'  => $request->query('return'),
+                'application' => $request->query('application'),
+                'solo' => $request->boolean('solo') ? 1 : null,
             ]));
         }
 
@@ -1614,7 +1620,7 @@ class BorrowerController extends Controller
         $incomeProofMethod = app(\App\Services\IncomeProofService::class)->selectedPrimaryMethod($customer);
         $incomePrimaryOptions = app(\App\Services\IncomeProofService::class)->informalPrimaryOptions();
         $completionSummary = app(\App\Services\ProfileCompletionService::class)->completionSummary($customer);
-        $returnUrl = $request->query('return');
+        $returnUrl = $this->profileReturnUrl($request, $customer);
         $wizardKey = match ($section) {
             'activity'  => 'activity',
             'residence' => 'residence',
@@ -2221,6 +2227,9 @@ class BorrowerController extends Controller
             'section' => 'personal',
             'focus' => 'face',
             'wizard' => $request->boolean('wizard') ? 1 : null,
+            'return' => $this->validatedReturnUrl($request),
+            'application' => $request->integer('application') ?: null,
+            'solo' => $request->boolean('solo') ? 1 : null,
         ]));
     }
 
@@ -2287,6 +2296,26 @@ class BorrowerController extends Controller
         return redirect()
             ->route('site.borrower.profile', ['section' => 'payment'])
             ->with('status', __('borrower.payment_details.default_updated'));
+    }
+
+    private function profileReturnUrl(Request $request, Customer $customer): ?string
+    {
+        $returnUrl = $this->validatedReturnUrl($request);
+        if ($returnUrl) {
+            return $returnUrl;
+        }
+
+        $applicationId = $request->integer('application');
+        if ($applicationId < 1) {
+            return null;
+        }
+
+        $application = LoanApplication::query()->find($applicationId);
+        if (! $application || ! app(ApplicationDocumentRequestService::class)->customerCanViewApplication($customer, $application)) {
+            return null;
+        }
+
+        return route('site.borrower.application', $application);
     }
 
     private function validatedReturnUrl(Request $request): ?string
@@ -2549,6 +2578,7 @@ class BorrowerController extends Controller
                 'ok'      => true,
                 'status'  => 'pending',
                 'message' => $message,
+                'redirect' => $this->validatedReturnUrl($request),
             ]);
         }
 
@@ -3351,27 +3381,29 @@ class BorrowerController extends Controller
             'insurance_document'  => $request->file('insurance_document'),
         ]);
 
-        $uwApplicationId = $request->integer('application') ?: null;
-        $uwApplication = $uwApplicationId
-            ? app(\App\Services\CustomerAssetService::class)->resolveUwApplication($customer, $uwApplicationId)
-            : null;
-        if ($uwApplication) {
+        $explicitApplicationId = $request->integer('application') ?: null;
+        $assets = app(\App\Services\CustomerAssetService::class);
+        $uwApplication = $assets->resolveUwApplication($customer, $explicitApplicationId);
+        if ($uwApplication && ($explicitApplicationId || $assets->shouldAutoLinkOnProfileSave($uwApplication))) {
             try {
-                app(\App\Services\CustomerAssetService::class)
-                    ->attachToApplication($saved, $uwApplication, $customer);
+                $assets->attachToApplication($saved, $uwApplication, $customer);
             } catch (\Illuminate\Validation\ValidationException $e) {
-                return redirect()
-                    ->route('site.borrower.profile', [
-                        'section' => 'assets',
-                        'uw' => 1,
-                        'application' => $uwApplication->id,
-                    ])
-                    ->with('warning', $e->errors()['asset'][0] ?? __('borrower.profile.collateral_cannot_use'));
+                if ($explicitApplicationId) {
+                    return redirect()
+                        ->route('site.borrower.profile', [
+                            'section' => 'assets',
+                            'uw' => 1,
+                            'application' => $uwApplication->id,
+                        ])
+                        ->with('warning', $e->errors()['asset'][0] ?? __('borrower.profile.collateral_cannot_use'));
+                }
             }
 
-            return redirect()
-                ->route('site.borrower.application', $uwApplication)
-                ->with('status', __('borrower.profile.collateral_linked'));
+            if ($explicitApplicationId) {
+                return redirect()
+                    ->route('site.borrower.application', $uwApplication)
+                    ->with('status', __('borrower.profile.collateral_linked'));
+            }
         }
 
         return redirect()

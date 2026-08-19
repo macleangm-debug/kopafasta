@@ -38,6 +38,7 @@ class LoanApplicationDocumentRequestController extends Controller
             'review_person' => ['nullable', 'in:borrower,member,guarantor'],
             'review_m' => ['nullable', 'integer'],
             'review_g' => ['nullable', 'integer'],
+            'ask_members' => ['sometimes', 'boolean'],
         ]);
 
         $labels = collect($data['labels'] ?? [])
@@ -50,7 +51,11 @@ class LoanApplicationDocumentRequestController extends Controller
             ->all();
 
         if ($labels === []) {
-            return back()->withErrors(['label' => 'Select or enter at least one document to request.'])->withInput();
+            if ($request->boolean('ask_members')) {
+                $labels = [ApplicationDocumentRequestService::COLLATERAL_PRESET_LABELS[0]];
+            } else {
+                return back()->withErrors(['label' => 'Select or enter at least one document to request.'])->withInput();
+            }
         }
 
         [$subjectKind, $subjectCustomerId, $loanGroupMemberId] = $this->resolvePostedSubject(
@@ -63,6 +68,35 @@ class LoanApplicationDocumentRequestController extends Controller
             : now()->addDays(app(UnderwritingSettingsService::class)->documentRequestDefaultDueDays());
 
         try {
+            if ($request->boolean('ask_members')) {
+                $created = $service->createManyForActiveGroupMembers(
+                    $loanApplication,
+                    $request->user(),
+                    $labels,
+                    $data['instructions'] ?? null,
+                    $dueAt,
+                    $data['type'],
+                );
+
+                $this->auditAdmin('admin.loan_applications.document_requests_created', $loanApplication, [
+                    'count' => $created->count(),
+                    'labels' => $created->pluck('label')->all(),
+                    'type' => $data['type'],
+                    'subject_kind' => 'member',
+                    'ask_members' => true,
+                ]);
+
+                return redirect()
+                    ->route('admin.loan-applications.show', $this->reviewReturnParams(
+                        $request,
+                        $loanApplication,
+                        'borrower',
+                        null,
+                    ))
+                    ->with('status', $created->count().' collateral requests sent to group members.')
+                    ->withFragment('checklist-documents');
+            }
+
             if (count($labels) === 1) {
                 $docRequest = $service->create(
                     $loanApplication,

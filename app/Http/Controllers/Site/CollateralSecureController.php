@@ -58,6 +58,30 @@ class CollateralSecureController extends Controller
             ->with('status', __('borrower.collateral_secure.saved'));
     }
 
+    public function borrowerAskMembers(Request $request, LoanApplication $application, CollateralSecureService $service): RedirectResponse
+    {
+        $data = $request->validate([
+            'ask_members' => ['required', 'boolean'],
+        ]);
+
+        $service->borrowerAskMembers($application, $this->customer(), (bool) $data['ask_members']);
+
+        if ($data['ask_members']) {
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('collateral_secure_flash', [
+                    'title' => __('borrower.collateral_secure.sent_members_title'),
+                    'message' => __('borrower.collateral_secure.sent_members_body'),
+                    'confirm' => __('borrower.feedback.ok'),
+                    'tone' => 'success',
+                ]);
+        }
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('status', __('borrower.collateral_secure.saved'));
+    }
+
     public function linkAsset(Request $request, LoanApplication $application, CollateralSecureService $service): RedirectResponse
     {
         $data = $request->validate([

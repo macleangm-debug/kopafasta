@@ -96,6 +96,33 @@
                         </button>
                     </form>
                 </div>
+            @elseif ($status === 'awaiting_ask_members')
+                <p class="text-base font-bold text-gray-900">{{ __('borrower.collateral_secure.q_ask_members') }}</p>
+                <div class="flex flex-wrap gap-3">
+                    <form method="POST" action="{{ route('site.borrower.collateral-secure.ask-members', $application) }}"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('borrower.collateral_secure.ask_members_confirm_title')),
+                              message: @js(__('borrower.collateral_secure.ask_members_confirm_body')),
+                              confirmLabel: @js(__('borrower.collateral_secure.yes_ask')),
+                              confirmClass: 'bg-brand-gold hover:brightness-95 text-brand font-extrabold',
+                              tone: 'confirm'
+                          })">
+                        @csrf
+                        <input type="hidden" name="ask_members" value="1">
+                        <button type="submit" class="inline-flex font-extrabold px-7 py-3.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                            {{ __('borrower.collateral_secure.yes_ask') }}
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('site.borrower.collateral-secure.ask-members', $application) }}">
+                        @csrf
+                        <input type="hidden" name="ask_members" value="0">
+                        <button type="submit" class="inline-flex font-bold px-7 py-3.5 rounded-xl text-sm bg-white ring-1 ring-gray-200 text-gray-900 hover:bg-gray-50">
+                            {{ __('borrower.collateral_secure.no') }}
+                        </button>
+                    </form>
+                </div>
+            @elseif ($status === 'awaiting_members')
+                <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.waiting_members') }}</p>
             @elseif ($status === 'awaiting_ask_guarantor')
                 <p class="text-base font-bold text-gray-900">{{ __('borrower.collateral_secure.q_ask_guarantor') }}</p>
                 <div class="flex flex-wrap gap-3">

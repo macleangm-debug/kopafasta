@@ -162,7 +162,6 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             'Requested',
             'Library',
             'Request documents',
-            'National ID (front)',
             'Send a pack to the person on this screen',
         ];
 
@@ -209,6 +208,8 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $this->assertStringContainsString('Waiting on', $askedHtml);
 
         foreach ([$leaderHtml, $askedHtml, $otherHtml] as $html) {
+            $this->assertStringNotContainsString('National ID (front)', $html);
+            $this->assertStringNotContainsString('Clear photo of the front side of your ID.', $html);
             $this->assertStringNotContainsString('Recent passport-size photo, plain background.', $html);
             $this->assertStringNotContainsString('Source of income proof', $html);
             $this->assertStringNotContainsString('3 months bank statement', $html);
@@ -254,7 +255,7 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             'tenure_max_months' => 12,
         ]);
 
-        foreach (['Group constitution', 'Group member roster', 'National ID (front)'] as $name) {
+        foreach (['Group constitution', 'Group member roster', 'National ID (front)', 'Income verification'] as $name) {
             LoanProductRequirement::create([
                 'loan_product_id' => $product->id,
                 'type' => 'document',
@@ -288,10 +289,12 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $missing = app(LoanApplicationReviewService::class)->dossier($application)['missing_documents'] ?? [];
         $blockers = app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application);
 
-        $this->assertContains('National ID (front)', $missing);
+        $this->assertContains('Income verification', $missing);
+        $this->assertNotContains('National ID (front)', $missing);
         $this->assertNotContains('Group constitution', $missing);
         $this->assertNotContains('Group member roster', $missing);
-        $this->assertContains('National ID (front)', $blockers);
+        $this->assertContains('Income verification', $blockers);
+        $this->assertNotContains('National ID (front)', $blockers);
         $this->assertFalse(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'Group constitution')));
         $this->assertFalse(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'Group member roster')));
 
@@ -429,5 +432,70 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $this->assertTrue($alerts->contains(
             fn (array $alert) => $alert['key'] === 'doc_submissions_'.$application->id && $alert['count'] === 2
         ));
+    }
+
+    public function test_national_id_is_not_a_documents_blocker_on_individual_loans(): void
+    {
+        $branch = Branch::create([
+            'code' => 'IL'.random_int(10, 99),
+            'name' => 'Installment Docs Branch',
+            'region' => 'Dar',
+            'is_active' => true,
+        ]);
+        $product = LoanProduct::create([
+            'code' => 'IL',
+            'name' => 'Installment Loan',
+            'category' => 'personal',
+            'is_active' => true,
+            'interest_rate' => 0.18,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        foreach ([
+            ['name' => 'National ID (front)', 'description' => 'Clear photo of the front side of your ID.'],
+            ['name' => 'NIDA card', 'description' => 'Copy of NIDA.'],
+            ['name' => 'Business licence', 'description' => 'Valid TRA / local government business licence.'],
+        ] as $row) {
+            LoanProductRequirement::create([
+                'loan_product_id' => $product->id,
+                'type' => 'document',
+                'name' => $row['name'],
+                'description' => $row['description'],
+                'is_required' => true,
+            ]);
+        }
+        $customer = Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-IL-NIDA',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Iddi',
+            'last_name' => 'Loan',
+            'phone' => '255712349099',
+            'branch_id' => $branch->id,
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'branch_id' => $branch->id,
+            'application_number' => 'APP-IL-NIDA-001',
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 400_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now(),
+        ]);
+
+        $missing = app(LoanApplicationReviewService::class)->dossier($application)['missing_documents'] ?? [];
+        $blockers = app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application);
+
+        $this->assertContains('Business licence', $missing);
+        $this->assertNotContains('National ID (front)', $missing);
+        $this->assertNotContains('NIDA card', $missing);
+        $this->assertContains('Business licence', $blockers);
+        $this->assertNotContains('National ID (front)', $blockers);
+        $this->assertFalse(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'NIDA')));
     }
 }

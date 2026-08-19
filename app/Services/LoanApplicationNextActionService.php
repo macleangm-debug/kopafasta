@@ -257,6 +257,7 @@ class LoanApplicationNextActionService
             $label = match ($statusCode) {
                 CollateralSecureService::STATUS_AWAITING_FEE => __('borrower.collateral_secure.fee_title'),
                 CollateralSecureService::STATUS_AWAITING_GUARANTOR => __('borrower.collateral_secure.waiting_guarantor'),
+                CollateralSecureService::STATUS_AWAITING_MEMBERS => __('borrower.collateral_secure.waiting_members'),
                 CollateralSecureService::STATUS_AWAITING_INSURANCE => __('borrower.collateral_secure.insurance_needed'),
                 default => __('borrower.collateral_secure.why'),
             };

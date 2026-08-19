@@ -22,6 +22,10 @@ class CollateralSecureService
 
     public const STATUS_AWAITING_ASK_GUARANTOR = 'awaiting_ask_guarantor';
 
+    public const STATUS_AWAITING_ASK_MEMBERS = 'awaiting_ask_members';
+
+    public const STATUS_AWAITING_MEMBERS = 'awaiting_members';
+
     public const STATUS_AWAITING_BORROWER_ADD = 'awaiting_borrower_add';
 
     public const STATUS_AWAITING_GUARANTOR = 'awaiting_guarantor_consent';
@@ -351,6 +355,8 @@ class CollateralSecureService
             $state['status'] = self::STATUS_AWAITING_BORROWER_ADD;
             $state['source'] = 'borrower';
             $state['due_at'] = now()->addDays($this->decisionDays())->toIso8601String();
+        } elseif ($this->isGroupFile($application)) {
+            $state['status'] = self::STATUS_AWAITING_ASK_MEMBERS;
         } else {
             $state['status'] = self::STATUS_AWAITING_ASK_GUARANTOR;
         }
@@ -358,6 +364,97 @@ class CollateralSecureService
         $this->saveState($application, $state);
 
         return $state;
+    }
+
+    public function borrowerAskMembers(LoanApplication $application, Customer $borrower, bool $ask): array
+    {
+        $this->assertBorrower($application, $borrower);
+        $state = $this->requireOpen($application);
+        abort_unless(($state['status'] ?? '') === self::STATUS_AWAITING_ASK_MEMBERS, 422);
+
+        $state['ask_members'] = $ask;
+        $state['ask_members_answered_at'] = now()->toIso8601String();
+
+        if (! $ask) {
+            return $this->rejectForNoCollateral($application, $state, 'Group leader declined to ask members for collateral.');
+        }
+
+        $members = $this->activeNonLeaderMembers($application);
+        if ($members->isEmpty()) {
+            return $this->rejectForNoCollateral($application, $state, 'No group members to ask for collateral.');
+        }
+
+        $dueAt = now()->addDays($this->decisionDays());
+        $state['status'] = self::STATUS_AWAITING_MEMBERS;
+        $state['source'] = 'member';
+        $state['members_asked_at'] = now()->toIso8601String();
+        $state['due_at'] = $dueAt->toIso8601String();
+        $this->saveState($application, $state);
+
+        $docs = app(ApplicationDocumentRequestService::class);
+        $admin = User::query()->find((int) ($state['requested_by'] ?? 0));
+        if ($admin) {
+            try {
+                $docs->createManyForActiveGroupMembers(
+                    $application,
+                    $admin,
+                    [ApplicationDocumentRequestService::COLLATERAL_PRESET_LABELS[0]],
+                    null,
+                    $dueAt,
+                );
+            } catch (\InvalidArgumentException) {
+                // Members were already notified below if create fails on empty set.
+            }
+        }
+
+        foreach ($members as $member) {
+            $customer = $member->customer;
+            if (! $customer) {
+                continue;
+            }
+            app(NotificationService::class)->notifyInApp(
+                $customer,
+                __('borrower.collateral_secure.notify_member_body', [
+                    'leader' => $borrower->legalDisplayName() ?? $borrower->full_name,
+                    'reference' => $application->application_number ?? $application->id,
+                ]),
+                category: 'loan_application',
+                template: 'collateral_secure_member_ask',
+                title: __('borrower.collateral_secure.notify_member_title'),
+                actionUrl: route('site.borrower.application', $application),
+                actionLabel: __('borrower.collateral_secure.cta_respond'),
+                i18n: [
+                    'title_key' => 'borrower.collateral_secure.notify_member_title',
+                    'body_key'  => 'borrower.collateral_secure.notify_member_body',
+                    'params'    => [
+                        'leader' => $borrower->legalDisplayName() ?? $borrower->full_name,
+                        'reference' => $application->application_number ?? $application->id,
+                    ],
+                ],
+            );
+        }
+
+        return $state;
+    }
+
+    public function maybeAcceptMemberPledge(LoanApplication $application, Customer $member, CustomerAsset $asset): array
+    {
+        $state = $this->state($application);
+        if (! is_array($state) || ($state['status'] ?? '') !== self::STATUS_AWAITING_MEMBERS) {
+            return $state ?? [];
+        }
+
+        $members = $this->activeNonLeaderMembers($application);
+        $isMember = $members->contains(fn ($row) => (int) $row->customer_id === (int) $member->id);
+        if (! $isMember || (int) $asset->customer_id !== (int) $member->id) {
+            return $state;
+        }
+
+        $state['source'] = 'member';
+        $state['member_customer_id'] = $member->id;
+        $state['customer_asset_id'] = $asset->id;
+
+        return $this->advanceAfterAsset($application, $state, $asset);
     }
 
     public function borrowerAskGuarantor(LoanApplication $application, Customer $borrower, bool $ask): array
@@ -762,9 +859,11 @@ class CollateralSecureService
             }
         }
 
-        $ownerId = ($state['source'] ?? 'borrower') === 'guarantor'
-            ? (int) ($state['guarantor_customer_id'] ?? 0)
-            : (int) $application->customer_id;
+        $ownerId = match ($state['source'] ?? 'borrower') {
+            'guarantor' => (int) ($state['guarantor_customer_id'] ?? 0),
+            'member' => (int) ($state['member_customer_id'] ?? 0),
+            default => (int) $application->customer_id,
+        };
 
         return [
             'active' => ! in_array($state['status'] ?? '', [self::STATUS_REJECTED, self::STATUS_EXPIRED], true),
@@ -798,6 +897,7 @@ class CollateralSecureService
                     : 0,
             ],
             'is_guarantor_source' => ($state['source'] ?? '') === 'guarantor',
+            'is_member_source' => ($state['source'] ?? '') === 'member',
             'owner_customer_id' => $ownerId,
         ];
     }
@@ -824,9 +924,11 @@ class CollateralSecureService
     /** @return \Illuminate\Support\Collection<int, CustomerAsset> */
     private function selectableAssets(LoanApplication $application, array $state)
     {
-        $ownerId = ($state['source'] ?? 'borrower') === 'guarantor'
-            ? (int) ($state['guarantor_customer_id'] ?? 0)
-            : (int) $application->customer_id;
+        $ownerId = match ($state['source'] ?? 'borrower') {
+            'guarantor' => (int) ($state['guarantor_customer_id'] ?? 0),
+            'member' => (int) ($state['member_customer_id'] ?? 0),
+            default => (int) $application->customer_id,
+        };
 
         if ($ownerId <= 0) {
             return collect();
@@ -1007,6 +1109,36 @@ class CollateralSecureService
 
             return $state;
         });
+    }
+
+    private function isGroupFile(LoanApplication $application): bool
+    {
+        $application->loadMissing('product');
+        if (filled($application->loan_group_id)) {
+            return true;
+        }
+
+        return app(GroupLendingService::class)->isGroupProduct($application->product);
+    }
+
+    /** @return \Illuminate\Support\Collection<int, mixed> */
+    private function activeNonLeaderMembers(LoanApplication $application)
+    {
+        $application->loadMissing('loanGroup.members.customer');
+
+        return collect($application->loanGroup?->members ?? [])
+            ->filter(function ($member) use ($application) {
+                $role = strtolower((string) ($member->role ?? 'member'));
+                if ($role === 'leader' || (int) $member->customer_id === (int) $application->customer_id) {
+                    return false;
+                }
+                if (($member->member_status ?? 'active') !== 'active') {
+                    return false;
+                }
+
+                return (int) $member->customer_id > 0 && $member->customer;
+            })
+            ->values();
     }
 
     private function rejectForNoCollateral(LoanApplication $application, array $state, string $reason): array

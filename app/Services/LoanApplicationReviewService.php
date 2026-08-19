@@ -109,6 +109,11 @@ class LoanApplicationReviewService
         $guarantorRows = $this->guarantorRows($application);
         $guarantorSuggestion = $this->guarantorSuggestion($guarantorRows, $application);
 
+        if (filled($application->loan_group_id)) {
+            app(CustomerAssetService::class)->syncGroupFileAssets($application);
+            $application->unsetRelation('collateralAssets');
+        }
+
         $risk = $this->riskAssessment(
             $application,
             $customer,

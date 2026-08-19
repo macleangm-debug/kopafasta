@@ -1,11 +1,19 @@
 @php
     $person = $person ?? 'borrower';
-    $who = $person === 'guarantor' ? 'guarantor' : 'borrower';
+    $isGroupFile = filled($record->loan_group_id);
+    $who = match ($person) {
+        'guarantor' => 'guarantor',
+        'member' => 'member',
+        default => $isGroupFile ? 'group leader' : 'borrower',
+    };
     $isGuarantor = $person === 'guarantor';
+    $isMember = $person === 'member';
     $pledgeRows = collect();
-    $profileAssets = collect($review['customer_assets'] ?? []);
-    if (! $isGuarantor) {
-        $record->loadMissing('collateralAssets.customerAsset', 'valuationAssignments.vendor');
+    $profileAssets = collect($review['customer_assets'] ?? [])->each(fn ($asset) => $asset->loadMissing('customer'));
+    $record->loadMissing(['collateralAssets.customerAsset.customer', 'valuationAssignments.vendor', 'loanGroup.members.customer']);
+    if ($isGuarantor || $isMember) {
+        $pledgeRows = collect();
+    } else {
         $pledgeRows = collect($record->collateralAssets);
     }
     $pledgeByAssetId = $pledgeRows->keyBy(fn ($row) => (int) $row->customer_asset_id);
@@ -13,7 +21,8 @@
         ->concat($pledgeRows->map(fn ($row) => $row->customerAsset)->filter())
         ->unique(fn ($asset) => (int) $asset->id)
         ->sortBy(fn ($asset) => $pledgeByAssetId->has((int) $asset->id) ? 0 : 1)
-        ->values();
+        ->values()
+        ->each(fn ($asset) => $asset->loadMissing('customer'));
     $canRequestDocs = auth()->user()?->hasPermission('applications.request_documents');
     $collateralPresets = \App\Services\ApplicationDocumentRequestService::COLLATERAL_PRESET_LABELS;
     $typeOptions = \App\Models\CustomerAsset::typeOptions();
@@ -22,12 +31,31 @@
     $openValuation = collect($record->valuationAssignments ?? [])
         ->first(fn ($a) => in_array($a->status, ['assigned', 'in_progress'], true));
     $pledgedForValuation = $pledgeRows->first(fn ($row) => ($row->uw_status ?? '') !== \App\Models\LoanApplicationAsset::UW_DECLINED);
-    $showValuerCta = ! $isGuarantor && $pledgedForValuation && ! $isAb;
+    $showValuerCta = ! $isGuarantor && ! $isMember && $pledgedForValuation && ! $isAb;
     $csSvc = app(\App\Services\CollateralSecureService::class);
     $csState = $csSvc->state($record);
     $coverage = app(\App\Services\CollateralCoverageService::class)->forApplication($record);
     $valuationFeeDue = $csSvc->needsValuationFeePayment($record)
         || ($csState['status'] ?? '') === \App\Services\CollateralSecureService::STATUS_AWAITING_VALUATION_FEE;
+    $activeMemberCount = collect($record->loanGroup?->members ?? [])
+        ->filter(fn ($m) => strtolower((string) ($m->role ?? 'member')) !== 'leader'
+            && (int) $m->customer_id !== (int) $record->customer_id
+            && ($m->member_status ?? 'active') === 'active')
+        ->count();
+    $ownerRoleFor = function ($asset) use ($record, $isGuarantor, $isMember, $isGroupFile) {
+        $ownerId = (int) ($asset->customer_id ?? 0);
+        if ($isGuarantor) {
+            return 'Guarantor';
+        }
+        if ($ownerId === (int) $record->customer_id) {
+            return $isGroupFile ? 'Group leader' : 'Borrower';
+        }
+        if ($isMember) {
+            return 'Member';
+        }
+
+        return 'Member';
+    };
 @endphp
 
 <section
@@ -38,13 +66,15 @@
     <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white">
         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Collateral</p>
         <h2 class="text-sm font-semibold text-gray-900 mt-0.5">
-            {{ $isGuarantor ? 'Guarantor collateral' : 'Borrower collateral' }}
+            {{ $isGuarantor ? 'Guarantor collateral' : ($isMember ? 'Member collateral' : ($isGroupFile ? 'Group leader collateral' : 'Borrower collateral')) }}
         </h2>
         <p class="text-xs text-gray-500 mt-0.5">
             @if ($isGuarantor)
                 Assets on the guarantor’s profile. Read-only here — request updates below when something is missing.
+            @elseif ($isMember)
+                This member’s own profile assets. Loan collateral for the group file is on the leader’s desk.
             @else
-                All profile assets. Assets pledged on this loan are listed first.
+                Assets pledged on this loan, marked with who they belong to. Request starts with the {{ $who }}.
             @endif
         </p>
     </div>
@@ -130,6 +160,9 @@
                                 </div>
                                 <div class="p-4 flex-1 flex flex-col">
                                     <h3 class="font-bold text-gray-900 truncate">{{ $asset->label }}</h3>
+                                    <p class="mt-1 text-[11px] font-semibold text-slate-600">
+                                        Belongs to {{ $asset->customer?->full_name ?? '—' }} · {{ $ownerRoleFor($asset) }}
+                                    </p>
                                     <p class="mt-1 min-h-[1.25rem] {{ $asset->estimated_value ? 'text-sm text-brand font-semibold tabular-nums' : 'text-xs text-gray-500' }}">
                                         @if ($asset->estimated_value)
                                             {{ format_money($asset->estimated_value) }}
@@ -239,6 +272,10 @@
                                     <div class="sm:col-span-2">
                                         <dt class="text-[11px] font-medium text-gray-600 mb-0.5">Collateral name</dt>
                                         <dd class="text-sm font-semibold text-gray-900">{{ $asset->label }}</dd>
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <dt class="text-[11px] font-medium text-gray-600 mb-0.5">Belongs to</dt>
+                                        <dd class="text-sm font-semibold text-gray-900">{{ $asset->customer?->full_name ?? '—' }} · {{ $ownerRoleFor($asset) }}</dd>
                                     </div>
                                     @foreach ($detailRows as $row)
                                         <div>
@@ -485,6 +522,16 @@
             <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="space-y-3 {{ $assets->isNotEmpty() ? 'pt-2 border-t border-brand/10' : '' }}">
                 @csrf
                 <input type="hidden" name="type" value="document">
+                <input type="hidden" name="review_person" value="{{ $person }}">
+                @if ($isMember)
+                    <input type="hidden" name="review_m" value="{{ request('review_m', data_get($review, 'member_row.id')) }}">
+                    <input type="hidden" name="subject_customer_id" value="{{ data_get($review, 'customer.id') }}">
+                    <input type="hidden" name="loan_group_member_id" value="{{ request('review_m', data_get($review, 'member_row.id')) }}">
+                @endif
+                @if ($isGuarantor)
+                    <input type="hidden" name="review_g" value="{{ request('review_g') }}">
+                    <input type="hidden" name="subject_customer_id" value="{{ data_get($review, 'customer.id') }}">
+                @endif
                 <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">
                     Request collateral from {{ $who }}
                 </p>
@@ -499,9 +546,20 @@
                 <textarea name="instructions" rows="2" maxlength="2000"
                           placeholder="Optional note shown to the {{ $who }}"
                           class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5"></textarea>
-                <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
-                    Request collateral
-                </button>
+                <div class="flex flex-wrap gap-2">
+                    <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+                        Request collateral
+                    </button>
+                    @if ($isGroupFile && ! $isGuarantor && ! $isMember && $activeMemberCount > 0)
+                        <button type="submit" name="ask_members" value="1"
+                                class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2.5 rounded-xl">
+                            Ask members
+                        </button>
+                    @endif
+                </div>
+                @if ($isGroupFile && ! $isGuarantor && ! $isMember && $activeMemberCount > 0)
+                    <p class="text-xs text-gray-500">Start with the group leader. If they do not have collateral, ask members.</p>
+                @endif
             </form>
         @endif
     </div>

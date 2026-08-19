@@ -185,6 +185,34 @@ class DocumentRequestSubjectScopeFeatureTest extends TestCase
     }
 
     /** @return array{0: mixed, 1: string, 2: ?string} */
+    public function test_ask_members_fans_collateral_requests_to_non_leaders_only(): void
+    {
+        [$admin, $application, $leader, $asked, $other, $askedRow, $otherRow] = $this->groupFileWithStatements();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $application), [
+                'type' => 'document',
+                'presets' => ['Add collateral asset'],
+                'review_person' => 'borrower',
+                'ask_members' => '1',
+            ])
+            ->assertRedirect();
+
+        $requests = $application->fresh()->documentRequests;
+        $this->assertCount(2, $requests);
+        $this->assertTrue($requests->every(fn ($request) => $request->subject_kind === 'member'));
+        $this->assertTrue($requests->every(fn ($request) => $request->label === 'Add collateral asset'));
+        $this->assertEqualsCanonicalizing(
+            [$asked->id, $other->id],
+            $requests->pluck('subject_customer_id')->map(fn ($id) => (int) $id)->all()
+        );
+        $this->assertEqualsCanonicalizing(
+            [$askedRow->id, $otherRow->id],
+            $requests->pluck('loan_group_member_id')->map(fn ($id) => (int) $id)->all()
+        );
+        $this->assertFalse($requests->contains(fn ($request) => (int) $request->subject_customer_id === (int) $leader->id));
+    }
+
     private function checklistItem(array $desk, string $key): array
     {
         foreach ($desk['groups'] ?? [] as $group) {

@@ -4,7 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\CustomerAsset;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationAsset;
+use App\Models\LoanGroup;
+use App\Models\LoanGroupMember;
 use App\Models\LoanProduct;
 use App\Models\User;
 use App\Services\ScreeningChecklistService;
@@ -443,5 +447,117 @@ class ScreeningChecklistFeatureTest extends TestCase
         $item = $items['activity_income.income_evidence'] ?? [];
         $this->assertSame('fail', $item['verdict'] ?? null);
         $this->assertSame('statements_missing', $item['fail_reason_code'] ?? null);
+    }
+
+    public function test_group_collateral_stays_on_leader_desk_and_does_not_apply_on_unsecured_il(): void
+    {
+        $admin = $this->staff();
+        $il = $this->application($admin);
+        CustomerAsset::create([
+            'customer_id' => $il->customer_id,
+            'asset_type' => 'land',
+            'label' => 'Plot on IL profile',
+            'is_active' => true,
+            'photo_paths' => ['a.jpg', 'b.jpg'],
+            'metadata' => ['ownership_document_path' => 'own.pdf'],
+        ]);
+
+        $svc = app(ScreeningChecklistService::class);
+        $this->assertFalse($svc->collateralReviewApplies($il->fresh()));
+
+        $product = LoanProduct::create([
+            'code' => 'GL',
+            'name' => 'Group Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $leader = $il->customer;
+        $memberUser = User::factory()->create(['role' => 'borrower']);
+        $member = Customer::create([
+            'user_id' => $memberUser->id,
+            'customer_number' => 'CU-SC-GM-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Rogathe',
+            'last_name' => 'Member',
+            'phone' => '25571'.random_int(1000000, 9999999),
+            'branch_id' => $admin->branch_id,
+        ]);
+        $app = LoanApplication::create([
+            'customer_id' => $leader->id,
+            'loan_product_id' => $product->id,
+            'branch_id' => $admin->branch_id,
+            'application_number' => 'APP-GL-SC-'.random_int(1000, 9999),
+            'requested_amount' => 800_000,
+            'requested_tenure_months' => 6,
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'submitted_at' => now(),
+        ]);
+        $group = LoanGroup::create([
+            'group_number' => 'GRP-SC-'.random_int(100, 999),
+            'name' => 'Collateral Group',
+            'leader_customer_id' => $leader->id,
+            'primary_application_id' => $app->id,
+            'status' => 'active',
+            'target_member_count' => 2,
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $leader->id,
+            'loan_application_id' => $app->id,
+            'role' => 'leader',
+            'requested_amount' => 400_000,
+            'sort_order' => 1,
+            'member_status' => 'active',
+        ]);
+        $memberRow = LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $member->id,
+            'loan_application_id' => $app->id,
+            'role' => 'member',
+            'requested_amount' => 400_000,
+            'sort_order' => 2,
+            'member_status' => 'active',
+        ]);
+        $app->update(['loan_group_id' => $group->id]);
+
+        CustomerAsset::create([
+            'customer_id' => $member->id,
+            'asset_type' => 'land',
+            'label' => 'Member plot',
+            'is_active' => true,
+            'photo_paths' => ['c.jpg', 'd.jpg'],
+            'metadata' => ['ownership_document_path' => 'own2.pdf'],
+        ]);
+
+        $this->assertFalse($svc->collateralReviewApplies($app->fresh(), 'member'));
+        $this->assertTrue($svc->collateralReviewApplies($app->fresh(), 'borrower'));
+
+        $groupReview = [
+            'members' => [
+                ['id' => 1, 'role' => 'leader', 'name' => 'Leader', 'customer_id' => $leader->id, 'file' => []],
+                ['id' => $memberRow->id, 'role' => 'member', 'name' => 'Rogathe', 'customer_id' => $member->id, 'file' => []],
+            ],
+        ];
+        $memberVm = $svc->viewModel($app->fresh(), $admin, 'member', null, $memberRow->id, ['customer' => $member], $groupReview);
+        $this->assertNull(collect($memberVm['groups'] ?? [])->firstWhere('key', 'collateral'));
+
+        $leaderVm = $svc->viewModel($app->fresh(), $admin, 'borrower', null, null, ['customer' => $leader], $groupReview);
+        $collateral = collect($leaderVm['groups'] ?? [])->firstWhere('key', 'collateral');
+        $this->assertNotNull($collateral);
+        $this->assertGreaterThan(0, (int) ($collateral['total'] ?? 0));
+
+        $this->assertFalse(
+            LoanApplicationAsset::query()
+                ->where('loan_application_id', $app->id)
+                ->whereHas('customerAsset', fn ($q) => $q->where('customer_id', $member->id))
+                ->exists()
+        );
     }
 }

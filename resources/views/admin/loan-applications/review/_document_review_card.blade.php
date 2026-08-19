@@ -23,7 +23,7 @@
     }
 @endphp
 
-<div class="rounded-xl ring-1 ring-brand/10 overflow-hidden bg-white p-3 flex items-start gap-3"
+<div class="rounded-xl ring-1 ring-brand/10 overflow-hidden bg-white p-3 flex flex-col sm:flex-row sm:items-start gap-3"
      x-data="{ openFail: false, failReason: '' }">
     @if ($doc->file_path)
         <x-admin.document-preview
@@ -34,8 +34,11 @@
     <div class="min-w-0 flex-1">
         <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
-                <p class="font-semibold text-sm text-gray-900">{{ $doc->displayName() }}</p>
-                <p class="text-[11px] text-gray-500 mt-0.5">
+                <p class="font-semibold text-sm text-gray-900 truncate">{{ $doc->displayName() }}</p>
+                <p class="sm:hidden mt-0.5 text-[11px] text-gray-500">
+                    {{ $doc->created_at ? format_app_date($doc->created_at) : '—' }}
+                </p>
+                <p class="hidden sm:block text-[11px] text-gray-500 mt-0.5">
                     @if ($doc->created_at)
                         Uploaded {{ format_app_date($doc->created_at) }}
                     @endif

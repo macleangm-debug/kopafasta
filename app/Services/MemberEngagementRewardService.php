@@ -77,6 +77,11 @@ class MemberEngagementRewardService
 
     public function afterDocumentUploaded(Customer $customer, string $documentCode): void
     {
+        $documentCode = trim($documentCode);
+        if ($documentCode === '') {
+            return;
+        }
+
         // Idempotent: same document code never awards twice after delete/re-add.
         $this->loyalty->earn(
             $customer->fresh(),

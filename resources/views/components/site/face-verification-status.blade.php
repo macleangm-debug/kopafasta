@@ -78,7 +78,7 @@
         @foreach ($photoEntries as $entry)
             <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
                 <p class="text-xs text-gray-500">{{ $entry['label'] }}</p>
-                <div class="mt-2 flex items-start gap-3">
+                <div class="mt-2 flex flex-col sm:flex-row sm:items-start gap-3">
                     @if ($entry['url'])
                         <button type="button"
                                 @click="openPreview(@js($entry['url']), @js($entry['label']))"

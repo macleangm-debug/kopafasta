@@ -467,7 +467,8 @@ class LoanApplicationWorkflowService
                 continue;
             }
             if (LoanProductRequirement::nameIsDigitalGroupRoster($label)
-                || LoanProductRequirement::nameIsGroupConstitution($label)) {
+                || LoanProductRequirement::nameIsGroupConstitution($label)
+                || LoanProductRequirement::nameLooksLikeProfileDuplicate($label)) {
                 continue;
             }
             $blockers[] = $label;

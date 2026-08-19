@@ -66,32 +66,23 @@
         return ['key' => 'other', 'label' => 'Other documents', 'order' => 9];
     };
 
-    // Members/guarantors: personal KYC only. Income is a loan-file item unless this
-    // person was specifically asked to update bank / mobile-money / income proof.
+    // Members/guarantors: loan-file group/business/collateral rows stay on the leader desk.
+    // Identity / NIDA is the checklist (not Documents). Income only when this person was asked.
     if ($isSubjectPanel) {
         $requirements = $requirements->filter(function ($req) use ($categoryFor, $subjectHasIncomeRequest) {
             $category = $categoryFor($req);
-            if (in_array($category['key'], ['group', 'business', 'supporting', 'collateral'], true)) {
+            if (in_array($category['key'], ['group', 'business', 'supporting', 'collateral', 'identity'], true)) {
                 return false;
             }
 
             $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
-            $isIdentity = str_contains($hay, 'national id')
-                || (str_contains($hay, 'passport') && ! str_contains($hay, 'photo'))
-                || str_contains($hay, 'face')
-                || str_contains($hay, 'nida')
-                || str_contains($hay, 'photo of id');
             $isIncome = str_contains($hay, 'income')
                 || str_contains($hay, 'bank statement')
                 || str_contains($hay, 'mobile money')
                 || str_contains($hay, 'payslip')
                 || str_contains($hay, 'salary');
 
-            if ($isIncome) {
-                return $subjectHasIncomeRequest;
-            }
-
-            return $isIdentity;
+            return $isIncome && $subjectHasIncomeRequest;
         })->values();
     }
 
@@ -450,16 +441,18 @@
                                     @endphp
                                     <div x-show="match(@js($row['bucket']))" class="bg-white">
                                         <div class="w-full px-3.5 py-3.5 flex items-center gap-3">
-                                            <div class="shrink-0 w-12 h-12 rounded-lg overflow-hidden ring-1 ring-brand/10 bg-gray-50 flex items-center justify-center [&_button]:!w-full [&_button]:!h-full [&_button]:!rounded-lg">
+                                            <button type="button"
+                                                    class="shrink-0"
+                                                    @click="openId = openId === {{ (int) $req->id }} ? null : {{ (int) $req->id }}">
                                                 @if ($upload?->file_path)
                                                     <x-admin.document-preview
                                                         :url="asset('storage/'.$upload->file_path)"
-                                                        label="View"
-                                                        variant="thumbnail" />
+                                                        :label="$row['display_name'] ?? $req->name"
+                                                        variant="file-icon" />
                                                 @else
-                                                    <span class="text-[10px] font-bold uppercase tracking-wide text-rose-500">Missing</span>
+                                                    <span class="h-20 w-20 sm:h-24 sm:w-24 rounded-xl ring-1 ring-rose-200 bg-rose-50 flex items-center justify-center text-[10px] font-bold uppercase tracking-wide text-rose-500">Missing</span>
                                                 @endif
-                                            </div>
+                                            </button>
                                             <button type="button"
                                                     class="min-w-0 flex-1 flex items-center gap-3 text-left hover:bg-brand-muted/20 rounded-lg px-1 py-0.5 -mx-1 transition"
                                                     @click="openId = openId === {{ (int) $req->id }} ? null : {{ (int) $req->id }}">

@@ -448,6 +448,7 @@ class ProfileLinkedDocumentRequestTest extends TestCase
 
         $this->assertStringContainsString('focus=verification', $service->borrowerActionUrl($residence->fresh()));
         $this->assertStringContainsString('solo=1', $service->borrowerActionUrl($residence->fresh()));
+        $this->assertStringContainsString('return=', $service->borrowerActionUrl($residence->fresh()));
         $this->assertStringContainsString('profile-residence-verification', $service->borrowerActionUrl($residence->fresh()));
         $this->assertStringContainsString('focus=additional', $service->borrowerActionUrl($business->fresh()));
         $this->assertStringContainsString('doc=business_registration', $service->borrowerActionUrl($business->fresh()));

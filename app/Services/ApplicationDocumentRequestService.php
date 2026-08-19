@@ -252,6 +252,7 @@ class ApplicationDocumentRequestService
         $query = array_merge(['focus' => $focus, 'solo' => 1], $extra);
         if ($applicationId) {
             $query['application'] = $applicationId;
+            $query['return'] = route('site.borrower.application', $applicationId);
         }
 
         return route('site.borrower.profile', ['section' => $section]).'?'.http_build_query($query).'#'.$hash;
@@ -271,18 +272,14 @@ class ApplicationDocumentRequestService
             ?? ($request->subject_customer_id ? Customer::query()->find($request->subject_customer_id) : null)
             ?? $application?->customer;
 
-        $label = mb_strtolower((string) $request->label);
-        $add = str_contains($label, 'add collateral') || ! $customer;
-
-        if ($customer && ! $add) {
-            $add = app(CustomerAssetService::class)->forCustomer($customer)->isEmpty();
-        }
+        $add = ! $customer || app(CustomerAssetService::class)->forCustomer($customer)->isEmpty();
 
         return route('site.borrower.profile', array_filter([
             'section' => 'assets',
             'solo' => 1,
             'uw' => 1,
             'application' => $application?->id,
+            'return' => $application ? route('site.borrower.application', $application) : null,
             'add' => $add ? 1 : null,
         ], fn ($value) => $value !== null && $value !== false));
     }
@@ -751,6 +748,57 @@ class ApplicationDocumentRequestService
                 $revision->applyForDocumentRequest($application, $request, notify: false);
             }
             $this->notifyBorrowerBatch($application->loadMissing('customer'), $created);
+        }
+
+        return $created;
+    }
+
+    /**
+     * Fan a collateral (or document) request out to every active non-leader group member.
+     *
+     * @param  list<string>  $labels
+     * @return Collection<int, LoanApplicationDocumentRequest>
+     */
+    public function createManyForActiveGroupMembers(
+        LoanApplication $application,
+        User $requester,
+        array $labels,
+        ?string $instructions = null,
+        ?\DateTimeInterface $dueAt = null,
+        string $type = 'document',
+    ): Collection {
+        $application->loadMissing('loanGroup.members.customer');
+        $members = collect($application->loanGroup?->members ?? [])
+            ->filter(function ($member) use ($application) {
+                $role = strtolower((string) ($member->role ?? 'member'));
+                if ($role === 'leader' || (int) $member->customer_id === (int) $application->customer_id) {
+                    return false;
+                }
+                if (($member->member_status ?? 'active') !== 'active') {
+                    return false;
+                }
+
+                return (int) $member->customer_id > 0;
+            })
+            ->values();
+
+        if ($members->isEmpty()) {
+            throw new \InvalidArgumentException('No group members to ask for collateral.');
+        }
+
+        $created = collect();
+        foreach ($members as $member) {
+            $created = $created->concat($this->createMany(
+                $application,
+                $requester,
+                $labels,
+                $instructions,
+                $dueAt,
+                $type,
+                'member',
+                $member->customer_id ? (int) $member->customer_id : null,
+                (int) $member->id,
+            ));
         }
 
         return $created;

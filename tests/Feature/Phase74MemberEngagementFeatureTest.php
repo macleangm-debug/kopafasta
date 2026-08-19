@@ -229,4 +229,22 @@ class Phase74MemberEngagementFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('borrower.rewards.redeem_title'), false);
     }
+
+    public function test_document_points_are_awarded_once_even_after_delete_and_reupload(): void
+    {
+        $customer = $this->makeCustomer();
+        $rewards = app(\App\Services\MemberEngagementRewardService::class);
+        $loyalty = app(LoyaltyPointsService::class);
+
+        $rewards->afterDocumentUploaded($customer, 'bank_statement');
+        $this->assertSame(50, $loyalty->balance($customer->fresh()));
+
+        $rewards->afterDocumentUploaded($customer, 'bank_statement');
+        $this->assertSame(50, $loyalty->balance($customer->fresh()));
+
+        $rewards->afterProfileSectionSaved($customer, 'activity');
+        $first = $loyalty->balance($customer->fresh());
+        $rewards->afterProfileSectionSaved($customer, 'activity');
+        $this->assertSame($first, $loyalty->balance($customer->fresh()));
+    }
 }

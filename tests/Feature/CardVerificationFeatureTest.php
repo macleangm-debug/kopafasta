@@ -166,4 +166,35 @@ class CardVerificationFeatureTest extends TestCase
             ])
             ->assertRedirect(route('site.borrower.verify.member', ['memberNo' => 'KPF-TZ-TG22']));
     }
+
+    public function test_verify_form_includes_qr_scan_control(): void
+    {
+        $this->get(route('site.card.verify'))
+            ->assertOk()
+            ->assertSee(__('site.card_verify.scan_aria'), false)
+            ->assertSee('cardVerifyForm', false)
+            ->assertSee('x-ref="suffix"', false);
+    }
+
+    public function test_parse_scan_payload_reads_member_and_partner_qr_urls(): void
+    {
+        $service = app(CardVerificationService::class);
+
+        $this->assertSame(
+            ['type' => 'member', 'number' => 'X72A'],
+            $service->parseScanPayload('https://kopafasta.test/v/KPF-TZ-X72A')
+        );
+        $this->assertSame(
+            ['type' => 'member', 'number' => 'X72A'],
+            $service->parseScanPayload('https://kopafasta.test/v/KPFTZX72A')
+        );
+        $this->assertSame(
+            ['type' => 'supplier', 'number' => 'Z9Y8'],
+            $service->parseScanPayload('https://kopafasta.test/v/p/PT-SP-TZ-Z9Y8')
+        );
+        $this->assertSame(
+            ['type' => 'member', 'number' => 'AB12'],
+            $service->parseScanPayload('KPF-TZ-AB12')
+        );
+    }
 }

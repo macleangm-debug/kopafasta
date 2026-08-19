@@ -106,6 +106,8 @@ class LoanProductRequirementSeeder extends Seeder
                     'Passport photo',
                     'Source of income proof',
                     '3 months bank statement',
+                    'National ID (front)',
+                    'National ID (back)',
                 ])
                 ->delete();
         });

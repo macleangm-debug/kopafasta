@@ -7,6 +7,7 @@
     'uploadUrls',
     'deleteUrls' => [],
     'submitUrl' => null,
+    'returnUrl' => null,
 ])
 
 <div
@@ -16,6 +17,7 @@
         uploadUrls: @js($uploadUrls),
         deleteUrls: @js($deleteUrls),
         submitUrl: @js($submitUrl ?? route('site.borrower.face-verification.submit')),
+        returnUrl: @js($returnUrl),
         startIndex: @js($wizard['current_index']),
     })"
     x-init="init()"
@@ -69,7 +71,7 @@
                     <template x-for="(step, i) in steps" :key="'intro-' + step.key + '-' + (step.previewUrl || '')">
                         <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3" x-show="step.done && step.previewUrl">
                             <p class="text-xs text-gray-500" x-text="step.label"></p>
-                            <div class="mt-2 flex items-start gap-3">
+                            <div class="mt-2 flex flex-col sm:flex-row sm:items-start gap-3">
                                 <button type="button"
                                         class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm relative"
                                         @click="openPreview(step.previewUrl)">
@@ -170,7 +172,7 @@
                 <template x-for="(step, i) in steps" :key="'review-' + step.key + '-' + (step.previewUrl || '')">
                     <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
                         <p class="text-xs text-gray-500" x-text="step.label"></p>
-                        <div class="mt-2 flex items-start gap-3">
+                        <div class="mt-2 flex flex-col sm:flex-row sm:items-start gap-3">
                             <button type="button"
                                     class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm hover:ring-brand/40 transition relative"
                                     @click="step.previewUrl ? openPreview(step.previewUrl) : null"
@@ -256,6 +258,7 @@
                     uploadUrls: config.uploadUrls,
                     deleteUrls: config.deleteUrls || {},
                     submitUrl: config.submitUrl || '',
+                    returnUrl: config.returnUrl || '',
                     stepIndex: config.startIndex,
                     stream: null,
                     faceDetector: null,
@@ -490,7 +493,8 @@
                             if (!res.ok || !data.ok) {
                                 throw new Error(data.message || 'Could not submit verification');
                             }
-                            window.location.reload();
+                            const next = data.redirect || this.returnUrl;
+                            window.location.href = next || window.location.href;
                         } catch (e) {
                             this.notice = e.message || 'Could not submit verification. Please try again.';
                             this.isSubmitting = false;

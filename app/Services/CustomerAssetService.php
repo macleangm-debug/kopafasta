@@ -33,11 +33,94 @@ class CustomerAssetService
             }
         }
 
-        return LoanApplication::query()
+        $open = fn ($q) => $q->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled', 'disbursed']);
+
+        $own = LoanApplication::query()
             ->where('customer_id', $customer->id)
-            ->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled', 'disbursed'])
+            ->tap($open)
             ->latest('id')
             ->first();
+
+        $group = LoanApplication::query()
+            ->tap($open)
+            ->where(function ($q) use ($customer): void {
+                $q->whereNotNull('loan_group_id')
+                    ->whereHas('loanGroup.members', function ($members) use ($customer): void {
+                        $members->where('customer_id', $customer->id)
+                            ->where('member_status', 'active');
+                    });
+            })
+            ->latest('id')
+            ->first();
+
+        // Auto-link only the file owner (individual borrower / group leader). Members
+        // pledge only when underwriting sent them an explicit application= request.
+        if ($group && (int) $group->customer_id === (int) $customer->id && $this->shouldAutoLinkOnProfileSave($group)) {
+            return $group;
+        }
+
+        if ($own && $this->shouldAutoLinkOnProfileSave($own)) {
+            return $own;
+        }
+
+        return $own;
+    }
+
+    /** True when a profile asset should be pledged onto this live file (not unsecured IL). */
+    public function shouldAutoLinkOnProfileSave(LoanApplication $application): bool
+    {
+        $application->loadMissing('product');
+
+        if (filled($application->loan_group_id)) {
+            return true;
+        }
+
+        $product = $application->product;
+        if ($product && (bool) $product->requires_collateral) {
+            return true;
+        }
+
+        if (app(GroupLendingService::class)->isGroupProduct($product)) {
+            return true;
+        }
+
+        if (app(AssetBackedLoanService::class)->isAssetBackedApplication($application)) {
+            return true;
+        }
+
+        $category = strtolower((string) ($product?->category ?? ''));
+
+        return in_array($category, ['asset_finance', 'asset_lending'], true);
+    }
+
+    /** Pledge the leader/borrower profile assets onto a collateral-backed group file. */
+    public function syncGroupFileAssets(LoanApplication $application): void
+    {
+        if (! $this->shouldAutoLinkOnProfileSave($application)) {
+            return;
+        }
+
+        if (! filled($application->loan_group_id)
+            && ! app(GroupLendingService::class)->isGroupProduct($application->product)) {
+            return;
+        }
+
+        $owner = $application->customer;
+        if (! $owner) {
+            $application->loadMissing('customer');
+            $owner = $application->customer;
+        }
+        if (! $owner) {
+            return;
+        }
+
+        foreach ($this->forCustomer($owner) as $asset) {
+            try {
+                $this->attachToApplication($asset, $application, $owner);
+            } catch (ValidationException) {
+                continue;
+            }
+        }
     }
 
     /**
@@ -255,6 +338,12 @@ class CustomerAssetService
             app(ApplicationDocumentRequestService::class)
                 ->markCollateralRequestsUploadedFromProfile($actor, $application);
 
+            try {
+                app(CollateralSecureService::class)->maybeAcceptMemberPledge($application, $actor, $asset);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             return $existing;
         }
 
@@ -287,6 +376,12 @@ class CustomerAssetService
 
         app(ApplicationDocumentRequestService::class)
             ->markCollateralRequestsUploadedFromProfile($actor, $application);
+
+        try {
+            app(CollateralSecureService::class)->maybeAcceptMemberPledge($application, $actor, $asset);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $created;
     }

@@ -26,7 +26,7 @@ class LoanProductRequirement extends Model
     }
 
     /**
-     * Product-checklist rows that duplicate profile capture (Face / Income verification).
+     * Product-checklist rows that duplicate profile capture (Face / NIDA / Income).
      * Hidden from screening Documents; seeders should not recreate them.
      */
     public function isProfileDuplicate(): bool
@@ -34,10 +34,44 @@ class LoanProductRequirement extends Model
         return self::nameLooksLikeProfileDuplicate((string) $this->name, (string) $this->description);
     }
 
+    public static function nameLooksLikeIdentityDocument(?string $name, ?string $description = null): bool
+    {
+        $name = strtolower(trim((string) $name));
+        $hay = $name.' '.strtolower(trim((string) $description));
+
+        if ($name === '') {
+            return false;
+        }
+
+        if (preg_match('/\b(nida|national id|national identification)\b/', $hay) === 1) {
+            return true;
+        }
+
+        if (in_array($name, ['id card', 'identity card', 'identity document', 'copy of id'], true)) {
+            return true;
+        }
+
+        // Face / ID-card product rows are reviewed on the identity checklist, not Documents.
+        if (str_contains($hay, 'face') && (
+            str_contains($hay, 'verification')
+            || str_contains($hay, 'capture')
+            || str_contains($hay, 'selfie')
+            || str_contains($hay, 'photo of id')
+        )) {
+            return true;
+        }
+
+        return false;
+    }
+
     public static function nameLooksLikeProfileDuplicate(?string $name, ?string $description = null): bool
     {
         $name = strtolower(trim((string) $name));
         $hay = $name.' '.strtolower(trim((string) $description));
+
+        if (self::nameLooksLikeIdentityDocument($name, $description)) {
+            return true;
+        }
 
         if ($name === 'passport photo'
             || str_contains($hay, 'passport-size')

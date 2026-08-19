@@ -228,6 +228,10 @@ class ScreeningChecklistService
             : User::query()->whereIn('id', $userIds)->pluck('name', 'id');
 
         $context = $this->evidenceContext($application, $person, $guarantorLinkId, $memberId, $review, $groupReview);
+        if (filled($application->loan_group_id)) {
+            app(CustomerAssetService::class)->syncGroupFileAssets($application);
+            $application->unsetRelation('collateralAssets');
+        }
         $kind = $this->kindFromSubject($subject);
         $systemSuggestions = app(ScreeningChecklistAutoVerdictService::class)
             ->suggest($application, $kind, $context);
@@ -237,7 +241,7 @@ class ScreeningChecklistService
         $passed = 0;
         $failed = 0;
         $total = 0;
-        $collateralApplies = $this->collateralReviewApplies($application);
+        $collateralApplies = $this->collateralReviewApplies($application, $person, $context);
 
         foreach ($this->catalog($subject) as $groupKey => $group) {
             $items = [];
@@ -825,11 +829,20 @@ class ScreeningChecklistService
 
     /**
      * Collateral checklist applies when the product is asset-backed, collateral is already
-     * attached, or screening has moved the file onto the secure-with-asset path.
+     * attached, screening has moved the file onto the secure-with-asset path, or this is
+     * a group file (leader desk). Member desks do not run the loan-collateral checklist —
+     * pledges belong on the group leader. Unsecured individual loans stay auto N/A even
+     * if the borrower has unrelated profile assets.
+     *
+     * @param  array<string, mixed>|null  $context
      */
-    public function collateralReviewApplies(LoanApplication $application): bool
+    public function collateralReviewApplies(LoanApplication $application, string $person = 'borrower', ?array $context = null): bool
     {
-        $application->loadMissing(['product', 'collateralAssets']);
+        $application->loadMissing(['product', 'collateralAssets.customerAsset', 'loanGroup.members']);
+
+        if ($person === 'member') {
+            return false;
+        }
 
         $product = $application->product;
         if ($product) {
@@ -852,6 +865,10 @@ class ScreeningChecklistService
             return true;
         }
 
+        if ($this->isGroupLoanFile($application)) {
+            return true;
+        }
+
         $secure = app(CollateralSecureService::class)->state($application);
         if (! is_array($secure)) {
             return false;
@@ -862,6 +879,15 @@ class ScreeningChecklistService
             CollateralSecureService::STATUS_REJECTED,
             CollateralSecureService::STATUS_EXPIRED,
         ], true);
+    }
+
+    private function isGroupLoanFile(LoanApplication $application): bool
+    {
+        if (filled($application->loan_group_id)) {
+            return true;
+        }
+
+        return app(GroupLendingService::class)->isGroupProduct($application->product);
     }
 
     /**

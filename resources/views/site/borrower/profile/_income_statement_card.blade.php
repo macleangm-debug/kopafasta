@@ -71,6 +71,7 @@
                             :label="$item['label']"
                             :input-host-id="'income-view-'.($item['key'] ?? $loop->index)"
                             :read-only="false"
+                            :nested="true"
                         />
                     </div>
                 @endforeach

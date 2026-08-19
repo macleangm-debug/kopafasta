@@ -154,6 +154,83 @@ class CardVerificationService
     }
 
     /**
+     * Parse a scanned QR payload (verify URL or full card number) into form fields.
+     *
+     * @return array{type: string, number: string}|null
+     */
+    public function parseScanPayload(string $raw): ?array
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+
+        $token = $raw;
+        $preferPartner = false;
+        $path = $raw;
+
+        if (preg_match('#^https?://#i', $raw) || str_starts_with($raw, '/')) {
+            if (preg_match('#^https?://#i', $raw)) {
+                $path = (string) (parse_url($raw, PHP_URL_PATH) ?: '');
+            }
+            $path = rawurldecode(rtrim($path, '/'));
+            if (preg_match('#/v/p/([^/]+)$#i', $path, $match)
+                || preg_match('#/borrower/verify/p/([^/]+)$#i', $path, $match)) {
+                $token = rawurldecode($match[1]);
+                $preferPartner = true;
+            } elseif (preg_match('#/borrower/verify/member/([^/]+)$#i', $path, $match)
+                || preg_match('#/v/([^/]+)$#i', $path, $match)) {
+                $token = rawurldecode($match[1]);
+            }
+        }
+
+        $clean = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $token) ?? '');
+        if ($clean === '') {
+            return null;
+        }
+
+        $types = $this->types();
+        $search = $preferPartner
+            ? array_filter($types, fn (array $meta) => ($meta['kind'] ?? '') === 'partner')
+            : $types;
+
+        $matched = $this->matchTypeFromCleanId($search, $clean)
+            ?? $this->matchTypeFromCleanId($types, $clean);
+
+        if ($matched) {
+            return $matched;
+        }
+
+        if ($preferPartner) {
+            return null;
+        }
+
+        return ['type' => 'member', 'number' => $clean];
+    }
+
+    /**
+     * @param  array<string, array{prefix: string, kind?: string}>  $types
+     * @return array{type: string, number: string}|null
+     */
+    private function matchTypeFromCleanId(array $types, string $clean): ?array
+    {
+        foreach ($types as $type => $meta) {
+            $prefixClean = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) ($meta['prefix'] ?? '')) ?? '');
+            if ($prefixClean === '' || ! str_starts_with($clean, $prefixClean)) {
+                continue;
+            }
+            $suffix = substr($clean, strlen($prefixClean));
+            if ($suffix === '') {
+                return null;
+            }
+
+            return ['type' => $type, 'number' => $suffix];
+        }
+
+        return null;
+    }
+
+    /**
      * Resolve a short-link token (with or without dashes) to a verification result.
      *
      * @return array<string, mixed>

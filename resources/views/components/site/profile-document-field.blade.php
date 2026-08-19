@@ -10,6 +10,7 @@
     'removeUrl' => null,
     'documentCode' => null,
     'readOnly' => false,
+    'nested' => false,
 ])
 
 @php
@@ -24,51 +25,64 @@
     $fileName = (string) ($meta['original_name'] ?? ($document?->file_path ? basename($document->file_path) : ''));
     $statusLabel = $document ? app(\App\Services\ProfileDocumentService::class)->statusLabel($document) : '';
     $previewUrl = ($document && $document->file_path) ? asset('storage/'.$document->file_path) : null;
+    $fileExt = strtoupper(pathinfo($fileName !== '' ? $fileName : (string) ($document?->file_path ?? ''), PATHINFO_EXTENSION) ?: 'FILE');
 @endphp
 
 <div x-data="{ replaceMode: false }" class="space-y-3">
     @if ($document)
         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4">
-            <div class="flex items-start gap-4 flex-wrap">
-                <div class="shrink-0">
-                    @if ($isImage && $previewUrl)
-                        <button type="button" onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), 'image')"
-                                class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 overflow-hidden bg-white cursor-zoom-in block"
-                                title="{{ __('borrower.profile.view_document') }}">
-                            <img src="{{ $previewUrl }}" alt="" class="h-full w-full object-cover object-center">
-                        </button>
-                    @elseif ($isPdf)
-                        <button type="button" onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), 'pdf')"
-                                class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex flex-col items-center justify-center text-emerald-800 cursor-zoom-in"
-                                title="{{ __('borrower.profile.view_document') }}">
-                            <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
-                            <span class="text-[10px] font-bold mt-1">PDF</span>
-                        </button>
-                    @else
-                        <div class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex items-center justify-center text-emerald-800 text-xs font-semibold">
-                            {{ strtoupper(pathinfo($document->file_path, PATHINFO_EXTENSION) ?: 'FILE') }}
-                        </div>
-                    @endif
-                </div>
+            <div class="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+                <div class="flex items-start gap-3 min-w-0 flex-1">
+                    <div class="shrink-0">
+                        @if ($isImage && $previewUrl)
+                            <button type="button" onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), 'image')"
+                                    class="h-16 w-16 sm:h-24 sm:w-24 rounded-lg ring-1 ring-emerald-200 overflow-hidden bg-white cursor-zoom-in block"
+                                    title="{{ __('borrower.profile.view_document') }}">
+                                <img src="{{ $previewUrl }}" alt="" class="h-full w-full object-cover object-center">
+                            </button>
+                        @elseif ($isPdf)
+                            <button type="button" onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), 'pdf')"
+                                    class="h-16 w-16 sm:h-24 sm:w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex flex-col items-center justify-center text-emerald-800 cursor-zoom-in"
+                                    title="{{ __('borrower.profile.view_document') }}">
+                                <svg class="h-8 w-8 sm:h-10 sm:w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                </svg>
+                                <span class="text-[10px] font-bold mt-0.5 sm:mt-1">PDF</span>
+                            </button>
+                        @else
+                            <div class="h-16 w-16 sm:h-24 sm:w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex items-center justify-center text-emerald-800 text-xs font-semibold">
+                                {{ $fileExt }}
+                            </div>
+                        @endif
+                    </div>
 
-                <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-emerald-900">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>
-                    <dl class="mt-2 space-y-1 text-xs text-emerald-800">
-                        @if ($fileName !== '')
-                            <div><span class="font-medium">{{ __('borrower.profile.document_file_name') }}:</span> {{ $fileName }}</div>
-                        @endif
-                        <div><span class="font-medium">{{ __('borrower.profile.uploaded_on') }}</span> {{ $document->created_at?->format('d M Y, H:i') ?? '—' }}</div>
-                        @if ($mode === 'multi' && $pageCount > 1)
-                            <div><span class="font-medium">{{ __('borrower.profile.document_page_count') }}:</span> {{ $pageCount }}</div>
-                        @endif
-                        <div><span class="font-medium">{{ __('borrower.profile.document_status_label') }}:</span> {{ $statusLabel }}</div>
-                    </dl>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-emerald-900 truncate {{ $nested ? 'hidden sm:block' : '' }}">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>
+                        <p class="mt-1 sm:hidden text-xs text-emerald-800">
+                            <span class="font-semibold">{{ $statusLabel }}</span>
+                            <span class="text-emerald-700/80"> · {{ $document->created_at?->format('d M Y') ?? '—' }}</span>
+                            @if ($mode === 'multi' && $pageCount > 1)
+                                <span class="text-emerald-700/80"> · {{ $pageCount }} {{ __('borrower.profile.document_page_count') }}</span>
+                            @endif
+                        </p>
+                        <dl class="hidden sm:block mt-2 space-y-1 text-xs text-emerald-800">
+                            @if ($fileName !== '')
+                                <div class="truncate" title="{{ $fileName }}">
+                                    <span class="font-medium">{{ __('borrower.profile.document_file_name') }}:</span>
+                                    {{ $fileName }}
+                                </div>
+                            @endif
+                            <div><span class="font-medium">{{ __('borrower.profile.uploaded_on') }}</span> {{ $document->created_at?->format('d M Y, H:i') ?? '—' }}</div>
+                            @if ($mode === 'multi' && $pageCount > 1)
+                                <div><span class="font-medium">{{ __('borrower.profile.document_page_count') }}:</span> {{ $pageCount }}</div>
+                            @endif
+                            <div><span class="font-medium">{{ __('borrower.profile.document_status_label') }}:</span> {{ $statusLabel }}</div>
+                        </dl>
+                    </div>
                 </div>
 
                 @if ($document->file_path)
-                    <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-2 shrink-0 flex-wrap w-full sm:w-auto">
                         @if ($previewUrl)
                             <button type="button"
                                     onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), @js($isPdf ? 'pdf' : 'image'))"
