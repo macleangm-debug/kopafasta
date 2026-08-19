@@ -35,17 +35,18 @@ class ValuationFeeMarkupSplitFeatureTest extends TestCase
         $this->seed(ValuationPricingDefaultsSeeder::class);
     }
 
-    public function test_defaults_are_base_300_with_10_percent_markup(): void
+    public function test_defaults_are_base_1000_per_asset_with_10_percent_markup(): void
     {
         $defaults = app(PartnerDefaultsService::class);
-        $this->assertSame(300.0, $defaults->valuerBaseCost());
+        $this->assertSame(1000.0, $defaults->valuerBaseCost());
         $this->assertSame(10.0, $defaults->valuerMarkupPercent());
 
         $quote = app(ValuationPricingService::class)->quote();
-        $this->assertSame(300, $quote['partner_share']);
-        $this->assertSame(30, $quote['markup_amount']);
-        $this->assertSame(330, $quote['borrower_amount']);
-        $this->assertSame(330, quoted_valuation_fee(null));
+        $this->assertSame(1000, $quote['partner_share']);
+        $this->assertSame(100, $quote['markup_amount']);
+        $this->assertSame(1100, $quote['borrower_amount']);
+        $this->assertSame(1100, quoted_valuation_fee(null));
+        $this->assertSame(2200, quoted_valuation_fee(null, 2));
     }
 
     public function test_valuation_payment_ledger_splits_markup_and_partner_payable(): void
@@ -64,17 +65,17 @@ class ValuationFeeMarkupSplitFeatureTest extends TestCase
             'customer_id' => $customer->id,
             'payment_type' => 'valuation_fee',
             'payment_method' => 'mobile_money',
-            'amount' => 330,
+            'amount' => 1100,
             'currency' => 'TZS',
             'status' => 'verified',
             'paid_at' => now(),
             'verified_at' => now(),
             'provider_meta' => [
                 'fee_split' => [
-                    'partner_share' => 300,
-                    'markup_amount' => 30,
+                    'partner_share' => 1000,
+                    'markup_amount' => 100,
                     'markup_percent' => 10,
-                    'borrower_amount' => 330,
+                    'borrower_amount' => 1100,
                 ],
             ],
         ]);
@@ -91,8 +92,8 @@ class ValuationFeeMarkupSplitFeatureTest extends TestCase
             ->get()
             ->keyBy('chart_of_account_id');
 
-        $this->assertSame(30.0, (float) $credits[$revenueId]->credit);
-        $this->assertSame(300.0, (float) $credits[$payableId]->credit);
+        $this->assertSame(100.0, (float) $credits[$revenueId]->credit);
+        $this->assertSame(1000.0, (float) $credits[$payableId]->credit);
     }
 
     public function test_valuation_complete_accrues_partner_base_only(): void
@@ -148,7 +149,7 @@ class ValuationFeeMarkupSplitFeatureTest extends TestCase
         $actor = User::factory()->create(['role' => 'admin']);
         $service = app(ValuationPartnerService::class);
         $assignment = $service->assign($application, $valuer, $actor);
-        $this->assertSame(300, (int) $assignment->vendorTask->fee_amount);
+        $this->assertSame(1000, (int) $assignment->vendorTask->fee_amount);
 
         $service->complete($assignment->fresh(), 5_000_000, 4_000_000, 'Done');
 
@@ -158,6 +159,6 @@ class ValuationFeeMarkupSplitFeatureTest extends TestCase
             ->first();
 
         $this->assertNotNull($wallet);
-        $this->assertSame(300, (int) $wallet->amount);
+        $this->assertSame(1000, (int) $wallet->amount);
     }
 }

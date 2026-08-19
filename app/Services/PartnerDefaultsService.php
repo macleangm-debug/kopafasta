@@ -41,6 +41,7 @@ class PartnerDefaultsService
             'pricing_mode' => $meta['pricing_mode'] ?? 'fixed',
             'add_category' => $meta['add_category'] ?? $category,
             'help' => $meta['help'] ?? null,
+            'charge_unit' => $meta['charge_unit'] ?? null,
             'has_markup' => $hasMarkup,
             'markup_percent' => $hasMarkup ? $markup : 0.0,
             'stored_markup_percent' => $markup,
@@ -189,7 +190,9 @@ class PartnerDefaultsService
         if ($mode === 'percent_of_value') {
             $lines[] = 'Default cover rate: '.rtrim(rtrim(number_format((float) $defaults['rate_percent'], 2), '0'), '.').'% of insured value';
         } else {
-            $lines[] = 'Default base price: TZS '.number_format((float) ($defaults['base_cost'] ?? 0), 0);
+            $unit = (string) ($defaults['charge_unit'] ?? '');
+            $lines[] = 'Default base price: TZS '.number_format((float) ($defaults['base_cost'] ?? 0), 0)
+                .($unit !== '' ? ' '.$unit : '');
         }
 
         if ($mode === 'fixed_plus_recurring') {

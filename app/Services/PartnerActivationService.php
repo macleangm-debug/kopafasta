@@ -104,16 +104,15 @@ class PartnerActivationService
             ]);
         }
 
-        if ($vendor->user_id && $vendor->activated_at) {
-            throw ValidationException::withMessages([
-                'vendor' => 'This partner account is already activated.',
-            ]);
-        }
+        $alreadyActive = (bool) ($vendor->user_id && $vendor->activated_at);
 
-        $validated = validator($data, [
+        $rules = [
             'pin' => ['nullable', 'digits:4'],
-            'collection_conduct_accepted' => ['accepted'],
-        ])->validate();
+        ];
+        if (! $alreadyActive && array_key_exists('collection_conduct_accepted', $data)) {
+            $rules['collection_conduct_accepted'] = ['accepted'];
+        }
+        $validated = validator($data, $rules)->validate();
 
         $password = Str::password(32);
 
@@ -158,12 +157,14 @@ class PartnerActivationService
         }
 
         $meta = is_array($vendor->metadata) ? $vendor->metadata : [];
-        $meta['collection_conduct_accepted_at'] = now()->toIso8601String();
-        $meta['collection_conduct_version'] = 'bot-2024-5.1f';
+        if (! $alreadyActive) {
+            $meta['collection_conduct_accepted_at'] = now()->toIso8601String();
+            $meta['collection_conduct_version'] = 'bot-2024-5.1f';
+        }
 
         $vendor->update([
             'user_id'           => $user->id,
-            'activated_at'      => now(),
+            'activated_at'      => $vendor->activated_at ?: now(),
             'activation_token'  => null,
             'status'            => 'active',
             'metadata'          => $meta,
@@ -193,5 +194,26 @@ class PartnerActivationService
         $token = $this->prepareActivation($vendor);
 
         return $this->activate($vendor->fresh(), $token, filled($pin) ? ['pin' => $pin] : []);
+    }
+
+    public function setPortalPin(Vendor $vendor, string $pin): void
+    {
+        $user = $vendor->user_id ? User::query()->find($vendor->user_id) : null;
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'pin' => 'This partner has no portal login yet. Re-issue activation so they can create a PIN.',
+            ]);
+        }
+
+        app(PinService::class)->setPin($user, $pin);
+        $user->update(['is_active' => true]);
+        if ($vendor->status !== 'active') {
+            $vendor->update(['status' => 'active']);
+        }
+    }
+
+    public function reissueActivation(Vendor $vendor, ?User $actor = null, bool $notify = false): Vendor
+    {
+        return $this->sendActivationInvite($vendor, $actor, $notify);
     }
 }

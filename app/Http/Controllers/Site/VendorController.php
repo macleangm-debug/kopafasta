@@ -418,6 +418,9 @@ class VendorController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             'market_value' => ['nullable', 'numeric', 'min:0'],
             'forced_sale_value' => ['nullable', 'numeric', 'min:0'],
+            'values' => ['nullable', 'array'],
+            'values.*.market_value' => ['nullable', 'numeric', 'min:0'],
+            'values.*.forced_sale_value' => ['nullable', 'numeric', 'min:0'],
             'insurance_expires_at' => ['nullable', 'date'],
             'insurance_policy_number' => ['nullable', 'string', 'max:120'],
             'insurance_type' => ['nullable', 'in:comprehensive,third_party'],
@@ -428,23 +431,42 @@ class VendorController extends Controller
                 ->where('partner_task_id', $task->id)
                 ->first();
 
-            if ($assignment && filled($data['market_value'] ?? null) && filled($data['forced_sale_value'] ?? null)) {
-                app(ValuationPartnerService::class)->complete(
-                    $assignment,
-                    (float) $data['market_value'],
-                    (float) $data['forced_sale_value'],
-                    $data['notes'] ?? null,
-                );
-            } else {
-                $task->update([
-                    'status' => 'completed',
-                    'completed_at' => now(),
-                    'notes' => $data['notes'] ?? $task->notes,
-                ]);
-                app(PartnerTaskLifecycleService::class)->closeLinkedValuation(
-                    $task->fresh(),
-                    'Aligned with the completed partner task.',
-                );
+            if ($assignment) {
+                $perAsset = [];
+                foreach ((array) ($data['values'] ?? []) as $assetId => $row) {
+                    if (! filled($row['market_value'] ?? null) || ! filled($row['forced_sale_value'] ?? null)) {
+                        continue;
+                    }
+                    $perAsset[(int) $assetId] = [
+                        'market_value' => (float) $row['market_value'],
+                        'forced_sale_value' => (float) $row['forced_sale_value'],
+                    ];
+                }
+                $market = $perAsset !== []
+                    ? (float) collect($perAsset)->sum('market_value')
+                    : (float) ($data['market_value'] ?? 0);
+                $fsv = $perAsset !== []
+                    ? (float) collect($perAsset)->sum('forced_sale_value')
+                    : (float) ($data['forced_sale_value'] ?? 0);
+                if ($market > 0 && $fsv > 0) {
+                    app(ValuationPartnerService::class)->complete(
+                        $assignment,
+                        $market,
+                        $fsv,
+                        $data['notes'] ?? null,
+                        $perAsset,
+                    );
+                } else {
+                    $task->update([
+                        'status' => 'completed',
+                        'completed_at' => now(),
+                        'notes' => $data['notes'] ?? $task->notes,
+                    ]);
+                    app(PartnerTaskLifecycleService::class)->closeLinkedValuation(
+                        $task->fresh(),
+                        'Aligned with the completed partner task.',
+                    );
+                }
             }
 
             return redirect()->route('site.partner.task', $task)
@@ -519,6 +541,7 @@ class VendorController extends Controller
         $data = $request->validate([
             'label' => ['nullable', 'string', 'max:80'],
             'angle' => ['nullable', 'string', 'max:20'],
+            'customer_asset_id' => ['nullable', 'integer'],
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
@@ -528,10 +551,13 @@ class VendorController extends Controller
             $angles = \App\Models\CustomerAsset::photoAngleLabels();
             $angle = (string) ($data['angle'] ?? \App\Models\CustomerAsset::angleFromLabel($label) ?? '');
             if ($angle === '' || ! isset($angles[$angle])) {
-                return back()->withErrors(['angle' => 'Select the photo angle (front, back, left, or right).']);
+                return back()->withErrors(['angle' => 'Select the photo angle (front, back, left, right, or owner with asset).']);
             }
-            $label = $angles[$angle];
-            $payload['doc_type'] = 'asset_photo_'.$angle;
+            $assetId = (int) ($data['customer_asset_id'] ?? 0);
+            $label = $angles[$angle].($assetId > 0 ? ' #'.$assetId : '');
+            $payload['doc_type'] = $assetId > 0
+                ? 'asset_photo_'.$angle.'_'.$assetId
+                : 'asset_photo_'.$angle;
         } elseif ($label === '') {
             return back()->withErrors(['label' => 'Add a label for this file.']);
         }

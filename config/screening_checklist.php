@@ -308,7 +308,7 @@ return [
                 ],
             ],
             'valuation_or_photos' => [
-                'label' => 'Match valuer photos to the pledged asset (front, back, left, right)',
+                'label' => 'Match valuer photos to the pledged asset (front, back, left, right, owner with asset)',
                 'evidence' => 'collateral_assets',
                 'system' => true,
                 'fail_reasons' => [

@@ -49,17 +49,36 @@ class CollateralCoverageService
     public function evaluate(LoanApplication $application): array
     {
         $application->loadMissing(['collateralAssets.customerAsset', 'product']);
-        $row = $application->collateralAssets
-            ->first(fn (LoanApplicationAsset $asset) => ($asset->uw_status ?? '') !== LoanApplicationAsset::UW_DECLINED);
+        $keepIds = app(CustomerAssetService::class)->onLoanAssetIds($application);
+        $rows = $application->collateralAssets
+            ->filter(function (LoanApplicationAsset $asset) use ($keepIds) {
+                if (($asset->uw_status ?? '') === LoanApplicationAsset::UW_DECLINED) {
+                    return false;
+                }
+                if (! filled($asset->forced_sale_value)) {
+                    return false;
+                }
+                $cid = (int) ($asset->customer_asset_id ?? 0);
 
-        $forcedSale = (float) ($row?->forced_sale_value ?? 0);
-        $assetType = (string) ($row?->asset_type ?: $row?->customerAsset?->asset_type ?: 'default');
-        $ltvPercent = $row && (float) $row->ltv_percent > 0
-            ? (float) $row->ltv_percent
+                return $keepIds === [] ? false : in_array($cid, $keepIds, true);
+            });
+
+        $forcedSale = (float) $rows->sum(fn (LoanApplicationAsset $asset) => (float) $asset->forced_sale_value);
+        $maxLoan = (float) $rows->sum(function (LoanApplicationAsset $asset) {
+            $type = (string) ($asset->asset_type ?: $asset->customerAsset?->asset_type ?: 'default');
+            $ownMax = (float) ($asset->max_loan_amount ?? 0);
+            if ($ownMax > 0) {
+                return $ownMax;
+            }
+
+            return $this->maxLoanFromForcedSale((float) ($asset->forced_sale_value ?? 0), $type);
+        });
+        $first = $rows->first()
+            ?? $application->collateralAssets->first(fn (LoanApplicationAsset $asset) => ($asset->uw_status ?? '') !== LoanApplicationAsset::UW_DECLINED);
+        $assetType = (string) ($first?->asset_type ?: $first?->customerAsset?->asset_type ?: 'default');
+        $ltvPercent = $first && (float) $first->ltv_percent > 0
+            ? (float) $first->ltv_percent
             : $this->ltvPercentFor($assetType);
-        $maxLoan = $row && (float) $row->max_loan_amount > 0
-            ? (float) $row->max_loan_amount
-            : $this->maxLoanFromForcedSale($forcedSale, $assetType);
         $requested = (float) ($application->requested_amount ?? 0);
         $sufficient = $forcedSale > 0 && $maxLoan + 0.009 >= $requested;
         $shortfall = $sufficient ? 0.0 : max(0, round($requested - $maxLoan, 2));
@@ -69,12 +88,15 @@ class CollateralCoverageService
         $insurance = ['ok' => true, 'reason' => null];
         $next = self::NEXT_OK;
         if ($sufficient) {
-            $asset = $row?->customerAsset;
-            if ($asset instanceof CustomerAsset) {
-                $insurance = app(CollateralSecureService::class)->insuranceCheck($application, $asset);
-            }
-            if (! ($insurance['ok'] ?? true)) {
-                $next = self::NEXT_INSURANCE;
+            foreach ($rows as $pledge) {
+                $asset = $pledge->customerAsset;
+                if ($asset instanceof CustomerAsset) {
+                    $insurance = app(CollateralSecureService::class)->insuranceCheck($application, $asset);
+                    if (! ($insurance['ok'] ?? true)) {
+                        $next = self::NEXT_INSURANCE;
+                        break;
+                    }
+                }
             }
         } else {
             $next = $alreadyGuarantor ? self::NEXT_REDUCE_AMOUNT : self::NEXT_ADD_COLLATERAL;
@@ -139,7 +161,7 @@ class CollateralCoverageService
         $rows = [
             [
                 'code' => self::NEXT_ADD_COLLATERAL,
-                'label' => 'Add another borrower asset so combined LTV covers the requested amount.',
+                'label' => 'Ask the borrower / group leader to add another asset. They must pick it themselves.',
             ],
         ];
         if (! $alreadyGuarantor) {

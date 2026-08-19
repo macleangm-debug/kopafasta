@@ -180,9 +180,11 @@
                                 $facePhoto = collect($item['evidence']['photos'])->firstWhere('role', 'face');
                                 $idPhoto = collect($item['evidence']['photos'])->firstWhere('role', 'id');
                                 $supportPhotos = collect($item['evidence']['photos'])->where('role', 'face_support')->values();
+                                $evidenceAssets = collect($item['evidence']['assets'] ?? []);
                             @endphp
                             <div x-data="{
                                      lightbox: null,
+                                     assetTab: {{ (int) ($evidenceAssets->first()['id'] ?? 0) }},
                                      open(url, label) { this.lightbox = { url, label } },
                                      close() { this.lightbox = null }
                                  }">
@@ -190,38 +192,32 @@
                                     <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">
                                         <div class="px-3 py-2 bg-brand-muted/40 border-b border-brand/10">
                                             <p class="text-[11px] font-bold text-brand uppercase tracking-widest">Asset photo · Valuer photo</p>
-                                            <p class="text-[11px] text-gray-600 mt-0.5">Same angle, side by side. The system matches front, back, left, and right.</p>
+                                            <p class="text-[11px] text-gray-600 mt-0.5">Same angle, side by side — including owner with asset.</p>
                                         </div>
-                                        <div class="divide-y divide-gray-100">
-                                            @foreach ($item['evidence']['photo_pairs'] as $pair)
-                                                <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
-                                                    <button type="button" class="p-3 text-left hover:bg-gray-50/80 transition"
-                                                            @if (! empty($pair['borrower']['url']))
-                                                                @click="open(@js($pair['borrower']['url']), @js($pair['borrower']['label'] ?? $pair['label']))"
-                                                            @endif>
-                                                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">Asset · {{ $pair['label'] }}</p>
-                                                        @if (! empty($pair['borrower']['url']))
-                                                            <img src="{{ $pair['borrower']['url'] }}" alt="{{ $pair['label'] }}" class="w-full max-h-56 object-cover rounded-lg ring-1 ring-gray-200">
-                                                            <span class="text-[11px] font-semibold text-brand mt-1.5 inline-block">Enlarge</span>
-                                                        @else
-                                                            <div class="h-40 grid place-items-center rounded-lg bg-slate-50 text-sm text-slate-600 ring-1 ring-slate-100">No {{ strtolower($pair['label'] ?? 'angle') }} photo on the asset profile</div>
-                                                        @endif
+                                        @if ($evidenceAssets->count() > 1)
+                                            <div class="flex gap-1.5 overflow-x-auto px-3 py-2 border-b border-gray-100">
+                                                @foreach ($evidenceAssets as $evAsset)
+                                                    <button type="button" @click="assetTab = {{ (int) $evAsset['id'] }}"
+                                                            class="shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold"
+                                                            :class="assetTab === {{ (int) $evAsset['id'] }} ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'">
+                                                        {{ $evAsset['label'] ?? 'Asset' }}
                                                     </button>
-                                                    <button type="button" class="p-3 text-left hover:bg-gray-50/80 transition"
-                                                            @if (! empty($pair['valuer']['url']))
-                                                                @click="open(@js($pair['valuer']['url']), @js($pair['valuer']['label'] ?? $pair['label']))"
-                                                            @endif>
-                                                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">Valuer · {{ $pair['label'] }}</p>
-                                                        @if (! empty($pair['valuer']['url']))
-                                                            <img src="{{ $pair['valuer']['url'] }}" alt="{{ $pair['label'] }}" class="w-full max-h-56 object-cover rounded-lg ring-1 ring-gray-200">
-                                                            <span class="text-[11px] font-semibold text-brand mt-1.5 inline-block">Enlarge</span>
-                                                        @else
-                                                            <div class="h-40 grid place-items-center rounded-lg bg-amber-50 text-sm text-amber-800 ring-1 ring-amber-100">Valuer has not uploaded this angle</div>
-                                                        @endif
-                                                    </button>
+                                                @endforeach
+                                            </div>
+                                            @foreach ($evidenceAssets as $evAsset)
+                                                <div x-show="assetTab === {{ (int) $evAsset['id'] }}" x-cloak class="divide-y divide-gray-100">
+                                                    @foreach ($evAsset['photo_pairs'] ?? [] as $pair)
+                                                        @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair])
+                                                    @endforeach
                                                 </div>
                                             @endforeach
-                                        </div>
+                                        @else
+                                            <div class="divide-y divide-gray-100">
+                                                @foreach ($item['evidence']['photo_pairs'] as $pair)
+                                                    @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair])
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 @elseif ($photoLayout === 'face_id_compare' && ($facePhoto || $idPhoto))
                                     <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">

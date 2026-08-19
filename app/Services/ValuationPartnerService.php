@@ -40,22 +40,16 @@ class ValuationPartnerService
             ]);
         }
 
-        $designatedId = app(CustomerAssetService::class)->designatedAssetId($application);
-        $asset = $designatedId
-            ? LoanApplicationAsset::query()
-                ->where('loan_application_id', $application->id)
-                ->where('customer_asset_id', $designatedId)
-                ->first()
-            : null;
-        if (! $asset) {
-            $asset = LoanApplicationAsset::query()
-                ->where('loan_application_id', $application->id)
-                ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
-                ->orderByDesc('is_primary')
-                ->orderBy('id')
-                ->first();
-        }
-
+        $designatedIds = app(CustomerAssetService::class)->onLoanAssetIds($application);
+        $pledges = LoanApplicationAsset::query()
+            ->with('customerAsset')
+            ->where('loan_application_id', $application->id)
+            ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+            ->when($designatedIds !== [], fn ($q) => $q->whereIn('customer_asset_id', $designatedIds))
+            ->orderByDesc('is_primary')
+            ->orderBy('id')
+            ->get();
+        $asset = $pledges->first();
         if (! $asset) {
             $asset = LoanApplicationAsset::query()->create([
                 'loan_application_id' => $application->id,
@@ -64,6 +58,7 @@ class ValuationPartnerService
                 'uw_status'           => LoanApplicationAsset::UW_PENDING,
                 'is_primary'          => true,
             ]);
+            $pledges = collect([$asset]);
         }
 
         $asset->loadMissing('customerAsset');
@@ -79,10 +74,11 @@ class ValuationPartnerService
             ]);
         }
 
+        $assetCount = max(1, $pledges->filter(fn ($row) => $row->customer_asset_id)->count());
         if (! app(AssetBackedLoanService::class)->isAssetBackedApplication($application)) {
-            $due = (int) quoted_valuation_fee($application->customer);
+            $due = (int) quoted_valuation_fee($application->customer, $assetCount);
             $state = app(CollateralSecureService::class)->state($application);
-            $assetPaid = filled($asset->valuation_fee_paid_at);
+            $assetPaid = $pledges->contains(fn ($row) => filled($row->valuation_fee_paid_at));
             $statePaid = filled($state['valuation_fee_paid_at'] ?? null);
             if ($due > 0 && ! $assetPaid && ! $statePaid) {
                 throw ValidationException::withMessages([
@@ -91,12 +87,16 @@ class ValuationPartnerService
             }
         }
 
-        return DB::transaction(function () use ($application, $valuer, $actor, $notes, $asset) {
+        return DB::transaction(function () use ($application, $valuer, $actor, $notes, $asset, $pledges, $assetCount) {
             $customer = $application->customer;
-            $assetDescription = trim(collect([
-                $asset->description,
-                $asset->asset_type ? ucfirst(str_replace('_', ' ', $asset->asset_type)) : null,
-            ])->filter()->implode(' · '));
+            $labels = $pledges->map(function (LoanApplicationAsset $row) {
+                return trim(collect([
+                    $row->customerAsset?->label,
+                    $row->description,
+                    $row->asset_type ? ucfirst(str_replace('_', ' ', $row->asset_type)) : null,
+                ])->filter()->implode(' · '));
+            })->filter()->values();
+            $assetDescription = $labels->implode(' | ');
 
             $location = trim(collect([
                 $customer->street ?? null,
@@ -106,17 +106,21 @@ class ValuationPartnerService
 
             $slaDays = app(PartnerAutoAssignPolicy::class)->slaDaysForService('valuer');
 
+            $profileIds = $pledges->pluck('customer_asset_id')->filter()->map(fn ($id) => (int) $id)->values()->all();
             $profileAsset = $asset->customerAsset;
             $angleLabels = CustomerAsset::photoAngleLabels($profileAsset?->asset_type);
             $taskNotes = json_encode([
                 'message' => $notes,
-                'customer_asset_id' => $profileAsset?->id,
+                'customer_asset_id' => $profileIds[0] ?? $profileAsset?->id,
+                'customer_asset_ids' => $profileIds,
                 'photo_angles' => array_keys($angleLabels),
             ], JSON_UNESCAPED_UNICODE);
             $angleList = implode(', ', array_values($angleLabels));
-            $instruction = ($notes ?: 'Inspect the asset physically, upload photos, and submit market and forced sale values.')
-                ."\n\nTake the same angles as the borrower profile: {$angleList}.";
+            $instruction = ($notes ?: 'Inspect each pledged asset physically, upload photos, and submit market and forced sale values per asset.')
+                ."\n\nAssets on this job: ".($assetDescription ?: '1 asset')
+                .".\nTake the same angles as the borrower profile: {$angleList}.";
 
+            $unitCost = (int) round(app(PartnerDefaultsService::class)->valuerBaseCost($valuer));
             $task = VendorTask::create([
                 'vendor_id'       => $valuer->id,
                 'loan_id'         => $application->loan_id,
@@ -130,7 +134,7 @@ class ValuationPartnerService
                 'location'        => $location ?: null,
                 'instructions'    => $instruction,
                 'notes'           => $taskNotes,
-                'fee_amount'      => (int) round(app(PartnerDefaultsService::class)->valuerBaseCost($valuer)),
+                'fee_amount'      => $unitCost * $assetCount,
             ]);
 
             $assignment = ValuationAssignment::create([
@@ -143,7 +147,9 @@ class ValuationPartnerService
                 'assigned_at'         => now(),
             ]);
 
-            $asset->update(['valuation_status' => 'assigned']);
+            foreach ($pledges as $pledge) {
+                $pledge->update(['valuation_status' => 'assigned']);
+            }
 
             $fresh = $assignment->fresh(['vendor', 'vendorTask', 'application.customer']);
 
@@ -207,6 +213,7 @@ class ValuationPartnerService
         float $marketValue,
         float $forcedSaleValue,
         ?string $notes = null,
+        array $perAsset = [],
     ): ValuationAssignment {
         if (! in_array($assignment->status, [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS], true)) {
             throw ValidationException::withMessages([
@@ -214,7 +221,7 @@ class ValuationPartnerService
             ]);
         }
 
-        return DB::transaction(function () use ($assignment, $marketValue, $forcedSaleValue, $notes) {
+        return DB::transaction(function () use ($assignment, $marketValue, $forcedSaleValue, $notes, $perAsset) {
             $assignment->update([
                 'status'            => ValuationAssignment::STATUS_COMPLETED,
                 'market_value'      => $marketValue,
@@ -258,38 +265,53 @@ class ValuationPartnerService
             }
 
             $application = $assignment->application;
-            $assetRow = LoanApplicationAsset::query()
+            $keepIds = app(CustomerAssetService::class)->onLoanAssetIds($application);
+            $pledges = LoanApplicationAsset::query()
                 ->where('loan_application_id', $application->id)
                 ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+                ->when($keepIds !== [], fn ($q) => $q->whereIn('customer_asset_id', $keepIds))
+                ->with('customerAsset')
                 ->orderByDesc('is_primary')
                 ->orderBy('id')
-                ->first();
-            $assetType = $assetRow?->asset_type
-                ?? LoanApplicationAsset::query()->where('loan_application_id', $application->id)->value('asset_type')
-                ?? 'saloon_car';
+                ->get();
+            if ($pledges->isEmpty()) {
+                $pledges = collect([
+                    LoanApplicationAsset::query()
+                        ->where('loan_application_id', $application->id)
+                        ->orderByDesc('is_primary')
+                        ->orderBy('id')
+                        ->first(),
+                ])->filter();
+            }
 
             $coverage = app(CollateralCoverageService::class);
-            $ltvPercent = $coverage->ltvPercentFor((string) $assetType);
-            $maxLoan = $coverage->maxLoanFromForcedSale($forcedSaleValue, (string) $assetType);
-            $gpsRequired = in_array($assetType, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery', 'vehicle'], true);
+            $sumMarket = 0.0;
+            $sumFsv = 0.0;
+            foreach ($pledges as $pledge) {
+                $cid = (int) ($pledge->customer_asset_id ?? 0);
+                $ownMarket = (float) ($perAsset[$cid]['market_value'] ?? $perAsset[(string) $cid]['market_value'] ?? $marketValue);
+                $ownFsv = (float) ($perAsset[$cid]['forced_sale_value'] ?? $perAsset[(string) $cid]['forced_sale_value'] ?? $forcedSaleValue);
+                $assetType = (string) ($pledge->asset_type ?: $pledge->customerAsset?->asset_type ?: 'saloon_car');
+                $ltvPercent = $coverage->ltvPercentFor($assetType);
+                $maxLoan = $coverage->maxLoanFromForcedSale($ownFsv, $assetType);
+                $gpsRequired = in_array($assetType, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery', 'vehicle'], true);
+                $pledge->update([
+                    'market_value' => $ownMarket,
+                    'forced_sale_value' => $ownFsv,
+                    'ltv_percent' => $ltvPercent,
+                    'max_loan_amount' => $maxLoan,
+                    'gps_required' => $gpsRequired,
+                    'valuation_status' => 'completed',
+                    'valuer_notes' => $notes,
+                ]);
+                $sumMarket += $ownMarket;
+                $sumFsv += $ownFsv;
+            }
 
-            $keys = $assetRow
-                ? ['id' => $assetRow->id]
-                : ['loan_application_id' => $application->id];
-
-            LoanApplicationAsset::query()->updateOrCreate(
-                $keys,
-                [
-                    'loan_application_id' => $application->id,
-                    'market_value'      => $marketValue,
-                    'forced_sale_value' => $forcedSaleValue,
-                    'ltv_percent'       => $ltvPercent,
-                    'max_loan_amount'   => $maxLoan,
-                    'gps_required'      => $gpsRequired,
-                    'valuation_status'  => 'completed',
-                    'valuer_notes'      => $notes,
-                ],
-            );
+            $assignment->update([
+                'market_value' => $sumMarket > 0 ? $sumMarket : $marketValue,
+                'forced_sale_value' => $sumFsv > 0 ? $sumFsv : $forcedSaleValue,
+            ]);
 
             $fresh = $assignment->fresh(['application.collateralAsset']);
             $coverage->evaluate($application->fresh());

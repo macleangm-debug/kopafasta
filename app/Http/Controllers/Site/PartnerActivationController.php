@@ -24,8 +24,11 @@ class PartnerActivationController extends Controller
         }
 
         if ($vendor->activated_at && $vendor->user_id) {
-            return redirect()->route('site.partner.dashboard')
-                ->with('status', 'Your partner account is already active.');
+            return view('site.partner.activate', [
+                'vendor' => $vendor,
+                'token' => $token,
+                'pinReset' => true,
+            ]);
         }
 
         return view('site.partner.activate', compact('vendor', 'token'));
@@ -34,11 +37,21 @@ class PartnerActivationController extends Controller
     public function store(Request $request, Vendor $vendor, PartnerActivationService $activation): RedirectResponse
     {
         $token = (string) $request->input('token', '');
+        if (! $request->boolean('pin_reset')) {
+            $request->validate([
+                'collection_conduct_accepted' => ['accepted'],
+            ]);
+        }
 
         $user = $activation->activate($vendor, $token, $request->all());
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        if ($vendor->fresh()?->activated_at && $request->boolean('pin_reset')) {
+            return redirect()->route('site.partner.setup-pin')
+                ->with('status', 'Create a new 4-digit PIN for your partner portal.');
+        }
 
         return redirect()->route('site.partner.setup-pin')
             ->with('status', 'Partner account activated. Create your PIN to continue.');

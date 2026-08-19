@@ -120,18 +120,12 @@ class LoanApplicationController extends ResourceController
 
     public function edit($id)
     {
-        $record = LoanApplication::findOrFail($id);
-        $this->assertApplicationMutable($record);
-
-        return view("admin.{$this->viewFolder}.edit", ['record' => $record] + $this->formData($record));
+        abort(403, 'Applications are not edited in the console. Request updates from the borrower instead.');
     }
 
     public function update(Request $request, $id)
     {
-        $record = LoanApplication::findOrFail($id);
-        $this->assertApplicationMutable($record);
-
-        return parent::update($request, $id);
+        abort(403, 'Applications are not edited in the console. Request updates from the borrower instead.');
     }
 
     public function create()
@@ -455,14 +449,49 @@ class LoanApplicationController extends ResourceController
         return back()->with('status', 'Valuation requested. The borrower (group leader on group loans) must pay the valuation fee before a valuer is assigned.');
     }
 
-    public function useCollateralOnLoan(Request $request, LoanApplication $loan_application, \App\Models\CustomerAsset $customer_asset): RedirectResponse
+    public function requestAdditionalCollateral(Request $request, LoanApplication $loan_application): RedirectResponse
     {
-        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        abort_unless(auth()->user()?->hasPermission('applications.request_documents')
+            || auth()->user()?->hasPermission('applications.review'), 403);
         $this->assertApplicationMutable($loan_application);
 
-        app(\App\Services\CustomerAssetService::class)->useOnThisLoan($loan_application, $customer_asset);
+        $data = $request->validate([
+            'instructions' => ['nullable', 'string', 'max:2000'],
+            'review_person' => ['nullable', 'in:borrower,member,guarantor'],
+            'review_g' => ['nullable', 'integer'],
+            'review_m' => ['nullable', 'integer'],
+            'subject_customer_id' => ['nullable', 'integer'],
+            'loan_group_member_id' => ['nullable', 'integer'],
+        ]);
 
-        return back()->with('status', $customer_asset->label.' is now the collateral on this loan.');
+        $person = match ($data['review_person'] ?? 'borrower') {
+            'guarantor' => 'guarantor',
+            'member' => 'member',
+            default => 'borrower',
+        };
+
+        $note = trim((string) ($data['instructions'] ?? ''));
+        if ($note === '') {
+            $note = 'The pledged asset does not cover the requested amount. Add another asset in your profile, then choose it for this loan. Screening cannot attach it for you.';
+        }
+
+        app(ApplicationDocumentRequestService::class)->create(
+            $loan_application,
+            $request->user(),
+            'Add collateral asset',
+            $note,
+            subjectKind: $person,
+            subjectCustomerId: isset($data['subject_customer_id']) ? (int) $data['subject_customer_id'] : null,
+            loanGroupMemberId: isset($data['loan_group_member_id']) ? (int) $data['loan_group_member_id'] : null,
+        );
+
+        $who = match ($person) {
+            'guarantor' => 'guarantor',
+            'member' => 'group member',
+            default => filled($loan_application->loan_group_id) ? 'group leader' : 'borrower',
+        };
+
+        return back()->with('status', 'Asked the '.$who.' to add another asset. They must pick it themselves — screening cannot attach it.');
     }
 
     public function saveScreeningChecklist(Request $request, LoanApplication $loan_application): RedirectResponse

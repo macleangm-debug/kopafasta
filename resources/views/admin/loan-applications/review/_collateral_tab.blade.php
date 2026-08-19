@@ -18,8 +18,9 @@
     }
     $pledgeByAssetId = $pledgeRows->keyBy(fn ($row) => (int) $row->customer_asset_id);
     $assetService = app(\App\Services\CustomerAssetService::class);
-    $onLoanAssetId = $assetService->designatedAssetId($record);
-    $onLoanCount = $onLoanAssetId ? 1 : 0;
+    $onLoanIds = $assetService->onLoanAssetIds($record);
+    $onLoanCount = count($onLoanIds);
+    $onLoanAssetId = $onLoanIds[0] ?? null;
     $assets = $profileAssets
         ->concat($pledgeRows->map(fn ($row) => $row->customerAsset)->filter())
         ->unique(fn ($asset) => (int) $asset->id)
@@ -66,6 +67,14 @@
         'contract_generation',
         'disbursement',
     ], true) || $record->status === 'disbursed' || $record->hasActiveFacility();
+    $leaderCollateralUrl = route('admin.loan-applications.show', [
+        'loan_application' => $record,
+        'workspace' => 'profiles',
+        'tab' => 'collateral',
+        'person' => 'borrower',
+    ]).'#borrower-file';
+    $subjectOnLoan = $profileAssets->filter(fn ($asset) => in_array((int) $asset->id, $onLoanIds, true));
+    $referToLeader = ($isGuarantor || $isMember) && $subjectOnLoan->isEmpty();
 @endphp
 
 <section
@@ -90,7 +99,24 @@
     </div>
 
     <div class="p-5 sm:p-6 space-y-5">
-        @if ($assets->isEmpty())
+        @if ($referToLeader)
+            <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-4 space-y-2">
+                <p class="text-sm font-semibold text-slate-950">
+                    Collateral for this loan is on the {{ $isGroupFile ? 'group leader' : 'borrower' }} file
+                </p>
+                <p class="text-xs text-slate-700">
+                    @if ($isGuarantor)
+                        The guarantor does not need a separate collateral section unless they themselves pledge an extra asset.
+                    @else
+                        Members do not repeat the leader’s pledged assets here. Open the leader desk to review loan collateral.
+                    @endif
+                    Ask this person only when coverage needs an extra asset they own — they must consent by picking it on their profile.
+                </p>
+                <a href="{{ $leaderCollateralUrl }}" class="inline-flex text-sm font-semibold text-brand hover:underline">
+                    Open {{ $isGroupFile ? 'leader' : 'borrower' }} collateral →
+                </a>
+            </div>
+        @elseif ($assets->isEmpty())
             <div class="rounded-xl bg-amber-50/60 ring-1 ring-amber-100 px-4 py-4">
                 <p class="text-sm font-semibold text-amber-950">No collateral on file</p>
                 <p class="text-xs text-amber-900/80 mt-1">
@@ -121,7 +147,7 @@
                             $typeLabel = $typeOptions[$asset->asset_type] ?? $asset->asset_type;
                             $pledge = $pledgeByAssetId->get((int) $asset->id);
                             $pledgeStatus = (string) ($pledge->uw_status ?? '');
-                            $isOnThisLoan = $onLoanAssetId && (int) $asset->id === (int) $onLoanAssetId;
+                            $isOnThisLoan = in_array((int) $asset->id, $onLoanIds, true);
                             $pledgeBadge = match (true) {
                                 $pledgeStatus === 'declined' => ['Declined', 'bg-rose-500/90 text-white'],
                                 $isOnThisLoan => ['On this loan', $pledgeStatus === 'accepted' ? 'bg-emerald-500/90 text-white' : 'bg-brand/90 text-white'],
@@ -199,15 +225,6 @@
                                                 class="inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                                             View
                                         </button>
-                                        @if (! $isGuarantor && ! $isMember && $canRequestDocs && $pledgeBadge[0] === 'Saved')
-                                            <form method="POST" action="{{ route('admin.loan-applications.collateral.use-on-loan', [$record, $asset]) }}">
-                                                @csrf
-                                                <button type="submit"
-                                                        class="inline-flex items-center justify-center w-full bg-white hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2 rounded-xl text-sm ring-1 ring-brand/20">
-                                                    Use on this loan
-                                                </button>
-                                            </form>
-                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -450,12 +467,21 @@
                                 <p class="text-emerald-800 text-xs">LTV covers the requested amount and insurance is in order.</p>
                             @endif
                         @elseif ($coverage)
-                            <p class="text-rose-800 text-xs font-semibold">Collateral is not sufficient (shortfall {{ format_money($coverage['shortfall'] ?? 0) }}).</p>
+                            <p class="text-rose-800 text-xs font-semibold">Collateral is not sufficient (shortfall {{ format_money($coverage['shortfall'] ?? 0) }}). Combined FSV × LTV across pledged assets must cover the requested amount.</p>
                             <ul class="text-xs text-gray-700 list-disc pl-4 space-y-1">
                                 @foreach ($coverage['scenarios'] ?? [] as $scenario)
                                     <li>{{ $scenario['label'] }}</li>
                                 @endforeach
                             </ul>
+                            @if ($canRequestDocs)
+                                <form method="POST" action="{{ route('admin.loan-applications.collateral.request-additional', $record) }}" class="pt-1">
+                                    @csrf
+                                    <input type="hidden" name="review_person" value="borrower">
+                                    <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
+                                        Request another asset from {{ $who }}
+                                    </button>
+                                </form>
+                            @endif
                         @endif
                     </div>
                 @elseif ($openValuation)
@@ -593,7 +619,13 @@
         @endif
 
         @if ($canRequestDocs)
-            <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="space-y-3 {{ $assets->isNotEmpty() ? 'pt-2 border-t border-brand/10' : '' }}">
+            @if (! $isGuarantor && ! $isMember)
+                <form id="kf-request-additional-asset" method="POST" action="{{ route('admin.loan-applications.collateral.request-additional', $record) }}" class="hidden">
+                    @csrf
+                    <input type="hidden" name="review_person" value="borrower">
+                </form>
+            @endif
+            <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="space-y-3 {{ $assets->isNotEmpty() || $referToLeader ? 'pt-2 border-t border-brand/10' : '' }}">
                 @csrf
                 <input type="hidden" name="type" value="document">
                 <input type="hidden" name="review_person" value="{{ $person }}">
@@ -624,6 +656,12 @@
                     <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
                         Request collateral
                     </button>
+                    @if (! $isGuarantor && ! $isMember)
+                        <button type="submit" form="kf-request-additional-asset"
+                                class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2.5 rounded-xl">
+                            Request another asset
+                        </button>
+                    @endif
                     @if ($isGroupFile && ! $isGuarantor && ! $isMember && $activeMemberCount > 0)
                         <button type="submit" name="ask_members" value="1"
                                 class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2.5 rounded-xl">

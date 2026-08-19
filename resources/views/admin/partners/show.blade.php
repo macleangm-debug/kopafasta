@@ -91,6 +91,40 @@
     @endif
 </div>
 
+<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+    <h3 class="text-sm font-semibold text-gray-700 mb-1">Portal PIN</h3>
+    <p class="text-xs text-gray-500 mb-4">
+        Partners sign in with phone and a 4-digit PIN. Set a new PIN here, or re-issue activation so they create it themselves.
+    </p>
+    @if (session('partner_activation_url'))
+        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950 break-all">
+            Activation link (valid 14 days): {{ session('partner_activation_url') }}
+        </div>
+    @endif
+    <div class="grid sm:grid-cols-2 gap-4">
+        <form method="POST" action="{{ route('admin.partners.reset-pin', $record) }}" class="space-y-2">
+            @csrf
+            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">Set new PIN</label>
+            <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required
+                   class="w-full rounded-xl border-gray-300 text-sm" placeholder="4 digits" autocomplete="off">
+            <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
+                Save PIN
+            </button>
+        </form>
+        <form method="POST" action="{{ route('admin.partners.reissue-activation', $record) }}" class="space-y-2">
+            @csrf
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Re-activation</p>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="notify_partner" value="1" class="rounded border-gray-300 text-brand">
+                Also SMS / email the link
+            </label>
+            <button type="submit" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl">
+                Re-issue activation link
+            </button>
+        </form>
+    </div>
+</div>
+
 @if ($affiliateStats ?? null)
     <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <h3 class="text-sm font-semibold text-gray-700 mb-3">Affiliate performance</h3>
@@ -307,6 +341,40 @@
         </div>
     </div>
 @endif
+
+<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+    <h3 class="text-sm font-semibold text-gray-700 mb-1">Portal PIN</h3>
+    <p class="text-xs text-gray-500 mb-4">
+        Partners sign in with phone and a 4-digit PIN. Set a new PIN here, or re-issue activation so they create it themselves.
+    </p>
+    @if (session('partner_activation_url'))
+        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950 break-all">
+            Activation link (valid 14 days): {{ session('partner_activation_url') }}
+        </div>
+    @endif
+    <div class="grid sm:grid-cols-2 gap-4">
+        <form method="POST" action="{{ route('admin.partners.reset-pin', $record) }}" class="space-y-2">
+            @csrf
+            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">Set new PIN</label>
+            <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required
+                   class="w-full rounded-xl border-gray-300 text-sm" placeholder="4 digits" autocomplete="off">
+            <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
+                Save PIN
+            </button>
+        </form>
+        <form method="POST" action="{{ route('admin.partners.reissue-activation', $record) }}" class="space-y-2">
+            @csrf
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Re-activation</p>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="notify_partner" value="1" class="rounded border-gray-300 text-brand">
+                Also SMS / email the link
+            </label>
+            <button type="submit" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl">
+                Re-issue activation link
+            </button>
+        </form>
+    </div>
+</div>
 
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-red-200/80 p-6">
     <h3 class="text-sm font-semibold text-red-700 mb-1">Danger zone</h3>

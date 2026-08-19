@@ -19,9 +19,9 @@ class ValuationFeePaymentService
     }
 
     /** @return array<string, mixed> */
-    public function quote(Customer $customer): array
+    public function quote(Customer $customer, int $assetCount = 1): array
     {
-        $base = (float) quoted_valuation_fee($customer);
+        $base = (float) quoted_valuation_fee($customer, $assetCount);
         $cfg = MembershipService::config();
 
         if ($base <= 0) {

@@ -106,6 +106,7 @@ return [
         ],
         'how_to' => [
             'Review each service category rate.',
+            'Valuation base price is per pledged asset (GPS install is per device). Two assets = 2 × that amount; application fee stays 1×.',
             'Align amounts with your commercial agreements.',
             'Save recovery policy.',
         ],

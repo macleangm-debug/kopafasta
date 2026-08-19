@@ -301,13 +301,17 @@
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
                 <p class="font-semibold">Origination / service partners ({{ $serviceTypeCount }})</p>
                 <p class="text-xs mt-1 text-amber-900/80">
-                    Insurance, GPS device pricing, and Valuation defaults. GPS install + monthly monitoring is a post-approval fee (Settings here). Changing these amounts updates new contracts immediately. GPS deactivation during collection has no extra borrower charge and is not a recovery fee.
+                    Insurance, GPS device pricing, and Valuation defaults. Valuation is per pledged asset (same idea as GPS install per device). Application fee stays 1×. GPS install + monthly monitoring is a post-approval fee. Changing these amounts updates new contracts immediately. GPS deactivation during collection has no extra borrower charge and is not a recovery fee.
                 </p>
             </div>
 
             @foreach ($partnerDefaults as $category => $row)
                 @php
                     $mode = $row['pricing_mode'] ?? 'fixed';
+                    $chargeUnit = (string) ($row['charge_unit'] ?? '');
+                    $basePriceLabel = $chargeUnit !== ''
+                        ? 'Default base price (TZS) '.$chargeUnit
+                        : 'Default base price (TZS)';
                     $hasMarkup = (bool) old("{$category}_has_markup", $row['has_markup'] ?? false);
                     $storedMarkup = old("{$category}_markup_percent", $row['stored_markup_percent'] ?? $row['markup_percent'] ?? 0);
                 @endphp
@@ -331,8 +335,9 @@
                             <x-admin.input name="{{ $category }}_rate_percent" label="Default rate (% of value)" type="number" step="0.1" min="0" max="100"
                                            :value="old($category.'_rate_percent', $row['rate_percent'] ?? 3.5)" required />
                         @else
-                            <x-admin.input name="{{ $category }}_base_cost" label="Default base price (TZS)" type="number" step="1" min="0"
-                                           :value="old($category.'_base_cost', $row['base_cost'] ?? 0)" required />
+                            <x-admin.input name="{{ $category }}_base_cost" :label="$basePriceLabel" type="number" step="1" min="0"
+                                           :value="old($category.'_base_cost', $row['base_cost'] ?? 0)" required
+                                           :help="$chargeUnit === 'per asset' ? 'Quoted × number of pledged assets. Application fee is not multiplied.' : ($chargeUnit === 'per device' ? 'Installation charged once per GPS device.' : null)" />
                         @endif
 
                         @if ($mode === 'fixed_plus_recurring')
@@ -361,7 +366,7 @@
                             @if ($mode === 'percent_of_value')
                                 <p class="mt-1 text-[11px] text-gray-500" x-show="hasMarkup" x-cloak>Borrower pays (rate + markup)% of insured value. Partner earns rate% only.</p>
                             @else
-                                <p class="mt-1 text-[11px] text-gray-500" x-show="hasMarkup" x-cloak>Borrower pays base × (1 + markup%). Partner earns base only; markup is platform revenue.</p>
+                                <p class="mt-1 text-[11px] text-gray-500" x-show="hasMarkup" x-cloak>Borrower pays base × (1 + markup%){{ $chargeUnit !== '' ? ' '.$chargeUnit : '' }}. Partner earns base only; markup is platform revenue.</p>
                             @endif
                         </div>
                     </div>

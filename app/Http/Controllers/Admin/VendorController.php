@@ -581,6 +581,48 @@ class VendorController extends ResourceController
             ->with('status', $result['message']);
     }
 
+    public function resetPin(Request $request, Vendor $vendor)
+    {
+        $this->authorize('update', $vendor);
+        $data = $request->validate([
+            'pin' => ['required', 'digits:4'],
+        ]);
+
+        app(\App\Services\PartnerActivationService::class)->setPortalPin($vendor, $data['pin']);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Partner portal PIN updated. Share it with them out of band.');
+    }
+
+    public function reissueActivation(Request $request, Vendor $vendor)
+    {
+        $this->authorize('update', $vendor);
+        $activation = app(\App\Services\PartnerActivationService::class);
+        $plain = $activation->prepareActivation($vendor);
+        $fresh = $vendor->fresh();
+        $url = $activation->activationUrl($fresh, $plain);
+
+        if ($request->boolean('notify_partner')) {
+            $message = 'Activate your '.brand_name().' partner account: '.$url;
+            if (filled($fresh->email)) {
+                app(\App\Services\NotificationService::class)->sendEmail(
+                    $fresh->email,
+                    'Activate your partner account',
+                    $message,
+                );
+            }
+            if (filled($fresh->phone)) {
+                app(\App\Services\NotificationService::class)->sendSms($fresh->phone, $message);
+            }
+        }
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Activation re-issued. They can open the link and create a new PIN.')
+            ->with('partner_activation_url', $url);
+    }
+
     public function destroy($id)
     {
         $record = Vendor::findOrFail($id);

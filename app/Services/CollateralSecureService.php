@@ -106,7 +106,10 @@ class CollateralSecureService
             return false;
         }
 
-        return (int) quoted_valuation_fee($application->customer) > 0;
+        return (int) quoted_valuation_fee(
+            $application->customer,
+            max(1, app(CustomerAssetService::class)->onLoanCount($application)),
+        ) > 0;
     }
 
     /**
@@ -123,7 +126,7 @@ class CollateralSecureService
             return;
         }
 
-        $due = (int) quoted_valuation_fee($application->customer);
+        $due = (int) quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application)));
         if ($due <= 0) {
             return;
         }
@@ -275,9 +278,10 @@ class CollateralSecureService
 
         $asset = $pledge->customerAsset;
         $isGuarantor = (int) $asset->customer_id !== (int) $application->customer_id;
-        $due = (int) quoted_valuation_fee($application->customer);
+        $due = (int) quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application)));
         $dueAt = now()->addDays($this->decisionDays());
 
+        $ids = app(CustomerAssetService::class)->onLoanAssetIds($application);
         $state = [
             'requested_at' => now()->toIso8601String(),
             'requested_by' => $admin?->id,
@@ -286,7 +290,8 @@ class CollateralSecureService
             'path'         => self::PATH_SCREENING_VALUATION,
             'status'       => $due > 0 ? self::STATUS_AWAITING_VALUATION_FEE : self::STATUS_AWAITING_VALUER,
             'source'       => $isGuarantor ? 'guarantor' : 'borrower',
-            'customer_asset_id' => $asset->id,
+            'customer_asset_id' => $ids[0] ?? $asset->id,
+            'customer_asset_ids' => $ids,
             'guarantor_customer_id' => $isGuarantor ? $asset->customer_id : null,
             'valuation_fee_due' => $due,
             'valuation_fee_paid_at' => $due > 0 ? null : now()->toIso8601String(),
@@ -772,7 +777,7 @@ class CollateralSecureService
     /** @return array{due: int, currency: string} */
     public function valuationFeeQuote(LoanApplication $application): array
     {
-        $due = (int) quoted_valuation_fee($application->customer);
+        $due = (int) quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application)));
 
         return [
             'due' => $due,
@@ -789,7 +794,7 @@ class CollateralSecureService
     public function valuationProgress(LoanApplication $application, array $state): array
     {
         $status = (string) ($state['status'] ?? '');
-        $amount = (int) ($state['valuation_fee_due'] ?? quoted_valuation_fee($application->customer));
+        $amount = (int) ($state['valuation_fee_due'] ?? quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application))));
         $payUrl = route('site.borrower.collateral-secure.pay-valuation', $application);
 
         if ($status === self::STATUS_AWAITING_VALUATION_FEE) {
@@ -797,7 +802,7 @@ class CollateralSecureService
                 'status' => 'pay_valuation',
                 'label' => __('borrower.collateral_secure.valuation_status_pay'),
                 'pay_url' => $payUrl,
-                'amount' => max($amount, (int) quoted_valuation_fee($application->customer)),
+                'amount' => max($amount, (int) quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application)))),
             ];
         }
 
@@ -1008,7 +1013,7 @@ class CollateralSecureService
         $quote = $this->feeQuote($application);
         $state['insurance'] = $this->insuranceCheck($application, $asset);
 
-        $valuationDue = (int) quoted_valuation_fee($application->customer);
+        $valuationDue = (int) quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application)));
         $state['valuation_fee_due'] = $valuationDue;
 
         if ($valuationDue > 0 && empty($state['valuation_fee_paid_at'])) {
@@ -1187,8 +1192,10 @@ class CollateralSecureService
     private function saveState(LoanApplication $application, array $state): void
     {
         $payload = $application->screening_payload ?? [];
-        $payload['collateral_secure'] = $state;
+        $current = (array) ($payload['collateral_secure'] ?? []);
+        $payload['collateral_secure'] = array_merge($current, $state);
         $application->update(['screening_payload' => $payload]);
+        $application->setAttribute('screening_payload', $payload);
     }
 
     private function requireOpen(LoanApplication $application): array

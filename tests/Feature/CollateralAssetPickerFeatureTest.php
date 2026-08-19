@@ -76,7 +76,10 @@ class CollateralAssetPickerFeatureTest extends TestCase
             'label' => $label,
             'is_active' => true,
             'photo_paths' => ['assets/front.jpg', 'assets/back.jpg'],
-            'metadata' => ['ownership_document_path' => 'assets/title.pdf'],
+            'metadata' => [
+                'ownership_document_path' => 'assets/title.pdf',
+                'person_with_asset_path' => 'assets/owner.jpg',
+            ],
         ]);
     }
 
@@ -632,8 +635,49 @@ class CollateralAssetPickerFeatureTest extends TestCase
             (int) LoanApplicationAsset::query()->where('loan_application_id', $application->id)->value('customer_asset_id')
         );
         $this->assertSame(
-            ['front' => 'assets/rav4-front.jpg', 'back' => 'assets/rav4-back.jpg'],
+            [
+                'front' => 'assets/rav4-front.jpg',
+                'back' => 'assets/rav4-back.jpg',
+                'owner' => 'assets/selfie.jpg',
+            ],
             $rav4->photosByAngle()
         );
+    }
+
+    public function test_borrower_can_pledge_a_second_asset_and_admin_cannot(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $first = $this->completeAsset($customer, 'Rav4');
+        $second = $this->completeAsset($customer, 'Vitz');
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        app(CustomerAssetService::class)->attachToApplication($first, $application, $customer);
+        app(CustomerAssetService::class)->attachToApplication($second, $application, $customer);
+
+        $this->assertSame(
+            [$first->id, $second->id],
+            app(CustomerAssetService::class)->onLoanAssetIds($application->fresh())
+        );
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+            ]))
+            ->assertOk()
+            ->assertSee('2 on this loan', false)
+            ->assertDontSee('Use on this loan', false);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.collateral.request-additional', $application))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('loan_application_document_requests', [
+            'loan_application_id' => $application->id,
+            'label' => 'Add collateral asset',
+            'status' => 'pending',
+        ]);
     }
 }

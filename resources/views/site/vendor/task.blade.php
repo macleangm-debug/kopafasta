@@ -23,14 +23,25 @@
             $decoded = json_decode($task->notes, true);
             $taskMeta = is_array($decoded) ? $decoded : [];
         }
-        $collateralAsset = null;
-        if (! empty($taskMeta['customer_asset_id'])) {
-            $collateralAsset = \App\Models\CustomerAsset::query()->find($taskMeta['customer_asset_id']);
+        $collateralAssets = collect();
+        if (! empty($taskMeta['customer_asset_ids']) && is_array($taskMeta['customer_asset_ids'])) {
+            $collateralAssets = \App\Models\CustomerAsset::query()
+                ->whereIn('id', $taskMeta['customer_asset_ids'])
+                ->get();
         }
-        if (! $collateralAsset && $application && $task->task_type === 'asset_valuation') {
-            $keepId = app(\App\Services\CustomerAssetService::class)->designatedAssetId($application);
-            $collateralAsset = $keepId ? \App\Models\CustomerAsset::query()->find($keepId) : null;
+        if ($collateralAssets->isEmpty() && ! empty($taskMeta['customer_asset_id'])) {
+            $one = \App\Models\CustomerAsset::query()->find($taskMeta['customer_asset_id']);
+            if ($one) {
+                $collateralAssets = collect([$one]);
+            }
         }
+        if ($collateralAssets->isEmpty() && $application && $task->task_type === 'asset_valuation') {
+            $ids = app(\App\Services\CustomerAssetService::class)->onLoanAssetIds($application);
+            $collateralAssets = $ids === []
+                ? collect()
+                : \App\Models\CustomerAsset::query()->whereIn('id', $ids)->get();
+        }
+        $collateralAsset = $collateralAssets->first();
         $assetProfile = $taskMeta['asset_profile'] ?? null;
         if ($collateralAsset) {
             $assetProfile = app(\App\Services\CollateralInsurancePartnerService::class)->assetProfilePayload($collateralAsset);
@@ -138,29 +149,45 @@
             @if ($task->status !== 'completed' && $task->status !== 'cancelled')
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-3">{{ $task->task_type === 'asset_valuation' ? 'Upload inspection photos' : 'Upload proof' }}</h2>
-                    @if ($task->task_type === 'asset_valuation' && $collateralAsset)
-                        @php
-                            $angleLabels = \App\Models\CustomerAsset::photoAngleLabels($collateralAsset->asset_type);
-                            $borrowerAngles = $collateralAsset->photosByAngle();
-                        @endphp
-                        <p class="text-xs text-gray-500 mb-3">Take the same angles as the borrower profile. The system matches them side by side for screening.</p>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-                            @foreach ($angleLabels as $angle => $angleLabel)
-                                <div class="rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50">
-                                    @if (! empty($borrowerAngles[$angle]))
-                                        <img src="{{ asset('storage/'.$borrowerAngles[$angle]) }}" alt="{{ $angleLabel }}" class="h-24 w-full object-cover">
-                                    @else
-                                        <div class="h-24 grid place-items-center text-[11px] text-gray-500 px-2 text-center">No borrower {{ strtolower($angleLabel) }} photo</div>
-                                    @endif
-                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-center py-1">Borrower · {{ $angleLabel }}</p>
-                                </div>
-                            @endforeach
-                        </div>
+                    @if ($task->task_type === 'asset_valuation' && $collateralAssets->isNotEmpty())
+                        <p class="text-xs text-gray-500 mb-3">Take the same angles as the borrower profile, including owner with asset. When there is more than one pledged asset, pick which asset each photo belongs to.</p>
+                        @foreach ($collateralAssets as $collateralAsset)
+                            @php
+                                $angleLabels = \App\Models\CustomerAsset::photoAngleLabels($collateralAsset->asset_type);
+                                $borrowerAngles = $collateralAsset->photosByAngle();
+                            @endphp
+                            <p class="text-sm font-semibold text-gray-900 mb-2">{{ $collateralAsset->label }}</p>
+                            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+                                @foreach ($angleLabels as $angle => $angleLabel)
+                                    <div class="rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50">
+                                        @if (! empty($borrowerAngles[$angle]))
+                                            <img src="{{ asset('storage/'.$borrowerAngles[$angle]) }}" alt="{{ $angleLabel }}" class="h-24 w-full object-cover">
+                                        @else
+                                            <div class="h-24 grid place-items-center text-[11px] text-gray-500 px-2 text-center">No borrower {{ strtolower($angleLabel) }} photo</div>
+                                        @endif
+                                        <p class="text-[10px] font-semibold uppercase tracking-wide text-center py-1">Borrower · {{ $angleLabel }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endforeach
                     @endif
                     <form method="POST" action="{{ route('site.partner.task.proof', $task) }}" enctype="multipart/form-data" class="space-y-3">
                         @csrf
                         @if ($task->task_type === 'asset_valuation')
                             @php $angleLabels = \App\Models\CustomerAsset::photoAngleLabels($collateralAsset?->asset_type); @endphp
+                            @if ($collateralAssets->count() > 1)
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Which asset?</label>
+                                    <select name="customer_asset_id" required class="w-full rounded-lg border-gray-300 text-sm">
+                                        <option value="">Select asset…</option>
+                                        @foreach ($collateralAssets as $opt)
+                                            <option value="{{ $opt->id }}">{{ $opt->label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @elseif ($collateralAsset)
+                                <input type="hidden" name="customer_asset_id" value="{{ $collateralAsset->id }}">
+                            @endif
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">Photo angle</label>
                                 <select name="angle" required class="w-full rounded-lg border-gray-300 focus:border-brand/500 focus:ring-brand/500 text-sm">
@@ -228,14 +255,32 @@
                           })">
                         @csrf
                         @if ($task->task_type === 'asset_valuation')
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">Market value (TZS)</label>
-                                <input name="market_value" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">Forced sale value (TZS)</label>
-                                <input name="forced_sale_value" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
-                            </div>
+                            @if ($collateralAssets->count() > 1)
+                                @foreach ($collateralAssets as $valAsset)
+                                    <div class="rounded-xl ring-1 ring-gray-200 p-3 space-y-2">
+                                        <p class="text-sm font-semibold text-gray-900">{{ $valAsset->label }}</p>
+                                        <div>
+                                            <label class="block text-xs text-gray-500 mb-1">Market value (TZS)</label>
+                                            <input name="values[{{ $valAsset->id }}][market_value]" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-gray-500 mb-1">Forced sale value (TZS)</label>
+                                            <input name="values[{{ $valAsset->id }}][forced_sale_value]" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
+                                        </div>
+                                    </div>
+                                @endforeach
+                                <input type="hidden" name="market_value" value="0">
+                                <input type="hidden" name="forced_sale_value" value="0">
+                            @else
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Market value (TZS)</label>
+                                    <input name="market_value" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Forced sale value (TZS)</label>
+                                    <input name="forced_sale_value" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
+                                </div>
+                            @endif
                         @endif
                         @if (str_contains($task->task_type, 'gps'))
                             @php

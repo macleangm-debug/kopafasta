@@ -36,7 +36,12 @@ class ApplicationFeePaymentService
             }
             $base = (float) $groups->quotedApplicationFee($customer, $product, max(1, $groupMemberCount));
         } else {
-            $base = (float) quoted_origination_fee($customer, $product);
+            $assetCount = 1;
+            if (product_includes_valuation_fee($product)) {
+                $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+                $assetCount = selected_collateral_count((array) ($draft?->payload['form'] ?? []));
+            }
+            $base = (float) quoted_origination_fee($customer, $product, $assetCount);
         }
         $cfg = MembershipService::config();
 

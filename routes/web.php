@@ -616,8 +616,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.request-collateral-secure');
         Route::post('loan-applications/{loan_application}/request-valuation', [LoanApplicationController::class, 'requestValuation'])
             ->name('loan-applications.request-valuation');
-        Route::post('loan-applications/{loan_application}/collateral-assets/{customer_asset}/use-on-loan', [LoanApplicationController::class, 'useCollateralOnLoan'])
-            ->name('loan-applications.collateral.use-on-loan');
+        Route::post('loan-applications/{loan_application}/request-additional-collateral', [LoanApplicationController::class, 'requestAdditionalCollateral'])
+            ->name('loan-applications.collateral.request-additional');
         Route::post('loan-applications/{loan_application}/screening-checklist', [LoanApplicationController::class, 'saveScreeningChecklist'])
             ->name('loan-applications.screening-checklist');
         Route::post('loan-applications/{loan_application}/guarantors/{customerGuarantor}/change', [LoanApplicationController::class, 'requestGuarantorChange'])

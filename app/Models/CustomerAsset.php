@@ -156,13 +156,15 @@ class CustomerAsset extends Model
             'front' => 'Front',
             'back' => 'Back',
         ];
-        if (in_array((string) $type, ['land', 'house', ''], true)) {
-            return $base;
+        if (! in_array((string) $type, ['land', 'house', ''], true)) {
+            $base += [
+                'left' => 'Left',
+                'right' => 'Right',
+            ];
         }
 
         return $base + [
-            'left' => 'Left',
-            'right' => 'Right',
+            'owner' => 'Owner with asset',
         ];
     }
 
@@ -171,6 +173,9 @@ class CustomerAsset extends Model
         $hay = strtolower(trim(($docType ?? '').' '.($label ?? '')));
         if ($hay === '') {
             return null;
+        }
+        if (str_contains($hay, 'owner') || str_contains($hay, 'person') || str_contains($hay, 'with asset')) {
+            return 'owner';
         }
         if (str_contains($hay, 'front')) {
             return 'front';
@@ -200,7 +205,7 @@ class CustomerAsset extends Model
     }
 
     /**
-     * Asset photos keyed by inspection angle. Person-with-asset shots are excluded.
+     * Asset photos keyed by inspection angle, including owner-with-asset.
      *
      * @return array<string, string> angle => storage path
      */
@@ -208,26 +213,33 @@ class CustomerAsset extends Model
     {
         $person = (string) ($this->metadata['person_with_asset_path'] ?? '');
         $keyed = (array) ($this->metadata['photo_angles'] ?? []);
+        $labels = self::photoAngleLabels($this->asset_type);
         $out = [];
-        foreach (array_keys(self::photoAngleLabels($this->asset_type)) as $angle) {
+        foreach (array_keys($labels) as $angle) {
+            if ($angle === 'owner') {
+                continue;
+            }
             $path = $keyed[$angle] ?? null;
             if (is_string($path) && filled($path) && $path !== $person) {
                 $out[$angle] = $path;
             }
         }
-        if ($out !== []) {
-            return $out;
+        if ($out === []) {
+            $order = array_values(array_filter(array_keys($labels), fn ($angle) => $angle !== 'owner'));
+            foreach (array_values($this->photo_paths ?? []) as $i => $path) {
+                if (! filled($path) || $path === $person) {
+                    continue;
+                }
+                $angle = $order[$i] ?? null;
+                if ($angle && ! isset($out[$angle])) {
+                    $out[$angle] = $path;
+                }
+            }
         }
-
-        $order = array_keys(self::photoAngleLabels($this->asset_type));
-        foreach (array_values($this->photo_paths ?? []) as $i => $path) {
-            if (! filled($path) || $path === $person) {
-                continue;
-            }
-            $angle = $order[$i] ?? null;
-            if ($angle && ! isset($out[$angle])) {
-                $out[$angle] = $path;
-            }
+        if (filled($person)) {
+            $out['owner'] = $person;
+        } elseif (filled($keyed['owner'] ?? null)) {
+            $out['owner'] = (string) $keyed['owner'];
         }
 
         return $out;
@@ -236,10 +248,12 @@ class CustomerAsset extends Model
     public function thumbnailPath(): ?string
     {
         $person = (string) ($this->metadata['person_with_asset_path'] ?? '');
-        foreach ($this->photosByAngle() as $path) {
-            if ($path !== $person) {
-                return $path;
+        foreach ($this->photosByAngle() as $angle => $path) {
+            if ($angle === 'owner' || $path === $person) {
+                continue;
             }
+
+            return $path;
         }
         foreach (array_values($this->photo_paths ?? []) as $path) {
             if (filled($path) && $path !== $person) {

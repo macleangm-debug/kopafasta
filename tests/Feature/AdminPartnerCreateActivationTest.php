@@ -72,4 +72,36 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->assertNull($partner->activated_at);
         $this->assertNull($partner->activation_token);
     }
+
+    public function test_admin_can_reset_partner_pin_from_partner_show(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.store'), [
+                'name' => 'Reset PIN Valuer',
+                'category' => 'valuer',
+                'status' => 'inactive',
+                'phone' => '255712345902',
+                'email' => 'reset-pin@example.com',
+                'coverage_type' => 'nationwide',
+                'activation_mode' => 'activate_now',
+                'activation_pin' => '1111',
+            ])
+            ->assertRedirect();
+
+        $partner = Vendor::query()->where('name', 'Reset PIN Valuer')->firstOrFail();
+        $this->assertTrue(app(\App\Services\PinService::class)->verify('1111', $partner->user->pin_hash));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.show', $partner))
+            ->assertOk()
+            ->assertSee('Portal PIN', false)
+            ->assertSee('Re-issue activation link', false);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.reset-pin', $partner), ['pin' => '9999'])
+            ->assertRedirect(route('admin.partners.show', $partner));
+
+        $this->assertTrue(app(\App\Services\PinService::class)->verify('9999', $partner->user->fresh()->pin_hash));
+    }
 }

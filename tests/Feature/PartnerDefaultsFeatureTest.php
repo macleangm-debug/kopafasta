@@ -34,6 +34,8 @@ class PartnerDefaultsFeatureTest extends TestCase
             ->assertSee('GPS partner', false)
             ->assertSee('No borrower recovery fee', false)
             ->assertSee('Valuation partner', false)
+            ->assertSee('per asset', false)
+            ->assertSee('per device', false)
             ->assertSee('Call Center Partner', false)
             ->assertSee('Debt Collection Partner', false)
             ->assertSee(route('admin.partners.create', ['category' => 'insurance']), false);

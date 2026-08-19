@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\ChargesFee;
+use App\Services\ValuationPricingService;
 use Illuminate\Database\Seeder;
 
 class ChargesFeeSeeder extends Seeder
@@ -116,23 +117,25 @@ class ChargesFeeSeeder extends Seeder
                 'code'        => 'VAL_POST_FEE',
                 'type'        => 'valuation',
                 'basis'       => 'fixed',
-                'amount'      => 330, // valuer base 300 + 10% platform markup
+                'amount'      => 1100, // valuer base 1000 per asset + 10% platform markup
                 'charge_when' => 'post_approval',
-                'description' => 'Collateral valuation fee charged after approval (borrower total = partner base + markup).',
+                'description' => 'Collateral valuation fee per pledged asset after approval (borrower total = partner base + markup).',
             ],
             [
                 'name'        => 'Valuation fee',
                 'code'        => 'VAL_FEE',
                 'type'        => 'valuation',
                 'basis'       => 'fixed',
-                'amount'      => 330, // valuer base 300 + 10% platform markup
+                'amount'      => 1100, // valuer base 1000 per asset + 10% platform markup
                 'charge_when' => 'application',
-                'description' => 'Collateral valuation fee (borrower total = partner base + markup).',
+                'description' => 'Collateral valuation fee per pledged asset (borrower total = partner base + markup).',
             ],
         ];
 
         foreach ($fees as $f) {
             ChargesFee::updateOrCreate(['code' => $f['code']], $f + ['is_active' => true]);
         }
+
+        app(ValuationPricingService::class)->syncChargesFees();
     }
 }

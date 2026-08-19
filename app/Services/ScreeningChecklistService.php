@@ -889,6 +889,21 @@ class ScreeningChecklistService
         if ($person === 'member') {
             return false;
         }
+        if ($person === 'guarantor') {
+            $subjectId = (int) ($context['customer']->id ?? 0);
+            if ($subjectId < 1) {
+                return false;
+            }
+            $ids = app(CustomerAssetService::class)->onLoanAssetIds($application);
+            if ($ids === []) {
+                return false;
+            }
+
+            return CustomerAsset::query()
+                ->whereIn('id', $ids)
+                ->where('customer_id', $subjectId)
+                ->exists();
+        }
 
         $product = $application->product;
         if ($product) {
@@ -1446,7 +1461,10 @@ class ScreeningChecklistService
             'income_statements' => $incomeStatements,
             'guarantor_suggestion' => $gSug,
             'collateral_secure' => $collateral,
-            'pledged_assets' => $this->pledgedAssetSummaries($application),
+            'pledged_assets' => $this->pledgedAssetSummaries(
+                $application,
+                in_array($person, ['guarantor', 'member'], true) ? (int) ($customer?->id ?? 0) : null,
+            ),
             'valuer' => $this->valuerEvidence($application),
             'gps' => $this->gpsEvidence($application),
             'coverage' => app(CollateralCoverageService::class)->forApplication($application),
@@ -1977,7 +1995,7 @@ class ScreeningChecklistService
                 if ($itemKey === 'valuation_or_photos') {
                     $photoPairs = (array) ($asset['photo_pairs'] ?? []);
                     $layout = 'photo_pairs';
-                    $hint = 'Borrower profile photos on the left. Valuer inspection photos on the right, matched by the same angle (front, back, left, right).';
+                    $hint = 'Borrower profile photos on the left. Valuer inspection photos on the right, matched by angle (front, back, left, right, owner with asset). Switch tabs when more than one asset is pledged.';
                 } else {
                     foreach ($asset['photos'] ?? [] as $photo) {
                         $photos[] = $photo;
@@ -2054,6 +2072,7 @@ class ScreeningChecklistService
             'documents_heading' => $documentsHeading,
             'documents_open_label' => $documentsOpenLabel,
             'photo_pairs' => $photoPairs,
+            'assets' => array_values((array) ($ctx['pledged_assets'] ?? [])),
         ];
     }
 
@@ -2207,10 +2226,10 @@ class ScreeningChecklistService
     /**
      * @return list<array<string, mixed>>
      */
-    private function pledgedAssetSummaries(LoanApplication $application): array
+    private function pledgedAssetSummaries(LoanApplication $application, ?int $ownerCustomerId = null): array
     {
         $application->loadMissing(['collateralAssets.customerAsset.customer']);
-        $keepId = app(CustomerAssetService::class)->designatedAssetId($application);
+        $keepIds = app(CustomerAssetService::class)->onLoanAssetIds($application);
 
         $out = [];
         foreach ($application->collateralAssets as $row) {
@@ -2221,7 +2240,10 @@ class ScreeningChecklistService
             if (! $asset) {
                 continue;
             }
-            if ($keepId && (int) $asset->id !== $keepId) {
+            if ($keepIds !== [] && ! in_array((int) $asset->id, $keepIds, true)) {
+                continue;
+            }
+            if ($ownerCustomerId && (int) $asset->customer_id !== $ownerCustomerId) {
                 continue;
             }
 
@@ -2232,15 +2254,7 @@ class ScreeningChecklistService
                     'label' => $label,
                     'url' => asset('storage/'.$path),
                     'angle' => $angle,
-                    'role' => 'asset',
-                ];
-            }
-            $person = $asset->metadata['person_with_asset_path'] ?? null;
-            if (filled($person)) {
-                $photos[] = [
-                    'label' => 'Owner with asset',
-                    'url' => asset('storage/'.$person),
-                    'role' => 'person',
+                    'role' => $angle === 'owner' ? 'person' : 'asset',
                 ];
             }
 
@@ -2294,13 +2308,14 @@ class ScreeningChecklistService
      */
     private function photoPairsForApplication(LoanApplication $application): array
     {
-        $keepId = app(CustomerAssetService::class)->designatedAssetId($application);
-        if (! $keepId) {
-            return [];
+        $pairs = [];
+        foreach ($this->pledgedAssetSummaries($application) as $asset) {
+            foreach ($asset['photo_pairs'] ?? [] as $pair) {
+                $pairs[] = $pair;
+            }
         }
-        $asset = CustomerAsset::query()->find($keepId);
 
-        return $asset ? $this->photoPairsForAsset($asset, $application) : [];
+        return $pairs;
     }
 
     /**
@@ -2310,9 +2325,20 @@ class ScreeningChecklistService
     {
         $borrower = $asset->photosByAngle();
         $valuerByAngle = [];
+        $multi = count(app(CustomerAssetService::class)->onLoanAssetIds($application)) > 1;
         foreach ($this->valuerPhotoRows($application) as $row) {
             $angle = CustomerAsset::angleFromLabel($row['label'] ?? null, $row['doc_type'] ?? null);
-            if ($angle && ! isset($valuerByAngle[$angle])) {
+            if (! $angle) {
+                continue;
+            }
+            $rowAssetId = $this->valuerPhotoAssetId($row);
+            if ($rowAssetId && (int) $rowAssetId !== (int) $asset->id) {
+                continue;
+            }
+            if ($multi && ! $rowAssetId) {
+                continue;
+            }
+            if (! isset($valuerByAngle[$angle])) {
                 $valuerByAngle[$angle] = $row;
             }
         }
@@ -2353,6 +2379,23 @@ class ScreeningChecklistService
         $report = app(ValuationPartnerService::class)->reportForApplication($application);
 
         return (array) ($report['photos'] ?? []);
+    }
+
+    /**
+     * @param  array{label?: string, doc_type?: ?string}  $row
+     */
+    private function valuerPhotoAssetId(array $row): ?int
+    {
+        $type = (string) ($row['doc_type'] ?? '');
+        if (preg_match('/^asset_photo_[a-z]+_(\d+)$/', $type, $m)) {
+            return (int) $m[1];
+        }
+        $label = (string) ($row['label'] ?? '');
+        if (preg_match('/#(\d+)\s*$/', $label, $m)) {
+            return (int) $m[1];
+        }
+
+        return null;
     }
 
     /** @return array<string, mixed> */
@@ -2430,7 +2473,9 @@ class ScreeningChecklistService
             'email' => $open?->vendor?->email ?? '—',
             'region' => $application->customer?->region ?: '—',
             'matching' => $matching,
-            'fsv' => $open?->forced_sale_value ? format_money($open->forced_sale_value) : '—',
+            'fsv' => $coverage && (float) ($coverage['forced_sale_value'] ?? 0) > 0
+                ? format_money($coverage['forced_sale_value'])
+                : ($open?->forced_sale_value ? format_money($open->forced_sale_value) : '—'),
             'market_value' => $open?->market_value ? format_money($open->market_value) : '—',
             'ltv' => $coverage
                 ? ((int) ($coverage['ltv_percent'] ?? 0)).'% · max '.format_money($coverage['max_loan_amount'] ?? 0)

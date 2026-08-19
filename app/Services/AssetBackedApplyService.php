@@ -184,6 +184,11 @@ class AssetBackedApplyService
 
         $this->linkDocuments($application, $draftPayload);
 
+        app(CustomerAssetService::class)->persistOnLoanIds(
+            $application,
+            $created->pluck('customer_asset_id')->map(fn ($id) => (int) $id)->all(),
+        );
+
         return $created;
     }
 

@@ -130,12 +130,6 @@
                                 Analyst: {{ $record->assignedAnalyst->name }}
                             </span>
                         @endif
-                        @if (! in_array(auth()->user()?->role, ['credit_analyst'], true) && auth()->user()?->hasPermission('applications.edit'))
-                        <a href="{{ route('admin.loan-applications.edit', $record) }}"
-                           class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">
-                            Edit application
-                        </a>
-                        @endif
                     @endif
                 </div>
             </div>

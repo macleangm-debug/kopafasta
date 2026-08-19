@@ -109,7 +109,13 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             $this->assertStringContainsString('tab=personal', $profiles);
             $this->assertStringNotContainsString('tab=affordability', $profiles);
             $this->assertStringNotContainsString('tab=crb', $profiles);
+            $this->assertStringNotContainsString('Edit application', $html);
         }
+
+        $app = $this->application($admin, 'screening');
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.edit', $app))
+            ->assertForbidden();
 
         $app = $this->application($admin, 'screening');
         $screeningHome = $this->actingAs($admin, 'admin')

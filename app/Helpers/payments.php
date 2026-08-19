@@ -59,13 +59,13 @@ if (! function_exists('product_includes_valuation_fee')) {
 }
 
 if (! function_exists('quoted_origination_fee')) {
-    /** Application fee plus valuation fee (asset-backed products only). */
-    function quoted_origination_fee(?Customer $customer, ?LoanProduct $product = null): int
+    /** Application fee plus valuation fee (asset-backed products only). Valuation × number of pledged assets. */
+    function quoted_origination_fee(?Customer $customer, ?LoanProduct $product = null, int $assetCount = 1): int
     {
         $total = quoted_application_fee($customer, $product);
 
         if (product_includes_valuation_fee($product)) {
-            $total += quoted_valuation_fee($customer);
+            $total += quoted_valuation_fee($customer, $assetCount);
         }
 
         return $total;
@@ -106,9 +106,24 @@ if (! function_exists('quoted_application_fee')) {
     }
 }
 
-if (! function_exists('quoted_valuation_fee')) {
-    function quoted_valuation_fee(?Customer $customer): int
+if (! function_exists('selected_collateral_count')) {
+    function selected_collateral_count(array $form = []): int
     {
+        $ids = collect((array) ($form['customer_asset_ids'] ?? []))
+            ->push($form['customer_asset_id'] ?? null)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique();
+
+        return max(1, $ids->count());
+    }
+}
+
+if (! function_exists('quoted_valuation_fee')) {
+    /** Per-asset valuation fee × $assetCount. Application fee is never multiplied. */
+    function quoted_valuation_fee(?Customer $customer, int $assetCount = 1): int
+    {
+        $count = max(1, $assetCount);
         $quote = app(\App\Services\ValuationPricingService::class)->quote();
         $base = (float) $quote['borrower_amount'];
 
@@ -120,15 +135,13 @@ if (! function_exists('quoted_valuation_fee')) {
             return 0;
         }
 
-        if ($customer && app(ReferralService::class)->referrer($customer)) {
-            return (int) round(app(ReferralService::class)->quoteFee($customer, $base, false, 'valuation_fee')['after_discount']);
-        }
+        $unit = match (true) {
+            (bool) ($customer && app(ReferralService::class)->referrer($customer)) => (int) round(app(ReferralService::class)->quoteFee($customer, $base, false, 'valuation_fee')['after_discount']),
+            (bool) $customer => (int) round(app(AffiliateService::class)->quoteFee($customer, $base, 'valuation_fee')['after_discount']),
+            default => (int) round(app(PromotionService::class)->applyAfter('valuation_fee', $base)['after_discount']),
+        };
 
-        if ($customer) {
-            return (int) round(app(AffiliateService::class)->quoteFee($customer, $base, 'valuation_fee')['after_discount']);
-        }
-
-        return (int) round(app(PromotionService::class)->applyAfter('valuation_fee', $base)['after_discount']);
+        return $unit * $count;
     }
 }
 

@@ -411,13 +411,24 @@ class ScreeningChecklistAutoVerdictService
     /** @param  array<string, mixed>  $ctx */
     private function insuranceType(array $ctx, LoanApplication $application): array
     {
-        $first = (array) collect($ctx['pledged_assets'] ?? [])->first();
-        $type = (string) ($first['insurance_type'] ?? data_get($ctx, 'collateral_secure.insurance.insurance_type') ?: '');
-        $assetType = strtolower((string) ($first['asset_type'] ?? ''));
-        if ($assetType !== '' && $assetType !== 'vehicle') {
+        $pledged = collect($ctx['pledged_assets'] ?? []);
+        $vehicles = $pledged->filter(fn ($row) => strtolower((string) ($row['asset_type'] ?? '')) === 'vehicle');
+        if ($pledged->isNotEmpty() && $vehicles->isEmpty()) {
             return ['verdict' => 'na', 'source' => 'system'];
         }
-        if (! filled($type) || $type === '—') {
+        if ($vehicles->isEmpty()) {
+            $first = (array) $pledged->first();
+            $assetType = strtolower((string) ($first['asset_type'] ?? ''));
+            if ($assetType !== '' && $assetType !== 'vehicle') {
+                return ['verdict' => 'na', 'source' => 'system'];
+            }
+        }
+        $missing = $vehicles->first(function ($row) {
+            $type = (string) ($row['insurance_type'] ?? '');
+
+            return ! filled($type) || $type === '—';
+        });
+        if ($vehicles->isEmpty() || $missing) {
             return $this->awaitingData(
                 $application,
                 'There is no data for this checklist',
@@ -431,29 +442,44 @@ class ScreeningChecklistAutoVerdictService
     /** @param  array<string, mixed>  $ctx */
     private function insuranceCover(array $ctx, LoanApplication $application): array
     {
-        $cs = (array) ($ctx['collateral_secure'] ?? []);
-        $first = (array) collect($ctx['pledged_assets'] ?? [])->first();
-        $assetType = strtolower((string) ($first['asset_type'] ?? ''));
-        if ($assetType !== '' && $assetType !== 'vehicle') {
+        $pledged = collect($ctx['pledged_assets'] ?? []);
+        $vehicles = $pledged->filter(fn ($row) => strtolower((string) ($row['asset_type'] ?? '')) === 'vehicle');
+        if ($pledged->isNotEmpty() && $vehicles->isEmpty()) {
             return ['verdict' => 'na', 'source' => 'system'];
         }
-
-        $expiry = $first['insurance_expiry'] ?? data_get($cs, 'insurance.expiry');
-        $type = $first['insurance_type'] ?? data_get($cs, 'insurance.insurance_type');
-        $hasDoc = ! empty($first['has_insurance_doc']);
-        if ((! filled($type) || $type === '—') && ! $hasDoc && ! filled($expiry)) {
+        if ($vehicles->isEmpty()) {
             return $this->awaitingData(
                 $application,
                 'There is no data for this checklist',
                 'Open collateral',
             );
         }
-        if (filled($expiry) && $expiry !== '—') {
-            try {
-                if (Carbon::parse((string) $expiry)->isPast()) {
-                    return ['verdict' => 'fail', 'fail_reason_code' => 'expired', 'source' => 'system'];
+
+        foreach ($vehicles as $row) {
+            $expiry = $row['insurance_expiry'] ?? null;
+            $type = $row['insurance_type'] ?? null;
+            $hasDoc = ! empty($row['has_insurance_doc']);
+            if ((! filled($type) || $type === '—') && ! $hasDoc && (! filled($expiry) || $expiry === '—')) {
+                return $this->awaitingData(
+                    $application,
+                    'There is no data for this checklist',
+                    'Open collateral',
+                );
+            }
+            if (filled($expiry) && $expiry !== '—') {
+                try {
+                    if (Carbon::parse((string) $expiry)->isPast()) {
+                        return ['verdict' => 'fail', 'fail_reason_code' => 'expired', 'source' => 'system'];
+                    }
+                } catch (\Throwable) {
+                    return $this->awaitingData(
+                        $application,
+                        'There is no data for this checklist',
+                        'Open collateral',
+                    );
                 }
-            } catch (\Throwable) {
+            }
+            if (! $hasDoc && (! filled($type) || $type === '—')) {
                 return $this->awaitingData(
                     $application,
                     'There is no data for this checklist',
@@ -461,15 +487,8 @@ class ScreeningChecklistAutoVerdictService
                 );
             }
         }
-        if ($hasDoc || (filled($type) && $type !== '—')) {
-            return ['verdict' => 'pass', 'source' => 'system'];
-        }
 
-        return $this->awaitingData(
-            $application,
-            'There is no data for this checklist',
-            'Open collateral',
-        );
+        return ['verdict' => 'pass', 'source' => 'system'];
     }
 
     /** @param  array<string, mixed>  $ctx */
@@ -597,9 +616,10 @@ class ScreeningChecklistAutoVerdictService
      */
     private function photoPairsFromContext(array $ctx): array
     {
-        $first = (array) collect($ctx['pledged_assets'] ?? [])->first();
-
-        return (array) ($first['photo_pairs'] ?? []);
+        return collect($ctx['pledged_assets'] ?? [])
+            ->flatMap(fn ($asset) => $asset['photo_pairs'] ?? [])
+            ->values()
+            ->all();
     }
 
     /** @return array{required: bool, secured: bool, status: string} */

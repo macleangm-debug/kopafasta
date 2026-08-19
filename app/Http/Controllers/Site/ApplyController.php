@@ -247,7 +247,6 @@ class ApplyController extends Controller
             ->values()
             ->all();
         $incomeVerification = $wizard->incomeVerification($customer);
-        $applicationFee = quoted_origination_fee($customer, $selectedProduct);
         $productQuestions = config('loan_product_questions', []);
         $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
@@ -258,6 +257,8 @@ class ApplyController extends Controller
         $savedDraft = $productIdForDraft
             ? $drafts->payloadForWizard($customer, $productIdForDraft)
             : $drafts->payloadForWizard($customer);
+        $abAssetCount = selected_collateral_count((array) ($savedDraft['form'] ?? []));
+        $applicationFee = quoted_origination_fee($customer, $selectedProduct, $abAssetCount);
 
         if ($supplementMode && $supplementApplication) {
             $feeStatus = (string) ($supplementApplication->application_fee_status ?? '');
@@ -375,10 +376,10 @@ class ApplyController extends Controller
             $bankAccounts = $this->paymentBankAccountsForProduct($selectedProduct, $applicationFeePaymentRef);
 
             $valuationFeeQuote = $selectedProduct && is_asset_backed_loan_product($selectedProduct->code)
-                ? app(ValuationFeePaymentService::class)->quote($customer)
+                ? app(ValuationFeePaymentService::class)->quote($customer, $abAssetCount)
                 : null;
             $valuationFeeAmount = is_asset_backed_loan_product($selectedProduct?->code)
-                ? quoted_valuation_fee($customer)
+                ? quoted_valuation_fee($customer, $abAssetCount)
                 : 0;
             $valuationFeePaymentRef = $request->session()->get('valuation_fee_payment_ref')
                 ?? app(ValuationFeePaymentService::class)->generatePaymentReference();
@@ -1817,14 +1818,14 @@ class ApplyController extends Controller
                     ->withErrors($e->errors());
             }
 
-            $valFee = quoted_valuation_fee($customer);
+            $valFee = quoted_valuation_fee($customer, selected_collateral_count($data));
             $valFeeState = $draftPayload['valuation_fee'] ?? null;
             $valFeeService = app(ValuationFeePaymentService::class);
 
             if (! $valFeeService->isFeeSatisfied($valFeeState, $valFee)) {
                 $appFeeState = $draftPayload['application_fee'] ?? null;
                 $appFeeService = app(ApplicationFeePaymentService::class);
-                $originationDue = quoted_origination_fee($customer, $loanProduct);
+                $originationDue = quoted_origination_fee($customer, $loanProduct, selected_collateral_count($data));
 
                 if (! $appFeeService->isFeeSatisfied($appFeeState, $originationDue)) {
                     return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
