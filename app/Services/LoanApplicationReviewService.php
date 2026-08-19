@@ -38,6 +38,8 @@ class LoanApplicationReviewService
         $customer = $application->customer;
         abort_unless($customer, 404);
 
+        app(CustomerAssetService::class)->healExtraPledges($application);
+
         $profile = $this->profile->calculate($customer);
         $requirements = collect($application->product?->requirements ?? [])
             ->reject(function ($req) {

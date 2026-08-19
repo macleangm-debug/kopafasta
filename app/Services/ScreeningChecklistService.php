@@ -225,6 +225,7 @@ class ScreeningChecklistService
     ): array {
         $subject = $this->subjectKey($person, $guarantorLinkId, $memberId);
         $state = $this->state($application, $subject);
+        app(CustomerAssetService::class)->healExtraPledges($application);
         $checkedMap = (array) ($state['items'] ?? []);
         $userIds = collect($checkedMap)
             ->pluck('by')
@@ -255,10 +256,12 @@ class ScreeningChecklistService
                 $fullKey = $groupKey.'.'.$itemKey;
                 $row = (array) ($checkedMap[$fullKey] ?? []);
                 $suggestion = $systemSuggestions[$fullKey] ?? null;
-                $row = $this->applySystemSuggestion($row, $suggestion);
+                $row = $this->applySystemSuggestion($row, $suggestion, $fullKey);
                 [$verdict, $autoNa] = $this->resolveItemVerdict((string) $groupKey, $row, $collateralApplies);
                 $rowSource = (string) ($row['source'] ?? '');
                 $isSystem = in_array($rowSource, ['system', 'auto_na'], true) && $verdict !== null;
+                $isAwaiting = $rowSource === 'awaiting_data';
+                $catalogSystem = ! empty($meta['system']);
                 $isDocuments = $rowSource === 'documents' && $verdict !== null;
                 $documentLink = null;
                 if (! $autoNa) {
@@ -301,6 +304,13 @@ class ScreeningChecklistService
                     'verdict' => $verdict,
                     'auto_na' => $autoNa,
                     'system_checked' => $isSystem,
+                    'awaiting_data' => $isAwaiting,
+                    'awaiting_message' => $isAwaiting
+                        ? (string) ($row['awaiting_message'] ?? 'There is no data for this checklist')
+                        : null,
+                    'awaiting_cta' => $isAwaiting ? ($row['awaiting_cta'] ?? null) : null,
+                    'catalog_system' => $catalogSystem,
+                    'read_only' => $catalogSystem || $isAwaiting || (($meta['gate'] ?? null) === 'statements_vs_declared'),
                     'documents_checked' => $isDocuments || (($documentLink['auto'] ?? false) && $verdict !== null && $rowSource === 'documents'),
                     'document_link' => $documentLink,
                     'checked' => $verdict === 'pass' || $verdict === 'na',
@@ -440,6 +450,9 @@ class ScreeningChecklistService
             $items = $existing;
 
             foreach ($validKeys as $key) {
+                if ($this->isCatalogSystem($key)) {
+                    continue;
+                }
                 $incoming = $this->applyGate2AutoVerdict(
                     $key,
                     (array) ($checks[$key] ?? []),
@@ -757,18 +770,19 @@ class ScreeningChecklistService
             'risk' => $risk,
             'gate' => isset($meta['gate']) ? (string) $meta['gate'] : null,
             'document_bundle' => isset($meta['document_bundle']) ? (string) $meta['document_bundle'] : null,
+            'system' => ! empty($meta['system']),
         ];
     }
 
     /**
      * Apply system / Documents suggestion when the item has no human verdict yet
-     * (or was previously system/documents-set).
+     * (or was previously system/documents-set). Catalog `system` items always follow the platform.
      *
      * @param  array<string, mixed>  $row
-     * @param  array{verdict?: string, fail_reason_code?: string|null, source?: string}|null  $suggestion
+     * @param  array{verdict?: string, fail_reason_code?: string|null, source?: string, message?: string, cta?: array{label: string, href: string}|null}|null  $suggestion
      * @return array<string, mixed>
      */
-    private function applySystemSuggestion(array $row, ?array $suggestion): array
+    private function applySystemSuggestion(array $row, ?array $suggestion, string $fullKey = ''): array
     {
         if ($suggestion === null) {
             return $row;
@@ -780,7 +794,22 @@ class ScreeningChecklistService
         $source = (string) ($suggestion['source'] ?? '');
         $existing = $this->normalizeVerdict($row);
         $existingSource = (string) ($row['source'] ?? '');
-        $autoSources = ['system', 'auto_na', 'documents'];
+        $autoSources = ['system', 'auto_na', 'documents', 'awaiting_data'];
+        $catalogSystem = $fullKey !== '' && $this->isCatalogSystem($fullKey);
+
+        if ($source === 'awaiting_data') {
+            return [
+                'verdict' => null,
+                'checked' => false,
+                'source' => 'awaiting_data',
+                'fail_reason_code' => null,
+                'fail_reason_custom' => null,
+                'at' => null,
+                'by' => null,
+                'awaiting_message' => (string) ($suggestion['message'] ?? 'There is no data for this checklist'),
+                'awaiting_cta' => $suggestion['cta'] ?? null,
+            ];
+        }
 
         // system_skip = human must decide. If a prior system/documents auto-verdict is stale
         // (e.g. photos arrived after a photos_missing Fail), clear it so the item reopens.
@@ -801,7 +830,7 @@ class ScreeningChecklistService
         }
 
         $humanLocked = $existing !== null && ! in_array($existingSource, $autoSources, true);
-        if ($humanLocked) {
+        if ($humanLocked && ! $catalogSystem) {
             return $row;
         }
 
@@ -820,6 +849,13 @@ class ScreeningChecklistService
             'at' => $row['at'] ?? now()->toIso8601String(),
             'by' => $row['by'] ?? null,
         ];
+    }
+
+    private function isCatalogSystem(string $fullKey): bool
+    {
+        [$group, $item] = array_pad(explode('.', $fullKey, 2), 2, '');
+
+        return (bool) data_get(config('screening_checklist'), $group.'.items.'.$item.'.system');
     }
 
     /** @param  array<string, mixed>  $row */
@@ -947,7 +983,7 @@ class ScreeningChecklistService
         $context = $this->evidenceContext($application, $person, $guarantorLinkId, $memberId, null, null);
         $kind = $this->kindFromSubject($this->subjectKey($person, $guarantorLinkId, $memberId));
         $suggestions = app(ScreeningChecklistAutoVerdictService::class)->suggest($application, $kind, $context);
-        $autoSources = ['system', 'auto_na', 'documents'];
+        $autoSources = ['system', 'auto_na', 'documents', 'awaiting_data'];
 
         foreach ($validKeys as $key) {
             $current = (array) ($items[$key] ?? []);
@@ -967,6 +1003,22 @@ class ScreeningChecklistService
             $existingSource = (string) ($current['source'] ?? '');
             $suggestionSource = (string) ($suggestion['source'] ?? '');
 
+            if ($suggestionSource === 'awaiting_data') {
+                $items[$key] = [
+                    'verdict' => null,
+                    'checked' => false,
+                    'source' => 'awaiting_data',
+                    'fail_reason_code' => null,
+                    'fail_reason_custom' => null,
+                    'at' => null,
+                    'by' => null,
+                    'awaiting_message' => (string) ($suggestion['message'] ?? 'There is no data for this checklist'),
+                    'awaiting_cta' => $suggestion['cta'] ?? null,
+                ];
+
+                continue;
+            }
+
             // Clear stale system/documents verdicts when the platform can no longer decide.
             if ($suggestionSource === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
                 if ($existing !== null && in_array($existingSource, $autoSources, true)) {
@@ -976,7 +1028,7 @@ class ScreeningChecklistService
                 continue;
             }
 
-            if ($existing !== null && ! in_array($existingSource, $autoSources, true)) {
+            if ($existing !== null && ! in_array($existingSource, $autoSources, true) && ! $this->isCatalogSystem($key)) {
                 continue;
             }
             $resolvedSource = match ($suggestionSource) {
@@ -1396,6 +1448,9 @@ class ScreeningChecklistService
             'collateral_secure' => $collateral,
             'pledged_assets' => $this->pledgedAssetSummaries($application),
             'valuer' => $this->valuerEvidence($application),
+            'gps' => $this->gpsEvidence($application),
+            'coverage' => app(CollateralCoverageService::class)->forApplication($application),
+            'photo_pairs' => $this->photoPairsForApplication($application),
             'anomalies' => $anomalies,
             'application' => $application,
             'subject_person' => $person,
@@ -1497,6 +1552,7 @@ class ScreeningChecklistService
         $layout = null;
         $documentsHeading = null;
         $documentsOpenLabel = null;
+        $photoPairs = [];
 
         switch ($type) {
             case 'nida_dob':
@@ -1903,42 +1959,72 @@ class ScreeningChecklistService
                         ['label' => 'Pledged on this loan', 'value' => 'None'],
                         ['label' => 'What to do', 'value' => 'Ask the leader / borrower to add or pick the asset used as security'],
                     ];
-                    $hint = 'Only assets marked On this loan appear here. Saved profile assets that were not pledged are ignored.';
+                    $hint = 'Only the asset marked On this loan appears here. Saved profile assets that were not pledged are ignored.';
                     break;
                 }
-                $rows = [];
-                foreach ($pledged as $asset) {
-                    $rows[] = ['label' => (string) ($asset['label'] ?? 'Asset'), 'value' => (string) ($asset['type_label'] ?? $asset['asset_type'] ?? '—')];
-                    $rows[] = ['label' => 'Owner', 'value' => (string) ($asset['owner'] ?? '—')];
-                    $rows[] = ['label' => 'Registration / serial', 'value' => (string) ($asset['registration'] ?? '—')];
-                    $rows[] = ['label' => 'Make / year', 'value' => trim((string) (($asset['make'] ?? '').' '.($asset['year'] ?? ''))) ?: '—'];
-                    $rows[] = ['label' => 'Chassis / serial', 'value' => (string) ($asset['chassis'] ?? '—')];
-                    $rows[] = ['label' => 'Estimated value', 'value' => (string) ($asset['estimated_value'] ?? '—')];
+                $asset = (array) $pledged->first();
+                $rows = [
+                    ['label' => (string) ($asset['label'] ?? 'Asset'), 'value' => (string) ($asset['type_label'] ?? $asset['asset_type'] ?? '—')],
+                    ['label' => 'Owner', 'value' => (string) ($asset['owner'] ?? '—')],
+                    ['label' => 'Registration / serial', 'value' => (string) ($asset['registration'] ?? '—')],
+                    ['label' => 'Make / year', 'value' => trim((string) (($asset['make'] ?? '').' '.($asset['year'] ?? ''))) ?: '—'],
+                    ['label' => 'Chassis / serial', 'value' => (string) ($asset['chassis'] ?? '—')],
+                    ['label' => 'Estimated value', 'value' => (string) ($asset['estimated_value'] ?? '—')],
+                ];
+                foreach ($asset['documents'] ?? [] as $doc) {
+                    $documents[] = $doc;
+                }
+                if ($itemKey === 'valuation_or_photos') {
+                    $photoPairs = (array) ($asset['photo_pairs'] ?? []);
+                    $layout = 'photo_pairs';
+                    $hint = 'Borrower profile photos on the left. Valuer inspection photos on the right, matched by the same angle (front, back, left, right).';
+                } else {
                     foreach ($asset['photos'] ?? [] as $photo) {
                         $photos[] = $photo;
                     }
-                    foreach ($asset['documents'] ?? [] as $doc) {
-                        $documents[] = $doc;
-                    }
+                    $hint = 'Confirm the pledged asset identity from photos and registration. Person-with-asset shots are supporting evidence, not the thumbnail.';
                 }
-                $hint = 'Confirm the pledged asset identity from photos and registration. Person-with-asset shots are supporting evidence, not the thumbnail.';
                 break;
 
             case 'valuer':
                 $valuer = (array) ($ctx['valuer'] ?? []);
+                $rows = match ($itemKey) {
+                    'valuation_fee' => [
+                        ['label' => 'Valuation fee', 'value' => (string) ($valuer['fee_status'] ?? '—')],
+                    ],
+                    'valuation_report' => [
+                        ['label' => 'Forced sale value', 'value' => (string) ($valuer['fsv'] ?? '—')],
+                        ['label' => 'Market value', 'value' => (string) ($valuer['market_value'] ?? '—')],
+                    ],
+                    'ltv_covers' => [
+                        ['label' => 'LTV cover', 'value' => (string) ($valuer['ltv'] ?? '—')],
+                        ['label' => 'Forced sale value', 'value' => (string) ($valuer['fsv'] ?? '—')],
+                    ],
+                    default => [
+                        ['label' => 'Valuation fee', 'value' => (string) ($valuer['fee_status'] ?? '—')],
+                        ['label' => 'Forced sale value', 'value' => (string) ($valuer['fsv'] ?? '—')],
+                        ['label' => 'Market value', 'value' => (string) ($valuer['market_value'] ?? '—')],
+                        ['label' => 'LTV cover', 'value' => (string) ($valuer['ltv'] ?? '—')],
+                    ],
+                };
+                $hint = match ($itemKey) {
+                    'valuation_fee' => 'The system records Pass once the valuation fee is paid. Screening does not assign the valuer from this checklist.',
+                    'valuation_report' => 'The system reads forced sale and market values from the valuer’s submitted report.',
+                    'ltv_covers' => 'The system compares FSV × LTV to the requested amount once the valuer has submitted values.',
+                    default => 'System-checked from the valuation record.',
+                };
+                break;
+
+            case 'gps':
+                $gps = (array) ($ctx['gps'] ?? []);
                 $rows = [
-                    ['label' => 'Valuation fee', 'value' => (string) ($valuer['fee_status'] ?? '—')],
-                    ['label' => 'Assignment', 'value' => (string) ($valuer['assignment_status'] ?? 'Not assigned')],
-                    ['label' => 'Valuer', 'value' => (string) ($valuer['name'] ?? '—')],
-                    ['label' => 'Phone (communication only)', 'value' => (string) ($valuer['phone'] ?? '—')],
-                    ['label' => 'Email', 'value' => (string) ($valuer['email'] ?? '—')],
-                    ['label' => 'Customer region', 'value' => (string) ($valuer['region'] ?? '—')],
-                    ['label' => 'How assigned', 'value' => (string) ($valuer['matching'] ?? '—')],
-                    ['label' => 'Forced sale value', 'value' => (string) ($valuer['fsv'] ?? '—')],
-                    ['label' => 'Market value', 'value' => (string) ($valuer['market_value'] ?? '—')],
-                    ['label' => 'LTV cover', 'value' => (string) ($valuer['ltv'] ?? '—')],
+                    ['label' => 'GPS required', 'value' => ! empty($gps['required']) ? 'Yes' : 'No'],
+                    ['label' => 'Status', 'value' => (string) ($gps['status_label'] ?? ($gps['status'] ?? '—'))],
+                    ['label' => 'Serial', 'value' => (string) ($gps['serial'] ?? '—')],
                 ];
-                $hint = (string) ($valuer['hint'] ?? 'When auto-assign is on, screening only uses valuer contact details to coordinate. The valuer receives the task.');
+                $hint = ! empty($gps['required'])
+                    ? 'The system marks this Pass when a GPS serial or tracking URL is on the pledged asset.'
+                    : 'GPS is not required for this pledged asset.';
                 break;
 
             case 'generic':
@@ -1967,6 +2053,7 @@ class ScreeningChecklistService
             'layout' => $layout,
             'documents_heading' => $documentsHeading,
             'documents_open_label' => $documentsOpenLabel,
+            'photo_pairs' => $photoPairs,
         ];
     }
 
@@ -2123,6 +2210,7 @@ class ScreeningChecklistService
     private function pledgedAssetSummaries(LoanApplication $application): array
     {
         $application->loadMissing(['collateralAssets.customerAsset.customer']);
+        $keepId = app(CustomerAssetService::class)->designatedAssetId($application);
 
         $out = [];
         foreach ($application->collateralAssets as $row) {
@@ -2133,15 +2221,18 @@ class ScreeningChecklistService
             if (! $asset) {
                 continue;
             }
+            if ($keepId && (int) $asset->id !== $keepId) {
+                continue;
+            }
 
             $photos = [];
-            foreach (array_values($asset->photo_paths ?? []) as $i => $path) {
-                if (! filled($path)) {
-                    continue;
-                }
+            foreach ($asset->photosByAngle() as $angle => $path) {
+                $label = CustomerAsset::photoAngleLabels($asset->asset_type)[$angle] ?? ucfirst($angle);
                 $photos[] = [
-                    'label' => $asset->label.($i === 0 ? ' photo' : ' photo '.($i + 1)),
+                    'label' => $label,
                     'url' => asset('storage/'.$path),
+                    'angle' => $angle,
+                    'role' => 'asset',
                 ];
             }
             $person = $asset->metadata['person_with_asset_path'] ?? null;
@@ -2149,6 +2240,7 @@ class ScreeningChecklistService
                 $photos[] = [
                     'label' => 'Owner with asset',
                     'url' => asset('storage/'.$person),
+                    'role' => 'person',
                 ];
             }
 
@@ -2162,15 +2254,15 @@ class ScreeningChecklistService
                     continue;
                 }
                 $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
-                $pack = [
+                $documents[] = [
                     'label' => $label,
                     'url' => asset('storage/'.$path),
                     'kind' => $ext === 'pdf' ? 'pdf' : 'image',
                 ];
-                $documents[] = $pack;
             }
 
             $out[] = [
+                'id' => $asset->id,
                 'label' => (string) $asset->label,
                 'asset_type' => (string) $asset->asset_type,
                 'type_label' => CustomerAsset::typeOptions()[$asset->asset_type] ?? $asset->asset_type,
@@ -2185,6 +2277,7 @@ class ScreeningChecklistService
                 'insurance_expiry' => (string) ($asset->detail('insurance_expires_at') ?: '—'),
                 'has_insurance_doc' => filled($asset->metadata['insurance_document_path'] ?? null),
                 'photos' => $photos,
+                'photo_pairs' => $this->photoPairsForAsset($asset, $application),
                 'documents' => $documents,
                 'insurance_documents' => collect($documents)
                     ->filter(fn ($doc) => str_contains(strtolower((string) ($doc['label'] ?? '')), 'insurance'))
@@ -2194,6 +2287,95 @@ class ScreeningChecklistService
         }
 
         return $out;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function photoPairsForApplication(LoanApplication $application): array
+    {
+        $keepId = app(CustomerAssetService::class)->designatedAssetId($application);
+        if (! $keepId) {
+            return [];
+        }
+        $asset = CustomerAsset::query()->find($keepId);
+
+        return $asset ? $this->photoPairsForAsset($asset, $application) : [];
+    }
+
+    /**
+     * @return list<array{angle: string, label: string, borrower: ?array{url: string, label: string}, valuer: ?array{url: string, label: string}}>
+     */
+    private function photoPairsForAsset(CustomerAsset $asset, LoanApplication $application): array
+    {
+        $borrower = $asset->photosByAngle();
+        $valuerByAngle = [];
+        foreach ($this->valuerPhotoRows($application) as $row) {
+            $angle = CustomerAsset::angleFromLabel($row['label'] ?? null, $row['doc_type'] ?? null);
+            if ($angle && ! isset($valuerByAngle[$angle])) {
+                $valuerByAngle[$angle] = $row;
+            }
+        }
+
+        $angles = array_unique(array_merge(
+            array_keys(CustomerAsset::photoAngleLabels($asset->asset_type)),
+            array_keys($borrower),
+            array_keys($valuerByAngle),
+        ));
+
+        $pairs = [];
+        foreach ($angles as $angle) {
+            $label = CustomerAsset::photoAngleLabels($asset->asset_type)[$angle] ?? ucfirst((string) $angle);
+            $bPath = $borrower[$angle] ?? null;
+            $vRow = $valuerByAngle[$angle] ?? null;
+            $pairs[] = [
+                'angle' => $angle,
+                'label' => $label,
+                'borrower' => $bPath ? [
+                    'url' => asset('storage/'.$bPath),
+                    'label' => 'Asset · '.$label,
+                ] : null,
+                'valuer' => $vRow ? [
+                    'url' => $vRow['url'],
+                    'label' => 'Valuer · '.$label,
+                ] : null,
+            ];
+        }
+
+        return $pairs;
+    }
+
+    /**
+     * @return list<array{label: string, url: string, doc_type?: ?string}>
+     */
+    private function valuerPhotoRows(LoanApplication $application): array
+    {
+        $report = app(ValuationPartnerService::class)->reportForApplication($application);
+
+        return (array) ($report['photos'] ?? []);
+    }
+
+    /** @return array<string, mixed> */
+    private function gpsEvidence(LoanApplication $application): array
+    {
+        $items = app(GpsDeviceService::class)->forApplication($application);
+        $onLoan = collect($items)->first(fn ($row) => ! empty($row['is_primary'])) ?? collect($items)->first();
+        $required = collect($items)->contains(fn ($row) => ! empty($row['gps_required']));
+        $secured = collect($items)->contains(fn ($row) => ($row['gps_status'] ?? '') === 'secured');
+        $status = $secured ? 'secured' : ($required ? (string) ($onLoan['gps_status'] ?? 'required') : 'not_required');
+
+        return [
+            'required' => $required,
+            'secured' => $secured,
+            'status' => $status,
+            'status_label' => match ($status) {
+                'secured' => 'Installed',
+                'install_pending' => 'Install in progress',
+                'required' => 'Required — not installed',
+                default => 'Not required',
+            },
+            'serial' => $onLoan['gps_serial'] ?? '—',
+        ];
     }
 
     /** @return array<string, mixed> */
@@ -2237,6 +2419,7 @@ class ScreeningChecklistService
 
         return [
             'fee_status' => $feeStatus,
+            'fee_paid' => $feePaid,
             'assignment_status' => $open
                 ? ucfirst(str_replace('_', ' ', (string) $open->status)).($autoAssigned ? ' · auto-assigned' : '')
                 : (($cs['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUER
@@ -2255,8 +2438,8 @@ class ScreeningChecklistService
                     .(! empty($coverage['sufficient']) ? ' · covers' : ' · shortfall')
                 : '—',
             'hint' => $autoOn
-                ? 'Auto-assign is on. Screening uses valuer name and phone for communication only — the valuer already has the task. Matching: '.$matching.'.'
-                : 'Auto-assign is off. Ops picks the valuer. Matching rules still prefer region coverage, then load.',
+                ? 'Auto-assign is on. The valuer already has the task. Matching: '.$matching.'.'
+                : 'Auto-assign is off. Ops picks the valuer.',
         ];
     }
 }

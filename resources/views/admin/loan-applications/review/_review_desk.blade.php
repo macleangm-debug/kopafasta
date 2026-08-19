@@ -158,7 +158,7 @@
                  this.openItem = null;
                  this.$refs['items_' + groupKey]?.querySelectorAll('[data-checklist-item]').forEach((el) => {
                      const data = Alpine.$data(el);
-                     if (! data || data.verdict || data.needsStatementTotals) {
+                     if (! data || data.verdict || data.needsStatementTotals || data.systemLocked) {
                          return;
                      }
                      data.verdict = 'pass';

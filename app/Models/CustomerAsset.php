@@ -145,6 +145,49 @@ class CustomerAsset extends Model
         ];
     }
 
+    /**
+     * Canonical inspection angles — same set the borrower profile and the valuer use.
+     *
+     * @return array<string, string>
+     */
+    public static function photoAngleLabels(?string $type = null): array
+    {
+        $base = [
+            'front' => 'Front',
+            'back' => 'Back',
+        ];
+        if (in_array((string) $type, ['land', 'house', ''], true)) {
+            return $base;
+        }
+
+        return $base + [
+            'left' => 'Left',
+            'right' => 'Right',
+        ];
+    }
+
+    public static function angleFromLabel(?string $label, ?string $docType = null): ?string
+    {
+        $hay = strtolower(trim(($docType ?? '').' '.($label ?? '')));
+        if ($hay === '') {
+            return null;
+        }
+        if (str_contains($hay, 'front')) {
+            return 'front';
+        }
+        if (str_contains($hay, 'back') || str_contains($hay, 'rear')) {
+            return 'back';
+        }
+        if (preg_match('/\bleft\b/', $hay)) {
+            return 'left';
+        }
+        if (preg_match('/\bright\b/', $hay)) {
+            return 'right';
+        }
+
+        return null;
+    }
+
     /** Ordered list of every stored image path (asset photos + person shot). @return array<int, string> */
     public function galleryPaths(): array
     {
@@ -156,10 +199,54 @@ class CustomerAsset extends Model
         return array_values(array_filter($paths));
     }
 
+    /**
+     * Asset photos keyed by inspection angle. Person-with-asset shots are excluded.
+     *
+     * @return array<string, string> angle => storage path
+     */
+    public function photosByAngle(): array
+    {
+        $person = (string) ($this->metadata['person_with_asset_path'] ?? '');
+        $keyed = (array) ($this->metadata['photo_angles'] ?? []);
+        $out = [];
+        foreach (array_keys(self::photoAngleLabels($this->asset_type)) as $angle) {
+            $path = $keyed[$angle] ?? null;
+            if (is_string($path) && filled($path) && $path !== $person) {
+                $out[$angle] = $path;
+            }
+        }
+        if ($out !== []) {
+            return $out;
+        }
+
+        $order = array_keys(self::photoAngleLabels($this->asset_type));
+        foreach (array_values($this->photo_paths ?? []) as $i => $path) {
+            if (! filled($path) || $path === $person) {
+                continue;
+            }
+            $angle = $order[$i] ?? null;
+            if ($angle && ! isset($out[$angle])) {
+                $out[$angle] = $path;
+            }
+        }
+
+        return $out;
+    }
+
     public function thumbnailPath(): ?string
     {
-        $photos = array_values(array_filter($this->photo_paths ?? []));
+        $person = (string) ($this->metadata['person_with_asset_path'] ?? '');
+        foreach ($this->photosByAngle() as $path) {
+            if ($path !== $person) {
+                return $path;
+            }
+        }
+        foreach (array_values($this->photo_paths ?? []) as $path) {
+            if (filled($path) && $path !== $person) {
+                return $path;
+            }
+        }
 
-        return $photos[0] ?? null;
+        return null;
     }
 }

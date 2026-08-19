@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CustomerAsset;
 use App\Models\Loan;
+use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\PartnerTask;
 use App\Models\Setting;
@@ -174,11 +175,17 @@ class GpsDeviceService
             return [];
         }
 
-        $loan->loadMissing(['application.collateralAssets.customerAsset']);
-        $application = $loan->application;
-        if (! $application) {
-            return [];
-        }
+        $loan->loadMissing(['application']);
+
+        return $loan->application ? $this->forApplication($loan->application) : [];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function forApplication(LoanApplication $application): array
+    {
+        $application->loadMissing(['collateralAssets.customerAsset']);
 
         $gpsTasks = PartnerTask::query()
             ->where('loan_application_id', $application->id)

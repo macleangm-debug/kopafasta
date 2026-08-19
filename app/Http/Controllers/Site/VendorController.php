@@ -517,20 +517,40 @@ class VendorController extends Controller
         abort_unless($task->vendor_id === $vendor->id, 404);
 
         $data = $request->validate([
-            'label' => ['required', 'string', 'max:80'],
+            'label' => ['nullable', 'string', 'max:80'],
+            'angle' => ['nullable', 'string', 'max:20'],
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
+        $label = trim((string) ($data['label'] ?? ''));
+        $payload = [];
+        if ($task->task_type === 'asset_valuation') {
+            $angles = \App\Models\CustomerAsset::photoAngleLabels();
+            $angle = (string) ($data['angle'] ?? \App\Models\CustomerAsset::angleFromLabel($label) ?? '');
+            if ($angle === '' || ! isset($angles[$angle])) {
+                return back()->withErrors(['angle' => 'Select the photo angle (front, back, left, or right).']);
+            }
+            $label = $angles[$angle];
+            $payload['doc_type'] = 'asset_photo_'.$angle;
+        } elseif ($label === '') {
+            return back()->withErrors(['label' => 'Add a label for this file.']);
+        }
+
         $path = $request->file('file')->store("vendor/{$vendor->id}/proofs", 'public');
 
-        VendorDocument::create([
+        $create = [
             'vendor_id' => $vendor->id,
             'vendor_task_id' => $task->id,
-            'label' => $data['label'],
+            'label' => $label,
             'file_path' => $path,
             'mime' => $request->file('file')->getMimeType(),
             'size_bytes' => $request->file('file')->getSize(),
-        ]);
+        ];
+        if (($payload['doc_type'] ?? null) && (Schema::hasColumn('partner_documents', 'doc_type') || Schema::hasColumn('vendor_documents', 'doc_type'))) {
+            $create['doc_type'] = $payload['doc_type'];
+        }
+
+        VendorDocument::create($create);
 
         if (! $task->proof_path) {
             $task->update(['proof_path' => $path]);

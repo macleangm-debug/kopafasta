@@ -238,4 +238,31 @@ class ScreeningValuationGateFeatureTest extends TestCase
         ]);
         $this->assertSame(CollateralSecureService::PATH_SCREENING_VALUATION, $state['path'] ?? null);
     }
+
+    public function test_checklist_system_marks_fee_and_awaits_missing_fsv(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer);
+        $this->pledge($application, $customer);
+        app(CollateralSecureService::class)->promptValuationFeeAfterPledge($application->fresh());
+        $application = $application->fresh();
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $vm = app(\App\Services\ScreeningChecklistService::class)
+            ->viewModel($application, $admin, 'borrower', null, null, ['customer' => $customer]);
+        $collateral = collect($vm['groups'] ?? [])->firstWhere('key', 'collateral');
+        $this->assertNotNull($collateral);
+        $fee = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_fee');
+        $this->assertSame('fail', $fee['verdict'] ?? null);
+        $this->assertTrue($fee['catalog_system'] ?? false);
+        $this->assertFalse($fee['awaiting_data'] ?? false);
+
+        $report = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_report');
+        $this->assertTrue($report['awaiting_data'] ?? false);
+        $this->assertSame('There is no data for this checklist', $report['awaiting_message'] ?? null);
+
+        $photos = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_or_photos');
+        $this->assertSame('photo_pairs', $photos['evidence']['layout'] ?? null);
+        $this->assertNotEmpty($photos['evidence']['photo_pairs'] ?? []);
+    }
 }

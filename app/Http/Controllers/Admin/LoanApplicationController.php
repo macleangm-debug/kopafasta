@@ -455,6 +455,16 @@ class LoanApplicationController extends ResourceController
         return back()->with('status', 'Valuation requested. The borrower (group leader on group loans) must pay the valuation fee before a valuer is assigned.');
     }
 
+    public function useCollateralOnLoan(Request $request, LoanApplication $loan_application, \App\Models\CustomerAsset $customer_asset): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
+
+        app(\App\Services\CustomerAssetService::class)->useOnThisLoan($loan_application, $customer_asset);
+
+        return back()->with('status', $customer_asset->label.' is now the collateral on this loan.');
+    }
+
     public function saveScreeningChecklist(Request $request, LoanApplication $loan_application): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);

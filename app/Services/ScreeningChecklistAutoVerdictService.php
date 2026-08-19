@@ -102,7 +102,6 @@ class ScreeningChecklistAutoVerdictService
                 'collateral.insurance_cover',
                 'collateral.valuation_or_photos',
                 'collateral.valuation_fee',
-                'collateral.valuer_assigned',
                 'collateral.valuation_report',
                 'collateral.ltv_covers',
                 'collateral.gps_or_location',
@@ -110,7 +109,14 @@ class ScreeningChecklistAutoVerdictService
                 $out[$key] = ['verdict' => 'na', 'source' => 'auto_na'];
             }
         } else {
-            $out['collateral.insurance_cover'] = $this->insuranceCover($context);
+            $out['collateral.asset_identity'] = $this->assetIdentity($context, $application);
+            $out['collateral.insurance_type'] = $this->insuranceType($context, $application);
+            $out['collateral.insurance_cover'] = $this->insuranceCover($context, $application);
+            $out['collateral.valuation_or_photos'] = $this->valuationPhotos($context, $application);
+            $out['collateral.valuation_fee'] = $this->valuationFee($context, $application);
+            $out['collateral.valuation_report'] = $this->valuationReport($context, $application);
+            $out['collateral.ltv_covers'] = $this->ltvCovers($context, $application);
+            $out['collateral.gps_or_location'] = $this->gpsOrLocation($context, $application);
         }
 
         return $out;
@@ -388,26 +394,252 @@ class ScreeningChecklistAutoVerdictService
     }
 
     /** @param  array<string, mixed>  $ctx */
-    private function insuranceCover(array $ctx): array
+    private function assetIdentity(array $ctx, LoanApplication $application): array
+    {
+        $pledged = collect($ctx['pledged_assets'] ?? []);
+        if ($pledged->isEmpty()) {
+            return $this->awaitingData(
+                $application,
+                'There is no data for this checklist',
+                'Open collateral',
+            );
+        }
+
+        return ['verdict' => '', 'source' => 'system_skip'];
+    }
+
+    /** @param  array<string, mixed>  $ctx */
+    private function insuranceType(array $ctx, LoanApplication $application): array
+    {
+        $first = (array) collect($ctx['pledged_assets'] ?? [])->first();
+        $type = (string) ($first['insurance_type'] ?? data_get($ctx, 'collateral_secure.insurance.insurance_type') ?: '');
+        $assetType = strtolower((string) ($first['asset_type'] ?? ''));
+        if ($assetType !== '' && $assetType !== 'vehicle') {
+            return ['verdict' => 'na', 'source' => 'system'];
+        }
+        if (! filled($type) || $type === '—') {
+            return $this->awaitingData(
+                $application,
+                'There is no data for this checklist',
+                'Open collateral',
+            );
+        }
+
+        return ['verdict' => 'pass', 'source' => 'system'];
+    }
+
+    /** @param  array<string, mixed>  $ctx */
+    private function insuranceCover(array $ctx, LoanApplication $application): array
     {
         $cs = (array) ($ctx['collateral_secure'] ?? []);
-        $expiry = data_get($cs, 'insurance.expiry');
-        $type = data_get($cs, 'insurance.insurance_type');
-        if (! filled($type)) {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'missing', 'source' => 'system'];
+        $first = (array) collect($ctx['pledged_assets'] ?? [])->first();
+        $assetType = strtolower((string) ($first['asset_type'] ?? ''));
+        if ($assetType !== '' && $assetType !== 'vehicle') {
+            return ['verdict' => 'na', 'source' => 'system'];
         }
-        if (filled($expiry)) {
+
+        $expiry = $first['insurance_expiry'] ?? data_get($cs, 'insurance.expiry');
+        $type = $first['insurance_type'] ?? data_get($cs, 'insurance.insurance_type');
+        $hasDoc = ! empty($first['has_insurance_doc']);
+        if ((! filled($type) || $type === '—') && ! $hasDoc && ! filled($expiry)) {
+            return $this->awaitingData(
+                $application,
+                'There is no data for this checklist',
+                'Open collateral',
+            );
+        }
+        if (filled($expiry) && $expiry !== '—') {
             try {
                 if (Carbon::parse((string) $expiry)->isPast()) {
                     return ['verdict' => 'fail', 'fail_reason_code' => 'expired', 'source' => 'system'];
                 }
             } catch (\Throwable) {
-                // leave for human
-                return ['verdict' => '', 'source' => 'system_skip'];
+                return $this->awaitingData(
+                    $application,
+                    'There is no data for this checklist',
+                    'Open collateral',
+                );
             }
         }
+        if ($hasDoc || (filled($type) && $type !== '—')) {
+            return ['verdict' => 'pass', 'source' => 'system'];
+        }
 
-        return ['verdict' => 'pass', 'source' => 'system'];
+        return $this->awaitingData(
+            $application,
+            'There is no data for this checklist',
+            'Open collateral',
+        );
+    }
+
+    /** @param  array<string, mixed>  $ctx */
+    private function valuationPhotos(array $ctx, LoanApplication $application): array
+    {
+        $pairs = (array) ($ctx['photo_pairs'] ?? []);
+        if ($pairs === []) {
+            $pairs = $this->photoPairsFromContext($ctx);
+        }
+        if ($pairs === []) {
+            return $this->awaitingData(
+                $application,
+                'There is no data for this checklist',
+                'Open collateral',
+            );
+        }
+
+        $borrowerAngles = collect($pairs)->filter(fn ($row) => filled(data_get($row, 'borrower.url')));
+        $matched = $borrowerAngles->filter(fn ($row) => filled(data_get($row, 'valuer.url')));
+        $valuer = (array) ($ctx['valuer'] ?? []);
+        $completed = filled($valuer['fsv'] ?? null) && ($valuer['fsv'] ?? '—') !== '—';
+
+        if ($borrowerAngles->isEmpty()) {
+            return $this->awaitingData(
+                $application,
+                'There is no data for this checklist',
+                'Open collateral',
+            );
+        }
+        if ($matched->count() === $borrowerAngles->count()) {
+            return ['verdict' => 'pass', 'source' => 'system'];
+        }
+        if ($completed) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'photos_poor', 'source' => 'system'];
+        }
+
+        return $this->awaitingData(
+            $application,
+            'There is no data for this checklist',
+            'Open collateral',
+        );
+    }
+
+    /** @param  array<string, mixed>  $ctx */
+    private function valuationFee(array $ctx, LoanApplication $application): array
+    {
+        $valuer = (array) ($ctx['valuer'] ?? []);
+        $cs = (array) ($ctx['collateral_secure'] ?? []);
+        if (! empty($valuer['fee_paid']) || filled($cs['valuation_fee_paid_at'] ?? null)) {
+            return ['verdict' => 'pass', 'source' => 'system'];
+        }
+        $status = (string) ($cs['status'] ?? '');
+        if ($status === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'fee_unpaid', 'source' => 'system'];
+        }
+
+        return $this->awaitingData(
+            $application,
+            'There is no data for this checklist',
+            'Request valuation',
+            'checklist',
+        );
+    }
+
+    /** @param  array<string, mixed>  $ctx */
+    private function valuationReport(array $ctx, LoanApplication $application): array
+    {
+        $valuer = (array) ($ctx['valuer'] ?? []);
+        $fsv = (string) ($valuer['fsv'] ?? '');
+        if (filled($fsv) && $fsv !== '—') {
+            return ['verdict' => 'pass', 'source' => 'system'];
+        }
+
+        return $this->awaitingData(
+            $application,
+            'There is no data for this checklist',
+            'Open collateral',
+        );
+    }
+
+    /** @param  array<string, mixed>  $ctx */
+    private function ltvCovers(array $ctx, LoanApplication $application): array
+    {
+        $coverage = $ctx['coverage'] ?? app(CollateralCoverageService::class)->forApplication($application);
+        $valuer = (array) ($ctx['valuer'] ?? []);
+        $fsv = (string) ($valuer['fsv'] ?? '');
+        if (! is_array($coverage) || $coverage === [] || ! filled($fsv) || $fsv === '—') {
+            return $this->awaitingData(
+                $application,
+                'There is no data for this checklist',
+                'Open collateral',
+            );
+        }
+        if (! empty($coverage['sufficient'])) {
+            return ['verdict' => 'pass', 'source' => 'system'];
+        }
+
+        return ['verdict' => 'fail', 'fail_reason_code' => 'ltv_shortfall', 'source' => 'system'];
+    }
+
+    /** @param  array<string, mixed>  $ctx */
+    private function gpsOrLocation(array $ctx, LoanApplication $application): array
+    {
+        $gps = (array) ($ctx['gps'] ?? []);
+        if ($gps === []) {
+            $gps = $this->gpsSummary($application);
+        }
+        if (empty($gps['required'])) {
+            return ['verdict' => 'na', 'source' => 'system'];
+        }
+        if (! empty($gps['secured'])) {
+            return ['verdict' => 'pass', 'source' => 'system'];
+        }
+
+        return $this->awaitingData(
+            $application,
+            'There is no data for this checklist',
+            'Open collateral',
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $ctx
+     * @return list<array<string, mixed>>
+     */
+    private function photoPairsFromContext(array $ctx): array
+    {
+        $first = (array) collect($ctx['pledged_assets'] ?? [])->first();
+
+        return (array) ($first['photo_pairs'] ?? []);
+    }
+
+    /** @return array{required: bool, secured: bool, status: string} */
+    private function gpsSummary(LoanApplication $application): array
+    {
+        $items = app(GpsDeviceService::class)->forApplication($application);
+        $required = collect($items)->contains(fn ($row) => ! empty($row['gps_required']));
+        $secured = collect($items)->contains(fn ($row) => ($row['gps_status'] ?? '') === 'secured');
+
+        return [
+            'required' => $required,
+            'secured' => $secured,
+            'status' => $secured ? 'secured' : ($required ? 'required' : 'not_required'),
+        ];
+    }
+
+    /**
+     * @return array{verdict: string, source: string, message: string, cta: array{label: string, href: string}}
+     */
+    private function awaitingData(
+        LoanApplication $application,
+        string $message = 'There is no data for this checklist',
+        string $ctaLabel = 'Open collateral',
+        string $workspace = 'profiles',
+    ): array {
+        $href = route('admin.loan-applications.show', array_filter([
+            'loan_application' => $application,
+            'workspace' => $workspace === 'checklist' ? 'checklist' : 'profiles',
+            'tab' => $workspace === 'checklist' ? null : 'collateral',
+        ]));
+
+        return [
+            'verdict' => '',
+            'source' => 'awaiting_data',
+            'message' => $message,
+            'cta' => [
+                'label' => $ctaLabel,
+                'href' => $href,
+            ],
+        ];
     }
 
     private function norm(string $value): string

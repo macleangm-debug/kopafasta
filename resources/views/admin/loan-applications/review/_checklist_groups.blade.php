@@ -40,7 +40,8 @@
                     x-data="{
                         verdict: @js($item['verdict'] ?? ''),
                         reason: @js($item['fail_reason_code'] ?? ''),
-                        needsStatementTotals: {{ ! empty($item['captures_statement']) ? 'true' : 'false' }}
+                        needsStatementTotals: {{ ! empty($item['captures_statement']) ? 'true' : 'false' }},
+                        systemLocked: {{ ! empty($item['read_only']) ? 'true' : 'false' }}
                     }">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <button type="button" class="text-left min-w-0 flex-1" @click="toggleItem(@js($itemKey))">
@@ -83,7 +84,9 @@
                             @endif
                         </button>
                         <div class="flex flex-wrap gap-1.5 shrink-0">
-                            @if (! empty($item['captures_statement']))
+                            @if (! empty($item['awaiting_data']))
+                                <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-amber-50 text-amber-900 ring-1 ring-amber-200">Awaiting data</span>
+                            @elseif (! empty($item['read_only']) || ! empty($item['captures_statement']) || ! empty($item['catalog_system']))
                                 @if (($item['verdict'] ?? '') === 'pass')
                                     <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200">Pass ✓</span>
                                 @elseif (($item['verdict'] ?? '') === 'fail')
@@ -115,6 +118,17 @@
                     </div>
 
                     <div x-show="openItem === @js($itemKey)" x-cloak class="mt-3 space-y-3">
+                        @if (! empty($item['awaiting_data']))
+                            <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3.5 py-3">
+                                <p class="text-sm font-semibold text-amber-950">{{ $item['awaiting_message'] ?? 'There is no data for this checklist' }}</p>
+                                @if (! empty($item['awaiting_cta']['href']))
+                                    <a href="{{ $item['awaiting_cta']['href'] }}"
+                                       class="inline-flex mt-2 rounded-lg bg-white text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-200 hover:bg-amber-100">
+                                        {{ $item['awaiting_cta']['label'] ?? 'Open' }}
+                                    </a>
+                                @endif
+                            </div>
+                        @endif
                         @if (! empty($item['evidence']['documents']) || ($item['evidence']['layout'] ?? null) === 'documents')
                             <div class="rounded-xl ring-1 ring-brand/15 overflow-hidden bg-white">
                                 <div class="px-3.5 py-2.5 bg-gradient-to-r from-brand-muted/60 to-white border-b border-brand/10">
@@ -160,7 +174,7 @@
                                 @endif
                             </div>
                         @endif
-                        @if (! empty($item['evidence']['photos']) && ($item['evidence']['layout'] ?? null) !== 'documents')
+                        @if ((! empty($item['evidence']['photos']) || ! empty($item['evidence']['photo_pairs'])) && ($item['evidence']['layout'] ?? null) !== 'documents')
                             @php
                                 $photoLayout = $item['evidence']['layout'] ?? null;
                                 $facePhoto = collect($item['evidence']['photos'])->firstWhere('role', 'face');
@@ -172,7 +186,44 @@
                                      open(url, label) { this.lightbox = { url, label } },
                                      close() { this.lightbox = null }
                                  }">
-                                @if ($photoLayout === 'face_id_compare' && ($facePhoto || $idPhoto))
+                                @if ($photoLayout === 'photo_pairs' && ! empty($item['evidence']['photo_pairs']))
+                                    <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">
+                                        <div class="px-3 py-2 bg-brand-muted/40 border-b border-brand/10">
+                                            <p class="text-[11px] font-bold text-brand uppercase tracking-widest">Asset photo · Valuer photo</p>
+                                            <p class="text-[11px] text-gray-600 mt-0.5">Same angle, side by side. The system matches front, back, left, and right.</p>
+                                        </div>
+                                        <div class="divide-y divide-gray-100">
+                                            @foreach ($item['evidence']['photo_pairs'] as $pair)
+                                                <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                                                    <button type="button" class="p-3 text-left hover:bg-gray-50/80 transition"
+                                                            @if (! empty($pair['borrower']['url']))
+                                                                @click="open(@js($pair['borrower']['url']), @js($pair['borrower']['label'] ?? $pair['label']))"
+                                                            @endif>
+                                                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">Asset · {{ $pair['label'] }}</p>
+                                                        @if (! empty($pair['borrower']['url']))
+                                                            <img src="{{ $pair['borrower']['url'] }}" alt="{{ $pair['label'] }}" class="w-full max-h-56 object-cover rounded-lg ring-1 ring-gray-200">
+                                                            <span class="text-[11px] font-semibold text-brand mt-1.5 inline-block">Enlarge</span>
+                                                        @else
+                                                            <div class="h-40 grid place-items-center rounded-lg bg-slate-50 text-sm text-slate-600 ring-1 ring-slate-100">No {{ strtolower($pair['label'] ?? 'angle') }} photo on the asset profile</div>
+                                                        @endif
+                                                    </button>
+                                                    <button type="button" class="p-3 text-left hover:bg-gray-50/80 transition"
+                                                            @if (! empty($pair['valuer']['url']))
+                                                                @click="open(@js($pair['valuer']['url']), @js($pair['valuer']['label'] ?? $pair['label']))"
+                                                            @endif>
+                                                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">Valuer · {{ $pair['label'] }}</p>
+                                                        @if (! empty($pair['valuer']['url']))
+                                                            <img src="{{ $pair['valuer']['url'] }}" alt="{{ $pair['label'] }}" class="w-full max-h-56 object-cover rounded-lg ring-1 ring-gray-200">
+                                                            <span class="text-[11px] font-semibold text-brand mt-1.5 inline-block">Enlarge</span>
+                                                        @else
+                                                            <div class="h-40 grid place-items-center rounded-lg bg-amber-50 text-sm text-amber-800 ring-1 ring-amber-100">Valuer has not uploaded this angle</div>
+                                                        @endif
+                                                    </button>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @elseif ($photoLayout === 'face_id_compare' && ($facePhoto || $idPhoto))
                                     <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">
                                         <div class="px-3 py-2 bg-brand-muted/40 border-b border-brand/10">
                                             <p class="text-[11px] font-bold text-brand uppercase tracking-widest">Primary check — face vs uploaded ID</p>
@@ -317,7 +368,7 @@
             </div>
                         @endif
 
-                        @if (empty($item['captures_statement']))
+                        @if (empty($item['captures_statement']) && empty($item['read_only']) && empty($item['awaiting_data']) && empty($item['catalog_system']))
                         <div x-show="verdict === 'fail'" x-cloak class="rounded-xl bg-rose-50/80 ring-1 ring-rose-100 p-3 space-y-2">
                             @if (($item['risk'] ?? '') === 'critical' || ($item['gate'] ?? null) === 'statements_vs_declared')
                                 <div class="rounded-lg bg-rose-100 ring-1 ring-rose-200 px-3 py-2">

@@ -17,6 +17,9 @@
         $pledgeRows = collect($record->collateralAssets);
     }
     $pledgeByAssetId = $pledgeRows->keyBy(fn ($row) => (int) $row->customer_asset_id);
+    $assetService = app(\App\Services\CustomerAssetService::class);
+    $onLoanAssetId = $assetService->designatedAssetId($record);
+    $onLoanCount = $onLoanAssetId ? 1 : 0;
     $assets = $profileAssets
         ->concat($pledgeRows->map(fn ($row) => $row->customerAsset)->filter())
         ->unique(fn ($asset) => (int) $asset->id)
@@ -105,8 +108,8 @@
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
                     {{ $assets->count() }} saved
-                    @if (! $isGuarantor && $pledgeRows->isNotEmpty())
-                        · {{ $pledgeRows->count() }} on this loan
+                    @if (! $isGuarantor && $onLoanCount > 0)
+                        · {{ $onLoanCount }} on this loan
                     @endif
                 </p>
                 <div class="-mx-1 px-1 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1"
@@ -118,10 +121,10 @@
                             $typeLabel = $typeOptions[$asset->asset_type] ?? $asset->asset_type;
                             $pledge = $pledgeByAssetId->get((int) $asset->id);
                             $pledgeStatus = (string) ($pledge->uw_status ?? '');
+                            $isOnThisLoan = $onLoanAssetId && (int) $asset->id === (int) $onLoanAssetId;
                             $pledgeBadge = match (true) {
-                                $pledgeStatus === 'accepted' => ['On this loan', 'bg-emerald-500/90 text-white'],
                                 $pledgeStatus === 'declined' => ['Declined', 'bg-rose-500/90 text-white'],
-                                $pledge !== null => ['On this loan', 'bg-brand/90 text-white'],
+                                $isOnThisLoan => ['On this loan', $pledgeStatus === 'accepted' ? 'bg-emerald-500/90 text-white' : 'bg-brand/90 text-white'],
                                 default => ['Saved', 'bg-slate-600/90 text-white'],
                             };
                             $cardDetails = collect(\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type))
@@ -191,11 +194,20 @@
                                             </div>
                                         @endforeach
                                     </dl>
-                                    <div class="mt-auto pt-4">
+                                    <div class="mt-auto pt-4 space-y-2">
                                         <button type="button" @click="openAsset = {{ $asset->id }}"
                                                 class="inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                                             View
                                         </button>
+                                        @if (! $isGuarantor && ! $isMember && $canRequestDocs && $pledgeBadge[0] === 'Saved')
+                                            <form method="POST" action="{{ route('admin.loan-applications.collateral.use-on-loan', [$record, $asset]) }}">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="inline-flex items-center justify-center w-full bg-white hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2 rounded-xl text-sm ring-1 ring-brand/20">
+                                                    Use on this loan
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </div>
                             </div>

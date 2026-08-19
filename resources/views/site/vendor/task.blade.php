@@ -27,6 +27,10 @@
         if (! empty($taskMeta['customer_asset_id'])) {
             $collateralAsset = \App\Models\CustomerAsset::query()->find($taskMeta['customer_asset_id']);
         }
+        if (! $collateralAsset && $application && $task->task_type === 'asset_valuation') {
+            $keepId = app(\App\Services\CustomerAssetService::class)->designatedAssetId($application);
+            $collateralAsset = $keepId ? \App\Models\CustomerAsset::query()->find($keepId) : null;
+        }
         $assetProfile = $taskMeta['asset_profile'] ?? null;
         if ($collateralAsset) {
             $assetProfile = app(\App\Services\CollateralInsurancePartnerService::class)->assetProfilePayload($collateralAsset);
@@ -134,15 +138,45 @@
             @if ($task->status !== 'completed' && $task->status !== 'cancelled')
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-3">{{ $task->task_type === 'asset_valuation' ? 'Upload inspection photos' : 'Upload proof' }}</h2>
+                    @if ($task->task_type === 'asset_valuation' && $collateralAsset)
+                        @php
+                            $angleLabels = \App\Models\CustomerAsset::photoAngleLabels($collateralAsset->asset_type);
+                            $borrowerAngles = $collateralAsset->photosByAngle();
+                        @endphp
+                        <p class="text-xs text-gray-500 mb-3">Take the same angles as the borrower profile. The system matches them side by side for screening.</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                            @foreach ($angleLabels as $angle => $angleLabel)
+                                <div class="rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50">
+                                    @if (! empty($borrowerAngles[$angle]))
+                                        <img src="{{ asset('storage/'.$borrowerAngles[$angle]) }}" alt="{{ $angleLabel }}" class="h-24 w-full object-cover">
+                                    @else
+                                        <div class="h-24 grid place-items-center text-[11px] text-gray-500 px-2 text-center">No borrower {{ strtolower($angleLabel) }} photo</div>
+                                    @endif
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-center py-1">Borrower · {{ $angleLabel }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                     <form method="POST" action="{{ route('site.partner.task.proof', $task) }}" enctype="multipart/form-data" class="space-y-3">
                         @csrf
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">
-                                {{ $task->task_type === 'asset_valuation' ? 'Photo label (e.g. Front view, Engine, Interior)' : 'What is it? (e.g. Installation photo)' }}
-                            </label>
-                            <input name="label" required class="w-full rounded-lg border-gray-300 focus:border-brand/500 focus:ring-brand/500 text-sm"
-                                   placeholder="{{ $task->task_type === 'asset_valuation' ? 'Asset photo' : 'Proof label' }}">
-                        </div>
+                        @if ($task->task_type === 'asset_valuation')
+                            @php $angleLabels = \App\Models\CustomerAsset::photoAngleLabels($collateralAsset?->asset_type); @endphp
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Photo angle</label>
+                                <select name="angle" required class="w-full rounded-lg border-gray-300 focus:border-brand/500 focus:ring-brand/500 text-sm">
+                                    <option value="">Select angle…</option>
+                                    @foreach ($angleLabels as $angle => $angleLabel)
+                                        <option value="{{ $angle }}">{{ $angleLabel }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">What is it? (e.g. Installation photo)</label>
+                                <input name="label" required class="w-full rounded-lg border-gray-300 focus:border-brand/500 focus:ring-brand/500 text-sm"
+                                       placeholder="Proof label">
+                            </div>
+                        @endif
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">File (image or PDF, max 5MB)</label>
                             <input type="file" name="file" required accept=".jpg,.jpeg,.png,.pdf" class="w-full text-sm">

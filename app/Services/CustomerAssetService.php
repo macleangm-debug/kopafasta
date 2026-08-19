@@ -115,10 +115,18 @@ class CustomerAssetService
 
         $photoPaths = [];
         $metadata = [];
+        $angleOrder = array_keys(CustomerAsset::photoAngleLabels($type));
 
-        foreach ($files['photos'] ?? [] as $photo) {
+        foreach ($files['photos'] ?? [] as $key => $photo) {
             if ($photo) {
-                $photoPaths[] = $photo->store("customer/{$customer->id}/assets", 'public');
+                $path = $photo->store("customer/{$customer->id}/assets", 'public');
+                $photoPaths[] = $path;
+                $angle = is_string($key) && isset(CustomerAsset::photoAngleLabels($type)[$key])
+                    ? $key
+                    : ($angleOrder[(int) $key] ?? null);
+                if ($angle) {
+                    $metadata['photo_angles'][$angle] = $path;
+                }
             }
         }
 
@@ -324,6 +332,8 @@ class CustomerAssetService
                 report($e);
             }
 
+            $this->designateOnLoan($application, $asset);
+
             return $existing;
         }
 
@@ -363,6 +373,8 @@ class CustomerAssetService
             report($e);
         }
 
+        $this->designateOnLoan($application, $asset);
+
         $application->loadMissing('assignedAnalyst');
         app(CollateralSecureService::class)->promptValuationFeeAfterPledge(
             $application->fresh(),
@@ -370,6 +382,132 @@ class CustomerAssetService
         );
 
         return $created;
+    }
+
+    /**
+     * The single profile asset that is security on this loan.
+     * Prefer the collateral-secure pick, then the primary pledge, then the oldest live pledge.
+     */
+    public function designatedAssetId(LoanApplication $application): ?int
+    {
+        $fromState = (int) data_get($application->screening_payload, 'collateral_secure.customer_asset_id', 0);
+        $live = LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+            ->whereNotNull('customer_asset_id')
+            ->orderByDesc('is_primary')
+            ->orderBy('id')
+            ->get();
+
+        if ($fromState > 0 && $live->contains(fn ($row) => (int) $row->customer_asset_id === $fromState)) {
+            return $fromState;
+        }
+
+        $primary = $live->first(fn ($row) => (bool) $row->is_primary);
+        if ($primary) {
+            return (int) $primary->customer_asset_id;
+        }
+
+        $first = $live->first();
+
+        return $first ? (int) $first->customer_asset_id : null;
+    }
+
+    public function isOnThisLoan(CustomerAsset $asset, LoanApplication $application): bool
+    {
+        $id = $this->designatedAssetId($application);
+
+        return $id !== null && (int) $asset->id === $id;
+    }
+
+    /**
+     * Mark this profile asset as the loan's collateral and drop leftover auto-sync pledges.
+     */
+    public function designateOnLoan(LoanApplication $application, CustomerAsset $asset): void
+    {
+        $link = $this->linkOnApplication($asset, $application->id);
+        if (! $link || $link->isDeclined()) {
+            return;
+        }
+
+        LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->update(['is_primary' => false]);
+        $link->update(['is_primary' => true]);
+
+        $payload = (array) ($application->screening_payload ?? []);
+        $cs = (array) ($payload['collateral_secure'] ?? []);
+        $cs['customer_asset_id'] = $asset->id;
+        $payload['collateral_secure'] = $cs;
+        $application->update(['screening_payload' => $payload]);
+        $application->setAttribute('screening_payload', $payload);
+
+        $this->healExtraPledges($application->fresh() ?? $application);
+    }
+
+    public function useOnThisLoan(LoanApplication $application, CustomerAsset $asset): void
+    {
+        abort_unless($asset->is_active, 404);
+
+        $link = $this->linkOnApplication($asset, $application->id);
+        if ($link?->isDeclined()) {
+            $link->update(['uw_status' => LoanApplicationAsset::UW_PENDING]);
+        } elseif (! $link) {
+            $description = trim(collect([
+                $asset->label,
+                $asset->description,
+                $asset->registration_number,
+            ])->filter()->implode(' · '));
+            LoanApplicationAsset::create([
+                'loan_application_id' => $application->id,
+                'customer_asset_id' => $asset->id,
+                'asset_type' => (string) $asset->asset_type,
+                'description' => $description ?: null,
+                'valuation_status' => 'awaiting_valuation',
+                'gps_required' => in_array((string) $asset->asset_type, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery', 'vehicle'], true),
+                'uw_status' => LoanApplicationAsset::UW_PENDING,
+                'is_primary' => true,
+            ]);
+        }
+
+        $this->designateOnLoan($application->fresh() ?? $application, $asset);
+    }
+
+    /**
+     * Leftover loan_application_assets rows from the old “pledge every saved asset”
+     * sync still show as On this loan. Keep only the designated asset.
+     */
+    public function healExtraPledges(LoanApplication $application): void
+    {
+        $keepId = $this->designatedAssetId($application);
+        if (! $keepId) {
+            return;
+        }
+
+        $extras = LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+            ->whereNotNull('customer_asset_id')
+            ->where('customer_asset_id', '!=', $keepId)
+            ->get();
+
+        foreach ($extras as $row) {
+            $row->delete();
+        }
+
+        LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->where('customer_asset_id', $keepId)
+            ->update(['is_primary' => true]);
+
+        $payload = (array) ($application->screening_payload ?? []);
+        $cs = (array) ($payload['collateral_secure'] ?? []);
+        if ((int) ($cs['customer_asset_id'] ?? 0) !== $keepId) {
+            $cs['customer_asset_id'] = $keepId;
+            $payload['collateral_secure'] = $cs;
+            $application->update(['screening_payload' => $payload]);
+            $application->setAttribute('screening_payload', $payload);
+        }
     }
 
     /**

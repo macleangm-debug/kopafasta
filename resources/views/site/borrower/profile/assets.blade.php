@@ -90,6 +90,10 @@
                         ['key' => 1, 'label' => __('borrower.profile.asset_photo_back'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_back_hint')],
                     ];
                     $isVehicle = $selectedType === 'vehicle';
+                    if ($isVehicle) {
+                        $photoSlots[] = ['key' => 2, 'label' => __('borrower.profile.asset_photo_left'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_left_hint')];
+                        $photoSlots[] = ['key' => 3, 'label' => __('borrower.profile.asset_photo_right'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_right_hint')];
+                    }
                 @endphp
                 <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6" novalidate
                       data-saving-message="{{ __('borrower.profile.uploading_collateral') }}"

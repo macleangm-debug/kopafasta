@@ -290,6 +290,7 @@ return [
             'insurance_type' => [
                 'label' => 'Confirm vehicle insurance type (Third Party vs Comprehensive)',
                 'evidence' => 'insurance',
+                'system' => true,
                 'fail_reasons' => [
                     'insurance_type_mismatch' => 'Insurance type mismatch',
                     'type_missing' => 'Insurance type not recorded',
@@ -299,6 +300,7 @@ return [
             'insurance_cover' => [
                 'label' => 'Check insurance cover and expiry deadline',
                 'evidence' => 'insurance',
+                'system' => true,
                 'fail_reasons' => [
                     'expired' => 'Cover expired or too short for tenure',
                     'missing' => 'No valid insurance on file',
@@ -306,33 +308,28 @@ return [
                 ],
             ],
             'valuation_or_photos' => [
-                'label' => 'Review valuation / asset photos where available',
+                'label' => 'Match valuer photos to the pledged asset (front, back, left, right)',
                 'evidence' => 'collateral_assets',
+                'system' => true,
                 'fail_reasons' => [
-                    'photos_poor' => 'Photos insufficient',
-                    'valuation_missing' => 'Valuation missing where required',
+                    'photos_poor' => 'Valuer photos do not cover the same angles as the asset profile',
+                    'valuation_missing' => 'Valuation photos missing where required',
                     'custom' => 'Other (write reason)',
                 ],
             ],
             'valuation_fee' => [
                 'label' => 'Confirm valuation fee paid by the borrower / group leader',
                 'evidence' => 'valuer',
+                'system' => true,
                 'fail_reasons' => [
                     'fee_unpaid' => 'Valuation fee not paid',
-                    'custom' => 'Other (write reason)',
-                ],
-            ],
-            'valuer_assigned' => [
-                'label' => 'Confirm valuer assignment (contact details for communication)',
-                'evidence' => 'valuer',
-                'fail_reasons' => [
-                    'valuer_missing' => 'No valuer assigned and auto-assign could not place the job',
                     'custom' => 'Other (write reason)',
                 ],
             ],
             'valuation_report' => [
                 'label' => 'Review valuation report / forced sale value',
                 'evidence' => 'valuer',
+                'system' => true,
                 'fail_reasons' => [
                     'report_missing' => 'Valuation report / FSV not on file',
                     'value_insufficient' => 'Forced sale value is too low',
@@ -342,6 +339,7 @@ return [
             'ltv_covers' => [
                 'label' => 'Confirm FSV × LTV covers the requested amount',
                 'evidence' => 'valuer',
+                'system' => true,
                 'fail_reasons' => [
                     'ltv_shortfall' => 'Collateral does not cover the requested amount',
                     'custom' => 'Other (write reason)',
@@ -349,7 +347,8 @@ return [
             ],
             'gps_or_location' => [
                 'label' => 'Confirm GPS / location requirements if applicable',
-                'evidence' => 'generic',
+                'evidence' => 'gps',
+                'system' => true,
                 'fail_reasons' => [
                     'gps_missing' => 'GPS / location requirement not met',
                     'custom' => 'Other (write reason)',

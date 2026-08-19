@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CustomerAsset;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\User;
@@ -39,12 +40,21 @@ class ValuationPartnerService
             ]);
         }
 
-        $asset = LoanApplicationAsset::query()
-            ->where('loan_application_id', $application->id)
-            ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
-            ->orderByDesc('is_primary')
-            ->orderBy('id')
-            ->first();
+        $designatedId = app(CustomerAssetService::class)->designatedAssetId($application);
+        $asset = $designatedId
+            ? LoanApplicationAsset::query()
+                ->where('loan_application_id', $application->id)
+                ->where('customer_asset_id', $designatedId)
+                ->first()
+            : null;
+        if (! $asset) {
+            $asset = LoanApplicationAsset::query()
+                ->where('loan_application_id', $application->id)
+                ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+                ->orderByDesc('is_primary')
+                ->orderBy('id')
+                ->first();
+        }
 
         if (! $asset) {
             $asset = LoanApplicationAsset::query()->create([
@@ -55,6 +65,8 @@ class ValuationPartnerService
                 'is_primary'          => true,
             ]);
         }
+
+        $asset->loadMissing('customerAsset');
 
         $open = ValuationAssignment::query()
             ->where('loan_application_id', $application->id)
@@ -94,6 +106,17 @@ class ValuationPartnerService
 
             $slaDays = app(PartnerAutoAssignPolicy::class)->slaDaysForService('valuer');
 
+            $profileAsset = $asset->customerAsset;
+            $angleLabels = CustomerAsset::photoAngleLabels($profileAsset?->asset_type);
+            $taskNotes = json_encode([
+                'message' => $notes,
+                'customer_asset_id' => $profileAsset?->id,
+                'photo_angles' => array_keys($angleLabels),
+            ], JSON_UNESCAPED_UNICODE);
+            $angleList = implode(', ', array_values($angleLabels));
+            $instruction = ($notes ?: 'Inspect the asset physically, upload photos, and submit market and forced sale values.')
+                ."\n\nTake the same angles as the borrower profile: {$angleList}.";
+
             $task = VendorTask::create([
                 'vendor_id'       => $valuer->id,
                 'loan_id'         => $application->loan_id,
@@ -105,8 +128,8 @@ class ValuationPartnerService
                 'customer_phone'  => $customer->phone ?? null,
                 'vehicle_details' => $assetDescription ?: null,
                 'location'        => $location ?: null,
-                'instructions'    => $notes ?: 'Inspect the asset physically, upload photos, and submit market and forced sale values.',
-                'notes'           => $notes,
+                'instructions'    => $instruction,
+                'notes'           => $taskNotes,
                 'fee_amount'      => (int) round(app(PartnerDefaultsService::class)->valuerBaseCost($valuer)),
             ]);
 
@@ -305,6 +328,7 @@ class ValuationPartnerService
             ->map(fn ($doc) => [
                 'label' => $doc->label,
                 'url'   => asset('storage/'.$doc->file_path),
+                'doc_type' => $doc->doc_type ?? null,
             ])
             ->values()
             ->all() ?? [];

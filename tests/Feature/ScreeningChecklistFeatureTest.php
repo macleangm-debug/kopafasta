@@ -553,8 +553,18 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertNotNull($collateral);
         $this->assertGreaterThan(0, (int) ($collateral['total'] ?? 0));
         $this->assertNull(collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.ownership_docs'));
-        $this->assertNotNull(collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuer_assigned'));
+        $this->assertNull(collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuer_assigned'));
         $this->assertNotNull(collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_fee'));
+        $ltv = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.ltv_covers');
+        $this->assertNotNull($ltv);
+        $this->assertTrue($ltv['awaiting_data'] ?? false);
+        $this->assertSame('There is no data for this checklist', $ltv['awaiting_message'] ?? null);
+        $this->assertTrue($ltv['catalog_system'] ?? false);
+        $this->assertTrue($ltv['read_only'] ?? false);
+        $fee = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_fee');
+        $this->assertTrue($fee['catalog_system'] ?? false);
+        $this->assertTrue(($fee['awaiting_data'] ?? false) || in_array($fee['verdict'] ?? null, ['pass', 'fail', 'na'], true));
+        $this->assertStringNotContainsString('Confirm valuer assignment', json_encode($collateral));
         $this->assertStringNotContainsString('Review ownership / transfer documents', json_encode($collateral));
 
         $this->assertFalse(

@@ -531,4 +531,109 @@ class CollateralAssetPickerFeatureTest extends TestCase
 
         $this->assertSame(1, LoanApplicationAsset::query()->where('loan_application_id', $application->id)->count());
     }
+
+    public function test_review_keeps_one_on_this_loan_when_leftover_pledges_exist(): void
+    {
+        $customer = $this->completeBorrower();
+        $product = LoanProduct::create([
+            'code' => 'GL-HEAL-'.random_int(100, 999),
+            'name' => 'Group Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-GL-HEAL-'.random_int(1000, 9999),
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 800_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now(),
+        ]);
+        $group = \App\Models\LoanGroup::create([
+            'group_number' => 'GRP-HEAL-'.random_int(100, 999),
+            'name' => 'Heal Group',
+            'leader_customer_id' => $customer->id,
+            'primary_application_id' => $application->id,
+            'status' => 'active',
+            'target_member_count' => 2,
+        ]);
+        \App\Models\LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $customer->id,
+            'loan_application_id' => $application->id,
+            'role' => 'leader',
+            'requested_amount' => 400_000,
+            'sort_order' => 1,
+            'member_status' => 'active',
+        ]);
+        $application->update(['loan_group_id' => $group->id]);
+
+        $rav4 = CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Toyota Rav4',
+            'is_active' => true,
+            'photo_paths' => ['assets/rav4-front.jpg', 'assets/rav4-back.jpg'],
+            'metadata' => [
+                'person_with_asset_path' => 'assets/selfie.jpg',
+                'ownership_document_path' => 'assets/title.pdf',
+                'insurance_document_path' => 'assets/ins.pdf',
+            ],
+        ]);
+        $vitz = CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Vitz',
+            'is_active' => true,
+            'photo_paths' => ['assets/vitz-front.jpg', 'assets/vitz-back.jpg'],
+            'metadata' => [
+                'person_with_asset_path' => 'assets/selfie2.jpg',
+                'ownership_document_path' => 'assets/title2.pdf',
+            ],
+        ]);
+        LoanApplicationAsset::create([
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $rav4->id,
+            'asset_type' => 'vehicle',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+            'is_primary' => true,
+        ]);
+        LoanApplicationAsset::create([
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $vitz->id,
+            'asset_type' => 'vehicle',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+            'is_primary' => false,
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+            ]))
+            ->assertOk()
+            ->assertSee('Toyota Rav4', false)
+            ->assertSee('>Vitz<', false)
+            ->assertSee('1 on this loan', false)
+            ->assertSee('Saved', false);
+
+        $this->assertSame(1, LoanApplicationAsset::query()->where('loan_application_id', $application->id)->count());
+        $this->assertSame(
+            $rav4->id,
+            (int) LoanApplicationAsset::query()->where('loan_application_id', $application->id)->value('customer_asset_id')
+        );
+        $this->assertSame(
+            ['front' => 'assets/rav4-front.jpg', 'back' => 'assets/rav4-back.jpg'],
+            $rav4->photosByAngle()
+        );
+    }
 }
