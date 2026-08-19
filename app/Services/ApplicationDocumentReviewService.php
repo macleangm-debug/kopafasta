@@ -101,6 +101,8 @@ class ApplicationDocumentReviewService
             $user,
         );
 
+        $this->requests->satisfyUploadedMatchingReview($application, $document, $user);
+
         return $review->fresh();
     }
 
@@ -140,6 +142,8 @@ class ApplicationDocumentReviewService
             'scope' => 'application',
             'source' => 'checklist',
         ]);
+
+        $this->requests->satisfyUploadedMatchingReview($application, $document, $user);
 
         return $review->fresh();
     }

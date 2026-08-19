@@ -498,4 +498,83 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $this->assertNotContains('National ID (front)', $blockers);
         $this->assertFalse(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'NIDA')));
     }
+
+    public function test_marking_an_uploaded_income_file_reviewed_removes_it_from_the_inbox(): void
+    {
+        $branch = Branch::create([
+            'code' => 'RV'.random_int(10, 99),
+            'name' => 'Reviewed Inbox Branch',
+            'region' => 'Dar',
+            'is_active' => true,
+        ]);
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'branch_id' => $branch->id,
+            'is_active' => true,
+        ]);
+        $product = LoanProduct::create([
+            'code' => 'IL-RV',
+            'name' => 'Installment',
+            'is_active' => true,
+            'interest_rate' => 0.18,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $customer = Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-RV-1',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Asked',
+            'last_name' => 'Member',
+            'phone' => '255712349088',
+            'branch_id' => $branch->id,
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'branch_id' => $branch->id,
+            'application_number' => 'APP-RV-001',
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 400_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now(),
+        ]);
+
+        $type = \App\Models\DocumentType::create([
+            'code' => 'mobile_money_statement',
+            'name' => 'Mobile money statement',
+            'is_active' => true,
+        ]);
+        $doc = \App\Models\CustomerDocument::create([
+            'customer_id' => $customer->id,
+            'document_type_id' => $type->id,
+            'file_path' => 'customer/'.$customer->id.'/mm.pdf',
+            'status' => 'pending_review',
+        ]);
+        $docService = app(ApplicationDocumentRequestService::class);
+        $statement = $docService->create($application, $admin, 'Updated Mobile Money Statement');
+        $statement->update(['status' => 'uploaded']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $application))
+            ->assertOk()
+            ->assertSee('Updated Mobile Money Statement', false)
+            ->assertSee('id="submissions-inbox"', false);
+
+        app(\App\Services\ApplicationDocumentReviewService::class)
+            ->verify($doc, $application->fresh(), $admin);
+
+        $this->assertSame('satisfied', $statement->fresh()->status);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $application))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('id="submissions-inbox"', $html);
+    }
 }

@@ -443,4 +443,92 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertSee('$store.kfSaving', false)
             ->assertSee('items-center justify-center p-4', false);
     }
+
+    public function test_vehicle_thumbnail_uses_asset_photo_not_person_shot(): void
+    {
+        $customer = $this->completeBorrower();
+        $asset = CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Vitz',
+            'is_active' => true,
+            'photo_paths' => ['assets/vitz-front.jpg', 'assets/vitz-side.jpg'],
+            'metadata' => [
+                'person_with_asset_path' => 'assets/selfie.jpg',
+                'ownership_document_path' => 'assets/title.pdf',
+            ],
+        ]);
+
+        $this->assertSame('assets/vitz-front.jpg', $asset->thumbnailPath());
+        $this->assertSame('assets/selfie.jpg', $asset->galleryPaths()[2] ?? null);
+    }
+
+    public function test_opening_group_review_does_not_pledge_every_saved_leader_asset(): void
+    {
+        $customer = $this->completeBorrower();
+        $customer->update(['first_name' => 'Gaspari']);
+        $product = LoanProduct::create([
+            'code' => 'GL-AST-'.random_int(100, 999),
+            'name' => 'Group Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-GL-AST-'.random_int(1000, 9999),
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 800_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now(),
+        ]);
+        $group = \App\Models\LoanGroup::create([
+            'group_number' => 'GRP-AST-'.random_int(100, 999),
+            'name' => 'Asset Group',
+            'leader_customer_id' => $customer->id,
+            'primary_application_id' => $application->id,
+            'status' => 'active',
+            'target_member_count' => 2,
+        ]);
+        \App\Models\LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $customer->id,
+            'loan_application_id' => $application->id,
+            'role' => 'leader',
+            'requested_amount' => 400_000,
+            'sort_order' => 1,
+            'member_status' => 'active',
+        ]);
+        $application->update(['loan_group_id' => $group->id]);
+
+        $pledged = $this->completeAsset($customer, 'Toyota Rav4');
+        $this->completeAsset($customer, 'Vitz');
+        LoanApplicationAsset::create([
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $pledged->id,
+            'asset_type' => 'land',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+            ]))
+            ->assertOk()
+            ->assertSee('Toyota Rav4', false)
+            ->assertSee('>Vitz<', false)
+            ->assertSee('On this loan', false)
+            ->assertSee('Saved', false);
+
+        $this->assertSame(1, LoanApplicationAsset::query()->where('loan_application_id', $application->id)->count());
+    }
 }

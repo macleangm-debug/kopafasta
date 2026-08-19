@@ -363,6 +363,7 @@
                         return [
                             'id' => (int) ($m['id'] ?? 0),
                             'name' => (string) ($m['name'] ?? 'Member'),
+                            'avatar_url' => $m['avatar_url'] ?? null,
                             'role' => ucfirst((string) ($m['role'] ?? 'member')),
                             'rec' => $rec !== '' ? $rec : '—',
                             'score' => $m['crb_score'] ?? null,
@@ -389,9 +390,17 @@
                                 <p class="text-[10px] font-bold tabular-nums text-white/70" x-text="(i + 1) + ' / ' + slides.length"></p>
                             </div>
                             <div class="flex items-start justify-between gap-3">
-                                <div class="min-w-0">
+                                <div class="flex items-start gap-3 min-w-0">
+                                    <span class="size-10 rounded-xl overflow-hidden ring-1 ring-white/25 bg-white/15 grid place-items-center shrink-0">
+                                        <template x-if="slide.avatar_url">
+                                            <img :src="slide.avatar_url" :alt="slide.name" class="size-full object-cover">
+                                        </template>
+                                        <span x-show="!slide.avatar_url" class="text-sm font-bold" x-text="(slide.name || '?').trim().charAt(0).toUpperCase()"></span>
+                                    </span>
+                                    <div class="min-w-0">
                                     <p class="text-[11px] font-semibold text-white/85 truncate" x-text="slide.role + ' · ' + slide.name"></p>
                                     <p class="text-2xl font-bold mt-1 uppercase tracking-tight" x-text="slide.rec"></p>
+                                    </div>
                                 </div>
                                 <span class="inline-flex shrink-0 text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 bg-white/20 text-white"
                                       x-text="'Score ' + (slide.score ?? '—')"></span>

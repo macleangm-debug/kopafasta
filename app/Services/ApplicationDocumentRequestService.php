@@ -1558,6 +1558,109 @@ class ApplicationDocumentRequestService
     }
 
     /**
+     * After Documents Mark reviewed, clear matching uploaded inbox cards for that person.
+     */
+    public function satisfyUploadedMatchingReview(
+        LoanApplication $application,
+        CustomerDocument $document,
+        User $user,
+    ): int {
+        $document->loadMissing(['documentType', 'customer']);
+        $customer = $document->customer;
+        if (! $customer) {
+            return 0;
+        }
+
+        $code = (string) ($document->documentType?->code ?? '');
+        $revision = app(ProfileRevisionService::class);
+        $marked = 0;
+
+        $requests = LoanApplicationDocumentRequest::query()
+            ->where('loan_application_id', $application->id)
+            ->where('status', 'uploaded')
+            ->get();
+
+        foreach ($requests as $request) {
+            if (! $this->customerCanFulfillRequest($customer, $request)) {
+                continue;
+            }
+            $kind = $this->borrowerActionKind($request);
+            if ($kind === 'collateral') {
+                continue;
+            }
+
+            $labelCodes = $revision->documentCodesForLabel((string) $request->label);
+            if ($code !== '' && $labelCodes !== [] && ! in_array($code, $labelCodes, true)) {
+                continue;
+            }
+            if ($labelCodes === [] && $code !== '') {
+                $kindFromCode = match (true) {
+                    str_contains($code, 'bank') || str_contains($code, 'mobile_money') || str_contains($code, 'salary') => 'income',
+                    str_contains($code, 'national') || str_contains($code, 'nida') || str_contains($code, 'passport') || str_contains($code, 'voter') || str_contains($code, 'driving') => 'identity',
+                    str_contains($code, 'residence') || str_contains($code, 'lga') || str_contains($code, 'utility') => 'residence',
+                    default => null,
+                };
+                if ($kindFromCode && $kindFromCode !== $kind) {
+                    continue;
+                }
+            }
+
+            $this->markSatisfied($request, $user, 'Cleared after document review');
+            $marked++;
+        }
+
+        return $marked;
+    }
+
+    public function satisfyUploadedCollateralRequests(LoanApplication $application, User $user): int
+    {
+        $marked = 0;
+        $requests = LoanApplicationDocumentRequest::query()
+            ->where('loan_application_id', $application->id)
+            ->where('status', 'uploaded')
+            ->get();
+
+        foreach ($requests as $request) {
+            if ($this->borrowerActionKind($request) !== 'collateral') {
+                continue;
+            }
+            $this->markSatisfied($request, $user, 'Cleared after collateral review');
+            $marked++;
+        }
+
+        return $marked;
+    }
+
+    public function isInboxPending(LoanApplicationDocumentRequest $request, LoanApplication $application): bool
+    {
+        if (($request->status ?? '') !== 'uploaded') {
+            return false;
+        }
+
+        if ($this->borrowerActionKind($request) === 'collateral') {
+            return true;
+        }
+
+        $customer = $request->subjectCustomer
+            ?? $request->groupMember?->customer
+            ?? $application->customer;
+        if (! $customer) {
+            return true;
+        }
+
+        $docs = $this->displayDocumentsForRequest($request, $customer);
+        if ($docs->isEmpty()) {
+            return true;
+        }
+
+        $reviews = app(ApplicationDocumentReviewService::class);
+
+        return $docs->contains(function (CustomerDocument $doc) use ($reviews, $application) {
+            return ! in_array($reviews->statusFor($application, $doc), ['verified', 'approved'], true);
+        });
+    }
+
+    /**
      * In-app reminder for open document requests due tomorrow.
      * Lists the requested documents and links to the application.
      */

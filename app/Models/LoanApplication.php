@@ -165,6 +165,33 @@ class LoanApplication extends Model
         return $this->hasMany(LoanApplicationAsset::class)->orderByDesc('is_primary')->orderBy('id');
     }
 
+    /**
+     * Queue / letterhead party name. Group files: leader first name + remaining members.
+     * Example: "Gaspari + 3 others".
+     */
+    public function partyLabel(): string
+    {
+        $this->loadMissing(['customer', 'loanGroup.members']);
+        $first = trim((string) ($this->customer?->first_name ?? ''));
+        if ($first === '') {
+            $first = trim((string) ($this->customer?->full_name ?? '—')) ?: '—';
+        }
+
+        if (! filled($this->loan_group_id)) {
+            return $first;
+        }
+
+        $others = max(0, collect($this->loanGroup?->members ?? [])
+            ->filter(fn ($member) => ($member->member_status ?? 'active') === 'active')
+            ->count() - 1);
+
+        if ($others < 1) {
+            return $first;
+        }
+
+        return $first.' + '.$others.' '.($others === 1 ? 'other' : 'others');
+    }
+
     public function valuationAssignments(): HasMany
     {
         return $this->hasMany(ValuationAssignment::class);

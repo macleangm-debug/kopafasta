@@ -304,8 +304,7 @@ class CardVerificationService
 
         $photoUrl = null;
         if ($customer) {
-            $facePhoto = app(FaceVerificationService::class)->latestByAngle($customer)->get('front');
-            $photoUrl = $facePhoto?->file_path ? asset('storage/'.$facePhoto->file_path) : null;
+            $photoUrl = app(FaceVerificationService::class)->avatarUrl($customer);
         }
 
         $name = $customer

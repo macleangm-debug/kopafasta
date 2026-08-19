@@ -31,8 +31,7 @@
         ? __('borrower.membership.share_message', ['name' => $name ?: brand_name(), 'member' => $memberNoDisplay, 'link' => $verifyUrl])
         : '';
     $whatsappUrl = $shareText !== '' ? 'https://wa.me/?text='.rawurlencode($shareText) : null;
-    $facePhoto = app(\App\Services\FaceVerificationService::class)->latestByAngle($customer)->get('front');
-    $photoUrl = $facePhoto?->file_path ? asset('storage/'.$facePhoto->file_path) : null;
+    $photoUrl = app(\App\Services\FaceVerificationService::class)->avatarUrl($customer);
     $initial = strtoupper(substr(trim($customer->first_name ?? ''), 0, 1) ?: '?');
     $days    = max(0, (int) $customer->membershipDaysRemaining());
     $duration = (int) (\App\Services\MembershipService::config()['duration_days'] ?? 365);

@@ -25,8 +25,7 @@
     $initial = $name ? strtoupper(substr($name, 0, 1)) : '?';
     $photoUrl = null;
     if ($customer) {
-        $facePhoto = app(\App\Services\FaceVerificationService::class)->latestByAngle($customer)->get('front');
-        $photoUrl = $facePhoto?->file_path ? asset('storage/'.$facePhoto->file_path) : null;
+        $photoUrl = app(\App\Services\FaceVerificationService::class)->avatarUrl($customer);
     }
     $joinUrl = route('site.register.borrower');
 @endphp

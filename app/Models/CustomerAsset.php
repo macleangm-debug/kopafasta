@@ -158,6 +158,8 @@ class CustomerAsset extends Model
 
     public function thumbnailPath(): ?string
     {
-        return $this->galleryPaths()[0] ?? null;
+        $photos = array_values(array_filter($this->photo_paths ?? []));
+
+        return $photos[0] ?? null;
     }
 }

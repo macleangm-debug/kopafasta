@@ -93,34 +93,14 @@ class CustomerAssetService
         return in_array($category, ['asset_finance', 'asset_lending'], true);
     }
 
-    /** Pledge the leader/borrower profile assets onto a collateral-backed group file. */
+    /**
+     * Do not auto-pledge every saved profile asset onto a group file.
+     * Only an explicit attach (new asset, Use this, or an application= request) should mark On this loan.
+     */
     public function syncGroupFileAssets(LoanApplication $application): void
     {
-        if (! $this->shouldAutoLinkOnProfileSave($application)) {
-            return;
-        }
-
-        if (! filled($application->loan_group_id)
-            && ! app(GroupLendingService::class)->isGroupProduct($application->product)) {
-            return;
-        }
-
-        $owner = $application->customer;
-        if (! $owner) {
-            $application->loadMissing('customer');
-            $owner = $application->customer;
-        }
-        if (! $owner) {
-            return;
-        }
-
-        foreach ($this->forCustomer($owner) as $asset) {
-            try {
-                $this->attachToApplication($asset, $application, $owner);
-            } catch (ValidationException) {
-                continue;
-            }
-        }
+        // Intentionally a no-op. Previously this pledged every leader profile asset
+        // whenever screening opened, so unused saved vehicles showed as On this loan.
     }
 
     /**
@@ -382,6 +362,12 @@ class CustomerAssetService
         } catch (\Throwable $e) {
             report($e);
         }
+
+        $application->loadMissing('assignedAnalyst');
+        app(CollateralSecureService::class)->promptValuationFeeAfterPledge(
+            $application->fresh(),
+            $application->assignedAnalyst,
+        );
 
         return $created;
     }

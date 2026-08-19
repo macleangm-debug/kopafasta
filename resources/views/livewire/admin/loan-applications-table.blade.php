@@ -37,7 +37,7 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->application_number ?? '—' }}</td>
                 <td class="px-5 py-3">
-                    {{ trim(($r->customer?->first_name ?? '').' '.($r->customer?->last_name ?? '')) ?: '—' }}
+                    {{ $r->partyLabel() }}
                     <div class="text-xs text-gray-500">{{ $r->customer?->phone }}</div>
                 </td>
                 <td class="px-5 py-3">{{ format_money( ($r->requested_amount ?? 0)) }}</td>

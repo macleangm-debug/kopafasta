@@ -1,11 +1,13 @@
 @php
     $docService = app(\App\Services\ApplicationDocumentRequestService::class);
     $inboxRequests = collect($documentRequests ?? [])
-        ->filter(fn ($req) => ($req->status ?? '') === 'uploaded')
+        ->filter(fn ($req) => $docService->isInboxPending($req, $record))
         ->sortByDesc('updated_at')
         ->values();
     $guarantorRows = collect($review['guarantors'] ?? []);
     $inboxCount = $inboxRequests->count();
+    $canMarkReviewed = auth()->user()?->hasPermission('applications.review')
+        || auth()->user()?->hasPermission('applications.request_documents');
 @endphp
 
 @if ($inboxRequests->isNotEmpty())
@@ -22,7 +24,7 @@
         </summary>
         <div class="px-5 sm:px-6 pb-3 text-xs text-gray-500">
             {{ $inboxCount === 1 ? '1 new file is waiting for review.' : $inboxCount.' new files are waiting for review.' }}
-            Income statements open on Documents.
+            Income statements open on Documents. Marking a file reviewed removes it from this list.
         </div>
         <div class="p-4 sm:p-5 pt-0 grid md:grid-cols-2 gap-3">
             @foreach ($inboxRequests as $docReq)
@@ -31,17 +33,27 @@
                     $kindLabel = $docService->screeningKindLabel($docReq);
                     $reviewUrl = $docService->screeningReviewUrl($docReq, $record, $guarantorRows->all());
                 @endphp
-                <a href="{{ $reviewUrl }}"
-                   class="rounded-xl ring-1 ring-emerald-200 bg-emerald-50/40 px-4 py-3 hover:bg-emerald-50 transition flex items-start justify-between gap-3">
+                <div class="rounded-xl ring-1 ring-emerald-200 bg-emerald-50/40 px-4 py-3 flex items-start justify-between gap-3">
                     <div class="min-w-0">
                         <p class="font-semibold text-gray-900 text-sm">{{ $docReq->label }}</p>
                         <p class="text-xs text-brand mt-0.5">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>
                         <p class="text-xs text-emerald-900/80 mt-0.5">{{ $kindLabel }}</p>
                     </div>
-                    <span class="shrink-0 inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-900">
-                        Review
-                    </span>
-                </a>
+                    <div class="shrink-0 flex flex-col items-end gap-1.5">
+                        <a href="{{ $reviewUrl }}"
+                           class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-900 hover:bg-emerald-200">
+                            Review
+                        </a>
+                        @if ($canMarkReviewed)
+                            <form method="POST" action="{{ route('admin.loan-application-document-requests.satisfy', $docReq) }}">
+                                @csrf
+                                <button type="submit" class="text-[11px] font-semibold text-gray-600 hover:text-brand underline underline-offset-2">
+                                    Mark reviewed
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                </div>
             @endforeach
         </div>
     </details>

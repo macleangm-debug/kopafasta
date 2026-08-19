@@ -109,11 +109,6 @@ class LoanApplicationReviewService
         $guarantorRows = $this->guarantorRows($application);
         $guarantorSuggestion = $this->guarantorSuggestion($guarantorRows, $application);
 
-        if (filled($application->loan_group_id)) {
-            app(CustomerAssetService::class)->syncGroupFileAssets($application);
-            $application->unsetRelation('collateralAssets');
-        }
-
         $risk = $this->riskAssessment(
             $application,
             $customer,
@@ -464,6 +459,7 @@ class LoanApplicationReviewService
                     'link_id'          => $link->id,
                     'invitation_id'    => $invitation?->id,
                     'customer_id'      => $member?->id,
+                    'avatar_url'       => $member ? $this->face->avatarUrl($member) : null,
                     'name'             => trim(($guarantor?->first_name ?? '').' '.($guarantor?->last_name ?? ''))
                         ?: ($member?->full_name ?? '—'),
                     'membership_no'    => $member?->member_no ?? $invitation?->membership_id,

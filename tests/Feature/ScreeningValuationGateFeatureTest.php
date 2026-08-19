@@ -222,4 +222,20 @@ class ScreeningValuationGateFeatureTest extends TestCase
             app(CollateralSecureService::class)->state($application->fresh())['status'] ?? null
         );
     }
+
+    public function test_pledging_an_asset_opens_the_valuation_fee_gate(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer, 800_000);
+        $this->pledge($application, $customer);
+
+        app(CollateralSecureService::class)->promptValuationFeeAfterPledge($application->fresh());
+
+        $state = app(CollateralSecureService::class)->state($application->fresh());
+        $this->assertContains($state['status'] ?? null, [
+            CollateralSecureService::STATUS_AWAITING_VALUATION_FEE,
+            CollateralSecureService::STATUS_AWAITING_VALUER,
+        ]);
+        $this->assertSame(CollateralSecureService::PATH_SCREENING_VALUATION, $state['path'] ?? null);
+    }
 }

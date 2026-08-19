@@ -37,7 +37,6 @@ class CustomerDossierService
         $profile = $this->profile->calculate($customer);
         $eligibility = $this->requirements->checklist($customer);
         $faceProgress = $this->face->progress($customer);
-        $faceSteps = $this->face->wizardSteps($customer);
         $engagement = $this->engagement->summary($customer);
 
         $documents = $customer->documents->sortByDesc('created_at')->values();
@@ -72,9 +71,7 @@ class CustomerDossierService
         $crbHistory = $hasApplications ? $this->crb->latest($customer) : null;
         $crbFresh = $crbHistory ? $this->crbFreshness->isFresh($crbHistory) : false;
 
-        $frontFace = collect($faceSteps)->firstWhere('key', 'front')
-            ?? collect($faceSteps)->first();
-        $facePhotoUrl = $frontFace['previewUrl'] ?? null;
+        $facePhotoUrl = $this->face->avatarUrl($customer);
 
         $idDoc = $documents->first(function ($doc) {
             $code = (string) ($doc->documentType?->code ?? '');

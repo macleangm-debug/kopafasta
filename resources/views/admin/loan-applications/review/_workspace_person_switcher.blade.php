@@ -66,11 +66,23 @@
                    role="tab"
                    aria-selected="{{ $isActive ? 'true' : 'false' }}"
                    @class([
-                       'shrink-0 inline-flex flex-col rounded-xl px-3.5 py-2.5 text-left ring-1 transition min-w-[8.5rem]',
+                       'shrink-0 inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-left ring-1 transition min-w-[8.5rem]',
                        'bg-brand text-white ring-brand shadow-sm' => $isActive,
                        'bg-white text-gray-800 ring-gray-200 hover:bg-brand-muted/40' => ! $isActive,
                    ])>
-                    <span class="text-xs font-bold truncate max-w-[11rem]">
+                    <span class="size-8 rounded-lg overflow-hidden ring-1 ring-black/10 bg-white/20 grid place-items-center shrink-0">
+                        @if (! empty($s['avatar_url']))
+                            <img src="{{ $s['avatar_url'] }}" alt="" class="size-full object-cover">
+                        @else
+                            <span @class([
+                                'text-[11px] font-bold',
+                                'text-white' => $isActive,
+                                'text-brand' => ! $isActive,
+                            ])>{{ strtoupper(substr((string) ($s['sublabel'] ?? $s['label'] ?? '?'), 0, 1)) }}</span>
+                        @endif
+                    </span>
+                    <span class="min-w-0">
+                    <span class="text-xs font-bold truncate max-w-[11rem] block">
                         {{ $s['label'] ?? 'Subject' }}
                         @if (! empty($s['sublabel']))
                             · {{ \Illuminate\Support\Str::of($s['sublabel'])->explode(' ')->take(2)->implode(' ') }}
@@ -87,6 +99,7 @@
                         @elseif (! empty($s['complete']))
                             · Ready
                         @endif
+                    </span>
                     </span>
                 </a>
             @endforeach

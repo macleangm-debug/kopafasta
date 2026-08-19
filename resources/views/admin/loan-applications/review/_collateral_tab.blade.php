@@ -56,6 +56,13 @@
 
         return 'Member';
     };
+    $isCreditManagement = in_array((string) ($record->current_stage ?? ''), [
+        'approval',
+        'post_approval_fees',
+        'awaiting_disbursement_details',
+        'contract_generation',
+        'disbursement',
+    ], true) || $record->status === 'disbursed' || $record->hasActiveFacility();
 @endphp
 
 <section
@@ -440,10 +447,27 @@
                         @endif
                     </div>
                 @elseif ($openValuation)
-                    <p class="text-sm text-amber-900">
-                        Valuation is in progress with <strong>{{ $openValuation->vendor?->name ?? 'assigned valuer' }}</strong>
-                        ({{ ucfirst(str_replace('_', ' ', $openValuation->status)) }}).
-                    </p>
+                    @php
+                        $valuerAuto = str_contains(strtolower((string) ($openValuation->notes ?? '')), 'auto-assigned');
+                    @endphp
+                    <div class="rounded-xl bg-white ring-1 ring-amber-100 px-4 py-3 text-sm space-y-1.5">
+                        <p class="text-amber-950 font-semibold">
+                            Valuation {{ str_replace('_', ' ', $openValuation->status) }}
+                            with {{ $openValuation->vendor?->name ?? 'assigned valuer' }}
+                            @if ($valuerAuto)
+                                <span class="text-[11px] font-semibold text-amber-800">· Auto-assigned</span>
+                            @endif
+                        </p>
+                        <p class="text-xs text-gray-600">
+                            Phone {{ $openValuation->vendor?->phone ?: '—' }}
+                            · Email {{ $openValuation->vendor?->email ?: '—' }}
+                        </p>
+                        @if ($valuerAuto)
+                            <p class="text-xs text-amber-900">
+                                Screening uses these details for communication only. The valuer already has the task (matched on customer region, then least open jobs unless settings change that).
+                            </p>
+                        @endif
+                    </div>
                 @elseif ($valuationFeeDue)
                     <p class="text-sm text-amber-900">
                         Waiting for the borrower{{ is_group_loan_product($record->product ?? null) ? ' (group leader)' : '' }} to pay the valuation fee. No valuer is assigned yet.
@@ -457,6 +481,44 @@
                         </button>
                     </form>
                 @endif
+            </div>
+        @endif
+
+        @if ($isCreditManagement && ! $isGuarantor && ! $isMember)
+            <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-4 space-y-3">
+                <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Credit management · post approval</p>
+                    <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Ownership / transfer documents</h3>
+                    <p class="text-xs text-gray-600 mt-1">
+                        Title transfer is done after the loan is approved. Screening does not pass or fail this step.
+                    </p>
+                </div>
+                @php
+                    $ownershipRows = $pledgeRows
+                        ->map(fn ($row) => $row->customerAsset)
+                        ->filter()
+                        ->unique('id')
+                        ->values();
+                @endphp
+                @forelse ($ownershipRows as $owned)
+                    @php $ownPath = $owned->metadata['ownership_document_path'] ?? null; @endphp
+                    <div class="rounded-xl bg-white ring-1 ring-slate-100 px-3 py-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900">{{ $owned->label }}</p>
+                            <p class="text-xs text-gray-500">{{ $owned->registration_number ?: 'No registration on file' }}</p>
+                        </div>
+                        @if ($ownPath)
+                            <x-admin.document-preview
+                                :url="asset('storage/'.$ownPath)"
+                                label="Open ownership document"
+                                variant="button" />
+                        @else
+                            <span class="text-xs font-semibold text-amber-800">No ownership document uploaded yet</span>
+                        @endif
+                    </div>
+                @empty
+                    <p class="text-xs text-gray-500">No pledged assets on this loan yet.</p>
+                @endforelse
             </div>
         @endif
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CustomerAsset;
 use App\Models\LoanApplication;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -83,6 +84,9 @@ class ScreeningChecklistService
                 'm' => null,
                 'label' => 'Leader',
                 'sublabel' => $leader['name'] ?? ($review['customer']->full_name ?? null),
+                'avatar_url' => $leader['avatar_url'] ?? (($review['customer'] ?? null) instanceof Customer
+                    ? app(FaceVerificationService::class)->avatarUrl($review['customer'])
+                    : null),
                 'percent' => $leaderVm['percent'],
                 'done' => $leaderVm['decided'],
                 'total' => $leaderVm['total'],
@@ -109,6 +113,7 @@ class ScreeningChecklistService
                     'm' => $mId,
                     'label' => 'Member',
                     'sublabel' => $member['name'] ?? null,
+                    'avatar_url' => $member['avatar_url'] ?? null,
                     'percent' => $vm['percent'],
                     'done' => $vm['decided'],
                     'total' => $vm['total'],
@@ -125,6 +130,9 @@ class ScreeningChecklistService
                 'm' => null,
                 'label' => 'Borrower',
                 'sublabel' => $review['customer']->full_name ?? null,
+                'avatar_url' => ($review['customer'] ?? null) instanceof Customer
+                    ? app(FaceVerificationService::class)->avatarUrl($review['customer'])
+                    : null,
                 'percent' => $borrowerVm['percent'],
                 'done' => $borrowerVm['decided'],
                 'total' => $borrowerVm['total'],
@@ -149,6 +157,7 @@ class ScreeningChecklistService
                 'm' => null,
                 'label' => 'Guarantor',
                 'sublabel' => $row['name'] ?? null,
+                'avatar_url' => $row['avatar_url'] ?? null,
                 'percent' => $vm['percent'],
                 'done' => $vm['decided'],
                 'total' => $vm['total'],
@@ -228,10 +237,6 @@ class ScreeningChecklistService
             : User::query()->whereIn('id', $userIds)->pluck('name', 'id');
 
         $context = $this->evidenceContext($application, $person, $guarantorLinkId, $memberId, $review, $groupReview);
-        if (filled($application->loan_group_id)) {
-            app(CustomerAssetService::class)->syncGroupFileAssets($application);
-            $application->unsetRelation('collateralAssets');
-        }
         $kind = $this->kindFromSubject($subject);
         $systemSuggestions = app(ScreeningChecklistAutoVerdictService::class)
             ->suggest($application, $kind, $context);
@@ -549,6 +554,11 @@ class ScreeningChecklistService
                     'loan_group_member_id' => $memberId,
                 ],
             );
+
+            if (($items['collateral.asset_identity']['verdict'] ?? '') === 'pass') {
+                app(ApplicationDocumentRequestService::class)
+                    ->satisfyUploadedCollateralRequests($fresh, $actor);
+            }
 
             $suggestion = $this->suggestedRejection($fresh);
             if ($suggestion['prompt_reject'] && $suggestion['codes'] !== []) {
@@ -1384,6 +1394,8 @@ class ScreeningChecklistService
             'income_statements' => $incomeStatements,
             'guarantor_suggestion' => $gSug,
             'collateral_secure' => $collateral,
+            'pledged_assets' => $this->pledgedAssetSummaries($application),
+            'valuer' => $this->valuerEvidence($application),
             'anomalies' => $anomalies,
             'application' => $application,
             'subject_person' => $person,
@@ -1870,14 +1882,63 @@ class ScreeningChecklistService
 
             case 'insurance':
                 $cs = (array) ($ctx['collateral_secure'] ?? []);
+                $pledged = collect($ctx['pledged_assets'] ?? []);
+                $first = (array) $pledged->first();
                 $rows = [
-                    ['label' => 'Status', 'value' => (string) ($cs['status'] ?? '—')],
-                    ['label' => 'Source', 'value' => (string) ($cs['source'] ?? '—')],
-                    ['label' => 'Insurance type', 'value' => (string) (data_get($cs, 'insurance.insurance_type') ?: '—')],
-                    ['label' => 'Expiry', 'value' => (string) (data_get($cs, 'insurance.expiry') ?: '—')],
-                    ['label' => 'How confirmed', 'value' => 'System shows recorded cover; you confirm the policy matches the asset'],
+                    ['label' => 'Pledged asset', 'value' => (string) ($first['label'] ?? '—')],
+                    ['label' => 'Insurance type', 'value' => (string) (($first['insurance_type'] ?? null) ?: (data_get($cs, 'insurance.insurance_type') ?: '—'))],
+                    ['label' => 'Policy number', 'value' => (string) ($first['insurance_policy'] ?? '—')],
+                    ['label' => 'Expiry', 'value' => (string) (($first['insurance_expiry'] ?? null) ?: (data_get($cs, 'insurance.expiry') ?: '—'))],
+                    ['label' => 'Certificate on file', 'value' => ! empty($first['has_insurance_doc']) ? 'Yes' : 'No'],
+                    ['label' => 'Secure ladder', 'value' => (string) ($cs['status'] ?? '—')],
                 ];
-                $hint = 'System surfaces insurance on file. Confirm type and expiry against the vehicle / asset yourself.';
+                $documents = array_values(array_filter($pledged->flatMap(fn ($asset) => $asset['insurance_documents'] ?? [])->all()));
+                $hint = 'Confirm type and expiry against the pledged vehicle / asset. Ownership transfer is handled after approval by credit management.';
+                break;
+
+            case 'collateral_assets':
+                $pledged = collect($ctx['pledged_assets'] ?? []);
+                if ($pledged->isEmpty()) {
+                    $rows = [
+                        ['label' => 'Pledged on this loan', 'value' => 'None'],
+                        ['label' => 'What to do', 'value' => 'Ask the leader / borrower to add or pick the asset used as security'],
+                    ];
+                    $hint = 'Only assets marked On this loan appear here. Saved profile assets that were not pledged are ignored.';
+                    break;
+                }
+                $rows = [];
+                foreach ($pledged as $asset) {
+                    $rows[] = ['label' => (string) ($asset['label'] ?? 'Asset'), 'value' => (string) ($asset['type_label'] ?? $asset['asset_type'] ?? '—')];
+                    $rows[] = ['label' => 'Owner', 'value' => (string) ($asset['owner'] ?? '—')];
+                    $rows[] = ['label' => 'Registration / serial', 'value' => (string) ($asset['registration'] ?? '—')];
+                    $rows[] = ['label' => 'Make / year', 'value' => trim((string) (($asset['make'] ?? '').' '.($asset['year'] ?? ''))) ?: '—'];
+                    $rows[] = ['label' => 'Chassis / serial', 'value' => (string) ($asset['chassis'] ?? '—')];
+                    $rows[] = ['label' => 'Estimated value', 'value' => (string) ($asset['estimated_value'] ?? '—')];
+                    foreach ($asset['photos'] ?? [] as $photo) {
+                        $photos[] = $photo;
+                    }
+                    foreach ($asset['documents'] ?? [] as $doc) {
+                        $documents[] = $doc;
+                    }
+                }
+                $hint = 'Confirm the pledged asset identity from photos and registration. Person-with-asset shots are supporting evidence, not the thumbnail.';
+                break;
+
+            case 'valuer':
+                $valuer = (array) ($ctx['valuer'] ?? []);
+                $rows = [
+                    ['label' => 'Valuation fee', 'value' => (string) ($valuer['fee_status'] ?? '—')],
+                    ['label' => 'Assignment', 'value' => (string) ($valuer['assignment_status'] ?? 'Not assigned')],
+                    ['label' => 'Valuer', 'value' => (string) ($valuer['name'] ?? '—')],
+                    ['label' => 'Phone (communication only)', 'value' => (string) ($valuer['phone'] ?? '—')],
+                    ['label' => 'Email', 'value' => (string) ($valuer['email'] ?? '—')],
+                    ['label' => 'Customer region', 'value' => (string) ($valuer['region'] ?? '—')],
+                    ['label' => 'How assigned', 'value' => (string) ($valuer['matching'] ?? '—')],
+                    ['label' => 'Forced sale value', 'value' => (string) ($valuer['fsv'] ?? '—')],
+                    ['label' => 'Market value', 'value' => (string) ($valuer['market_value'] ?? '—')],
+                    ['label' => 'LTV cover', 'value' => (string) ($valuer['ltv'] ?? '—')],
+                ];
+                $hint = (string) ($valuer['hint'] ?? 'When auto-assign is on, screening only uses valuer contact details to coordinate. The valuer receives the task.');
                 break;
 
             case 'generic':
@@ -2053,6 +2114,149 @@ class ScreeningChecklistService
             'profile' => $profile !== '' ? $profile : '—',
             'crb' => $crb !== '' ? $crb : '—',
             'status' => $status,
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function pledgedAssetSummaries(LoanApplication $application): array
+    {
+        $application->loadMissing(['collateralAssets.customerAsset.customer']);
+
+        $out = [];
+        foreach ($application->collateralAssets as $row) {
+            if (($row->uw_status ?? '') === \App\Models\LoanApplicationAsset::UW_DECLINED) {
+                continue;
+            }
+            $asset = $row->customerAsset;
+            if (! $asset) {
+                continue;
+            }
+
+            $photos = [];
+            foreach (array_values($asset->photo_paths ?? []) as $i => $path) {
+                if (! filled($path)) {
+                    continue;
+                }
+                $photos[] = [
+                    'label' => $asset->label.($i === 0 ? ' photo' : ' photo '.($i + 1)),
+                    'url' => asset('storage/'.$path),
+                ];
+            }
+            $person = $asset->metadata['person_with_asset_path'] ?? null;
+            if (filled($person)) {
+                $photos[] = [
+                    'label' => 'Owner with asset',
+                    'url' => asset('storage/'.$person),
+                ];
+            }
+
+            $documents = [];
+            foreach ([
+                'ownership_document_path' => 'Ownership document',
+                'insurance_document_path' => 'Insurance certificate',
+            ] as $key => $label) {
+                $path = $asset->metadata[$key] ?? null;
+                if (! filled($path)) {
+                    continue;
+                }
+                $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+                $pack = [
+                    'label' => $label,
+                    'url' => asset('storage/'.$path),
+                    'kind' => $ext === 'pdf' ? 'pdf' : 'image',
+                ];
+                $documents[] = $pack;
+            }
+
+            $out[] = [
+                'label' => (string) $asset->label,
+                'asset_type' => (string) $asset->asset_type,
+                'type_label' => CustomerAsset::typeOptions()[$asset->asset_type] ?? $asset->asset_type,
+                'owner' => $asset->customer?->full_name ?? '—',
+                'registration' => (string) ($asset->registration_number ?: $asset->detail('serial_number') ?: '—'),
+                'make' => (string) ($asset->detail('make') ?: '—'),
+                'year' => (string) ($asset->detail('year_of_manufacture') ?: $asset->detail('year') ?: '—'),
+                'chassis' => (string) ($asset->detail('chassis_number') ?: '—'),
+                'estimated_value' => $asset->estimated_value ? format_money($asset->estimated_value) : '—',
+                'insurance_type' => CustomerAsset::insuranceTypeOptions()[(string) $asset->insuranceType()] ?? $asset->insuranceType(),
+                'insurance_policy' => (string) ($asset->detail('insurance_policy_number') ?: '—'),
+                'insurance_expiry' => (string) ($asset->detail('insurance_expires_at') ?: '—'),
+                'has_insurance_doc' => filled($asset->metadata['insurance_document_path'] ?? null),
+                'photos' => $photos,
+                'documents' => $documents,
+                'insurance_documents' => collect($documents)
+                    ->filter(fn ($doc) => str_contains(strtolower((string) ($doc['label'] ?? '')), 'insurance'))
+                    ->values()
+                    ->all(),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** @return array<string, mixed> */
+    private function valuerEvidence(LoanApplication $application): array
+    {
+        $application->loadMissing(['customer', 'valuationAssignments.vendor']);
+        $cs = (array) (data_get($application->screening_payload, 'collateral_secure') ?: []);
+        $coverage = app(CollateralCoverageService::class)->forApplication($application);
+        $settings = app(PartnerAutoAssignPolicy::class)->forServiceCategory('valuer');
+        $autoOn = app(PartnerAutoAssignPolicy::class)->enabledForService('valuer');
+        $strategy = (string) ($settings['strategy'] ?? 'least_load');
+        $requireRegion = (bool) ($settings['require_region'] ?? true);
+
+        $matching = collect([
+            $requireRegion ? 'Customer region must match valuer coverage' : 'Region match optional',
+            match ($strategy) {
+                'efficiency_balanced' => 'Then efficiency + open-load balance',
+                'round_robin' => 'Then round-robin among eligible valuers',
+                default => 'Then least open valuation jobs',
+            },
+            ! empty($settings['max_open']) ? 'Cap of '.$settings['max_open'].' open jobs' : null,
+        ])->filter()->implode(' · ');
+
+        $open = $application->valuationAssignments
+            ->first(fn ($row) => in_array($row->status, [
+                \App\Models\ValuationAssignment::STATUS_ASSIGNED,
+                \App\Models\ValuationAssignment::STATUS_IN_PROGRESS,
+                \App\Models\ValuationAssignment::STATUS_COMPLETED,
+            ], true));
+
+        $feeDue = (int) ($cs['valuation_fee_due'] ?? 0);
+        $feePaid = filled($cs['valuation_fee_paid_at'] ?? null);
+        $feeStatus = match (true) {
+            ($cs['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUATION_FEE && ! $feePaid => 'Due '.format_money($feeDue),
+            $feePaid => 'Paid'.($feeDue > 0 ? ' ('.format_money($feeDue).')' : ''),
+            $feeDue > 0 => format_money($feeDue).' not yet requested',
+            default => 'No fee due / not opened',
+        };
+
+        $autoAssigned = $open && str_contains(strtolower((string) ($open->notes ?? '')), 'auto-assigned');
+
+        return [
+            'fee_status' => $feeStatus,
+            'assignment_status' => $open
+                ? ucfirst(str_replace('_', ' ', (string) $open->status)).($autoAssigned ? ' · auto-assigned' : '')
+                : (($cs['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUER
+                    ? 'Waiting for auto-assign / ops'
+                    : 'Not assigned'),
+            'name' => $open?->vendor?->name ?? '—',
+            'phone' => $open?->vendor?->phone ?? '—',
+            'email' => $open?->vendor?->email ?? '—',
+            'region' => $application->customer?->region ?: '—',
+            'matching' => $matching,
+            'fsv' => $open?->forced_sale_value ? format_money($open->forced_sale_value) : '—',
+            'market_value' => $open?->market_value ? format_money($open->market_value) : '—',
+            'ltv' => $coverage
+                ? ((int) ($coverage['ltv_percent'] ?? 0)).'% · max '.format_money($coverage['max_loan_amount'] ?? 0)
+                    .' · requested '.format_money($coverage['requested_amount'] ?? $application->requested_amount)
+                    .(! empty($coverage['sufficient']) ? ' · covers' : ' · shortfall')
+                : '—',
+            'hint' => $autoOn
+                ? 'Auto-assign is on. Screening uses valuer name and phone for communication only — the valuer already has the task. Matching: '.$matching.'.'
+                : 'Auto-assign is off. Ops picks the valuer. Matching rules still prefer region coverage, then load.',
         ];
     }
 }

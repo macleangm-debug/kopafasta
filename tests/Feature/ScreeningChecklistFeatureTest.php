@@ -552,6 +552,10 @@ class ScreeningChecklistFeatureTest extends TestCase
         $collateral = collect($leaderVm['groups'] ?? [])->firstWhere('key', 'collateral');
         $this->assertNotNull($collateral);
         $this->assertGreaterThan(0, (int) ($collateral['total'] ?? 0));
+        $this->assertNull(collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.ownership_docs'));
+        $this->assertNotNull(collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuer_assigned'));
+        $this->assertNotNull(collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_fee'));
+        $this->assertStringNotContainsString('Review ownership / transfer documents', json_encode($collateral));
 
         $this->assertFalse(
             LoanApplicationAsset::query()
@@ -559,5 +563,72 @@ class ScreeningChecklistFeatureTest extends TestCase
                 ->whereHas('customerAsset', fn ($q) => $q->where('customer_id', $member->id))
                 ->exists()
         );
+    }
+
+    public function test_group_party_label_uses_leader_first_name_plus_other_members(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $leader = $app->customer;
+        $leader->update(['first_name' => 'Gaspari', 'last_name' => 'Shiliba']);
+        $product = LoanProduct::create([
+            'code' => 'GL-NM',
+            'name' => 'Group Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $app->update(['loan_product_id' => $product->id]);
+        $group = LoanGroup::create([
+            'group_number' => 'GRP-NM-'.random_int(100, 999),
+            'name' => 'Nyella',
+            'leader_customer_id' => $leader->id,
+            'primary_application_id' => $app->id,
+            'status' => 'active',
+            'target_member_count' => 4,
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $leader->id,
+            'loan_application_id' => $app->id,
+            'role' => 'leader',
+            'requested_amount' => 200_000,
+            'sort_order' => 1,
+            'member_status' => 'active',
+        ]);
+        for ($i = 2; $i <= 4; $i++) {
+            $member = Customer::create([
+                'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+                'customer_number' => 'CU-NM-'.$i.random_int(10, 99),
+                'type' => 'individual',
+                'status' => 'active',
+                'first_name' => 'Member'.$i,
+                'last_name' => 'Nyella',
+                'phone' => '25571'.random_int(1000000, 9999999),
+                'branch_id' => $admin->branch_id,
+            ]);
+            LoanGroupMember::create([
+                'loan_group_id' => $group->id,
+                'customer_id' => $member->id,
+                'loan_application_id' => $app->id,
+                'role' => 'member',
+                'requested_amount' => 200_000,
+                'sort_order' => $i,
+                'member_status' => 'active',
+            ]);
+        }
+        $app->update(['loan_group_id' => $group->id]);
+
+        $this->assertSame('Gaspari + 3 others', $app->fresh()->partyLabel());
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->assertSee('Gaspari + 3 others', false)
+            ->assertDontSee('Review ownership / transfer documents', false);
     }
 }

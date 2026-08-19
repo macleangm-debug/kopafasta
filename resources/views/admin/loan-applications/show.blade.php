@@ -42,8 +42,19 @@
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white">
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div class="flex items-start gap-4 min-w-0">
-                    <div class="shrink-0 rounded-xl bg-white/10 ring-1 ring-white/20 p-2.5">
-                        <x-site.brand-mark size="sm" variant="light" />
+                    @php
+                        $letterheadAvatar = $customer
+                            ? app(\App\Services\FaceVerificationService::class)->avatarUrl($customer)
+                            : null;
+                    @endphp
+                    <div class="shrink-0 size-16 sm:size-20 rounded-2xl overflow-hidden ring-2 ring-white/25 bg-white/10 grid place-items-center">
+                        @if ($letterheadAvatar)
+                            <img src="{{ $letterheadAvatar }}" alt="{{ $record->partyLabel() }}" class="size-full object-cover">
+                        @else
+                            <div class="rounded-xl bg-white/10 ring-1 ring-white/20 p-2.5">
+                                <x-site.brand-mark size="sm" variant="light" />
+                            </div>
+                        @endif
                     </div>
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">
@@ -51,7 +62,7 @@
                         </p>
                         <h1 class="text-xl sm:text-2xl font-bold tracking-tight mt-1 truncate">{{ $record->application_number }}</h1>
                         <p class="text-sm text-white/75 mt-1 truncate">
-                            {{ $customer?->full_name ?: '—' }}
+                            {{ $record->partyLabel() }}
                             @if ($customer?->member_no)
                                 <span class="text-white/50">·</span> Member {{ $customer->member_no }}
                             @endif

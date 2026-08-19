@@ -3,8 +3,7 @@
 @php
     $portalContext = app(\App\Services\PortalContextService::class);
     $displayName = $portalContext->displayName($customer);
-    $facePhoto = app(\App\Services\FaceVerificationService::class)->latestByAngle($customer)->get('front');
-    $photoUrl = $facePhoto?->file_path ? asset('storage/'.$facePhoto->file_path) : null;
+    $photoUrl = app(\App\Services\FaceVerificationService::class)->avatarUrl($customer);
     $initial = strtoupper(substr($displayName, 0, 1) ?: '?');
     $membershipActive = ($customer->membership_status ?? '') === 'active'
         && ($customer->membership_expires_at === null || $customer->membership_expires_at->isFuture());

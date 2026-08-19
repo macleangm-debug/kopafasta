@@ -280,7 +280,7 @@ return [
         'items' => [
             'asset_identity' => [
                 'label' => 'Confirm asset identity (registration / serial / title)',
-                'evidence' => 'insurance',
+                'evidence' => 'collateral_assets',
                 'fail_reasons' => [
                     'identity_mismatch' => 'Asset identity does not match documents',
                     'missing_ids' => 'Registration / serial / title missing',
@@ -305,21 +305,45 @@ return [
                     'custom' => 'Other (write reason)',
                 ],
             ],
-            'ownership_docs' => [
-                'label' => 'Review ownership / transfer documents',
-                'evidence' => 'documents',
-                'fail_reasons' => [
-                    'ownership_unclear' => 'Ownership not clear',
-                    'docs_missing' => 'Ownership documents missing',
-                    'custom' => 'Other (write reason)',
-                ],
-            ],
             'valuation_or_photos' => [
                 'label' => 'Review valuation / asset photos where available',
-                'evidence' => 'insurance',
+                'evidence' => 'collateral_assets',
                 'fail_reasons' => [
                     'photos_poor' => 'Photos insufficient',
                     'valuation_missing' => 'Valuation missing where required',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
+            'valuation_fee' => [
+                'label' => 'Confirm valuation fee paid by the borrower / group leader',
+                'evidence' => 'valuer',
+                'fail_reasons' => [
+                    'fee_unpaid' => 'Valuation fee not paid',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
+            'valuer_assigned' => [
+                'label' => 'Confirm valuer assignment (contact details for communication)',
+                'evidence' => 'valuer',
+                'fail_reasons' => [
+                    'valuer_missing' => 'No valuer assigned and auto-assign could not place the job',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
+            'valuation_report' => [
+                'label' => 'Review valuation report / forced sale value',
+                'evidence' => 'valuer',
+                'fail_reasons' => [
+                    'report_missing' => 'Valuation report / FSV not on file',
+                    'value_insufficient' => 'Forced sale value is too low',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
+            'ltv_covers' => [
+                'label' => 'Confirm FSV × LTV covers the requested amount',
+                'evidence' => 'valuer',
+                'fail_reasons' => [
+                    'ltv_shortfall' => 'Collateral does not cover the requested amount',
                     'custom' => 'Other (write reason)',
                 ],
             ],

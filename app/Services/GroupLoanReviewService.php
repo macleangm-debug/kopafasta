@@ -51,6 +51,7 @@ class GroupLoanReviewService
                     'id' => $member->id,
                     'role' => $member->role,
                     'name' => $customer?->full_name ?? '—',
+                    'avatar_url' => $customer ? app(FaceVerificationService::class)->avatarUrl($customer) : null,
                     'customer_id' => $customer?->id,
                     'customer_number' => $customer?->customer_number,
                     'phone' => $customer?->phone,

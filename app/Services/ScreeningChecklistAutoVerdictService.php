@@ -100,8 +100,11 @@ class ScreeningChecklistAutoVerdictService
                 'collateral.asset_identity',
                 'collateral.insurance_type',
                 'collateral.insurance_cover',
-                'collateral.ownership_docs',
                 'collateral.valuation_or_photos',
+                'collateral.valuation_fee',
+                'collateral.valuer_assigned',
+                'collateral.valuation_report',
+                'collateral.ltv_covers',
                 'collateral.gps_or_location',
             ] as $key) {
                 $out[$key] = ['verdict' => 'na', 'source' => 'auto_na'];

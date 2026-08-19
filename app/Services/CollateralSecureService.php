@@ -248,7 +248,7 @@ class CollateralSecureService
      * Screening has reviewed pledged collateral. Collect valuation fee from the
      * application owner (group leader / individual borrower). Do not assign a valuer yet.
      */
-    public function requestValuation(LoanApplication $application, User $admin, ?string $notes = null): array
+    public function requestValuation(LoanApplication $application, ?User $admin = null, ?string $notes = null): array
     {
         if (is_asset_backed_loan_product($application->product?->code) || is_marketplace_loan_product($application->product?->code)) {
             throw new \InvalidArgumentException('Asset-backed applications assign a valuer after the apply-flow valuation fee, not from this CTA.');
@@ -280,7 +280,7 @@ class CollateralSecureService
 
         $state = [
             'requested_at' => now()->toIso8601String(),
-            'requested_by' => $admin->id,
+            'requested_by' => $admin?->id,
             'notes'        => $notes,
             'due_at'       => $dueAt->toIso8601String(),
             'path'         => self::PATH_SCREENING_VALUATION,
@@ -317,6 +317,20 @@ class CollateralSecureService
         }
 
         return $state;
+    }
+
+    /**
+     * After a new pledge on a non-AB file, open the valuation-fee gate so the
+     * leader/borrower is prompted to pay. Auto-assign runs after payment (or
+     * immediately when the fee is 0) using region + partner auto-assign settings.
+     */
+    public function promptValuationFeeAfterPledge(LoanApplication $application, ?User $actor = null): void
+    {
+        try {
+            $this->requestValuation($application, $actor, 'Opened after collateral was pledged.');
+        } catch (\InvalidArgumentException) {
+            // AB/marketplace, an open collateral-secure ladder, or nothing pledged.
+        }
     }
 
     public function applyCoverageOutcome(LoanApplication $application, array $coverage): void
