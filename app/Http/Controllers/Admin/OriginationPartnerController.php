@@ -45,13 +45,23 @@ class OriginationPartnerController extends Controller
             ->with('status', 'Origination auto-assignment saved.');
     }
 
-    public function coverageRequest(LoanApplication $loanApplication, PartnerCoverageRequestService $coverage): View
+    public function coverageRequest(Request $request, LoanApplication $loanApplication, PartnerCoverageRequestService $coverage): View
     {
-        abort_unless(request()->user()?->can('create', Vendor::class), 403, 'Only the Partners Management team or an admin can manage partner coverage.');
+        abort_unless($request->user()?->can('create', Vendor::class), 403, 'Only the Partners Management team or an admin can manage partner coverage.');
+
+        $requestedCategory = (string) $request->query('category', 'valuer');
+        if (! in_array($requestedCategory, PartnerCoverageRequestService::CATEGORIES, true)) {
+            $requestedCategory = 'valuer';
+        }
+
+        if ($request->boolean('ask')) {
+            $coverage->request($loanApplication, $request->user(), $requestedCategory);
+            $loanApplication->refresh();
+        }
 
         $open = collect(data_get($loanApplication->screening_payload, 'partner_coverage_requests', []))
             ->first(fn ($row) => ($row['status'] ?? '') === 'open');
-        $category = (string) ($open['category'] ?? 'valuer');
+        $category = (string) ($open['category'] ?? $requestedCategory);
         $region = $open['region'] ?? $loanApplication->customer?->region;
         $candidates = $coverage->existingCandidates($loanApplication, $category);
 

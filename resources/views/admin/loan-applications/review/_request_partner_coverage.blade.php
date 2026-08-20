@@ -9,12 +9,28 @@
         : null;
     $categoryLabel = app(\App\Services\PartnerCoverageRequestService::class)->categoryLabel($coverageCategory);
     $regionBit = filled($coverageRegion) ? ' covering '.$coverageRegion : '';
+    $coverageFormId = $coverageApplication
+        ? 'kf-partner-coverage-'.$coverageApplication->id.'-'.str_replace('_', '-', $coverageCategory)
+        : null;
+    $coverageReviewUrl = $coverageApplication
+        ? route('admin.partners.coverage-request', $coverageApplication).'?'.http_build_query(array_filter([
+            'category' => $coverageCategory,
+            'ask' => $openCoverage ? null : 1,
+        ]))
+        : null;
     if ($openCoverage) {
-        $coverButtonLabel = 'Review coverage request';
+        $coverButtonLabel = 'Open valuer coverage';
+        if ($coverageCategory !== 'valuer') {
+            $coverButtonLabel = 'Open coverage request';
+        }
+        if (filled($coverageRegion)) {
+            $coverButtonLabel .= ' · '.$coverageRegion;
+        }
     } elseif ($canEnrollPartners) {
-        $coverButtonLabel = filled($coverageRegion)
-            ? 'Review '.$categoryLabel.'s for '.$coverageRegion
-            : 'Review existing '.$categoryLabel.'s';
+        $coverButtonLabel = $coverageCategory === 'valuer' ? 'Open valuer coverage' : 'Open partner coverage';
+        if (filled($coverageRegion)) {
+            $coverButtonLabel .= ' · '.$coverageRegion;
+        }
     } else {
         $coverButtonLabel = 'Ask Partners team to add a '.$categoryLabel;
     }
@@ -22,31 +38,28 @@
 
 @if ($coverageApplication)
     @if ($canEnrollPartners)
-        @if ($openCoverage)
-            <a href="{{ route('admin.partners.coverage-request', $coverageApplication) }}" class="{{ $enrollClass }}">{{ $coverButtonLabel }}</a>
-        @else
-            <form method="POST" action="{{ route('admin.loan-applications.request-partner-coverage', $coverageApplication) }}" class="space-y-1.5">
-                @csrf
-                <input type="hidden" name="category" value="{{ $coverageCategory }}">
-                <button type="submit" class="{{ $enrollClass }}">{{ $coverButtonLabel }}</button>
-                <p class="text-xs text-gray-600">
-                    Screening does not enroll partners from this file. This opens existing {{ $categoryLabel }}s first and posts the request under Alerts (bell, top right).
-                </p>
-            </form>
-        @endif
+        <a href="{{ $coverageReviewUrl }}" class="{{ $enrollClass }}">{{ $coverButtonLabel }}</a>
+        <p class="text-xs text-gray-600">
+            Opens existing {{ $categoryLabel }}s first. New partners are enrolled from that page, not from screening.
+        </p>
     @elseif ($openCoverage)
         <p class="text-sm text-emerald-900">
             Asked Partners Management to add a {{ $categoryLabel }}{{ $regionBit }}.
             They see it under Alerts (bell, top right) and can add the region on an existing partner or enroll a new one. Waiting files auto-match after coverage is in place.
         </p>
     @else
-        <form method="POST" action="{{ route('admin.loan-applications.request-partner-coverage', $coverageApplication) }}" class="space-y-1.5">
-            @csrf
-            <input type="hidden" name="category" value="{{ $coverageCategory }}">
-            <button type="submit" class="{{ $enrollClass }}">{{ $coverButtonLabel }}</button>
-            <p class="text-xs text-gray-600">
-                Screening does not enroll partners. Partners Management or an admin will add coverage{{ $regionBit }}. They see the request under Alerts (bell, top right).
-            </p>
-        </form>
+        {{-- form= points at a form pushed outside this page's checklist <form>, so this click cannot save Pass/Fail or jump to Decision. --}}
+        <button type="submit" form="{{ $coverageFormId }}" class="{{ $enrollClass }}">
+            {{ $coverButtonLabel }}
+        </button>
+        <p class="text-xs text-gray-600">
+            Screening does not enroll partners. Partners Management or an admin will add coverage{{ $regionBit }}. They see the request under Alerts (bell, top right).
+        </p>
+        @pushOnce('scripts', $coverageFormId)
+            <form id="{{ $coverageFormId }}" method="POST" action="{{ route('admin.loan-applications.request-partner-coverage', $coverageApplication) }}" class="hidden">
+                @csrf
+                <input type="hidden" name="category" value="{{ $coverageCategory }}">
+            </form>
+        @endpushOnce
     @endif
 @endif

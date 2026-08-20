@@ -28,6 +28,21 @@ class ValuerCoverageGapFeatureTest extends TestCase
         $this->seed(ValuationPricingDefaultsSeeder::class);
     }
 
+    private function checklistFormDoesNotPostPartnerCoverage(string $html): bool
+    {
+        if (! preg_match('/id="screening-checklist-form"[^>]*>/', $html, $start, PREG_OFFSET_CAPTURE)) {
+            return true;
+        }
+
+        $from = $start[0][1];
+        $close = strpos($html, '</form>', $from);
+        if ($close === false) {
+            return false;
+        }
+
+        return ! str_contains(substr($html, $from, $close - $from), 'request-partner-coverage');
+    }
+
     private function borrower(): Customer
     {
         $user = User::factory()->create(['role' => 'borrower']);
@@ -206,7 +221,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
         app(CollateralSecureService::class)->requestValuation($application, $admin);
         app(CollateralSecureService::class)->markValuationFeePaid($application->fresh());
 
-        $this->actingAs($officer, 'admin')
+        $askPage = $this->actingAs($officer, 'admin')
             ->get(route('admin.loan-applications.show', [
                 'loan_application' => $application,
                 'workspace' => 'checklist',
@@ -217,7 +232,10 @@ class ValuerCoverageGapFeatureTest extends TestCase
             ->assertSee('Ask Partners team to add a valuer', false)
             ->assertSee('Screening does not enroll partners', false)
             ->assertDontSee('Create this partner?', false)
-            ->assertDontSee('Add valuer', false);
+            ->assertDontSee('Add valuer', false)
+            ->getContent();
+        $this->assertStringContainsString('form="kf-partner-coverage-'.$application->id.'-valuer"', $askPage);
+        $this->assertTrue($this->checklistFormDoesNotPostPartnerCoverage($askPage));
 
         $this->actingAs($officer, 'admin')
             ->from(route('admin.loan-applications.show', $application))
@@ -240,7 +258,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
                 'open_group' => 'collateral',
             ]))
             ->assertOk()
-            ->assertSee('Review coverage request', false)
+            ->assertSee('Open valuer coverage · Kigoma', false)
             ->assertSee('/admin/partners/coverage-requests/'.$application->id, false)
             ->assertDontSee('Create this partner?', false);
     }
@@ -256,7 +274,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
         app(CollateralSecureService::class)->requestValuation($application, $admin);
         app(CollateralSecureService::class)->markValuationFeePaid($application->fresh());
 
-        $this->actingAs($admin, 'admin')
+        $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', [
                 'loan_application' => $application,
                 'workspace' => 'checklist',
@@ -264,15 +282,18 @@ class ValuerCoverageGapFeatureTest extends TestCase
                 'open_group' => 'collateral',
             ]))
             ->assertOk()
-            ->assertSee('Review valuers for Kigoma', false)
+            ->assertSee('Open valuer coverage · Kigoma', false)
             ->assertDontSee('Create this partner?', false)
-            ->assertDontSee('Add valuer', false);
+            ->assertDontSee('Add valuer', false)
+            ->getContent();
+
+        $this->assertStringContainsString('ask=1', $html);
+        $this->assertTrue($this->checklistFormDoesNotPostPartnerCoverage($html));
 
         $this->actingAs($admin, 'admin')
-            ->post(route('admin.loan-applications.request-partner-coverage', $application), [
-                'category' => 'valuer',
-            ])
-            ->assertRedirect(route('admin.partners.coverage-request', $application));
+            ->get(route('admin.partners.coverage-request', $application).'?category=valuer&ask=1')
+            ->assertOk()
+            ->assertSee('Open new-partner form', false);
 
         $this->assertTrue((bool) data_get($application->fresh()->screening_payload, 'partner_coverage_open'));
         $this->assertGreaterThanOrEqual(1, NotificationLog::query()->where('template', 'partner.coverage_staff')->count());
