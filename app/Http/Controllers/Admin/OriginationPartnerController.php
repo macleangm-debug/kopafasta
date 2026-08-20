@@ -134,15 +134,6 @@ class OriginationPartnerController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
-        if ($request->user()->can('create', Vendor::class)) {
-            return redirect()
-                ->route('admin.partners.create', array_filter([
-                    'category' => $data['category'] === 'any' ? null : $data['category'],
-                    'region' => $loanApplication->customer?->region,
-                ]))
-                ->with('status', 'Add the partner here, then set coverage for '.$loanApplication->customer?->region.'.');
-        }
-
         $created = $coverage->request(
             $loanApplication,
             $request->user(),
@@ -150,12 +141,23 @@ class OriginationPartnerController extends Controller
             $data['note'] ?? null,
         );
 
+        if ($request->user()->can('create', Vendor::class)) {
+            return redirect()
+                ->route('admin.partners.coverage-request', $loanApplication)
+                ->with(
+                    'status',
+                    $created
+                        ? 'Coverage request saved. Review existing partners first, or enroll a new '.$coverage->categoryLabel($data['category']).'.'
+                        : 'This coverage request is already open. Review existing partners first.',
+                );
+        }
+
         return back()->with(
             'status',
             $created
                 ? 'Partners Management has been asked to add a '.$coverage->categoryLabel($data['category'])
                     .(filled($loanApplication->customer?->region) ? ' covering '.$loanApplication->customer->region : '')
-                    .'.'
+                    .'. Check Alerts (bell, top right) on a Partners Management or admin account.'
                 : 'Partners Management already has this coverage request.',
         );
     }

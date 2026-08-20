@@ -43,7 +43,6 @@
                         'coverageApplication' => $coverageLoan,
                         'coverageCategory' => 'valuer',
                         'coverageRegion' => $coverageLoan->customer?->region,
-                        'enrollLabel' => 'Add valuer',
                     ])
                 </div>
             @endif

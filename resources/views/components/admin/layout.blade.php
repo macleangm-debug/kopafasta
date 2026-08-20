@@ -227,7 +227,14 @@
     }
 
     $adminAlerts = app(\App\Services\AdminAlertService::class);
-    $adminAlertItems = $adminAlerts->alerts();
+    $canManagePartners = auth()->user()?->can('create', \App\Models\Vendor::class);
+    $adminAlertItems = $adminAlerts->alerts()->filter(function ($alert) use ($canManagePartners) {
+        if (str_starts_with((string) ($alert['key'] ?? ''), 'partner_coverage_')) {
+            return $canManagePartners;
+        }
+
+        return true;
+    })->values();
     $adminPersonalNotifications = collect();
     if (\Illuminate\Support\Facades\Schema::hasColumn('notification_logs', 'user_id') && auth()->id()) {
         $adminPersonalNotifications = \App\Models\NotificationLog::query()
@@ -237,7 +244,7 @@
             ->limit(8)
             ->get();
     }
-    $adminBellCount = $adminAlerts->unreadCount() + $adminPersonalNotifications->count();
+    $adminBellCount = $adminAlertItems->sum(fn ($item) => (int) ($item['count'] ?? 0)) + $adminPersonalNotifications->count();
 @endphp
 
 <div class="min-h-screen flex flex-col">
@@ -255,8 +262,9 @@
 
             <div class="admin-menu flex items-center gap-2 sm:gap-3">
                 <details class="relative">
-                    <summary class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+                    <summary class="relative inline-flex items-center gap-1.5 p-2 rounded-lg text-gray-600 hover:bg-gray-100 cursor-pointer" aria-label="Alerts">
                         <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
+                        <span class="hidden sm:inline text-xs font-semibold">Alerts</span>
                         @if ($adminBellCount > 0)
                             <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $adminBellCount > 9 ? '9+' : $adminBellCount }}</span>
                         @endif
@@ -293,6 +301,9 @@
                         @empty
                             @if ($adminPersonalNotifications->isEmpty())
                                 <p class="px-4 py-8 text-sm text-gray-500 text-center">No pending alerts.</p>
+                                @if ($canManagePartners)
+                                    <p class="px-4 pb-6 text-xs text-gray-400 text-center">When screening asks for a partner in a missing region, it appears here as “Partner needed in …”.</p>
+                                @endif
                             @endif
                         @endforelse
                     </div>

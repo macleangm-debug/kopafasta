@@ -69,10 +69,10 @@
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Option 2</p>
                 <h2 class="text-base font-bold text-gray-900 mt-0.5">Enroll a new {{ $categoryLabel }}</h2>
-                <p class="text-xs text-gray-500 mt-1">Use this when nobody on the list can cover {{ $region ?: 'this region' }}.</p>
+                <p class="text-xs text-gray-500 mt-1">Use this when nobody on the list can cover {{ $region ?: 'this region' }}. The last step of that form is portal access (invite / activate / draft), not a staff alert.</p>
             </div>
-            <a href="{{ $createUrl }}" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
-                Add new {{ $categoryLabel }}
+            <a href="{{ $createUrl }}" class="inline-flex text-sm font-semibold text-gray-700 bg-white ring-1 ring-gray-200 hover:bg-gray-50 px-4 py-2.5 rounded-xl">
+                Open new-partner form
             </a>
         </section>
     </div>

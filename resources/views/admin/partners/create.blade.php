@@ -19,18 +19,38 @@
         notify: false,
         pin: '',
         pinConfirm: '',
+        formError: '',
         summary: { name: '', category: '', phone: '', email: '' },
         categoryLabels: @js($categories ?? []),
+        fieldValue(form, name) {
+            return form?.querySelector(`[name=\"${name}\"]`)?.value?.trim() || '';
+        },
+        syncPhone(form) {
+            const wrap = form?.querySelector('[data-phone-input]');
+            const hidden = form?.querySelector('input[name=\"phone\"]');
+            if (! wrap || ! hidden) {
+                return (hidden?.value || '').trim();
+            }
+            const local = wrap.querySelector('input[type=\"tel\"]')?.value || '';
+            const prefix = wrap.querySelector('select')?.value || '';
+            const digits = (prefix.replace(/\D/g, '') + local.replace(/\D/g, '').replace(/^0+/, ''));
+            hidden.value = digits;
+            return digits.trim();
+        },
+        refreshSummary() {
+            if (! this.form) return;
+            const category = this.fieldValue(this.form, 'category');
+            this.summary = {
+                name: this.fieldValue(this.form, 'name') || 'New partner',
+                category: this.categoryLabels[category] || category || 'Partner',
+                phone: this.syncPhone(this.form) || '—',
+                email: this.fieldValue(this.form, 'email') || '—',
+            };
+        },
         openFor(form) {
             this.form = form;
-            const val = (name) => form?.querySelector(`[name=\"${name}\"]`)?.value?.trim() || '';
-            const category = val('category');
-            this.summary = {
-                name: val('name') || 'New partner',
-                category: this.categoryLabels[category] || category || 'Partner',
-                phone: val('phone') || '—',
-                email: val('email') || '—',
-            };
+            this.formError = '';
+            this.refreshSummary();
             this.mode = 'invite';
             this.notify = false;
             this.pin = '';
@@ -39,49 +59,53 @@
         },
         cancel() {
             this.open = false;
+            this.formError = '';
             this.form = null;
+        },
+        activeFields(form) {
+            const wizard = form.querySelector('.admin-wizard');
+            const scope = wizard || form;
+            const steps = Array.from(scope.querySelectorAll('[data-step]')).filter((el) => {
+                const gate = el.closest('[data-step-gate]');
+                if (! gate) {
+                    return true;
+                }
+                return window.getComputedStyle(gate).display !== 'none';
+            });
+            const fields = [];
+            (steps.length ? steps : [form]).forEach((root) => {
+                root.querySelectorAll('input, select, textarea').forEach((field) => {
+                    if (field.disabled || field.type === 'hidden') {
+                        return;
+                    }
+                    fields.push(field);
+                });
+            });
+            return fields;
         },
         syncAndSubmit() {
             if (! this.form) return;
+            this.formError = '';
             if (this.mode === 'activate_now') {
                 if (! /^\d{4}$/.test(this.pin)) {
-                    window.showAdminFeedback?.({ tone: 'error', title: 'PIN required', message: 'Enter a 4-digit PIN to activate now.' });
+                    this.formError = 'Enter a 4-digit PIN to activate now.';
                     return;
                 }
                 if (this.pin !== this.pinConfirm) {
-                    window.showAdminFeedback?.({ tone: 'error', title: 'PIN mismatch', message: 'PIN and confirmation must match.' });
+                    this.formError = 'PIN and confirmation must match.';
                     return;
                 }
             }
 
-            // Reveal wizard steps so HTML5 can focus invalid fields (they stay display:none otherwise).
-            const wizard = this.form.querySelector('.admin-wizard');
-            if (wizard) {
-                wizard.querySelectorAll('[data-step]').forEach((el) => {
-                    el.hidden = false;
-                    el.classList.remove('wizard-step-inactive', 'hidden');
-                    el.removeAttribute('aria-hidden');
-                    el.style.cssText = '';
-                });
-            }
-
-            const phone = (this.form.querySelector('[name="phone"]')?.value || '').trim();
+            this.refreshSummary();
+            const phone = this.syncPhone(this.form);
             if ((this.mode === 'activate_now' || this.mode === 'invite') && ! phone) {
-                window.showAdminFeedback?.({
-                    tone: 'error',
-                    title: 'Phone required',
-                    message: 'Add a phone number in Contact before creating this partner.',
-                });
-                this.open = false;
-                const form = this.form;
-                this.form = null;
-                // Let the wizard jump to the invalid Contact field.
-                queueMicrotask(() => form?.reportValidity());
+                this.formError = 'Phone is entered on the Contact step of the form, not in this window. Use Back to form, add the number, then return. Or choose Save as inactive draft.';
                 return;
             }
 
             const setHidden = (name, value) => {
-                let el = this.form.querySelector(`[name="${name}"]`);
+                let el = this.form.querySelector(`[name=\"${name}\"]`);
                 if (! el) {
                     el = document.createElement('input');
                     el.type = 'hidden';
@@ -96,16 +120,9 @@
             setHidden('activation_pin', this.mode === 'activate_now' ? this.pin : '');
             setHidden('status', this.mode === 'activate_now' ? 'active' : 'inactive');
 
-            if (! this.form.checkValidity()) {
-                const form = this.form;
-                this.open = false;
-                this.form = null;
-                window.showAdminFeedback?.({
-                    tone: 'error',
-                    title: 'Form incomplete',
-                    message: 'Some required fields are missing. Fix them in the form, then try again.',
-                });
-                queueMicrotask(() => form?.reportValidity());
+            const invalid = this.activeFields(this.form).find((field) => typeof field.checkValidity === 'function' && ! field.checkValidity());
+            if (invalid) {
+                this.formError = invalid.validationMessage || 'Some required fields are still empty. Use Back to form, fix them, then return.';
                 return;
             }
 
@@ -116,7 +133,6 @@
             if (confirmBtn && typeof window.kfMarkBusy === 'function') {
                 window.kfMarkBusy(confirmBtn);
             }
-            // Native submit after validation passed.
             if (typeof form.requestSubmit === 'function') {
                 form.requestSubmit();
             } else {
@@ -137,7 +153,7 @@
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
                 <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">Confirm &amp; activate</p>
                 <h3 class="text-xl font-bold mt-1">Create this partner?</h3>
-                <p class="text-sm text-white/75 mt-1">Choose how they get portal access.</p>
+                <p class="text-sm text-white/75 mt-1">This is portal access for the new partner — not a staff notification.</p>
             </div>
             <div class="px-6 py-5 space-y-4">
                 <div class="rounded-2xl bg-brand-muted/50 ring-1 ring-brand/10 p-4 text-sm">
@@ -145,15 +161,18 @@
                     <p class="text-gray-600 mt-0.5" x-text="summary.category"></p>
                     <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
                         <div>
-                            <dt class="text-gray-500">Phone</dt>
+                            <dt class="text-gray-500">Phone (from Contact)</dt>
                             <dd class="font-medium text-gray-900 mt-0.5" x-text="summary.phone"></dd>
                         </div>
                         <div>
-                            <dt class="text-gray-500">Email</dt>
+                            <dt class="text-gray-500">Email (from Contact)</dt>
                             <dd class="font-medium text-gray-900 mt-0.5 truncate" x-text="summary.email"></dd>
                         </div>
                     </dl>
+                    <p class="text-[11px] text-gray-500 mt-3">These are a summary, not fields to type in. Use Back to form if a number is missing.</p>
                 </div>
+
+                <div x-show="formError" x-cloak class="rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800" x-text="formError"></div>
 
                 <div class="space-y-2">
                     <p class="text-xs font-semibold uppercase tracking-wide text-brand">Portal activation</p>
@@ -213,11 +232,19 @@
                             class="inline-flex justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white ring-1 ring-gray-200 hover:bg-gray-50">
                         Back to form
                     </button>
-                    <button type="button" data-partner-confirm-create @click="syncAndSubmit()"
-                            class="inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-brand bg-brand-gold hover:brightness-95 shadow-sm">
+                    <button type="button"
+                            data-partner-confirm-create
+                            @click="syncAndSubmit()"
+                            :disabled="(mode === 'invite' || mode === 'activate_now') && (summary.phone === '—' || ! summary.phone)"
+                            class="inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-brand bg-brand-gold hover:brightness-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                         Confirm &amp; create
                     </button>
                 </div>
+                <p x-show="(mode === 'invite' || mode === 'activate_now') && (summary.phone === '—' || ! summary.phone)"
+                   x-cloak
+                   class="text-xs text-amber-800 text-right">
+                    Use Back to form and add a phone on Contact, or choose Save as inactive draft.
+                </p>
             </div>
         </div>
     </div>

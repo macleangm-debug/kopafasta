@@ -12,6 +12,7 @@
 @endphp
 
 <div @error($name) data-has-error="true" @enderror
+     data-phone-input
      x-data="{
         prefix: @js($split['prefix']),
         local: @js($split['local']),
@@ -19,8 +20,14 @@
         full() {
             const digits = (this.prefix || '').replace(/\D/g, '') + (this.local || '').replace(/\D/g, '').replace(/^0+/, '');
             return digits || '';
+        },
+        syncHidden() {
+            if (this.$refs.full) {
+                this.$refs.full.value = this.full();
+            }
         }
-     }">
+     }"
+     x-init="syncHidden(); $watch('prefix', () => syncHidden()); $watch('local', () => syncHidden())">
     @if ($label)
         <label class="block text-xs font-semibold text-gray-700 mb-1">
             {{ $label }} @if ($required)<span class="text-red-500">*</span>@endif
@@ -37,7 +44,7 @@
                @if ($required) required @endif
                class="flex-1 rounded-lg border-gray-300 text-sm focus:border-brand focus:ring-brand @error($name) border-red-400 @enderror">
     </div>
-    <input type="hidden" name="{{ $name }}" :value="full()">
+    <input type="hidden" name="{{ $name }}" x-ref="full" value="{{ $value }}">
     @if ($help)
         <p class="mt-1 text-xs text-gray-500">{{ $help }}</p>
     @else

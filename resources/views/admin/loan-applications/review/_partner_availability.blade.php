@@ -39,7 +39,6 @@
             @include('admin.loan-applications.review._request_partner_coverage', [
                 'coverageApplication' => $record ?? $application ?? null,
                 'coverageCategory' => 'any',
-                'enrollLabel' => 'Add partner →',
                 'enrollClass' => 'font-semibold text-brand hover:underline ml-1',
             ])
         </div>
@@ -73,7 +72,9 @@
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
                             <a href="{{ $partner['show_url'] }}" class="text-xs font-semibold text-brand hover:underline">View</a>
-                            <a href="{{ $partner['edit_url'] }}" class="text-xs font-semibold text-gray-600 hover:underline">Edit coverage</a>
+                            @can('create', \App\Models\Vendor::class)
+                                <a href="{{ $partner['edit_url'] }}" class="text-xs font-semibold text-gray-600 hover:underline">Edit coverage</a>
+                            @endcan
                         </div>
                     </li>
                 @endforeach
@@ -99,7 +100,6 @@
                 @include('admin.loan-applications.review._request_partner_coverage', [
                     'coverageApplication' => $record ?? $application ?? null,
                     'coverageCategory' => 'any',
-                    'enrollLabel' => 'Enroll partner →',
                     'enrollClass' => 'inline-flex mt-3 text-sm font-semibold text-brand hover:underline',
                 ])
             @endif

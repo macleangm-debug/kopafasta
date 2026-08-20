@@ -557,7 +557,6 @@
                                 'coverageApplication' => $record,
                                 'coverageCategory' => 'valuer',
                                 'coverageRegion' => $record->customer?->region,
-                                'enrollLabel' => 'Add valuer',
                             ])
                         @else
                             <form method="POST" action="{{ route('admin.loan-applications.assign-valuer', $record) }}" class="space-y-2">
@@ -586,7 +585,6 @@
                                     'coverageApplication' => $record,
                                     'coverageCategory' => 'valuer',
                                     'coverageRegion' => $record->customer?->region,
-                                    'enrollLabel' => 'Add valuer for this region',
                                     'enrollClass' => 'inline-flex text-sm font-semibold text-brand hover:underline',
                                 ])
                             </div>

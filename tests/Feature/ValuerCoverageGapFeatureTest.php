@@ -216,7 +216,8 @@ class ValuerCoverageGapFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Ask Partners team to add a valuer', false)
             ->assertSee('Screening does not enroll partners', false)
-            ->assertDontSee('Create this partner?', false);
+            ->assertDontSee('Create this partner?', false)
+            ->assertDontSee('Add valuer', false);
 
         $this->actingAs($officer, 'admin')
             ->from(route('admin.loan-applications.show', $application))
@@ -240,7 +241,41 @@ class ValuerCoverageGapFeatureTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Review coverage request', false)
-            ->assertSee('/admin/partners/coverage-requests/'.$application->id, false);
+            ->assertSee('/admin/partners/coverage-requests/'.$application->id, false)
+            ->assertDontSee('Create this partner?', false);
+    }
+
+    public function test_admin_coverage_action_opens_review_page_not_create(): void
+    {
+        $customer = $this->borrower();
+        $customer->update(['region' => 'Kigoma']);
+        $application = $this->installment($customer);
+        $this->pledge($application, $customer);
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        app(CollateralSecureService::class)->requestValuation($application, $admin);
+        app(CollateralSecureService::class)->markValuationFeePaid($application->fresh());
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+                'desk_phase' => 'security',
+                'open_group' => 'collateral',
+            ]))
+            ->assertOk()
+            ->assertSee('Review valuers for Kigoma', false)
+            ->assertDontSee('Create this partner?', false)
+            ->assertDontSee('Add valuer', false);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.request-partner-coverage', $application), [
+                'category' => 'valuer',
+            ])
+            ->assertRedirect(route('admin.partners.coverage-request', $application));
+
+        $this->assertTrue((bool) data_get($application->fresh()->screening_payload, 'partner_coverage_open'));
+        $this->assertGreaterThanOrEqual(1, NotificationLog::query()->where('template', 'partner.coverage_staff')->count());
     }
 
     public function test_credit_manager_asks_partners_management_instead_of_adding_a_valuer(): void
@@ -264,7 +299,8 @@ class ValuerCoverageGapFeatureTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Ask Partners team to add a valuer', false)
-            ->assertDontSee('Create this partner?', false);
+            ->assertDontSee('Create this partner?', false)
+            ->assertDontSee('Add valuer', false);
     }
 
     public function test_partners_team_officer_can_open_the_add_valuer_form(): void
@@ -321,7 +357,9 @@ class ValuerCoverageGapFeatureTest extends TestCase
             ->assertSee('Lake Zone Valuers', false)
             ->assertSee('Based in Kigoma', false)
             ->assertSee('Add Kigoma', false)
-            ->assertSee('Enroll a new valuer', false);
+            ->assertSee('Enroll a new valuer', false)
+            ->assertSee('Open new-partner form', false)
+            ->assertDontSee('Add new valuer', false);
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.partners.coverage-request.add-region', [$application, $valuer]))

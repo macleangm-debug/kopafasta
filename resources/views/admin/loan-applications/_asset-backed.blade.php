@@ -219,7 +219,6 @@
                         'coverageApplication' => $application,
                         'coverageCategory' => 'valuer',
                         'coverageRegion' => $application->customer?->region,
-                        'enrollLabel' => 'Add valuer',
                     ])
                 </div>
             @else
