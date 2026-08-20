@@ -25,7 +25,7 @@ return [
     'operators' => [
         'mpesa' => 'M-Pesa',
         'airtel' => 'Airtel Money',
-        'tigopesa' => 'Tigo Pesa',
+        'tigopesa' => 'Mixx by Yas',
         'halopesa' => 'Halo Pesa',
     ],
 ];

@@ -205,6 +205,7 @@ class BorrowerPaymentController extends Controller
             'payment_method' => ['nullable', 'in:mobile_money,bank_transfer'],
             'mobile_number' => ['nullable', 'string', 'max:20'],
             'mobile_number_local' => ['nullable', 'string', 'max:20'],
+            'operator' => ['nullable', 'string', 'in:mpesa,airtel,tigopesa,halopesa'],
         ]);
 
         // Retry from the waiting card omits the picker — stay on mobile money.
@@ -234,7 +235,7 @@ class BorrowerPaymentController extends Controller
         }
 
         try {
-            $payment = $payments->initiateCollection($payment, $mobileNumber);
+            $payment = $payments->initiateCollection($payment, $mobileNumber, $data['operator'] ?? null);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $raw = collect($e->errors())->flatten()->first();
             $attempted = $payment->fresh()->mobile_number
@@ -254,10 +255,14 @@ class BorrowerPaymentController extends Controller
     /**
      * Re-send the mobile-money prompt to the same number (clear stale provider_ref first).
      */
-    public function retry(CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    public function retry(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
     {
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
+
+        $data = $request->validate([
+            'operator' => ['nullable', 'string', 'in:mpesa,airtel,tigopesa,halopesa'],
+        ]);
 
         try {
             $payment = $payments->returnToPaymentGate($payment);
@@ -279,7 +284,7 @@ class BorrowerPaymentController extends Controller
         }
 
         try {
-            $payment = $payments->initiateCollection($payment, $phone);
+            $payment = $payments->initiateCollection($payment, $phone, $data['operator'] ?? null);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $raw = collect($e->errors())->flatten()->first();
             $attempted = $payment->fresh()->mobile_number

@@ -395,22 +395,23 @@ class CustomerPaymentService
         $pspPhone = $payIn->normalizePhone((string) $phone);
         $meta = (array) ($payment->provider_meta ?? []);
         $description = $meta['description'] ?? null;
+        $requestedOperator = $payIn->normalizeOperator($operator);
         unset($meta['operator'], $meta['last_collect_error'], $meta['last_collect_error_at']);
         $meta['phone'] = $pspPhone;
         $meta['attempted_phone'] = $pspPhone;
+        $meta['requested_operator'] = $requestedOperator;
         $payment->update([
             'mobile_number' => $pspPhone,
             'provider_meta' => $meta,
         ]);
 
         try {
-            // Never reuse a previous operator — PayIn detects from this MSISDN.
             $collection = $payIn->collect(
                 $pspPhone,
                 (float) $payment->amount,
                 (string) $payment->reference,
                 $this->payInDescription($payment->payment_type, (string) $payment->reference, is_string($description) ? $description : null),
-                null,
+                $requestedOperator,
             );
         } catch (\Illuminate\Validation\ValidationException $e) {
             $message = collect($e->errors())->flatten()->first()
@@ -439,9 +440,12 @@ class CustomerPaymentService
             'awaiting_collection' => false,
             'initiated_at' => now()->toIso8601String(),
             'operator' => $collection['operator'],
+            'requested_operator' => $requestedOperator,
             'message' => $collection['message'],
             'phone' => $pspPhone,
             'attempted_phone' => $pspPhone,
+            'idempotency_key' => $collection['idempotency_key'] ?? null,
+            'collect_attempt' => (int) ($meta['collect_attempt'] ?? 0) + 1,
             'raw' => $collection['raw'],
         ]);
         unset($meta['last_collect_error'], $meta['last_collect_error_at']);

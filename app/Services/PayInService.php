@@ -59,14 +59,57 @@ class PayInService
         return route('webhooks.payin');
     }
 
+    /** @return list<string> */
+    public function operatorCodes(): array
+    {
+        return array_keys(config('payin.operators', []));
+    }
+
+    public function normalizeOperator(?string $operator): ?string
+    {
+        $code = strtolower(trim((string) $operator));
+        if ($code === '') {
+            return null;
+        }
+
+        $aliases = [
+            'tigo' => 'tigopesa',
+            'tigo pesa' => 'tigopesa',
+            'mixx' => 'tigopesa',
+            'mixx by yas' => 'tigopesa',
+            'vodacom' => 'mpesa',
+            'm-pesa' => 'mpesa',
+            'airtel money' => 'airtel',
+            'halo' => 'halopesa',
+            'halo pesa' => 'halopesa',
+        ];
+        $code = $aliases[$code] ?? $code;
+
+        return in_array($code, $this->operatorCodes(), true) ? $code : null;
+    }
+
     /**
-     * @return array{ok: bool, request_ref: ?string, status: ?string, operator: ?string, message: string, raw: array<string, mixed>}
+     * PayIn replays the first collection when the same idempotency key is reused.
+     * Retries ("didn't get USSD") must use a fresh key.
+     */
+    public function freshIdempotencyKey(string $reference): string
+    {
+        $base = preg_replace('/[^A-Za-z0-9._-]/', '', $reference) ?: 'pay';
+        $base = Str::limit($base, 80, '');
+
+        return $base.'-'.Str::lower((string) Str::ulid());
+    }
+
+    /**
+     * @return array{ok: bool, request_ref: ?string, status: ?string, operator: ?string, message: string, raw: array<string, mixed>, idempotency_key: string}
      */
     public function collect(string $phone, float $amount, string $reference, ?string $description = null, ?string $operator = null): array
     {
         $this->assertReady();
 
         $phone = $this->normalizePhone($phone);
+        $operator = $this->normalizeOperator($operator);
+        $idempotencyKey = $this->freshIdempotencyKey($reference);
         $payload = array_filter([
             'phone' => $phone,
             'amount' => (int) round($amount),
@@ -79,7 +122,7 @@ class PayInService
 
         try {
             $response = $this->http()
-                ->withHeaders(['X-Idempotency-Key' => $reference])
+                ->withHeaders(['X-Idempotency-Key' => $idempotencyKey])
                 ->post($this->baseUrl().'/collection', $payload)
                 ->throw()
                 ->json();
@@ -125,6 +168,7 @@ class PayInService
             'operator' => $response['operator'] ?? null,
             'message' => (string) ($response['message'] ?? 'Collection request sent.'),
             'raw' => is_array($response) ? $response : [],
+            'idempotency_key' => $idempotencyKey,
         ];
     }
 

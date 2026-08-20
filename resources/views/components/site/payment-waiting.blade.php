@@ -25,6 +25,9 @@
     $paidMessage = $celebration['message'];
     $phone = $payment->mobile_number;
     $startFailed = $initialState === 'failed';
+    $operatorLabel = (string) (data_get($payment->provider_meta, 'operator') ?: '');
+    $isMixx = str_contains(mb_strtolower($operatorLabel), 'tigo')
+        || str_contains(mb_strtolower($operatorLabel), 'mixx');
 @endphp
 
 <div
@@ -198,9 +201,19 @@
                     <p class="mt-3 text-sm text-white/85 max-w-sm mx-auto" x-text="message"></p>
 
                     <div class="mt-7 flex flex-wrap justify-center gap-3">
-                        <form method="POST" action="{{ $retryUrl }}">
+                        <form method="POST" action="{{ $retryUrl }}" class="space-y-3">
                             @csrf
-                            <button type="submit" class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
+                            <label class="block text-left">
+                                <span class="sr-only">{{ __('borrower.payment_waiting.wallet_label') }}</span>
+                                <select name="operator" class="w-full rounded-xl bg-white text-gray-900 text-sm px-3 py-2">
+                                    <option value="">{{ __('borrower.payment_waiting.wallet_auto') }}</option>
+                                    <option value="tigopesa">{{ __('borrower.payment_waiting.wallet_mixx') }}</option>
+                                    <option value="mpesa">{{ __('borrower.payment_waiting.wallet_mpesa') }}</option>
+                                    <option value="airtel">{{ __('borrower.payment_waiting.wallet_airtel') }}</option>
+                                    <option value="halopesa">{{ __('borrower.payment_waiting.wallet_halo') }}</option>
+                                </select>
+                            </label>
+                            <button type="submit" class="w-full rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
                                 {{ __('borrower.payment_waiting.try_again') }}
                             </button>
                         </form>
@@ -238,6 +251,12 @@
                         <div class="flex justify-between gap-3 text-sm">
                             <span class="text-white/70">{{ __('borrower.payment_waiting.phone') }}</span>
                             <span class="font-mono font-semibold">{{ $phone }}</span>
+                        </div>
+                    @endif
+                    @if ($operatorLabel !== '')
+                        <div class="flex justify-between gap-3 text-sm">
+                            <span class="text-white/70">{{ __('borrower.payment_waiting.wallet_label') }}</span>
+                            <span class="font-semibold text-right">{{ $isMixx ? __('borrower.payment_waiting.wallet_mixx') : $operatorLabel }}</span>
                         </div>
                     @endif
                     <div class="flex justify-between gap-3 text-sm">
