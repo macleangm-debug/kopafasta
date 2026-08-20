@@ -552,8 +552,13 @@
                             Auto-assign only picks an active valuer who covers that region (or Nationwide). Add the region on a valuer, or assign someone else below — they still complete the same partner-portal task.
                         </p>
                         @if ($assignableValuers->isEmpty())
-                            <p class="text-sm text-rose-800">No active valuers in the system. Create one under Partners first — then set coverage (Nationwide or this region) and activate the portal PIN. Waiting files auto-match after that.</p>
-                            <a href="{{ route('admin.partners.create', ['category' => 'valuer']) }}" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">Add valuer</a>
+                            <p class="text-sm text-rose-800">No active valuers in the system. Partners Management will enroll one, then set coverage (Nationwide or {{ $record->customer?->region ?: 'this region' }}) and activate the portal PIN. Waiting files auto-match after that.</p>
+                            @include('admin.loan-applications.review._request_partner_coverage', [
+                                'coverageApplication' => $record,
+                                'coverageCategory' => 'valuer',
+                                'coverageRegion' => $record->customer?->region,
+                                'enrollLabel' => 'Add valuer',
+                            ])
                         @else
                             <form method="POST" action="{{ route('admin.loan-applications.assign-valuer', $record) }}" class="space-y-2">
                                 @csrf
@@ -575,6 +580,16 @@
                                     Assign valuer
                                 </button>
                             </form>
+                            <div class="pt-2 border-t border-amber-100 space-y-1">
+                                <p class="text-xs text-gray-600">Need a valuer based in {{ $record->customer?->region ?: 'this region' }} instead of assigning someone from outside?</p>
+                                @include('admin.loan-applications.review._request_partner_coverage', [
+                                    'coverageApplication' => $record,
+                                    'coverageCategory' => 'valuer',
+                                    'coverageRegion' => $record->customer?->region,
+                                    'enrollLabel' => 'Add valuer for this region',
+                                    'enrollClass' => 'inline-flex text-sm font-semibold text-brand hover:underline',
+                                ])
+                            </div>
                         @endif
                     </div>
                 @elseif ($valuationAlreadyOpened)

@@ -241,6 +241,15 @@ class LoanApplicationDocumentRequestController extends Controller
             return back()->with('error', 'Only uploaded requests can be marked satisfied.');
         }
 
+        if ($service->borrowerActionKind($documentRequest) === 'collateral') {
+            $application = $documentRequest->application;
+            abort_unless($application, 404);
+
+            return redirect()
+                ->to($service->screeningReviewUrl($documentRequest, $application))
+                ->with('error', 'Collateral requests clear when every collateral checklist item is reviewed.');
+        }
+
         $service->markSatisfied($documentRequest, $request->user(), $data['notes'] ?? null);
 
         $this->auditAdmin('admin.loan_applications.document_request_satisfied', $documentRequest->application, [

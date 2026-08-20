@@ -11,6 +11,8 @@ return function (): void {
     Route::view('partners/valuers', 'admin.partners.valuers')->name('partners.valuers');
     Route::get('partners/origination-auto-assign', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'autoAssign'])->name('partners.origination-auto-assign');
     Route::post('partners/origination-auto-assign', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'saveAutoAssign'])->name('partners.origination-auto-assign.save');
+    Route::get('partners/coverage-requests/{loan_application}', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'coverageRequest'])->name('partners.coverage-request');
+    Route::post('partners/coverage-requests/{loan_application}/partners/{vendor}/add-region', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'addCoverageRegion'])->name('partners.coverage-request.add-region');
     Route::view('partners/suppliers', 'admin.partners.suppliers')->name('partners.suppliers');
     Route::view('partners/affiliates', 'admin.partners.affiliates')->name('partners.affiliates');
     Route::view('partners/tasks', 'admin.partners.tasks')->name('partners.tasks');

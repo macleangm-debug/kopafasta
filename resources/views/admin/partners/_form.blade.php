@@ -4,7 +4,8 @@
     $creating = (bool) ($creating ?? ($r === null));
     $category = old('category', $r?->category ?? ($defaultCategory ?? 'supplier'));
     $applicantCategory = old('applicant_category', $r?->applicant_category ?? 'company');
-    $selectedRegions = old('regions', $r?->regions ?? []);
+    $prefillRegion = old('regions') ? null : ($defaultRegion ?? request()->query('region'));
+    $selectedRegions = old('regions', $r?->regions ?? (filled($prefillRegion) ? [(string) $prefillRegion] : []));
     $personTypes = ['affiliate', 'valuer'];
     $defaultsService = app(\App\Services\PartnerDefaultsService::class);
     $policy = app(\App\Services\RecoveryPolicyService::class);

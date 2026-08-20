@@ -19,7 +19,13 @@ class VendorPolicy
 
     public function create(User $user): bool
     {
-        return in_array($user->role, ['manager', 'admin'], true);
+        if (in_array($user->role, ['admin', 'super_admin'], true)) {
+            return true;
+        }
+
+        $codes = app(\App\Services\CreditDeskAssignmentService::class)->departmentCodes($user);
+
+        return in_array('PRT', $codes, true);
     }
 
     public function update(User $user, Vendor $vendor): bool

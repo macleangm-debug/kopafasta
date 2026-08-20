@@ -11,6 +11,7 @@ use App\Models\LoanGroup;
 use App\Models\LoanGroupMember;
 use App\Models\LoanProduct;
 use App\Models\User;
+use App\Services\ApplicationDocumentRequestService;
 use App\Services\ScreeningChecklistService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -640,5 +641,74 @@ class ScreeningChecklistFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Gaspari + 3 others', false)
             ->assertDontSee('Review ownership / transfer documents', false);
+    }
+
+    public function test_collateral_inbox_clears_only_when_every_collateral_check_has_a_verdict(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $product = LoanProduct::create([
+            'code' => 'GL-COL',
+            'name' => 'Group Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $app->update(['loan_product_id' => $product->id]);
+        $group = LoanGroup::create([
+            'group_number' => 'GRP-COL-'.random_int(100, 999),
+            'name' => 'Collateral Inbox',
+            'leader_customer_id' => $app->customer_id,
+            'primary_application_id' => $app->id,
+            'status' => 'active',
+            'target_member_count' => 1,
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $app->customer_id,
+            'loan_application_id' => $app->id,
+            'role' => 'leader',
+            'requested_amount' => 500_000,
+            'sort_order' => 1,
+            'member_status' => 'active',
+        ]);
+        $app->update(['loan_group_id' => $group->id]);
+
+        $docService = app(ApplicationDocumentRequestService::class);
+        $request = $docService->create($app->fresh(), $admin, 'Add collateral asset');
+        $request->update(['status' => 'uploaded']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'collateral' => [
+                        'asset_identity' => ['verdict' => 'pass'],
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $items = data_get($app->fresh()->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $this->assertFalse(app(ScreeningChecklistService::class)->collateralChecksComplete($items, 'borrower'));
+        $this->assertSame('uploaded', $request->fresh()->status);
+
+        $complete = [];
+        foreach (array_keys(config('screening_checklist.collateral.items')) as $key) {
+            $complete['collateral.'.$key] = ['verdict' => 'pass'];
+        }
+        $this->assertTrue(app(ScreeningChecklistService::class)->collateralChecksComplete($complete, 'borrower'));
+
+        $this->assertSame(1, $docService->satisfyUploadedCollateralRequests(
+            $app->fresh(),
+            $admin,
+            'borrower',
+            $app->customer_id,
+        ));
+        $this->assertSame('satisfied', $request->fresh()->status);
     }
 }

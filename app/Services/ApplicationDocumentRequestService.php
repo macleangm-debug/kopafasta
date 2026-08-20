@@ -364,13 +364,6 @@ class ApplicationDocumentRequestService
         array $guarantorRows = [],
     ): string {
         $kind = $this->borrowerActionKind($request);
-        $tab = match ($kind) {
-            'income' => 'documents',
-            'collateral' => 'collateral',
-            'face' => 'face',
-            'identity' => 'personal',
-            default => 'documents',
-        };
         $person = in_array((string) $request->subject_kind, ['borrower', 'member', 'guarantor'], true)
             ? (string) $request->subject_kind
             : 'borrower';
@@ -383,6 +376,31 @@ class ApplicationDocumentRequestService
             );
             $g = $match['link_id'] ?? null;
         }
+
+        if ($kind === 'collateral') {
+            $params = array_filter([
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+                'desk_phase' => 'security',
+                'security_tab' => 'checks',
+                'open_group' => 'collateral',
+                'person' => $person,
+                'm' => $m,
+                'g' => $g,
+                'review_person' => $person,
+                'review_m' => $m,
+                'review_g' => $g,
+            ], fn ($v) => $v !== null && $v !== '');
+
+            return route('admin.loan-applications.show', $params).'#review-desk';
+        }
+
+        $tab = match ($kind) {
+            'income' => 'documents',
+            'face' => 'face',
+            'identity' => 'personal',
+            default => 'documents',
+        };
 
         $params = array_filter([
             'loan_application' => $application,
@@ -1612,8 +1630,13 @@ class ApplicationDocumentRequestService
         return $marked;
     }
 
-    public function satisfyUploadedCollateralRequests(LoanApplication $application, User $user): int
-    {
+    public function satisfyUploadedCollateralRequests(
+        LoanApplication $application,
+        User $user,
+        string $person = 'borrower',
+        ?int $subjectCustomerId = null,
+        ?int $memberId = null,
+    ): int {
         $marked = 0;
         $requests = LoanApplicationDocumentRequest::query()
             ->where('loan_application_id', $application->id)
@@ -1624,7 +1647,16 @@ class ApplicationDocumentRequestService
             if ($this->borrowerActionKind($request) !== 'collateral') {
                 continue;
             }
-            $this->markSatisfied($request, $user, 'Cleared after collateral review');
+            if (! $this->targetsReviewSubject(
+                $request,
+                $person,
+                $subjectCustomerId,
+                $memberId,
+                $application->customer_id ? (int) $application->customer_id : null,
+            )) {
+                continue;
+            }
+            $this->markSatisfied($request, $user, 'Cleared after collateral checklist review');
             $marked++;
         }
 

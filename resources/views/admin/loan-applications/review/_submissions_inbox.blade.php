@@ -24,7 +24,7 @@
         </summary>
         <div class="px-5 sm:px-6 pb-3 text-xs text-gray-500">
             {{ $inboxCount === 1 ? '1 new file is waiting for review.' : $inboxCount.' new files are waiting for review.' }}
-            Income statements open on Documents. Marking a file reviewed removes it from this list.
+            Income statements open on Documents. Collateral opens the review checklist and clears when every collateral check is saved.
         </div>
         <div class="p-4 sm:p-5 pt-0 grid md:grid-cols-2 gap-3">
             @foreach ($inboxRequests as $docReq)
@@ -44,7 +44,9 @@
                            class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-900 hover:bg-emerald-200">
                             Review
                         </a>
-                        @if ($canMarkReviewed)
+                        @if ($kind === 'collateral')
+                            <p class="text-[11px] text-gray-500 text-right max-w-[9rem]">Clears when every collateral check is reviewed</p>
+                        @elseif ($canMarkReviewed)
                             <form method="POST" action="{{ route('admin.loan-application-document-requests.satisfy', $docReq) }}">
                                 @csrf
                                 <button type="submit" class="text-[11px] font-semibold text-gray-600 hover:text-brand underline underline-offset-2">

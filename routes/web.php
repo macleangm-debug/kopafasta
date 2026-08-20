@@ -700,6 +700,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('recovery/partners/{type}', [RecoveryPartnerController::class, 'byType'])->name('recovery.partners.type');
         Route::get('origination/valuation-partners', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'valuationIndex'])->name('origination.valuation-partners');
         Route::post('loan-applications/{loan_application}/assign-valuer', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'assignValuer'])->name('loan-applications.assign-valuer');
+        Route::post('loan-applications/{loan_application}/request-partner-coverage', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'requestPartnerCoverage'])->name('loan-applications.request-partner-coverage');
         Route::post('loan-applications/{loan_application}/collateral/{asset}/uw-status', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'updateCollateralUwStatus'])->name('loan-applications.collateral.uw-status');
         Route::post('loan-applications/{loan_application}/assign-gps', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'assignGpsInstaller'])->name('loan-applications.assign-gps');
         Route::post('loan-applications/{loan_application}/manual-fee', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'addManualFee'])->name('loan-applications.manual-fee');

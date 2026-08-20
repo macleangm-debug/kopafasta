@@ -36,7 +36,12 @@
     @if ($mode === 'unavailable')
         <div class="rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 text-sm text-gray-700">
             Use this list to enroll or extend coverage before the file reaches valuation, GPS, insurance, or recovery steps.
-            <a href="{{ route('admin.partners.create') }}" class="font-semibold text-brand hover:underline ml-1">Add partner →</a>
+            @include('admin.loan-applications.review._request_partner_coverage', [
+                'coverageApplication' => $record ?? $application ?? null,
+                'coverageCategory' => 'any',
+                'enrollLabel' => 'Add partner →',
+                'enrollClass' => 'font-semibold text-brand hover:underline ml-1',
+            ])
         </div>
     @endif
 
@@ -91,7 +96,12 @@
                 @endif
             </p>
             @if ($mode === 'available')
-                <a href="{{ route('admin.partners.create') }}" class="inline-flex mt-3 text-sm font-semibold text-brand hover:underline">Enroll partner →</a>
+                @include('admin.loan-applications.review._request_partner_coverage', [
+                    'coverageApplication' => $record ?? $application ?? null,
+                    'coverageCategory' => 'any',
+                    'enrollLabel' => 'Enroll partner →',
+                    'enrollClass' => 'inline-flex mt-3 text-sm font-semibold text-brand hover:underline',
+                ])
             @endif
         </div>
     @endforelse

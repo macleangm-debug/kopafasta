@@ -176,7 +176,12 @@
                                                     :url="asset('storage/'.$latestUpload->file_path)"
                                                     label="Open full size" />
                                             @endif
-                                            @if ($canRequestDocs)
+                                            @if ($docService->borrowerActionKind($docReq) === 'collateral')
+                                                <a href="{{ $docService->screeningReviewUrl($docReq, $record, $review['guarantors'] ?? []) }}"
+                                                   class="text-xs font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg">
+                                                    Review on checklist
+                                                </a>
+                                            @elseif ($canRequestDocs)
                                                 <form method="POST" action="{{ route('admin.loan-application-document-requests.satisfy', $docReq) }}">
                                                     @csrf
                                                     <button type="submit" class="text-xs font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg">

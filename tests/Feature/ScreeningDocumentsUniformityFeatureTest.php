@@ -422,11 +422,18 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             ->assertSee('Collateral', false)
             ->getContent();
 
-        $this->assertStringContainsString('tab=collateral', $html);
+        $this->assertStringContainsString('workspace=checklist', $html);
+        $this->assertStringContainsString('open_group=collateral', $html);
+        $this->assertStringContainsString('desk_phase=security', $html);
+        $this->assertStringContainsString('#review-desk', $html);
         $this->assertStringContainsString('tab=documents', $html);
         $this->assertStringContainsString('#review-documents', $html);
         $this->assertStringContainsString('person=member', $html);
         $this->assertStringNotContainsString('tab=activity', $html);
+        $this->assertStringNotContainsString(
+            route('admin.loan-application-document-requests.satisfy', $collateral, false),
+            $html,
+        );
 
         $alerts = app(\App\Services\AdminAlertService::class)->alerts();
         $this->assertTrue($alerts->contains(

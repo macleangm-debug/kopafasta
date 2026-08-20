@@ -27,6 +27,27 @@
                 </button>
             @endif
         </div>
+        @if ($groupKey === 'collateral')
+            @php
+                $coverageLoan = $record ?? request()->route('loan_application');
+                $csGap = $coverageLoan instanceof \App\Models\LoanApplication
+                    ? app(\App\Services\CollateralSecureService::class)->viewModel($coverageLoan)
+                    : [];
+            @endphp
+            @if (! empty($csGap['no_regional_cover']) && ! empty($csGap['valuer_unassigned']))
+                <div x-show="openGroup === @js($groupKey)" x-cloak class="px-4 py-3 bg-amber-50 border-b border-amber-100 space-y-2">
+                    <p class="text-sm font-semibold text-amber-950">
+                        Fee is paid. No valuer covers {{ $coverageLoan->customer?->region ?: 'this region' }}.
+                    </p>
+                    @include('admin.loan-applications.review._request_partner_coverage', [
+                        'coverageApplication' => $coverageLoan,
+                        'coverageCategory' => 'valuer',
+                        'coverageRegion' => $coverageLoan->customer?->region,
+                        'enrollLabel' => 'Add valuer',
+                    ])
+                </div>
+            @endif
+        @endif
         <ul x-show="openGroup === @js($groupKey)" x-cloak x-ref="items_{{ $groupKey }}" class="divide-y divide-gray-50 bg-white">
             @foreach ($group['items'] as $item)
                 @php

@@ -214,8 +214,13 @@
             @endphp
             @if ($assignList->isEmpty())
                 <div class="border-t border-gray-100 pt-4 space-y-2">
-                    <p class="text-sm text-rose-800">No active valuers in the system. Create one under Partners first — then set coverage (Nationwide or this region) and activate the portal PIN. Waiting files auto-match after that.</p>
-                    <a href="{{ route('admin.partners.create', ['category' => 'valuer']) }}" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">Add valuer</a>
+                    <p class="text-sm text-rose-800">No active valuers in the system. Partners Management will enroll one, then set coverage (Nationwide or this region) and activate the portal PIN. Waiting files auto-match after that.</p>
+                    @include('admin.loan-applications.review._request_partner_coverage', [
+                        'coverageApplication' => $application,
+                        'coverageCategory' => 'valuer',
+                        'coverageRegion' => $application->customer?->region,
+                        'enrollLabel' => 'Add valuer',
+                    ])
                 </div>
             @else
             <div class="flex flex-wrap gap-3 items-end border-t border-gray-100 pt-4">

@@ -104,4 +104,22 @@ class AdminPartnerCreateActivationTest extends TestCase
 
         $this->assertTrue(app(\App\Services\PinService::class)->verify('9999', $partner->user->fresh()->pin_hash));
     }
+
+    public function test_screening_officer_cannot_open_the_add_partner_form(): void
+    {
+        $officer = User::factory()->create(['role' => 'officer', 'is_active' => true]);
+
+        $this->actingAs($officer, 'admin')
+            ->get(route('admin.partners.create', ['category' => 'valuer']))
+            ->assertForbidden();
+    }
+
+    public function test_credit_manager_cannot_open_the_add_partner_form(): void
+    {
+        $manager = User::factory()->create(['role' => 'manager', 'is_active' => true]);
+
+        $this->actingAs($manager, 'admin')
+            ->get(route('admin.partners.create', ['category' => 'valuer']))
+            ->assertForbidden();
+    }
 }

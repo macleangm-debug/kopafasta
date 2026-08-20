@@ -3,7 +3,24 @@
     @php
         $roleOptions = app(\App\Services\PartnerService::class)->roleOptions();
         $activeRole = request('role', '');
+        $coverageAlerts = auth()->user()?->can('create', \App\Models\Vendor::class)
+            ? app(\App\Services\PartnerCoverageRequestService::class)->staffAlerts()
+            : collect();
     @endphp
+    @if ($coverageAlerts->isNotEmpty())
+        <div class="mb-6 space-y-2">
+            @foreach ($coverageAlerts as $alert)
+                <a href="{{ $alert['url'] }}" class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 hover:ring-amber-300">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Coverage gap</p>
+                        <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $alert['label'] }}</p>
+                        <p class="text-xs text-gray-600 mt-1">Add the region on an existing partner, or enroll a new one.</p>
+                    </div>
+                    <span class="text-sm font-semibold text-brand">Review →</span>
+                </a>
+            @endforeach
+        </div>
+    @endif
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600 max-w-2xl">One partner can hold multiple roles. Use the role chips below instead of separate menus.</p>
         <a href="{{ route('admin.partners.create') }}" class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">+ New partner</a>

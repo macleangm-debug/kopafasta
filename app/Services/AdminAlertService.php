@@ -73,7 +73,9 @@ class AdminAlertService
                 'url'      => route('admin.partner-applications.index'),
                 'category' => 'partners',
             ],
-        ])->concat($this->documentSubmissionAlerts())->concat($integrationAlerts);
+        ])->concat($this->documentSubmissionAlerts())
+            ->concat($integrationAlerts)
+            ->concat(app(PartnerCoverageRequestService::class)->staffAlerts());
 
         return $items->filter(fn (array $item) => $item['count'] > 0)->values();
     }

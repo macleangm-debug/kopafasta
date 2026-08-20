@@ -101,6 +101,8 @@ class VendorController extends ResourceController
             return redirect()->route('admin.partners.create', request()->query());
         }
 
+        abort_unless(request()->user()?->can('create', Vendor::class), 403, 'Only the Partners Management team or an admin can add partners.');
+
         return view("admin.{$this->viewFolder}.create", $this->formData());
     }
 
@@ -123,12 +125,15 @@ class VendorController extends ResourceController
             ],
             'roleOptions' => app(\App\Services\PartnerService::class)->roleOptions(),
             'defaultCategory' => request()->query('category'),
+            'defaultRegion' => request()->query('region'),
             'regionOptions' => partner_region_options(),
         ];
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', Vendor::class);
+
         $validated = $request->validate(array_merge($this->rules(), [
             'activation_mode' => ['nullable', 'in:invite,activate_now,draft'],
             'notify_partner' => ['nullable', 'boolean'],
@@ -206,6 +211,7 @@ class VendorController extends ResourceController
     public function update(Request $request, $id)
     {
         $vendor = Vendor::findOrFail($id);
+        $this->authorize('update', $vendor);
         $data = $this->transform($request->validate($this->rules($vendor)), $vendor);
         $data = $this->normalizeApplicantCategory($data);
         $this->validateAffiliateCode($data, $vendor);
@@ -554,6 +560,8 @@ class VendorController extends ResourceController
         }
 
         $record = Vendor::findOrFail($id);
+
+        abort_unless(request()->user()?->can('update', $record), 403, 'Only the Partners Management team or an admin can edit partners.');
 
         return view("admin.{$this->viewFolder}.edit", array_merge(
             ['record' => $record],

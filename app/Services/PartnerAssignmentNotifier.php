@@ -50,18 +50,50 @@ class PartnerAssignmentNotifier
 
     public function notifyStaff(string $title, string $message, ?string $actionUrl = null, string $permission = 'applications.view'): void
     {
-        try {
-            $users = User::query()
+        $this->writeStaffNotifications(
+            User::query()
                 ->whereIn('role', ['admin', 'super_admin', 'staff'])
                 ->where('is_active', true)
                 ->get()
-                ->filter(fn (User $user) => $user->hasPermission($permission) || in_array($user->role, ['admin', 'super_admin'], true));
+                ->filter(fn (User $user) => $user->hasPermission($permission) || in_array($user->role, ['admin', 'super_admin'], true)),
+            $title,
+            $message,
+            $actionUrl,
+        );
+    }
 
+    public function notifyPartnerManagers(string $title, string $message, ?string $actionUrl = null): void
+    {
+        $this->writeStaffNotifications(
+            User::query()
+                ->where('is_active', true)
+                ->whereIn('role', ['admin', 'super_admin', 'manager', 'officer', 'staff'])
+                ->with(['department', 'departments'])
+                ->get()
+                ->filter(fn (User $user) => $user->can('create', Vendor::class)),
+            $title,
+            $message,
+            $actionUrl,
+            'partner.coverage_staff',
+        );
+    }
+
+    /**
+     * @param  iterable<int, User>  $users
+     */
+    private function writeStaffNotifications(
+        iterable $users,
+        string $title,
+        string $message,
+        ?string $actionUrl = null,
+        string $template = 'partner.assignment_staff',
+    ): void {
+        try {
             foreach ($users as $user) {
                 $payload = [
                     'channel'   => 'in_app',
                     'category'  => 'admin',
-                    'template'  => 'partner.assignment_staff',
+                    'template'  => $template,
                     'recipient' => $actionUrl ?: (string) ($user->email ?: 'in_app'),
                     'message'   => Str::limit(trim($title."\n".$message), 800, ''),
                     'status'    => 'sent',

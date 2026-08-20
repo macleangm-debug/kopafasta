@@ -568,9 +568,16 @@ class ScreeningChecklistService
                 ],
             );
 
-            if (($items['collateral.asset_identity']['verdict'] ?? '') === 'pass') {
+            if ($this->collateralReviewApplies($fresh, $person, ['customer' => $subjectCustomer])
+                && $this->collateralChecksComplete($items, $subject)) {
                 app(ApplicationDocumentRequestService::class)
-                    ->satisfyUploadedCollateralRequests($fresh, $actor);
+                    ->satisfyUploadedCollateralRequests(
+                        $fresh,
+                        $actor,
+                        $person,
+                        $subjectCustomer?->id,
+                        $memberId,
+                    );
             }
 
             $suggestion = $this->suggestedRejection($fresh);
@@ -940,6 +947,27 @@ class ScreeningChecklistService
             CollateralSecureService::STATUS_REJECTED,
             CollateralSecureService::STATUS_EXPIRED,
         ], true);
+    }
+
+    /**
+     * True when every collateral checklist item for this desk has a pass / fail / N/A verdict.
+     *
+     * @param  array<string, mixed>  $items
+     */
+    public function collateralChecksComplete(array $items, string $subject = 'borrower'): bool
+    {
+        $catalog = (array) ($this->catalog($subject)['collateral']['items'] ?? []);
+        if ($catalog === []) {
+            return false;
+        }
+
+        foreach (array_keys($catalog) as $itemKey) {
+            if ($this->normalizeVerdict((array) ($items['collateral.'.$itemKey] ?? [])) === null) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function isGroupLoanFile(LoanApplication $application): bool
