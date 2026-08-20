@@ -1,5 +1,5 @@
 <x-admin.layout title="Partners" heading="" subheading="">
-    <x-admin.letterhead kicker="Partners" title="Partners hub" subtitle="Unified view of suppliers, affiliates, GPS, insurance, valuers, and other partner roles" />
+    <x-admin.letterhead kicker="Partners" title="Partners hub" subtitle="Partner support enrolls valuers, GPS, insurance, and other partners, and extends regional coverage" />
     @php
         $roleOptions = app(\App\Services\PartnerService::class)->roleOptions();
         $activeRole = request('role', '');
@@ -7,6 +7,11 @@
             ? app(\App\Services\PartnerCoverageRequestService::class)->staffAlerts()
             : collect();
     @endphp
+    @can('create', \App\Models\Vendor::class)
+        <div class="mb-6">
+            @include('admin.partners._support_duties', ['compact' => true])
+        </div>
+    @endcan
     @if ($coverageAlerts->isNotEmpty())
         <div class="mb-6 space-y-2">
             @foreach ($coverageAlerts as $alert)
@@ -23,7 +28,9 @@
     @endif
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600 max-w-2xl">One partner can hold multiple roles. Use the role chips below instead of separate menus.</p>
-        <a href="{{ route('admin.partners.create') }}" class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">+ New partner</a>
+        @can('create', \App\Models\Vendor::class)
+            <a href="{{ route('admin.partners.create') }}" class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">+ New partner</a>
+        @endcan
     </div>
 
     <a href="{{ route('admin.partners.tasks') }}"

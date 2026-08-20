@@ -32,7 +32,7 @@
             $coverButtonLabel .= ' · '.$coverageRegion;
         }
     } else {
-        $coverButtonLabel = 'Ask Partners team to add a '.$categoryLabel;
+        $coverButtonLabel = 'Ask Partner support to add a '.$categoryLabel;
     }
 @endphp
 
@@ -44,7 +44,7 @@
         </p>
     @elseif ($openCoverage)
         <p class="text-sm text-emerald-900">
-            Asked Partners Management to add a {{ $categoryLabel }}{{ $regionBit }}.
+            Asked Partner support to add a {{ $categoryLabel }}{{ $regionBit }}.
             They see it under Alerts (bell, top right) and can add the region on an existing partner or enroll a new one. Waiting files auto-match after coverage is in place.
         </p>
     @else
@@ -53,7 +53,7 @@
             {{ $coverButtonLabel }}
         </button>
         <p class="text-xs text-gray-600">
-            Screening does not enroll partners. Partners Management or an admin will add coverage{{ $regionBit }}. They see the request under Alerts (bell, top right).
+            Screening does not enroll partners. Partner support or an admin will add coverage{{ $regionBit }}. They see the request under Alerts (bell, top right).
         </p>
         @pushOnce('scripts', $coverageFormId)
             <form id="{{ $coverageFormId }}" method="POST" action="{{ route('admin.loan-applications.request-partner-coverage', $coverageApplication) }}" class="hidden">

@@ -590,6 +590,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('teams/management', [\App\Http\Controllers\Admin\CreditTeamWorkspaceController::class, 'management'])
             ->middleware('permission:applications.view')
             ->name('teams.management');
+        Route::get('teams/partners', [\App\Http\Controllers\Admin\CreditTeamWorkspaceController::class, 'partners'])
+            ->name('teams.partners');
         Route::redirect('loan-applications/final-approvals', '/admin/loan-applications/pipeline/approved')->name('loan-applications.final-approvals');
         Route::view('loan-applications/rejected',         'admin.loan-applications.rejected')         ->name('loan-applications.rejected');
         Route::view('loan-applications/incomplete',      'admin.loan-applications.incomplete')      ->name('loan-applications.incomplete');

@@ -16,6 +16,10 @@
     <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" />
     <x-admin.input  name="password"        label="{{ $r ? 'New password (leave blank to keep)' : 'Password' }}" type="password" :required="! $r" />
     <x-admin.select name="role"            label="Role"           :options="$roles"   :value="$r?->role ?? request('role', 'officer')" required />
+    <p class="sm:col-span-2 text-xs text-gray-600 -mt-2">
+        <span class="font-semibold">Partner support</span> enrolls partners, adds regional coverage, and activates portal access.
+        They do not screen or decide loans. The Partner support (PRT) team is assigned automatically for that role.
+    </p>
     <x-admin.select name="branch_id"       label="Branch"         :options="$branches" :value="$r?->branch_id" placeholder="— None —" />
     <x-admin.select name="department_id"   label="Primary department" :options="$departments" :value="$r?->department_id" placeholder="— None —" />
     <x-admin.input  name="approval_limit"  label="Approval limit (TZS)" :value="$r?->approval_limit" money />

@@ -105,7 +105,12 @@ class UserController extends ResourceController
         abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
 
         $validated = $request->validate($this->rules());
-        $departmentIds = $this->resolvedDepartmentIds($request);
+        $staff = app(\App\Services\PartnerStaffService::class);
+        $departmentIds = $staff->ensureTeam((string) $validated['role'], $this->resolvedDepartmentIds($request));
+        $validated['department_id'] = $staff->primaryDepartmentId(
+            (string) $validated['role'],
+            isset($validated['department_id']) ? (int) $validated['department_id'] : null,
+        );
         app(\App\Services\CreditDeskAssignmentService::class)
             ->assertCompatible((string) $validated['role'], $departmentIds);
         $data = $this->transform($validated);
@@ -146,7 +151,12 @@ class UserController extends ResourceController
         $record = User::findOrFail($id);
         $before = app(\App\Services\AuditService::class)->snapshot($record);
         $validated = $request->validate($this->rules($record));
-        $departmentIds = $this->resolvedDepartmentIds($request);
+        $staff = app(\App\Services\PartnerStaffService::class);
+        $departmentIds = $staff->ensureTeam((string) $validated['role'], $this->resolvedDepartmentIds($request));
+        $validated['department_id'] = $staff->primaryDepartmentId(
+            (string) $validated['role'],
+            isset($validated['department_id']) ? (int) $validated['department_id'] : null,
+        );
         app(\App\Services\CreditDeskAssignmentService::class)
             ->assertCompatible((string) $validated['role'], $departmentIds, $record);
         $data = $this->transform($validated, $record);

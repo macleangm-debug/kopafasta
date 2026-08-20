@@ -140,6 +140,12 @@ class CreditDeskAssignmentService
             ]);
         }
 
+        if ($role === 'partner_support' && $hasScreeningDept) {
+            throw ValidationException::withMessages([
+                'department_ids' => 'Partner support cannot also join Screening. They enroll partners and set coverage; they do not screen loan files.',
+            ]);
+        }
+
         if ($isScreeningRole && $isCommitteeRole) {
             throw ValidationException::withMessages([
                 'role' => 'A user cannot hold both a screening role and a committee role.',

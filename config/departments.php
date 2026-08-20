@@ -15,7 +15,7 @@ return [
         'CMP' => ['compliance', 'audit-logs', 'customers', 'loan-applications'],
         'FIN' => ['finance', 'payments', 'expenses', 'settlements', 'journal-entries', 'chart-of-accounts', 'reports.financial', 'reports.trial-balance', 'reports.income-statement', 'reports.balance-sheet', 'reports.cash-flow', 'reports.npl', 'write-off-rules', 'write-off-requests'],
         'OPS' => ['loans', 'repayments', 'loan-products', 'disbursement', 'partners', 'vendors', 'asset-requests', 'marketplace-assets'],
-        'PRT' => ['partners', 'vendors', 'asset-requests', 'marketplace-assets', 'loan-applications'],
+        'PRT' => ['teams.partners', 'partners', 'vendors', 'asset-requests', 'marketplace-assets', 'loan-applications'],
         'IT'  => ['settings', 'users', 'roles', 'branches', 'departments', 'audit-logs', 'support-tickets'],
         'MGT' => ['loans', 'loan-applications', 'reports', 'compliance', 'audit-logs', 'write-off-requests'],
         'MKT' => ['promotions', 'vendors.affiliates', 'reports.customers', 'customers'],

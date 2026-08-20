@@ -552,7 +552,7 @@
                             Auto-assign only picks an active valuer who covers that region (or Nationwide). Add the region on a valuer, or assign someone else below — they still complete the same partner-portal task.
                         </p>
                         @if ($assignableValuers->isEmpty())
-                            <p class="text-sm text-rose-800">No active valuers in the system. Partners Management will enroll one, then set coverage (Nationwide or {{ $record->customer?->region ?: 'this region' }}) and activate the portal PIN. Waiting files auto-match after that.</p>
+                            <p class="text-sm text-rose-800">No active valuers in the system. Partner support will enroll one, then set coverage (Nationwide or {{ $record->customer?->region ?: 'this region' }}) and activate the portal PIN. Waiting files auto-match after that.</p>
                             @include('admin.loan-applications.review._request_partner_coverage', [
                                 'coverageApplication' => $record,
                                 'coverageCategory' => 'valuer',

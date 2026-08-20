@@ -1,7 +1,7 @@
 <x-admin.layout
     title="Coverage request"
     heading="Partner needed{{ filled($region) ? ' in '.$region : '' }}"
-    subheading="{{ $application->application_number }} · {{ $application->customer?->full_name }}">
+    subheading="Partner support desk · {{ $application->application_number }} · {{ $application->customer?->full_name }}">
     <div class="space-y-6">
         <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4">
             <p class="text-sm font-semibold text-amber-950">
@@ -15,6 +15,8 @@
                 Open credit file →
             </a>
         </div>
+
+        @include('admin.partners._support_duties', ['compact' => true])
 
         <section class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-brand/10">

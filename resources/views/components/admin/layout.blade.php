@@ -80,6 +80,7 @@
             ['Suppliers',           'admin.partners.suppliers'],
         ], ['marketplace.view']],
         ['Partners', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5a4 4 0 11-8 0 4 4 0 018 0z', [
+            ['Partner support',         'admin.teams.partners'],
             ['Partners hub',            'admin.partners.index'],
             ['Partner tasks',           'admin.partners.tasks'],
             ['Enrollment applications', 'admin.partner-applications.index'],
@@ -302,7 +303,7 @@
                             @if ($adminPersonalNotifications->isEmpty())
                                 <p class="px-4 py-8 text-sm text-gray-500 text-center">No pending alerts.</p>
                                 @if ($canManagePartners)
-                                    <p class="px-4 pb-6 text-xs text-gray-400 text-center">When screening asks for a partner in a missing region, it appears here as “Partner needed in …”.</p>
+                                    <p class="px-4 pb-6 text-xs text-gray-400 text-center">When screening asks for a partner in a missing region, it appears here as “Partner needed in …”. Partner support or an admin acts on it.</p>
                                 @endif
                             @endif
                         @endforelse

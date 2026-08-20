@@ -229,7 +229,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
                 'open_group' => 'collateral',
             ]))
             ->assertOk()
-            ->assertSee('Ask Partners team to add a valuer', false)
+            ->assertSee('Ask Partner support to add a valuer', false)
             ->assertSee('Screening does not enroll partners', false)
             ->assertDontSee('Create this partner?', false)
             ->assertDontSee('Add valuer', false)
@@ -319,7 +319,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
                 'open_group' => 'collateral',
             ]))
             ->assertOk()
-            ->assertSee('Ask Partners team to add a valuer', false)
+            ->assertSee('Ask Partner support to add a valuer', false)
             ->assertDontSee('Create this partner?', false)
             ->assertDontSee('Add valuer', false);
     }
@@ -328,7 +328,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
     {
         $department = Department::create([
             'code' => 'PRT',
-            'name' => 'Partner Operations',
+            'name' => 'Partner support',
             'is_active' => true,
         ]);
         $officer = User::factory()->create([
@@ -395,5 +395,64 @@ class ValuerCoverageGapFeatureTest extends TestCase
                 })
                 ->first()
         );
+    }
+
+    public function test_screening_cannot_open_the_coverage_desk(): void
+    {
+        $customer = $this->borrower();
+        $customer->update(['region' => 'Kigoma']);
+        $application = $this->installment($customer);
+        $this->pledge($application, $customer);
+        $officer = User::factory()->create(['role' => 'officer', 'is_active' => true]);
+
+        $this->actingAs($officer, 'admin')
+            ->get(route('admin.partners.coverage-request', $application).'?category=valuer')
+            ->assertForbidden();
+
+        $this->actingAs($officer, 'admin')
+            ->get(route('admin.teams.partners'))
+            ->assertForbidden();
+    }
+
+    public function test_partner_support_opens_coverage_desk_and_sees_duties(): void
+    {
+        $customer = $this->borrower();
+        $customer->update(['region' => 'Kigoma']);
+        $application = $this->installment($customer);
+        $this->pledge($application, $customer);
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $support = User::factory()->create(['role' => 'partner_support', 'is_active' => true]);
+        $officer = User::factory()->create(['role' => 'officer', 'is_active' => true]);
+
+        app(CollateralSecureService::class)->requestValuation($application, $admin);
+        app(CollateralSecureService::class)->markValuationFeePaid($application->fresh());
+
+        $this->actingAs($officer, 'admin')
+            ->post(route('admin.loan-applications.request-partner-coverage', $application), [
+                'category' => 'valuer',
+            ])
+            ->assertRedirect();
+
+        $this->assertGreaterThanOrEqual(2, NotificationLog::query()->where('template', 'partner.coverage_staff')->count());
+        $this->assertTrue(
+            NotificationLog::query()
+                ->where('template', 'partner.coverage_staff')
+                ->get()
+                ->contains(fn ($log) => str_contains((string) $log->message, 'asked Partner support'))
+        );
+
+        $this->actingAs($support, 'admin')
+            ->get(route('admin.teams.partners'))
+            ->assertOk()
+            ->assertSee('Partner support duties', false)
+            ->assertSee('Do not screen, approve, or reject the loan', false);
+
+        $this->actingAs($support, 'admin')
+            ->get(route('admin.partners.coverage-request', $application).'?category=valuer')
+            ->assertOk()
+            ->assertSee('Partner needed in Kigoma', false)
+            ->assertSee('Partner support duties', false)
+            ->assertSee('Open new-partner form', false)
+            ->assertSee('Do not screen, approve, or reject the loan', false);
     }
 }

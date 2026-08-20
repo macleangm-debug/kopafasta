@@ -3,8 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\LoanApplication;
 use App\Models\Loan;
+use App\Models\LoanApplication;
+use App\Models\User;
+use App\Models\Vendor;
+use App\Services\CapacityAutoRejectService;
+use App\Services\PartnerCoverageRequestService;
+use App\Services\PartnerStaffService;
 use Illuminate\View\View;
 
 class CreditTeamWorkspaceController extends Controller
@@ -37,7 +42,7 @@ class CreditTeamWorkspaceController extends Controller
                 ->count(),
             'system_sorted' => LoanApplication::query()
                 ->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
-                ->where('screening_payload->capacity_auto_reject->status', \App\Services\CapacityAutoRejectService::STATUS_PENDING)
+                ->where('screening_payload->capacity_auto_reject->status', CapacityAutoRejectService::STATUS_PENDING)
                 ->count(),
         ];
 
@@ -55,5 +60,33 @@ class CreditTeamWorkspaceController extends Controller
         ];
 
         return view('admin.teams.management', compact('counts'));
+    }
+
+    public function partners(): View
+    {
+        abort_unless(auth()->user()?->can('create', Vendor::class), 403, app(PartnerStaffService::class)->policyMessage('open Partner support'));
+
+        $staff = app(PartnerStaffService::class);
+        $prtId = $staff->departmentId();
+        $members = User::query()
+            ->where('is_active', true)
+            ->where(function ($q) use ($prtId): void {
+                $q->where('role', PartnerStaffService::ROLE);
+                if ($prtId) {
+                    $q->orWhere('department_id', $prtId)
+                        ->orWhereHas('departments', fn ($d) => $d->where('id', $prtId));
+                }
+            })
+            ->orderBy('name')
+            ->get();
+
+        $coverage = app(PartnerCoverageRequestService::class);
+        $coverageAlerts = $coverage->staffAlerts();
+        $counts = [
+            'gaps' => $coverageAlerts->count(),
+            'partners' => Vendor::query()->where('status', 'active')->count(),
+        ];
+
+        return view('admin.teams.partners', compact('counts', 'members', 'coverageAlerts'));
     }
 }

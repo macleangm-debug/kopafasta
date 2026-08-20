@@ -10,7 +10,8 @@
         </ol>
         <p class="mt-3 text-xs text-amber-950 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
             <span class="font-semibold">Separation rule:</span> one person cannot be on Screening and Committee at the same time.
-            Committee + Management is fine. Admin / Super admin may hold any combination.
+            Committee + Management is fine. Partner support is a separate desk (coverage and enrollment, not credit decisions).
+            Admin / Super admin may hold any combination.
         </p>
         <p class="mt-3 text-xs text-gray-500">
             Members are admin users (<code class="text-[11px]">credit_analyst</code>, <code class="text-[11px]">credit_committee</code>, <code class="text-[11px]">manager</code>).

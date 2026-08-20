@@ -214,7 +214,7 @@
             @endphp
             @if ($assignList->isEmpty())
                 <div class="border-t border-gray-100 pt-4 space-y-2">
-                    <p class="text-sm text-rose-800">No active valuers in the system. Partners Management will enroll one, then set coverage (Nationwide or this region) and activate the portal PIN. Waiting files auto-match after that.</p>
+                    <p class="text-sm text-rose-800">No active valuers in the system. Partner support will enroll one, then set coverage (Nationwide or this region) and activate the portal PIN. Waiting files auto-match after that.</p>
                     @include('admin.loan-applications.review._request_partner_coverage', [
                         'coverageApplication' => $application,
                         'coverageCategory' => 'valuer',

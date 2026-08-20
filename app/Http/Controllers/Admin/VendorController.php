@@ -101,7 +101,7 @@ class VendorController extends ResourceController
             return redirect()->route('admin.partners.create', request()->query());
         }
 
-        abort_unless(request()->user()?->can('create', Vendor::class), 403, 'Only the Partners Management team or an admin can add partners.');
+        abort_unless(request()->user()?->can('create', Vendor::class), 403, app(\App\Services\PartnerStaffService::class)->policyMessage('add partners'));
 
         return view("admin.{$this->viewFolder}.create", $this->formData());
     }
@@ -561,7 +561,7 @@ class VendorController extends ResourceController
 
         $record = Vendor::findOrFail($id);
 
-        abort_unless(request()->user()?->can('update', $record), 403, 'Only the Partners Management team or an admin can edit partners.');
+        abort_unless(request()->user()?->can('update', $record), 403, app(\App\Services\PartnerStaffService::class)->policyMessage('edit partners'));
 
         return view("admin.{$this->viewFolder}.edit", array_merge(
             ['record' => $record],

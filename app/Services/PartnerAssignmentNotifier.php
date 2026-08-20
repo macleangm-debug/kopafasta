@@ -67,7 +67,7 @@ class PartnerAssignmentNotifier
         $this->writeStaffNotifications(
             User::query()
                 ->where('is_active', true)
-                ->whereIn('role', ['admin', 'super_admin', 'manager', 'officer', 'staff'])
+                ->whereIn('role', ['admin', 'super_admin', 'partner_support', 'manager', 'officer', 'staff'])
                 ->with(['department', 'departments'])
                 ->get()
                 ->filter(fn (User $user) => $user->can('create', Vendor::class)),

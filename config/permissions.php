@@ -14,6 +14,7 @@ return [
         'reports'      => 'Reports & analytics',
         'settings'     => 'Settings & admin',
         'marketplace'  => 'Asset marketplace',
+        'partners'     => 'Partners',
     ],
 
     'permissions' => [
@@ -59,6 +60,7 @@ return [
         // Asset marketplace
         'marketplace.view'               => ['label' => 'View marketplace assets & requests', 'module' => 'marketplace'],
         'marketplace.manage'             => ['label' => 'Create & edit marketplace assets', 'module' => 'marketplace'],
+        'partners.manage'                => ['label' => 'Enroll partners, edit coverage, and activate portal access', 'module' => 'partners'],
     ],
 
     /** Fallback when roles table has no row for users.role */
@@ -106,6 +108,12 @@ return [
         ],
         'asset_manager' => [
             'marketplace.view', 'marketplace.manage',
+        ],
+        'partner_support' => [
+            'partners.manage',
+            'applications.view',
+            'customers.view',
+            'marketplace.view',
         ],
         'borrower' => [],
         'customer' => [],

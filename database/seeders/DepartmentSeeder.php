@@ -28,7 +28,7 @@ class DepartmentSeeder extends Seeder
             ['code' => 'MKT', 'name' => 'Marketing'],
             ['code' => 'REC', 'name' => 'Recovery'],
             ['code' => 'SYS', 'name' => 'System Administration'],
-            ['code' => 'PRT', 'name' => 'Partner Operations'],
+            ['code' => 'PRT', 'name' => 'Partner support'],
         ];
 
         foreach ($departments as $department) {

@@ -80,7 +80,7 @@ class PartnerCoverageRequestService
 
         $this->notifier->notifyPartnerManagers(
             'Partner needed'.$regionBit,
-            trim($actor->name.' asked Partners Management to add a '.$label.$regionBit
+            trim($actor->name.' asked Partner support to add a '.$label.$regionBit
                 .' for '.$application->application_number
                 .'. Add the region on an existing partner, or enroll a new one.'),
             $this->reviewUrl($application),

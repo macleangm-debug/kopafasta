@@ -107,6 +107,16 @@ return [
             'users_filter'       => true,
             'api_capabilities'   => [],
         ],
+        'partner_support' => [
+            'label'              => 'Partner support',
+            'console_access'     => true,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => true,
+            'users_filter'       => true,
+            'api_capabilities'   => ['core'],
+        ],
         'borrower' => [
             'label'              => 'Borrower',
             'console_access'     => false,
@@ -135,7 +145,7 @@ return [
 
     /** Maps capability tokens used in API middleware to role codes. */
     'api_capabilities' => [
-        'core'        => ['officer', 'manager', 'admin', 'super_admin', 'credit_analyst'],
+        'core'        => ['officer', 'manager', 'admin', 'super_admin', 'credit_analyst', 'partner_support'],
         'collections' => ['officer', 'manager', 'admin', 'super_admin', 'collector'],
         'reports'     => ['officer', 'manager', 'admin', 'super_admin'],
         'system'      => ['manager', 'admin', 'super_admin'],

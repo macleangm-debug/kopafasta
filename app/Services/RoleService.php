@@ -120,6 +120,7 @@ class RoleService
             'officer' => 'admin.teams.screening',
             'credit_committee' => 'admin.teams.committee',
             'manager' => 'admin.teams.management',
+            'partner_support' => 'admin.teams.partners',
             default => 'admin.dashboard',
         };
     }
@@ -147,7 +148,7 @@ class RoleService
     /** @return list<string> */
     public function branchScopedStaffRoles(): array
     {
-        return ['manager', 'officer', 'collector', 'credit_analyst', 'super_admin'];
+        return ['manager', 'officer', 'collector', 'credit_analyst', 'super_admin', 'partner_support'];
     }
 
     /** @return list<string> */

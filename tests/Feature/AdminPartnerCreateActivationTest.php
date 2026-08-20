@@ -122,4 +122,14 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->get(route('admin.partners.create', ['category' => 'valuer']))
             ->assertForbidden();
     }
+
+    public function test_partner_support_can_open_the_add_partner_form(): void
+    {
+        $support = User::factory()->create(['role' => 'partner_support', 'is_active' => true]);
+
+        $this->actingAs($support, 'admin')
+            ->get(route('admin.partners.create', ['category' => 'valuer']))
+            ->assertOk()
+            ->assertSee('Create this partner?', false);
+    }
 }

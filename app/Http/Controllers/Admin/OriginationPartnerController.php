@@ -8,6 +8,7 @@ use App\Models\Vendor;
 use App\Services\ValuationPartnerService;
 use App\Services\PostApprovalFeeService;
 use App\Services\PartnerCoverageRequestService;
+use App\Services\PartnerStaffService;
 use App\Services\GpsPartnerService;
 use App\Models\LoanApplicationPostApprovalFee;
 use Illuminate\Http\RedirectResponse;
@@ -47,7 +48,7 @@ class OriginationPartnerController extends Controller
 
     public function coverageRequest(Request $request, LoanApplication $loanApplication, PartnerCoverageRequestService $coverage): View
     {
-        abort_unless($request->user()?->can('create', Vendor::class), 403, 'Only the Partners Management team or an admin can manage partner coverage.');
+        abort_unless($request->user()?->can('create', Vendor::class), 403, app(PartnerStaffService::class)->policyMessage('manage partner coverage'));
 
         $requestedCategory = (string) $request->query('category', 'valuer');
         if (! in_array($requestedCategory, PartnerCoverageRequestService::CATEGORIES, true)) {
@@ -85,7 +86,7 @@ class OriginationPartnerController extends Controller
         Vendor $vendor,
         PartnerCoverageRequestService $coverage,
     ): RedirectResponse {
-        abort_unless($request->user()?->can('update', $vendor), 403, 'Only the Partners Management team or an admin can edit partner coverage.');
+        abort_unless($request->user()?->can('update', $vendor), 403, app(PartnerStaffService::class)->policyMessage('edit partner coverage'));
 
         $region = trim((string) ($loanApplication->customer?->region ?? ''));
         if ($region === '') {
@@ -165,10 +166,10 @@ class OriginationPartnerController extends Controller
         return back()->with(
             'status',
             $created
-                ? 'Partners Management has been asked to add a '.$coverage->categoryLabel($data['category'])
+                ? 'Partner support has been asked to add a '.$coverage->categoryLabel($data['category'])
                     .(filled($loanApplication->customer?->region) ? ' covering '.$loanApplication->customer->region : '')
-                    .'. Check Alerts (bell, top right) on a Partners Management or admin account.'
-                : 'Partners Management already has this coverage request.',
+                    .'. Check Alerts (bell, top right) on a Partner support or admin account.'
+                : 'Partner support already has this coverage request.',
         );
     }
 

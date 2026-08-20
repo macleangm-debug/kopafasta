@@ -26,7 +26,7 @@ class Phase20FeatureTest extends TestCase
         $this->assertDatabaseHas('departments', ['code' => 'CMP', 'name' => 'Compliance']);
         $this->assertDatabaseHas('departments', ['code' => 'IT', 'name' => 'Information Technology']);
         $this->assertDatabaseHas('departments', ['code' => 'MKT', 'name' => 'Marketing']);
-        $this->assertDatabaseHas('departments', ['code' => 'PRT', 'name' => 'Partner Operations']);
+        $this->assertDatabaseHas('departments', ['code' => 'PRT', 'name' => 'Partner support']);
     }
 
     public function test_staff_can_belong_to_multiple_departments(): void
@@ -44,6 +44,27 @@ class Phase20FeatureTest extends TestCase
 
         $this->assertContains('promotions', $prefixes);
         $this->assertContains('loan-applications', $prefixes);
+    }
+
+    public function test_partner_support_team_can_open_the_partners_desk(): void
+    {
+        $this->seed(DepartmentSeeder::class);
+
+        $prt = \App\Models\Department::where('code', 'PRT')->firstOrFail();
+        $user = User::factory()->create([
+            'role' => 'partner_support',
+            'department_id' => $prt->id,
+            'is_active' => true,
+        ]);
+        $user->departments()->sync([$prt->id]);
+
+        $access = app(\App\Services\DepartmentAccessService::class);
+        $prefixes = $access->allowedRoutePrefixes($user->fresh());
+
+        $this->assertContains('teams.partners', $prefixes);
+        $this->assertContains('partners', $prefixes);
+        $this->assertTrue($access->canAccessRoute($user->fresh(), 'admin.teams.partners'));
+        $this->assertSame('admin.teams.partners', app(\App\Services\RoleService::class)->homeRoute($user));
     }
 
     public function test_admin_asset_lending_settings_page_shows_monthly_rate_field(): void
