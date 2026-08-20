@@ -463,10 +463,8 @@ class BorrowerPaymentController extends Controller
                 ?? ($payment->loan_id ? $payment->loan?->product : null);
             $bankAccounts = $accounts->bankAccountsForDisplay($payment->payment_type, $payment->reference, $product);
             $canSwitchToBank = (bool) $accounts->resolveBankAccount($payment->payment_type, $product);
-            if (! $payment->mobileMoneyAccount) {
-                $resolvedMobile = $accounts->resolve($payment->payment_type, 'mobile_money', $product);
-                $mobileDetails = $accounts->mobileMoneyDetails($resolvedMobile['mobile_money_account'] ?? null, $payment->reference);
-            }
+            // USSD push uses the number the borrower enters — do not show Kopafasta till / MNO pay-to details.
+            $mobileDetails = [];
         }
 
         return view('site.borrower.payments.show', compact(

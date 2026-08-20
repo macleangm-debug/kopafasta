@@ -57,9 +57,11 @@ class PayInCollectRetryFeatureTest extends TestCase
     {
         [, , $payment] = $this->awaitingPayment();
         $keys = [];
+        $refs = [];
 
-        Http::fake(function ($request) use (&$keys) {
+        Http::fake(function ($request) use (&$keys, &$refs) {
             $keys[] = $request->header('X-Idempotency-Key');
+            $refs[] = $request->data()['reference'] ?? null;
 
             return Http::response([
                 'success' => true,
@@ -82,73 +84,28 @@ class PayInCollectRetryFeatureTest extends TestCase
         $this->assertNotSame($keys[0], $keys[1]);
         $this->assertNotSame($payment->reference, $keys[0]);
         $this->assertSame(2, (int) data_get($second->provider_meta, 'collect_attempt'));
+        $this->assertSame(['VAL-CS-RETRY-001-a1', 'VAL-CS-RETRY-001-a2'], $refs);
+        $this->assertSame($payment->reference.'-a1', data_get($first->provider_meta, 'payin_reference'));
+        $this->assertSame($payment->reference.'-a2', data_get($second->fresh()->provider_meta, 'payin_reference'));
         $this->assertNotSame(
             data_get($first->provider_meta, 'idempotency_key'),
             data_get($second->fresh()->provider_meta, 'idempotency_key')
         );
     }
 
-    public function test_pay_now_sends_chosen_wallet_to_payin(): void
-    {
-        [$user, , $payment] = $this->awaitingPayment();
-        $operators = [];
-
-        Http::fake(function ($request) use (&$operators) {
-            $operators[] = $request->data()['operator'] ?? null;
-
-            return Http::response([
-                'success' => true,
-                'request_ref' => 'PAY-MPESA-1',
-                'status' => 'processing',
-                'operator' => 'M-Pesa',
-                'message' => 'Collection request sent to operator.',
-            ]);
-        });
-
-        $this->actingAs($user)
-            ->post(route('site.borrower.payments.pay', $payment), [
-                'payment_method' => 'mobile_money',
-                'mobile_number' => '255715222132',
-                'operator' => 'mpesa',
-            ])
-            ->assertRedirect(route('site.borrower.payments.show', $payment));
-
-        $this->assertSame(['mpesa'], $operators);
-        $this->assertSame('mpesa', data_get($payment->fresh()->provider_meta, 'requested_operator'));
-    }
-
-    public function test_waiting_page_tells_borrower_to_check_mixx(): void
-    {
-        [$user, , $payment] = $this->awaitingPayment();
-        $payment->update([
-            'status' => 'processing',
-            'provider' => 'payin',
-            'provider_ref' => 'PAY-MIXX-1',
-            'provider_meta' => [
-                'operator' => 'Tigo Pesa',
-                'phone' => '255715222132',
-            ],
-        ]);
-
-        $this->actingAs($user)
-            ->get(route('site.borrower.payments.show', $payment))
-            ->assertOk()
-            ->assertSee(__('borrower.payment_waiting.wallet_mixx'), false)
-            ->assertSee(__('borrower.payment_waiting.wait_estimate'), false)
-            ->assertSee('Mixx by Yas', false);
-    }
-
-    public function test_payment_gate_shows_wallet_picker(): void
+    public function test_payment_show_does_not_name_mnos_or_wallets(): void
     {
         [$user, , $payment] = $this->awaitingPayment();
 
         $this->actingAs($user)
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
-            ->assertSee(__('borrower.payment_waiting.wallet_label'), false)
-            ->assertSee(__('borrower.payment_waiting.wallet_auto'), false)
-            ->assertSee(__('borrower.payment_waiting.wallet_mixx'), false)
-            ->assertSee(__('borrower.payment_waiting.wallet_mpesa'), false);
+            ->assertDontSee('M-Pesa', false)
+            ->assertDontSee('Mixx', false)
+            ->assertDontSee('Tigo', false)
+            ->assertDontSee('Airtel', false)
+            ->assertDontSee(__('borrower.payment_waiting.wallet_label'), false)
+            ->assertDontSee(__('borrower.payment_waiting.wallet_mpesa'), false);
     }
 
     public function test_fresh_idempotency_keys_are_unique_per_call(): void

@@ -396,10 +396,14 @@ class CustomerPaymentService
         $meta = (array) ($payment->provider_meta ?? []);
         $description = $meta['description'] ?? null;
         $requestedOperator = $payIn->normalizeOperator($operator);
+        $attempt = (int) ($meta['collect_attempt'] ?? 0) + 1;
+        $payInReference = $payment->reference.'-a'.$attempt;
         unset($meta['operator'], $meta['last_collect_error'], $meta['last_collect_error_at']);
         $meta['phone'] = $pspPhone;
         $meta['attempted_phone'] = $pspPhone;
         $meta['requested_operator'] = $requestedOperator;
+        $meta['collect_attempt'] = $attempt;
+        $meta['payin_reference'] = $payInReference;
         $payment->update([
             'mobile_number' => $pspPhone,
             'provider_meta' => $meta,
@@ -409,7 +413,7 @@ class CustomerPaymentService
             $collection = $payIn->collect(
                 $pspPhone,
                 (float) $payment->amount,
-                (string) $payment->reference,
+                $payInReference,
                 $this->payInDescription($payment->payment_type, (string) $payment->reference, is_string($description) ? $description : null),
                 $requestedOperator,
             );
@@ -445,7 +449,8 @@ class CustomerPaymentService
             'phone' => $pspPhone,
             'attempted_phone' => $pspPhone,
             'idempotency_key' => $collection['idempotency_key'] ?? null,
-            'collect_attempt' => (int) ($meta['collect_attempt'] ?? 0) + 1,
+            'collect_attempt' => $attempt,
+            'payin_reference' => $payInReference,
             'raw' => $collection['raw'],
         ]);
         unset($meta['last_collect_error'], $meta['last_collect_error_at']);

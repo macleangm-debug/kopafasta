@@ -94,26 +94,6 @@
             :show-errors="false"
             input-class="flex-1 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand"
         />
-        <div>
-            <p class="block text-xs font-medium text-gray-600 mb-2">{{ __('borrower.payment_waiting.wallet_label') }}</p>
-            <div class="grid grid-cols-2 gap-2">
-                <label class="cursor-pointer">
-                    <input type="radio" name="operator" value="" class="sr-only peer" @if($formId) form="{{ $formId }}" @endif {{ old('operator', '') === '' ? 'checked' : '' }}>
-                    <div class="rounded-xl border-2 border-gray-200 peer-checked:border-brand peer-checked:bg-brand-muted/50 px-3 py-2.5 text-center text-[11px] font-medium leading-tight transition">
-                        {{ __('borrower.payment_waiting.wallet_auto') }}
-                    </div>
-                </label>
-                @foreach (['tigopesa' => 'wallet_mixx', 'mpesa' => 'wallet_mpesa', 'airtel' => 'wallet_airtel', 'halopesa' => 'wallet_halo'] as $code => $key)
-                    <label class="cursor-pointer">
-                        <input type="radio" name="operator" value="{{ $code }}" class="sr-only peer" @if($formId) form="{{ $formId }}" @endif {{ old('operator') === $code ? 'checked' : '' }}>
-                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-brand peer-checked:bg-brand-muted/50 px-3 py-2.5 text-center text-[11px] font-medium leading-tight transition">
-                            {{ __('borrower.payment_waiting.'.$key) }}
-                        </div>
-                    </label>
-                @endforeach
-            </div>
-            <p class="mt-2 text-xs text-gray-500">{{ __('borrower.payment_waiting.wallet_help') }}</p>
-        </div>
     </div>
 
     <div x-show="method === @js($bankValue)" x-cloak class="space-y-3">

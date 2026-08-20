@@ -83,7 +83,7 @@
         @endif
     </dl>
 
-    @if ($mobileDetails && ($mobileDetails['number'] ?? null))
+        @if ($payment->payment_method !== 'mobile_money' && $mobileDetails && ($mobileDetails['number'] ?? null))
         <div class="rounded-2xl bg-gradient-to-b from-sky-50 to-white ring-1 ring-sky-200/80 px-5 py-5">
             <p class="text-[10px] uppercase tracking-widest text-sky-700 font-semibold mb-3">{{ __('borrower.payments_page.show.mobile_details') }}</p>
             <dl class="grid sm:grid-cols-2 gap-3 text-sm">
