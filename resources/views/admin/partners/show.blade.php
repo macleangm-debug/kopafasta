@@ -91,6 +91,44 @@
     @endif
 </div>
 
+@php $payouts = $payouts ?? collect(); @endphp
+<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700">Payouts</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Partner wallet lines from completed jobs. PAID means cash has left the bank and the journal is posted.</p>
+        </div>
+        <a href="{{ route('admin.payments.ledger', ['direction' => 'out', 'tab' => 'partners']) }}"
+           class="text-sm font-semibold text-brand hover:underline">Money ledger →</a>
+    </div>
+    @if ($payouts->isEmpty())
+        <p class="text-sm text-gray-500">No payouts on this partner yet.</p>
+    @else
+        <ul class="text-sm divide-y divide-gray-100">
+            @foreach ($payouts as $payout)
+                <li class="py-2.5 first:pt-0 flex flex-wrap items-baseline justify-between gap-2">
+                    <div class="min-w-0">
+                        <a href="{{ route('admin.partner-payments.show', $payout) }}" class="font-semibold text-brand hover:underline">
+                            {{ $payout->invoice_number }}
+                        </a>
+                        <span class="text-gray-500"> · {{ $payout->description ?: str_replace('_', ' ', (string) $payout->source_type) }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="tabular-nums font-semibold">{{ format_money((float) $payout->amount) }}</span>
+                        <span class="text-xs font-semibold rounded-full px-2 py-0.5 {{ match ($payout->status) {
+                            'paid' => 'bg-emerald-100 text-emerald-800',
+                            'approved' => 'bg-sky-100 text-sky-800',
+                            'pending' => 'bg-amber-100 text-amber-900',
+                            'cancelled' => 'bg-gray-100 text-gray-600',
+                            default => 'bg-gray-100 text-gray-600',
+                        } }}">{{ strtoupper((string) $payout->status) }}</span>
+                    </div>
+                </li>
+            @endforeach
+        </ul>
+    @endif
+</div>
+
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <h3 class="text-sm font-semibold text-gray-700 mb-1">Portal PIN</h3>
     <p class="text-xs text-gray-500 mb-4">
@@ -341,40 +379,6 @@
         </div>
     </div>
 @endif
-
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-    <h3 class="text-sm font-semibold text-gray-700 mb-1">Portal PIN</h3>
-    <p class="text-xs text-gray-500 mb-4">
-        Partners sign in with phone and a 4-digit PIN. Set a new PIN here, or re-issue activation so they create it themselves.
-    </p>
-    @if (session('partner_activation_url'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950 break-all">
-            Activation link (valid 14 days): {{ session('partner_activation_url') }}
-        </div>
-    @endif
-    <div class="grid sm:grid-cols-2 gap-4">
-        <form method="POST" action="{{ route('admin.partners.reset-pin', $record) }}" class="space-y-2">
-            @csrf
-            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">Set new PIN</label>
-            <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required
-                   class="w-full rounded-xl border-gray-300 text-sm" placeholder="4 digits" autocomplete="off">
-            <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
-                Save PIN
-            </button>
-        </form>
-        <form method="POST" action="{{ route('admin.partners.reissue-activation', $record) }}" class="space-y-2">
-            @csrf
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Re-activation</p>
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" name="notify_partner" value="1" class="rounded border-gray-300 text-brand">
-                Also SMS / email the link
-            </label>
-            <button type="submit" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl">
-                Re-issue activation link
-            </button>
-        </form>
-    </div>
-</div>
 
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-red-200/80 p-6">
     <h3 class="text-sm font-semibold text-red-700 mb-1">Danger zone</h3>

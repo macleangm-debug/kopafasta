@@ -97,17 +97,23 @@
 
     <form method="GET" action="{{ route('admin.payments.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
         <input type="hidden" name="status" value="{{ $status }}">
+        <div class="flex-1 min-w-[16rem]">
+            <label class="block text-[11px] font-medium text-gray-500 mb-1">Search</label>
+            <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="Reference, member, phone, NIDA, amount, type…"
+                   class="w-full rounded-lg border-gray-300 text-sm">
+        </div>
         <div>
             <label class="block text-[11px] font-medium text-gray-500 mb-1">Payment type</label>
-            <select name="type" class="rounded-lg border-gray-300 text-sm min-w-[12rem]" onchange="this.form.submit()">
+            <select name="type" class="rounded-lg border-gray-300 text-sm min-w-[12rem]">
                 <option value="">All types</option>
                 @foreach ($types as $key => $meta)
                     <option value="{{ $key }}" @selected(($type ?? '') === $key)>{{ $meta['label'] ?? $key }}</option>
                 @endforeach
             </select>
         </div>
-        @if ($type)
-            <a href="{{ route('admin.payments.index', ['status' => $status]) }}" class="text-sm text-gray-500 hover:underline pb-2">Clear type</a>
+        <button class="text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">Search</button>
+        @if (($type ?? '') || ($q ?? ''))
+            <a href="{{ route('admin.payments.index', ['status' => $status]) }}" class="text-sm text-gray-500 hover:underline pb-2">Clear</a>
         @endif
     </form>
 

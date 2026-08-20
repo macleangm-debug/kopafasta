@@ -209,6 +209,15 @@
         @endif
 
         @if ($asset && ! in_array($asset->valuation_status, ['completed'], true) && ! $openAssignment)
+            @php
+                $assignList = collect(($valuers->isNotEmpty() ? $valuers : ($allValuers ?? $valuers)) ?? []);
+            @endphp
+            @if ($assignList->isEmpty())
+                <div class="border-t border-gray-100 pt-4 space-y-2">
+                    <p class="text-sm text-rose-800">No active valuers in the system. Create one under Partners first — then set coverage (Nationwide or this region) and activate the portal PIN. Waiting files auto-match after that.</p>
+                    <a href="{{ route('admin.partners.create', ['category' => 'valuer']) }}" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">Add valuer</a>
+                </div>
+            @else
             <div class="flex flex-wrap gap-3 items-end border-t border-gray-100 pt-4">
                 <form method="POST" action="{{ route('admin.loan-applications.assign-valuer', $application) }}" class="flex flex-wrap gap-3 items-end flex-1">
                     @csrf
@@ -216,7 +225,7 @@
                         <label class="block text-xs font-medium text-gray-600 mb-1">Assign valuation partner</label>
                         <select name="vendor_id" required class="w-full rounded-lg border-gray-300 text-sm">
                             <option value="">Select valuer…</option>
-                            @foreach ($valuers ?? [] as $valuer)
+                            @foreach ($assignList as $valuer)
                                 <option value="{{ $valuer->id }}" @selected(($suggestedValuer?->id ?? null) === $valuer->id)>
                                     {{ $valuer->name }}
                                     @if (! empty($valuer->regions))
@@ -241,6 +250,7 @@
                     <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">Auto-assign nearest</button>
                 </form>
             </div>
+            @endif
         @elseif ($openAssignment)
             <p class="text-sm text-amber-800 border-t border-gray-100 pt-4">Open valuation with <strong>{{ $openAssignment->vendor?->name }}</strong> ({{ ucfirst(str_replace('_', ' ', $openAssignment->status)) }}).</p>
         @endif

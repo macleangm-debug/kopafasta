@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\PartnerPayment;
 use App\Models\PartnerSettlement;
 use App\Models\User;
 use App\Models\Vendor;
@@ -73,6 +74,86 @@ class PartnerSettlementService
         ]);
 
         return $payment->refresh();
+    }
+
+    public function markPaymentPaid(
+        VendorPayment $payment,
+        User $user,
+        ?string $channel = null,
+        ?string $reference = null,
+        ?string $notes = null,
+    ): VendorPayment {
+        if ($payment->status === 'cancelled') {
+            throw new \InvalidArgumentException('A cancelled payout cannot be marked paid.');
+        }
+
+        return DB::transaction(function () use ($payment, $user, $channel, $reference, $notes): VendorPayment {
+            if ($payment->status === 'pending') {
+                $this->approvePayment($payment, $user);
+                $payment->refresh();
+            }
+
+            if ($payment->status === 'paid') {
+                return $payment;
+            }
+
+            $payment->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+                'channel' => $channel ?: $payment->channel,
+                'reference' => $reference ?: $payment->reference,
+                'notes' => $notes ? trim(($payment->notes ?? '')."\nPaid: {$notes}") : $payment->notes,
+            ]);
+
+            if ($payment->source_type === RecoveryCommissionWalletService::SOURCE_TYPE) {
+                app(RecoveryCommissionWalletService::class)->syncAssignmentCommissionPaid($payment->fresh());
+            }
+
+            $this->postPaymentPaidJournal($payment->fresh());
+
+            return $payment->refresh();
+        });
+    }
+
+    private function postPaymentPaidJournal(VendorPayment $payment): void
+    {
+        $amount = round((float) $payment->amount, 2);
+        if ($amount <= 0) {
+            return;
+        }
+
+        $already = \App\Models\JournalEntry::query()
+            ->whereIn('source_type', [PartnerPayment::class, VendorPayment::class])
+            ->where('source_id', $payment->id)
+            ->where('status', 'posted')
+            ->exists();
+        if ($already) {
+            return;
+        }
+
+        $ledger = app(LedgerService::class);
+        $payableId = in_array((string) $payment->source_type, ['supplier_deposit', 'asset_principal'], true)
+            ? ($ledger->supplierPayableAccountId() ?? $ledger->recoveryPartnerPayableAccountId())
+            : ($ledger->recoveryPartnerPayableAccountId() ?? $ledger->supplierPayableAccountId());
+        $cashId = $ledger->cashAccountId();
+        if (! $payableId || ! $cashId) {
+            \Illuminate\Support\Facades\Log::warning('Partner payout paid without GL accounts', [
+                'payment_id' => $payment->id,
+            ]);
+
+            return;
+        }
+
+        $ledger->post(
+            [
+                ['account_id' => $payableId, 'debit' => $amount, 'credit' => 0, 'description' => 'Clear partner payable'],
+                ['account_id' => $cashId, 'debit' => 0, 'credit' => $amount, 'description' => 'Cash/bank out'],
+            ],
+            'Partner payout '.$payment->invoice_number,
+            $payment,
+            now()->toDateString(),
+            $payment->description ?: 'Partner payout marked paid',
+        );
     }
 
     public function cancelPayment(VendorPayment $payment, ?string $notes = null): VendorPayment

@@ -13,12 +13,19 @@ use App\Services\ApplicationDocumentRequestService;
 use App\Services\CustomerAssetService;
 use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
+use Database\Seeders\ValuationPricingDefaultsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class CollateralAssetPickerFeatureTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(ValuationPricingDefaultsSeeder::class);
+    }
 
     private function completeBorrower(): Customer
     {
@@ -331,8 +338,8 @@ class CollateralAssetPickerFeatureTest extends TestCase
             strpos($html, 'Toyota Rav4') < strpos($html, '>Vitz<'),
             'Pledged asset should appear before other profile assets'
         );
-        $this->assertStringContainsString('Send to valuer', $html);
-        $this->assertStringContainsString('x-show="openSecure"', $html);
+        $this->assertStringContainsString('Request valuation', $html);
+        $this->assertStringContainsString('Waiting for the borrower', $html);
         $this->assertStringContainsString('kfOpenDocumentPreview', $html);
         $this->assertSame(
             2,
@@ -395,9 +402,9 @@ class CollateralAssetPickerFeatureTest extends TestCase
         $this->assertGreaterThanOrEqual(2, substr_count($html, 'Chassis number'));
         $this->assertStringContainsString('T123ABC', $html);
         $this->assertStringContainsString('1234', $html);
-        $this->assertStringContainsString('Send to valuer', $html);
+        $this->assertStringContainsString('Request valuation', $html);
         $this->assertStringContainsString('Toyota Rav4 photo', $html);
-        $this->assertStringContainsString('x-show="openSecure"', $html);
+        $this->assertStringContainsString('Waiting for the borrower', $html);
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', [

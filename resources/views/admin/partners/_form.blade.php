@@ -272,9 +272,7 @@
                 'doc_other' => 'Other supporting document',
             ] as $input => $label)
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">{{ $label }}</label>
-                    <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf"
-                           class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-xl file:border-0 file:bg-brand-gold file:px-3 file:py-2 file:text-xs file:font-semibold file:text-brand">
+                    <x-admin.document-upload :name="$input" :label="$label" />
                 </div>
             @endforeach
         </x-admin.step>
@@ -289,9 +287,7 @@
                 'doc_national_id_back' => 'National ID (back)',
             ] as $input => $label)
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">{{ $label }}</label>
-                    <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf"
-                           class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-xl file:border-0 file:bg-brand-gold file:px-3 file:py-2 file:text-xs file:font-semibold file:text-brand">
+                    <x-admin.document-upload :name="$input" :label="$label" :max-pages="4" />
                 </div>
             @endforeach
             @if ($r)

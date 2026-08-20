@@ -189,6 +189,10 @@ class AssetBackedApplyService
             $created->pluck('customer_asset_id')->map(fn ($id) => (int) $id)->all(),
         );
 
+        if ($paidAt) {
+            app(ValuationPartnerService::class)->autoAssignIfPossible($application->fresh());
+        }
+
         return $created;
     }
 

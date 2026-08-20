@@ -14,7 +14,7 @@
         My assigned queue
     </label>
 </div>
-<x-admin.table-shell :records="$rows" :statuses="$statuses" statusGroup="application_status" searchPlaceholder="Search application #, customer…">
+<x-admin.table-shell :records="$rows" :statuses="$statuses" statusGroup="application_status" searchPlaceholder="Search application #, customer, phone, NIDA, product…">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="application_number" label="App #" />
         <x-admin.th :sort="$sort" :direction="$direction" col="customer_id"        label="Customer" />

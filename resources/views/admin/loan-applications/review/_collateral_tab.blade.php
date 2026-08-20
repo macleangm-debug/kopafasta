@@ -41,6 +41,19 @@
     $coverage = app(\App\Services\CollateralCoverageService::class)->forApplication($record);
     $valuationFeeDue = $csSvc->needsValuationFeePayment($record)
         || ($csState['status'] ?? '') === \App\Services\CollateralSecureService::STATUS_AWAITING_VALUATION_FEE;
+    $csStatus = (string) ($csState['status'] ?? '');
+    $valuationAlreadyOpened = in_array($csStatus, [
+        \App\Services\CollateralSecureService::STATUS_AWAITING_VALUATION_FEE,
+        \App\Services\CollateralSecureService::STATUS_AWAITING_VALUER,
+        \App\Services\CollateralSecureService::STATUS_SHORTFALL,
+        \App\Services\CollateralSecureService::STATUS_AWAITING_INSURANCE,
+        \App\Services\CollateralSecureService::STATUS_SECURED,
+    ], true);
+    $needsManualValuer = $pledgedForValuation && ! $openValuation && ! $valuationFeeDue
+        && $csStatus === \App\Services\CollateralSecureService::STATUS_AWAITING_VALUER;
+    $assignableValuers = ($valuers ?? collect())->isNotEmpty()
+        ? ($valuers ?? collect())
+        : ($allValuers ?? collect());
     $activeMemberCount = collect($record->loanGroup?->members ?? [])
         ->filter(fn ($m) => strtolower((string) ($m->role ?? 'member')) !== 'leader'
             && (int) $m->customer_id !== (int) $record->customer_id
@@ -443,13 +456,35 @@
             @endforeach
         @endif
 
+        @if ($isAb && ! $isGuarantor && ! $isMember && $pledgedForValuation)
+            <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 space-y-2">
+                <p class="text-[10px] font-semibold uppercase tracking-widest text-sky-900">Asset-backed valuation</p>
+                <h3 class="text-sm font-semibold text-gray-900">Valuer is assigned after the apply-flow fee</h3>
+                <p class="text-xs text-gray-600">
+                    On this product the borrower pays the valuation fee in the apply flow (1,000 TZS per pledged asset + markup). After that payment clears, a valuer is auto-assigned by region. Screening only waits — the valuer then inspects each pledged asset on the partner portal.
+                </p>
+                @if ($openValuation)
+                    <p class="text-sm font-semibold text-sky-950">
+                        Valuation {{ str_replace('_', ' ', $openValuation->status) }}
+                        with {{ $openValuation->vendor?->name ?? 'assigned valuer' }}
+                    </p>
+                @elseif ($valuationFeeDue)
+                    <p class="text-sm text-amber-900">Waiting for the borrower to pay the valuation fee. No valuer is assigned yet.</p>
+                @elseif (! $openValuation)
+                    <p class="text-sm text-amber-900">
+                        Fee is settled but no valuer covers {{ $record->customer?->region ?: 'this region' }}. Use Assign valuation partner below, or add the region on a valuer (Nationwide also matches).
+                    </p>
+                @endif
+            </div>
+        @endif
+
         @if ($showValuerCta)
             <div class="rounded-xl bg-amber-50/80 ring-1 ring-amber-200 px-4 py-4 space-y-3">
                 <div>
                     <p class="text-[10px] font-semibold uppercase tracking-widest text-amber-900">Next step for screening</p>
-                    <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Send to valuer</h3>
+                    <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Request valuation</h3>
                     <p class="text-xs text-gray-600 mt-1">
-                        This is not the AB product. The group leader (or individual borrower) pays the valuation fee on their loan profile — same payment card as membership / group application fee. A valuer is auto-assigned by region only after that payment clears.
+                        This is not the AB product. Clicking below asks the group leader (or individual borrower) to pay the valuation fee on their loan profile — same payment card as membership / group application fee. A valuer is auto-assigned by region only after that payment clears. Do not expect a valuer to appear the moment you click.
                     </p>
                 </div>
                 @if (data_get($valuationReport ?? null, 'status') === 'completed')
@@ -508,14 +543,51 @@
                     </div>
                 @elseif ($valuationFeeDue)
                     <p class="text-sm text-amber-900">
-                        Waiting for the borrower{{ is_group_loan_product($record->product ?? null) ? ' (group leader)' : '' }} to pay the valuation fee. No valuer is assigned yet.
+                        Waiting for the borrower{{ is_group_loan_product($record->product ?? null) ? ' (group leader)' : '' }} to pay the valuation fee on their loan profile. Do not press Request valuation again — that already happened (or opened automatically when the asset was pledged).
                     </p>
+                @elseif ($needsManualValuer)
+                    <div class="rounded-xl bg-white ring-1 ring-amber-100 px-4 py-3 space-y-3">
+                        <p class="text-sm font-semibold text-amber-950">Fee is paid. No valuer covers {{ $record->customer?->region ?: 'this borrower region' }}.</p>
+                        <p class="text-xs text-gray-600">
+                            Auto-assign only picks an active valuer who covers that region (or Nationwide). Add the region on a valuer, or assign someone else below — they still complete the same partner-portal task.
+                        </p>
+                        @if ($assignableValuers->isEmpty())
+                            <p class="text-sm text-rose-800">No active valuers in the system. Create one under Partners first — then set coverage (Nationwide or this region) and activate the portal PIN. Waiting files auto-match after that.</p>
+                            <a href="{{ route('admin.partners.create', ['category' => 'valuer']) }}" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">Add valuer</a>
+                        @else
+                            <form method="POST" action="{{ route('admin.loan-applications.assign-valuer', $record) }}" class="space-y-2">
+                                @csrf
+                                <label class="block text-xs font-medium text-gray-600">Assign a valuer</label>
+                                <select name="vendor_id" required class="w-full rounded-lg border-gray-300 text-sm">
+                                    <option value="">Select valuer…</option>
+                                    @foreach ($assignableValuers as $valuer)
+                                        @php
+                                            $covers = app(\App\Services\PartnerRegionCoverage::class)->covers($valuer, $record->customer?->region);
+                                            $coverLabel = app(\App\Services\PartnerRegionCoverage::class)->label($valuer);
+                                        @endphp
+                                        <option value="{{ $valuer->id }}">
+                                            {{ $valuer->name }} · {{ $coverLabel }}{{ $covers ? '' : ' · outside region' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <input type="text" name="notes" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Optional note (e.g. travelling from Dar)">
+                                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                    Assign valuer
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                @elseif ($valuationAlreadyOpened)
+                    <p class="text-sm text-gray-700">Valuation is already in progress on this file. Screening does not need to request it again.</p>
                 @else
                     <form method="POST" action="{{ route('admin.loan-applications.request-valuation', $record) }}">
                         @csrf
+                        <p class="text-xs text-gray-600 mb-2">
+                            Pledging on IL/GL opens the leader/borrower pay card automatically (payments.show). Use this only if that card still has not appeared.
+                        </p>
                         <input type="text" name="notes" class="w-full rounded-lg border-gray-300 text-sm mb-2" placeholder="Optional internal note">
                         <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
-                            Send to valuer
+                            Request valuation (borrower pays first)
                         </button>
                     </form>
                 @endif

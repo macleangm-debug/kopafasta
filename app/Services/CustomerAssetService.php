@@ -378,12 +378,6 @@ class CustomerAssetService
 
         $this->pledgeOnLoan($application, $asset);
 
-        $application->loadMissing('assignedAnalyst');
-        app(CollateralSecureService::class)->promptValuationFeeAfterPledge(
-            $application->fresh(),
-            $application->assignedAnalyst,
-        );
-
         return $created;
     }
 
@@ -473,6 +467,12 @@ class CustomerAssetService
 
         $this->persistOnLoanIds($application, $ids);
         $this->healExtraPledges($application->fresh() ?? $application);
+
+        $application->loadMissing('assignedAnalyst');
+        app(CollateralSecureService::class)->promptValuationFeeAfterPledge(
+            $application->fresh() ?? $application,
+            $application->assignedAnalyst,
+        );
     }
 
     /**

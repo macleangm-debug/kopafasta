@@ -15,19 +15,23 @@ class PartnerMatchingService
     ) {}
 
     /** @return Collection<int, Vendor> */
-    public function valuersForRegion(?string $region): Collection
+    public function allActiveValuers(): Collection
     {
-        $all = Vendor::query()
+        return Vendor::query()
             ->where('status', 'active')
             ->where(function ($q): void {
                 $q->where('category', 'valuer')->orWhere('roles', 'like', '%"valuer"%');
             })
             ->orderBy('name')
             ->get();
+    }
 
+    /** @return Collection<int, Vendor> */
+    public function valuersForRegion(?string $region): Collection
+    {
         $requireRegion = (bool) ($this->autoAssign->forServiceCategory('valuer')['require_region'] ?? true);
 
-        return $this->coverage->filterAvailable($all, $region, $requireRegion);
+        return $this->coverage->filterAvailable($this->allActiveValuers(), $region, $requireRegion);
     }
 
     /** @param  list<int>  $excludeIds */

@@ -36,6 +36,8 @@ class PartnerService
                     $qq->where('name', 'like', $term)
                         ->orWhere('partner_number', 'like', $term)
                         ->orWhere('phone', 'like', $term)
+                        ->orWhere('email', 'like', $term)
+                        ->orWhere('tin', 'like', $term)
                         ->orWhere('affiliate_code', 'like', $term);
                 });
             })

@@ -25,32 +25,45 @@ class DocumentPageMerger
             throw new \InvalidArgumentException('No valid files to merge.');
         }
 
+        return $this->mergeTo($valid, "customer/{$customerId}/documents", $basename);
+    }
+
+    /**
+     * Combine pages into one stored file under an arbitrary public-disk directory.
+     *
+     * @param  list<UploadedFile>  $files
+     */
+    public function mergeTo(array $files, string $directory, string $basename = 'document'): string
+    {
+        $valid = array_values(array_filter(
+            $files,
+            fn ($file) => $file instanceof UploadedFile && $file->isValid()
+        ));
+
+        if ($valid === []) {
+            throw new \InvalidArgumentException('No valid files to merge.');
+        }
+
+        $directory = trim($directory, '/');
+
         if (count($valid) === 1) {
             $file = $valid[0];
             $mime = $file->getMimeType() ?? '';
 
             if ($mime === 'application/pdf') {
-                return $file->store("customer/{$customerId}/documents", 'public');
+                return $file->store($directory, 'public');
             }
 
-            return $this->imagesToPdf($valid, $customerId, $basename);
+            return $this->imagesToPdf($valid, $directory, $basename);
         }
 
-        $singlePdf = collect($valid)->first(
-            fn (UploadedFile $file) => ($file->getMimeType() ?? '') === 'application/pdf'
-        );
-
-        if ($singlePdf && count($valid) === 1) {
-            return $singlePdf->store("customer/{$customerId}/documents", 'public');
-        }
-
-        return $this->imagesToPdf($valid, $customerId, $basename);
+        return $this->imagesToPdf($valid, $directory, $basename);
     }
 
     /**
      * @param  list<UploadedFile>  $files
      */
-    private function imagesToPdf(array $files, int $customerId, string $basename): string
+    private function imagesToPdf(array $files, string $directory, string $basename): string
     {
         $html = '<html><body style="margin:0;padding:0;">';
 
@@ -65,7 +78,7 @@ class DocumentPageMerger
         $html .= '</body></html>';
 
         $filename = Str::slug($basename).'-'.Str::uuid().'.pdf';
-        $path = "customer/{$customerId}/documents/{$filename}";
+        $path = $directory.'/'.$filename;
         Storage::disk('public')->put($path, Pdf::loadHTML($html)->setPaper('a4', 'portrait')->output());
 
         return $path;

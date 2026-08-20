@@ -170,6 +170,8 @@ class PartnerActivationService
             'metadata'          => $meta,
         ]);
 
+        $this->placeWaitingValuerJobs($vendor->fresh());
+
         return $user;
     }
 
@@ -210,10 +212,25 @@ class PartnerActivationService
         if ($vendor->status !== 'active') {
             $vendor->update(['status' => 'active']);
         }
+
+        $this->placeWaitingValuerJobs($vendor->fresh());
     }
 
     public function reissueActivation(Vendor $vendor, ?User $actor = null, bool $notify = false): Vendor
     {
         return $this->sendActivationInvite($vendor, $actor, $notify);
+    }
+
+    private function placeWaitingValuerJobs(Vendor $vendor): void
+    {
+        if (! $vendor->isValuer()) {
+            return;
+        }
+
+        try {
+            app(ValuationPartnerService::class)->assignWaitingJobsCoveredBy($vendor);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

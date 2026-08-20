@@ -12,7 +12,7 @@
                 {{ $roleOptions[$lockedRole] ?? ucfirst((string) $lockedRole) }}
             </span>
         @endif
-        <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search partners…" class="rounded-lg border-gray-300 text-sm min-w-[16rem]">
+        <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search name, phone, partner #, TIN, email…" class="rounded-lg border-gray-300 text-sm min-w-[16rem]">
     </div>
 
     @if ($rows->isEmpty())

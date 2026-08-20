@@ -69,7 +69,8 @@ class LoansTable extends Component
                             $q->where('first_name', 'like', $term)
                                 ->orWhere('last_name', 'like', $term)
                                 ->orWhere('phone', 'like', $term)
-                                ->orWhere('customer_number', 'like', $term);
+                                ->orWhere('customer_number', 'like', $term)
+                                ->orWhere('national_id', 'like', $term);
                         });
                 });
             })

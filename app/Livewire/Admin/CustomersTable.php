@@ -36,7 +36,10 @@ class CustomersTable extends Component
                         ->orWhere('phone', 'like', $term)
                         ->orWhere('email', 'like', $term)
                         ->orWhere('customer_number', 'like', $term)
-                        ->orWhere('national_id', 'like', $term);
+                        ->orWhere('national_id', 'like', $term)
+                        ->orWhere('region', 'like', $term)
+                        ->orWhere('district', 'like', $term)
+                        ->orWhere('ward', 'like', $term);
                 });
             })
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))

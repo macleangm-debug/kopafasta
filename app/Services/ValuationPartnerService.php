@@ -25,6 +25,12 @@ class ValuationPartnerService
     }
 
     /** @return \Illuminate\Support\Collection<int, Vendor> */
+    public function allActiveValuers(): \Illuminate\Support\Collection
+    {
+        return $this->matching->allActiveValuers();
+    }
+
+    /** @return \Illuminate\Support\Collection<int, Vendor> */
     public function valuersForApplication(LoanApplication $application): \Illuminate\Support\Collection
     {
         $application->loadMissing('customer');
@@ -161,6 +167,8 @@ class ValuationPartnerService
                 'staff_url' => route('admin.loan-applications.show', $application),
             ]);
 
+            $this->notifyBorrowerAssigned($application->fresh(['customer']), $fresh);
+
             return $fresh;
         });
     }
@@ -178,21 +186,22 @@ class ValuationPartnerService
         array $excludeIds = [],
         ?string $notes = null,
     ): ?ValuationAssignment {
-        if (! app(PartnerAutoAssignPolicy::class)->enabledForService('valuer')) {
+        if ($this->hasOpenAssignment($application)) {
             return null;
         }
 
-        $open = ValuationAssignment::query()
-            ->where('loan_application_id', $application->id)
-            ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])
-            ->exists();
+        if (! app(PartnerAutoAssignPolicy::class)->enabledForService('valuer')) {
+            if (! $this->suggestValuer($application, $excludeIds)) {
+                $this->notifyBorrowerUnassignedIfNeeded($application);
+            }
 
-        if ($open) {
             return null;
         }
 
         $valuer = $this->suggestValuer($application, $excludeIds);
         if (! $valuer) {
+            $this->notifyBorrowerUnassignedIfNeeded($application);
+
             return null;
         }
 
@@ -204,8 +213,277 @@ class ValuationPartnerService
                 $notes ?? 'Auto-assigned after valuation fee payment.',
             );
         } catch (\Throwable) {
+            $this->notifyBorrowerUnassignedIfNeeded($application);
+
             return null;
         }
+    }
+
+    public function hasOpenAssignment(LoanApplication $application): bool
+    {
+        return ValuationAssignment::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])
+            ->exists();
+    }
+
+    public function openAssignment(LoanApplication $application): ?ValuationAssignment
+    {
+        return ValuationAssignment::query()
+            ->with('vendor')
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])
+            ->latest('id')
+            ->first();
+    }
+
+    public function valuationFeeSatisfied(LoanApplication $application): bool
+    {
+        if (app(AssetBackedLoanService::class)->isAssetBackedApplication($application)) {
+            return LoanApplicationAsset::query()
+                ->where('loan_application_id', $application->id)
+                ->whereNotNull('valuation_fee_paid_at')
+                ->exists();
+        }
+
+        $state = app(CollateralSecureService::class)->state($application);
+        if (filled($state['valuation_fee_paid_at'] ?? null)) {
+            return true;
+        }
+
+        return LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->whereNotNull('valuation_fee_paid_at')
+            ->exists();
+    }
+
+    /**
+     * Borrower-facing wait state after the valuation fee is paid.
+     *
+     * @return array{show: bool, unassigned: bool, no_regional_cover: bool, valuer_name: ?string, status: string}|null
+     */
+    public function borrowerWaitView(LoanApplication $application): ?array
+    {
+        if (! $this->valuationFeeSatisfied($application) && ! $this->isAwaitingValuerState($application)) {
+            return null;
+        }
+
+        $completed = ValuationAssignment::query()
+            ->where('loan_application_id', $application->id)
+            ->where('status', ValuationAssignment::STATUS_COMPLETED)
+            ->exists()
+            || LoanApplicationAsset::query()
+                ->where('loan_application_id', $application->id)
+                ->where('valuation_status', 'completed')
+                ->exists();
+
+        if ($completed) {
+            return null;
+        }
+
+        $open = $this->openAssignment($application);
+        $waitingPledge = LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+            ->whereIn('valuation_status', ['awaiting_valuation', 'assigned', 'in_progress', 'pending'])
+            ->exists();
+
+        if (! $open && ! $waitingPledge && ! $this->isAwaitingValuerState($application)) {
+            return null;
+        }
+
+        if (! $open && ! $this->valuationFeeSatisfied($application) && ! $this->isAwaitingValuerState($application)) {
+            return null;
+        }
+
+        $unassigned = $open === null;
+        $noCover = $unassigned && $this->suggestValuer($application) === null;
+
+        return [
+            'show' => true,
+            'unassigned' => $unassigned,
+            'no_regional_cover' => $noCover,
+            'valuer_name' => $open?->vendor?->name,
+            'status' => $open
+                ? ((string) $open->status === ValuationAssignment::STATUS_IN_PROGRESS ? 'in_progress' : 'assigned')
+                : 'unassigned',
+        ];
+    }
+
+    /**
+     * After a valuer is created, activated, or given coverage, place files that were waiting.
+     */
+    public function assignWaitingJobsCoveredBy(Vendor $valuer, ?User $actor = null): int
+    {
+        if (! $valuer->isValuer() || $valuer->status !== 'active') {
+            return 0;
+        }
+
+        $coverage = app(PartnerRegionCoverage::class);
+        $placed = 0;
+
+        foreach ($this->applicationsWaitingForValuer() as $application) {
+            $application->loadMissing('customer');
+            if (! $coverage->covers($valuer, $application->customer?->region)) {
+                continue;
+            }
+
+            try {
+                $this->assign(
+                    $application,
+                    $valuer,
+                    $actor,
+                    'Assigned after a valuer covering this region became available.',
+                );
+                $placed++;
+            } catch (\Throwable) {
+                $assignment = $this->autoAssignIfPossible(
+                    $application,
+                    $actor,
+                    notes: 'Auto-assigned after a valuer covering this region became available.',
+                );
+                if ($assignment) {
+                    $placed++;
+                }
+            }
+        }
+
+        return $placed;
+    }
+
+    /** @return \Illuminate\Support\Collection<int, LoanApplication> */
+    public function applicationsWaitingForValuer()
+    {
+        $openIds = ValuationAssignment::query()
+            ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])
+            ->pluck('loan_application_id');
+
+        $pledgeIds = LoanApplicationAsset::query()
+            ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+            ->where(function ($query) {
+                $query->whereIn('valuation_status', ['awaiting_valuation', 'pending'])
+                    ->orWhere(function ($inner) {
+                        $inner->whereNotNull('valuation_fee_paid_at')
+                            ->whereNotIn('valuation_status', ['assigned', 'in_progress', 'completed']);
+                    });
+            })
+            ->pluck('loan_application_id');
+
+        $stateIds = LoanApplication::query()
+            ->where('screening_payload->collateral_secure->status', CollateralSecureService::STATUS_AWAITING_VALUER)
+            ->pluck('id');
+
+        $ids = $pledgeIds->merge($stateIds)->unique()->diff($openIds)->filter()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return LoanApplication::query()
+            ->with(['customer', 'product'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->filter(fn (LoanApplication $application) => $this->valuationFeeSatisfied($application)
+                || $this->isAwaitingValuerState($application))
+            ->values();
+    }
+
+    private function isAwaitingValuerState(LoanApplication $application): bool
+    {
+        $state = app(CollateralSecureService::class)->state($application);
+
+        return ($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_VALUER;
+    }
+
+    private function notifyBorrowerAssigned(LoanApplication $application, ValuationAssignment $assignment): void
+    {
+        $customer = $application->customer;
+        if (! $customer) {
+            return;
+        }
+
+        $notice = $this->assignmentNotice($application);
+        if ((int) ($notice['assigned_notified_id'] ?? 0) === (int) $assignment->id) {
+            return;
+        }
+
+        $name = $assignment->vendor?->name ?: __('borrower.collateral_secure.valuer_generic_name');
+
+        app(NotificationService::class)->notifyInApp(
+            $customer,
+            __('borrower.collateral_secure.notify_valuer_assigned_body', ['name' => $name]),
+            category: 'loan_application',
+            template: 'collateral_valuer_assigned',
+            title: __('borrower.collateral_secure.notify_valuer_assigned_title'),
+            actionUrl: route('site.borrower.application', $application),
+            actionLabel: __('borrower.applications_list.view'),
+            i18n: [
+                'title_key' => 'borrower.collateral_secure.notify_valuer_assigned_title',
+                'body_key' => 'borrower.collateral_secure.notify_valuer_assigned_body',
+                'params' => ['name' => $name],
+                'loan_application_id' => $application->id,
+            ],
+        );
+
+        $notice['assigned_notified_id'] = $assignment->id;
+        $notice['assigned_notified_at'] = now()->toIso8601String();
+        $this->saveAssignmentNotice($application, $notice);
+    }
+
+    private function notifyBorrowerUnassignedIfNeeded(LoanApplication $application): void
+    {
+        if ($this->hasOpenAssignment($application)) {
+            return;
+        }
+
+        if (! $this->valuationFeeSatisfied($application) && ! $this->isAwaitingValuerState($application)) {
+            return;
+        }
+
+        $customer = $application->customer;
+        if (! $customer) {
+            return;
+        }
+
+        $notice = $this->assignmentNotice($application);
+        if (filled($notice['unassigned_notified_at'] ?? null)) {
+            return;
+        }
+
+        app(NotificationService::class)->notifyInApp(
+            $customer,
+            __('borrower.collateral_secure.notify_valuer_unassigned_body'),
+            category: 'loan_application',
+            template: 'collateral_valuer_unassigned',
+            title: __('borrower.collateral_secure.notify_valuer_unassigned_title'),
+            actionUrl: route('site.borrower.application', $application),
+            actionLabel: __('borrower.applications_list.view'),
+            i18n: [
+                'title_key' => 'borrower.collateral_secure.notify_valuer_unassigned_title',
+                'body_key' => 'borrower.collateral_secure.notify_valuer_unassigned_body',
+                'loan_application_id' => $application->id,
+            ],
+        );
+
+        $notice['unassigned_notified_at'] = now()->toIso8601String();
+        $this->saveAssignmentNotice($application, $notice);
+    }
+
+    /** @return array<string, mixed> */
+    private function assignmentNotice(LoanApplication $application): array
+    {
+        $notice = data_get($application->screening_payload, 'valuation_assignment_notice');
+
+        return is_array($notice) ? $notice : [];
+    }
+
+    /** @param  array<string, mixed>  $notice */
+    private function saveAssignmentNotice(LoanApplication $application, array $notice): void
+    {
+        $payload = $application->screening_payload ?? [];
+        $payload['valuation_assignment_notice'] = $notice;
+        $application->update(['screening_payload' => $payload]);
+        $application->setAttribute('screening_payload', $payload);
     }
 
     public function complete(

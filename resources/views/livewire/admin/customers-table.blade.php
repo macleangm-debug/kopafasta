@@ -6,7 +6,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/>
             </svg>
             <input type="text" wire:model.live.debounce.300ms="search"
-                   placeholder="Search name, phone, email, customer #, NIDA…"
+                   placeholder="Search name, phone, email, customer #, NIDA, region…"
                    class="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-300 rounded-lg shadow-sm placeholder:text-gray-400 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition">
         </div>
 

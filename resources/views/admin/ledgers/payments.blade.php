@@ -101,15 +101,21 @@
                 <input type="hidden" name="direction" value="in">
                 <input type="hidden" name="tab" value="{{ $tab }}">
                 <input type="hidden" name="status" value="{{ $status }}">
+                <div class="flex-1 min-w-[16rem]">
+                    <label class="block text-[11px] font-medium text-gray-500 mb-1">Search</label>
+                    <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="Reference, member, phone, NIDA, amount, type…"
+                           class="w-full rounded-lg border-gray-300 text-sm">
+                </div>
                 <div>
                     <label class="block text-[11px] font-medium text-gray-500 mb-1">Payment type</label>
-                    <select name="type" class="rounded-lg border-gray-300 text-sm min-w-[12rem]" onchange="this.form.submit()">
+                    <select name="type" class="rounded-lg border-gray-300 text-sm min-w-[12rem]">
                         <option value="">All types</option>
                         @foreach ($types as $key => $meta)
                             <option value="{{ $key }}" @selected(($type ?? '') === $key)>{{ $meta['label'] ?? $key }}</option>
                         @endforeach
                     </select>
                 </div>
+                <button class="text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">Search</button>
             </form>
 
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">

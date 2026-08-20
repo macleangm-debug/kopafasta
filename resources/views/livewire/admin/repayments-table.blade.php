@@ -1,5 +1,5 @@
 <div>
-<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="Search reference, loan #, channel…">
+<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="Search reference, loan #, member, phone…">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="paid_at"    label="Date" />
         <x-admin.th :sort="$sort" :direction="$direction" col="reference"  label="Reference" />

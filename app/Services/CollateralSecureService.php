@@ -113,40 +113,51 @@ class CollateralSecureService
     }
 
     /**
-     * Apps that reached "secured" without VAL_FEE (legacy / zero-then-fee) reopen the pay gate.
+     * Open the IL/GL valuation-fee gate after a pledge (same as IL). Also heals
+     * apps that reached "secured" without VAL_FEE (legacy / zero-then-fee).
      */
     public function healValuationFeeGate(LoanApplication $application): void
     {
         $state = $this->state($application);
-        if (! $state || ($state['status'] ?? '') !== self::STATUS_SECURED) {
-            return;
-        }
+        if ($state && ($state['status'] ?? '') === self::STATUS_SECURED) {
+            if (filled($state['valuation_fee_paid_at'] ?? null)) {
+                return;
+            }
 
-        if (filled($state['valuation_fee_paid_at'] ?? null)) {
-            return;
-        }
+            $due = (int) quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application)));
+            if ($due <= 0) {
+                return;
+            }
 
-        $due = (int) quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application)));
-        if ($due <= 0) {
-            return;
-        }
+            $assetRow = LoanApplicationAsset::query()
+                ->where('loan_application_id', $application->id)
+                ->where('customer_asset_id', (int) ($state['customer_asset_id'] ?? 0))
+                ->first();
 
-        $assetRow = LoanApplicationAsset::query()
-            ->where('loan_application_id', $application->id)
-            ->where('customer_asset_id', (int) ($state['customer_asset_id'] ?? 0))
-            ->first();
+            if (filled($assetRow?->valuation_fee_paid_at)) {
+                $state['valuation_fee_paid_at'] = optional($assetRow->valuation_fee_paid_at)?->toIso8601String();
+                $this->saveState($application, $state);
 
-        if (filled($assetRow?->valuation_fee_paid_at)) {
-            $state['valuation_fee_paid_at'] = optional($assetRow->valuation_fee_paid_at)?->toIso8601String();
+                return;
+            }
+
+            $state['status'] = self::STATUS_AWAITING_VALUATION_FEE;
+            $state['valuation_fee_due'] = $due;
+            unset($state['secured_at']);
             $this->saveState($application, $state);
 
             return;
         }
 
-        $state['status'] = self::STATUS_AWAITING_VALUATION_FEE;
-        $state['valuation_fee_due'] = $due;
-        unset($state['secured_at']);
-        $this->saveState($application, $state);
+        $hasPledge = LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+            ->whereNotNull('customer_asset_id')
+            ->exists();
+
+        if ($hasPledge) {
+            $this->promptValuationFeeAfterPledge($application);
+        }
     }
 
     public function decisionDays(): int
@@ -829,10 +840,15 @@ class CollateralSecureService
             ];
         }
 
-        if ($status === self::STATUS_SECURED || $assetRow) {
+        if ($status === self::STATUS_SECURED || $status === self::STATUS_AWAITING_VALUER || $assetRow) {
+            $wait = app(ValuationPartnerService::class)->borrowerWaitView($application);
+            $unassignedLabel = ! empty($wait['no_regional_cover'])
+                ? __('borrower.collateral_secure.valuation_status_no_regional_valuer')
+                : __('borrower.collateral_secure.valuation_status_awaiting_valuer');
+
             return [
                 'status' => 'awaiting_valuer',
-                'label' => __('borrower.collateral_secure.valuation_status_awaiting_valuer'),
+                'label' => $unassignedLabel,
                 'pay_url' => null,
                 'amount' => 0,
             ];
@@ -884,6 +900,8 @@ class CollateralSecureService
             default => (int) $application->customer_id,
         };
 
+        $wait = app(ValuationPartnerService::class)->borrowerWaitView($application);
+
         return [
             'active' => ! in_array($state['status'] ?? '', [self::STATUS_REJECTED, self::STATUS_EXPIRED], true),
             'open' => $this->isOpen($application),
@@ -898,6 +916,9 @@ class CollateralSecureService
                 : $this->feeQuote($application),
             'valuation_fee_quote' => $this->valuationFeeQuote($application),
             'valuation_progress' => $this->valuationProgress($application, $state),
+            'valuer_unassigned' => (bool) ($wait['unassigned'] ?? false),
+            'no_regional_cover' => (bool) ($wait['no_regional_cover'] ?? false),
+            'valuer_name' => $wait['valuer_name'] ?? null,
             'coverage' => $coverage,
             'add_collateral_url' => route('site.borrower.profile', ['section' => 'assets', 'add' => 1]),
             'owner_assets_url' => route('site.borrower.profile', [
@@ -1066,7 +1087,11 @@ class CollateralSecureService
             LoanApplicationAsset::query()
                 ->where('loan_application_id', $application->id)
                 ->where('customer_asset_id', $asset->id)
-                ->update(['valuation_fee_paid_at' => now()]);
+                ->whereNotIn('valuation_status', ['assigned', 'in_progress', 'completed'])
+                ->update([
+                    'valuation_fee_paid_at' => now(),
+                    'valuation_status' => 'awaiting_valuation',
+                ]);
             app(ValuationPartnerService::class)->autoAssignIfPossible($application->fresh());
 
             return $state;

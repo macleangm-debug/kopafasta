@@ -257,6 +257,7 @@ class LoanApplicationProfileService
             'handover_milestones' => app(AssetHandoverMilestoneService::class)->forApplication($application),
             'product_details' => $this->productDetailsForApplication($application),
             'collateral_secure' => app(CollateralSecureService::class)->viewModel($application),
+            'valuation_wait' => app(ValuationPartnerService::class)->borrowerWaitView($application),
         ];
     }
 

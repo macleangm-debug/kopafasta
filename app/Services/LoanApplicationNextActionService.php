@@ -465,6 +465,30 @@ class LoanApplicationNextActionService
             );
         }
 
+        $wait = app(ValuationPartnerService::class)->borrowerWaitView($application);
+        if ($wait && ($wait['show'] ?? false)) {
+            $unassigned = (bool) ($wait['unassigned'] ?? false);
+            $noCover = (bool) ($wait['no_regional_cover'] ?? false);
+            $label = $unassigned
+                ? ($noCover
+                    ? __('borrower.collateral_secure.awaiting_valuer_unassigned_next_action')
+                    : __('borrower.collateral_secure.awaiting_valuer_pending_next_action'))
+                : __('borrower.collateral_secure.awaiting_valuer_next_action', [
+                    'name' => $wait['valuer_name'] ?: __('borrower.collateral_secure.valuer_generic_name'),
+                ]);
+            $anchor = data_get($collateralSecure->state($application), 'status') === CollateralSecureService::STATUS_AWAITING_VALUER
+                ? '#collateral-secure'
+                : '#valuation-wait';
+
+            return $this->action(
+                $unassigned ? 'awaiting_valuer_unassigned' : 'awaiting_valuer',
+                $label,
+                __('borrower.applications_list.view'),
+                $profileUrl.$anchor,
+                tone: 'secondary',
+            );
+        }
+
         return $this->action(
             'under_review',
             __('borrower.loan_profile.next_actions.under_review'),

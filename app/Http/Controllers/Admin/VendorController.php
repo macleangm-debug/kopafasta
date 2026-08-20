@@ -75,11 +75,23 @@ class VendorController extends ResourceController
             'regions.*'                      => ['string', 'max:100'],
             'coverage_type'                  => ['nullable', 'in:regions,nationwide'],
             'doc_brela'                      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_brela_pages'                => ['nullable', 'array', 'max:12'],
+            'doc_brela_pages.*'              => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_tin_certificate'            => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_tin_certificate_pages'      => ['nullable', 'array', 'max:12'],
+            'doc_tin_certificate_pages.*'    => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_business_licence'           => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_business_licence_pages'     => ['nullable', 'array', 'max:12'],
+            'doc_business_licence_pages.*'   => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_national_id_front'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_front_pages'    => ['nullable', 'array', 'max:12'],
+            'doc_national_id_front_pages.*'  => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_national_id_back'           => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_back_pages'     => ['nullable', 'array', 'max:12'],
+            'doc_national_id_back_pages.*'   => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_other'                      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_other_pages'                => ['nullable', 'array', 'max:12'],
+            'doc_other_pages.*'              => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ];
     }
 
@@ -183,9 +195,12 @@ class VendorController extends ResourceController
 
         $this->auditAdminCreated($record);
 
+        $placed = $this->placeWaitingValuerJobs($record->fresh(), $request->user('admin'));
+        $statusMessage .= $this->valuerOpsNextSteps($record->fresh(), $placed, onCreate: true);
+
         return redirect()
             ->route("{$this->routePrefix}.show", $record)
-            ->with('status', $statusMessage);
+            ->with('status', trim($statusMessage));
     }
 
     public function update(Request $request, $id)
@@ -198,9 +213,14 @@ class VendorController extends ResourceController
         $vendor->update($data);
         $this->storeBusinessDocuments($request, $vendor);
 
+        $fresh = $vendor->fresh();
+        $placed = $this->placeWaitingValuerJobs($fresh, $request->user('admin'));
+        $status = ucfirst($this->singular).' updated.';
+        $status .= $this->valuerOpsNextSteps($fresh, $placed, onCreate: false);
+
         return redirect()
             ->route("{$this->routePrefix}.show", $vendor)
-            ->with('status', ucfirst($this->singular).' updated.');
+            ->with('status', trim($status));
     }
 
     private function storeBusinessDocuments(Request $request, Vendor $partner): void
@@ -214,21 +234,30 @@ class VendorController extends ResourceController
             'doc_other' => 'other',
         ];
 
+        $merger = app(\App\Services\DocumentPageMerger::class);
+
         foreach ($map as $input => $docType) {
-            $file = $request->file($input);
-            if (! $file instanceof UploadedFile) {
+            $pages = array_values(array_filter($request->file($input.'_pages', []) ?? []));
+            $single = $request->file($input);
+            if ($single instanceof UploadedFile) {
+                array_unshift($pages, $single);
+            }
+            if ($pages === []) {
                 continue;
             }
 
-            $path = $file->store('partners/'.$partner->id.'/compliance', 'public');
+            $path = $merger->mergeTo($pages, 'partners/'.$partner->id.'/compliance', $docType);
+            $stored = \Illuminate\Support\Facades\Storage::disk('public')->exists($path)
+                ? \Illuminate\Support\Facades\Storage::disk('public')->size($path)
+                : 0;
 
             PartnerDocument::create([
                 'partner_id' => $partner->id,
                 'label' => PartnerApplicationDocument::DOC_TYPES[$docType] ?? $docType,
                 'doc_type' => $docType,
                 'file_path' => $path,
-                'mime' => $file->getClientMimeType(),
-                'size_bytes' => $file->getSize(),
+                'mime' => str_ends_with(strtolower($path), '.pdf') ? 'application/pdf' : ($pages[0]->getClientMimeType() ?? 'application/pdf'),
+                'size_bytes' => $stored,
             ]);
         }
     }
@@ -409,6 +438,7 @@ class VendorController extends ResourceController
         $openTasks = $deletion->openTasks($record);
         $openValuations = $deletion->openValuationAssignments($record);
         $recentTasks = $record->tasks()->orderByDesc('id')->limit(8)->get();
+        $payouts = $record->payments()->latest()->limit(8)->get();
         $affiliateStats = $record->isAffiliate()
             ? app(AffiliateService::class)->stats($record)
             : null;
@@ -432,6 +462,7 @@ class VendorController extends ResourceController
                 'openTasks' => $openTasks,
                 'openValuations' => $openValuations,
                 'recentTasks' => $recentTasks,
+                'payouts' => $payouts,
             ],
             $this->formData($record),
         ));
@@ -661,5 +692,47 @@ class VendorController extends ResourceController
         return redirect()
             ->route('admin.partners.all')
             ->with('status', $result['message'] ?? 'Partner deactivated.');
+    }
+
+    private function placeWaitingValuerJobs(Vendor $vendor, ?\App\Models\User $actor = null): int
+    {
+        if (! $vendor->isValuer()) {
+            return 0;
+        }
+
+        try {
+            return app(\App\Services\ValuationPartnerService::class)
+                ->assignWaitingJobsCoveredBy($vendor, $actor);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return 0;
+        }
+    }
+
+    private function valuerOpsNextSteps(Vendor $vendor, int $placed, bool $onCreate = false): string
+    {
+        if (! $vendor->isValuer()) {
+            return '';
+        }
+
+        if ($placed > 0) {
+            return ' '.$placed.' waiting valuation file(s) assigned to this partner.';
+        }
+
+        if ($vendor->status !== 'active') {
+            return ' Next: set coverage to Nationwide or the borrower region, then activate the portal PIN. Waiting files auto-match once this valuer is active. Leftover files: Assign valuer on the credit file.';
+        }
+
+        $cover = app(\App\Services\PartnerRegionCoverage::class)->label($vendor);
+        if ($cover === 'No regions set') {
+            return ' This valuer has no region coverage yet. Set Nationwide or the borrower region so waiting files can match.';
+        }
+
+        if (! $onCreate) {
+            return '';
+        }
+
+        return ' Coverage is '.$cover.'. Waiting files that match auto-assign. If a credit file is still waiting, open Collateral → Assign valuer.';
     }
 }

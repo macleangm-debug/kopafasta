@@ -1,6 +1,16 @@
 <x-admin.layout title="Partner payments" heading="" subheading="">
     <x-admin.letterhead kicker="Partners" title="Partner payments queue" subtitle="Approve partner, supplier, and affiliate payouts before weekly batching" />
-    <div class="mb-4 flex flex-wrap gap-2 text-sm">
+    <form method="GET" action="{{ route('admin.partner-payments.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        @if ($status !== '')
+            <input type="hidden" name="status" value="{{ $status }}">
+        @endif
+        <div class="flex-1 min-w-[16rem]">
+            <label class="block text-[11px] font-medium text-gray-500 mb-1">Search</label>
+            <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="Invoice, partner, phone, amount, application…"
+                   class="w-full rounded-lg border-gray-300 text-sm">
+        </div>
+        <button class="text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">Search</button>
+    </form>
         <a href="{{ route('admin.partner-payments.index') }}" @class(['font-medium', 'text-amber-700' => $status === '', 'text-gray-500' => $status !== ''])>All</a>
         @foreach ($statuses as $item)
             <a href="{{ route('admin.partner-payments.index', ['status' => $item]) }}" @class(['font-medium capitalize', 'text-amber-700' => $status === $item, 'text-gray-500' => $status !== $item])>{{ $item }}</a>
@@ -34,17 +44,9 @@
                         <td class="px-4 py-3">{{ format_money($payment->amount) }}</td>
                         <td class="px-4 py-3">{{ ucfirst($payment->status) }}</td>
                         <td class="px-4 py-3 text-right space-x-2">
-                            @if ($payment->status === 'pending')
-                                <form method="post" action="{{ route('admin.partner-payments.approve', $payment) }}" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-emerald-700 hover:text-emerald-900">Approve</button>
-                                </form>
-                                <form method="post" action="{{ route('admin.partner-payments.cancel', $payment) }}" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-red-700 hover:text-red-900">Cancel</button>
-                                </form>
-                            @elseif ($payment->partnerSettlement)
-                                <a href="{{ route('admin.partner-settlements.show', $payment->partnerSettlement) }}" class="text-amber-700">Batch</a>
+                            <a href="{{ route('admin.partner-payments.show', $payment) }}" class="text-amber-700 hover:text-amber-900 font-semibold">Open</a>
+                            @if ($payment->partnerSettlement)
+                                <a href="{{ route('admin.partner-settlements.show', $payment->partnerSettlement) }}" class="text-gray-500">Batch</a>
                             @endif
                         </td>
                     </tr>

@@ -88,6 +88,7 @@
 
     @if (! $isDraft && $application)
         @include('site.borrower.loan-profile._collateral_secure', ['profile' => $profile])
+        @include('site.borrower.loan-profile._valuation_wait', ['profile' => $profile])
     @endif
 
     {{-- 1b. Requested documents — single card, directly under status when open --}}

@@ -27,6 +27,7 @@ class PaymentVerificationController extends Controller
             };
         }
         $type = $request->query('type', '');
+        $q = trim((string) $request->query('q', ''));
 
         $query = CustomerPayment::query()
             ->with(['customer', 'bankAccount', 'verifier', 'loan', 'loanProduct', 'source'])
@@ -43,6 +44,25 @@ class PaymentVerificationController extends Controller
 
         if ($type !== '') {
             $query->where('payment_type', $type);
+        }
+
+        if ($q !== '') {
+            $term = '%'.$q.'%';
+            $query->where(function ($inner) use ($term, $q) {
+                $inner->where('reference', 'like', $term)
+                    ->orWhere('payment_type', 'like', $term)
+                    ->orWhere('payment_method', 'like', $term)
+                    ->orWhereHas('customer', fn ($c) => $c->where('first_name', 'like', $term)
+                        ->orWhere('last_name', 'like', $term)
+                        ->orWhere('phone', 'like', $term)
+                        ->orWhere('email', 'like', $term)
+                        ->orWhere('customer_number', 'like', $term)
+                        ->orWhere('national_id', 'like', $term)
+                        ->orWhere('region', 'like', $term));
+                if (is_numeric(str_replace([',', ' '], '', $q))) {
+                    $inner->orWhere('amount', (float) str_replace([',', ' '], '', $q));
+                }
+            });
         }
 
         $payments = $query->paginate(25)->withQueryString();
@@ -74,7 +94,7 @@ class PaymentVerificationController extends Controller
 
         $types = config('payment_types.types', []);
 
-        return view('admin.payments.index', compact('payments', 'status', 'counts', 'type', 'types'));
+        return view('admin.payments.index', compact('payments', 'status', 'counts', 'type', 'types', 'q'));
     }
 
     public function show(CustomerPayment $payment): View

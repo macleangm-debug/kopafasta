@@ -797,7 +797,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             Route::post('vendor-payments/{vendorPayment}/approve', [VendorPaymentController::class, 'approve'])->name('vendor-payments.approve');
             Route::post('vendor-payments/{vendorPayment}/cancel', [VendorPaymentController::class, 'cancel'])->name('vendor-payments.cancel');
             Route::get('partner-payments', [VendorPaymentController::class, 'index'])->name('partner-payments.index');
+            Route::get('partner-payments/{vendorPayment}', [VendorPaymentController::class, 'show'])->name('partner-payments.show');
             Route::post('partner-payments/{vendorPayment}/approve', [VendorPaymentController::class, 'approve'])->name('partner-payments.approve');
+            Route::post('partner-payments/{vendorPayment}/pay', [VendorPaymentController::class, 'pay'])->name('partner-payments.pay');
             Route::post('partner-payments/{vendorPayment}/cancel', [VendorPaymentController::class, 'cancel'])->name('partner-payments.cancel');
             Route::get('partner-settlements', [PartnerSettlementController::class, 'index'])->name('partner-settlements.index');
             Route::get('partner-settlements/{partnerSettlement}', [PartnerSettlementController::class, 'show'])->name('partner-settlements.show');

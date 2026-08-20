@@ -79,10 +79,12 @@ class ScreeningValuationGateFeatureTest extends TestCase
             'label' => 'Toyota',
             'is_active' => true,
             'registration_number' => 'T123ABC',
-            'photo_paths' => ['assets/car.jpg'],
+            'photo_paths' => ['assets/car.jpg', 'assets/car-rear.jpg'],
             'metadata' => [
                 'details' => ['insurance_expires_at' => now()->addYears(3)->toDateString()],
                 'insurance_document_path' => 'assets/ins.pdf',
+                'ownership_document_path' => 'assets/title.pdf',
+                'person_with_asset_path' => 'assets/owner.jpg',
             ],
         ]);
 
@@ -237,6 +239,112 @@ class ScreeningValuationGateFeatureTest extends TestCase
             CollateralSecureService::STATUS_AWAITING_VALUER,
         ]);
         $this->assertSame(CollateralSecureService::PATH_SCREENING_VALUATION, $state['path'] ?? null);
+    }
+
+    public function test_attaching_an_asset_opens_the_valuation_fee_without_admin_cta(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer, 800_000);
+        $asset = CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Rav4',
+            'is_active' => true,
+            'registration_number' => 'T123ABC',
+            'photo_paths' => ['assets/car.jpg', 'assets/car-rear.jpg'],
+            'metadata' => [
+                'details' => ['insurance_expires_at' => now()->addYears(3)->toDateString()],
+                'insurance_document_path' => 'assets/ins.pdf',
+                'ownership_document_path' => 'assets/title.pdf',
+                'person_with_asset_path' => 'assets/owner.jpg',
+            ],
+        ]);
+
+        app(\App\Services\CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
+
+        $state = app(CollateralSecureService::class)->state($application->fresh());
+        $this->assertSame(CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, $state['status'] ?? null);
+        $this->assertSame(CollateralSecureService::PATH_SCREENING_VALUATION, $state['path'] ?? null);
+
+        $next = app(\App\Services\LoanApplicationNextActionService::class)
+            ->forApplication($customer, $application->fresh());
+        $this->assertSame('pay_valuation_fee', $next['code'] ?? null);
+    }
+
+    public function test_reattaching_already_linked_asset_opens_the_valuation_fee_gate(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer, 800_000);
+        $asset = $this->pledge($application, $customer);
+
+        $this->assertNull(app(CollateralSecureService::class)->state($application->fresh()));
+
+        app(\App\Services\CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
+
+        $state = app(CollateralSecureService::class)->state($application->fresh());
+        $this->assertSame(CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, $state['status'] ?? null);
+    }
+
+    public function test_group_loan_attach_opens_valuation_fee_for_the_leader(): void
+    {
+        $customer = $this->borrower();
+        $product = LoanProduct::create([
+            'code' => 'GL',
+            'name' => 'Group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 10_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-GL-'.random_int(100, 999),
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 2_000_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now(),
+        ]);
+        $asset = CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Rav4',
+            'is_active' => true,
+            'photo_paths' => ['assets/car.jpg', 'assets/car-rear.jpg'],
+            'metadata' => [
+                'details' => ['insurance_expires_at' => now()->addYears(3)->toDateString()],
+                'insurance_document_path' => 'assets/ins.pdf',
+                'ownership_document_path' => 'assets/title.pdf',
+                'person_with_asset_path' => 'assets/owner.jpg',
+            ],
+        ]);
+
+        app(\App\Services\CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
+
+        $state = app(CollateralSecureService::class)->state($application->fresh());
+        $this->assertSame(CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, $state['status'] ?? null);
+        $this->assertTrue(app(CollateralSecureService::class)->needsValuationFeePayment($application->fresh()));
+    }
+
+    public function test_heal_opens_valuation_fee_when_pledge_exists_without_pay_card(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer, 800_000);
+        $this->pledge($application, $customer);
+        app(\App\Services\CustomerAssetService::class)->persistOnLoanIds($application, [
+            (int) $application->collateralAssets()->value('customer_asset_id'),
+        ]);
+
+        $this->assertNull(app(CollateralSecureService::class)->state($application->fresh()));
+
+        $this->assertTrue(app(CollateralSecureService::class)->needsValuationFeePayment($application->fresh()));
+        $this->assertSame(
+            CollateralSecureService::STATUS_AWAITING_VALUATION_FEE,
+            app(CollateralSecureService::class)->state($application->fresh())['status'] ?? null
+        );
     }
 
     public function test_checklist_system_marks_fee_and_awaits_missing_fsv(): void

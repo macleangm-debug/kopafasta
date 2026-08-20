@@ -37,7 +37,11 @@ class RepaymentsTable extends Component
                 $q->where(function ($q) use ($term) {
                     $q->where('reference', 'like', $term)
                         ->orWhere('channel', 'like', $term)
-                        ->orWhereHas('loan', fn ($q) => $q->where('loan_number', 'like', $term));
+                        ->orWhereHas('loan', fn ($q) => $q->where('loan_number', 'like', $term)
+                            ->orWhereHas('customer', fn ($c) => $c->where('first_name', 'like', $term)
+                                ->orWhere('last_name', 'like', $term)
+                                ->orWhere('phone', 'like', $term)
+                                ->orWhere('customer_number', 'like', $term)));
                 });
             })
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))

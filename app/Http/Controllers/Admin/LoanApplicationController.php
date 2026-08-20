@@ -253,6 +253,7 @@ class LoanApplicationController extends ResourceController
         $disbursementReadiness = app(ApplicationDisbursementReadinessService::class);
 
         $valuers = app(ValuationPartnerService::class)->valuersForApplication($record);
+        $allValuers = app(ValuationPartnerService::class)->allActiveValuers();
         $suggestedValuer = app(ValuationPartnerService::class)->suggestValuer($record);
         $valuationReport = app(ValuationPartnerService::class)->reportForApplication($record);
 

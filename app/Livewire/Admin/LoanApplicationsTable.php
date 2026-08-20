@@ -64,7 +64,11 @@ class LoanApplicationsTable extends Component
                     $q->where('application_number', 'like', $term)
                         ->orWhereHas('customer', fn ($q) => $q->where('first_name', 'like', $term)
                             ->orWhere('last_name', 'like', $term)
-                            ->orWhere('phone', 'like', $term));
+                            ->orWhere('phone', 'like', $term)
+                            ->orWhere('customer_number', 'like', $term)
+                            ->orWhere('national_id', 'like', $term)
+                            ->orWhere('region', 'like', $term))
+                        ->orWhereHas('product', fn ($q) => $q->where('name', 'like', $term)->orWhere('code', 'like', $term));
                 });
             })
             ->when($this->mine, fn ($q) => $q->where('assigned_analyst_id', auth()->id()))

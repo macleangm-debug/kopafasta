@@ -36,6 +36,7 @@ class LedgerController extends Controller
             $status = 'verified';
         }
         $type = $request->string('type')->toString();
+        $q = trim($request->string('q')->toString());
 
         $types = config('payment_types.types', []);
 
@@ -80,6 +81,24 @@ class LedgerController extends Controller
                 $query->where('payment_type', $type);
             }
 
+            if ($q !== '') {
+                $term = '%'.$q.'%';
+                $query->where(function ($inner) use ($term, $q) {
+                    $inner->where('reference', 'like', $term)
+                        ->orWhere('payment_type', 'like', $term)
+                        ->orWhere('payment_method', 'like', $term)
+                        ->orWhereHas('customer', fn ($c) => $c->where('first_name', 'like', $term)
+                            ->orWhere('last_name', 'like', $term)
+                            ->orWhere('phone', 'like', $term)
+                            ->orWhere('email', 'like', $term)
+                            ->orWhere('customer_number', 'like', $term)
+                            ->orWhere('national_id', 'like', $term));
+                    if (is_numeric(str_replace([',', ' '], '', $q))) {
+                        $inner->orWhere('amount', (float) str_replace([',', ' '], '', $q));
+                    }
+                });
+            }
+
             $payments = $query->paginate(25)->withQueryString();
         }
 
@@ -101,8 +120,24 @@ class LedgerController extends Controller
 
         if ($direction === 'out') {
             $partnerPayments = PartnerPayment::query()
-                ->with(['partner', 'task', 'partnerSettlement'])
+                ->with(['partner', 'task.loanApplication', 'partnerSettlement'])
                 ->when($status !== '', fn ($q) => $q->where('status', $status))
+                ->when($q !== '', function ($query) use ($q) {
+                    $term = '%'.$q.'%';
+                    $query->where(function ($inner) use ($term, $q) {
+                        $inner->where('invoice_number', 'like', $term)
+                            ->orWhere('description', 'like', $term)
+                            ->orWhere('source_type', 'like', $term)
+                            ->orWhere('reference', 'like', $term)
+                            ->orWhereHas('partner', fn ($p) => $p->where('name', 'like', $term)
+                                ->orWhere('partner_number', 'like', $term)
+                                ->orWhere('phone', 'like', $term)
+                                ->orWhere('tin', 'like', $term));
+                        if (is_numeric(str_replace([',', ' '], '', $q))) {
+                            $inner->orWhere('amount', (float) str_replace([',', ' '], '', $q));
+                        }
+                    });
+                })
                 ->latest()
                 ->paginate(25, ['*'], 'partner_page')
                 ->withQueryString();
@@ -158,6 +193,7 @@ class LedgerController extends Controller
             'types'              => $types,
             'statuses'           => ['pending', 'approved', 'paid', 'cancelled'],
             'counts'             => $counts,
+            'q'                  => $q,
         ]);
     }
 

@@ -24,8 +24,18 @@
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_valuation_fee') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_valuation_fee') }}</p>
                 @elseif ($status === 'awaiting_valuer')
-                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.awaiting_valuer_title') }}</h2>
-                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.awaiting_valuer_body') }}</p>
+                    @if (! empty($secure['no_regional_cover']))
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.awaiting_valuer_unassigned_title') }}</h2>
+                        <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.awaiting_valuer_unassigned_body') }}</p>
+                    @elseif (! empty($secure['valuer_unassigned']))
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.awaiting_valuer_pending_title') }}</h2>
+                        <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.awaiting_valuer_pending_body') }}</p>
+                    @else
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.awaiting_valuer_title') }}</h2>
+                        <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.awaiting_valuer_body', [
+                            'name' => $secure['valuer_name'] ?: __('borrower.collateral_secure.valuer_generic_name'),
+                        ]) }}</p>
+                    @endif
                 @elseif ($status === 'collateral_shortfall')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.shortfall_title') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.shortfall_body', [
@@ -312,7 +322,19 @@
                     </form>
                 </div>
             @elseif ($status === 'awaiting_valuer')
-                <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.awaiting_valuer_body') }}</p>
+                @if (! empty($secure['no_regional_cover']))
+                    <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.awaiting_valuer_unassigned_body') }}</p>
+                @elseif (! empty($secure['valuer_unassigned']))
+                    <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.awaiting_valuer_pending_body') }}</p>
+                @else
+                    <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.awaiting_valuer_body', [
+                        'name' => $secure['valuer_name'] ?: __('borrower.collateral_secure.valuer_generic_name'),
+                    ]) }}</p>
+                @endif
+                @include('site.borrower.loan-profile._collateral_next_steps', [
+                    'audience' => 'borrower',
+                    'progress' => $secure['valuation_progress'] ?? null,
+                ])
             @elseif ($status === 'collateral_shortfall')
                 @php $coverage = $secure['coverage'] ?? []; @endphp
                 <ul class="text-sm text-gray-700 list-disc pl-5 space-y-1">
