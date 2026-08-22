@@ -85,4 +85,21 @@ class AdminUserCreateWizardFeatureTest extends TestCase
 
         $this->assertTrue(Hash::check('new-pass1', $user->fresh()->password));
     }
+
+    public function test_partner_support_home_loads_when_prt_team_is_assigned(): void
+    {
+        $prt = Department::query()->where('code', 'PRT')->firstOrFail();
+        $user = User::factory()->create([
+            'role' => 'partner_support',
+            'department_id' => $prt->id,
+            'is_active' => true,
+        ]);
+        $user->departments()->sync([$prt->id]);
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.teams.partners'))
+            ->assertOk()
+            ->assertSee('Partner support', false)
+            ->assertSee($user->name, false);
+    }
 }

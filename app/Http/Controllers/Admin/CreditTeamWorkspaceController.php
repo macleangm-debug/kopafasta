@@ -69,15 +69,15 @@ class CreditTeamWorkspaceController extends Controller
         $staff = app(PartnerStaffService::class);
         $prtId = $staff->departmentId();
         $members = User::query()
-            ->where('is_active', true)
+            ->where('users.is_active', true)
             ->where(function ($q) use ($prtId): void {
-                $q->where('role', PartnerStaffService::ROLE);
+                $q->where('users.role', PartnerStaffService::ROLE);
                 if ($prtId) {
-                    $q->orWhere('department_id', $prtId)
-                        ->orWhereHas('departments', fn ($d) => $d->where('id', $prtId));
+                    $q->orWhere('users.department_id', $prtId)
+                        ->orWhereHas('departments', fn ($d) => $d->where('departments.id', $prtId));
                 }
             })
-            ->orderBy('name')
+            ->orderBy('users.name')
             ->get();
 
         $coverage = app(PartnerCoverageRequestService::class);
