@@ -81,6 +81,9 @@
                     if (field.disabled || field.type === 'hidden') {
                         return;
                     }
+                    if (typeof field.checkVisibility === 'function' && ! field.checkVisibility()) {
+                        return;
+                    }
                     fields.push(field);
                 });
             });

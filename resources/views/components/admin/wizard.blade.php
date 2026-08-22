@@ -87,13 +87,47 @@
 @once
     <script>
         (function () {
+            function isShown(el) {
+                if (! el) {
+                    return true;
+                }
+                if (el.hasAttribute('x-cloak') || el.hidden) {
+                    return false;
+                }
+                if (el._x_isShown === false) {
+                    return false;
+                }
+                const style = window.getComputedStyle(el);
+                if (style.display === 'none' || style.visibility === 'hidden') {
+                    return false;
+                }
+                return true;
+            }
+
+            function fieldIsCheckable(field) {
+                if (! field || field.disabled || field.type === 'hidden') {
+                    return false;
+                }
+                if (typeof field.checkVisibility === 'function') {
+                    return field.checkVisibility();
+                }
+                const style = window.getComputedStyle(field);
+                if (style.display === 'none' || style.visibility === 'hidden') {
+                    return false;
+                }
+                return field.offsetParent !== null || style.position === 'fixed';
+            }
+
             function visibleSteps(root) {
                 return Array.from(root.querySelectorAll('[data-step]')).filter(function (el) {
-                    const gate = el.closest('[data-step-gate]');
-                    if (! gate) {
-                        return true;
+                    if (el.closest('template')) {
+                        return false;
                     }
-                    return window.getComputedStyle(gate).display !== 'none';
+                    const gate = el.closest('[data-step-gate]');
+                    if (gate && ! isShown(gate)) {
+                        return false;
+                    }
+                    return isShown(el);
                 });
             }
 
@@ -219,7 +253,7 @@
                     }
                     const fields = current.querySelectorAll('input, select, textarea');
                     for (const field of fields) {
-                        if (field.disabled || field.type === 'hidden') {
+                        if (! fieldIsCheckable(field)) {
                             continue;
                         }
                         if (typeof field.checkValidity === 'function' && ! field.checkValidity()) {

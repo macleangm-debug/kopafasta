@@ -88,10 +88,12 @@
             if (! this.personTypes.includes(value)) {
                 this.applicantCategory = 'company';
             }
-            $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild')));
+            $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
         });
-        $watch('applicantCategory', () => { $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))); });
-        $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild')));
+        $watch('applicantCategory', () => {
+            $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
+        });
+        $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
     "
     class="space-y-0"
 >
@@ -266,33 +268,35 @@
         </div>
     </x-admin.step>
 
-    <div data-step-gate x-show="isCompany" x-cloak>
-        <x-admin.step title="Business documents">
-            <p class="md:col-span-2 text-xs text-gray-500">BRELA, TIN certificate, business licence. PDF or image, max 5MB each. National ID photos are uploaded by the partner on their portal.</p>
-            @foreach ([
-                'doc_brela' => 'BRELA / company registration',
-                'doc_tin_certificate' => 'TIN certificate',
-                'doc_business_licence' => 'Business licence',
-                'doc_other' => 'Other supporting document',
-            ] as $input => $label)
-                <div class="md:col-span-2">
-                    <x-admin.document-upload :name="$input" :label="$label" />
-                </div>
-            @endforeach
-            @if ($r)
-                @php $docs = $r->documents()->whereNotNull('doc_type')->latest()->get(); @endphp
-                @if ($docs->isNotEmpty())
-                    <div class="md:col-span-2 space-y-2">
-                        <p class="text-xs font-semibold text-gray-700">Uploaded documents</p>
-                        @foreach ($docs as $doc)
-                            <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($doc->file_path) }}" target="_blank"
-                               class="block text-sm text-brand hover:underline">{{ $doc->label ?: ($doc->doc_type.' · '.$doc->file_path) }}</a>
-                        @endforeach
+    <template x-if="isCompany">
+        <div data-step-gate data-company-docs-step>
+            <x-admin.step title="Business documents">
+                <p class="md:col-span-2 text-xs text-gray-500">BRELA, TIN certificate, business licence. PDF or image, max 5MB each. National ID photos are uploaded by the partner on their portal. Skip this step for an individual — they have no company papers.</p>
+                @foreach ([
+                    'doc_brela' => 'BRELA / company registration',
+                    'doc_tin_certificate' => 'TIN certificate',
+                    'doc_business_licence' => 'Business licence',
+                    'doc_other' => 'Other supporting document',
+                ] as $input => $label)
+                    <div class="md:col-span-2">
+                        <x-admin.document-upload :name="$input" :label="$label" />
                     </div>
+                @endforeach
+                @if ($r)
+                    @php $docs = $r->documents()->whereNotNull('doc_type')->latest()->get(); @endphp
+                    @if ($docs->isNotEmpty())
+                        <div class="md:col-span-2 space-y-2">
+                            <p class="text-xs font-semibold text-gray-700">Uploaded documents</p>
+                            @foreach ($docs as $doc)
+                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($doc->file_path) }}" target="_blank"
+                                   class="block text-sm text-brand hover:underline">{{ $doc->label ?: ($doc->doc_type.' · '.$doc->file_path) }}</a>
+                            @endforeach
+                        </div>
+                    @endif
                 @endif
-            @endif
-        </x-admin.step>
-    </div>
+            </x-admin.step>
+        </div>
+    </template>
 
     <div data-step-gate x-show="isServiceRates" x-cloak>
         <x-admin.step title="Rates">

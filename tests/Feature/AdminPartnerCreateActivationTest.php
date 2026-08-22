@@ -143,7 +143,10 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertSee('Entity type', false)
             ->assertSee('Full name', false)
             ->assertSee('Choose Individual for a person', false)
-            ->assertSee('no trading name, BRELA, or TIN for an individual', false);
+            ->assertSee('no trading name, BRELA, or TIN for an individual', false)
+            ->assertSee('x-if="isCompany"', false)
+            ->assertSee('data-company-docs-step', false)
+            ->assertSee('Skip this step for an individual', false);
     }
 
     public function test_company_partner_create_form_does_not_default_to_individual(): void
@@ -153,7 +156,8 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.create', ['category' => 'insurance']))
             ->assertOk()
-            ->assertSee('Trading / company name', false);
+            ->assertSee('Trading / company name', false)
+            ->assertSee('Business documents', false);
     }
 
     public function test_admin_can_create_individual_valuer_without_company_fields(): void
