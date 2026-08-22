@@ -6,6 +6,8 @@
         $coverageAlerts = auth()->user()?->can('create', \App\Models\Vendor::class)
             ? app(\App\Services\PartnerCoverageRequestService::class)->staffAlerts()
             : collect();
+        $screeningCount = \App\Models\PartnerApplication::query()->screening()->count();
+        $awaitingCount = \App\Models\Partner::query()->where('status', 'inactive')->count();
     @endphp
     @if ($coverageAlerts->isNotEmpty())
         <div class="mb-6 space-y-2">
@@ -26,6 +28,27 @@
         @can('create', \App\Models\Vendor::class)
             <a href="{{ route('admin.partners.create') }}" class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">+ New partner</a>
         @endcan
+    </div>
+
+    <div class="mb-6 grid sm:grid-cols-2 gap-3">
+        <a href="{{ route('admin.partner-applications.index') }}"
+           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Applications to screen</p>
+                <p class="text-2xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($screeningCount) }}</p>
+                <p class="text-xs text-gray-500 mt-1">Approve to move them onto this hub.</p>
+            </div>
+            <span class="text-sm font-semibold text-brand">Open →</span>
+        </a>
+        <a href="{{ route('admin.partners.onboarding') }}"
+           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Awaiting activation</p>
+                <p class="text-2xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($awaitingCount) }}</p>
+                <p class="text-xs text-gray-500 mt-1">Approved partners who have not set a PIN yet.</p>
+            </div>
+            <span class="text-sm font-semibold text-brand">Open →</span>
+        </a>
     </div>
 
     <a href="{{ route('admin.partners.efficiency') }}"

@@ -34,7 +34,11 @@ class StaffDeskConsoleFeatureTest extends TestCase
             ->assertSee('Your dashboard', false)
             ->assertSee('Applications to screen', false)
             ->assertSee('Coverage gaps', false)
-            ->assertSee('Asset requests', false);
+            ->assertSee('Asset requests', false)
+            ->assertSee('Awaiting activation', false)
+            ->assertSee(route('admin.partner-applications.index'), false)
+            ->assertSee(route('admin.partners.onboarding'), false)
+            ->assertSee(route('admin.partners.index'), false);
     }
 
     public function test_partner_support_nav_is_the_partner_desk_only(): void
@@ -85,7 +89,7 @@ class StaffDeskConsoleFeatureTest extends TestCase
         $this->actingAs($user, 'admin')
             ->get(route('admin.partner-applications.index'))
             ->assertOk()
-            ->assertSee('Screen what the partner submitted', false)
+            ->assertSee('Screen what they submitted', false)
             ->assertSee('Kigoma Valuer', false)
             ->assertDontSee('Payouts', false);
 
@@ -100,7 +104,7 @@ class StaffDeskConsoleFeatureTest extends TestCase
             ->assertDontSee('Halt open tasks', false);
     }
 
-    public function test_approved_applications_do_not_show_a_screen_cta(): void
+    public function test_approved_applications_leave_the_queue_for_the_partners_hub(): void
     {
         $user = $this->partnerSupport();
         $partner = Partner::create([
@@ -122,19 +126,70 @@ class StaffDeskConsoleFeatureTest extends TestCase
             'partner_id' => $partner->id,
         ]);
 
+        $pending = PartnerApplication::create([
+            'type' => 'service',
+            'partner_category' => 'valuer',
+            'applicant_category' => 'individual',
+            'full_name' => 'Neema Valuer',
+            'email' => 'neema.valuer@example.com',
+            'phone' => '255763234568',
+            'business_name' => 'Neema Valuations',
+            'region' => 'Mbeya',
+            'status' => 'pending',
+        ]);
+
         $this->actingAs($user, 'admin')
             ->get(route('admin.partner-applications.index'))
             ->assertOk()
-            ->assertSee('John Mabuga', false)
-            ->assertSee('Approved', false)
-            ->assertSee('Open partner', false)
-            ->assertDontSee('>Screen</a>', false);
+            ->assertSee('Neema Valuer', false)
+            ->assertSee('Screen', false)
+            ->assertDontSee('jmabuga@example.com', false);
 
         $this->actingAs($user, 'admin')
-            ->get(route('admin.partners.show', $partner))
+            ->get(route('admin.partner-applications.index', ['status' => 'approved']))
+            ->assertRedirect(route('admin.partners.index'));
+
+        $response = $this->actingAs($user, 'admin')
+            ->put(route('admin.partner-applications.update', $pending), [
+                'status' => 'approved',
+            ]);
+
+        $pending->refresh();
+        $this->assertSame('approved', $pending->status);
+        $this->assertNotNull($pending->partner_id);
+        $response->assertRedirect(route('admin.partners.show', $pending->partner_id));
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.partner-applications.index'))
+            ->assertDontSee('neema.valuer@example.com', false);
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.partners.show', $pending->partner_id))
             ->assertOk()
+            ->assertSee('Neema Valuations', false)
             ->assertSee('Open dossier', false)
             ->assertDontSee('Open screening', false);
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertDontSee('neema.valuer@example.com', false)
+            ->assertSee('Neema Valuations', false)
+            ->assertSee('Awaiting activation', false)
+            ->assertSee(route('admin.partners.onboarding'), false);
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.partners.index'))
+            ->assertOk()
+            ->assertSee('Applications to screen', false)
+            ->assertSee('Awaiting activation', false)
+            ->assertSee('Neema Valuations', false);
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.partners.onboarding'))
+            ->assertOk()
+            ->assertSee('Awaiting activation', false)
+            ->assertSee('Neema Valuations', false);
     }
 
     public function test_officer_dashboard_is_screening_and_has_no_settings(): void

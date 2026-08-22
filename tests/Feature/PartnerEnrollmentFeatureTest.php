@@ -117,7 +117,7 @@ class PartnerEnrollmentFeatureTest extends TestCase
                 'status' => 'approved',
                 'admin_notes' => 'Looks good',
             ])
-            ->assertRedirect(route('admin.partner-applications.show', $application));
+            ->assertRedirect(route('admin.partners.show', $application->fresh()->partner_id));
 
         $application->refresh();
         $this->assertSame('approved', $application->status);

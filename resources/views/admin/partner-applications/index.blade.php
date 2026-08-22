@@ -1,5 +1,5 @@
 <x-admin.layout title="Partner applications" heading="" subheading="">
-    <x-admin.letterhead kicker="Partners" title="Partner applications" subtitle="Screen what the partner submitted — profile, coverage, identity, and documents. Approve creates their partner account." />
+    <x-admin.letterhead kicker="Partners" title="Partner applications" subtitle="Screen what they submitted. Approve creates the partner account and moves them to the Partners hub." />
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <a href="{{ route('admin.partners.index') }}" class="text-sm font-semibold text-brand hover:underline">← Partners hub</a>
         <div class="flex flex-wrap gap-2 text-xs">
@@ -14,7 +14,7 @@
                     {{ $label }}
                 </a>
             @endforeach
-            @foreach (['pending', 'needs_info', 'approved', 'rejected'] as $status)
+            @foreach (['pending', 'needs_info', 'rejected'] as $status)
                 <a href="{{ route('admin.partner-applications.index', array_filter(['type' => $filterType ?: null, 'status' => $status])) }}"
                    class="rounded-full px-3 py-1.5 font-semibold {{ ($filterStatus ?? '') === $status ? 'bg-brand text-white' : 'ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50' }}">
                     {{ ucfirst(str_replace('_', ' ', $status)) }}
@@ -80,8 +80,8 @@
                             <td class="px-4 py-3 text-right">
                                 @if (in_array($application->status, ['pending', 'needs_info'], true))
                                     <a href="{{ route('admin.partner-applications.show', $application) }}" class="text-xs font-semibold text-brand hover:underline">Screen</a>
-                                @elseif ($application->partner_id)
-                                    <a href="{{ route('admin.partners.show', $application->partner_id) }}" class="text-xs font-semibold text-brand hover:underline">Open partner</a>
+                                @else
+                                    <a href="{{ route('admin.partner-applications.show', $application) }}" class="text-xs font-semibold text-brand hover:underline">View</a>
                                 @endif
                             </td>
                         </tr>

@@ -4,6 +4,7 @@
     $actions = $dashboard['actions'] ?? [];
     $coverageAlerts = $dashboard['coverageAlerts'] ?? collect();
     $pendingApplications = $dashboard['pendingApplications'] ?? collect();
+    $awaitingActivation = $dashboard['awaitingActivation'] ?? collect();
 @endphp
 
 <section class="mb-8">
@@ -65,7 +66,7 @@
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Screening</p>
                 <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Partner applications</h2>
             </div>
-            <a href="{{ route('admin.partner-applications.index', ['status' => 'pending']) }}" class="text-xs font-semibold text-brand hover:underline">All applications →</a>
+            <a href="{{ route('admin.partner-applications.index') }}" class="text-xs font-semibold text-brand hover:underline">All applications →</a>
         </div>
         <ul class="divide-y divide-gray-100">
             @foreach ($pendingApplications as $application)
@@ -82,6 +83,35 @@
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $application->status === 'needs_info' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-900' }}">
                             {{ ucfirst(str_replace('_', ' ', $application->status)) }}
                         </span>
+                    </a>
+                </li>
+            @endforeach
+        </ul>
+    </section>
+@endif
+
+@if ($awaitingActivation->isNotEmpty())
+    <section class="mb-6 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Partners hub</p>
+                <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Awaiting activation</h2>
+            </div>
+            <a href="{{ route('admin.partners.onboarding') }}" class="text-xs font-semibold text-brand hover:underline">Open list →</a>
+        </div>
+        <ul class="divide-y divide-gray-100">
+            @foreach ($awaitingActivation as $partner)
+                <li>
+                    <a href="{{ route('admin.partners.show', $partner) }}" class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 hover:bg-brand-muted/20">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900 truncate">{{ $partner->name }}</p>
+                            <p class="text-xs text-gray-500 truncate">
+                                {{ $partner->vendor_number }}
+                                · {{ ucfirst(str_replace('_', ' ', (string) $partner->category)) }}
+                                · PIN not set
+                            </p>
+                        </div>
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-900">Inactive</span>
                     </a>
                 </li>
             @endforeach

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 return function (): void {
     Route::view('partners/all', 'admin.partners.all')->name('partners.all');
+    Route::view('partners/onboarding', 'admin.partners.applications')->name('partners.onboarding');
     Route::get('partners/applications', fn () => redirect()->route('admin.partner-applications.index'))
         ->name('partners.applications');
     Route::view('partners/gps-installers', 'admin.partners.gps-installers')->name('partners.gps-installers');

@@ -48,12 +48,19 @@ class StaffDashboardService
     public function partnerSupport(): array
     {
         $coverageAlerts = $this->coverage->staffAlerts();
-        $pendingApps = PartnerApplication::query()
+        $screeningApps = PartnerApplication::query()
+            ->screening()
             ->with('documents')
-            ->whereIn('status', ['pending', 'needs_info'])
             ->latest()
             ->limit(8)
             ->get();
+        $awaitingActivation = Vendor::query()
+            ->where('status', 'inactive')
+            ->latest()
+            ->limit(8)
+            ->get();
+        $screeningCount = PartnerApplication::query()->screening()->count();
+        $awaitingCount = Vendor::query()->where('status', 'inactive')->count();
 
         return [
             'kicker' => 'Partner support',
@@ -68,15 +75,15 @@ class StaffDashboardService
                 ],
                 [
                     'label' => 'Applications to screen',
-                    'value' => PartnerApplication::query()->whereIn('status', ['pending', 'needs_info'])->count(),
-                    'hint' => 'Profile, coverage, and documents',
-                    'url' => route('admin.partner-applications.index', ['status' => 'pending']),
+                    'value' => $screeningCount,
+                    'hint' => 'Approve to move them to the Partners hub',
+                    'url' => route('admin.partner-applications.index'),
                 ],
                 [
                     'label' => 'Awaiting activation',
-                    'value' => Vendor::query()->where('status', 'inactive')->count(),
-                    'hint' => 'Approved, PIN not set',
-                    'url' => route('admin.partners.index'),
+                    'value' => $awaitingCount,
+                    'hint' => 'Approved, PIN not set — on the Partners hub',
+                    'url' => route('admin.partners.onboarding'),
                 ],
                 [
                     'label' => 'Open partner tasks',
@@ -93,16 +100,18 @@ class StaffDashboardService
                 [
                     'label' => 'Active partners',
                     'value' => Vendor::query()->where('status', 'active')->count(),
-                    'hint' => 'Live on the roster',
+                    'hint' => 'Live on the Partners hub',
                     'url' => route('admin.partners.index'),
                 ],
             ],
             'coverageAlerts' => $coverageAlerts,
-            'pendingApplications' => $pendingApps,
+            'pendingApplications' => $screeningApps,
+            'awaitingActivation' => $awaitingActivation,
             'duties' => $this->partners->duties(),
             'actions' => [
                 ['Add partner', route('admin.partners.create'), 'gold'],
-                ['Partner applications', route('admin.partner-applications.index', ['status' => 'pending']), 'white'],
+                ['Partner applications', route('admin.partner-applications.index'), 'white'],
+                ['Partners hub', route('admin.partners.index'), 'white'],
                 ['Marketplace', route('admin.marketplace-assets.index'), 'white'],
                 ['Field & recovery', route('admin.recovery.assignments.index'), 'white'],
             ],

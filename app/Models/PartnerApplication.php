@@ -54,6 +54,16 @@ class PartnerApplication extends Model
         return $this->hasMany(PartnerApplicationDocument::class);
     }
 
+    public function scopeInQueue($query)
+    {
+        return $query->where('status', '!=', 'approved');
+    }
+
+    public function scopeScreening($query)
+    {
+        return $query->whereIn('status', ['pending', 'needs_info']);
+    }
+
     public function resolvedCategory(): string
     {
         if (filled($this->partner_category)) {

@@ -13,12 +13,17 @@ use Illuminate\View\View;
 
 class PartnerApplicationController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         $type = $request->query('type');
         $status = $request->query('status');
 
+        if ($status === 'approved') {
+            return redirect()->route('admin.partners.index');
+        }
+
         $applications = PartnerApplication::query()
+            ->inQueue()
             ->with(['documents', 'partner'])
             ->when($type === 'affiliate', fn ($q) => $q->where(function ($inner) {
                 $inner->where('type', 'affiliate')->orWhere('partner_category', 'affiliate');
@@ -98,8 +103,16 @@ class PartnerApplicationController extends Controller
                 default       => 'Partner application updated.',
             };
 
+        $partnerApplication = $partnerApplication->fresh('partner');
+
+        if ($partnerApplication->status === 'approved' && $partnerApplication->partner_id) {
+            return redirect()
+                ->route('admin.partners.show', $partnerApplication->partner_id)
+                ->with('status', $message);
+        }
+
         return redirect()
-            ->route('admin.partner-applications.show', $partnerApplication->fresh('partner'))
+            ->route('admin.partner-applications.show', $partnerApplication)
             ->with('status', $message);
     }
 }
