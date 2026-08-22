@@ -18,9 +18,9 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.create', ['category' => 'insurance']))
             ->assertOk()
-            ->assertSee('data-confirm-before-submit', false)
-            ->assertSee('Confirm &amp; activate', false)
-            ->assertSee('Activate account now', false);
+            ->assertSee('Create this partner?', false)
+            ->assertSee('partnerCreateConfirm', false)
+            ->assertDontSee('querySelector(`[name=', false);
     }
 
     public function test_admin_can_create_insurance_partner_and_activate_now(): void

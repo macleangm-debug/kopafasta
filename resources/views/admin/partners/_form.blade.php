@@ -322,7 +322,6 @@
                 </ul>
             </div>
             @if ($canNegotiateRates)
-            @if ($canNegotiateRates)
             <details class="md:col-span-2 rounded-xl border border-brand/15 bg-white p-4" @if(filled($serviceRateOverride) || filled(old('partner_cost', $r?->partner_cost)) || filled(old('markup_percent', $r?->markup_percent)) || filled(old('recovery_commission_percent', $r?->recovery_commission_percent)) || filled(old('recovery_markup_percent', $r?->recovery_markup_percent))) open @endif>
                 <summary class="cursor-pointer text-sm font-semibold text-gray-800">Optional partner override</summary>
                 <p class="mt-2 mb-4 text-xs text-gray-500">Only when this partner needs a negotiated rate different from Settings.</p>
@@ -334,13 +333,12 @@
                         <x-admin.input name="partner_cost" label="Override base price (TZS)" type="number" step="0.01" :value="$r?->partner_cost" help="Valuation fee, GPS device cost, or negotiated base." />
                     </div>
                     <x-admin.input name="markup_percent" label="Override markup (%)" type="number" step="0.01" :value="$r?->markup_percent" help="Leave blank to use the platform default (or none)." />
-                    <div x-show="recovery || isGps" class="contents">
+                    <div x-show="recovery || isGps" x-cloak class="md:col-span-2 grid md:grid-cols-2 gap-4">
                         <x-admin.input name="recovery_commission_percent" label="Override recovery commission (%)" type="number" step="0.01" :value="$r?->recovery_commission_percent" />
                         <x-admin.input name="recovery_markup_percent" label="Override company markup (%)" type="number" step="0.01" :value="$r?->recovery_markup_percent" />
                     </div>
                 </div>
             </details>
-            @endif
             @endif
         </x-admin.step>
     </div>

@@ -82,6 +82,7 @@
             </button>
         </div>
     </div>
+    <p data-wizard-error hidden class="text-sm text-red-700"></p>
 </div>
 
 @once
@@ -170,9 +171,23 @@
                 const backBtn = root.querySelector('[data-wizard-back]');
                 const nextBtn = root.querySelector('[data-wizard-next]');
                 const submitBtn = root.querySelector('[data-wizard-submit]');
+                const errorEl = root.querySelector('[data-wizard-error]');
                 const total = stepEls.length;
                 let step = 0;
                 const navButtons = [];
+
+                function setError(message) {
+                    if (! errorEl) {
+                        return;
+                    }
+                    if (! message) {
+                        errorEl.hidden = true;
+                        errorEl.textContent = '';
+                        return;
+                    }
+                    errorEl.hidden = false;
+                    errorEl.textContent = message;
+                }
 
                 allSteps.forEach(function (el) {
                     if (! stepEls.includes(el)) {
@@ -245,8 +260,13 @@
                         step = Math.max(0, stepEls.indexOf(owner));
                     }
                 }
+                const restore = parseInt(root.dataset.restoreStep || '', 10);
+                if (! Number.isNaN(restore) && restore >= 0 && restore < total && ! firstInvalid) {
+                    step = restore;
+                }
 
                 function validateCurrentStep() {
+                    setError('');
                     const current = stepEls[step];
                     if (! current) {
                         return true;
@@ -258,6 +278,9 @@
                         }
                         if (typeof field.checkValidity === 'function' && ! field.checkValidity()) {
                             field.reportValidity();
+                            if (typeof field.checkVisibility === 'function' && ! field.checkVisibility()) {
+                                setError(field.validationMessage || 'Please complete the required fields in this section.');
+                            }
                             return false;
                         }
                     }
@@ -346,8 +369,13 @@
                         if (! validateCurrentStep()) {
                             return;
                         }
+                        const form = root.closest('form');
+                        if (! form) {
+                            setError('Could not find the form to submit.');
+                            return;
+                        }
                         window.dispatchEvent(new CustomEvent('admin-wizard-confirm-submit', {
-                            detail: { form: root.closest('form'), wizard: root },
+                            detail: { form: form, wizard: root },
                         }));
                         return;
                     }

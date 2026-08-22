@@ -20,7 +20,7 @@
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 mb-6 max-w-2xl">
         <h3 class="text-sm font-semibold text-gray-900">Password</h3>
         <p class="mt-1 text-sm text-gray-500">Change the password you use to sign in to the console.</p>
-        <form method="POST" action="{{ route('admin.settings.account-security.password') }}" class="mt-4 space-y-4" autocomplete="off">
+        <form method="POST" action="{{ route('admin.settings.account-security.password') }}" class="mt-4 space-y-4" autocomplete="off" data-no-draft>
             @csrf
             <x-admin.input name="current_password" label="Current password" type="password" required autocomplete="current-password" />
             <x-admin.input name="password" label="New password" type="password" required autocomplete="new-password" help="At least 6 characters." />
@@ -133,6 +133,7 @@
             <form method="POST"
                   action="{{ route('admin.settings.account-security.regenerate') }}"
                   class="mt-4 max-w-md space-y-4"
+                  data-no-draft
                   x-show="confirming"
                   x-cloak>
                 @csrf
