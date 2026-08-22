@@ -189,7 +189,7 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
         $this->actingAs($analyst, 'admin')
             ->withSession(['two_factor_verified_at' => now()->timestamp])
             ->get(route('staff.dashboard'))
-            ->assertRedirect(route('admin.teams.screening'));
+            ->assertRedirect(route('admin.dashboard'));
     }
 
     public function test_staff_security_redirects_into_admin_account_security(): void

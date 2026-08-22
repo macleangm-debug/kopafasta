@@ -10,13 +10,22 @@ use App\Models\LoanTopUpRequest;
 use App\Models\RestructureRequest;
 use App\Services\CapitalPartnerMetricsService;
 use App\Services\LoanApplicationDraftService;
+use App\Services\StaffDashboardService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function __invoke()
+    public function __invoke(StaffDashboardService $desks)
     {
+        $user = auth()->user();
+        $desk = $desks->desk($user);
+        $dashboard = $desks->payload($user);
+
+        if ($desk !== 'operations') {
+            return view('admin.dashboard', compact('desk', 'dashboard'));
+        }
+
         $capitalMetrics = app(CapitalPartnerMetricsService::class);
         $capitalMetrics->reconcileDeployedBalances();
         $capital = $capitalMetrics->platformSummary();
@@ -69,7 +78,7 @@ class DashboardController extends Controller
             ->limit(8)
             ->get();
 
-        return view('admin.dashboard', compact('stats', 'recentApplications', 'capital'));
+        return view('admin.dashboard', compact('desk', 'dashboard', 'stats', 'recentApplications', 'capital'));
     }
 
     /** @return array{approved: int, rejected: int, withdrawn: int} */

@@ -7,13 +7,17 @@ use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
 use App\Models\MembershipHistory;
 use App\Models\PartnerApplication;
+use App\Models\User;
 use Illuminate\Support\Collection;
 
 class AdminAlertService
 {
     /** @return Collection<int, array{key: string, label: string, count: int, url: string, category: string}> */
-    public function alerts(): Collection
+    public function alerts(?User $user = null): Collection
     {
+        $user ??= auth()->user();
+        $canManagePartners = (bool) $user?->can('create', \App\Models\Vendor::class);
+
         $integrationAlerts = collect(app(\App\Services\Integrations\IntegrationHealthService::class)->unhealthyPartners())
             ->map(fn (array $item) => [
                 'key'      => 'integration_'.$item['key'],
@@ -77,7 +81,38 @@ class AdminAlertService
             ->concat($integrationAlerts)
             ->concat(app(PartnerCoverageRequestService::class)->staffAlerts());
 
-        return $items->filter(fn (array $item) => $item['count'] > 0)->values();
+        return $items->filter(fn (array $item) => $item['count'] > 0)
+            ->filter(fn (array $item) => $this->visibleTo($user, $item, $canManagePartners))
+            ->values();
+    }
+
+    /**
+     * @param  array{key?: string, category?: string}  $item
+     */
+    private function visibleTo(?User $user, array $item, bool $canManagePartners): bool
+    {
+        if (! $user) {
+            return ! str_starts_with($key, 'partner_coverage_') || $canManagePartners;
+        }
+
+        $key = (string) ($item['key'] ?? '');
+        $category = (string) ($item['category'] ?? '');
+
+        if (str_starts_with($key, 'partner_coverage_') && ! $canManagePartners) {
+            return false;
+        }
+
+        if (app(RoleService::class)->hasPermissionBypass($user)) {
+            return true;
+        }
+
+        return match ($user->role) {
+            'partner_support' => $category === 'partners',
+            'asset_manager' => in_array($category, ['marketplace', 'assets'], true),
+            'officer', 'credit_analyst' => in_array($category, ['loans', 'kyc', 'customers'], true),
+            'credit_committee', 'manager' => in_array($category, ['loans', 'kyc', 'customers'], true),
+            default => $category !== 'integrations' || $canManagePartners,
+        };
     }
 
     /** @return Collection<int, array{key: string, label: string, count: int, url: string, category: string}> */

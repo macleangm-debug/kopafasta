@@ -1,5 +1,11 @@
-<x-admin.layout title="Dashboard" heading="Operations dashboard" subheading="Credit pipeline, portfolio, and capital at a glance">
+<x-admin.layout
+    title="Dashboard"
+    :heading="($desk ?? 'operations') === 'operations' ? 'Operations dashboard' : ''"
+    :subheading="($desk ?? 'operations') === 'operations' ? 'Credit pipeline, portfolio, and capital at a glance' : ''">
 
+@if (($desk ?? 'operations') !== 'operations')
+    @include('admin.dashboards.desk', ['dashboard' => $dashboard])
+@else
     @php
         $stageRoute = [
             'submitted' => route('admin.loan-applications.new'),
@@ -306,5 +312,6 @@
             @endforeach
         </div>
     </div>
+@endif
 
 </x-admin.layout>

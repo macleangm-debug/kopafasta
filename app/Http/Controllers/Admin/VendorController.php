@@ -445,6 +445,10 @@ class VendorController extends ResourceController
         $openValuations = $deletion->openValuationAssignments($record);
         $recentTasks = $record->tasks()->orderByDesc('id')->limit(8)->get();
         $payouts = $record->payments()->latest()->limit(8)->get();
+        $enrollmentApplication = \App\Models\PartnerApplication::query()
+            ->where('partner_id', $record->id)
+            ->latest()
+            ->first();
         $affiliateStats = $record->isAffiliate()
             ? app(AffiliateService::class)->stats($record)
             : null;
@@ -469,6 +473,7 @@ class VendorController extends ResourceController
                 'openValuations' => $openValuations,
                 'recentTasks' => $recentTasks,
                 'payouts' => $payouts,
+                'enrollmentApplication' => $enrollmentApplication,
             ],
             $this->formData($record),
         ));

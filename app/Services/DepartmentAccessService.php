@@ -45,6 +45,10 @@ class DepartmentAccessService
 
     public function canAccessRoute(User $user, string $routeName): bool
     {
+        if ($this->isAlwaysAllowed($routeName)) {
+            return true;
+        }
+
         $prefixes = $this->allowedRoutePrefixes($user);
 
         if (in_array('*', $prefixes, true)) {
@@ -58,5 +62,11 @@ class DepartmentAccessService
         }
 
         return false;
+    }
+
+    private function isAlwaysAllowed(string $routeName): bool
+    {
+        return $routeName === 'admin.dashboard'
+            || str_starts_with($routeName, 'admin.settings.account-security');
     }
 }

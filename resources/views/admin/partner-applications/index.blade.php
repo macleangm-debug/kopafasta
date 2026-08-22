@@ -1,5 +1,5 @@
-<x-admin.layout title="Partner Applications" heading="" subheading="">
-    <x-admin.letterhead kicker="Partners" title="Partner applications" subtitle="Public partner enrollments awaiting review" />
+<x-admin.layout title="Partner applications" heading="" subheading="">
+    <x-admin.letterhead kicker="Partners" title="Partner applications" subtitle="Screen what the partner submitted — profile, coverage, identity, and documents. Approve creates their partner account." />
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <a href="{{ route('admin.partners.index') }}" class="text-sm font-semibold text-brand hover:underline">← Partners hub</a>
         <div class="flex flex-wrap gap-2 text-xs">
@@ -26,7 +26,7 @@
     @if ($applications->isEmpty())
         <x-site.empty-state
             icon="📝"
-            title="No partner applications found"
+            title="No applications to screen"
             description="No public enrollment applications match these filters yet." />
     @else
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
@@ -78,7 +78,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('admin.partner-applications.show', $application) }}" class="text-xs font-semibold text-brand hover:underline">Review</a>
+                                <a href="{{ route('admin.partner-applications.show', $application) }}" class="text-xs font-semibold text-brand hover:underline">Screen</a>
                             </td>
                         </tr>
                     @endforeach

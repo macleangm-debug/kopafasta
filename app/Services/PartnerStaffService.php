@@ -37,11 +37,12 @@ class PartnerStaffService
     public function duties(): array
     {
         return [
-            'Watch Alerts for “Partner needed in …” when screening has a file with no valuer, GPS installer, or insurer in that region.',
+            'Watch Alerts and the dashboard for “Partner needed in …” when screening has a file with no valuer, GPS installer, or insurer in that region.',
+            'Screen Partner applications: open the dossier and review everything they submitted (profile, coverage, identity, documents) before you approve.',
             'Open the coverage request and check existing partners first. If someone is based there or can take the work, add the region on their profile.',
             'Enroll a new partner only when nobody on the list fits. Set coverage, then portal access (invite, activate with PIN, or draft).',
             'Keep partner profiles current: phone, regions, rates, and portal PIN / activation.',
-            'Follow partner tasks (valuation, GPS, insurance) so waiting loan files auto-match after coverage is in place.',
+            'Look at Field & recovery and the asset marketplace so waiting jobs and listings stay matched.',
             'Do not screen, approve, or reject the loan. Open the credit file only to see why coverage was asked.',
         ];
     }

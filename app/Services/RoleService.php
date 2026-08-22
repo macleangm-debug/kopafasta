@@ -127,14 +127,7 @@ class RoleService
      */
     public function homeRoute(?User $user): string
     {
-        return match ($user?->role) {
-            'credit_analyst' => 'admin.teams.screening',
-            'officer' => 'admin.teams.screening',
-            'credit_committee' => 'admin.teams.committee',
-            'manager' => 'admin.teams.management',
-            'partner_support' => 'admin.teams.partners',
-            default => 'admin.dashboard',
-        };
+        return 'admin.dashboard';
     }
 
     public function hasPermissionBypass(User $user): bool

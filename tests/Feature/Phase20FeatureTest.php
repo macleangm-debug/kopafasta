@@ -64,7 +64,9 @@ class Phase20FeatureTest extends TestCase
         $this->assertContains('teams.partners', $prefixes);
         $this->assertContains('partners', $prefixes);
         $this->assertTrue($access->canAccessRoute($user->fresh(), 'admin.teams.partners'));
-        $this->assertSame('admin.teams.partners', app(\App\Services\RoleService::class)->homeRoute($user));
+        $this->assertTrue($access->canAccessRoute($user->fresh(), 'admin.dashboard'));
+        $this->assertTrue($access->canAccessRoute($user->fresh(), 'admin.partner-applications.index'));
+        $this->assertSame('admin.dashboard', app(\App\Services\RoleService::class)->homeRoute($user));
     }
 
     public function test_admin_asset_lending_settings_page_shows_monthly_rate_field(): void

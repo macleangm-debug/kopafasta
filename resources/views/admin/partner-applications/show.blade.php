@@ -103,7 +103,7 @@
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 pt-4 flex flex-wrap gap-1.5 border-b border-gray-100">
                     @foreach ([
-                        'applicant' => 'Applicant',
+                        'applicant' => 'Profile',
                         'business' => 'Business',
                         'identity' => 'Identity',
                         'documents' => 'Documents',
@@ -118,7 +118,7 @@
                 </div>
 
                 <div class="p-5 sm:p-6" x-show="tab === 'applicant'" x-cloak>
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">Applicant</p>
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">Profile</p>
                     <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                         <div>
                             <dt class="text-xs text-gray-500">Contact name</dt>
@@ -140,18 +140,19 @@
                             <dt class="text-xs text-gray-500">Partner category</dt>
                             <dd class="font-medium mt-0.5">{{ $applicant['category_label'] }}</dd>
                         </div>
-                        @if (($applicant['category'] ?? null) === 'debt_collector')
-                            <div class="sm:col-span-2">
-                                <dt class="text-xs text-gray-500">Service capabilities</dt>
-                                <dd class="mt-1 flex flex-wrap gap-2">
-                                    @foreach ($applicant['requested_roles'] ?? ['debt_collector'] as $role)
-                                        <span class="inline-flex items-center rounded-full bg-brand-muted px-2.5 py-1 text-xs font-semibold text-brand ring-1 ring-brand/15">
-                                            {{ $role === 'auctioneer' ? 'Auctioning' : 'Repossession' }}
-                                        </span>
-                                    @endforeach
-                                </dd>
-                            </div>
-                        @endif
+                        <div class="sm:col-span-2">
+                            <dt class="text-xs text-gray-500">Requested role{{ count($applicant['requested_roles'] ?? []) === 1 ? '' : 's' }}</dt>
+                            <dd class="mt-1 flex flex-wrap gap-2">
+                                @php $roleOptions = app(\App\Services\PartnerService::class)->roleOptions(); @endphp
+                                @forelse ($applicant['requested_roles'] ?? [] as $role)
+                                    <span class="inline-flex items-center rounded-full bg-brand-muted px-2.5 py-1 text-xs font-semibold text-brand ring-1 ring-brand/15">
+                                        {{ $roleOptions[$role] ?? ucfirst(str_replace('_', ' ', $role)) }}
+                                    </span>
+                                @empty
+                                    <span class="text-gray-500">{{ $applicant['category_label'] }}</span>
+                                @endforelse
+                            </dd>
+                        </div>
                         <div>
                             <dt class="text-xs text-gray-500">Primary region</dt>
                             <dd class="mt-0.5">{{ $applicant['region'] ?: '—' }}</dd>
@@ -167,6 +168,27 @@
                             <p class="text-sm text-gray-800 whitespace-pre-line">{{ $applicant['message'] }}</p>
                         </div>
                     @endif
+                    <div class="mt-5 pt-4 border-t border-gray-100">
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">Business on this application</p>
+                        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <dt class="text-xs text-gray-500">Trading name</dt>
+                                <dd class="font-medium mt-0.5">{{ $business['trading_name'] ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">Legal name</dt>
+                                <dd class="font-medium mt-0.5">{{ $business['legal_name'] ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">Registration / BRELA</dt>
+                                <dd class="mt-0.5">{{ $business['registration_number'] ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">TIN</dt>
+                                <dd class="mt-0.5">{{ $business['tin'] ?: '—' }}</dd>
+                            </div>
+                        </dl>
+                    </div>
                 </div>
 
                 <div class="p-5 sm:p-6" x-show="tab === 'business'" x-cloak>

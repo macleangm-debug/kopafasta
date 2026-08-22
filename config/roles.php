@@ -130,7 +130,7 @@ return [
             'user_form'          => true,
             'users_filter'       => true,
             'desk'               => 'PRT',
-            'duty'               => 'Enrolls partners, adds regional coverage, and activates portal access. Does not screen or decide loans.',
+            'duty'               => 'Screens partner applications, enrolls partners, adds regional coverage, and activates portal access. Does not screen or decide loans.',
             'api_capabilities'   => ['core'],
         ],
         'borrower' => [

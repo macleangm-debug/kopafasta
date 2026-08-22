@@ -30,7 +30,20 @@
     $openValuations = $openValuations ?? collect();
     $recentTasks = $recentTasks ?? collect();
     $taskRows = $openTasks->isNotEmpty() ? $openTasks : $recentTasks;
+    $enrollmentApplication = $enrollmentApplication ?? null;
 @endphp
+
+@if ($enrollmentApplication)
+    <a href="{{ route('admin.partner-applications.show', $enrollmentApplication) }}"
+       class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-muted/50 ring-1 ring-brand/15 px-5 py-4 hover:ring-brand/30">
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Enrollment dossier</p>
+            <p class="text-sm font-bold text-gray-900 mt-0.5">What this partner submitted</p>
+            <p class="text-xs text-gray-500 mt-1">Profile, coverage, identity, and documents from their application.</p>
+        </div>
+        <span class="text-sm font-semibold text-brand">Open screening →</span>
+    </a>
+@endif
 
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 {{ $openTasks->isNotEmpty() ? 'ring-amber-200' : 'ring-gray-200' }} p-6">
     <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
@@ -92,6 +105,7 @@
 </div>
 
 @php $payouts = $payouts ?? collect(); @endphp
+@if (auth()->user()?->hasPermission('finance.operations'))
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
@@ -128,6 +142,7 @@
         </ul>
     @endif
 </div>
+@endif
 
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <h3 class="text-sm font-semibold text-gray-700 mb-1">Portal PIN</h3>
