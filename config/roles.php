@@ -15,6 +15,8 @@ return [
             'policy_bypass'      => true,
             'user_form'          => true,
             'users_filter'       => true,
+            'desk'               => null,
+            'duty'               => 'Full console. Can enroll partners, assign desks, and hold any team combination.',
             'api_capabilities'   => ['core', 'reports', 'system', 'security', 'collections', 'support', 'audit'],
         ],
         'super_admin' => [
@@ -25,6 +27,8 @@ return [
             'policy_bypass'      => false,
             'user_form'          => true,
             'users_filter'       => true,
+            'desk'               => null,
+            'duty'               => 'Full console access. Branch policies still apply.',
             'api_capabilities'   => ['core', 'reports', 'system', 'collections', 'support', 'audit'],
         ],
         'manager' => [
@@ -35,6 +39,8 @@ return [
             'policy_bypass'      => false,
             'user_form'          => true,
             'users_filter'       => true,
+            'desk'               => 'CRM',
+            'duty'               => 'After committee approval: offer, fees, contract, and disbursement. Does not sit on Screening and Committee at once.',
             'api_capabilities'   => ['core', 'reports', 'system', 'collections', 'support'],
         ],
         'officer' => [
@@ -45,6 +51,8 @@ return [
             'policy_bypass'      => false,
             'user_form'          => true,
             'users_filter'       => true,
+            'desk'               => 'UND',
+            'duty'               => 'Screens loan files (documents, face, affordability). Does not enroll partners or sit on Committee.',
             'api_capabilities'   => ['core', 'reports'],
         ],
         'collector' => [
@@ -65,6 +73,8 @@ return [
             'policy_bypass'      => false,
             'user_form'          => true,
             'users_filter'       => true,
+            'desk'               => 'UND',
+            'duty'               => 'Screens and appraises applications before committee. Does not enroll partners or sit on Committee.',
             'api_capabilities'   => ['core', 'reports'],
         ],
         'credit_committee' => [
@@ -75,6 +85,8 @@ return [
             'policy_bypass'      => false,
             'user_form'          => true,
             'users_filter'       => true,
+            'desk'               => 'CRC',
+            'duty'               => 'Approves, counters, or rejects. Committee already owns the credit decision — no per-person approval limit.',
             'api_capabilities'   => ['core', 'reports'],
         ],
         'agent' => [
@@ -105,6 +117,8 @@ return [
             'policy_bypass'      => false,
             'user_form'          => true,
             'users_filter'       => true,
+            'desk'               => 'OPS',
+            'duty'               => 'Manages marketplace listings and borrower asset requests.',
             'api_capabilities'   => [],
         ],
         'partner_support' => [
@@ -115,6 +129,8 @@ return [
             'policy_bypass'      => false,
             'user_form'          => true,
             'users_filter'       => true,
+            'desk'               => 'PRT',
+            'duty'               => 'Enrolls partners, adds regional coverage, and activates portal access. Does not screen or decide loans.',
             'api_capabilities'   => ['core'],
         ],
         'borrower' => [

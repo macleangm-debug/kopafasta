@@ -943,6 +943,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('settings.account-security');
         Route::post('settings/account-security/recovery-codes', [\App\Http\Controllers\Admin\AccountSecurityController::class, 'regenerateRecoveryCodes'])
             ->name('settings.account-security.regenerate');
+        Route::post('settings/account-security/password', [\App\Http\Controllers\Admin\AccountSecurityController::class, 'changePassword'])
+            ->name('settings.account-security.password');
         Route::get('settings/auth-portal',      [SettingsController::class, 'authPortal'])   ->name('settings.auth-portal');
         Route::put('settings/auth-portal',      [SettingsController::class, 'saveAuthPortal'])->name('settings.auth-portal.save');
         Route::get('settings/integrations', [SettingsController::class, 'integrations'])->name('settings.integrations');

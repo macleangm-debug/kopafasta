@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Branch;
 use App\Models\Department;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +14,8 @@ class CreditDeskAssignmentService
     public const COMMITTEE_DEPT = 'CRC';
 
     public const MANAGEMENT_DEPT = 'CRM';
+
+    public const HEAD_OFFICE = 'HQ001';
 
     /** @var list<string> */
     public const SCREENING_ROLES = ['credit_analyst', 'officer'];
@@ -146,10 +149,121 @@ class CreditDeskAssignmentService
             ]);
         }
 
+        if ($role === 'partner_support' && $hasCommitteeDept) {
+            throw ValidationException::withMessages([
+                'department_ids' => 'Partner support cannot also join Committee. They enroll partners; they do not decide loans.',
+            ]);
+        }
+
         if ($isScreeningRole && $isCommitteeRole) {
             throw ValidationException::withMessages([
                 'role' => 'A user cannot hold both a screening role and a committee role.',
             ]);
         }
+    }
+
+    public function headOfficeBranchId(): ?int
+    {
+        $id = Branch::query()->where('code', self::HEAD_OFFICE)->value('id')
+            ?? Branch::query()->where('is_active', true)->orderBy('id')->value('id');
+
+        return $id ? (int) $id : null;
+    }
+
+    public function defaultDepartmentCode(string $role): ?string
+    {
+        return app(RoleService::class)->deskCode($role);
+    }
+
+    public function defaultDepartmentId(string $role): ?int
+    {
+        $code = $this->defaultDepartmentCode($role);
+        if (! $code) {
+            return null;
+        }
+
+        $id = Department::query()->where('code', $code)->value('id');
+
+        return $id ? (int) $id : null;
+    }
+
+    /**
+     * Role picks the desk. Extra teams from the form are kept, minus desks that conflict.
+     *
+     * @param  list<int>  $departmentIds
+     * @return list<int>
+     */
+    public function ensureDesk(string $role, array $departmentIds): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $departmentIds)));
+        $primary = $this->defaultDepartmentId($role);
+        if ($primary && ! in_array($primary, $ids, true)) {
+            $ids[] = $primary;
+        }
+
+        $blocked = $this->blockedExtraDepartmentCodes($role);
+        if ($blocked !== []) {
+            $blockedIds = Department::query()->whereIn('code', $blocked)->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $ids = array_values(array_filter($ids, fn (int $id) => ! in_array($id, $blockedIds, true) || $id === $primary));
+        }
+
+        return $ids;
+    }
+
+    public function primaryDepartmentId(string $role, array $departmentIds): ?int
+    {
+        return $this->defaultDepartmentId($role)
+            ?: (isset($departmentIds[0]) ? (int) $departmentIds[0] : null);
+    }
+
+    /**
+     * Department codes this role must not join (credit desk separation).
+     *
+     * @return list<string>
+     */
+    public function blockedExtraDepartmentCodes(string $role): array
+    {
+        if ($this->isExempt($role)) {
+            return [];
+        }
+
+        if (in_array($role, self::SCREENING_ROLES, true)) {
+            return [self::COMMITTEE_DEPT];
+        }
+
+        if (in_array($role, self::COMMITTEE_ROLES, true)) {
+            return [self::SCREENING_DEPT];
+        }
+
+        if ($role === PartnerStaffService::ROLE) {
+            return [self::SCREENING_DEPT, self::COMMITTEE_DEPT];
+        }
+
+        return [];
+    }
+
+    /**
+     * Optional extra teams shown on the user form (the home desk is assigned automatically).
+     *
+     * @return array<int, string>
+     */
+    public function extraTeamOptions(string $role): array
+    {
+        $homeId = $this->defaultDepartmentId($role);
+        $blocked = $this->blockedExtraDepartmentCodes($role);
+
+        return Department::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->reject(function (Department $department) use ($homeId, $blocked): bool {
+                if ($homeId && (int) $department->id === $homeId) {
+                    return true;
+                }
+
+                return in_array(strtoupper((string) $department->code), $blocked, true);
+            })
+            ->mapWithKeys(fn (Department $department) => [(int) $department->id => $department->name])
+            ->all();
     }
 }

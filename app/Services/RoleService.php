@@ -39,6 +39,18 @@ class RoleService
         return $labels[$role];
     }
 
+    public function duty(?string $role): string
+    {
+        return (string) ($this->definition($role)['duty'] ?? '');
+    }
+
+    public function deskCode(?string $role): ?string
+    {
+        $desk = $this->definition($role)['desk'] ?? null;
+
+        return is_string($desk) && $desk !== '' ? $desk : null;
+    }
+
     /** @return list<string> */
     public function consoleRoles(): array
     {

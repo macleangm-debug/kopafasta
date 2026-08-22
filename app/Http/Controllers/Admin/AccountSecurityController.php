@@ -7,6 +7,7 @@ use App\Services\RoleService;
 use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class AccountSecurityController extends Controller
@@ -44,5 +45,27 @@ class AccountSecurityController extends Controller
             ->route('admin.settings.account-security')
             ->with('status', 'New recovery codes generated. Save them now — they are shown only once.')
             ->with('fresh_recovery_codes', $codes);
+    }
+
+    public function changePassword(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $user = $request->user('admin');
+        if (! Hash::check($data['current_password'], $user->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($data['password']),
+            'password_changed_at' => now(),
+        ])->save();
+
+        return redirect()
+            ->route('admin.settings.account-security')
+            ->with('status', 'Password updated.');
     }
 }

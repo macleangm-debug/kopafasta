@@ -206,14 +206,17 @@ class LoanApplicationWorkflowService
             }
         }
 
-        if (in_array($to, ['pre_approval', 'approval', 'disbursement'], true) && ! in_array($user->role, ['admin', 'super_admin'], true)) {
-            $limit = (float) ($user->approval_limit ?? 0);
-            $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
+        if (in_array($to, ['pre_approval', 'approval', 'disbursement'], true)
+            && ! in_array($user->role, ['admin', 'super_admin', 'credit_committee'], true)) {
+            $limit = $user->approval_limit;
+            if ($limit !== null && (float) $limit > 0) {
+                $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
 
-            if ($amount > $limit) {
-                throw ValidationException::withMessages([
-                    'approval_limit' => 'Amount exceeds your approval limit of '.format_money($limit).'.',
-                ]);
+                if ($amount > (float) $limit) {
+                    throw ValidationException::withMessages([
+                        'approval_limit' => 'Amount exceeds your approval limit of '.format_money((float) $limit).'.',
+                    ]);
+                }
             }
         }
 
@@ -400,12 +403,14 @@ class LoanApplicationWorkflowService
             }
         }
 
-        if (in_array($toStage, ['pre_approval', 'approval', 'disbursement'], true) && ! in_array($user->role, ['admin', 'super_admin'], true)) {
-            $limit = (float) ($user->approval_limit ?? 0);
-            $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
-
-            if ($amount > $limit) {
-                throw ValidationException::withMessages(['approval_limit' => 'Approval limit exceeded.']);
+        if (in_array($toStage, ['pre_approval', 'approval', 'disbursement'], true)
+            && ! in_array($user->role, ['admin', 'super_admin', 'credit_committee'], true)) {
+            $limit = $user->approval_limit;
+            if ($limit !== null && (float) $limit > 0) {
+                $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
+                if ($amount > (float) $limit) {
+                    throw ValidationException::withMessages(['approval_limit' => 'Approval limit exceeded.']);
+                }
             }
         }
 

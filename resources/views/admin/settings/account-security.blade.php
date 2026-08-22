@@ -5,7 +5,7 @@
 <x-admin.layout
     title="Account security"
     heading="Account security"
-    subheading="Manage two-factor authentication for your own staff account"
+    subheading="Change your password and manage two-factor authentication"
 >
     @if ($canManageSettings ?? false)
         @include('admin.settings._tabs', ['active' => 'account-security'])
@@ -16,6 +16,20 @@
             {{ $errors->first() }}
         </div>
     @endif
+
+    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 mb-6 max-w-2xl">
+        <h3 class="text-sm font-semibold text-gray-900">Password</h3>
+        <p class="mt-1 text-sm text-gray-500">Change the password you use to sign in to the console.</p>
+        <form method="POST" action="{{ route('admin.settings.account-security.password') }}" class="mt-4 space-y-4" autocomplete="off">
+            @csrf
+            <x-admin.input name="current_password" label="Current password" type="password" required autocomplete="current-password" />
+            <x-admin.input name="password" label="New password" type="password" required autocomplete="new-password" help="At least 6 characters." />
+            <x-admin.input name="password_confirmation" label="Confirm new password" type="password" required autocomplete="new-password" />
+            <button type="submit" class="inline-flex justify-center rounded-lg bg-brand hover:bg-brand-light text-white font-semibold text-sm px-4 py-2.5">
+                Update password
+            </button>
+        </form>
+    </div>
 
     @if ($twoFactorOn)
         @if (session('two_factor_just_enabled'))

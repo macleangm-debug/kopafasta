@@ -16,10 +16,10 @@ class BranchSeeder extends Seeder
             ['code' => 'HQ001'],
             [
                 'name' => 'Head Office',
-                'region' => 'Central',
+                'region' => 'Dar es Salaam',
                 'phone' => '+255700000001',
                 'email' => 'hq@kopafasta.local',
-                'address' => 'Main Street, City Center',
+                'address' => 'Dar es Salaam',
                 'is_active' => true,
             ]
         );
