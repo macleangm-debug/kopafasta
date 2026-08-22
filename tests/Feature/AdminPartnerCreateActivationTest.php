@@ -132,4 +132,57 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertOk()
             ->assertSee('Create this partner?', false);
     }
+
+    public function test_valuer_create_form_defaults_to_individual_person_fields(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.create', ['category' => 'valuer']))
+            ->assertOk()
+            ->assertSee('Entity type', false)
+            ->assertSee('Full name', false)
+            ->assertSee('Choose Individual for a person', false)
+            ->assertSee('no trading name, BRELA, or TIN for an individual', false);
+    }
+
+    public function test_company_partner_create_form_does_not_default_to_individual(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.create', ['category' => 'insurance']))
+            ->assertOk()
+            ->assertSee('Trading / company name', false);
+    }
+
+    public function test_admin_can_create_individual_valuer_without_company_fields(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.store'), [
+                'name' => 'Rogathe Nyela',
+                'applicant_category' => 'individual',
+                'category' => 'valuer',
+                'status' => 'inactive',
+                'phone' => '255712345903',
+                'email' => 'rogathe@example.com',
+                'coverage_type' => 'nationwide',
+                'activation_mode' => 'draft',
+                'legal_name' => 'Should Be Cleared Ltd',
+                'registration_number' => 'BRELA-1',
+                'tin' => '123456789',
+            ])
+            ->assertRedirect();
+
+        $partner = Vendor::query()->where('name', 'Rogathe Nyela')->first();
+        $this->assertNotNull($partner);
+        $this->assertSame('individual', $partner->applicant_category);
+        $this->assertTrue($partner->isIndividualApplicant());
+        $this->assertNull($partner->legal_name);
+        $this->assertNull($partner->registration_number);
+        $this->assertNull($partner->tin);
+        $this->assertSame('Rogathe Nyela', $partner->contactPersonName());
+    }
 }

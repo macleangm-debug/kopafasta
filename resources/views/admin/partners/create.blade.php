@@ -20,7 +20,7 @@
         pin: '',
         pinConfirm: '',
         formError: '',
-        summary: { name: '', category: '', phone: '', email: '' },
+        summary: { name: '', category: '', entity: '', phone: '', email: '' },
         categoryLabels: @js($categories ?? []),
         fieldValue(form, name) {
             return form?.querySelector(`[name=\"${name}\"]`)?.value?.trim() || '';
@@ -40,9 +40,12 @@
         refreshSummary() {
             if (! this.form) return;
             const category = this.fieldValue(this.form, 'category');
+            const applicant = this.fieldValue(this.form, 'applicant_category');
+            const personType = ['valuer', 'affiliate'].includes(category);
             this.summary = {
                 name: this.fieldValue(this.form, 'name') || 'New partner',
                 category: this.categoryLabels[category] || category || 'Partner',
+                entity: personType ? (applicant === 'individual' ? 'Individual' : 'Company') : '',
                 phone: this.syncPhone(this.form) || '—',
                 email: this.fieldValue(this.form, 'email') || '—',
             };
@@ -158,7 +161,9 @@
             <div class="px-6 py-5 space-y-4">
                 <div class="rounded-2xl bg-brand-muted/50 ring-1 ring-brand/10 p-4 text-sm">
                     <p class="font-bold text-gray-900" x-text="summary.name"></p>
-                    <p class="text-gray-600 mt-0.5" x-text="summary.category"></p>
+                    <p class="text-gray-600 mt-0.5">
+                        <span x-text="summary.category"></span><span x-show="summary.entity" x-cloak x-text="' · ' + summary.entity"></span>
+                    </p>
                     <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
                         <div>
                             <dt class="text-gray-500">Phone (from Contact)</dt>

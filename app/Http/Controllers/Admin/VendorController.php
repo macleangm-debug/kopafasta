@@ -240,6 +240,10 @@ class VendorController extends ResourceController
             'doc_other' => 'other',
         ];
 
+        if ($partner->isIndividualApplicant() || $request->input('applicant_category') === 'individual') {
+            unset($map['doc_brela'], $map['doc_tin_certificate'], $map['doc_business_licence']);
+        }
+
         $merger = app(\App\Services\DocumentPageMerger::class);
 
         foreach ($map as $input => $docType) {
@@ -328,8 +332,16 @@ class VendorController extends ResourceController
 
     protected function transform(array $data, ?Model $existing = null): array
     {
+        $data = $this->normalizeApplicantCategory($data);
         $contactPerson = trim((string) ($data['contact_person_name'] ?? ''));
         $nationalId = trim((string) ($data['national_id'] ?? ''));
+
+        if (($data['applicant_category'] ?? '') === 'individual') {
+            $data['legal_name'] = null;
+            $data['registration_number'] = null;
+            $data['tin'] = null;
+            $contactPerson = trim((string) ($data['name'] ?? ''));
+        }
         $residence = array_filter([
             'region' => $data['address_region'] ?? null,
             'district' => $data['address_district'] ?? null,

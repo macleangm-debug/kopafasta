@@ -3,10 +3,13 @@
     $r = $record ?? null;
     $creating = (bool) ($creating ?? ($r === null));
     $category = old('category', $r?->category ?? ($defaultCategory ?? 'supplier'));
-    $applicantCategory = old('applicant_category', $r?->applicant_category ?? 'company');
+    $personTypes = ['affiliate', 'valuer'];
+    $fallbackApplicant = ($creating && $r === null && in_array($category, $personTypes, true))
+        ? 'individual'
+        : 'company';
+    $applicantCategory = old('applicant_category', $r?->applicant_category ?? $fallbackApplicant);
     $prefillRegion = old('regions') ? null : ($defaultRegion ?? request()->query('region'));
     $selectedRegions = old('regions', $r?->regions ?? (filled($prefillRegion) ? [(string) $prefillRegion] : []));
-    $personTypes = ['affiliate', 'valuer'];
     $defaultsService = app(\App\Services\PartnerDefaultsService::class);
     $policy = app(\App\Services\RecoveryPolicyService::class);
     $recoveryType = collect($policy->partnerTypes())->search(
@@ -82,6 +85,9 @@
             if (! ['debt_collector', 'auctioneer'].includes(value)) {
                 this.roles = value ? [value] : [];
             }
+            if (! this.personTypes.includes(value)) {
+                this.applicantCategory = 'company';
+            }
             $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild')));
         });
         $watch('applicantCategory', () => { $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))); });
@@ -104,7 +110,7 @@
 
         <div class="md:col-span-2" x-show="allowsPerson" x-cloak>
             <p class="text-xs font-semibold text-gray-700 mb-2">Entity type</p>
-            <p class="text-xs text-gray-500 mb-3">Affiliates and valuers may be an individual or a company. Other partner types are companies.</p>
+            <p class="text-xs text-gray-500 mb-3">Choose Individual for a person, or Company for a registered business. The next steps change to match — no trading name, BRELA, or TIN for an individual.</p>
             <div class="flex flex-wrap gap-4">
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800">
                     <input type="radio" name="applicant_category" value="company" x-model="applicantCategory" class="text-brand focus:ring-brand">
@@ -161,13 +167,31 @@
                 <p class="text-sm font-mono text-gray-900">{{ $r->vendor_number }}</p>
             </div>
         @endif
-        <x-admin.input name="name" label="Trading / company name" :value="$r?->name" required
-                       help="Company or trading name shown on the portal shell." />
+        <div>
+            <label for="name" class="block text-xs font-semibold text-gray-700 mb-1">
+                <span x-show="isIndividual" x-cloak>Full name</span>
+                <span x-show="isCompany" x-cloak>Trading / company name</span>
+                <span class="text-red-500">*</span>
+            </label>
+            <input
+                id="name"
+                name="name"
+                type="text"
+                value="{{ old('name', $r?->name) }}"
+                required
+                class="w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm px-3.5 py-2.5 placeholder:text-gray-400 hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 transition"
+            >
+            <p class="mt-1 text-xs text-gray-500" x-show="isIndividual" x-cloak>The person's name as it appears on their ID and on the portal.</p>
+            <p class="mt-1 text-xs text-gray-500" x-show="isCompany" x-cloak>Company or trading name shown on the portal shell.</p>
+            @error('name')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
 
-        <div x-show="isCompany" x-cloak class="contents">
-            <x-admin.input name="legal_name" label="Legal business name" :value="$r?->legal_name" />
-            <x-admin.input name="registration_number" label="BRELA / registration no." :value="$r?->registration_number" />
-            <x-admin.input name="tin" label="TIN" :value="$r?->tin" />
+        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5" x-show="isCompany" x-cloak>
+            <x-admin.input name="legal_name" label="Legal business name" :value="$r?->legal_name" x-bind:disabled="!isCompany" />
+            <x-admin.input name="registration_number" label="BRELA / registration no." :value="$r?->registration_number" x-bind:disabled="!isCompany" />
+            <x-admin.input name="tin" label="TIN" :value="$r?->tin" x-bind:disabled="!isCompany" />
         </div>
 
         @if ($creating)
@@ -206,19 +230,27 @@
         </x-admin.step>
     </div>
 
-    <x-admin.step title="Contact person">
+    <x-admin.step title="Contact">
         @php
             $residenceMeta = is_array($r?->metadata['residence'] ?? null) ? $r->metadata['residence'] : [];
             $contactPerson = old('contact_person_name', data_get($r?->metadata, 'contact_person.name'));
             $nationalId = old('national_id', data_get($r?->metadata, 'identity.national_id'));
         @endphp
+        <p class="md:col-span-2 text-xs text-gray-500" x-show="isIndividual" x-cloak>
+            Phone, email, NIDA, and address for this person. There is no separate company contact.
+        </p>
         <div class="md:col-span-2" x-show="isCompany" x-cloak>
             <x-admin.input name="contact_person_name" label="Contact person full name" :value="$contactPerson"
-                           help="Person who signs in / handles jobs — not the company trading name." />
+                           help="Person who signs in / handles jobs — not the company trading name."
+                           x-bind:disabled="!isCompany" />
         </div>
         <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" :required="$creating" />
         <x-admin.input name="email" label="Email" :value="$r?->email" type="email" />
-        <x-admin.input name="national_id" label="NIDA number" :value="$nationalId" help="20-digit National ID for the contact person / individual." />
+        <div>
+            <x-admin.input name="national_id" label="NIDA number" :value="$nationalId" />
+            <p class="mt-1 text-xs text-gray-500" x-show="isIndividual" x-cloak>20-digit National ID for this person.</p>
+            <p class="mt-1 text-xs text-gray-500" x-show="isCompany" x-cloak>20-digit National ID for the contact person (optional).</p>
+        </div>
         @if ($creating)
             <p class="md:col-span-2 text-xs text-gray-500 -mt-2">Phone is required so the partner can activate and sign in to the portal.</p>
         @endif
