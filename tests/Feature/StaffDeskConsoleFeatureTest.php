@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Department;
+use App\Models\Partner;
 use App\Models\PartnerApplication;
 use App\Models\User;
 use App\Services\ConsoleNavService;
@@ -97,6 +98,43 @@ class StaffDeskConsoleFeatureTest extends TestCase
             ->assertSee('Valuer', false)
             ->assertDontSee('Partner wallet lines', false)
             ->assertDontSee('Halt open tasks', false);
+    }
+
+    public function test_approved_applications_do_not_show_a_screen_cta(): void
+    {
+        $user = $this->partnerSupport();
+        $partner = Partner::create([
+            'vendor_number' => 'PT-APP-OK',
+            'name' => 'John Mabuga',
+            'category' => 'valuer',
+            'status' => 'active',
+        ]);
+        PartnerApplication::create([
+            'type' => 'service',
+            'partner_category' => 'valuer',
+            'applicant_category' => 'individual',
+            'full_name' => 'John Mabuga',
+            'email' => 'jmabuga@example.com',
+            'phone' => '255763234567',
+            'business_name' => 'John Mabuga',
+            'region' => 'Dodoma',
+            'status' => 'approved',
+            'partner_id' => $partner->id,
+        ]);
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.partner-applications.index'))
+            ->assertOk()
+            ->assertSee('John Mabuga', false)
+            ->assertSee('Approved', false)
+            ->assertSee('Open partner', false)
+            ->assertDontSee('>Screen</a>', false);
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.partners.show', $partner))
+            ->assertOk()
+            ->assertSee('Open dossier', false)
+            ->assertDontSee('Open screening', false);
     }
 
     public function test_officer_dashboard_is_screening_and_has_no_settings(): void

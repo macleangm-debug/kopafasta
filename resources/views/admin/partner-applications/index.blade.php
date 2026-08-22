@@ -78,7 +78,11 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('admin.partner-applications.show', $application) }}" class="text-xs font-semibold text-brand hover:underline">Screen</a>
+                                @if (in_array($application->status, ['pending', 'needs_info'], true))
+                                    <a href="{{ route('admin.partner-applications.show', $application) }}" class="text-xs font-semibold text-brand hover:underline">Screen</a>
+                                @elseif ($application->partner_id)
+                                    <a href="{{ route('admin.partners.show', $application->partner_id) }}" class="text-xs font-semibold text-brand hover:underline">Open partner</a>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

@@ -41,7 +41,7 @@
             <p class="text-sm font-bold text-gray-900 mt-0.5">What this partner submitted</p>
             <p class="text-xs text-gray-500 mt-1">Profile, coverage, identity, and documents from their application.</p>
         </div>
-        <span class="text-sm font-semibold text-brand">Open screening →</span>
+        <span class="text-sm font-semibold text-brand">Open dossier →</span>
     </a>
 @endif
 
