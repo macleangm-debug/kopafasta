@@ -4,7 +4,7 @@
 <x-admin.step title="Identity">
     <x-admin.input name="first_name"      label="First name"        :value="$r?->first_name" required />
     <x-admin.input name="last_name"       label="Last name"         :value="$r?->last_name"  required />
-    <x-admin.input name="national_id"     label="National ID"       :value="$r?->national_id" />
+    <x-admin.national-id-input name="national_id" :value="$r?->national_id" />
     <x-admin.input name="date_of_birth"   label="Date of birth"     :value="optional($r?->date_of_birth)->format('Y-m-d')" type="date" />
     <x-admin.input name="customer_number" label="Customer number"   :value="$r?->customer_number" placeholder="Auto-generated if blank" />
     <x-admin.select name="type"           label="Customer type"     :options="$types"        :value="$r?->type ?? 'individual'" required />

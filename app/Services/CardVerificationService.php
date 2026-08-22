@@ -347,13 +347,16 @@ class CardVerificationService
         }
 
         $membership = app(PartnerMembershipService::class);
+        $profileComplete = $partner ? app(PartnerProfileService::class)->isComplete($partner) : false;
         $verified = $partner
             && ($partner->status ?? '') === 'active'
-            && $membership->isActive($partner);
+            && $membership->isActive($partner)
+            && $profileComplete;
 
         $photoUrl = $partner
             ? app(PartnerProfileService::class)->frontPhotoUrl($partner)
             : null;
+        $isCompany = $partner && $partner->isCompanyApplicant();
 
         $statusColor = match (true) {
             $verified => 'green',
@@ -381,6 +384,10 @@ class CardVerificationService
             'id' => $partner?->partner_number ?? $normalized,
             'id_display' => $partner?->partner_number ?? $normalized,
             'name' => $partner?->name ? strtoupper((string) $partner->name) : null,
+            'legal_name' => $isCompany && filled($partner?->legal_name) ? (string) $partner->legal_name : null,
+            'registration_number' => $isCompany ? ($partner?->registration_number) : null,
+            'tin' => $isCompany ? ($partner?->tin) : null,
+            'is_company' => $isCompany,
             'role' => $role,
             'photo_url' => $photoUrl,
             'status_label' => $statusLabel,

@@ -18,8 +18,37 @@ class AffiliateMembershipAndVerifyTest extends TestCase
 
         $this->assertTrue($cfg['enabled']);
         $this->assertSame(50000.0, $cfg['fee_amount']);
+        $this->assertSame(25000.0, $cfg['fee_amount_individual']);
+        $this->assertSame(50000.0, $cfg['fee_amount_company']);
         $this->assertSame(48, $cfg['grace_period_hours']);
         $this->assertSame(365, $cfg['duration_days']);
+    }
+
+    public function test_individual_affiliates_pay_a_lower_annual_fee_than_companies(): void
+    {
+        $service = app(AffiliateMembershipService::class);
+
+        $individual = Vendor::query()->create([
+            'name' => 'Amina Juma',
+            'partner_number' => 'PTR-AFF-IND1',
+            'category' => 'affiliate',
+            'applicant_category' => 'individual',
+            'status' => 'active',
+            'phone' => '255710000111',
+        ]);
+        $company = Vendor::query()->create([
+            'name' => 'Juma Marketing Ltd',
+            'partner_number' => 'PTR-AFF-CO1',
+            'category' => 'affiliate',
+            'applicant_category' => 'company',
+            'status' => 'active',
+            'phone' => '255710000112',
+        ]);
+
+        $this->assertSame(25000.0, $service->feeFor($individual));
+        $this->assertSame(50000.0, $service->feeFor($company));
+        $this->assertSame(25000.0, $service->summary($individual)['fee']);
+        $this->assertSame(50000.0, $service->summary($company)['fee']);
     }
 
     public function test_activate_membership_unlocks_sharing(): void
@@ -109,7 +138,7 @@ class AffiliateMembershipAndVerifyTest extends TestCase
 
         $this->get(route('site.affiliate.verify.index'))
             ->assertOk()
-            ->assertSee('Look up an affiliate', false);
+            ->assertSee(__('site.affiliate_portal.verify_lookup_title'), false);
 
         $this->post(route('site.affiliate.verify.lookup'), [
             'phone' => '+255710000888',

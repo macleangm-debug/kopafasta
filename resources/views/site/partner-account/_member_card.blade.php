@@ -20,7 +20,9 @@
         $role = \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) ($category ?: 'Partner')));
     }
 
-    $verified = ($partner->status ?? '') === 'active' && $membership->isActive($partner);
+    $isCompany = $partner instanceof \App\Models\Partner && $partner->isCompanyApplicant();
+    $profileComplete = $profile->isComplete($partner);
+    $verified = ($partner->status ?? '') === 'active' && $membership->isActive($partner) && $profileComplete;
     $color = $verified ? 'green' : (($partner->status ?? '') === 'active' ? 'orange' : 'slate');
     $bgGradient = match ($color) {
         'green'  => 'from-[#0B3D32] via-[#127A5F] to-[#082f27]',
@@ -104,14 +106,25 @@
         </div>
 
         <div class="relative flex items-start gap-4">
-            @if ($photoUrl)
+            @if ($isCompany)
+                <div class="size-16 sm:size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/50 grid place-items-center shrink-0">
+                    <svg class="size-8 text-brand-gold" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/>
+                    </svg>
+                </div>
+            @elseif ($photoUrl)
                 <img src="{{ $photoUrl }}" alt="" class="size-16 sm:size-20 rounded-2xl object-cover ring-2 ring-brand-gold/50 shrink-0 bg-white/10">
             @else
                 <div class="size-16 sm:size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-xl font-bold shrink-0">{{ $initial }}</div>
             @endif
             <div class="min-w-0 pt-0.5 flex-1">
-                <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">{{ $role }}</p>
+                <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">
+                    {{ $role }}@if ($isCompany)<span class="ml-2 text-white/70">· {{ __('site.affiliate.type_company') }}</span>@endif
+                </p>
                 <h3 class="mt-1 text-lg sm:text-xl font-bold tracking-wide leading-tight break-words">{{ $name ?: '—' }}</h3>
+                @if ($isCompany && filled($partner->legal_name) && strcasecmp((string) $partner->legal_name, (string) $partner->name) !== 0)
+                    <p class="mt-0.5 text-xs text-white/75 leading-snug">{{ $partner->legal_name }}</p>
+                @endif
                 <button type="button" @click="copyId()" class="mt-2 font-mono text-sm text-white/90 hover:text-white tracking-wider">
                     {{ $partnerNumber }}
                     <span x-show="copied" x-cloak class="ml-2 text-[10px] uppercase tracking-wider text-brand-gold">{{ __('site.card_verify.copied') }}</span>
@@ -121,6 +134,23 @@
                 <img src="{{ $qrDataUri }}" alt="" class="size-16 sm:size-20 rounded-xl bg-white p-1 shrink-0 ring-1 ring-white/30">
             @endif
         </div>
+
+        @if ($isCompany && (filled($partner->registration_number) || filled($partner->tin)))
+            <div class="relative mt-4 grid grid-cols-2 gap-3 text-sm">
+                @if (filled($partner->registration_number))
+                    <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
+                        <p class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">BRELA</p>
+                        <p class="mt-1 font-semibold font-mono text-xs break-all">{{ $partner->registration_number }}</p>
+                    </div>
+                @endif
+                @if (filled($partner->tin))
+                    <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
+                        <p class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">TIN</p>
+                        <p class="mt-1 font-semibold font-mono text-xs break-all">{{ $partner->tin }}</p>
+                    </div>
+                @endif
+            </div>
+        @endif
 
         <div class="relative mt-4 grid grid-cols-2 gap-3 text-sm">
             <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">

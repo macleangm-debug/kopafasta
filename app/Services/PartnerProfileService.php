@@ -179,6 +179,36 @@ class PartnerProfileService
         $entity->refresh();
         if ($this->completionPercent($entity) >= 100) {
             \App\Support\Celebration::flashOne('profile_complete');
+            $this->finalizeRegistration($entity);
+        }
+    }
+
+    public function isComplete(Partner|Lender $entity): bool
+    {
+        return $this->completionPercent($entity) >= 100;
+    }
+
+    /**
+     * Portal login can exist before the card. The verification card goes live
+     * once the partner finishes profile (and pays membership when required).
+     */
+    private function finalizeRegistration(Partner|Lender $entity): void
+    {
+        if (! $entity instanceof Partner) {
+            return;
+        }
+
+        if (($entity->status ?? '') !== 'active') {
+            return;
+        }
+
+        if ($entity->isAffiliate()) {
+            return;
+        }
+
+        $membership = app(PartnerMembershipService::class);
+        if (! $membership->requiresPayment($entity) && ! $membership->isActive($entity)) {
+            $membership->activate($entity);
         }
     }
 
@@ -354,18 +384,25 @@ class PartnerProfileService
     private function saveIdentity(Partner|Lender $entity, Request $request): void
     {
         $data = $request->validate([
-            'national_id'           => ['nullable', 'string', 'max:30'],
+            'national_id'           => ['nullable', 'string', 'max:40'],
             'no_physical_nida_card' => ['nullable', 'boolean'],
             'national_id_front'     => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'national_id_back'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
+
+        if (filled($data['national_id'] ?? null) && ! \App\Support\NationalIdValidator::isValid($data['national_id'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'national_id' => \App\Support\NationalIdValidator::message(),
+            ]);
+        }
 
         $meta = $entity->metadata ?? [];
         $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
 
         // National ID is sensitive: allow first entry only, never overwrite once saved.
         if (filled($data['national_id'] ?? null) && blank($identity['national_id'] ?? null)) {
-            $identity['national_id'] = strtoupper(trim($data['national_id']));
+            $identity['national_id'] = \App\Support\NationalIdValidator::format($data['national_id'])
+                ?? strtoupper(trim($data['national_id']));
         }
 
         $identity['no_physical_nida_card'] = $request->boolean('no_physical_nida_card');

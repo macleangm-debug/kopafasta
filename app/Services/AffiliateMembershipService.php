@@ -9,21 +9,39 @@ use Illuminate\Support\Str;
 
 class AffiliateMembershipService
 {
-    /** @return array{enabled: bool, fee_amount: float, duration_days: int, grace_period_hours: int, required_before_sharing: bool} */
+    /** @return array{enabled: bool, fee_amount: float, fee_amount_individual: float, fee_amount_company: float, duration_days: int, grace_period_hours: int, required_before_sharing: bool} */
     public static function config(): array
     {
         $defaults = config('affiliates.membership', []);
         $stored = Setting::get('affiliates.membership');
 
         $merged = array_merge($defaults, is_array($stored) ? $stored : []);
+        $company = (float) ($merged['fee_amount_company'] ?? $merged['fee_amount'] ?? 50000);
+        $individual = (float) ($merged['fee_amount_individual'] ?? 25000);
 
         return [
             'enabled'                 => (bool) ($merged['enabled'] ?? true),
-            'fee_amount'              => (float) ($merged['fee_amount'] ?? 50000),
+            'fee_amount'              => $company,
+            'fee_amount_individual'   => $individual,
+            'fee_amount_company'      => $company,
             'duration_days'           => (int) ($merged['duration_days'] ?? 365),
             'grace_period_hours'      => (int) ($merged['grace_period_hours'] ?? 48),
             'required_before_sharing' => (bool) ($merged['required_before_sharing'] ?? true),
         ];
+    }
+
+    public function feeFor(Vendor|Partner $partner): float
+    {
+        $cfg = self::config();
+        if ($partner instanceof Partner && $partner->isIndividualApplicant()) {
+            return $cfg['fee_amount_individual'];
+        }
+
+        if (($partner->applicant_category ?? 'company') === 'individual') {
+            return $cfg['fee_amount_individual'];
+        }
+
+        return $cfg['fee_amount_company'];
     }
 
     public function isEnabled(): bool
@@ -182,7 +200,7 @@ class AffiliateMembershipService
         return [
             'status'     => $status,
             'label'      => $labels[$status] ?? $status,
-            'fee'        => $cfg['fee_amount'],
+            'fee'        => $this->feeFor($partner),
             'expires_at' => $partner->membership_expires_at,
             'due_at'     => $partner->membership_payment_due_at,
             'active'     => $this->isActive($partner),

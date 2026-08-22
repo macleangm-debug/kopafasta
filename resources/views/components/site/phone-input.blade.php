@@ -12,10 +12,16 @@
     'showErrors' => true,
     'lockedCountry' => null,
     'form' => null,
+    'allowCountryChange' => false,
 ])
 
 @php
-    $lockedCountry = $lockedCountry ? strtoupper((string) $lockedCountry) : null;
+    $allowCountryChange = filter_var($allowCountryChange, FILTER_VALIDATE_BOOLEAN);
+    if (! $allowCountryChange) {
+        $lockedCountry = strtoupper((string) ($lockedCountry ?: app(\App\Services\CountrySettingsService::class)->defaultCountryCode()));
+    } else {
+        $lockedCountry = $lockedCountry ? strtoupper((string) $lockedCountry) : null;
+    }
     $split = \App\Support\PhoneNumber::split($value, $lockedCountry);
     if ($lockedCountry) {
         $country = app(\App\Services\CountrySettingsService::class)->forCode($lockedCountry);
@@ -34,7 +40,7 @@
         $countries = app(\App\Services\CountrySettingsService::class)->forRegistration();
         $lockedPrefix = null;
     }
-    if ($help === null && ! $lockedCountry) {
+    if ($help === null) {
         $help = __('borrower.register.mobile_hint');
     }
     $selectClass = $selectClass ?? ($variant === 'rounded'

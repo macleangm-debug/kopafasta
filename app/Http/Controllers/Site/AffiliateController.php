@@ -123,6 +123,7 @@ class AffiliateController extends Controller
         $vendor = $this->affiliate();
         $service = app(\App\Services\AffiliateMembershipService::class);
         $cfg = \App\Services\AffiliateMembershipService::config();
+        $cfg['fee_amount'] = $service->feeFor($vendor);
 
         if (! $cfg['enabled']) {
             return redirect()->route('site.affiliate.settings');

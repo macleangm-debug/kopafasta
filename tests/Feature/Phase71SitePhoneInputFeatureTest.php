@@ -13,9 +13,10 @@ class Phase71SitePhoneInputFeatureTest extends TestCase
     {
         $this->get(route('site.partner.start'))
             ->assertOk()
-            ->assertSee('Phone number', false)
+            ->assertSee(__('site.feedback.phone'), false)
             ->assertSee('+255', false)
-            ->assertSee('Enter your number without the leading zero', false);
+            ->assertSee('data-phone-locked="1"', false)
+            ->assertSee(__('borrower.register.mobile_hint'), false);
     }
 
     public function test_borrower_registration_page_renders_country_phone_fields(): void
@@ -41,7 +42,8 @@ class Phase71SitePhoneInputFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Phone', false)
             ->assertSee('+255', false)
-            ->assertSee('Enter your number without the leading zero', false);
+            ->assertSee('data-phone-locked="1"', false)
+            ->assertSee(__('borrower.register.mobile_hint'), false);
     }
 
     public function test_capital_partner_registration_page_renders_phone_prefix_input(): void
@@ -57,6 +59,7 @@ class Phase71SitePhoneInputFeatureTest extends TestCase
         $this->get(route('site.affiliate.apply'))
             ->assertOk()
             ->assertSee('+255', false)
-            ->assertSee('Enter your number without the leading zero', false);
+            ->assertSee('data-phone-locked="1"', false)
+            ->assertSee(__('borrower.register.mobile_hint'), false);
     }
 }

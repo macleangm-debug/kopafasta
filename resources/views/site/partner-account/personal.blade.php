@@ -158,11 +158,13 @@
                     <input type="hidden" name="focus" value="identity">
                     <div>
                         <label class="block text-xs text-gray-600 mb-1">{{ __('site.partner_account.nida_number') }}</label>
-                        <input type="text" name="national_id" value="{{ old('national_id', $identity['national_id'] ?? '') }}"
-                               @if($nidaLocked) readonly @else required @endif
-                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm font-mono uppercase {{ $nidaLocked ? 'bg-gray-50 text-gray-500' : '' }}">
-                        <p class="text-[11px] text-gray-400 mt-1">{{ __('site.partner_account.nida_hint') }}</p>
-                        @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                        @if ($nidaLocked)
+                            <input type="text" name="national_id" value="{{ old('national_id', $identity['national_id'] ?? '') }}"
+                                   readonly
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm font-mono uppercase bg-gray-50 text-gray-500">
+                        @else
+                            <x-site.national-id-input name="national_id" :value="old('national_id', $identity['national_id'] ?? '')" required />
+                        @endif
                     </div>
                     <label class="flex items-start gap-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3 cursor-pointer">
                         <input type="checkbox" name="no_physical_nida_card" value="1" x-model="noCard"

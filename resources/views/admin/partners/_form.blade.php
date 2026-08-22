@@ -246,13 +246,11 @@
         </div>
         <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" :required="$creating" />
         <x-admin.input name="email" label="Email" :value="$r?->email" type="email" />
-        <div>
-            <x-admin.input name="national_id" label="NIDA number" :value="$nationalId" />
-            <p class="mt-1 text-xs text-gray-500" x-show="isIndividual" x-cloak>20-digit National ID for this person.</p>
-            <p class="mt-1 text-xs text-gray-500" x-show="isCompany" x-cloak>20-digit National ID for the contact person (optional).</p>
+        <div class="md:col-span-2">
+            <x-admin.national-id-input name="national_id" :value="$nationalId" />
         </div>
         @if ($creating)
-            <p class="md:col-span-2 text-xs text-gray-500 -mt-2">Phone is required so the partner can activate and sign in to the portal.</p>
+            <p class="md:col-span-2 text-xs text-gray-500 -mt-2">Phone is required so the partner can activate and sign in to the portal. Payout details and ID photos are completed by the partner after they sign in — the verification card goes live when their profile is finished.</p>
         @endif
         <div class="md:col-span-2 space-y-2">
             <p class="text-xs font-semibold text-gray-700">Address (region / district)</p>
@@ -268,37 +266,9 @@
         </div>
     </x-admin.step>
 
-    <x-admin.step title="Payout account">
-        @php $payout = is_array($r?->metadata['payout_account'] ?? null) ? $r->metadata['payout_account'] : []; @endphp
-        <div class="md:col-span-2" x-data="{ payoutType: @js(old('payout_type', $payout['type'] ?? 'mobile_money')) }">
-            <p class="text-xs text-gray-500 mb-3">Where approved partner payouts are sent. Partners can also update this under Profile → Payment.</p>
-            <div class="flex flex-wrap gap-4 mb-4 text-sm">
-                <label class="inline-flex items-center gap-2">
-                    <input type="radio" name="payout_type" value="mobile_money" x-model="payoutType" class="text-brand focus:ring-brand">
-                    Mobile money
-                </label>
-                <label class="inline-flex items-center gap-2">
-                    <input type="radio" name="payout_type" value="bank" x-model="payoutType" class="text-brand focus:ring-brand">
-                    Bank
-                </label>
-            </div>
-            <div class="grid md:grid-cols-2 gap-4">
-                <x-admin.input name="payout_account_name" label="Account name" :value="old('payout_account_name', $payout['account_name'] ?? '')" />
-                <div x-show="payoutType === 'mobile_money'" class="contents">
-                    <x-admin.input name="payout_mobile_provider" label="Provider (M-Pesa / Tigo / Airtel)" :value="old('payout_mobile_provider', $payout['mobile_provider'] ?? '')" />
-                    <x-admin.input name="payout_mobile_number" label="Mobile money number" :value="old('payout_mobile_number', $payout['mobile_number'] ?? '')" />
-                </div>
-                <div x-show="payoutType === 'bank'" class="contents">
-                    <x-admin.input name="payout_bank_name" label="Bank name" :value="old('payout_bank_name', $payout['bank_name'] ?? '')" />
-                    <x-admin.input name="payout_account_number" label="Account number" :value="old('payout_account_number', $payout['account_number'] ?? '')" />
-                </div>
-            </div>
-        </div>
-    </x-admin.step>
-
     <div data-step-gate x-show="isCompany" x-cloak>
         <x-admin.step title="Business documents">
-            <p class="md:col-span-2 text-xs text-gray-500">BRELA, TIN certificate, business licence. PDF or image, max 5MB each.</p>
+            <p class="md:col-span-2 text-xs text-gray-500">BRELA, TIN certificate, business licence. PDF or image, max 5MB each. National ID photos are uploaded by the partner on their portal.</p>
             @foreach ([
                 'doc_brela' => 'BRELA / company registration',
                 'doc_tin_certificate' => 'TIN certificate',
@@ -307,21 +277,6 @@
             ] as $input => $label)
                 <div class="md:col-span-2">
                     <x-admin.document-upload :name="$input" :label="$label" />
-                </div>
-            @endforeach
-        </x-admin.step>
-    </div>
-
-    <div data-step-gate x-show="isIndividual || isCompany" x-cloak>
-        <x-admin.step title="Identity documents">
-            <p class="md:col-span-2 text-xs text-gray-500" x-show="isIndividual">National ID for the individual partner.</p>
-            <p class="md:col-span-2 text-xs text-gray-500" x-show="isCompany">Optional registrant National ID.</p>
-            @foreach ([
-                'doc_national_id_front' => 'National ID (front)',
-                'doc_national_id_back' => 'National ID (back)',
-            ] as $input => $label)
-                <div class="md:col-span-2">
-                    <x-admin.document-upload :name="$input" :label="$label" :max-pages="4" />
                 </div>
             @endforeach
             @if ($r)

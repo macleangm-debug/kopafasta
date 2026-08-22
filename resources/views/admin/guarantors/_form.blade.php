@@ -4,7 +4,7 @@
 <x-admin.step title="Identity">
     <x-admin.input  name="first_name"   label="First name"   :value="$r?->first_name"  required />
     <x-admin.input  name="last_name"    label="Last name"    :value="$r?->last_name"   required />
-    <x-admin.input  name="national_id"  label="National ID"  :value="$r?->national_id" />
+    <x-admin.national-id-input name="national_id" :value="$r?->national_id" />
     <x-admin.select name="relationship" label="Relationship" :options="$relationships" :value="$r?->relationship" placeholder="— Select —" />
 </x-admin.step>
 

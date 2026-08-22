@@ -63,14 +63,25 @@
                     </div>
 
                     <div class="relative flex items-start gap-4">
-                        @if (! empty($result['photo_url']))
+                        @if (! empty($result['is_company']))
+                            <div class="size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/50 grid place-items-center shrink-0">
+                                <svg class="size-9 text-brand-gold" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/>
+                                </svg>
+                            </div>
+                        @elseif (! empty($result['photo_url']))
                             <img src="{{ $result['photo_url'] }}" alt="" class="size-20 rounded-2xl object-cover ring-2 ring-brand-gold/50 shrink-0">
                         @else
                             <div class="size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
                         @endif
                         <div class="min-w-0 pt-0.5">
-                            <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ $result['role'] ?? '' }}</p>
+                            <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">
+                                {{ $result['role'] ?? '' }}@if (! empty($result['is_company']))<span class="ml-2 text-white/70">· {{ __('site.affiliate.type_company') }}</span>@endif
+                            </p>
                             <h2 class="mt-1 text-xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h2>
+                            @if (! empty($result['legal_name']) && strcasecmp((string) $result['legal_name'], (string) $name) !== 0)
+                                <p class="mt-1 text-xs text-white/80">{{ $result['legal_name'] }}</p>
+                            @endif
                         </div>
                     </div>
 
@@ -88,6 +99,23 @@
                         <p class="text-[10px] uppercase tracking-[0.2em] text-white/55 mb-2">{{ __('site.card_verify.id_label') }}</p>
                         <p class="font-mono text-xl font-bold tracking-[0.12em] break-all">{{ $result['id_display'] ?? '—' }}</p>
                     </div>
+
+                    @if (! empty($result['is_company']) && (! empty($result['registration_number']) || ! empty($result['tin'])))
+                        <div class="relative mt-4 grid grid-cols-2 gap-3 text-sm">
+                            @if (! empty($result['registration_number']))
+                                <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
+                                    <p class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">BRELA</p>
+                                    <p class="mt-1 font-mono text-xs font-semibold break-all">{{ $result['registration_number'] }}</p>
+                                </div>
+                            @endif
+                            @if (! empty($result['tin']))
+                                <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
+                                    <p class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">TIN</p>
+                                    <p class="mt-1 font-mono text-xs font-semibold break-all">{{ $result['tin'] }}</p>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
 
                     @if (! empty($result['issued']) || ! empty($result['expires']) || $result['days_left'] !== null)
                         <div class="relative mt-4 grid grid-cols-3 gap-3">

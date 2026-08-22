@@ -60,6 +60,7 @@ class CountrySettingsService
             'phone_prefix'        => (string) ($merged['phone_prefix'] ?? '+255'),
             'national_id_label'   => (string) ($merged['national_id_label'] ?? 'National ID'),
             'national_id_format'  => (string) ($merged['national_id_format'] ?? 'alphanumeric'),
+            'national_id_groups'  => array_values(array_filter(array_map('intval', (array) ($merged['national_id_groups'] ?? [])))),
             'grace_period_days'   => max(0, (int) ($merged['grace_period_days'] ?? 2)),
             'repayment_ratio'     => round((float) $ratio, 4),
             'repayment_ratio_pct' => round((float) $ratio * 100, 2),

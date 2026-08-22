@@ -200,9 +200,7 @@
                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="M-Pesa / Tigo Pesa / Airtel Money">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.phone_number') }}</label>
-                            <input name="payout_mobile_number" value="{{ old('payout_mobile_number', $payout['mobile_number'] ?? $p->phone) }}"
-                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            <x-site.phone-input name="payout_mobile_number" :label="__('borrower.payment_details.phone_number')" :value="old('payout_mobile_number', $payout['mobile_number'] ?? $p->phone)" variant="rounded" />
                         </div>
                     </div>
                     <div x-show="type === 'bank'" class="grid sm:grid-cols-2 gap-4" x-cloak>

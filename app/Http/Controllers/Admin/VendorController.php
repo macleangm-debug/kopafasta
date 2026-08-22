@@ -46,7 +46,7 @@ class VendorController extends ResourceController
             'email'                          => ['nullable', 'email', 'max:150'],
             'address'                        => ['nullable', 'string', 'max:500'],
             'contact_person_name'            => ['nullable', 'string', 'max:150'],
-            'national_id'                    => ['nullable', 'string', 'max:30'],
+            'national_id'                    => ['nullable', 'string', 'max:40'],
             'address_region'                 => ['nullable', 'string', 'max:80'],
             'address_district'               => ['nullable', 'string', 'max:80'],
             'address_ward'                   => ['nullable', 'string', 'max:80'],
@@ -235,8 +235,6 @@ class VendorController extends ResourceController
             'doc_brela' => 'brela',
             'doc_tin_certificate' => 'tin_certificate',
             'doc_business_licence' => 'business_licence',
-            'doc_national_id_front' => 'national_id_front',
-            'doc_national_id_back' => 'national_id_back',
             'doc_other' => 'other',
         ];
 
@@ -335,6 +333,14 @@ class VendorController extends ResourceController
         $data = $this->normalizeApplicantCategory($data);
         $contactPerson = trim((string) ($data['contact_person_name'] ?? ''));
         $nationalId = trim((string) ($data['national_id'] ?? ''));
+        if ($nationalId !== '') {
+            if (! \App\Support\NationalIdValidator::isValid($nationalId)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'national_id' => \App\Support\NationalIdValidator::message(),
+                ]);
+            }
+            $nationalId = \App\Support\NationalIdValidator::format($nationalId) ?? $nationalId;
+        }
 
         if (($data['applicant_category'] ?? '') === 'individual') {
             $data['legal_name'] = null;

@@ -185,4 +185,19 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->assertNull($partner->tin);
         $this->assertSame('Rogathe Nyela', $partner->contactPersonName());
     }
+
+    public function test_create_form_omits_payout_and_nida_images_and_locks_phone_prefix(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.create', ['category' => 'valuer']))
+            ->assertOk()
+            ->assertDontSee('>Payout account<', false)
+            ->assertDontSee('National ID (front)', false)
+            ->assertSee('data-phone-locked="1"', false)
+            ->assertSee('+255', false)
+            ->assertSee('nida-boxes', false)
+            ->assertSee('verification card goes live', false);
+    }
 }

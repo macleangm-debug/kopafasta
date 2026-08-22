@@ -156,7 +156,7 @@
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
                 <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">Confirm &amp; activate</p>
                 <h3 class="text-xl font-bold mt-1">Create this partner?</h3>
-                <p class="text-sm text-white/75 mt-1">This is portal access for the new partner — not a staff notification.</p>
+                <p class="text-sm text-white/75 mt-1">They sign in, finish payout and ID photos on the portal, then the verification card goes live.</p>
             </div>
             <div class="px-6 py-5 space-y-4">
                 <div class="rounded-2xl bg-brand-muted/50 ring-1 ring-brand/10 p-4 text-sm">
@@ -186,7 +186,7 @@
                         <input type="radio" class="mt-1 text-brand focus:ring-brand" value="invite" x-model="mode">
                         <span>
                             <span class="block text-sm font-semibold text-gray-900">Prepare activation invite</span>
-                            <span class="block text-xs text-gray-500 mt-0.5">Partner activates later with their partner code + phone (recommended).</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">Partner activates later with their partner code + phone, then completes profile for the card (recommended).</span>
                         </span>
                     </label>
                     <label class="flex items-start gap-3 rounded-xl ring-1 ring-brand/15 bg-white px-4 py-3 cursor-pointer"

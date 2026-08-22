@@ -55,13 +55,26 @@ class CardVerificationFeatureTest extends TestCase
     {
         Partner::create([
             'name' => 'Dar Motors Ltd',
+            'legal_name' => 'Dar Motors Limited',
+            'registration_number' => 'BRELA-100',
+            'tin' => '100-200-300',
             'category' => 'supplier',
             'status' => 'active',
             'phone' => '255712340002',
+            'email' => 'dar-motors@example.com',
             'partner_number' => 'PT-SP-TZ-Z9Y8',
             'membership_status' => 'active',
             'membership_started_at' => now()->subMonth(),
             'membership_expires_at' => now()->addMonths(11),
+            'metadata' => [
+                'contact_person' => ['name' => 'Amina Juma'],
+                'identity' => [
+                    'national_id' => '19880101123456789012',
+                    'no_physical_nida_card' => true,
+                ],
+                'residence' => ['region' => 'Dar es Salaam', 'district' => 'Ilala'],
+                'payout_account' => ['type' => 'mobile_money', 'mobile_number' => '255712340002'],
+            ],
         ]);
 
         $response = $this->get(route('site.short.partner', ['partnerNo' => 'PTSPTZZ9Y8']));

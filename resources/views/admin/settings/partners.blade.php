@@ -7,7 +7,7 @@
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-6 space-y-4">
             <div>
                 <h3 class="text-sm font-semibold text-gray-900">Defaults</h3>
-                <p class="text-xs text-gray-500 mt-1">Affiliates use Affiliate settings (TZS 50,000 / year). Other partners default to one year after activation and can request renewal when expiry approaches.</p>
+                <p class="text-xs text-gray-500 mt-1">Affiliates use Affiliate settings (TZS 25,000 individual / TZS 50,000 company). Other partners get a membership window after they finish profile on the portal, and can request renewal when expiry approaches.</p>
             </div>
             <label class="inline-flex items-center gap-2 text-sm text-gray-800">
                 <input type="hidden" name="membership_enabled" value="0">
@@ -31,7 +31,7 @@
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-6 space-y-4">
             <div>
                 <h3 class="text-sm font-semibold text-gray-900">Who must pay</h3>
-                <p class="text-xs text-gray-500 mt-1">Tick partner types that must pay a membership fee (e.g. individual valuers). Unticked types still get a one-year membership window after activation and can request renewal.</p>
+                <p class="text-xs text-gray-500 mt-1">Tick a membership fee for each partner type. Affiliates use Affiliate settings (TZS 25,000 individual / TZS 50,000 company). Unticked types still get a one-year membership window after they finish their portal profile.</p>
             </div>
             <div class="space-y-3">
                 @foreach ($roles as $key => $label)

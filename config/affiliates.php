@@ -97,6 +97,8 @@ return [
     'membership' => [
         'enabled'                 => true,
         'fee_amount'              => 50000,
+        'fee_amount_individual'   => 25000,
+        'fee_amount_company'      => 50000,
         'duration_days'           => 365,
         'grace_period_hours'      => 48,
         'required_before_sharing' => true,

@@ -169,7 +169,7 @@
         <div class="rounded-xl ring-1 ring-gray-200 p-5 space-y-4">
             <div>
                 <h3 class="text-sm font-semibold text-gray-900">Affiliate membership</h3>
-                <p class="text-xs text-gray-500 mt-1">Annual fee paid through the standard payment gate before affiliates can share. Default {{ format_money(50000) }} / year with a {{ 48 }}-hour payment window.</p>
+                <p class="text-xs text-gray-500 mt-1">Annual fee paid through the standard payment gate before affiliates can share. Individuals pay {{ format_money(25000) }}; companies pay {{ format_money(50000) }} (defaults). Tick the checkbox to require the fee.</p>
             </div>
             @php $membership = $values['membership'] ?? []; @endphp
             <label class="inline-flex items-center gap-2 text-sm text-gray-800">
@@ -186,9 +186,11 @@
                        class="rounded border-gray-300 text-brand">
                 Block sharing until membership is paid
             </label>
-            <div class="grid md:grid-cols-3 gap-4">
-                <x-admin.input name="membership_fee_amount" label="Annual fee (TZS)" type="number" step="1000" min="0"
-                               :value="$membership['fee_amount'] ?? 50000" money />
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <x-admin.input name="membership_fee_amount_individual" label="Individual annual fee (TZS)" type="number" step="1000" min="0"
+                               :value="$membership['fee_amount_individual'] ?? 25000" money />
+                <x-admin.input name="membership_fee_amount_company" label="Company annual fee (TZS)" type="number" step="1000" min="0"
+                               :value="$membership['fee_amount_company'] ?? ($membership['fee_amount'] ?? 50000)" money />
                 <x-admin.input name="membership_duration_days" label="Duration (days)" type="number" min="1"
                                :value="$membership['duration_days'] ?? 365" />
                 <x-admin.input name="membership_grace_period_hours" label="Pay-within window (hours)" type="number" min="1"
