@@ -20,8 +20,10 @@
         ],
     ])
 
-    <form method="POST" action="{{ route('admin.settings.engagement.trust-score.save') }}" class="space-y-6">
-        @csrf @method('PUT')
+    <x-admin.settings-editor
+        action="{{ route('admin.settings.engagement.trust-score.save') }}"
+        submit-label="Save"
+    >
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 grid md:grid-cols-2 gap-4">
             <x-admin.input name="max_stars" label="Max stars" type="number" :value="$values['max_stars'] ?? 5" />
             @foreach (($values['weights'] ?? config('gamification.trust_score.weights')) as $key => $weight)
@@ -32,8 +34,5 @@
                     :value="implode(\"\\n\", $values['benefits'] ?? config('gamification.trust_score.benefits', []))" />
             </div>
         </div>
-        <div class="flex justify-end">
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg">Save</button>
-        </div>
-    </form>
+    </x-admin.settings-editor>
 </x-admin.layout>

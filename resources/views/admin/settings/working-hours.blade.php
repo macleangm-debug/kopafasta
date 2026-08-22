@@ -1,42 +1,44 @@
 <x-admin.layout title="Working hours" heading="Working hours" subheading="Office hours and Tanzania public holidays used for SLAs">
     @include('admin.settings._tabs', ['active' => 'working-hours'])
 
-@if ($errors->any())
+    @if ($errors->any())
         <div class="mb-4 rounded-lg bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-800">
             {{ $errors->first() }}
         </div>
     @endif
 
-    <form method="POST" action="{{ route('admin.settings.working-hours.save') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5 mb-6">
-        @csrf @method('PUT')
-        <div>
-            <p class="text-xs uppercase tracking-widest text-brand font-semibold">Office hours</p>
-            <p class="text-sm text-gray-600 mt-1">
-                Affiliate and disbursement SLAs count <strong>working hours</strong> only — Mon–Fri within these hours, closed on weekends and public holidays.
-                Example: “48 working hours” is about 6 office days (8 hours/day).
-            </p>
-        </div>
-        <div class="grid sm:grid-cols-2 gap-4">
-            <x-admin.input name="working_hours_start" label="Opens (HH:MM)" :value="$values['working_hours_start']" required />
-            <x-admin.input name="working_hours_end" label="Closes (HH:MM)" :value="$values['working_hours_end']" required />
-        </div>
-        <div>
-            <p class="text-sm font-medium text-gray-700 mb-2">Working days</p>
-            <div class="flex flex-wrap gap-3">
-                @foreach (['mon' => 'Mon', 'tue' => 'Tue', 'wed' => 'Wed', 'thu' => 'Thu', 'fri' => 'Fri', 'sat' => 'Sat', 'sun' => 'Sun'] as $key => $label)
-                    <label class="inline-flex items-center gap-2 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-sm">
-                        <input type="checkbox" name="working_weekdays[]" value="{{ $key }}"
-                               @checked(in_array($key, $values['working_weekdays'] ?? [], true))
-                               class="rounded border-gray-300 text-brand">
-                        {{ $label }}
-                    </label>
-                @endforeach
+    <x-admin.settings-editor
+        action="{{ route('admin.settings.working-hours.save') }}"
+        submit-label="Save working hours"
+        class="mb-6"
+    >
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
+            <div>
+                <p class="text-xs uppercase tracking-widest text-brand font-semibold">Office hours</p>
+                <p class="text-sm text-gray-600 mt-1">
+                    Affiliate and disbursement SLAs count <strong>working hours</strong> only — Mon–Fri within these hours, closed on weekends and public holidays.
+                    Example: “48 working hours” is about 6 office days (8 hours/day).
+                </p>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+                <x-admin.input name="working_hours_start" label="Opens (HH:MM)" :value="$values['working_hours_start']" required />
+                <x-admin.input name="working_hours_end" label="Closes (HH:MM)" :value="$values['working_hours_end']" required />
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-700 mb-2">Working days</p>
+                <div class="flex flex-wrap gap-3">
+                    @foreach (['mon' => 'Mon', 'tue' => 'Tue', 'wed' => 'Wed', 'thu' => 'Thu', 'fri' => 'Fri', 'sat' => 'Sat', 'sun' => 'Sun'] as $key => $label)
+                        <label class="inline-flex items-center gap-2 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-sm">
+                            <input type="checkbox" name="working_weekdays[]" value="{{ $key }}"
+                                   @checked(in_array($key, $values['working_weekdays'] ?? [], true))
+                                   class="rounded border-gray-300 text-brand">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
             </div>
         </div>
-        <div class="flex justify-end">
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save working hours</button>
-        </div>
-    </form>
+    </x-admin.settings-editor>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
         <div>

@@ -1,52 +1,60 @@
 <x-admin.layout title="Membership" heading="Membership Settings" subheading="Configure validity, renewals, grace period & reminders">
     @include('admin.settings._tabs', ['active' => 'membership'])
-<div class="mb-6">
+    <div class="mb-6">
         <a href="{{ route('admin.membership-payments.index') }}"
            class="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100">
             Review pending bank payments
         </a>
     </div>
-    <form method="POST" action="{{ route('admin.settings.membership.save') }}" class="space-y-6">
-        @csrf @method('PUT')
-
-        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-700 mb-4">Validity</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-admin.input name="duration_days" label="Membership duration (days)" type="number" :value="$values['duration_days'] ?? 365" required />
-                <x-admin.input name="max_expiry_years" label="Maximum expiry (years from issue)" type="number" :value="$values['max_expiry_years'] ?? 1" required />
+    <x-admin.settings-editor
+        action="{{ route('admin.settings.membership.save') }}"
+        submit-label="Save membership settings"
+        :tabs="[
+            'validity' => 'Validity',
+            'renewal' => 'Renewal',
+            'reminders' => 'Reminders',
+        ]"
+    >
+        <x-admin.settings-panel id="validity">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4">Validity</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <x-admin.input name="duration_days" label="Membership duration (days)" type="number" :value="$values['duration_days'] ?? 365" required />
+                    <x-admin.input name="max_expiry_years" label="Maximum expiry (years from issue)" type="number" :value="$values['max_expiry_years'] ?? 1" required />
+                </div>
             </div>
-        </div>
+        </x-admin.settings-panel>
 
-        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-700 mb-4">Renewal</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <x-admin.input name="registration_fee" label="Membership fee (first-time)" type="number" step="0.01" :value="$values['registration_fee'] ?? ($values['renewal_fee'] ?? 2000)" required />
-                <x-admin.input name="renewal_fee"       label="Renewal fee" type="number" step="0.01" :value="$values['renewal_fee'] ?? 2000" required />
-                <x-admin.input name="currency"          label="Currency (ISO 4217)" :value="$values['currency'] ?? 'TZS'" required />
-                <x-admin.input name="grace_period_days" label="Grace period (days)" type="number" :value="$values['grace_period_days'] ?? 14" required />
+        <x-admin.settings-panel id="renewal">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4">Renewal</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <x-admin.input name="registration_fee" label="Membership fee (first-time)" type="number" step="0.01" :value="$values['registration_fee'] ?? ($values['renewal_fee'] ?? 2000)" required />
+                    <x-admin.input name="renewal_fee"       label="Renewal fee" type="number" step="0.01" :value="$values['renewal_fee'] ?? 2000" required />
+                    <x-admin.input name="currency"          label="Currency (ISO 4217)" :value="$values['currency'] ?? 'TZS'" required />
+                    <x-admin.input name="grace_period_days" label="Grace period (days)" type="number" :value="$values['grace_period_days'] ?? 14" required />
+                </div>
+                <p class="mt-3 text-xs text-gray-500">
+                    Browse is open after login. Membership fee is required before applying for a loan.
+                    Grace period: after membership expires, members can still view dashboard & history for these days but cannot apply until they renew.
+                </p>
             </div>
-            <p class="mt-3 text-xs text-gray-500">
-                Browse is open after login. Membership fee is required before applying for a loan.
-                Grace period: after membership expires, members can still view dashboard & history for these days but cannot apply until they renew.
-            </p>
-        </div>
+        </x-admin.settings-panel>
 
-        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-700 mb-4">Reminder channels</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                @php $selected = $values['reminder_channels'] ?? ['sms','email']; @endphp
-                @foreach (['sms' => 'SMS', 'email' => 'Email', 'push' => 'Push', 'whatsapp' => 'WhatsApp'] as $key => $label)
-                    <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
-                        <input type="checkbox" name="reminder_channels[]" value="{{ $key }}" @checked(in_array($key, $selected)) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
-                        <span class="text-gray-800">{{ $label }}</span>
-                    </label>
-                @endforeach
+        <x-admin.settings-panel id="reminders">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4">Reminder channels</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    @php $selected = $values['reminder_channels'] ?? ['sms','email']; @endphp
+                    @foreach (['sms' => 'SMS', 'email' => 'Email', 'push' => 'Push', 'whatsapp' => 'WhatsApp'] as $key => $label)
+                        <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                            <input type="checkbox" name="reminder_channels[]" value="{{ $key }}" @checked(in_array($key, $selected)) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                            <span class="text-gray-800">{{ $label }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                <p class="mt-3 text-xs text-gray-500">Reminders are sent at 30, 14, 7 and 1 days before expiry.</p>
             </div>
-            <p class="mt-3 text-xs text-gray-500">Reminders are sent at 30, 14, 7 and 1 days before expiry.</p>
-        </div>
-
-        <div class="flex justify-end">
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save membership settings</button>
-        </div>
-    </form>
+        </x-admin.settings-panel>
+    </x-admin.settings-editor>
 </x-admin.layout>

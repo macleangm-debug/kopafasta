@@ -1435,7 +1435,15 @@ class SettingsController extends Controller
             'affiliates.minimum_payout_amount'               => (float) ($data['minimum_payout_amount'] ?? config('affiliates.minimum_payout_amount', 50000)),
         ]);
 
-        return back()->with('status', 'Affiliate settings saved.');
+        $tab = (string) $request->input('_tab', 'defaults');
+        $allowedTabs = ['defaults', 'commission', 'promo', 'membership', 'messages', 'evaluation', 'fraud'];
+        if (! in_array($tab, $allowedTabs, true)) {
+            $tab = 'defaults';
+        }
+
+        return redirect()
+            ->route('admin.settings.affiliates', ['tab' => $tab])
+            ->with('status', 'Affiliate settings saved.');
     }
 
     public function partners()

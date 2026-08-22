@@ -19,12 +19,19 @@
         ];
     @endphp
 
-    <form method="POST" action="{{ route('admin.settings.recovery.save') }}" class="space-y-5"
+    <form method="POST" action="{{ route('admin.settings.recovery.save') }}" class="space-y-5" novalidate
           x-data="{
               tab: @js($initialTab),
+              editing: @js($errors->any()),
               setTab(next) {
                   this.tab = next;
                   this.$dispatch('settings-help-set', { ns: 'recovery', key: next });
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('tab', next);
+                  history.replaceState({}, '', url);
+              },
+              cancelEdit() {
+                  window.location.assign(window.location.pathname + window.location.search);
               }
           }"
           @submit="document.getElementById('recovery_active_tab').value = tab">
@@ -62,13 +69,27 @@
                     <span class="ml-1 text-[11px] opacity-80">({{ $autoAssignBoardCount }})</span>
                 </button>
             </div>
-            <div class="ml-auto shrink-0">
+            <div class="ml-auto flex flex-wrap items-center gap-2 shrink-0">
                 <x-admin.settings-help-drawer
                     ns="recovery"
                     :pages="$recoveryHelpPages"
                     :initial-key="$initialTab" />
+                <button type="button" x-show="!editing" @click="editing = true"
+                        class="inline-flex items-center rounded-xl bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-light">
+                    Edit
+                </button>
+                <button type="button" x-show="editing" x-cloak @click="cancelEdit()"
+                        class="inline-flex items-center rounded-xl bg-white px-4 py-2 text-xs font-semibold text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" x-show="editing" x-cloak
+                        class="inline-flex items-center rounded-xl bg-brand-gold px-4 py-2 text-xs font-bold text-brand hover:brightness-95">
+                    Save recovery policy
+                </button>
             </div>
         </div>
+        <p class="text-xs text-gray-500" x-show="!editing" x-cloak>Read-only until you click Edit. All tabs save together.</p>
+        <fieldset :disabled="!editing" class="min-w-0 space-y-5 disabled:opacity-90">
 
         {{-- Tab 1: Timeline --}}
         <div x-show="tab === 'timeline'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
@@ -422,11 +443,6 @@
             @endforeach
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 sticky bottom-0 bg-gray-50/95 backdrop-blur py-3 border-t border-gray-200 -mx-1 px-1">
-            <p class="text-xs text-gray-500">Saving stores every tab at once (hidden tabs are still submitted).</p>
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-lg shadow-sm">
-                Save recovery policy
-            </button>
-        </div>
+        </fieldset>
     </form>
 </x-admin.layout>

@@ -1,9 +1,10 @@
 <x-admin.layout title="Chatbot content" heading="Support chatbot" subheading="Automated answers shown in the AI assistant — add FAQs as you learn what borrowers ask most">
     @include('admin.settings._tabs', ['active' => 'chatbot'])
 
-<form method="POST" action="{{ route('admin.settings.chatbot.save') }}" class="space-y-6">
-        @csrf @method('PUT')
-
+    <x-admin.settings-editor
+        action="{{ route('admin.settings.chatbot.save') }}"
+        submit-label="Save chatbot content"
+    >
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-2">
             <h3 class="text-sm font-semibold text-gray-800">How matching works</h3>
             <p class="text-sm text-gray-600 leading-relaxed">Keywords are comma-separated. The assistant matches user messages against keywords and responds with a short delay. Inactive entries are hidden. Suggested questions in chat come from active English/Swahili question fields (sorted by order).</p>
@@ -66,9 +67,5 @@
                 + Add entry
             </button>
         </div>
-
-        <div class="flex justify-end">
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm">Save chatbot content</button>
-        </div>
-    </form>
+    </x-admin.settings-editor>
 </x-admin.layout>

@@ -36,71 +36,83 @@
         if ($otherEvents->isNotEmpty()) {
             $sections[] = ['title' => 'Other group notices', 'hint' => '', 'events' => $otherEvents];
         }
+        $notificationTabs = [
+            'member' => 'Member',
+            'leader' => 'Leader',
+        ];
+        if ($otherEvents->isNotEmpty()) {
+            $notificationTabs['other'] = 'Other';
+        }
+        $sectionTabIds = [
+            'Member notices' => 'member',
+            'Leader notices' => 'leader',
+        ];
     @endphp
 
-    <form method="POST" action="{{ route('admin.settings.group-notifications.save') }}" class="space-y-6">
-        @csrf @method('PUT')
-
+    <x-admin.settings-editor
+        action="{{ route('admin.settings.group-notifications.save') }}"
+        submit-label="Save group notifications"
+        :tabs="$notificationTabs"
+    >
         @foreach ($sections as $section)
             @continue($section['events']->isEmpty())
-            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
-                <div class="px-6 py-3 border-b border-gray-100 bg-gray-50">
-                    <h3 class="text-sm font-semibold text-gray-800">{{ $section['title'] }}</h3>
-                    @if ($section['hint'] !== '')
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $section['hint'] }}</p>
-                    @endif
-                </div>
-                <div class="divide-y divide-gray-100">
-                    @foreach ($section['events'] as $event)
-                        @php
-                            $code = $event['code'];
-                            $row = $events[$code] ?? ['enabled' => $event['default_enabled'], 'channels' => $event['default_channels']];
-                            $selectedChannels = (array) ($row['channels'] ?? $event['default_channels']);
-                        @endphp
-                        <div class="px-6 py-4 grid lg:grid-cols-12 gap-3 items-start">
-                            <div class="lg:col-span-5">
-                                <label class="flex items-start gap-2 text-sm">
-                                    <input type="hidden" name="events[{{ $code }}][enabled]" value="0">
-                                    <input type="checkbox" name="events[{{ $code }}][enabled]" value="1"
-                                           @checked(! empty($row['enabled']))
-                                           class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
-                                    <span>
-                                        <span class="font-medium text-gray-900">{{ $event['name'] }}</span>
-                                        <span class="block text-xs text-gray-500 mt-0.5">{{ $event['description'] }}</span>
-                                        <span class="block text-[11px] font-mono text-gray-400 mt-1">{{ $code }}</span>
-                                    </span>
-                                </label>
-                            </div>
-                            <div class="lg:col-span-7 flex flex-wrap gap-2">
-                                @foreach ($channel_labels as $ch => $chLabel)
-                                    @php
-                                        $channelOn = ! empty($channel_flags[$ch]);
-                                    @endphp
-                                    <label class="inline-flex items-center gap-1.5 text-xs rounded-lg ring-1 px-2.5 py-1.5 {{ $channelOn ? 'ring-gray-200 bg-white' : 'ring-amber-200 bg-amber-50 text-amber-900' }}"
-                                           @unless($channelOn) title="Global channel is off under Transactional messaging" @endunless>
-                                        <input type="checkbox" name="events[{{ $code }}][channels][]" value="{{ $ch }}"
-                                               @checked(in_array($ch, $selectedChannels, true))
-                                               class="size-3.5 rounded border-gray-300 text-brand focus:ring-brand">
-                                        {{ $chLabel }}
-                                        @unless ($channelOn)
-                                            <span class="text-[10px] font-semibold uppercase tracking-wide">off</span>
-                                        @endunless
+            <x-admin.settings-panel :id="$sectionTabIds[$section['title']] ?? 'other'">
+                <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
+                    <div class="px-6 py-3 border-b border-gray-100 bg-gray-50">
+                        <h3 class="text-sm font-semibold text-gray-800">{{ $section['title'] }}</h3>
+                        @if ($section['hint'] !== '')
+                            <p class="text-xs text-gray-500 mt-0.5">{{ $section['hint'] }}</p>
+                        @endif
+                    </div>
+                    <div class="divide-y divide-gray-100">
+                        @foreach ($section['events'] as $event)
+                            @php
+                                $code = $event['code'];
+                                $row = $events[$code] ?? ['enabled' => $event['default_enabled'], 'channels' => $event['default_channels']];
+                                $selectedChannels = (array) ($row['channels'] ?? $event['default_channels']);
+                            @endphp
+                            <div class="px-6 py-4 grid lg:grid-cols-12 gap-3 items-start">
+                                <div class="lg:col-span-5">
+                                    <label class="flex items-start gap-2 text-sm">
+                                        <input type="hidden" name="events[{{ $code }}][enabled]" value="0">
+                                        <input type="checkbox" name="events[{{ $code }}][enabled]" value="1"
+                                               @checked(! empty($row['enabled']))
+                                               class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                                        <span>
+                                            <span class="font-medium text-gray-900">{{ $event['name'] }}</span>
+                                            <span class="block text-xs text-gray-500 mt-0.5">{{ $event['description'] }}</span>
+                                            <span class="block text-[11px] font-mono text-gray-400 mt-1">{{ $code }}</span>
+                                        </span>
                                     </label>
-                                @endforeach
+                                </div>
+                                <div class="lg:col-span-7 flex flex-wrap gap-2">
+                                    @foreach ($channel_labels as $ch => $chLabel)
+                                        @php
+                                            $channelOn = ! empty($channel_flags[$ch]);
+                                        @endphp
+                                        <label class="inline-flex items-center gap-1.5 text-xs rounded-lg ring-1 px-2.5 py-1.5 {{ $channelOn ? 'ring-gray-200 bg-white' : 'ring-amber-200 bg-amber-50 text-amber-900' }}"
+                                               @unless($channelOn) title="Global channel is off under Transactional messaging" @endunless>
+                                            <input type="checkbox" name="events[{{ $code }}][channels][]" value="{{ $ch }}"
+                                                   @checked(in_array($ch, $selectedChannels, true))
+                                                   class="size-3.5 rounded border-gray-300 text-brand focus:ring-brand">
+                                            {{ $chLabel }}
+                                            @unless ($channelOn)
+                                                <span class="text-[10px] font-semibold uppercase tracking-wide">off</span>
+                                            @endunless
+                                        </label>
+                                    @endforeach
+                                </div>
                             </div>
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
                 </div>
-            </div>
+            </x-admin.settings-panel>
         @endforeach
+    </x-admin.settings-editor>
 
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <a href="{{ route('admin.settings.engagement.notifications') }}" class="text-sm font-semibold text-brand hover:underline">
-                Inbox category filters (Engagement) →
-            </a>
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-lg shadow-sm">
-                Save group notifications
-            </button>
-        </div>
-    </form>
+    <div class="mt-4">
+        <a href="{{ route('admin.settings.engagement.notifications') }}" class="text-sm font-semibold text-brand hover:underline">
+            Inbox category filters (Engagement) →
+        </a>
+    </div>
 </x-admin.layout>

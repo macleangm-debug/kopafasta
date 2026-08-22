@@ -42,8 +42,10 @@
         ],
     ])
 
-    <form method="POST" action="{{ route('admin.settings.engagement.repayment-streak.save') }}" class="space-y-6">
-        @csrf @method('PUT')
+    <x-admin.settings-editor
+        action="{{ route('admin.settings.engagement.repayment-streak.save') }}"
+        submit-label="Save"
+    >
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 grid md:grid-cols-2 gap-4">
             <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="enabled" value="1" @checked($values['enabled'] ?? true)> Enabled</label>
             <x-admin.input name="reward_label" label="Reward label" :value="$values['reward_label'] ?? 'Repayment streak points'" />
@@ -61,9 +63,5 @@
                 @endforeach
             </div>
         </div>
-
-        <div class="flex justify-end">
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg">Save</button>
-        </div>
-    </form>
+    </x-admin.settings-editor>
 </x-admin.layout>

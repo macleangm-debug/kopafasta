@@ -18,8 +18,10 @@
         ],
     ])
 
-    <form method="POST" action="{{ route('admin.settings.engagement.milestones.save') }}" class="space-y-6">
-        @csrf @method('PUT')
+    <x-admin.settings-editor
+        action="{{ route('admin.settings.engagement.milestones.save') }}"
+        submit-label="Save"
+    >
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-4">
             @foreach ($milestones as $i => $milestone)
                 <div class="grid md:grid-cols-2 gap-3 pb-4 border-b border-gray-100 last:border-0">
@@ -33,8 +35,5 @@
                 </div>
             @endforeach
         </div>
-        <div class="flex justify-end">
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg">Save</button>
-        </div>
-    </form>
+    </x-admin.settings-editor>
 </x-admin.layout>
