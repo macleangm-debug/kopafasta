@@ -53,7 +53,7 @@
     <x-admin.input name="deposit_percent" label="Deposit (% of asset value)" type="number" step="0.01" min="0.01" max="100"
                    :value="$depositPercent" required data-preview-field="deposit_percent" @input="refresh($event)" />
     <p class="md:col-span-2 text-xs text-gray-500">
-        Platform markup from Settings → Asset lending
+        Platform deposit markup
         (<strong>{{ rtrim(rtrim(number_format($markupPercent, 2), '0'), '.') }}%</strong>)
         is added on top of the supplier deposit. Weekly installment is calculated during loan processing.
     </p>

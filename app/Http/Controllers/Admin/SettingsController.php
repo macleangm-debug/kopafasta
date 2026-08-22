@@ -1332,6 +1332,11 @@ class SettingsController extends Controller
             'eval_duplicate_ip_threshold'         => ['nullable', 'integer', 'min:1', 'max:100'],
             'eval_low_conversion_threshold'       => ['nullable', 'numeric', 'min:0', 'max:100'],
             'eval_high_click_threshold'           => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'eval_monthly_registration_target'    => ['nullable', 'integer', 'min:0', 'max:10000'],
+            'eval_volume_min_active_days'         => ['nullable', 'integer', 'min:0', 'max:365'],
+            'eval_volume_misses_before_nudge'     => ['nullable', 'integer', 'min:1', 'max:12'],
+            'eval_volume_misses_before_watchlist' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'eval_volume_misses_before_suspend'   => ['nullable', 'integer', 'min:1', 'max:12'],
             'fraud_medium_score'                  => ['nullable', 'integer', 'min:0', 'max:100'],
             'fraud_high_score'                    => ['nullable', 'integer', 'min:0', 'max:100'],
             'fraud_blocked_score'                 => ['nullable', 'integer', 'min:0', 'max:100'],
@@ -1387,6 +1392,11 @@ class SettingsController extends Controller
                 'duplicate_ip_registration_threshold' => (int) ($data['eval_duplicate_ip_threshold'] ?? 3),
                 'low_conversion_threshold'            => (float) ($data['eval_low_conversion_threshold'] ?? 5),
                 'high_click_threshold'                => (int) ($data['eval_high_click_threshold'] ?? 50),
+                'monthly_registration_target'         => (int) ($data['eval_monthly_registration_target'] ?? 10),
+                'volume_min_active_days'              => (int) ($data['eval_volume_min_active_days'] ?? 30),
+                'volume_misses_before_nudge'          => (int) ($data['eval_volume_misses_before_nudge'] ?? 1),
+                'volume_misses_before_watchlist'      => (int) ($data['eval_volume_misses_before_watchlist'] ?? 2),
+                'volume_misses_before_suspend'        => (int) ($data['eval_volume_misses_before_suspend'] ?? 3),
             ],
             'affiliates.fraud'                               => [
                 'medium_score'                         => (int) ($data['fraud_medium_score'] ?? 20),
@@ -1472,6 +1482,57 @@ class SettingsController extends Controller
         ]);
 
         return back()->with('status', 'Partner membership settings saved.');
+    }
+
+    public function partnerPerformance()
+    {
+        abort_unless(request()->user()?->hasPermission('settings.manage'), 403);
+
+        return view('admin.settings.partner-performance', [
+            'values' => app(\App\Services\PartnerEfficiencyPolicy::class)->settings(),
+            'categories' => app(\App\Services\PartnerEfficiencyPolicy::class)->fieldCategories(),
+        ]);
+    }
+
+    public function savePartnerPerformance(Request $request)
+    {
+        abort_unless(request()->user()?->hasPermission('settings.manage'), 403);
+
+        $data = $request->validate([
+            'min_jobs_for_score' => ['required', 'integer', 'min:1', 'max:50'],
+            'strong_score' => ['required', 'integer', 'min:1', 'max:100'],
+            'watch_score' => ['required', 'integer', 'min:1', 'max:99'],
+            'force_at_risk_escalation_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'force_at_risk_fail_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'weight_completion' => ['required', 'integer', 'min:0', 'max:100'],
+            'weight_on_time' => ['required', 'integer', 'min:0', 'max:100'],
+            'weight_not_escalated' => ['required', 'integer', 'min:0', 'max:100'],
+            'weight_not_failed' => ['required', 'integer', 'min:0', 'max:100'],
+            'warnings_before_suspend' => ['required', 'integer', 'min:1', 'max:12'],
+            'nudge_cooldown_days' => ['required', 'integer', 'min:1', 'max:90'],
+            'auto_nudge' => ['nullable', 'boolean'],
+            'auto_suspend' => ['nullable', 'boolean'],
+        ]);
+
+        Setting::setMany([
+            'partners.efficiency' => [
+                'min_jobs_for_score' => (int) $data['min_jobs_for_score'],
+                'strong_score' => (int) $data['strong_score'],
+                'watch_score' => (int) $data['watch_score'],
+                'force_at_risk_escalation_percent' => (float) $data['force_at_risk_escalation_percent'],
+                'force_at_risk_fail_percent' => (float) $data['force_at_risk_fail_percent'],
+                'weight_completion' => (int) $data['weight_completion'],
+                'weight_on_time' => (int) $data['weight_on_time'],
+                'weight_not_escalated' => (int) $data['weight_not_escalated'],
+                'weight_not_failed' => (int) $data['weight_not_failed'],
+                'warnings_before_suspend' => (int) $data['warnings_before_suspend'],
+                'nudge_cooldown_days' => (int) $data['nudge_cooldown_days'],
+                'auto_nudge' => $request->boolean('auto_nudge'),
+                'auto_suspend' => $request->boolean('auto_suspend'),
+            ],
+        ]);
+
+        return back()->with('status', 'Partner performance settings saved.');
     }
 
     public function countries(Request $request)

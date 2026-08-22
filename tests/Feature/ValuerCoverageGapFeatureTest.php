@@ -444,15 +444,15 @@ class ValuerCoverageGapFeatureTest extends TestCase
         $this->actingAs($support, 'admin')
             ->get(route('admin.teams.partners'))
             ->assertOk()
-            ->assertSee('Partner support duties', false)
-            ->assertSee('Do not screen, approve, or reject the loan', false);
+            ->assertDontSee('Partner support duties', false)
+            ->assertDontSee('Do not screen, approve, or reject the loan', false);
 
         $this->actingAs($support, 'admin')
             ->get(route('admin.partners.coverage-request', $application).'?category=valuer')
             ->assertOk()
             ->assertSee('Partner needed in Kigoma', false)
-            ->assertSee('Partner support duties', false)
+            ->assertDontSee('Partner support duties', false)
             ->assertSee('Open new-partner form', false)
-            ->assertSee('Do not screen, approve, or reject the loan', false);
+            ->assertDontSee('Do not screen, approve, or reject the loan', false);
     }
 }

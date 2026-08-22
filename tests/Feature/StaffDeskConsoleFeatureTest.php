@@ -51,6 +51,7 @@ class StaffDeskConsoleFeatureTest extends TestCase
 
         $this->assertContains('admin.partners.index', $partnerRoutes);
         $this->assertContains('admin.partner-applications.index', $partnerRoutes);
+        $this->assertContains('admin.partners.efficiency', $partnerRoutes);
         $this->assertNotContains('admin.partners.tasks', $partnerRoutes);
         $this->assertNotContains('admin.partners.applications', $partnerRoutes);
         $this->assertNotContains('admin.partner-payout-requests.index', $partnerRoutes);

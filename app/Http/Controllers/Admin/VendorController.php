@@ -429,6 +429,28 @@ class VendorController extends ResourceController
             $data['metadata'] = $meta;
         }
 
+        if (! app(\App\Services\PartnerStaffService::class)->canNegotiateRates(request()->user())) {
+            foreach ([
+                'partner_cost',
+                'markup_percent',
+                'deposit_markup_percent',
+                'service_rate_percent',
+                'recovery_commission_percent',
+                'recovery_markup_percent',
+                'recovery_fee_type',
+                'recovery_fixed_amount',
+                'registration_discount_percent',
+                'application_discount_percent',
+                'affiliate_commission_percent',
+            ] as $rateKey) {
+                unset($data[$rateKey]);
+            }
+
+            if ($existing instanceof Vendor) {
+                return $data;
+            }
+        }
+
         return app(\App\Services\PartnerDefaultsService::class)
             ->applyPartnerPricingMeta($data, $existing instanceof Vendor ? $existing : null);
     }
@@ -461,6 +483,10 @@ class VendorController extends ResourceController
         $membership = $record->isAffiliate()
             ? app(\App\Services\AffiliateMembershipService::class)->summary($record)
             : null;
+        $efficiency = app(\App\Services\PartnerEfficiencyService::class)->forPartner($record);
+        $affiliateVolume = $record->isAffiliate()
+            ? app(\App\Services\AffiliateEvaluationService::class)->currentVolumeProgress($record)
+            : null;
 
         return view("admin.{$this->viewFolder}.show", array_merge(
             [
@@ -469,6 +495,8 @@ class VendorController extends ResourceController
                 'affiliateEvaluations' => $affiliateEvaluations,
                 'recoveryStats' => $recoveryStats,
                 'membership' => $membership,
+                'efficiency' => $efficiency,
+                'affiliateVolume' => $affiliateVolume,
                 'openTasks' => $openTasks,
                 'openValuations' => $openValuations,
                 'recentTasks' => $recentTasks,

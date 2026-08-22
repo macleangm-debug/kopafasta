@@ -12,7 +12,8 @@
     $existingPhotos = array_values(array_filter(is_array($existing) ? $existing : []));
     $maxPhotos = min(4, max(1, (int) $max));
     $minPhotos = max(1, (int) $min);
-    $hasPhotoError = $errors->has($name) || $errors->has($name.'.*');
+    $hasPhotoError = $errors instanceof \Illuminate\Support\ViewErrorBag
+        && ($errors->has($name) || $errors->has($name.'.*'));
     $uid = 'miu-'.substr(md5($name.uniqid('', true)), 0, 10);
     $label = $label ?? __('borrower.marketplace.asset_photos');
     $coverPath = old($coverName, $existingPhotos[0] ?? null);

@@ -305,6 +305,98 @@ class RecoveryAssignmentService
         return $assignment->fresh();
     }
 
+    public function remindPartner(RecoveryAssignment $assignment, User $actor): void
+    {
+        if (! $assignment->isOpen()) {
+            throw ValidationException::withMessages([
+                'status' => 'This recovery case is already closed.',
+            ]);
+        }
+
+        $assignment->loadMissing(['vendor', 'arrearCase.loan.customer']);
+        $vendor = $assignment->vendor;
+        if (! $vendor) {
+            throw ValidationException::withMessages([
+                'vendor' => 'No partner is assigned to this case.',
+            ]);
+        }
+
+        $loan = $assignment->arrearCase?->loan;
+        $borrower = trim((string) ($loan?->customer?->full_name ?? ''));
+        $loanNumber = $loan?->loan_number ?? ('case #'.$assignment->id);
+        $sla = $assignment->sla_due_at?->format('d M Y') ?? 'the SLA date';
+        $typeLabel = $this->policy->partnerTypeLabel((string) $assignment->partner_type);
+
+        app(PartnerAssignmentNotifier::class)->notifyAssigned($vendor, $typeLabel.' recovery reminder', [
+            'title' => 'Reminder: recovery assignment',
+            'body' => 'Follow up on '.$loanNumber.($borrower !== '' ? ' ('.$borrower.')' : '').'. SLA '.$sla.'.',
+            'action_url' => '/partner/recovery',
+            'staff_permission' => 'partners.manage',
+            'staff_url' => route('admin.recovery.assignments.show', $assignment),
+        ]);
+
+        if ($assignment->arrearCase) {
+            $this->collectionActions->logForCase(
+                $assignment->arrearCase,
+                $actor,
+                'partner_reminder',
+                'Partner support reminded '.$vendor->name.' about '.$loanNumber.'.',
+                'reminded',
+                null,
+                $assignment,
+            );
+        }
+    }
+
+    public function remindBorrower(RecoveryAssignment $assignment, User $actor, ?string $viaPartnerName = null): void
+    {
+        if (! $assignment->isOpen()) {
+            throw ValidationException::withMessages([
+                'status' => 'This recovery case is already closed.',
+            ]);
+        }
+
+        $assignment->loadMissing(['arrearCase.loan.customer', 'vendor']);
+        $loan = $assignment->arrearCase?->loan;
+        $customer = $loan?->customer;
+
+        if (! $customer) {
+            throw ValidationException::withMessages([
+                'customer' => 'Borrower not found for this case.',
+            ]);
+        }
+
+        $outstanding = $loan
+            ? (float) (app(ActiveLoanServicingService::class)->forLoan($loan)['outstanding_balance'] ?? 0)
+            : (float) $assignment->original_outstanding;
+
+        $brand = function_exists('brand_name') ? brand_name() : 'KopaFasta';
+        $name = trim((string) ($customer->full_name ?: 'Customer'));
+        $loanNumber = $loan?->loan_number ?? 'your loan';
+        $amount = format_money($outstanding);
+
+        app(NotificationService::class)->notifyCustomer($customer, 'recovery_case_reminder', [
+            'name' => $name,
+            'loan_number' => $loanNumber,
+            'amount' => $amount,
+            '_fallback_subject' => 'Payment reminder',
+            '_fallback_body' => "Hi {$name}, reminder: loan {$loanNumber} has {$amount} outstanding. Please pay today or contact us. — {$brand}",
+        ]);
+
+        $who = $viaPartnerName ?: 'Partner support';
+        if ($assignment->arrearCase) {
+            $this->collectionActions->logForCase(
+                $assignment->arrearCase,
+                $actor,
+                'reminder_sent',
+                '['.$who.'] Payment reminder sent to borrower',
+                'reminded',
+                null,
+                $assignment,
+            );
+        }
+    }
+
     private function taskTypeForPartner(string $partnerType): string
     {
         return match ($partnerType) {

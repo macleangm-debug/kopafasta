@@ -553,6 +553,51 @@ class NotificationTemplateSeeder extends Seeder
                 ],
             ],
             [
+                'code' => 'partner_efficiency_warning',
+                'name' => 'Partner Efficiency Warning',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Pull up — performance is low',
+                        'body' => "Hi {{ partner }}, your job score is {{ score }} ({{ band }}). Pull up. {{ remaining }} warning(s) left before the account is suspended. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Boresha utendaji',
+                        'body' => "Habari {{ partner }}, alama yako ni {{ score }} ({{ band }}). Boresha. Umebaki na maonyo {{ remaining }} kabla akaunti isitishwe. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'partner_efficiency_suspended',
+                'name' => 'Partner Efficiency Suspended',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Account suspended',
+                        'body' => "Hi {{ partner }}, your account was suspended after repeated low performance (score {{ score }}). Contact Partner support to be reactivated. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Akaunti imesimamishwa',
+                        'body' => "Habari {{ partner }}, akaunti yako imesimamishwa baada ya utendaji duni (alama {{ score }}). Wasiliana na Partner support. — {$brand}",
+                    ],
+                ],
+            ],
+            [
+                'code' => 'affiliate_volume_warning',
+                'name' => 'Affiliate Volume Warning',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Bring in more customers this month',
+                        'body' => "Hi {{ partner }}, you brought {{ registrations }} new users vs the target of {{ target }}. Pull up — {{ remaining }} more missed month(s) and the account may be suspended. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Leta wateja zaidi mwezi huu',
+                        'body' => "Habari {{ partner }}, umeleta watumiaji {{ registrations }} dhidi ya lengo {{ target }}. Boresha — miezi {{ remaining }} iliyobaki kabla akaunti isitishwe. — {$brand}",
+                    ],
+                ],
+            ],
+            [
                 'code' => 'partner_payout_requested',
                 'name' => 'Partner Payout Requested',
                 'channel' => 'in_app',

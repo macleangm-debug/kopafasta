@@ -25,6 +25,7 @@
         ?? ($recoveryType ? $policy->defaultMarkupPercent($recoveryType) : null)
         ?? 0;
     $serviceRateOverride = old('service_rate_percent', data_get($r?->metadata, 'service_rate_percent'));
+    $canNegotiateRates = app(\App\Services\PartnerStaffService::class)->canNegotiateRates(auth()->user());
 @endphp
 
 <div
@@ -309,11 +310,15 @@
     <div data-step-gate x-show="isServiceRates" x-cloak>
         <x-admin.step title="Rates">
             <div class="md:col-span-2 rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand space-y-2">
-                <p class="font-semibold">Default rates from Settings → Recovery policy</p>
+                <p class="font-semibold">Platform default rates apply</p>
                 <p class="text-xs text-brand/80">
-                    Platform defaults are in
-                    <a href="{{ route('admin.settings.recovery') }}" class="font-semibold underline">Service partner default rates</a>.
-                    Leave overrides blank to use those defaults.
+                    @if ($canNegotiateRates)
+                        Defaults live in
+                        <a href="{{ route('admin.settings.recovery') }}" class="font-semibold underline">Service partner default rates</a>.
+                        Leave overrides blank to use those defaults.
+                    @else
+                        This partner is enrolled on the platform default rates. Negotiated prices are approved by admin, not set on this desk.
+                    @endif
                 </p>
                 <ul class="text-xs space-y-1 pt-1" x-show="snapshot">
                     <template x-for="line in (snapshot?.lines || [])" :key="line">
@@ -325,6 +330,8 @@
                     <li>Default company markup: <strong x-text="(recovery?.markup ?? 0) + '%'"></strong></li>
                 </ul>
             </div>
+            @if ($canNegotiateRates)
+            @if ($canNegotiateRates)
             <details class="md:col-span-2 rounded-xl border border-brand/15 bg-white p-4" @if(filled($serviceRateOverride) || filled(old('partner_cost', $r?->partner_cost)) || filled(old('markup_percent', $r?->markup_percent)) || filled(old('recovery_commission_percent', $r?->recovery_commission_percent)) || filled(old('recovery_markup_percent', $r?->recovery_markup_percent))) open @endif>
                 <summary class="cursor-pointer text-sm font-semibold text-gray-800">Optional partner override</summary>
                 <p class="mt-2 mb-4 text-xs text-gray-500">Only when this partner needs a negotiated rate different from Settings.</p>
@@ -342,12 +349,14 @@
                     </div>
                 </div>
             </details>
+            @endif
+            @endif
         </x-admin.step>
     </div>
 
     <div data-step-gate x-show="isSupplier" x-cloak>
         <x-admin.step title="Supplier settings">
-            <p class="md:col-span-2 text-xs text-gray-500 mb-2">Deposit markup is controlled under Settings → Asset lending.</p>
+            <p class="md:col-span-2 text-xs text-gray-500 mb-2">Deposit markup is the platform default for asset lending.</p>
             <x-admin.select name="supplier_type" label="Supplier payment mode" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" />
             <p class="md:col-span-2 text-xs text-gray-500">
                 <strong>Direct repayment</strong> — supplier receives principal from customer repayments.
@@ -359,12 +368,24 @@
     <div data-step-gate x-show="isAffiliate" x-cloak>
         <x-admin.step title="Affiliate program">
             <div class="md:col-span-2 rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand mb-2">
-                Defaults from Settings → Affiliates. Overrides below are optional.
+                @if ($canNegotiateRates)
+                    Defaults from Settings → Affiliates. Overrides below are optional.
+                @else
+                    Platform affiliate defaults apply. Admin approves any negotiated discount or commission.
+                @endif
             </div>
             <x-admin.input name="affiliate_code" label="Promo / affiliate code" :value="$r?->affiliate_code" placeholder="Auto-generated for affiliates" />
-            <x-admin.input name="registration_discount_percent" label="Registration discount (%)" type="number" step="0.01" :value="$r?->registration_discount_percent ?? config('affiliates.default_registration_discount_percent')" />
-            <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="$r?->application_discount_percent ?? config('affiliates.default_application_discount_percent')" />
-            <x-admin.input name="affiliate_commission_percent" label="Commission (%)" type="number" step="0.01" :value="$r?->affiliate_commission_percent ?? config('affiliates.default_commission_percent')" />
+            @if ($canNegotiateRates)
+                <x-admin.input name="registration_discount_percent" label="Registration discount (%)" type="number" step="0.01" :value="$r?->registration_discount_percent ?? config('affiliates.default_registration_discount_percent')" />
+                <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="$r?->application_discount_percent ?? config('affiliates.default_application_discount_percent')" />
+                <x-admin.input name="affiliate_commission_percent" label="Commission (%)" type="number" step="0.01" :value="$r?->affiliate_commission_percent ?? config('affiliates.default_commission_percent')" />
+            @else
+                <p class="md:col-span-2 text-xs text-gray-600">
+                    Registration discount {{ config('affiliates.default_registration_discount_percent') }}%
+                    · Application discount {{ config('affiliates.default_application_discount_percent') }}%
+                    · Commission {{ config('affiliates.default_commission_percent') }}%
+                </p>
+            @endif
         </x-admin.step>
     </div>
 </div>

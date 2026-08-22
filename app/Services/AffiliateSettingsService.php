@@ -228,6 +228,31 @@ class AffiliateSettingsService
         return max(1, (int) ($this->evaluationSettings()['high_click_threshold'] ?? 50));
     }
 
+    public function monthlyRegistrationTarget(): int
+    {
+        return max(0, (int) ($this->evaluationSettings()['monthly_registration_target'] ?? 10));
+    }
+
+    public function volumeMinActiveDays(): int
+    {
+        return max(0, (int) ($this->evaluationSettings()['volume_min_active_days'] ?? 30));
+    }
+
+    public function volumeMissesBeforeNudge(): int
+    {
+        return max(1, (int) ($this->evaluationSettings()['volume_misses_before_nudge'] ?? 1));
+    }
+
+    public function volumeMissesBeforeWatchlist(): int
+    {
+        return max(1, (int) ($this->evaluationSettings()['volume_misses_before_watchlist'] ?? 2));
+    }
+
+    public function volumeMissesBeforeSuspend(): int
+    {
+        return max(1, (int) ($this->evaluationSettings()['volume_misses_before_suspend'] ?? 3));
+    }
+
     /** @return array{volume: float, conversion: float, commission: float} */
     public function evaluationWeights(): array
     {

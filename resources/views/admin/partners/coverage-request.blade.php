@@ -16,8 +16,6 @@
             </a>
         </div>
 
-        @include('admin.partners._support_duties', ['compact' => true])
-
         <section class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-brand/10">
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Option 1</p>

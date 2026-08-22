@@ -6,7 +6,7 @@
                 <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Collections field</p>
                 <h1 class="text-2xl sm:text-3xl font-bold mt-1">Recovery assignments</h1>
                 <p class="text-sm text-white/75 mt-2 max-w-2xl">
-                    Partner cases linked to arrears — track SLA, escalations, and recovery charges.
+                    Partner cases linked to arrears — track SLA, remind the assigned partner, and escalate when jobs stall.
                 </p>
             </div>
             <div class="bg-white px-6 py-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -42,16 +42,20 @@
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
                     <th class="px-5 py-3">Case</th>
+                    <th class="px-5 py-3">Borrower</th>
                     <th class="px-5 py-3">Partner</th>
                     <th class="px-5 py-3">Type</th>
-                    <th class="px-5 py-3">Outstanding</th>
                     <th class="px-5 py-3">SLA</th>
                     <th class="px-5 py-3">Status</th>
-                    <th class="px-5 py-3 text-right">Charge</th>
+                    <th class="px-5 py-3 text-right">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse ($assignments as $assignment)
+                    @php
+                        $borrower = $assignment->arrearCase?->loan?->customer;
+                        $borrowerName = trim((string) ($borrower?->full_name ?? ''));
+                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3">
                             <a href="{{ route('admin.recovery.assignments.show', $assignment) }}" class="text-brand font-mono text-xs font-semibold">
@@ -59,14 +63,28 @@
                             </a>
                             <div class="text-xs text-gray-500">{{ $assignment->arrearCase?->loan?->loan_number }}</div>
                         </td>
+                        <td class="px-5 py-3">
+                            <div class="font-medium text-gray-900">{{ $borrowerName !== '' ? $borrowerName : '—' }}</div>
+                            <div class="text-xs text-gray-500">{{ $borrower?->phone ?: '—' }}</div>
+                        </td>
                         <td class="px-5 py-3">{{ $assignment->vendor?->name }}</td>
                         <td class="px-5 py-3">{{ display_label($assignment->partner_type, 'recovery_partner_type') }}</td>
-                        <td class="px-5 py-3">{{ format_money($assignment->original_outstanding) }}</td>
                         <td class="px-5 py-3 {{ $assignment->slaBreached() ? 'text-red-700 font-semibold' : '' }}">
                             {{ $assignment->sla_due_at?->format('d M Y') ?? '—' }}
                         </td>
                         <td class="px-5 py-3">{{ ucfirst(str_replace('_', ' ', $assignment->status)) }}</td>
-                        <td class="px-5 py-3 text-right font-semibold">{{ format_money($assignment->recovery_charge) }}</td>
+                        <td class="px-5 py-3 text-right">
+                            <div class="inline-flex flex-wrap items-center justify-end gap-2">
+                                <a href="{{ route('admin.recovery.assignments.show', $assignment) }}"
+                                   class="text-sm font-semibold text-brand hover:underline">Open</a>
+                                @if ($assignment->isOpen())
+                                    <form method="POST" action="{{ route('admin.recovery.assignments.remind-partner', $assignment) }}">
+                                        @csrf
+                                        <button type="submit" class="text-sm font-semibold text-amber-800 hover:underline">Remind partner</button>
+                                    </form>
+                                @endif
+                            </div>
+                        </td>
                     </tr>
                 @empty
                     <tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No recovery assignments yet.</td></tr>

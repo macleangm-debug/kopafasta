@@ -231,50 +231,7 @@ class RecoveryPartnerPortalService
     ): void {
         $this->assertVendorOwnsAssignment($assignment, $vendor);
 
-        if (! $assignment->isOpen()) {
-            throw ValidationException::withMessages([
-                'status' => 'This recovery case is already closed.',
-            ]);
-        }
-
-        $assignment->loadMissing(['arrearCase.loan.customer']);
-        $loan = $assignment->arrearCase?->loan;
-        $customer = $loan?->customer;
-
-        if (! $customer) {
-            throw ValidationException::withMessages([
-                'customer' => 'Borrower not found for this case.',
-            ]);
-        }
-
-        $outstanding = $loan
-            ? (float) (app(ActiveLoanServicingService::class)->forLoan($loan)['outstanding_balance'] ?? 0)
-            : (float) $assignment->original_outstanding;
-
-        $brand = function_exists('brand_name') ? brand_name() : 'KopaFasta';
-        $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Customer';
-        $loanNumber = $loan?->loan_number ?? 'your loan';
-        $amount = format_money($outstanding);
-
-        app(NotificationService::class)->notifyCustomer($customer, 'recovery_case_reminder', [
-            'name' => $name,
-            'loan_number' => $loanNumber,
-            'amount' => $amount,
-            '_fallback_subject' => 'Payment reminder',
-            '_fallback_body' => "Hi {$name}, reminder: loan {$loanNumber} has {$amount} outstanding. Please pay today or contact us. — {$brand}",
-        ]);
-
-        if ($assignment->arrearCase) {
-            $this->collectionActions->logForCase(
-                $assignment->arrearCase,
-                $actor,
-                'reminder_sent',
-                '['.$vendor->name.'] In-app payment reminder sent to borrower',
-                'reminded',
-                null,
-                $assignment,
-            );
-        }
+        $this->assignments->remindBorrower($assignment, $actor, $vendor->name);
     }
 
     public function startCase(RecoveryAssignment $assignment, Vendor $vendor, User $actor): RecoveryAssignment

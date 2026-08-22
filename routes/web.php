@@ -714,6 +714,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::post('recovery/assignments/{recoveryAssignment}/start', [RecoveryAssignmentController::class, 'start'])->name('recovery.assignments.start');
         Route::post('recovery/assignments/{recoveryAssignment}/complete', [RecoveryAssignmentController::class, 'complete'])->name('recovery.assignments.complete');
         Route::post('recovery/assignments/{recoveryAssignment}/escalate', [RecoveryAssignmentController::class, 'escalate'])->name('recovery.assignments.escalate');
+        Route::post('recovery/assignments/{recoveryAssignment}/remind-partner', [RecoveryAssignmentController::class, 'remindPartner'])->name('recovery.assignments.remind-partner');
+        Route::post('recovery/assignments/{recoveryAssignment}/remind-borrower', [RecoveryAssignmentController::class, 'remindBorrower'])->name('recovery.assignments.remind-borrower');
         Route::post('write-off-requests/{writeOffRequest}/manager-approve', [WriteOffRequestController::class, 'managerApprove'])->name('write-off-requests.manager-approve');
         Route::post('write-off-requests/{writeOffRequest}/finance-approve', [WriteOffRequestController::class, 'financeApprove'])->name('write-off-requests.finance-approve');
         Route::post('write-off-requests/{writeOffRequest}/reject', [WriteOffRequestController::class, 'reject'])->name('write-off-requests.reject');
@@ -747,7 +749,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('partner-applications/{partnerApplication}', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'show'])->name('partner-applications.show');
         Route::put('partner-applications/{partnerApplication}', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'update'])->name('partner-applications.update');
         Route::middleware('permission:marketplace.view,marketplace.manage')->group(function (): void {
-            Route::view('marketplace-assets', 'admin.marketplace-assets.index')->name('marketplace-assets.index');
+            Route::get('marketplace-assets', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'index'])->name('marketplace-assets.index');
         });
         Route::middleware('permission:marketplace.manage')->group(function (): void {
             Route::get('marketplace-assets/create', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'create'])->name('marketplace-assets.create');
@@ -1022,6 +1024,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/affiliates',       [SettingsController::class, 'saveAffiliates'])->name('settings.affiliates.save');
         Route::get('settings/partners',         [SettingsController::class, 'partners'])      ->name('settings.partners');
         Route::put('settings/partners',         [SettingsController::class, 'savePartners'])  ->name('settings.partners.save');
+        Route::get('settings/partner-performance', [SettingsController::class, 'partnerPerformance'])->name('settings.partner-performance');
+        Route::put('settings/partner-performance', [SettingsController::class, 'savePartnerPerformance'])->name('settings.partner-performance.save');
         Route::get('settings/chatbot',          [SettingsController::class, 'chatbot'])       ->name('settings.chatbot');
         Route::put('settings/chatbot',          [SettingsController::class, 'saveChatbot'])   ->name('settings.chatbot.save');
         Route::get('settings/countries',        [SettingsController::class, 'countries'])     ->name('settings.countries');

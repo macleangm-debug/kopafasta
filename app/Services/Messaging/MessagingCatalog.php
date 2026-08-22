@@ -97,7 +97,8 @@ class MessagingCatalog
             'marketplace_viewing_scheduled' => 'marketplace',
             'staff_restructure_request', 'staff_top_up_request' => 'staff',
             'partner_cover_job_assigned', 'partner_job_assigned', 'partner_cover_job_cancelled',
-            'partner_payout_requested', 'partner_payout_paid', 'partner_payout_rejected' => 'partners',
+            'partner_payout_requested', 'partner_payout_paid', 'partner_payout_rejected',
+            'partner_efficiency_warning', 'partner_efficiency_suspended', 'affiliate_volume_warning' => 'partners',
             default => str_starts_with($code, 'group_') ? 'group' : 'other',
         };
     }
@@ -601,6 +602,33 @@ class MessagingCatalog
                 'default_channels' => ['in_app', 'sms'],
                 'default_enabled' => true,
                 'description' => 'Notify a partner when their payout request is rejected, with reason.',
+            ],
+            [
+                'code' => 'partner_efficiency_warning',
+                'name' => 'Partner efficiency warning',
+                'group' => 'partners',
+                'critical' => false,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => true,
+                'description' => 'Nudge a field partner whose jobs are failing, late, or escalating.',
+            ],
+            [
+                'code' => 'partner_efficiency_suspended',
+                'name' => 'Partner efficiency suspended',
+                'group' => 'partners',
+                'critical' => true,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => true,
+                'description' => 'Tell a field partner their account was suspended after repeated low performance.',
+            ],
+            [
+                'code' => 'affiliate_volume_warning',
+                'name' => 'Affiliate volume warning',
+                'group' => 'partners',
+                'critical' => false,
+                'default_channels' => ['in_app', 'sms'],
+                'default_enabled' => true,
+                'description' => 'Nudge an affiliate who is below the monthly new-user target.',
             ],
         ];
     }

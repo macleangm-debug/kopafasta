@@ -25,8 +25,6 @@
         </div>
     </section>
 
-    @include('admin.partners._support_duties')
-
     <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 sm:p-6 flex flex-wrap gap-3">
         <a href="{{ route('admin.partners.index') }}"
            class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm ring-1 ring-brand/15">

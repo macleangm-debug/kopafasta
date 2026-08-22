@@ -45,6 +45,43 @@
     </a>
 @endif
 
+@if ($efficiency ?? null)
+    @php
+        $effBand = $efficiency['band'];
+        $effStyles = [
+            'strong' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+            'watch' => 'bg-amber-50 text-amber-800 ring-amber-100',
+            'at_risk' => 'bg-rose-50 text-rose-800 ring-rose-100',
+            'new' => 'bg-gray-100 text-gray-700 ring-gray-200',
+        ];
+    @endphp
+    <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-brand/15 p-6">
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900">Efficiency</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Same score as the partner efficiency board — completion, on-time, escalations, failed jobs.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $effStyles[$effBand] ?? $effStyles['new'] }}">
+                    {{ $efficiency['band_label'] }}
+                </span>
+                <a href="{{ route('admin.partners.efficiency') }}" class="text-sm font-semibold text-brand hover:underline">Board →</a>
+            </div>
+        </div>
+        <div class="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
+            <div><span class="text-gray-500">Score</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['score'] ?? '—' }}</p></div>
+            <div><span class="text-gray-500">Jobs</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['assigned'] }}</p></div>
+            <div><span class="text-gray-500">Completed</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['completion_rate'] }}%</p></div>
+            <div><span class="text-gray-500">On time</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['on_time_rate'] }}%</p></div>
+            <div><span class="text-gray-500">Escalated</span><p class="text-xl font-bold tabular-nums {{ $efficiency['escalated'] > 0 ? 'text-red-700' : '' }}">{{ $efficiency['escalated'] }}</p></div>
+            <div><span class="text-gray-500">Failed</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['failed'] }}</p></div>
+        </div>
+        @if (($efficiency['consecutive_at_risk'] ?? 0) > 0)
+            <p class="mt-3 text-xs text-rose-800">{{ $efficiency['consecutive_at_risk'] }} coaching review(s) in a row. Settings control when a warning goes out and when the account is suspended.</p>
+        @endif
+    </div>
+@endif
+
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 {{ $openTasks->isNotEmpty() ? 'ring-amber-200' : 'ring-gray-200' }} p-6">
     <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
@@ -186,6 +223,22 @@
             <div><span class="text-gray-500">Registrations</span><p class="text-xl font-bold">{{ format_number($affiliateStats['registrations']) }}</p></div>
             <div><span class="text-gray-500">Applications</span><p class="text-xl font-bold">{{ format_number($affiliateStats['applications']) }}</p></div>
         </div>
+        @if ($affiliateVolume ?? null)
+            <div class="mt-4 rounded-xl {{ $affiliateVolume['missed'] ? 'bg-rose-50 ring-rose-100' : 'bg-brand-muted/40 ring-brand/10' }} ring-1 px-4 py-3">
+                <p class="text-xs font-semibold text-gray-800">This period vs monthly target</p>
+                <p class="text-sm text-gray-700 mt-1">
+                    {{ $affiliateVolume['registrations'] }} new users
+                    of {{ $affiliateVolume['target'] }}
+                    @if ($affiliateVolume['onboarding'])
+                        · still in onboarding
+                    @elseif ($affiliateVolume['missed'])
+                        · below target · {{ $affiliateVolume['consecutive_misses'] }} missed month(s)
+                    @else
+                        · on target
+                    @endif
+                </p>
+            </div>
+        @endif
         @if ($record->affiliate_code)
             <p class="mt-4 text-xs text-gray-500">Link: {{ app(\App\Services\AffiliateService::class)->affiliateLink($record) }}</p>
         @endif

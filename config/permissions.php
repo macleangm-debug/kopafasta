@@ -114,6 +114,7 @@ return [
             'applications.view',
             'customers.view',
             'marketplace.view',
+            'marketplace.manage',
         ],
         'borrower' => [],
         'customer' => [],

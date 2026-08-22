@@ -1,6 +1,13 @@
 @php
     $loan = $assignment->arrearCase?->loan;
     $customer = $loan?->customer;
+    $borrowerName = trim((string) ($customer?->full_name ?? ''));
+    $slaLabel = $assignment->sla_due_at?->format('d M Y H:i') ?? '—';
+    if ($assignment->sla_due_at && $assignment->isOpen()) {
+        $slaLabel .= $assignment->slaBreached()
+            ? ' · overdue'
+            : ' · '.$assignment->sla_due_at->diffForHumans();
+    }
 @endphp
 
 <x-admin.layout
@@ -20,27 +27,61 @@
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
-                <h2 class="text-sm font-semibold text-gray-900 mb-4">Case details</h2>
+                <h2 class="text-sm font-semibold text-gray-900 mb-4">Borrower</h2>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                     <div>
-                        <dt class="text-xs text-gray-500 uppercase">Collection case</dt>
-                        <dd>
-                            <a href="{{ route('admin.arrear-cases.show', $assignment->arrearCase) }}" class="text-amber-700 font-semibold">
-                                #{{ $assignment->arrear_case_id }}
-                            </a>
-                        </dd>
+                        <dt class="text-xs text-gray-500 uppercase">Name</dt>
+                        <dd class="font-semibold">{{ $borrowerName !== '' ? $borrowerName : '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500 uppercase">Phone</dt>
+                        <dd class="font-semibold">{{ $customer?->phone ?: '—' }}</dd>
                     </div>
                     <div>
                         <dt class="text-xs text-gray-500 uppercase">Loan</dt>
                         <dd class="font-mono">{{ $loan?->loan_number ?? '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-xs text-gray-500 uppercase">Borrower</dt>
-                        <dd>{{ trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: '—' }}</dd>
+                        <dt class="text-xs text-gray-500 uppercase">Product</dt>
+                        <dd>{{ $loan?->product?->name ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500 uppercase">Collection case</dt>
+                        <dd>
+                            @if ($assignment->arrearCase)
+                                <a href="{{ route('admin.arrear-cases.show', $assignment->arrearCase) }}" class="text-amber-700 font-semibold">
+                                    #{{ $assignment->arrear_case_id }}
+                                </a>
+                            @else
+                                —
+                            @endif
+                        </dd>
                     </div>
                     <div>
                         <dt class="text-xs text-gray-500 uppercase">Original outstanding</dt>
                         <dd class="font-semibold">{{ format_money($assignment->original_outstanding) }}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
+                <h2 class="text-sm font-semibold text-gray-900 mb-4">Assignment</h2>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <dt class="text-xs text-gray-500 uppercase">Status</dt>
+                        <dd>{{ ucfirst(str_replace('_', ' ', $assignment->status)) }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500 uppercase">SLA due</dt>
+                        <dd class="{{ $assignment->slaBreached() ? 'text-red-700 font-semibold' : '' }}">{{ $slaLabel }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500 uppercase">Assigned</dt>
+                        <dd>{{ $assignment->assigned_at?->format('d M Y H:i') ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500 uppercase">Assigned by</dt>
+                        <dd>{{ $assignment->assigner?->name ?? '—' }}</dd>
                     </div>
                     <div>
                         <dt class="text-xs text-gray-500 uppercase">Partner commission</dt>
@@ -58,20 +99,28 @@
                         <dt class="text-xs text-gray-500 uppercase">Commission earned</dt>
                         <dd class="font-semibold">{{ format_money($assignment->commission_earned) }}</dd>
                     </div>
-                    <div>
-                        <dt class="text-xs text-gray-500 uppercase">SLA due</dt>
-                        <dd class="{{ $assignment->slaBreached() ? 'text-red-700 font-semibold' : '' }}">
-                            {{ $assignment->sla_due_at?->format('d M Y H:i') ?? '—' }}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs text-gray-500 uppercase">Status</dt>
-                        <dd>{{ ucfirst(str_replace('_', ' ', $assignment->status)) }}</dd>
-                    </div>
                 </dl>
                 @if ($assignment->notes)
                     <p class="mt-4 text-sm text-gray-600 border-t border-gray-100 pt-4">{{ $assignment->notes }}</p>
                 @endif
+            </div>
+
+            <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
+                <h2 class="text-sm font-semibold text-gray-900 mb-4">Activity</h2>
+                @forelse ($activity ?? [] as $row)
+                    <div class="py-3 border-b border-gray-50 last:border-0">
+                        <p class="text-sm font-medium text-gray-900">{{ ucfirst(str_replace('_', ' ', $row->action_type)) }}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            {{ $row->performer?->name ?? 'System' }}
+                            · {{ $row->performed_at?->format('d M Y H:i') }}
+                        </p>
+                        @if ($row->notes)
+                            <p class="text-xs text-gray-600 mt-1">{{ $row->notes }}</p>
+                        @endif
+                    </div>
+                @empty
+                    <p class="text-sm text-gray-500">No reminders or field notes yet.</p>
+                @endforelse
             </div>
         </div>
 
@@ -83,11 +132,21 @@
                 @if ($assignment->vendor?->user_id)
                     <p class="mt-2 text-xs text-emerald-700 font-semibold">Portal login active</p>
                 @endif
+                <p class="mt-3 text-xs text-gray-500">Last partner reminder: {{ $lastPartnerReminder?->performed_at?->format('d M Y H:i') ?? '—' }}</p>
+                <p class="text-xs text-gray-500">Last borrower reminder: {{ $lastBorrowerReminder?->performed_at?->format('d M Y H:i') ?? '—' }}</p>
             </div>
 
-            @if (in_array($assignment->status, ['assigned', 'in_progress']))
+            @if ($assignment->isOpen())
                 <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-3">
                     <h2 class="text-sm font-semibold text-gray-900">Actions</h2>
+                    <form method="POST" action="{{ route('admin.recovery.assignments.remind-partner', $assignment) }}">
+                        @csrf
+                        <button type="submit" class="w-full text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-2 rounded-lg">Remind partner</button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.recovery.assignments.remind-borrower', $assignment) }}">
+                        @csrf
+                        <button type="submit" class="w-full text-sm font-semibold text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40 px-3 py-2 rounded-lg">Remind borrower</button>
+                    </form>
                     @if ($assignment->status === 'assigned')
                         <form method="POST" action="{{ route('admin.recovery.assignments.start', $assignment) }}">
                             @csrf

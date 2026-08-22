@@ -19,4 +19,24 @@ return [
             // 'valuer' => 50000,
         ],
     ],
+
+    /**
+     * Field-partner efficiency (valuer, GPS, insurance, recovery).
+     * Bands and auto-coaching are edited in Settings → Partner performance.
+     */
+    'efficiency' => [
+        'min_jobs_for_score' => 3,
+        'strong_score' => 80,
+        'watch_score' => 60,
+        'force_at_risk_escalation_percent' => 40,
+        'force_at_risk_fail_percent' => 40,
+        'weight_completion' => 40,
+        'weight_on_time' => 25,
+        'weight_not_escalated' => 20,
+        'weight_not_failed' => 15,
+        'auto_nudge' => true,
+        'auto_suspend' => true,
+        'warnings_before_suspend' => 2,
+        'nudge_cooldown_days' => 7,
+    ],
 ];

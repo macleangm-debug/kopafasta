@@ -7,11 +7,6 @@
             ? app(\App\Services\PartnerCoverageRequestService::class)->staffAlerts()
             : collect();
     @endphp
-    @can('create', \App\Models\Vendor::class)
-        <div class="mb-6">
-            @include('admin.partners._support_duties', ['compact' => true])
-        </div>
-    @endcan
     @if ($coverageAlerts->isNotEmpty())
         <div class="mb-6 space-y-2">
             @foreach ($coverageAlerts as $alert)
@@ -32,6 +27,16 @@
             <a href="{{ route('admin.partners.create') }}" class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">+ New partner</a>
         @endcan
     </div>
+
+    <a href="{{ route('admin.partners.efficiency') }}"
+       class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Performance</p>
+            <p class="text-sm font-bold text-gray-900 mt-0.5">Partner efficiency</p>
+            <p class="text-xs text-gray-500 mt-1">Field partners on jobs. Affiliates on monthly new users. Open the board to see who is on each track.</p>
+        </div>
+        <span class="text-sm font-semibold text-brand">Open →</span>
+    </a>
 
     <a href="{{ route('admin.partners.origination-auto-assign') }}"
        class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">

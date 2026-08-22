@@ -33,6 +33,15 @@ class PartnerStaffService
         return in_array(self::DEPARTMENT, $this->desks->departmentCodes($user), true);
     }
 
+    public function canNegotiateRates(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $this->permissions->has($user, 'settings.manage');
+    }
+
     /** @return list<string> */
     public function duties(): array
     {

@@ -246,7 +246,7 @@ class NotificationService
      * @param  array<string, mixed>  $vars
      */
     public function notifyPartner(
-        \App\Models\Vendor $partner,
+        \App\Models\Partner $partner,
         string $templateCode,
         array $vars = [],
         ?string $actionUrl = null,

@@ -7,6 +7,7 @@ use App\Models\Vendor;
 use App\Services\MarketplaceAssetService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class MarketplaceAssetController extends ResourceController
 {
@@ -15,8 +16,29 @@ class MarketplaceAssetController extends ResourceController
     protected string $viewFolder = 'marketplace-assets';
     protected string $singular = 'marketplace asset';
 
-    protected function findRecord(string|int $id): MarketplaceAsset
+    public function index(): View
     {
+        $assets = MarketplaceAsset::query()
+            ->with('vendor')
+            ->latest()
+            ->limit(100)
+            ->get();
+
+        $counts = [
+            'total'     => MarketplaceAsset::query()->count(),
+            'active'    => MarketplaceAsset::query()->where('is_active', true)->count(),
+            'available' => MarketplaceAsset::query()->where('availability_status', 'available')->count(),
+        ];
+
+        return view("admin.{$this->viewFolder}.index", compact('assets', 'counts'));
+    }
+
+    protected function findRecord(mixed $id): MarketplaceAsset
+    {
+        if ($id instanceof MarketplaceAsset) {
+            return $id;
+        }
+
         return MarketplaceAsset::query()
             ->where('id', $id)
             ->orWhere('slug', $id)
@@ -32,19 +54,49 @@ class MarketplaceAssetController extends ResourceController
     {
         $lending = app(\App\Services\AssetLendingService::class);
         $assetService = app(MarketplaceAssetService::class);
+        $asset = $record instanceof MarketplaceAsset ? $record : null;
 
         return [
             'suppliers'                   => Vendor::query()->where('category', 'supplier')->orderBy('name')->pluck('name', 'id'),
-            'categories'                  => config('asset_marketplace.categories', []),
+            'categories'                  => $this->categoryOptions($asset),
             'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
             'maxAssetPhotos'              => $assetService->maxPhotos(),
             'prefill'                     => [
-                'title'               => request()->query('title'),
-                'asset_value'         => request()->query('asset_value'),
-                'max_tenure_months'   => request()->query('max_tenure_months'),
-                'vendor_id'           => request()->query('vendor_id'),
+                'title'             => request()->query('title'),
+                'asset_value'       => request()->query('asset_value'),
+                'max_tenure_months' => request()->query('max_tenure_months'),
+                'vendor_id'         => request()->query('vendor_id'),
             ],
         ];
+    }
+
+    /** @return array<string, string> */
+    private function categoryOptions(?MarketplaceAsset $record = null): array
+    {
+        $options = [];
+        foreach (config('asset_lending.categories', []) as $key => $row) {
+            $options[(string) $key] = is_array($row)
+                ? (string) ($row['label'] ?? $key)
+                : (string) $row;
+        }
+
+        foreach (config('asset_marketplace.categories', []) as $key => $label) {
+            if (is_array($label)) {
+                $label = $label['label'] ?? $key;
+            }
+            $options[(string) $key] = (string) $label;
+        }
+
+        $current = (string) ($record?->category ?? '');
+        if ($current !== '' && ! isset($options[$current])) {
+            $mapped = config('asset_lending.legacy_category_map.'.$current);
+            $mappedLabel = is_string($mapped) && isset($options[$mapped])
+                ? $options[$mapped]
+                : ucfirst(str_replace('_', ' ', $current));
+            $options = [$current => $mappedLabel] + $options;
+        }
+
+        return $options;
     }
 
     protected function transform(array $data, ?Model $existing = null): array
@@ -59,7 +111,10 @@ class MarketplaceAssetController extends ResourceController
     {
         $record = $this->findRecord($id);
 
-        return view("admin.{$this->viewFolder}.show", ['record' => $record]);
+        return view("admin.{$this->viewFolder}.show", [
+            'record' => $record,
+            'categoryLabel' => $this->categoryOptions($record)[$record->category] ?? $record->category,
+        ]);
     }
 
     public function edit($id)

@@ -218,7 +218,7 @@
 
         <div class="rounded-xl ring-1 ring-gray-200 p-5 space-y-4">
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Monthly evaluation & automation</h3>
-            <p class="text-xs text-gray-500">Used by <span class="font-mono">php artisan affiliate:evaluate</span> (scheduled 1st of each month). <strong>Watchlist</strong> flags risky affiliates for review; <strong>fraud score</strong> rises with shared phones/devices, duplicate IPs, and click farms (high clicks / low conversion). Auto-actions can move affiliates to watchlist or suspended when thresholds are exceeded.</p>
+            <p class="text-xs text-gray-500">Used by <span class="font-mono">php artisan affiliate:evaluate</span> (scheduled 1st of each month). <strong>New users per month</strong> is borrower registrations via their code — change 10 to 15 or 20 here. First miss sends a nudge; repeated misses go to watchlist then suspend (never terminate automatically). Fraud still suspends immediately when those scores are hit. Field partners (valuer, GPS, recovery) use <a href="{{ route('admin.settings.partner-performance') }}" class="font-semibold text-brand hover:underline">Partner performance</a>.</p>
             @php $eval = $values['evaluation'] ?? []; @endphp
             <label class="inline-flex items-center gap-2 text-sm text-gray-800 mb-2">
                 <input type="hidden" name="eval_auto_apply_actions" value="0">
@@ -234,6 +234,16 @@
                                :value="$eval['min_events_for_scoring'] ?? 3" />
                 <x-admin.input name="eval_high_click_threshold" label="High click threshold" type="number" min="1"
                                :value="$eval['high_click_threshold'] ?? 50" />
+                <x-admin.input name="eval_monthly_registration_target" label="New users per month (target)" type="number" min="0"
+                               :value="$eval['monthly_registration_target'] ?? 10" />
+                <x-admin.input name="eval_volume_min_active_days" label="Days before volume scoring (onboarding)" type="number" min="0"
+                               :value="$eval['volume_min_active_days'] ?? 30" />
+                <x-admin.input name="eval_volume_misses_before_nudge" label="Missed months before a nudge" type="number" min="1"
+                               :value="$eval['volume_misses_before_nudge'] ?? 1" />
+                <x-admin.input name="eval_volume_misses_before_watchlist" label="Missed months before watchlist" type="number" min="1"
+                               :value="$eval['volume_misses_before_watchlist'] ?? 2" />
+                <x-admin.input name="eval_volume_misses_before_suspend" label="Missed months before suspend" type="number" min="1"
+                               :value="$eval['volume_misses_before_suspend'] ?? 3" />
                 <x-admin.input name="eval_low_conversion_threshold" label="Low conversion % threshold" type="number" step="0.1" min="0"
                                :value="$eval['low_conversion_threshold'] ?? 5" />
                 <x-admin.input name="eval_duplicate_ip_threshold" label="Duplicate IP registration threshold" type="number" min="1"

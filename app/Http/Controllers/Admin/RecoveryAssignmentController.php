@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
+use App\Models\CollectionAction;
 use App\Models\RecoveryAssignment;
 use App\Services\RecoveryAssignmentService;
 use App\Services\RecoveryPolicyService;
@@ -44,9 +45,37 @@ class RecoveryAssignmentController extends Controller
             'vendorTask',
         ]);
 
+        $activity = CollectionAction::query()
+            ->where(function ($query) use ($recoveryAssignment): void {
+                $query->where('recovery_assignment_id', $recoveryAssignment->id);
+                if ($recoveryAssignment->arrear_case_id) {
+                    $query->orWhere(function ($inner) use ($recoveryAssignment): void {
+                        $inner->where('arrear_case_id', $recoveryAssignment->arrear_case_id)
+                            ->whereIn('action_type', [
+                                'partner_reminder',
+                                'reminder_sent',
+                                'recovery_partner_assigned',
+                                'recovery_partner_completed',
+                                'recovery_partner_escalated',
+                                'recovery_partner_reassigned',
+                            ]);
+                    });
+                }
+            })
+            ->with('performer')
+            ->latest('performed_at')
+            ->limit(12)
+            ->get();
+
+        $lastPartnerReminder = $activity->firstWhere('action_type', 'partner_reminder');
+        $lastBorrowerReminder = $activity->firstWhere('action_type', 'reminder_sent');
+
         return view('admin.recovery.assignments.show', [
             'assignment' => $recoveryAssignment,
             'types'      => app(RecoveryPolicyService::class)->partnerTypes(),
+            'activity'   => $activity,
+            'lastPartnerReminder' => $lastPartnerReminder,
+            'lastBorrowerReminder' => $lastBorrowerReminder,
         ]);
     }
 
@@ -78,5 +107,19 @@ class RecoveryAssignmentController extends Controller
         $service->escalate($recoveryAssignment, request()->user(), $data['notes'] ?? null);
 
         return back()->with('status', 'Recovery case escalated.');
+    }
+
+    public function remindPartner(RecoveryAssignment $recoveryAssignment, RecoveryAssignmentService $service): RedirectResponse
+    {
+        $service->remindPartner($recoveryAssignment, request()->user());
+
+        return back()->with('status', 'Reminder sent to the assigned partner.');
+    }
+
+    public function remindBorrower(RecoveryAssignment $recoveryAssignment, RecoveryAssignmentService $service): RedirectResponse
+    {
+        $service->remindBorrower($recoveryAssignment, request()->user());
+
+        return back()->with('status', 'Payment reminder sent to the borrower.');
     }
 }

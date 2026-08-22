@@ -42,6 +42,12 @@ return [
         'duplicate_ip_registration_threshold' => (int) env('AFFILIATE_EVAL_DUP_IP', 3),
         'low_conversion_threshold'            => (float) env('AFFILIATE_EVAL_LOW_CONV', 5),
         'high_click_threshold'                => (int) env('AFFILIATE_EVAL_HIGH_CLICKS', 50),
+        /** Borrower registrations via the affiliate code in the evaluation period. */
+        'monthly_registration_target'         => (int) env('AFFILIATE_MONTHLY_REG_TARGET', 10),
+        'volume_min_active_days'              => (int) env('AFFILIATE_VOLUME_MIN_ACTIVE_DAYS', 30),
+        'volume_misses_before_nudge'          => (int) env('AFFILIATE_VOLUME_MISSES_NUDGE', 1),
+        'volume_misses_before_watchlist'      => (int) env('AFFILIATE_VOLUME_MISSES_WATCHLIST', 2),
+        'volume_misses_before_suspend'        => (int) env('AFFILIATE_VOLUME_MISSES_SUSPEND', 3),
         'weights' => [
             'volume'     => 0.3,
             'conversion' => 0.4,

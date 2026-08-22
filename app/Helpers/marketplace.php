@@ -1,9 +1,13 @@
 <?php
 
 if (! function_exists('marketplace_photo_url')) {
-    function marketplace_photo_url(?string $path): ?string
+    function marketplace_photo_url(mixed $path): ?string
     {
-        if (blank($path)) {
+        if (is_array($path)) {
+            $path = $path['url'] ?? $path['path'] ?? ($path[0] ?? null);
+        }
+
+        if (! is_string($path) || blank($path)) {
             return null;
         }
 
@@ -28,7 +32,7 @@ if (! function_exists('marketplace_photo_urls')) {
     {
         return collect($photos)
             ->filter()
-            ->map(fn (string $path) => marketplace_photo_url($path))
+            ->map(fn (mixed $path) => marketplace_photo_url($path))
             ->filter()
             ->values()
             ->all();

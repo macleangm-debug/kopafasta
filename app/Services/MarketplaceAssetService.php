@@ -78,6 +78,13 @@ class MarketplaceAssetService
             $data['slug'] = Str::slug($data['title']).'-'.Str::lower(Str::random(4));
         }
 
+        if (! empty($data['category'])) {
+            $legacy = config('asset_lending.legacy_category_map', []);
+            if (isset($legacy[$data['category']])) {
+                $data['category'] = $legacy[$data['category']];
+            }
+        }
+
         if (isset($data['deposit_percent'])) {
             $assetValue = (float) ($data['asset_value'] ?? 0);
             $data['supplier_deposit'] = round($assetValue * ((float) $data['deposit_percent'] / 100), 2);

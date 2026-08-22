@@ -137,6 +137,7 @@ class ConsoleNavService
                 'items' => [
                     ['Partners hub',            'admin.partners.index'],
                     ['Partner applications',    'admin.partner-applications.index'],
+                    ['Partner efficiency',      'admin.partners.efficiency'],
                     ['Partner payout requests', 'admin.partner-payout-requests.index', 'finance.operations'],
                 ],
                 'perms' => ['partners.manage'],

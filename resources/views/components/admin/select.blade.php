@@ -31,7 +31,12 @@
                 <option value="">{{ $placeholder }}</option>
             @endif
             @foreach ($optionItems as $key => $optionLabel)
-                @php($optValue = $optionsAreList ? $optionLabel : $key)
+                @php
+                    if (is_array($optionLabel)) {
+                        $optionLabel = $optionLabel['label'] ?? $key;
+                    }
+                    $optValue = $optionsAreList ? $optionLabel : $key;
+                @endphp
                 <option value="{{ $optValue }}" @selected((string) $current === (string) $optValue)>{{ $optionLabel }}</option>
             @endforeach
         </select>

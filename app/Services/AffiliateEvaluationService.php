@@ -24,13 +24,24 @@ class AffiliateEvaluationService
         $periodStart ??= $periodEnd->copy()->subDays($this->settings()->evaluationPeriodDays())->startOfDay();
 
         $metrics = $this->metricsForPeriod($affiliate, $periodStart, $periodEnd);
+        $volume = $this->volumeProgress($affiliate, $metrics, $periodStart, $periodEnd);
+        $metrics['monthly_registration_target'] = $volume['target'];
+        $metrics['volume_missed'] = $volume['missed'] ? 1 : 0;
+        $metrics['volume_consecutive_misses'] = $volume['consecutive_misses'];
+
         $kpiScore = $this->kpiScore($metrics);
         $riskScore = $this->riskScore($metrics);
         $fraudScore = $this->fraudScore($metrics);
-        $recommendation = $this->recommendation($kpiScore, $riskScore, $fraudScore, $metrics);
+        $recommendation = $this->recommendation($kpiScore, $riskScore, $fraudScore, $metrics, $volume);
         $actionTaken = $applyActions && $this->settings()->autoApplyActions()
             ? $this->applyRecommendation($affiliate, $recommendation)
             : 'skipped';
+
+        if ($applyActions && $volume['missed'] && $volume['consecutive_misses'] >= $this->settings()->volumeMissesBeforeNudge()) {
+            $this->nudgeVolume($affiliate, $volume);
+        }
+
+        $this->storeVolumeMetadata($affiliate, $volume);
 
         $evaluation = AffiliateEvaluation::create([
             'partner_id'     => $affiliate->id,
@@ -55,6 +66,9 @@ class AffiliateEvaluationService
                 'risk_score'     => $riskScore,
                 'fraud_score'    => $fraudScore,
                 'recommendation' => $recommendation,
+                'volume_target'  => $volume['target'],
+                'volume_registrations' => $volume['registrations'],
+                'volume_consecutive_misses' => $volume['consecutive_misses'],
                 'evaluated_at'   => now()->toIso8601String(),
             ],
         ]);
@@ -85,11 +99,13 @@ class AffiliateEvaluationService
                     $periodEnd->copy()->subDays($this->settings()->evaluationPeriodDays())->startOfDay(),
                     $periodEnd,
                 );
+                $periodStart = $periodEnd->copy()->subDays($this->settings()->evaluationPeriodDays())->startOfDay();
                 $recommendation = $this->recommendation(
                     $this->kpiScore($metrics),
                     $this->riskScore($metrics),
                     $this->fraudScore($metrics),
                     $metrics,
+                    $this->volumeProgress($affiliate, $metrics, $periodStart, $periodEnd),
                 );
                 $counts['evaluated']++;
                 if ($recommendation === 'watchlist') {
@@ -224,12 +240,15 @@ class AffiliateEvaluationService
 
     /**
      * @param  array<string, int|float>  $metrics
+     * @param  array{target: int, registrations: int, missed: bool, consecutive_misses: int, onboarding: bool}  $volume
      */
-    public function recommendation(float $kpi, float $risk, float $fraud, array $metrics): string
+    public function recommendation(float $kpi, float $risk, float $fraud, array $metrics, array $volume = []): string
     {
         $eventCount = (int) $metrics['clicks'] + (int) $metrics['registrations'] + (int) $metrics['applications'];
+        $volumeMisses = (int) ($volume['consecutive_misses'] ?? 0);
 
-        if ($eventCount < $this->settings()->minEventsForScoring()) {
+        if ($eventCount < $this->settings()->minEventsForScoring()
+            && $volumeMisses < $this->settings()->volumeMissesBeforeNudge()) {
             return 'none';
         }
 
@@ -237,15 +256,122 @@ class AffiliateEvaluationService
             return 'suspend';
         }
 
+        if ($volumeMisses >= $this->settings()->volumeMissesBeforeSuspend()) {
+            return 'suspend';
+        }
+
         if ($fraud >= $this->settings()->watchlistFraudScore() || $risk >= $this->settings()->watchlistRiskScore()) {
             return 'watchlist';
         }
 
-        if ($kpi < 30) {
+        if ($volumeMisses >= $this->settings()->volumeMissesBeforeWatchlist()) {
+            return 'watchlist';
+        }
+
+        if ($kpi < 30 || (($volume['missed'] ?? false) && $volumeMisses >= $this->settings()->volumeMissesBeforeNudge())) {
             return 'review';
         }
 
         return 'none';
+    }
+
+    /**
+     * @param  array<string, int|float>  $metrics
+     * @return array{target: int, registrations: int, missed: bool, consecutive_misses: int, onboarding: bool}
+     */
+    public function volumeProgress(Vendor $affiliate, array $metrics, Carbon $periodStart, ?Carbon $periodEnd = null): array
+    {
+        $periodEnd ??= $periodStart->copy()->addDays($this->settings()->evaluationPeriodDays());
+        $periodKey = $periodEnd->toDateString();
+        $target = $this->settings()->monthlyRegistrationTarget();
+        $registrations = (int) ($metrics['registrations'] ?? 0);
+        $minActiveDays = $this->settings()->volumeMinActiveDays();
+        $onboarding = $minActiveDays > 0
+            && $affiliate->created_at
+            && $affiliate->created_at->gt(now()->subDays($minActiveDays));
+        $missed = $target > 0 && ! $onboarding && $registrations < $target;
+
+        $meta = is_array($affiliate->metadata) ? $affiliate->metadata : [];
+        $previous = (int) (data_get($meta, 'affiliate_volume.consecutive_misses') ?? 0);
+        $lastPeriod = (string) (data_get($meta, 'affiliate_volume.period_end') ?? '');
+        $consecutive = 0;
+        if ($missed) {
+            $consecutive = $lastPeriod === $periodKey ? $previous : $previous + 1;
+        }
+
+        return [
+            'target' => $target,
+            'registrations' => $registrations,
+            'missed' => $missed,
+            'consecutive_misses' => $consecutive,
+            'onboarding' => $onboarding,
+            'period_end' => $periodKey,
+        ];
+    }
+
+    /** @return array{target: int, registrations: int, missed: bool, consecutive_misses: int, onboarding: bool} */
+    public function currentVolumeProgress(Vendor $affiliate): array
+    {
+        $end = now()->endOfDay();
+        $start = $end->copy()->subDays($this->settings()->evaluationPeriodDays())->startOfDay();
+        $metrics = $this->metricsForPeriod($affiliate, $start, $end);
+        $volume = $this->volumeProgress($affiliate, $metrics, $start, $end);
+        $meta = is_array($affiliate->metadata) ? $affiliate->metadata : [];
+        $volume['consecutive_misses'] = (int) (data_get($meta, 'affiliate_volume.consecutive_misses') ?? 0);
+        $volume['missed'] = $volume['target'] > 0 && ! $volume['onboarding'] && $volume['registrations'] < $volume['target'];
+
+        return $volume;
+    }
+
+    /** @return Collection<int, array<string, mixed>> */
+    public function volumeBoard(): Collection
+    {
+        return Vendor::query()
+            ->where('category', 'affiliate')
+            ->where('status', '!=', 'inactive')
+            ->orderBy('name')
+            ->get()
+            ->map(function (Vendor $affiliate): array {
+                $volume = $this->currentVolumeProgress($affiliate);
+                $label = $volume['onboarding']
+                    ? 'Onboarding'
+                    : ($volume['missed'] ? 'Below target' : 'On track');
+
+                return array_merge($volume, [
+                    'partner' => $affiliate,
+                    'label' => $label,
+                ]);
+            })
+            ->values();
+    }
+
+    /** @param  array{target: int, registrations: int, missed: bool, consecutive_misses: int, onboarding: bool}  $volume */
+    protected function storeVolumeMetadata(Vendor $affiliate, array $volume): void
+    {
+        $meta = is_array($affiliate->metadata) ? $affiliate->metadata : [];
+        $meta['affiliate_volume'] = [
+            'target' => $volume['target'],
+            'registrations' => $volume['registrations'],
+            'consecutive_misses' => $volume['consecutive_misses'],
+            'missed' => $volume['missed'],
+            'period_end' => $volume['period_end'] ?? now()->toDateString(),
+            'reviewed_at' => now()->toIso8601String(),
+        ];
+        $affiliate->update(['metadata' => $meta]);
+    }
+
+    /** @param  array{target: int, registrations: int, consecutive_misses: int}  $volume */
+    protected function nudgeVolume(Vendor $affiliate, array $volume): void
+    {
+        $left = max(0, $this->settings()->volumeMissesBeforeSuspend() - $volume['consecutive_misses']);
+        app(NotificationService::class)->notifyPartner($affiliate, 'affiliate_volume_warning', [
+            'partner' => $affiliate->name,
+            'registrations' => (string) $volume['registrations'],
+            'target' => (string) $volume['target'],
+            'remaining' => (string) $left,
+            '_fallback_subject' => 'Bring in more customers this month',
+            '_fallback_body' => 'Hi '.$affiliate->name.', you brought '.$volume['registrations'].' new users vs the target of '.$volume['target'].'. Pull up — '.$left.' more missed month(s) and the account may be suspended. — '.(function_exists('brand_name') ? brand_name() : 'KopaFasta'),
+        ]);
     }
 
     public function applyRecommendation(Vendor $affiliate, string $recommendation): string
@@ -293,7 +419,7 @@ class AffiliateEvaluationService
     /** @param  array<string, int|float>  $metrics */
     protected function notesFor(string $recommendation, array $metrics): string
     {
-        return sprintf(
+        $note = sprintf(
             'Recommendation: %s. Clicks %d, registrations %d, applications %d, dispute rate %.1f%%, duplicate IP clusters %d.',
             $recommendation,
             $metrics['clicks'],
@@ -302,6 +428,17 @@ class AffiliateEvaluationService
             $metrics['dispute_rate'],
             $metrics['duplicate_ip_registrations'],
         );
+
+        if ((int) ($metrics['volume_missed'] ?? 0) === 1) {
+            $note .= sprintf(
+                ' Volume: %d registrations vs target %d (%d missed month(s)).',
+                $metrics['registrations'],
+                (int) ($metrics['monthly_registration_target'] ?? 0),
+                (int) ($metrics['volume_consecutive_misses'] ?? 0),
+            );
+        }
+
+        return $note;
     }
 
     public function updateLeaderboardRanks(): void
