@@ -21,13 +21,29 @@
     }
 
     $faceFields = [
-        'face_front' => ['label' => __('site.affiliate_portal.face_front'), 'path' => $faces['front'] ?? null],
-        'face_left'  => ['label' => __('site.affiliate_portal.face_left'), 'path' => $faces['left'] ?? null],
-        'face_right' => ['label' => __('site.affiliate_portal.face_right'), 'path' => $faces['right'] ?? null],
+        'face_front' => [
+            'label' => __('site.affiliate_portal.face_front'),
+            'path' => $faces['front'] ?? null,
+            'guide' => __('borrower.face_verification_page.angles.front.instruction'),
+        ],
+        'face_left'  => [
+            'label' => __('site.affiliate_portal.face_left'),
+            'path' => $faces['left'] ?? null,
+            'guide' => __('borrower.face_verification_page.angles.left.instruction'),
+        ],
+        'face_right' => [
+            'label' => __('site.affiliate_portal.face_right'),
+            'path' => $faces['right'] ?? null,
+            'guide' => __('borrower.face_verification_page.angles.right.instruction'),
+        ],
     ];
 
     if (! $noPhysicalCard) {
-        $faceFields['face_holding_id'] = ['label' => __('site.affiliate_portal.face_holding_id'), 'path' => $faces['holding_id'] ?? null];
+        $faceFields['face_holding_id'] = [
+            'label' => __('site.affiliate_portal.face_holding_id'),
+            'path' => $faces['holding_id'] ?? null,
+            'guide' => __('borrower.face_verification_page.angles.holding_nida.instruction'),
+        ];
     }
 
     $faceComplete = filled($faces['front'] ?? null)
@@ -82,6 +98,8 @@
                             facing="user"
                             :camera-only="true"
                             :required="! filled($info['path'])"
+                            :guide="$info['guide'] ?? null"
+                            :show-oval="true"
                         />
                         @error($field)<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                     </div>

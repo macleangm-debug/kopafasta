@@ -5,6 +5,8 @@
     'facing' => 'environment', // environment = docs (front+back); user = selfie (front only)
     'required' => false,
     'cameraOnly' => false,
+    'guide' => null,
+    'showOval' => null,
 ])
 
 @php
@@ -12,6 +14,7 @@
     $facingMode = in_array($facing, ['user', 'environment'], true) ? $facing : 'environment';
     $lockFront = $facingMode === 'user'; // facial/selfie captures stay front-camera only
     $cameraOnly = (bool) $cameraOnly;
+    $showOval = $showOval === null ? $facingMode === 'user' : (bool) $showOval;
     $labelDefaults = [
         'captureImage' => __('borrower.profile.capture_image'),
         'close' => __('borrower.profile.multi_page_close'),
@@ -70,18 +73,30 @@
 
     <template x-teleport="body">
         <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-brand flex flex-col">
-            <div class="relative z-[3] flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-brand to-transparent">
-                <div class="min-w-0">
+            <div class="relative z-[3] flex items-start justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-brand to-transparent">
+                <div class="min-w-0 max-w-md">
                     <x-site.brand-mark size="sm" variant="light" />
-                    <p class="mt-1 text-[10px] uppercase tracking-widest text-brand-gold font-semibold truncate" x-text="labels.brand"></p>
+                    @if (filled($guide))
+                        <div class="mt-3 rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
+                            <p class="text-sm font-semibold">{{ $guide }}</p>
+                            @if ($showOval)
+                                <p class="text-xs text-white/80 mt-1">{{ __('borrower.face_verification_page.oval_hint') }}</p>
+                            @endif
+                        </div>
+                    @endif
                 </div>
                 <button type="button" @click="closeCamera()"
-                        class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
+                        class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25 mt-0.5"
                         x-text="labels.close"></button>
             </div>
             <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
                    class="absolute inset-0 w-full h-full object-cover"
                    :class="facingMode === 'user' ? 'mirror' : ''"></video>
+            @if ($showOval)
+                <div class="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
+                    <div class="w-[78%] max-w-[340px] aspect-[4/5] rounded-[50%] border-[3px] border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.3)]"></div>
+                </div>
+            @endif
             <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">
                 <div class="flex items-center gap-2 max-w-lg mx-auto">
                     <button type="button" x-show="!lockFront" x-cloak @click="toggleFacing()"
@@ -270,6 +285,13 @@
                     } else {
                         this.previewUrl = null;
                     }
+                    this.emitPreview();
+                },
+                emitPreview() {
+                    this.$dispatch('doc-preview', {
+                        name: this.fieldName,
+                        filled: Boolean(this.previewUrl || this.previewName),
+                    });
                 },
                 clearFile() {
                     const host = document.getElementById(this.hostId);
@@ -279,6 +301,7 @@
                     }
                     this.previewUrl = null;
                     this.previewName = null;
+                    this.emitPreview();
                 },
             };
         }

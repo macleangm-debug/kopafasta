@@ -72,26 +72,32 @@
                     <p class="text-xs text-gray-500 mt-1">{{ __('site.partner_account.payout_name_locked') }}</p>
                     <input type="hidden" name="payout_account_name" value="{{ $lockedName }}">
                 </div>
-                <div x-show="type === 'mobile_money'" class="grid sm:grid-cols-2 gap-4">
+                <div x-show="type === 'mobile_money'" class="grid sm:grid-cols-2 gap-4 items-start">
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.provider') }}</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.payment_details.provider') }}</label>
                         <input name="payout_mobile_provider" value="{{ old('payout_mobile_provider', $payout['mobile_provider'] ?? '') }}"
-                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="M-Pesa / Tigo Pesa / Airtel Money">
+                               class="w-full h-12 rounded-xl bg-white border border-gray-300 px-3.5 text-base outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10" placeholder="M-Pesa / Tigo Pesa / Airtel Money">
                     </div>
-                    <div>
-                        <x-site.phone-input name="payout_mobile_number" :label="__('borrower.payment_details.phone_number')" :value="old('payout_mobile_number', $payout['mobile_number'] ?? $partner->phone)" variant="rounded" />
+                    <div class="min-w-0">
+                        <x-site.phone-input
+                            name="payout_mobile_number"
+                            :label="__('borrower.payment_details.phone_number')"
+                            :value="old('payout_mobile_number', $payout['mobile_number'] ?? $partner->phone)"
+                            variant="rounded"
+                            prefix-class="h-12 py-0"
+                        />
                     </div>
                 </div>
-                <div x-show="type === 'bank'" class="grid sm:grid-cols-2 gap-4" x-cloak>
+                <div x-show="type === 'bank'" class="grid sm:grid-cols-2 gap-4 items-start" x-cloak>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.bank_name') }}</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.payment_details.bank_name') }}</label>
                         <input name="payout_bank_name" value="{{ old('payout_bank_name', $payout['bank_name'] ?? '') }}"
-                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                               class="w-full h-12 rounded-xl bg-white border border-gray-300 px-3.5 text-base outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.account_number') }}</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.payment_details.account_number') }}</label>
                         <input name="payout_account_number" value="{{ old('payout_account_number', $payout['account_number'] ?? '') }}"
-                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                               class="w-full h-12 rounded-xl bg-white border border-gray-300 px-3.5 text-base outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10">
                     </div>
                 </div>
                 <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />

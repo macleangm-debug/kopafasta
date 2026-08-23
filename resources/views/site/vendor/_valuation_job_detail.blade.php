@@ -146,13 +146,13 @@
                                 <img src="{{ asset('storage/'.$s['path']) }}" alt="" class="h-56 w-full object-cover rounded-xl ring-1 ring-gray-200">
                             @endif
                             @if ($open)
-                                <form method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3">
+                                <form method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3" x-data="{ captured: false }" @doc-preview="captured = $event.detail.filled">
                                     @csrf
                                     <input type="hidden" name="customer_asset_id" value="{{ $s['asset_id'] }}">
                                     <input type="hidden" name="angle" value="{{ $s['angle'] }}">
                                     <x-site.single-image-document-upload name="file" facing="environment" :required="empty($s['path'])" :camera-only="true" />
-                                    <button class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2 hover:bg-brand-light">
-                                        {{ ! empty($s['path']) ? __('site.partner_portal.valuation_retake') : __('site.partner_portal.valuation_save_photo') }}
+                                    <button type="submit" x-show="captured" x-cloak class="w-full rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-light">
+                                        {{ __('site.partner_portal.valuation_save_photo') }}
                                     </button>
                                 </form>
                             @endif

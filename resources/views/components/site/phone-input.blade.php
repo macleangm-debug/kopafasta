@@ -13,6 +13,7 @@
     'lockedCountry' => null,
     'form' => null,
     'allowCountryChange' => false,
+    'prefixClass' => null,
 ])
 
 @php
@@ -55,6 +56,12 @@
     $prefixDisplayClass = $variant === 'rounded'
         ? 'w-28 shrink-0 px-3.5 py-3 rounded-xl bg-gray-50 border border-gray-300 text-base text-gray-700 font-medium inline-flex items-center justify-center select-none'
         : 'w-28 shrink-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-base text-gray-700 font-medium inline-flex items-center justify-center select-none';
+    $controlExtra = trim((string) ($prefixClass ?? ''));
+    if ($controlExtra !== '') {
+        $selectClass .= ' '.$controlExtra;
+        $inputClass .= ' '.$controlExtra;
+        $prefixDisplayClass .= ' '.$controlExtra;
+    }
 @endphp
 
 <div @error($name) data-has-error="true" @enderror
