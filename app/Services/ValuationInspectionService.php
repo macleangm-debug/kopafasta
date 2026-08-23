@@ -137,6 +137,31 @@ class ValuationInspectionService
         return $missing;
     }
 
+    /**
+     * One capture at a time — valuer photos only; owner uploads are never included.
+     *
+     * @param  \Illuminate\Support\Collection<int, CustomerAsset>  $assets
+     * @return list<array{asset_id: int, asset_label: string, angle: string, label: string, path: ?string}>
+     */
+    public function photoSteps(PartnerTask $task, $assets): array
+    {
+        $captured = $this->valuerPhotosByAsset($task, $assets);
+        $steps = [];
+        foreach ($assets as $asset) {
+            foreach (CustomerAsset::photoAngleLabels($asset->asset_type) as $angle => $label) {
+                $steps[] = [
+                    'asset_id' => $asset->id,
+                    'asset_label' => (string) $asset->label,
+                    'angle' => $angle,
+                    'label' => $label,
+                    'path' => $captured[$asset->id][$angle] ?? null,
+                ];
+            }
+        }
+
+        return $steps;
+    }
+
     public function storePhoto(
         PartnerTask $task,
         int $partnerId,

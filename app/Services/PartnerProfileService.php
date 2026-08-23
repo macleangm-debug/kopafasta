@@ -189,6 +189,38 @@ class PartnerProfileService
     }
 
     /**
+     * Why this partner cannot accept or start a job yet.
+     *
+     * @return 'profile'|'payment'|null
+     */
+    public function jobBlockReason(Partner $partner): ?string
+    {
+        if (! $this->isComplete($partner)) {
+            return 'profile';
+        }
+
+        if ($partner->isAffiliate()) {
+            return app(AffiliateMembershipService::class)->isActive($partner) ? null : 'payment';
+        }
+
+        $membership = app(PartnerMembershipService::class);
+        if ($membership->requiresPayment($partner) && ! $membership->isActive($partner)) {
+            return 'payment';
+        }
+
+        return null;
+    }
+
+    public function payoutAccountName(Partner|Lender $entity): string
+    {
+        if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
+            return trim((string) ($entity->legal_name ?: $entity->name));
+        }
+
+        return trim((string) ($entity->name ?? ''));
+    }
+
+    /**
      * Portal login can exist before the card. The verification card goes live
      * once the partner finishes profile (and pays membership when required).
      */
@@ -537,7 +569,7 @@ class PartnerProfileService
         $meta = $entity->metadata ?? [];
         $meta['payout_account'] = array_filter([
             'type'             => $data['payout_type'] ?? null,
-            'account_name'     => $data['payout_account_name'] ?? null,
+            'account_name'     => $this->payoutAccountName($entity),
             'mobile_provider'  => $data['payout_mobile_provider'] ?? null,
             'mobile_number'    => $data['payout_mobile_number'] ?? null,
             'bank_name'        => $data['payout_bank_name'] ?? null,

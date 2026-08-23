@@ -25,7 +25,7 @@ class PartnerMembershipService
         }
 
         $category = (string) ($partner->category ?? '');
-        $map = $cfg['categories_requiring_payment'] ?? [];
+        $map = $cfg['categories_requiring_payment'] ?? $cfg['categories_requiring_payment'] ?? [];
 
         return (bool) ($map[$category] ?? false);
     }
@@ -34,13 +34,13 @@ class PartnerMembershipService
     {
         $cfg = self::config();
         $category = (string) ($partner->category ?? '');
-        $fees = $cfg['category_fees'] ?? [];
+        $fees = $cfg['category_fees'] ?? $cfg['category_fees'] ?? [];
 
         if (isset($fees[$category]) && is_numeric($fees[$category])) {
             return (float) $fees[$category];
         }
 
-        return (float) ($cfg['default_fee_amount'] ?? 0);
+        return (float) ($cfg['default_fee_amount'] ?? $cfg['default_fee_amount'] ?? 0);
     }
 
     public function isActive(Partner $partner): bool
@@ -94,5 +94,23 @@ class PartnerMembershipService
         ]);
 
         return $partner->fresh();
+    }
+
+    public function ensurePaymentReference(Partner $partner): string
+    {
+        $ref = (string) ($partner->membership_payment_reference ?? '');
+        if ($ref !== '') {
+            return $ref;
+        }
+
+        $ref = 'PTR-MEM-'.$partner->id.'-'.Str::upper(Str::random(5));
+        $partner->update([
+            'membership_status' => in_array($partner->membership_status, ['active', 'grace'], true)
+                ? $partner->membership_status
+                : 'pending_payment',
+            'membership_payment_reference' => $ref,
+        ]);
+
+        return $ref;
     }
 }

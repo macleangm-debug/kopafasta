@@ -18,8 +18,11 @@ use App\Services\GpsDeviceService;
 use App\Services\LoanAgreementService;
 use App\Services\NotificationService;
 use App\Services\PartnerPayoutRequestService;
+use App\Services\AffiliateMembershipService;
+use App\Services\PartnerMembershipService;
 use App\Services\PartnerProfileService;
 use App\Services\PartnerSettlementService;
+use App\Services\PaymentAccountService;
 use App\Services\PartnerWalletService;
 use App\Services\RecoveryCommissionWalletService;
 use App\Services\RecoveryPartnerKpiService;
@@ -375,6 +378,9 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
+        if ($redirect = $this->redirectIfJobsBlocked($vendor)) {
+            return $redirect;
+        }
         $task->update(['status' => 'in_progress', 'accepted_at' => now()]);
         $this->markValuationInProgress($task);
 
@@ -385,6 +391,9 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
+        if ($redirect = $this->redirectIfJobsBlocked($vendor)) {
+            return $redirect;
+        }
         $task->update([
             'status' => 'in_progress',
             'started_at' => now(),
@@ -420,7 +429,19 @@ class VendorController extends Controller
 
         $inspection->storePhoto($task, $vendor->id, $asset, (string) $data['angle'], $request->file('file'));
 
-        return back()->with('status', __('site.partner_portal.valuation_photo_saved'));
+        $task->unsetRelation('documents');
+        $task->load('documents');
+        $assets = $inspection->assetsForTask($task);
+        $steps = $inspection->photoSteps($task, $assets);
+        $next = collect($steps)->search(fn (array $step) => blank($step['path']));
+        $params = ['task' => $task, 'tab' => 'inspect'];
+        if ($next !== false) {
+            $params['photo'] = $next;
+        }
+
+        return redirect()
+            ->route('site.partner.task', $params)
+            ->with('status', __('site.partner_portal.valuation_photo_saved'));
     }
 
     public function inspectValuationChecks(Request $request, VendorTask $task)
@@ -671,6 +692,95 @@ class VendorController extends Controller
         VendorDocument::create($payload);
 
         return back()->with('status', __('site.partner_account.document_uploaded'));
+    }
+
+    public function membershipPayForm(Request $request)
+    {
+        $vendor = $this->vendor();
+        $profile = app(PartnerProfileService::class);
+        if (! $profile->isComplete($vendor)) {
+            return redirect()->route('site.partner.profile')
+                ->with('error', __('site.partner_portal.job_requires_profile'));
+        }
+
+        if ($vendor->isAffiliate()) {
+            return redirect()->route('site.affiliate.membership.pay');
+        }
+
+        $membership = app(PartnerMembershipService::class);
+        if (! $membership->requiresPayment($vendor) || $membership->isActive($vendor)) {
+            return redirect()->route('site.partner.dashboard');
+        }
+
+        $paymentReference = $membership->ensurePaymentReference($vendor);
+        $request->session()->put('partner_membership_payment_ref', $paymentReference);
+
+        $accounts = app(PaymentAccountService::class);
+        $bankAccounts = $accounts->bankAccountsForDisplay('registration_fee', $paymentReference);
+        $mobileResolved = $accounts->resolve('registration_fee', 'mobile_money');
+        $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'] ?? null, $paymentReference);
+
+        return view('site.vendor.membership-pay', [
+            'vendor' => $vendor,
+            'fee' => $membership->feeFor($vendor),
+            'paymentReference' => $paymentReference,
+            'bankAccounts' => $bankAccounts,
+            'mobileDetails' => $mobileDetails,
+        ]);
+    }
+
+    public function membershipPay(Request $request)
+    {
+        $vendor = $this->vendor();
+        $profile = app(PartnerProfileService::class);
+        if (! $profile->isComplete($vendor)) {
+            return redirect()->route('site.partner.profile')
+                ->with('error', __('site.partner_portal.job_requires_profile'));
+        }
+
+        $membership = app(PartnerMembershipService::class);
+        $data = $request->validate([
+            'channel' => ['required', 'in:mobile_money,bank'],
+            'payment_phone' => ['nullable', 'string', 'max:30'],
+            'payment_reference' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        $ref = ($data['payment_reference'] ?? null)
+            ?: $request->session()->pull('partner_membership_payment_ref')
+            ?: $membership->ensurePaymentReference($vendor);
+
+        if ($data['channel'] === 'bank') {
+            $vendor->update([
+                'membership_status' => 'pending_payment',
+                'membership_payment_reference' => $ref,
+            ]);
+
+            return redirect()->route('site.partner.dashboard')
+                ->with('status', __('site.partner_portal.membership_pending').' · '.$ref);
+        }
+
+        $membership->activate($vendor, $ref);
+
+        return redirect()->route('site.partner.dashboard')
+            ->with('status', __('site.partner_portal.membership_paid'))
+            ->with('show_membership_card', true);
+    }
+
+    protected function redirectIfJobsBlocked(Vendor $vendor): ?\Illuminate\Http\RedirectResponse
+    {
+        $reason = app(PartnerProfileService::class)->jobBlockReason($vendor);
+        if ($reason === 'profile') {
+            return redirect()->route('site.partner.profile')
+                ->with('error', __('site.partner_portal.job_requires_profile'));
+        }
+        if ($reason === 'payment') {
+            $route = $vendor->isAffiliate() ? 'site.affiliate.membership.pay' : 'site.partner.membership.pay';
+
+            return redirect()->route($route)
+                ->with('error', __('site.partner_portal.job_requires_payment'));
+        }
+
+        return null;
     }
 
     /* ------------------------------------------------------------------ */

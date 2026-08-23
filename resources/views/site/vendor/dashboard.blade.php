@@ -32,6 +32,15 @@
             $isRecoveryFocused => __('site.partner_portal.hero_recovery'),
             default => __('site.partner_portal.hero_default'),
         };
+        $jobBlock = app(\App\Services\PartnerProfileService::class)->jobBlockReason($vendor);
+        $membershipPayRoute = $vendor->isAffiliate() ? 'site.affiliate.membership.pay' : 'site.partner.membership.pay';
+        if ($jobBlock === 'profile') {
+            $primaryCtaRoute = 'site.partner.profile';
+            $primaryCtaLabel = __('site.partner_portal.cta_complete_profile');
+        } elseif ($jobBlock === 'payment') {
+            $primaryCtaRoute = $membershipPayRoute;
+            $primaryCtaLabel = __('site.partner_portal.cta_pay_membership');
+        }
         $activeStatCards = [];
         if (! $isInsurance) {
             if ((int) ($stats['assigned'] ?? 0) > 0) {
@@ -148,14 +157,23 @@
                         <p class="text-xs text-white/70 mt-1">{{ __('site.partner_portal.wallet_withdraw_hint') }}</p>
                     </a>
                 @endif
-                <a href="{{ route($primaryCtaRoute) }}"
-                   class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shadow-md">
-                    {{ $primaryCtaLabel }}
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-                </a>
+                <div class="flex flex-col gap-2">
+                    <a href="{{ route($primaryCtaRoute) }}"
+                       class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shadow-md">
+                        {{ $primaryCtaLabel }}
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                    </a>
+                    <a href="{{ route('site.card.verify') }}" class="text-center text-xs text-white/70 hover:text-white underline">{{ __('site.nav.verify') }}</a>
+                </div>
             </div>
         </div>
     </section>
+
+    @if ($jobBlock === null)
+        <div class="mb-6 max-w-md">
+            @include('site.partner-account._member_card', ['partner' => $vendor])
+        </div>
+    @endif
 
     @if ($isInsurance)
         @php

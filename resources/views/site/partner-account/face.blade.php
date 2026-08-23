@@ -63,8 +63,9 @@
         :complete="$faceComplete"
         :collapsible="true"
         :default-open="false">
-        <p class="text-sm text-gray-600 mb-1">{{ __('site.affiliate_portal.face_hint') }}</p>
-        <p class="text-xs text-gray-500 mb-4">{{ __('site.affiliate_portal.kyc_camera_hint') }}</p>
+        <p class="text-sm text-gray-600 mb-1">{{ __('site.partner_account.face_camera_intro') }}</p>
+        <p class="text-xs text-gray-500 mb-1">{{ __('borrower.face_verification_page.intro_short') }}</p>
+        <p class="text-xs text-gray-500 mb-4">{{ __('borrower.face_verification_page.oval_hint') }}</p>
         <form method="POST" action="{{ route($updateRoute, ['section' => 'face']) }}" enctype="multipart/form-data" class="space-y-4">
             @csrf @method('PUT')
             <div class="grid sm:grid-cols-2 gap-4">
@@ -79,6 +80,7 @@
                         <x-site.single-image-document-upload
                             :name="$field"
                             facing="user"
+                            :camera-only="true"
                             :required="! filled($info['path'])"
                         />
                         @error($field)<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror

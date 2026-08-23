@@ -20,7 +20,6 @@ class PartnerPortalNavService
             ['key' => 'calendar', 'label' => __('site.partner_portal.nav_calendar'), 'route' => 'site.partner.calendar', 'icon' => 'calendar'],
             ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.partner.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile', 'icon' => 'user'],
-            ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
             ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
         ];
 
@@ -31,7 +30,6 @@ class PartnerPortalNavService
                 ['key' => 'payments', 'label' => __('site.partner_portal.nav_payments'), 'route' => 'site.partner.payments', 'icon' => 'wallet'],
                 ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.partner.notifications', 'icon' => 'bell'],
                 ['key' => 'profile', 'label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile', 'icon' => 'user'],
-                ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
                 ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
             ];
 
@@ -77,7 +75,7 @@ class PartnerPortalNavService
             || array_intersect($vendor?->partnerRoles() ?? [], ['debt_collector', 'call_center', 'legal_partner', 'auctioneer', 'gps_installer']) !== []
         );
         if ($recoveryFocused) {
-            $priority = ['dashboard', 'recovery', 'recovery_wallet', 'tasks', 'payments', 'notifications', 'profile', 'verify', 'support'];
+            $priority = ['dashboard', 'recovery', 'recovery_wallet', 'tasks', 'payments', 'notifications', 'profile', 'support'];
             usort($nav, function (array $a, array $b) use ($priority) {
                 $ai = array_search($a['key'], $priority, true);
                 $bi = array_search($b['key'], $priority, true);
@@ -109,7 +107,6 @@ class PartnerPortalNavService
             ['key' => 'wallet', 'label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet', 'icon' => 'wallet'],
             ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.affiliate.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile', 'icon' => 'user'],
-            ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
         ];
     }
 
@@ -127,7 +124,6 @@ class PartnerPortalNavService
             ['key' => 'settlements', 'label' => __('site.supplier_portal.nav_settlements'), 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
             ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.supplier.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile', 'icon' => 'user'],
-            ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
         ];
     }
 
@@ -144,7 +140,6 @@ class PartnerPortalNavService
             ['key' => 'documents', 'label' => 'Reports', 'route' => 'site.investor.documents', 'icon' => 'folder'],
             ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'site.investor.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => 'Profile', 'route' => 'site.investor.profile', 'icon' => 'user'],
-            ['key' => 'verify', 'label' => __('site.nav.verify'), 'route' => 'site.card.verify', 'icon' => 'shield'],
             ['key' => 'support', 'label' => 'Support', 'route' => 'site.investor.support', 'icon' => 'help'],
         ];
     }

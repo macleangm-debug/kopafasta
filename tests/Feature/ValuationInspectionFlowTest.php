@@ -11,6 +11,7 @@ use App\Models\LoanProduct;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\CustomerAssetService;
+use App\Services\PartnerMembershipService;
 use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
 use App\Services\ValuationPartnerService;
@@ -39,6 +40,37 @@ class ValuationInspectionFlowTest extends TestCase
         ]);
 
         return [$user, $valuer];
+    }
+
+    private function completeValuerForJobs(Vendor $valuer, bool $payMembership = true): Vendor
+    {
+        $valuer->update([
+            'phone' => '255700000001',
+            'email' => 'valuer@test.local',
+            'legal_name' => 'Inspection Valuer Ltd',
+            'registration_number' => 'REG-VAL-1',
+            'metadata' => [
+                'contact_person' => ['name' => 'Jane Contact'],
+                'identity' => [
+                    'national_id' => '19800101123456789012',
+                    'no_physical_nida_card' => true,
+                ],
+                'residence' => [
+                    'region' => 'Dar es Salaam',
+                    'district' => 'Ilala',
+                ],
+                'payout_account' => ['type' => 'mobile_money'],
+            ],
+        ]);
+
+        $valuer = $valuer->fresh();
+
+        if ($payMembership) {
+            app(PartnerMembershipService::class)->activate($valuer);
+            $valuer = $valuer->fresh();
+        }
+
+        return $valuer;
     }
 
     private function makeVehicleAsset(Customer $customer): CustomerAsset
@@ -141,6 +173,7 @@ class ValuationInspectionFlowTest extends TestCase
     public function test_valuer_task_uses_tabs_and_hides_loan_details(): void
     {
         [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer);
         [, $assignment] = $this->assignJob($valuer);
         $task = $assignment->vendorTask;
 
@@ -157,13 +190,16 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertDontSee('777,777', false)
             ->assertDontSee('777777', false)
             ->assertDontSee('APP-INSP-77', false)
-            ->assertDontSee('Related loan', false);
+            ->assertDontSee('Related loan', false)
+            ->assertDontSee('assets/front.jpg', false)
+            ->assertDontSee('assets/owner.jpg', false);
     }
 
     public function test_start_work_opens_inspection_and_blocks_complete_without_photos(): void
     {
         Storage::fake('public');
         [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer);
         [, $assignment, $asset] = $this->assignJob($valuer);
         $task = $assignment->vendorTask;
 
@@ -187,8 +223,11 @@ class ValuationInspectionFlowTest extends TestCase
             ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
             ->assertOk()
             ->assertSee(__('site.partner_portal.valuation_photos_intro'), false)
+            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => 5]), false)
             ->assertSee(__('borrower.document_upload.camera'), false)
-            ->assertSee('capture="environment"', false);
+            ->assertSee('capture="environment"', false)
+            ->assertDontSee('assets/front.jpg', false)
+            ->assertDontSee('assets/owner.jpg', false);
 
         $this->actingAs($user)
             ->from(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
@@ -205,6 +244,7 @@ class ValuationInspectionFlowTest extends TestCase
     {
         Storage::fake('public');
         [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer);
         [, $assignment, $asset] = $this->assignJob($valuer);
         $task = $assignment->vendorTask;
 
@@ -319,5 +359,70 @@ class ValuationInspectionFlowTest extends TestCase
 
         $this->assertSame('photos', app(CustomerAssetService::class)->incompleteReason($asset));
         $this->assertFalse($asset->hasCompletePhotoSet());
+    }
+
+    public function test_incomplete_profile_cannot_start_a_valuation_job(): void
+    {
+        [$user, $valuer] = $this->makeValuerUser();
+        [, $assignment] = $this->assignJob($valuer);
+        $task = $assignment->vendorTask;
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.task', $task))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.job_requires_profile'), false)
+            ->assertSee(__('site.partner_portal.cta_complete_profile'), false)
+            ->assertDontSee(__('site.partner_portal.valuation_start_work'), false);
+
+        $this->actingAs($user)
+            ->from(route('site.partner.task', $task))
+            ->post(route('site.partner.task.start', $task))
+            ->assertRedirect(route('site.partner.profile'));
+
+        $this->actingAs($user)
+            ->from(route('site.partner.task', $task))
+            ->post(route('site.partner.task.accept', $task))
+            ->assertRedirect(route('site.partner.profile'));
+    }
+
+    public function test_unpaid_membership_cannot_start_until_paid(): void
+    {
+        [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer, payMembership: false);
+        [, $assignment] = $this->assignJob($valuer);
+        $task = $assignment->vendorTask;
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.dashboard'))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.cta_pay_membership'), false);
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.task', $task))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.job_requires_payment'), false)
+            ->assertSee(__('site.partner_portal.cta_pay_membership'), false);
+
+        $this->actingAs($user)
+            ->from(route('site.partner.task', $task))
+            ->post(route('site.partner.task.start', $task))
+            ->assertRedirect(route('site.partner.membership.pay'));
+
+        $this->actingAs($user)
+            ->from(route('site.partner.membership.pay'))
+            ->post(route('site.partner.membership.pay.post'), [
+                'channel' => 'mobile_money',
+                'payment_phone' => '255700000001',
+            ])
+            ->assertRedirect(route('site.partner.dashboard'));
+
+        $this->assertTrue(app(PartnerMembershipService::class)->isActive($valuer->fresh()));
+
+        $this->actingAs($user)
+            ->post(route('site.partner.task.start', $task))
+            ->assertRedirect(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']));
     }
 }

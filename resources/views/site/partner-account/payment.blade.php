@@ -13,6 +13,7 @@
 @php
     $meta = $partner->metadata ?? [];
     $payout = is_array($meta['payout_account'] ?? null) ? $meta['payout_account'] : [];
+    $lockedName = app(\App\Services\PartnerProfileService::class)->payoutAccountName($partner);
 @endphp
 
 <x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile">
@@ -65,10 +66,11 @@
                         {{ __('borrower.payment_details.method_bank') }}
                     </label>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.account_name') }}</label>
-                    <input name="payout_account_name" value="{{ old('payout_account_name', $payout['account_name'] ?? $partner->name) }}"
-                           class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
+                    <p class="text-xs text-gray-500">{{ __('borrower.payment_details.account_name') }}</p>
+                    <p class="text-sm font-semibold text-gray-900 mt-0.5">{{ $lockedName }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ __('site.partner_account.payout_name_locked') }}</p>
+                    <input type="hidden" name="payout_account_name" value="{{ $lockedName }}">
                 </div>
                 <div x-show="type === 'mobile_money'" class="grid sm:grid-cols-2 gap-4">
                     <div>

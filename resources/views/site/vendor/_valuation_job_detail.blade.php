@@ -16,6 +16,14 @@
     $open = ! in_array($task->status, ['completed', 'cancelled'], true);
     $initialTab = request('tab', $started ? 'inspect' : 'overview');
     $initialStep = ! $photosDone ? 'photos' : (! $engineDone ? 'engine' : (! $driveDone ? 'drive' : 'values'));
+    $photoSteps = $inspection->photoSteps($task, $assets);
+    $requestedPhoto = (int) request('photo', -1);
+    $firstOpenPhoto = collect($photoSteps)->search(fn ($step) => blank($step['path'] ?? null));
+    $initialPhoto = ($requestedPhoto >= 0 && isset($photoSteps[$requestedPhoto]))
+        ? $requestedPhoto
+        : ($firstOpenPhoto === false ? 0 : (int) $firstOpenPhoto);
+    $jobBlock = app(\App\Services\PartnerProfileService::class)->jobBlockReason($vendor);
+    $payRoute = $vendor->isAffiliate() ? 'site.affiliate.membership.pay' : 'site.partner.membership.pay';
     $title = $assets->pluck('label')->filter()->implode(' · ') ?: ($task->vehicle_details ?: __('site.partner_portal.valuation_job_eyebrow'));
 @endphp
 
@@ -36,7 +44,7 @@
     </div>
 </div>
 
-<div class="grid lg:grid-cols-3 gap-6" x-data="{ tab: @js($initialTab), step: @js($initialStep) }">
+<div class="grid lg:grid-cols-3 gap-6" x-data="{ tab: @js($initialTab), step: @js($initialStep), photo: {{ $initialPhoto }} }">
     <div class="lg:col-span-2 space-y-4">
         <div class="inline-flex flex-wrap rounded-xl ring-1 ring-gray-200/80 bg-white/90 p-0.5 text-sm gap-0.5 w-full sm:w-auto">
             @foreach ([
@@ -72,7 +80,6 @@
             @forelse ($assets as $asset)
                 @php
                     $angles = \App\Models\CustomerAsset::photoAngleLabels($asset->asset_type);
-                    $owner = $asset->photosByAngle();
                 @endphp
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 space-y-3">
                     <div class="flex items-start justify-between gap-3">
@@ -80,20 +87,11 @@
                             <h2 class="font-bold">{{ $asset->label }}</h2>
                             <p class="text-xs text-gray-500">{{ $asset->registration_number ?: \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) $asset->asset_type)) }}</p>
                         </div>
-                        @if (! $asset->hasCompletePhotoSet())
-                            <span class="text-[11px] font-semibold text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2 py-1">{{ __('site.partner_portal.valuation_missing_owner') }}</span>
-                        @endif
                     </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        @foreach ($angles as $angle => $angleLabel)
-                            <div class="rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50">
-                                @if (! empty($owner[$angle]))
-                                    <img src="{{ asset('storage/'.$owner[$angle]) }}" alt="{{ $angleLabel }}" class="h-28 w-full object-cover">
-                                @else
-                                    <div class="h-28 grid place-items-center text-[11px] text-gray-500 px-2 text-center">{{ __('site.partner_portal.valuation_missing_owner') }}</div>
-                                @endif
-                                <p class="text-[10px] font-semibold uppercase tracking-wide text-center py-1">{{ $angleLabel }}</p>
-                            </div>
+                    <p class="text-sm text-gray-600">{{ __('site.partner_portal.valuation_angles_to_capture') }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($angles as $angleLabel)
+                            <span class="rounded-full bg-gray-50 ring-1 ring-gray-200 px-3 py-1 text-xs font-semibold text-gray-700">{{ $angleLabel }}</span>
                         @endforeach
                     </div>
                 </div>
@@ -105,11 +103,19 @@
         <div x-show="tab === 'inspect'" x-cloak class="space-y-4">
             @if (! $started && $open)
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-6 text-center space-y-3">
-                    <p class="text-sm text-gray-600">{{ __('site.partner_portal.valuation_start_hint') }}</p>
-                    <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
-                        @csrf
-                        <button class="rounded-xl bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 hover:bg-black">{{ __('site.partner_portal.valuation_start_work') }}</button>
-                    </form>
+                    @if ($jobBlock === 'profile')
+                        <p class="text-sm text-gray-600">{{ __('site.partner_portal.job_requires_profile') }}</p>
+                        <a href="{{ route('site.partner.profile') }}" class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-semibold px-5 py-2.5">{{ __('site.partner_portal.cta_complete_profile') }}</a>
+                    @elseif ($jobBlock === 'payment')
+                        <p class="text-sm text-gray-600">{{ __('site.partner_portal.job_requires_payment') }}</p>
+                        <a href="{{ route($payRoute) }}" class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-semibold px-5 py-2.5">{{ __('site.partner_portal.cta_pay_membership') }}</a>
+                    @else
+                        <p class="text-sm text-gray-600">{{ __('site.partner_portal.valuation_start_hint') }}</p>
+                        <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
+                            @csrf
+                            <button class="rounded-xl bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 hover:bg-black">{{ __('site.partner_portal.valuation_start_work') }}</button>
+                        </form>
+                    @endif
                 </div>
             @else
                 <div class="flex flex-wrap gap-2">
@@ -131,45 +137,37 @@
 
                 <div x-show="step === 'photos'" class="space-y-5">
                     <p class="text-sm text-gray-600">{{ __('site.partner_portal.valuation_photos_intro') }}</p>
-                    @foreach ($assets as $asset)
-                        @php
-                            $angles = \App\Models\CustomerAsset::photoAngleLabels($asset->asset_type);
-                            $owner = $asset->photosByAngle();
-                            $mine = $valuerPhotos[$asset->id] ?? [];
-                        @endphp
-                        <div class="space-y-3">
-                            <h3 class="font-semibold text-gray-900">{{ $asset->label }}</h3>
-                            @foreach ($angles as $angle => $angleLabel)
-                                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-4 grid sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <p class="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mb-2">{{ __('site.partner_portal.valuation_owner_photo') }} · {{ $angleLabel }}</p>
-                                        @if (! empty($owner[$angle]))
-                                            <img src="{{ asset('storage/'.$owner[$angle]) }}" alt="" class="h-40 w-full object-cover rounded-xl ring-1 ring-gray-200">
-                                        @else
-                                            <div class="h-40 grid place-items-center rounded-xl bg-amber-50 ring-1 ring-amber-200 text-xs text-amber-900 px-3 text-center">{{ __('site.partner_portal.valuation_missing_owner') }}</div>
-                                        @endif
-                                    </div>
-                                    <div>
-                                        <p class="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mb-2">{{ __('site.partner_portal.valuation_your_photo') }}</p>
-                                        @if (! empty($mine[$angle]))
-                                            <img src="{{ asset('storage/'.$mine[$angle]) }}" alt="" class="h-40 w-full object-cover rounded-xl ring-1 ring-gray-200 mb-3">
-                                        @endif
-                                        @if ($open)
-                                            <form method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3">
-                                                @csrf
-                                                <input type="hidden" name="customer_asset_id" value="{{ $asset->id }}">
-                                                <input type="hidden" name="angle" value="{{ $angle }}">
-                                                <x-site.single-image-document-upload name="file" facing="environment" :required="empty($mine[$angle])" :camera-only="true" />
-                                                <button class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2 hover:bg-brand-light">
-                                                    {{ ! empty($mine[$angle]) ? __('site.partner_portal.valuation_retake') : __('site.partner_portal.valuation_save_photo') }}
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endforeach
+                    @forelse ($photoSteps as $i => $s)
+                        <div x-show="photo === {{ $i }}" x-cloak class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 space-y-4">
+                            <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_portal.valuation_photo_progress', ['current' => $i + 1, 'total' => count($photoSteps)]) }}</p>
+                            <h3 class="text-lg font-bold text-gray-900">{{ $s['label'] }}</h3>
+                            <p class="text-sm text-gray-500">{{ $s['asset_label'] }}</p>
+                            @if (! empty($s['path']))
+                                <img src="{{ asset('storage/'.$s['path']) }}" alt="" class="h-56 w-full object-cover rounded-xl ring-1 ring-gray-200">
+                            @endif
+                            @if ($open)
+                                <form method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3">
+                                    @csrf
+                                    <input type="hidden" name="customer_asset_id" value="{{ $s['asset_id'] }}">
+                                    <input type="hidden" name="angle" value="{{ $s['angle'] }}">
+                                    <x-site.single-image-document-upload name="file" facing="environment" :required="empty($s['path'])" :camera-only="true" />
+                                    <button class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2 hover:bg-brand-light">
+                                        {{ ! empty($s['path']) ? __('site.partner_portal.valuation_retake') : __('site.partner_portal.valuation_save_photo') }}
+                                    </button>
+                                </form>
+                            @endif
+                            <div class="flex flex-wrap gap-2">
+                                @if ($i > 0)
+                                    <button type="button" @click="photo = {{ $i - 1 }}" class="rounded-lg bg-white text-gray-700 ring-1 ring-gray-200 text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_photo_back') }}</button>
+                                @endif
+                                @if (! empty($s['path']) && $i < count($photoSteps) - 1)
+                                    <button type="button" @click="photo = {{ $i + 1 }}" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
+                                @endif
+                            </div>
                         </div>
-                    @endforeach
+                    @empty
+                        <p class="text-sm text-gray-600">{{ $task->vehicle_details ?: '—' }}</p>
+                    @endforelse
                     @if ($photosDone && $needsVehicle)
                         <button type="button" @click="step = 'engine'" class="rounded-xl bg-brand text-white text-sm font-semibold px-5 py-2.5">{{ __('site.partner_portal.valuation_continue') }}</button>
                     @elseif ($photosDone)
@@ -253,16 +251,28 @@
             <h3 class="font-bold mb-3">{{ __('site.partner_portal.next_step') }}</h3>
             <div class="space-y-2">
                 @if ($task->status === 'assigned')
-                    <form method="POST" action="{{ route('site.partner.task.accept', $task) }}">
-                        @csrf
-                        <button class="w-full rounded-lg bg-brand text-white text-sm font-semibold py-2.5 hover:bg-brand-light">{{ __('site.partner_portal.accept_task') }}</button>
-                    </form>
+                    @if ($jobBlock === 'profile')
+                        <a href="{{ route('site.partner.profile') }}" class="block w-full text-center rounded-lg bg-brand-gold text-brand text-sm font-semibold py-2.5">{{ __('site.partner_portal.cta_complete_profile') }}</a>
+                    @elseif ($jobBlock === 'payment')
+                        <a href="{{ route($payRoute) }}" class="block w-full text-center rounded-lg bg-brand-gold text-brand text-sm font-semibold py-2.5">{{ __('site.partner_portal.cta_pay_membership') }}</a>
+                    @else
+                        <form method="POST" action="{{ route('site.partner.task.accept', $task) }}">
+                            @csrf
+                            <button class="w-full rounded-lg bg-brand text-white text-sm font-semibold py-2.5 hover:bg-brand-light">{{ __('site.partner_portal.accept_task') }}</button>
+                        </form>
+                    @endif
                 @endif
                 @if ($open && ! $started)
-                    <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
-                        @csrf
-                        <button class="w-full rounded-lg bg-gray-900 text-white text-sm font-semibold py-2.5 hover:bg-black">{{ __('site.partner_portal.valuation_start_work') }}</button>
-                    </form>
+                    @if ($jobBlock === 'profile')
+                        <a href="{{ route('site.partner.profile') }}" class="block w-full text-center rounded-lg bg-gray-900 text-white text-sm font-semibold py-2.5">{{ __('site.partner_portal.cta_complete_profile') }}</a>
+                    @elseif ($jobBlock === 'payment')
+                        <a href="{{ route($payRoute) }}" class="block w-full text-center rounded-lg bg-gray-900 text-white text-sm font-semibold py-2.5">{{ __('site.partner_portal.cta_pay_membership') }}</a>
+                    @else
+                        <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
+                            @csrf
+                            <button class="w-full rounded-lg bg-gray-900 text-white text-sm font-semibold py-2.5 hover:bg-black">{{ __('site.partner_portal.valuation_start_work') }}</button>
+                        </form>
+                    @endif
                 @elseif ($open && $started)
                     <button type="button" @click="tab = 'inspect'; step = '{{ $initialStep }}'" class="w-full rounded-lg bg-gray-900 text-white text-sm font-semibold py-2.5">{{ __('site.partner_portal.tab_inspect') }}</button>
                 @endif

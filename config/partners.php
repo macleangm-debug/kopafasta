@@ -13,10 +13,10 @@ return [
         'notify_days_before_expiry' => 30,
         /** Categories that must pay (empty = renew-on-expiry only, no activation fee). */
         'categories_requiring_payment' => [
-            // 'valuer' => true,
+            'valuer' => true,
         ],
         'category_fees' => [
-            // 'valuer' => 50000,
+            'valuer' => 50000,
         ],
     ],
 
