@@ -153,18 +153,18 @@ class CustomerAsset extends Model
     public static function photoAngleLabels(?string $type = null): array
     {
         $base = [
-            'front' => 'Front',
-            'back' => 'Back',
+            'front' => __('site.partner_portal.valuation_angle_front'),
+            'back' => __('site.partner_portal.valuation_angle_rear'),
         ];
         if (! in_array((string) $type, ['land', 'house', ''], true)) {
             $base += [
-                'left' => 'Left',
-                'right' => 'Right',
+                'left' => __('site.partner_portal.valuation_angle_left'),
+                'right' => __('site.partner_portal.valuation_angle_right'),
             ];
         }
 
         return $base + [
-            'owner' => 'Owner with asset',
+            'owner' => __('site.partner_portal.valuation_angle_owner'),
         ];
     }
 

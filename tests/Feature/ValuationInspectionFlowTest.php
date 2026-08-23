@@ -226,6 +226,9 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => 5]), false)
             ->assertSee(__('borrower.document_upload.camera'), false)
             ->assertSee('capture="environment"', false)
+            ->assertSee('>Front</h3>', false)
+            ->assertSee('>Rear</h3>', false)
+            ->assertDontSee('>Back</h3>', false)
             ->assertDontSee('assets/front.jpg', false)
             ->assertDontSee('assets/owner.jpg', false);
 
@@ -238,6 +241,43 @@ class ValuationInspectionFlowTest extends TestCase
             ])
             ->assertRedirect(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
             ->assertSessionHasErrors('file');
+    }
+
+    public function test_swahili_inspection_uses_translated_angle_headings_and_advances_after_photo(): void
+    {
+        Storage::fake('public');
+        [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer);
+        [, $assignment, $asset] = $this->assignJob($valuer);
+        $task = $assignment->vendorTask;
+
+        $this->actingAs($user)->post(route('site.partner.task.start', $task));
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'sw'])
+            ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
+            ->assertOk()
+            ->assertSee('>Nyuma</h3>', false)
+            ->assertDontSee('>Back</h3>', false)
+            ->assertSee('data-auto-submit="1"', false)
+            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => 5]), false);
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'sw'])
+            ->post(route('site.partner.task.inspect.photo', $task), [
+                'customer_asset_id' => $asset->id,
+                'angle' => 'front',
+                'file' => UploadedFile::fake()->image('front.jpg'),
+            ])
+            ->assertRedirect(route('site.partner.task', ['task' => $task, 'tab' => 'inspect', 'photo' => 1]));
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'sw'])
+            ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect', 'photo' => 1]))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 2, 'total' => 5]), false)
+            ->assertSee('>Nyuma</h3>', false)
+            ->assertDontSee('>Back</h3>', false);
     }
 
     public function test_formatted_values_complete_after_camera_photos_and_seeded_checks(): void
@@ -426,7 +466,7 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertRedirect(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']));
     }
 
-    public function test_paid_membership_dashboard_shows_days_remaining(): void
+    public function test_paid_membership_profile_shows_days_remaining(): void
     {
         [$user, $valuer] = $this->makeValuerUser();
         $this->completeValuerForJobs($valuer, payMembership: true);
@@ -435,10 +475,16 @@ class ValuationInspectionFlowTest extends TestCase
 
         $this->actingAs($user)
             ->withSession(['locale' => 'en'])
-            ->get(route('site.partner.dashboard'))
+            ->get(route('site.partner.profile'))
             ->assertOk()
             ->assertSee((string) $days, false)
             ->assertSee(__('borrower.membership.days_unit'), false);
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.dashboard'))
+            ->assertOk()
+            ->assertDontSee(__('borrower.membership.days_unit'), false);
     }
 
     public function test_payment_form_shows_save_button(): void
@@ -463,6 +509,8 @@ class ValuationInspectionFlowTest extends TestCase
             ->get(route('site.partner.dashboard'))
             ->assertOk()
             ->assertSee(__('site.partner_portal.membership_due_title'), false)
-            ->assertSee(__('site.partner_portal.cta_pay_membership'), false);
+            ->assertSee(__('site.partner_portal.cta_pay_membership'), false)
+            ->assertSee(route('site.partner.membership.pay'), false)
+            ->assertDontSee(__('borrower.membership.days_unit'), false);
     }
 }

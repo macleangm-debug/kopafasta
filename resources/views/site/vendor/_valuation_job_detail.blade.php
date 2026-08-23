@@ -147,11 +147,11 @@
                             @endif
                             @if ($open)
                                 <form x-show="retake" method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3"
-                                      @doc-preview="if ($event.detail.filled && !sending) { sending = true; $nextTick(() => $el.submit()); }">
+                                      @submit="sending = true">
                                     @csrf
                                     <input type="hidden" name="customer_asset_id" value="{{ $s['asset_id'] }}">
                                     <input type="hidden" name="angle" value="{{ $s['angle'] }}">
-                                    <x-site.single-image-document-upload name="file" facing="environment" :required="empty($s['path'])" :camera-only="true" />
+                                    <x-site.single-image-document-upload name="file" facing="environment" :required="empty($s['path'])" :camera-only="true" :auto-submit="true" />
                                 </form>
                             @endif
                             <div class="flex items-center justify-between gap-3">

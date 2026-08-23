@@ -34,12 +34,10 @@
         };
         $jobBlock = app(\App\Services\PartnerProfileService::class)->jobBlockReason($vendor);
         $membershipPayRoute = $vendor->isAffiliate() ? 'site.affiliate.membership.pay' : 'site.partner.membership.pay';
+        $showMembershipPayCta = $jobBlock === 'payment';
         if ($jobBlock === 'profile') {
             $primaryCtaRoute = 'site.partner.profile';
             $primaryCtaLabel = __('site.partner_portal.cta_complete_profile');
-        } elseif ($jobBlock === 'payment') {
-            $primaryCtaRoute = $membershipPayRoute;
-            $primaryCtaLabel = __('site.partner_portal.cta_pay_membership');
         }
         $activeStatCards = [];
         if (! $isInsurance) {
@@ -134,7 +132,19 @@
                 </p>
                 <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">{{ __('site.partner_portal.hi_name', ['name' => $vendor->name]) }}</h1>
                 <p class="text-sm text-white/70 mt-2 font-mono">{{ $vendor->vendor_number }}</p>
-                <p class="text-sm text-white/80 mt-3 max-w-lg">{{ $heroBlurb }}</p>
+                @if ($showMembershipPayCta)
+                    @php
+                        $membershipFee = app(\App\Services\PartnerMembershipService::class)->feeFor($vendor);
+                    @endphp
+                    <p class="text-sm text-white/90 mt-3 max-w-lg">{{ __('site.partner_portal.membership_due_title') }}</p>
+                    <p class="text-sm text-white/75 mt-1 max-w-lg">{{ __('site.partner_portal.membership_due_body', ['amount' => format_money($membershipFee)]) }}</p>
+                    <a href="{{ route($membershipPayRoute) }}"
+                       class="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-white text-brand font-bold px-5 py-2.5 hover:bg-white/90 shadow-sm">
+                        {{ __('site.partner_portal.cta_pay_membership') }}
+                    </a>
+                @else
+                    <p class="text-sm text-white/80 mt-3 max-w-lg">{{ $heroBlurb }}</p>
+                @endif
             </div>
             <div class="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0 w-full sm:w-auto">
                 @php
@@ -157,36 +167,19 @@
                         <p class="text-xs text-white/70 mt-1">{{ __('site.partner_portal.wallet_withdraw_hint') }}</p>
                     </a>
                 @endif
-                <div class="flex flex-col gap-2">
-                    <a href="{{ route($primaryCtaRoute) }}"
-                       class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shadow-md">
-                        {{ $primaryCtaLabel }}
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-                    </a>
-                    <a href="{{ route('site.card.verify') }}" class="text-center text-xs text-white/70 hover:text-white underline">{{ __('site.nav.verify') }}</a>
-                </div>
+                @unless ($showMembershipPayCta)
+                    <div class="flex flex-col gap-2">
+                        <a href="{{ route($primaryCtaRoute) }}"
+                           class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shadow-md">
+                            {{ $primaryCtaLabel }}
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                        </a>
+                        <a href="{{ route('site.card.verify') }}" class="text-center text-xs text-white/70 hover:text-white underline">{{ __('site.nav.verify') }}</a>
+                    </div>
+                @endunless
             </div>
         </div>
     </section>
-
-    @if ($jobBlock === 'payment')
-        @php
-            $membershipFee = app(\App\Services\PartnerMembershipService::class)->feeFor($vendor);
-            $membershipPayUrl = route($membershipPayRoute);
-        @endphp
-        <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <p class="text-[11px] uppercase tracking-widest font-bold text-amber-800">{{ __('site.partner_portal.membership_due_eyebrow') }}</p>
-                <p class="text-sm font-semibold text-gray-900 mt-1">{{ __('site.partner_portal.membership_due_title') }}</p>
-                <p class="text-sm text-gray-600 mt-1">{{ __('site.partner_portal.membership_due_body', ['amount' => format_money($membershipFee)]) }}</p>
-            </div>
-            <a href="{{ $membershipPayUrl }}" class="shrink-0 inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold px-5 py-2.5">{{ __('site.partner_portal.cta_pay_membership') }}</a>
-        </div>
-    @endif
-
-    <div class="mb-6">
-        @include('site.partner-account._member_card', ['partner' => $vendor])
-    </div>
 
     @if ($isInsurance)
         @php

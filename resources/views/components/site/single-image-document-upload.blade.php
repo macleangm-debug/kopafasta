@@ -5,6 +5,7 @@
     'facing' => 'environment', // environment = docs (front+back); user = selfie (front only)
     'required' => false,
     'cameraOnly' => false,
+    'autoSubmit' => false,
     'guide' => null,
     'showOval' => null,
 ])
@@ -14,6 +15,7 @@
     $facingMode = in_array($facing, ['user', 'environment'], true) ? $facing : 'environment';
     $lockFront = $facingMode === 'user'; // facial/selfie captures stay front-camera only
     $cameraOnly = (bool) $cameraOnly;
+    $autoSubmit = (bool) $autoSubmit;
     $showOval = $showOval === null ? $facingMode === 'user' : (bool) $showOval;
     $labelDefaults = [
         'captureImage' => __('borrower.profile.capture_image'),
@@ -29,12 +31,16 @@
     if (! $cameraOnly) {
         $labelDefaults['uploadImage'] = __('borrower.profile.upload_image');
     }
+    if ($autoSubmit) {
+        $labelDefaults['saving'] = __('site.partner_portal.valuation_photo_saving');
+    }
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
 
-<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly))">
+<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly), @js($autoSubmit))"
+     @if ($autoSubmit) data-auto-submit="1" @endif>
     {{-- Gate helper: filled when a preview exists --}}
-    <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
+    <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required && ! $autoSubmit) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
 
     <div class="flex flex-wrap items-center gap-3">
         @unless ($cameraOnly)
@@ -43,16 +49,19 @@
             <input type="file" name="{{ $name }}" accept="image/*,application/pdf" class="sr-only" @change="setFile($event)">
         </label>
         @else
-            <input type="file" name="{{ $name }}" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
+            {{-- Unnamed: the named input is created in the host after capture so the empty picker is not posted. --}}
+            <input type="file" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
         @endunless
         <button type="button" @click="openCamera()"
-                @if ($cameraOnly) x-show="!(previewUrl || previewName)" x-cloak @endif
+                @if ($cameraOnly) x-show="!(previewUrl || previewName || submitting)" x-cloak @endif
                 class="inline-flex items-center justify-center rounded-xl {{ $cameraOnly ? 'bg-brand-gold text-brand hover:bg-yellow-400' : 'bg-white text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40' }} px-5 py-3 text-sm font-bold shadow-sm">
             {{ __('borrower.document_upload.camera') }}
         </button>
     </div>
 
-    <div x-show="previewUrl || previewName" x-cloak class="mt-3">
+    <p x-show="submitting" x-cloak class="mt-3 text-sm font-semibold text-gray-600" x-text="labels.saving"></p>
+
+    <div x-show="(previewUrl || previewName) && !submitting" x-cloak class="mt-3">
         <div class="relative inline-flex">
             <template x-if="previewUrl">
                 <button type="button" @click="expanded = true" class="h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
@@ -128,7 +137,7 @@
     @endpush
     @push('scripts')
     <script>
-        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'environment', lockFront = false, cameraOnly = false) {
+        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'environment', lockFront = false, cameraOnly = false, autoSubmit = false) {
             return {
                 labels: labels || {},
                 fieldName,
@@ -136,6 +145,8 @@
                 facingMode: lockFront ? 'user' : (facingMode || 'environment'),
                 lockFront: !!lockFront,
                 cameraOnly: !!cameraOnly,
+                autoSubmit: !!autoSubmit,
+                submitting: false,
                 cameraOpen: false,
                 cameraNotice: null,
                 stream: null,
@@ -287,6 +298,24 @@
                         this.previewUrl = null;
                     }
                     this.emitPreview();
+                    if (this.autoSubmit) {
+                        this.submitClosestForm();
+                    }
+                },
+                submitClosestForm() {
+                    const form = this.$el.closest('form');
+                    if (!form || form.dataset.kfSubmitting === '1') {
+                        return;
+                    }
+                    form.dataset.kfSubmitting = '1';
+                    this.submitting = true;
+                    this.$nextTick(() => {
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit();
+                        } else {
+                            form.submit();
+                        }
+                    });
                 },
                 emitPreview() {
                     this.$dispatch('doc-preview', {
