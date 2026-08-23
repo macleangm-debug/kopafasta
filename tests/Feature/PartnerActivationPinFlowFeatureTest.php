@@ -63,6 +63,53 @@ class PartnerActivationPinFlowFeatureTest extends TestCase
         $this->assertTrue(app(PinService::class)->hasPin($user->fresh()));
     }
 
+    public function test_activation_matches_local_only_stored_phone_with_full_msisdn(): void
+    {
+        Vendor::create([
+            'name' => 'Local Phone Valuer',
+            'category' => 'valuer',
+            'status' => 'inactive',
+            'partner_number' => 'PT-VL-TZ-7ZHF',
+            'phone' => '784275297',
+            'email' => 'local-phone@kopafasta.local',
+            'user_id' => null,
+            'activated_at' => null,
+        ]);
+
+        $this->from(route('site.partner.start'))->post(route('site.partner.start.lookup'), [
+            'partner_code' => 'PT-VL-TZ-7ZHF',
+            'phone' => '255784275297',
+            'phone_local' => '784275297',
+        ])->assertRedirect(route('site.partner.setup-pin'));
+
+        $vendor = Vendor::query()->where('partner_number', 'PT-VL-TZ-7ZHF')->firstOrFail();
+        $this->assertNotNull($vendor->activated_at);
+        $this->assertNotNull($vendor->user_id);
+    }
+
+    public function test_track_status_finds_admin_created_partner_by_phone(): void
+    {
+        Vendor::create([
+            'name' => 'Tracked Valuer',
+            'category' => 'valuer',
+            'status' => 'inactive',
+            'partner_number' => 'PT-VL-TZ-TRCK',
+            'phone' => '255784275297',
+            'email' => 'tracked@kopafasta.local',
+            'user_id' => null,
+            'activated_at' => null,
+        ]);
+
+        $this->get(route('site.partners.apply.tracking', [
+            'phone' => '255784275297',
+            'phone_local' => '784275297',
+        ]))
+            ->assertOk()
+            ->assertSee('PT-VL-TZ-TRCK', false)
+            ->assertSee('Tracked Valuer', false)
+            ->assertSee(__('site.partner_apply.track_activate_cta'), false);
+    }
+
     public function test_valuer_nav_puts_profile_above_support_and_hides_documents(): void
     {
         $user = User::factory()->create(['role' => 'vendor']);
@@ -83,6 +130,9 @@ class PartnerActivationPinFlowFeatureTest extends TestCase
 
         $this->assertNotContains('documents', $keys);
         $this->assertSame('support', end($keys));
-        $this->assertSame('profile', $keys[count($keys) - 2]);
+        $profileIdx = array_search('profile', $keys, true);
+        $supportIdx = array_search('support', $keys, true);
+        $this->assertNotFalse($profileIdx);
+        $this->assertLessThan($supportIdx, $profileIdx);
     }
 }

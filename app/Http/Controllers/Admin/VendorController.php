@@ -7,6 +7,7 @@ use App\Models\PartnerDocument;
 use App\Models\Vendor;
 use App\Services\AffiliateService;
 use App\Services\PartnerCodeService;
+use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -134,6 +135,14 @@ class VendorController extends ResourceController
     {
         $this->authorize('create', Vendor::class);
 
+        if ($request->filled('phone') || $request->filled('phone_local')) {
+            $request->merge([
+                'phone' => PhoneNumber::fromRequest($request, 'phone')
+                    ?? PhoneNumber::normalizeForCountry((string) $request->input('phone'), null)
+                    ?? $request->input('phone'),
+            ]);
+        }
+
         $validated = $request->validate(array_merge($this->rules(), [
             'activation_mode' => ['nullable', 'in:invite,activate_now,draft'],
             'notify_partner' => ['nullable', 'boolean'],
@@ -183,6 +192,7 @@ class VendorController extends ResourceController
 
         $activation = app(\App\Services\PartnerActivationService::class);
         $statusMessage = ucfirst($this->singular).' created.';
+        $shareInvite = false;
 
         if ($activationMode === 'activate_now' && $activation->requiresActivation($record)) {
             $token = $activation->prepareActivation($record);
@@ -190,22 +200,26 @@ class VendorController extends ResourceController
             $statusMessage = ucfirst($this->singular).' created and portal activated.';
         } elseif ($activationMode === 'invite' && $activation->requiresActivation($record)) {
             $activation->sendActivationInvite($record, $request->user('admin'), notify: $notifyPartner);
-            $statusMessage = ucfirst($this->singular).' created. Activation invite prepared'
-                .($notifyPartner ? ' and notification queued.' : '. Share the partner code to activate.');
+            $shareInvite = true;
+            $statusMessage = $notifyPartner
+                ? ucfirst($this->singular).' created. Notification queued — also share the partner code below.'
+                : ucfirst($this->singular).' created. Share the partner code below so they can activate.';
         } elseif ($activationMode === 'draft') {
             $statusMessage = ucfirst($this->singular).' saved as inactive draft.';
         } elseif ($activation->requiresActivation($record)) {
             $activation->sendActivationInvite($record, $request->user('admin'), notify: false);
+            $shareInvite = true;
+            $statusMessage = ucfirst($this->singular).' created. Share the partner code below so they can activate.';
         }
 
         $this->auditAdminCreated($record);
 
-        $placed = $this->placeWaitingValuerJobs($record->fresh(), $request->user('admin'));
-        $statusMessage .= $this->valuerOpsNextSteps($record->fresh(), $placed, onCreate: true);
+        $this->placeWaitingValuerJobs($record->fresh(), $request->user('admin'));
 
         return redirect()
             ->route("{$this->routePrefix}.show", $record)
-            ->with('status', trim($statusMessage));
+            ->with('status', trim($statusMessage))
+            ->with('partner_invite_ready', $shareInvite);
     }
 
     public function update(Request $request, $id)
@@ -331,6 +345,9 @@ class VendorController extends ResourceController
     protected function transform(array $data, ?Model $existing = null): array
     {
         $data = $this->normalizeApplicantCategory($data);
+        if (filled($data['phone'] ?? null)) {
+            $data['phone'] = PhoneNumber::normalizeForCountry((string) $data['phone'], null) ?: $data['phone'];
+        }
         $contactPerson = trim((string) ($data['contact_person_name'] ?? ''));
         $nationalId = trim((string) ($data['national_id'] ?? ''));
         if ($nationalId !== '') {

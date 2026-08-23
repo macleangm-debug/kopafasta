@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\Vendor;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -178,10 +179,10 @@ class PartnerActivationService
     /** Activate using partner code + matching phone (PIN is created after login). */
     public function activateWithPartnerCode(Vendor $vendor, string $phone, ?string $pin = null): User
     {
-        $normalizedPhone = preg_replace('/\D+/', '', $phone) ?: $phone;
-        $vendorPhone = preg_replace('/\D+/', '', (string) $vendor->phone) ?: (string) $vendor->phone;
+        $incoming = PhoneNumber::nationalSuffix($phone);
+        $stored = PhoneNumber::nationalSuffix((string) $vendor->phone);
 
-        if ($vendorPhone !== $normalizedPhone && ! str_ends_with($vendorPhone, $normalizedPhone) && ! str_ends_with($normalizedPhone, $vendorPhone)) {
+        if ($incoming === '' || $stored === '' || $incoming !== $stored) {
             throw ValidationException::withMessages([
                 'phone' => 'Phone number does not match this partner code.',
             ]);
@@ -196,6 +197,27 @@ class PartnerActivationService
         $token = $this->prepareActivation($vendor);
 
         return $this->activate($vendor->fresh(), $token, filled($pin) ? ['pin' => $pin] : []);
+    }
+
+    public function publicActivateUrl(Vendor $vendor): string
+    {
+        $query = array_filter([
+            'partner_code' => $vendor->vendor_number ?: $vendor->partner_number,
+            'phone' => PhoneNumber::digits((string) $vendor->phone) ?: null,
+        ]);
+
+        return route('site.partner.start', $query);
+    }
+
+    public function shareMessage(Vendor $vendor): string
+    {
+        $code = $vendor->vendor_number ?: $vendor->partner_number ?: '—';
+
+        return __('site.auth.partner_invite_share', [
+            'brand' => brand_name(),
+            'code' => $code,
+            'url' => $this->publicActivateUrl($vendor),
+        ]);
     }
 
     public function setPortalPin(Vendor $vendor, string $pin): void

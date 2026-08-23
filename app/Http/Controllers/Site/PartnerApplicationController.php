@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
+use App\Models\Vendor;
 use App\Services\PartnerEnrollmentService;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -63,26 +65,33 @@ class PartnerApplicationController extends Controller
 
     public function tracking(Request $request): View
     {
-        $phone = trim((string) $request->query('phone', $request->input('phone', '')));
+        $phone = PhoneNumber::fromRequest($request, 'phone')
+            ?? trim((string) $request->query('phone', $request->input('phone', '')));
         $applications = collect();
+        $enrolledPartner = null;
 
         if ($phone !== '') {
-            $normalized = preg_replace('/\D+/', '', $phone) ?: $phone;
             $applications = \App\Models\PartnerApplication::query()
                 ->with('partner')
-                ->where(function ($q) use ($phone, $normalized) {
-                    $q->where('phone', $phone)
-                        ->orWhere('phone', 'like', '%'.$normalized)
-                        ->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ?", ['%'.$normalized]);
+                ->where(function ($q) use ($phone) {
+                    PhoneNumber::constrain($q, 'phone', $phone);
                 })
                 ->latest()
                 ->limit(10)
                 ->get();
+
+            $enrolledPartner = Vendor::query()
+                ->where(function ($q) use ($phone) {
+                    PhoneNumber::constrain($q, 'phone', $phone);
+                })
+                ->latest()
+                ->first();
         }
 
         return view('site.partners.tracking', [
             'phone' => $phone,
             'applications' => $applications,
+            'enrolledPartner' => $enrolledPartner,
         ]);
     }
 

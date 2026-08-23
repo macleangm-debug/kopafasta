@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Vendor;
 use App\Services\PartnerActivationService;
 use App\Support\Celebration;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,17 +24,18 @@ class PartnerPortalController extends Controller
         $data = $request->validate([
             'partner_code' => ['required', 'string', 'max:50'],
             'phone'        => ['required', 'string', 'max:30'],
+            'phone_local'  => ['nullable', 'string', 'max:20'],
         ]);
 
         $code = strtoupper(trim($data['partner_code']));
-        $normalizedPhone = preg_replace('/\D+/', '', $data['phone']) ?: $data['phone'];
+        $phone = PhoneNumber::fromRequest($request, 'phone')
+            ?? PhoneNumber::normalizeForCountry($data['phone'], null)
+            ?? trim($data['phone']);
 
         $vendor = Vendor::query()
-            ->where('partner_number', $code)
-            ->where(function ($q) use ($data, $normalizedPhone) {
-                $q->where('phone', $data['phone'])
-                    ->orWhere('phone', 'like', '%'.$normalizedPhone)
-                    ->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ?", ['%'.$normalizedPhone]);
+            ->whereRaw('UPPER(partner_number) = ?', [$code])
+            ->where(function ($q) use ($phone) {
+                PhoneNumber::constrain($q, 'phone', $phone);
             })
             ->first();
 
@@ -48,7 +50,7 @@ class PartnerPortalController extends Controller
                 ->with('status', __('site.auth.partner_already_active'));
         }
 
-        $user = $activation->activateWithPartnerCode($vendor, $data['phone']);
+        $user = $activation->activateWithPartnerCode($vendor, $phone);
         Auth::login($user);
         $request->session()->regenerate();
 

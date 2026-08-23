@@ -191,6 +191,39 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->assertSame('Rogathe Nyela', $partner->contactPersonName());
     }
 
+    public function test_invite_create_normalizes_phone_and_shows_share_card(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.store'), [
+                'name' => 'Invite Valuer',
+                'applicant_category' => 'individual',
+                'category' => 'valuer',
+                'status' => 'inactive',
+                'phone' => '784275297',
+                'coverage_type' => 'nationwide',
+                'activation_mode' => 'invite',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Partner created. Share the partner code below so they can activate.')
+            ->assertSessionHas('partner_invite_ready', true);
+
+        $partner = Vendor::query()->where('name', 'Invite Valuer')->first();
+        $this->assertNotNull($partner);
+        $this->assertSame('255784275297', $partner->phone);
+        $this->assertNotNull($partner->partner_number);
+
+        $show = $this->actingAs($admin, 'admin')
+            ->withSession(['partner_invite_ready' => true])
+            ->get(route('admin.partners.show', $partner));
+        $show->assertOk()
+            ->assertSee('Share activation', false)
+            ->assertSee($partner->partner_number, false)
+            ->assertSee('Copy message', false)
+            ->assertSee('WhatsApp', false);
+    }
+
     public function test_create_form_omits_payout_and_nida_images_and_locks_phone_prefix(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

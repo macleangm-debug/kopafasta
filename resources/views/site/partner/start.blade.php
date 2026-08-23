@@ -28,13 +28,13 @@
                     @csrf
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.partner_code_label') }}</label>
-                        <input type="text" name="partner_code" value="{{ old('partner_code') }}" required
+                        <input type="text" name="partner_code" value="{{ old('partner_code', request('partner_code')) }}" required
                                autocomplete="off" autocapitalize="characters" spellcheck="false"
                                placeholder="PT-XX-TZ-XXXX"
                                class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none">
                     </div>
-                    <x-site.phone-input name="phone" :label="__('site.feedback.phone')" :value="old('phone')" variant="rounded" :required="true" />
-                    <p class="text-xs text-gray-500">After activation you will create a 4-digit PIN to sign in — just like borrowers.</p>
+                    <x-site.phone-input name="phone" :label="__('site.feedback.phone')" :value="old('phone', request('phone'))" variant="rounded" :required="true" />
+                    <p class="text-xs text-gray-500">{{ __('site.auth.partner_activate_pin_next') }}</p>
                     <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">
                         {{ __('site.auth.continue_activation') }}
                     </button>

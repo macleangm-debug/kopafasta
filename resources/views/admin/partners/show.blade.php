@@ -181,6 +181,59 @@
 </div>
 @endif
 
+@php
+    $activationService = app(\App\Services\PartnerActivationService::class);
+    $portalReady = (bool) ($record->activated_at && $record->user_id);
+    $inviteUrl = $activationService->publicActivateUrl($record);
+    $inviteText = $activationService->shareMessage($record);
+    $inviteEncoded = rawurlencode($inviteText);
+    $valuerCover = $record->isValuer()
+        ? app(\App\Services\PartnerRegionCoverage::class)->label($record)
+        : null;
+@endphp
+
+@if (! $portalReady)
+<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 {{ session('partner_invite_ready') ? 'ring-brand' : 'ring-gray-200' }} p-6"
+     x-data="{ copied: false }">
+    <h3 class="text-sm font-semibold text-gray-900">Share activation</h3>
+    <p class="text-xs text-gray-500 mt-1">
+        Send the partner code and link. They open it, confirm this phone, then create a 4-digit PIN. No need to type the code by hand if they use the link.
+    </p>
+    <p class="mt-4 text-[10px] uppercase tracking-widest text-brand font-semibold">Partner code</p>
+    <p class="mt-1 text-2xl font-extrabold tracking-widest font-mono text-brand">{{ $record->vendor_number }}</p>
+    <p class="mt-2 text-sm text-gray-600">Registered phone: <span class="font-medium text-gray-900">{{ $record->phone ?: '—' }}</span></p>
+    <p class="mt-3 text-xs text-gray-500 break-all">{{ $inviteUrl }}</p>
+    <div class="mt-4 flex flex-wrap gap-2">
+        <button type="button"
+                @click="navigator.clipboard.writeText(@js($inviteText)).then(() => { copied = true; setTimeout(() => copied = false, 2000) }).catch(() => window.prompt('Copy this message', @js($inviteText)))"
+                class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
+            Copy message
+        </button>
+        <a href="https://wa.me/?text={{ $inviteEncoded }}" target="_blank" rel="noopener"
+           class="inline-flex text-sm font-semibold text-white bg-brand hover:bg-brand-light px-4 py-2 rounded-xl">
+            WhatsApp
+        </a>
+        <a href="sms:?body={{ $inviteEncoded }}"
+           class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl">
+            SMS
+        </a>
+    </div>
+    <p x-show="copied" x-cloak class="mt-2 text-xs font-medium text-emerald-700">Message copied. Paste it in WhatsApp or SMS.</p>
+</div>
+@endif
+
+@if ($record->isValuer())
+    <div class="mt-6 rounded-xl px-5 py-4 text-sm ring-1 {{ $portalReady && $valuerCover !== 'No regions set' ? 'bg-brand-muted/40 ring-brand/10 text-brand' : 'bg-amber-50 ring-amber-200 text-amber-950' }}">
+        @if (! $portalReady)
+            Waiting valuation files match after this valuer is active and covers Nationwide or the borrower region. Leftover files: Assign valuer on the credit file.
+        @elseif ($valuerCover === 'No regions set')
+            This valuer has no region coverage yet. Set Nationwide or the borrower region so waiting files can match.
+        @else
+            Coverage is {{ $valuerCover }}. Waiting files that match auto-assign. If a credit file is still waiting, open Collateral → Assign valuer.
+        @endif
+    </div>
+@endif
+
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <h3 class="text-sm font-semibold text-gray-700 mb-1">Portal PIN</h3>
     <p class="text-xs text-gray-500 mb-4">

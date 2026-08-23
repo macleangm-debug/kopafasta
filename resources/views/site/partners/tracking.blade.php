@@ -1,10 +1,11 @@
 <x-site.layout :title="brand_title(__('site.partner_apply.track_title'))">
     @php
         $showSubmittedModal = session()->pull('partner_submitted');
+        $enrolledPartner = $enrolledPartner ?? null;
         $resultPayload = null;
         if ($phone !== '' && $applications->isNotEmpty()) {
             $app = $applications->first();
-            $partner = $app->partner;
+            $partner = $app->partner ?: $enrolledPartner;
             $resultPayload = [
                 'status' => (string) $app->status,
                 'name' => $app->business_name ?: $app->full_name,
@@ -14,6 +15,22 @@
                 'notes' => $app->admin_notes,
                 'partner_code' => $partner?->vendor_number ?: $partner?->partner_number,
                 'activated' => (bool) ($partner?->activated_at && $partner?->user_id),
+                'activate_url' => $partner
+                    ? app(\App\Services\PartnerActivationService::class)->publicActivateUrl($partner)
+                    : route('site.partner.start'),
+            ];
+        } elseif ($phone !== '' && $enrolledPartner) {
+            $resultPayload = [
+                'status' => ($enrolledPartner->activated_at && $enrolledPartner->user_id) ? 'approved' : 'approved',
+                'name' => $enrolledPartner->name,
+                'category' => ucfirst(str_replace('_', ' ', (string) $enrolledPartner->category)),
+                'phone' => $enrolledPartner->phone,
+                'submitted' => optional($enrolledPartner->created_at)->format('d M Y H:i'),
+                'notes' => null,
+                'partner_code' => $enrolledPartner->vendor_number ?: $enrolledPartner->partner_number,
+                'activated' => (bool) ($enrolledPartner->activated_at && $enrolledPartner->user_id),
+                'activate_url' => app(\App\Services\PartnerActivationService::class)->publicActivateUrl($enrolledPartner),
+                'enrolled_direct' => true,
             ];
         } elseif ($phone !== '') {
             $resultPayload = ['empty' => true];
@@ -120,7 +137,7 @@
                                             {{ __('site.partner_apply.track_login_cta') }}
                                         </a>
                                     @else
-                                        <a href="{{ route('site.partner.start') }}"
+                                        <a href="{{ $resultPayload['activate_url'] ?? route('site.partner.start') }}"
                                            class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                                             {{ __('site.partner_apply.track_activate_cta') }}
                                         </a>

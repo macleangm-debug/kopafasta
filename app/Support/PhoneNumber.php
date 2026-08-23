@@ -126,4 +126,40 @@ class PhoneNumber
 
         return $prefixDigits.$local;
     }
+
+    public static function digits(?string $phone): string
+    {
+        return preg_replace('/\D+/', '', (string) $phone) ?? '';
+    }
+
+    /** Last 9 national digits — enough to match TZ mobiles across +255 / 255 / 0 prefixes. */
+    public static function nationalSuffix(?string $phone, int $length = 9): string
+    {
+        $digits = self::digits($phone);
+
+        return $digits === '' ? '' : substr($digits, -$length);
+    }
+
+    public static function constrain($query, string $column, string $phone): void
+    {
+        $digits = self::digits($phone);
+        $suffix = self::nationalSuffix($phone);
+        if ($digits === '') {
+            $query->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $query->where(function ($inner) use ($column, $phone, $digits, $suffix) {
+            $inner->where($column, $phone)
+                ->orWhere($column, $digits)
+                ->orWhere($column, 'like', '%'.$suffix);
+            if ($suffix !== '' && $suffix !== $digits) {
+                $inner->orWhereRaw(
+                    "REPLACE(REPLACE(REPLACE(IFNULL({$column}, ''), ' ', ''), '-', ''), '+', '') LIKE ?",
+                    ['%'.$suffix]
+                );
+            }
+        });
+    }
 }

@@ -29,14 +29,23 @@ export function registerPartnerCreateConfirm(Alpine) {
 
         syncPhone(form) {
             const wrap = form?.querySelector('[data-phone-input]');
+            if (wrap && typeof window.syncSitePhoneInput === 'function') {
+                return (window.syncSitePhoneInput(wrap) || '').trim();
+            }
             const hidden = form?.querySelector('input[name="phone"]');
             if (! wrap || ! hidden) {
                 return (hidden?.value || '').trim();
             }
-            const local = wrap.querySelector('input[type="tel"]')?.value || '';
-            const prefix = wrap.querySelector('select')?.value || '';
-            const digits = prefix.replace(/\D/g, '') + local.replace(/\D/g, '').replace(/^0+/, '');
+            const prefixEl = wrap.querySelector('[data-phone-prefix]');
+            const prefix = (prefixEl?.value || prefixEl?.getAttribute('value') || '').replace(/\D/g, '');
+            const local = (wrap.querySelector('[data-phone-local], input[type="tel"]')?.value || '')
+                .replace(/\D/g, '').replace(/^0+/, '');
+            const digits = prefix + local;
             hidden.value = digits;
+            if (wrap._x_dataStack?.[0] && typeof wrap._x_dataStack[0].syncHidden === 'function') {
+                wrap._x_dataStack[0].local = local;
+                wrap._x_dataStack[0].syncHidden();
+            }
 
             return digits.trim();
         },
