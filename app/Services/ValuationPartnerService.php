@@ -122,7 +122,7 @@ class ValuationPartnerService
                 'photo_angles' => array_keys($angleLabels),
             ], JSON_UNESCAPED_UNICODE);
             $angleList = implode(', ', array_values($angleLabels));
-            $instruction = ($notes ?: 'Inspect each pledged asset physically, upload photos, and submit market and forced sale values per asset.')
+            $instruction = ($notes ?: 'Inspect each pledged asset physically, photograph the same angles as the owner (camera only), check systems, then submit market and forced sale values per asset.')
                 ."\n\nAssets on this job: ".($assetDescription ?: '1 asset')
                 .".\nTake the same angles as the borrower profile: {$angleList}.";
 
@@ -161,7 +161,7 @@ class ValuationPartnerService
 
             app(PartnerAssignmentNotifier::class)->notifyAssigned($valuer, 'Asset valuation', [
                 'title' => 'New valuation task',
-                'body' => 'Valuation assigned for application '.($application->application_number ?? '#'.$application->id).'. SLA '.$slaDays.' day(s).',
+                'body' => 'A new asset inspection was assigned. SLA '.$slaDays.' day(s). Photograph the asset at the listed location.',
                 'action_url' => '/partner/tasks',
                 'staff_permission' => 'applications.view',
                 'staff_url' => route('admin.loan-applications.show', $application),

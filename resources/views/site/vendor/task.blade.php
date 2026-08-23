@@ -47,10 +47,13 @@
             $assetProfile = app(\App\Services\CollateralInsurancePartnerService::class)->assetProfilePayload($collateralAsset);
         }
         $isInsurance = $task->task_type === 'vehicle_insurance';
+        $isValuation = $task->task_type === 'asset_valuation';
     @endphp
 
     @if ($isInsurance)
         @include('site.vendor._cover_job_detail')
+    @elseif ($isValuation)
+        @include('site.vendor._valuation_job_detail')
     @else
     <div class="mb-5">
         <a href="{{ route('site.partner.tasks') }}" data-kf-motion="pop" class="text-sm text-brand hover:underline">← Back to tasks</a>

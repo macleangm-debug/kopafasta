@@ -2151,6 +2151,7 @@ return [
         'upload_residence_letter' => 'Upload residence verification letter',
         'capture_residence_letter' => 'Capture residence letter',
         'asset_photos_min' => 'Add at least :min photos of the collateral.',
+        'asset_photos_all_required' => 'Add every required photo before saving (:angles). The valuer checks against these images.',
         'document_type_unavailable' => 'This document type is not available. Please contact support.',
         'camera_denied' => 'Camera access was denied. In Chrome or Edge: click the camera icon in the address bar → Allow. In Safari: Safari → Settings → Websites → Camera → Allow for this site. In Firefox: click the permissions icon in the address bar → Allow camera. Then refresh and try again.',
         'camera_unsupported' => 'Camera capture is not supported in this browser. Upload files instead.',

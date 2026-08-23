@@ -168,6 +168,39 @@ class CustomerAsset extends Model
         ];
     }
 
+    /** Angles the owner must photograph (excludes the owner-with-asset portrait). @return list<string> */
+    public static function bodyPhotoAngleKeys(?string $type = null): array
+    {
+        return array_values(array_filter(
+            array_keys(self::photoAngleLabels($type)),
+            fn (string $key) => $key !== 'owner'
+        ));
+    }
+
+    public function isVehicleLike(): bool
+    {
+        return ! in_array((string) $this->asset_type, ['land', 'house', ''], true);
+    }
+
+    /** @return list<string> */
+    public function missingPhotoAngles(): array
+    {
+        $have = $this->photosByAngle();
+        $missing = [];
+        foreach (array_keys(self::photoAngleLabels($this->asset_type)) as $angle) {
+            if (! filled($have[$angle] ?? null)) {
+                $missing[] = $angle;
+            }
+        }
+
+        return $missing;
+    }
+
+    public function hasCompletePhotoSet(): bool
+    {
+        return $this->missingPhotoAngles() === [];
+    }
+
     public static function angleFromLabel(?string $label, ?string $docType = null): ?string
     {
         $hay = strtolower(trim(($docType ?? '').' '.($label ?? '')));

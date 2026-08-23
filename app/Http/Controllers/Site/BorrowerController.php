@@ -3340,13 +3340,21 @@ class BorrowerController extends Controller
             }
         }
 
-        $validPhotos = array_values(array_filter(
-            is_array($request->file('photos')) ? $request->file('photos') : [],
-            fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
-        ));
-        if (count($validPhotos) < 2) {
+        $requiredAngles = \App\Models\CustomerAsset::bodyPhotoAngleKeys($type);
+        $photoFiles = is_array($request->file('photos')) ? $request->file('photos') : [];
+        $validPhotos = [];
+        $missingAngles = [];
+        foreach ($requiredAngles as $index => $angle) {
+            $file = $photoFiles[$angle] ?? $photoFiles[$index] ?? null;
+            if ($file instanceof \Illuminate\Http\UploadedFile && $file->isValid()) {
+                $validPhotos[$angle] = $file;
+            } else {
+                $missingAngles[] = \App\Models\CustomerAsset::photoAngleLabels($type)[$angle] ?? $angle;
+            }
+        }
+        if ($missingAngles !== []) {
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'photos' => [__('borrower.profile.asset_photos_min', ['min' => 2])],
+                'photos' => [__('borrower.profile.asset_photos_all_required', ['angles' => implode(', ', $missingAngles)])],
             ]);
         }
 

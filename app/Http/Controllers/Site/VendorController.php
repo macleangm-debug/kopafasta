@@ -20,14 +20,15 @@ use App\Services\NotificationService;
 use App\Services\PartnerPayoutRequestService;
 use App\Services\PartnerProfileService;
 use App\Services\PartnerSettlementService;
-use App\Services\PartnerTaskLifecycleService;
 use App\Services\PartnerWalletService;
 use App\Services\RecoveryCommissionWalletService;
 use App\Services\RecoveryPartnerKpiService;
 use App\Services\RecoveryPartnerPortalService;
 use App\Services\RecoveryPartnerService;
+use App\Services\ValuationInspectionService;
 use App\Services\ValuationPartnerService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -384,10 +385,70 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
-        $task->update(['status' => 'in_progress', 'started_at' => now()]);
+        $task->update([
+            'status' => 'in_progress',
+            'started_at' => now(),
+            'accepted_at' => $task->accepted_at ?: now(),
+        ]);
         $this->markValuationInProgress($task);
 
+        if ($task->task_type === 'asset_valuation') {
+            return redirect()
+                ->route('site.partner.task', ['task' => $task, 'tab' => 'inspect'])
+                ->with('status', __('site.partner_portal.valuation_start_status'));
+        }
+
         return back()->with('status', 'Marked as in progress.');
+    }
+
+    public function inspectValuationPhoto(Request $request, VendorTask $task)
+    {
+        $vendor = $this->vendor();
+        abort_unless($task->vendor_id === $vendor->id, 404);
+        abort_unless($task->task_type === 'asset_valuation', 404);
+        abort_unless(filled($task->started_at) || $task->status === 'in_progress', 403);
+
+        $data = $request->validate([
+            'customer_asset_id' => ['required', 'integer'],
+            'angle' => ['required', 'string', 'max:20'],
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        $inspection = app(ValuationInspectionService::class);
+        $asset = $inspection->assetsForTask($task)->firstWhere('id', (int) $data['customer_asset_id']);
+        abort_unless($asset, 404);
+
+        $inspection->storePhoto($task, $vendor->id, $asset, (string) $data['angle'], $request->file('file'));
+
+        return back()->with('status', __('site.partner_portal.valuation_photo_saved'));
+    }
+
+    public function inspectValuationChecks(Request $request, VendorTask $task)
+    {
+        $vendor = $this->vendor();
+        abort_unless($task->vendor_id === $vendor->id, 404);
+        abort_unless($task->task_type === 'asset_valuation', 404);
+        abort_unless(filled($task->started_at) || $task->status === 'in_progress', 403);
+
+        $inspection = app(ValuationInspectionService::class);
+        $data = $request->validate([
+            'engine' => ['nullable', 'string', Rule::in(array_keys($inspection->engineOptions()))],
+            'test_drive' => ['nullable', 'string', Rule::in(array_keys($inspection->driveOptions()))],
+        ]);
+
+        $assignment = ValuationAssignment::query()->where('partner_task_id', $task->id)->first();
+        abort_unless($assignment, 404);
+
+        $assignment = $inspection->saveChecks($assignment, $data);
+        $checks = $inspection->checksSummary($assignment);
+        $assets = $inspection->assetsForTask($task);
+        $needsVehicle = $assets->contains(fn ($asset) => $asset->isVehicleLike());
+        $driveDone = ! $needsVehicle || filled($checks['test_drive'] ?? null);
+        $tab = $driveDone ? 'values' : 'inspect';
+
+        return redirect()
+            ->route('site.partner.task', ['task' => $task, 'tab' => $tab])
+            ->with('status', __('site.partner_portal.valuation_checks_saved'));
     }
 
     private function markValuationInProgress(VendorTask $task): void
@@ -416,11 +477,11 @@ class VendorController extends Controller
             'gps_device_id' => ['nullable', 'string', 'max:80'],
             'gps_tracking_url' => ['nullable', 'url', 'max:500'],
             'notes' => ['nullable', 'string', 'max:1000'],
-            'market_value' => ['nullable', 'numeric', 'min:0'],
-            'forced_sale_value' => ['nullable', 'numeric', 'min:0'],
+            'market_value' => ['nullable', 'string', 'max:40'],
+            'forced_sale_value' => ['nullable', 'string', 'max:40'],
             'values' => ['nullable', 'array'],
-            'values.*.market_value' => ['nullable', 'numeric', 'min:0'],
-            'values.*.forced_sale_value' => ['nullable', 'numeric', 'min:0'],
+            'values.*.market_value' => ['nullable', 'string', 'max:40'],
+            'values.*.forced_sale_value' => ['nullable', 'string', 'max:40'],
             'insurance_expires_at' => ['nullable', 'date'],
             'insurance_policy_number' => ['nullable', 'string', 'max:120'],
             'insurance_type' => ['nullable', 'in:comprehensive,third_party'],
@@ -430,47 +491,37 @@ class VendorController extends Controller
             $assignment = ValuationAssignment::query()
                 ->where('partner_task_id', $task->id)
                 ->first();
+            abort_unless($assignment, 404);
 
-            if ($assignment) {
-                $perAsset = [];
-                foreach ((array) ($data['values'] ?? []) as $assetId => $row) {
-                    if (! filled($row['market_value'] ?? null) || ! filled($row['forced_sale_value'] ?? null)) {
-                        continue;
-                    }
-                    $perAsset[(int) $assetId] = [
-                        'market_value' => (float) $row['market_value'],
-                        'forced_sale_value' => (float) $row['forced_sale_value'],
-                    ];
-                }
-                $market = $perAsset !== []
-                    ? (float) collect($perAsset)->sum('market_value')
-                    : (float) ($data['market_value'] ?? 0);
-                $fsv = $perAsset !== []
-                    ? (float) collect($perAsset)->sum('forced_sale_value')
-                    : (float) ($data['forced_sale_value'] ?? 0);
-                if ($market > 0 && $fsv > 0) {
-                    app(ValuationPartnerService::class)->complete(
-                        $assignment,
-                        $market,
-                        $fsv,
-                        $data['notes'] ?? null,
-                        $perAsset,
-                    );
-                } else {
-                    $task->update([
-                        'status' => 'completed',
-                        'completed_at' => now(),
-                        'notes' => $data['notes'] ?? $task->notes,
-                    ]);
-                    app(PartnerTaskLifecycleService::class)->closeLinkedValuation(
-                        $task->fresh(),
-                        'Aligned with the completed partner task.',
-                    );
-                }
+            $inspection = app(ValuationInspectionService::class);
+            $assets = $inspection->assetsForTask($task);
+            $task->load('documents');
+            $inspection->assertReadyToValue($task, $assignment, $assets);
+
+            $valuesInput = (array) ($data['values'] ?? []);
+            if ($valuesInput === [] && $assets->count() === 1) {
+                $first = $assets->first();
+                $valuesInput = [
+                    $first->id => [
+                        'market_value' => $data['market_value'] ?? 0,
+                        'forced_sale_value' => $data['forced_sale_value'] ?? 0,
+                    ],
+                ];
             }
+            $perAsset = $inspection->parseValues($valuesInput, $assets);
+            $market = (float) collect($perAsset)->sum('market_value');
+            $fsv = (float) collect($perAsset)->sum('forced_sale_value');
+
+            app(ValuationPartnerService::class)->complete(
+                $assignment,
+                $market,
+                $fsv,
+                $data['notes'] ?? null,
+                $perAsset,
+            );
 
             return redirect()->route('site.partner.task', $task)
-                ->with('status', 'Valuation submitted.');
+                ->with('status', __('site.partner_portal.valuation_submitted'));
         }
 
         if ($task->task_type === CollateralInsurancePartnerService::TASK_TYPE) {
@@ -538,6 +589,12 @@ class VendorController extends Controller
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
 
+        if ($task->task_type === 'asset_valuation') {
+            return back()->withErrors([
+                'file' => __('site.partner_portal.valuation_camera_only'),
+            ]);
+        }
+
         $data = $request->validate([
             'label' => ['nullable', 'string', 'max:80'],
             'angle' => ['nullable', 'string', 'max:20'],
@@ -547,18 +604,7 @@ class VendorController extends Controller
 
         $label = trim((string) ($data['label'] ?? ''));
         $payload = [];
-        if ($task->task_type === 'asset_valuation') {
-            $angles = \App\Models\CustomerAsset::photoAngleLabels();
-            $angle = (string) ($data['angle'] ?? \App\Models\CustomerAsset::angleFromLabel($label) ?? '');
-            if ($angle === '' || ! isset($angles[$angle])) {
-                return back()->withErrors(['angle' => 'Select the photo angle (front, back, left, right, or owner with asset).']);
-            }
-            $assetId = (int) ($data['customer_asset_id'] ?? 0);
-            $label = $angles[$angle].($assetId > 0 ? ' #'.$assetId : '');
-            $payload['doc_type'] = $assetId > 0
-                ? 'asset_photo_'.$angle.'_'.$assetId
-                : 'asset_photo_'.$angle;
-        } elseif ($label === '') {
+        if ($label === '') {
             return back()->withErrors(['label' => 'Add a label for this file.']);
         }
 

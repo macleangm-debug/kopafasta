@@ -25,6 +25,7 @@ class ValuationAssignment extends Model
         'market_value',
         'forced_sale_value',
         'notes',
+        'inspection',
         'assigned_by',
         'assigned_at',
         'completed_at',
@@ -35,6 +36,7 @@ class ValuationAssignment extends Model
         return [
             'market_value'      => 'decimal:2',
             'forced_sale_value' => 'decimal:2',
+            'inspection'        => 'array',
             'assigned_at'       => 'datetime',
             'completed_at'      => 'datetime',
         ];

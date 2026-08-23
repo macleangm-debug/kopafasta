@@ -115,7 +115,7 @@ class CustomerAssetService
 
         $photoPaths = [];
         $metadata = [];
-        $angleOrder = array_keys(CustomerAsset::photoAngleLabels($type));
+        $angleOrder = CustomerAsset::bodyPhotoAngleKeys($type);
 
         foreach ($files['photos'] ?? [] as $key => $photo) {
             if ($photo) {
@@ -240,12 +240,13 @@ class CustomerAssetService
     /** Why this asset cannot be pledged yet, or null when documents look complete. */
     public function incompleteReason(CustomerAsset $asset): ?string
     {
-        $photos = count(array_values($asset->photo_paths ?? []));
-        if ($photos < 2) {
+        if (! $asset->hasCompletePhotoSet()) {
+            $missing = $asset->missingPhotoAngles();
+            if ($missing === ['owner']) {
+                return 'person_photo';
+            }
+
             return 'photos';
-        }
-        if (! filled($asset->metadata['person_with_asset_path'] ?? null)) {
-            return 'person_photo';
         }
         if (! filled($asset->metadata['ownership_document_path'] ?? null)) {
             return 'ownership';

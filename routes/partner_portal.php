@@ -25,6 +25,8 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/tasks/{task}', [VendorController::class, 'task'])->name('task');
         Route::post('/tasks/{task}/accept', [VendorController::class, 'acceptTask'])->name('task.accept');
         Route::post('/tasks/{task}/start', [VendorController::class, 'startTask'])->name('task.start');
+        Route::post('/tasks/{task}/inspect/photo', [VendorController::class, 'inspectValuationPhoto'])->name('task.inspect.photo');
+        Route::post('/tasks/{task}/inspect/checks', [VendorController::class, 'inspectValuationChecks'])->name('task.inspect.checks');
         Route::post('/tasks/{task}/complete', [VendorController::class, 'completeTask'])->name('task.complete');
         Route::post('/tasks/{task}/proof', [VendorController::class, 'uploadProof'])->name('task.proof');
         Route::get('/documents', [VendorController::class, 'documents'])->name('documents');

@@ -4,14 +4,15 @@
     'labels' => [],
     'facing' => 'environment', // environment = docs (front+back); user = selfie (front only)
     'required' => false,
+    'cameraOnly' => false,
 ])
 
 @php
     $hostId = $inputHostId ?? ('single-image-'.md5($name));
     $facingMode = in_array($facing, ['user', 'environment'], true) ? $facing : 'environment';
     $lockFront = $facingMode === 'user'; // facial/selfie captures stay front-camera only
+    $cameraOnly = (bool) $cameraOnly;
     $labelDefaults = [
-        'uploadImage' => __('borrower.profile.upload_image'),
         'captureImage' => __('borrower.profile.capture_image'),
         'close' => __('borrower.profile.multi_page_close'),
         'cameraDenied' => __('borrower.profile.camera_denied'),
@@ -22,20 +23,27 @@
         'addPicture' => __('borrower.profile.add_picture'),
         'brand' => brand_name(),
     ];
+    if (! $cameraOnly) {
+        $labelDefaults['uploadImage'] = __('borrower.profile.upload_image');
+    }
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
 
-<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront))">
+<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly))">
     {{-- Gate helper: filled when a preview exists --}}
     <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
 
     <div class="flex flex-wrap items-center gap-3">
+        @unless ($cameraOnly)
         <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
             <span>{{ __('borrower.profile.upload') }}</span>
             <input type="file" name="{{ $name }}" accept="image/*,application/pdf" class="sr-only" @change="setFile($event)">
         </label>
+        @else
+            <input type="file" name="{{ $name }}" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
+        @endunless
         <button type="button" @click="openCamera()"
-                class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand shadow-sm ring-1 ring-brand/20 hover:bg-brand-muted/40">
+                class="inline-flex items-center justify-center rounded-xl {{ $cameraOnly ? 'bg-brand-gold text-brand hover:bg-yellow-400' : 'bg-white text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40' }} px-5 py-3 text-sm font-bold shadow-sm">
             {{ __('borrower.document_upload.camera') }}
         </button>
     </div>
@@ -104,13 +112,14 @@
     @endpush
     @push('scripts')
     <script>
-        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'environment', lockFront = false) {
+        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'environment', lockFront = false, cameraOnly = false) {
             return {
                 labels: labels || {},
                 fieldName,
                 hostId,
                 facingMode: lockFront ? 'user' : (facingMode || 'environment'),
                 lockFront: !!lockFront,
+                cameraOnly: !!cameraOnly,
                 cameraOpen: false,
                 cameraNotice: null,
                 stream: null,
