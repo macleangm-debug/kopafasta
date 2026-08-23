@@ -50,6 +50,13 @@
         && filled($faces['left'] ?? null)
         && filled($faces['right'] ?? null)
         && ($noPhysicalCard || filled($faces['holding_id'] ?? null));
+
+    $faceSteps = [];
+    foreach ($faceFields as $field => $info) {
+        $faceSteps[] = $info + ['field' => $field];
+    }
+    $firstOpen = collect($faceSteps)->search(fn ($step) => blank($step['path'] ?? null));
+    $firstOpen = $firstOpen === false ? 0 : (int) $firstOpen;
 @endphp
 
 <x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile">
@@ -78,38 +85,90 @@
         :title="__('site.partner_account.face_section')"
         :complete="$faceComplete"
         :collapsible="true"
-        :default-open="false">
-        <p class="text-sm text-gray-600 mb-1">{{ __('site.partner_account.face_camera_intro') }}</p>
-        <p class="text-xs text-gray-500 mb-1">{{ __('borrower.face_verification_page.intro_short') }}</p>
-        <p class="text-xs text-gray-500 mb-4">{{ __('borrower.face_verification_page.oval_hint') }}</p>
-        <form method="POST" action="{{ route($updateRoute, ['section' => 'face']) }}" enctype="multipart/form-data" class="space-y-4">
-            @csrf @method('PUT')
-            <div class="grid sm:grid-cols-2 gap-4">
-                @foreach ($faceFields as $field => $info)
-                    <div class="rounded-xl ring-1 ring-gray-200 p-4 bg-white">
-                        <label class="block text-xs font-semibold text-gray-700 mb-2">{{ $info['label'] }}</label>
-                        @if ($info['path'])
-                            <img src="{{ asset('storage/'.$info['path']) }}" alt="" class="w-full h-28 object-cover rounded-lg mb-2 ring-1 ring-gray-100">
-                        @else
-                            <div class="w-full h-28 rounded-lg bg-gray-50 ring-1 ring-gray-100 grid place-items-center text-gray-400 text-xs mb-2">{{ __('site.affiliate_portal.no_upload') }}</div>
-                        @endif
-                        <x-site.single-image-document-upload
-                            :name="$field"
-                            facing="user"
-                            :camera-only="true"
-                            :required="! filled($info['path'])"
-                            :guide="$info['guide'] ?? null"
-                            :show-oval="true"
-                        />
-                        @error($field)<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+        :default-open="! $faceComplete">
+        <div class="space-y-4"
+             x-data="{
+                step: {{ $firstOpen }},
+                capturing: {{ $faceComplete ? 'false' : 'true' }},
+                preview: null,
+                total: {{ count($faceSteps) }},
+                complete: {{ $faceComplete ? 'true' : 'false' }},
+                advance(index) {
+                    if (this.complete || index >= this.total - 1) {
+                        this.$refs.faceForm.requestSubmit();
+                        return;
+                    }
+                    this.step = index + 1;
+                }
+             }">
+            <p class="text-sm text-gray-600">{{ __('site.partner_account.face_camera_intro') }}</p>
+            <p class="text-xs text-gray-500">{{ __('borrower.face_verification_page.oval_hint') }}</p>
+
+            @if ($faceComplete)
+                <div x-show="!capturing" class="space-y-4">
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        @foreach ($faceSteps as $i => $step)
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                                <p class="text-xs text-gray-500">{{ $step['label'] }}</p>
+                                <div class="mt-2 flex items-start gap-3">
+                                    <button type="button" @click="preview = @js(asset('storage/'.$step['path']))"
+                                            class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white">
+                                        <img src="{{ asset('storage/'.$step['path']) }}" alt="" class="h-full w-full object-cover object-top">
+                                    </button>
+                                    <div class="min-w-0 flex-1 flex flex-col gap-2 pt-0.5">
+                                        <p class="text-[11px] text-gray-500">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+                                        <button type="button" @click="capturing = true; step = {{ $i }}"
+                                                class="self-start rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-semibold text-brand">
+                                            {{ __('site.partner_account.face_retake') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <form x-ref="faceForm" x-show="capturing || ! {{ $faceComplete ? 'true' : 'false' }}" method="POST"
+                  action="{{ route($updateRoute, ['section' => 'face']) }}" enctype="multipart/form-data" class="space-y-4">
+                @csrf @method('PUT')
+                <p class="text-xs font-semibold uppercase tracking-widest text-brand"
+                   x-text="'{{ __('site.partner_account.face_step', ['current' => '__C__', 'total' => count($faceSteps)]) }}'.replace('__C__', String(step + 1))"></p>
+                @foreach ($faceSteps as $i => $step)
+                    <div x-show="step === {{ $i }}" x-cloak class="space-y-3">
+                        <h3 class="text-lg font-bold text-gray-900">{{ $step['label'] }}</h3>
+                        <p class="text-sm text-gray-500">{{ $step['guide'] }}</p>
+                        <div @doc-preview="if ($event.detail.filled && $event.detail.name === @js($step['field'])) advance({{ $i }})">
+                            <x-site.single-image-document-upload
+                                :name="$step['field']"
+                                facing="user"
+                                :camera-only="true"
+                                :required="blank($step['path'])"
+                                :guide="$step['guide']"
+                                :show-oval="true"
+                            />
+                        </div>
+                        @error($step['field'])<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                        <div class="flex items-center justify-between gap-3">
+                            @if ($i > 0)
+                                <button type="button" @click="step = {{ $i - 1 }}" class="text-sm font-semibold text-gray-600 hover:text-gray-900">{{ __('site.partner_portal.valuation_photo_back') }}</button>
+                            @elseif ($faceComplete)
+                                <button type="button" @click="capturing = false" class="text-sm font-semibold text-gray-600 hover:text-gray-900">{{ __('site.partner_portal.valuation_photo_back') }}</button>
+                            @else
+                                <span></span>
+                            @endif
+                        </div>
                     </div>
                 @endforeach
+                @if ($noPhysicalCard)
+                    <p class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">{{ __('site.partner_account.face_no_card_note') }}</p>
+                @endif
+            </form>
+
+            <div x-show="preview" x-cloak class="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4" @click.self="preview = null">
+                <img :src="preview" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl">
             </div>
-            @if ($noPhysicalCard)
-                <p class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">{{ __('site.partner_account.face_no_card_note') }}</p>
-            @endif
-            <x-site.gated-submit class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm" :label="__('site.partner_account.save_profile')" :allow-empty="$faceComplete" />
-        </form>
+        </div>
     </x-site.profile-section-card>
 
 </x-dynamic-component>

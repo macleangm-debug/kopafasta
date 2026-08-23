@@ -425,4 +425,44 @@ class ValuationInspectionFlowTest extends TestCase
             ->post(route('site.partner.task.start', $task))
             ->assertRedirect(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']));
     }
+
+    public function test_paid_membership_dashboard_shows_days_remaining(): void
+    {
+        [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer, payMembership: true);
+
+        $days = app(PartnerMembershipService::class)->daysRemaining($valuer->fresh());
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.dashboard'))
+            ->assertOk()
+            ->assertSee((string) $days, false)
+            ->assertSee(__('borrower.membership.days_unit'), false);
+    }
+
+    public function test_payment_form_shows_save_button(): void
+    {
+        [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer, payMembership: false);
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.profile', ['section' => 'payment']))
+            ->assertOk()
+            ->assertSee(__('site.partner_account.save_payment'), false);
+    }
+
+    public function test_unpaid_dashboard_explains_valuer_membership_fee(): void
+    {
+        [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer, payMembership: false);
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.dashboard'))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.membership_due_title'), false)
+            ->assertSee(__('site.partner_portal.cta_pay_membership'), false);
+    }
 }

@@ -138,41 +138,47 @@
                 <div x-show="step === 'photos'" class="space-y-5">
                     <p class="text-sm text-gray-600">{{ __('site.partner_portal.valuation_photos_intro') }}</p>
                     @forelse ($photoSteps as $i => $s)
-                        <div x-show="photo === {{ $i }}" x-cloak class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 space-y-4">
+                        <div x-show="photo === {{ $i }}" x-cloak class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 space-y-4" x-data="{ retake: {{ empty($s['path']) ? 'true' : 'false' }}, sending: false }">
                             <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_portal.valuation_photo_progress', ['current' => $i + 1, 'total' => count($photoSteps)]) }}</p>
                             <h3 class="text-lg font-bold text-gray-900">{{ $s['label'] }}</h3>
                             <p class="text-sm text-gray-500">{{ $s['asset_label'] }}</p>
                             @if (! empty($s['path']))
-                                <img src="{{ asset('storage/'.$s['path']) }}" alt="" class="h-56 w-full object-cover rounded-xl ring-1 ring-gray-200">
+                                <img x-show="!retake" src="{{ asset('storage/'.$s['path']) }}" alt="" class="h-56 w-full object-cover rounded-xl ring-1 ring-gray-200">
                             @endif
                             @if ($open)
-                                <form method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3" x-data="{ captured: false }" @doc-preview="captured = $event.detail.filled">
+                                <form x-show="retake" method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3"
+                                      @doc-preview="if ($event.detail.filled && !sending) { sending = true; $nextTick(() => $el.submit()); }">
                                     @csrf
                                     <input type="hidden" name="customer_asset_id" value="{{ $s['asset_id'] }}">
                                     <input type="hidden" name="angle" value="{{ $s['angle'] }}">
                                     <x-site.single-image-document-upload name="file" facing="environment" :required="empty($s['path'])" :camera-only="true" />
-                                    <button type="submit" x-show="captured" x-cloak class="w-full rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-light">
-                                        {{ __('site.partner_portal.valuation_save_photo') }}
-                                    </button>
                                 </form>
                             @endif
-                            <div class="flex flex-wrap gap-2">
+                            <div class="flex items-center justify-between gap-3">
                                 @if ($i > 0)
-                                    <button type="button" @click="photo = {{ $i - 1 }}" class="rounded-lg bg-white text-gray-700 ring-1 ring-gray-200 text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_photo_back') }}</button>
+                                    <button type="button" @click="photo = {{ $i - 1 }}" class="text-sm font-semibold text-gray-600 hover:text-gray-900">{{ __('site.partner_portal.valuation_photo_back') }}</button>
+                                @else
+                                    <span></span>
                                 @endif
-                                @if (! empty($s['path']) && $i < count($photoSteps) - 1)
-                                    <button type="button" @click="photo = {{ $i + 1 }}" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
+                                @if (! empty($s['path']))
+                                    <div class="flex items-center gap-3">
+                                        @if ($open)
+                                            <button type="button" x-show="!retake" @click="retake = true" class="text-sm font-semibold text-brand hover:underline">{{ __('site.partner_portal.valuation_retake') }}</button>
+                                        @endif
+                                        @if ($i < count($photoSteps) - 1)
+                                            <button type="button" x-show="!retake" @click="photo = {{ $i + 1 }}" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
+                                        @elseif ($photosDone && $needsVehicle)
+                                            <button type="button" x-show="!retake" @click="step = 'engine'" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
+                                        @elseif ($photosDone)
+                                            <button type="button" x-show="!retake" @click="tab = 'values'" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
+                                        @endif
+                                    </div>
                                 @endif
                             </div>
                         </div>
                     @empty
                         <p class="text-sm text-gray-600">{{ $task->vehicle_details ?: '—' }}</p>
                     @endforelse
-                    @if ($photosDone && $needsVehicle)
-                        <button type="button" @click="step = 'engine'" class="rounded-xl bg-brand text-white text-sm font-semibold px-5 py-2.5">{{ __('site.partner_portal.valuation_continue') }}</button>
-                    @elseif ($photosDone)
-                        <button type="button" @click="tab = 'values'" class="rounded-xl bg-brand text-white text-sm font-semibold px-5 py-2.5">{{ __('site.partner_portal.valuation_continue') }}</button>
-                    @endif
                 </div>
 
                 @if ($needsVehicle)

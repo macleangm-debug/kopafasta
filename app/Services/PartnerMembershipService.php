@@ -69,6 +69,25 @@ class PartnerMembershipService
         return false;
     }
 
+    public function daysRemaining(Partner $partner): int
+    {
+        if (! $partner->membership_expires_at) {
+            return 0;
+        }
+
+        $days = now()->startOfDay()->diffInDays(
+            $partner->membership_expires_at->copy()->startOfDay(),
+            false
+        );
+
+        return max(0, (int) $days);
+    }
+
+    public function durationDays(): int
+    {
+        return max(1, (int) (self::config()['default_duration_days'] ?? 365));
+    }
+
     public function activate(Partner $partner, ?string $paymentReference = null): Partner
     {
         $days = (int) (self::config()['default_duration_days'] ?? 365);

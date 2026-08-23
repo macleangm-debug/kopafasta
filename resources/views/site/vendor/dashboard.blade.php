@@ -169,11 +169,24 @@
         </div>
     </section>
 
-    @if ($jobBlock === null)
-        <div class="mb-6 max-w-md">
-            @include('site.partner-account._member_card', ['partner' => $vendor])
+    @if ($jobBlock === 'payment')
+        @php
+            $membershipFee = app(\App\Services\PartnerMembershipService::class)->feeFor($vendor);
+            $membershipPayUrl = route($membershipPayRoute);
+        @endphp
+        <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <p class="text-[11px] uppercase tracking-widest font-bold text-amber-800">{{ __('site.partner_portal.membership_due_eyebrow') }}</p>
+                <p class="text-sm font-semibold text-gray-900 mt-1">{{ __('site.partner_portal.membership_due_title') }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ __('site.partner_portal.membership_due_body', ['amount' => format_money($membershipFee)]) }}</p>
+            </div>
+            <a href="{{ $membershipPayUrl }}" class="shrink-0 inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold px-5 py-2.5">{{ __('site.partner_portal.cta_pay_membership') }}</a>
         </div>
     @endif
+
+    <div class="mb-6">
+        @include('site.partner-account._member_card', ['partner' => $vendor])
+    </div>
 
     @if ($isInsurance)
         @php

@@ -30,6 +30,7 @@
     ></div>
 @endif
 
+<p class="text-sm text-gray-600 mb-4">{{ __('site.partner_account.docs_page_intro') }}</p>
 <div class="grid lg:grid-cols-3 gap-6">
     @if ($canUpload)
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 h-fit"

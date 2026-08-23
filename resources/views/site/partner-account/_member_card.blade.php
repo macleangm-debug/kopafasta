@@ -57,6 +57,14 @@
     $issued = optional($partner->membership_started_at)->format('d M Y') ?? '—';
     $expires = optional($partner->membership_expires_at)->format('d M Y') ?? '—';
     $logoUrl = brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png';
+    $membershipActive = $membership->isActive($partner);
+    $daysLeft = $membership->daysRemaining($partner);
+    $durationDays = $membership->durationDays();
+    $progressPct = $durationDays > 0 ? max(0, min(100, ($daysLeft / $durationDays) * 100)) : 0;
+    $needsPay = $membership->requiresPayment($partner) && ! $membershipActive;
+    $payRouteName = ($partner instanceof \App\Models\Partner && $partner->isAffiliate())
+        ? 'site.affiliate.membership.pay'
+        : 'site.partner.membership.pay';
 @endphp
 
 <div {{ $attributes->merge(['class' => 'space-y-4 mb-6']) }}
@@ -92,6 +100,10 @@
         </div>
     @endif
 
+    <div @class([
+             'grid gap-4 items-stretch',
+             'md:grid-cols-2' => ($membershipActive && $partner->membership_expires_at) || $needsPay,
+         ])>
     <div class="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_20px_50px_rgba(8,47,39,0.28)] p-5 sm:p-6 ring-1 ring-brand-gold/35">
         <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold pointer-events-none"></div>
 
@@ -180,6 +192,56 @@
                     {{ __('site.card_verify.verify_another') }}
                 </a>
             </div>
+
         @endif
+    </div>
+
+    @if (($membershipActive && $partner->membership_expires_at) || $needsPay)
+        <div class="relative overflow-hidden rounded-[1.35rem] bg-white p-6 flex flex-col min-h-[280px] shadow-[0_18px_40px_rgba(8,47,39,0.08)] ring-1 ring-brand/10">
+            <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand via-brand-gold to-brand pointer-events-none"></div>
+            <div class="relative flex items-center justify-between gap-3">
+                <p class="text-[11px] uppercase tracking-[0.16em] text-brand font-semibold">{{ __('borrower.membership.status_title') }}</p>
+                @if ($membershipActive)
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
+                        {{ __('borrower.membership.active_chip') }}
+                    </span>
+                @endif
+            </div>
+            @if ($membershipActive)
+                <div class="relative mt-6 flex items-end gap-3">
+                    <span class="text-6xl font-black text-brand leading-none tabular-nums tracking-tight">{{ $daysLeft }}</span>
+                    <div class="pb-1.5">
+                        <p class="text-base font-bold text-gray-900 leading-none">{{ __('borrower.membership.days_unit') }}</p>
+                        <p class="mt-1.5 text-xs text-gray-500 leading-snug">{{ __('borrower.membership.days_remaining_label') }}</p>
+                    </div>
+                </div>
+                <div class="relative mt-6">
+                    <div class="flex justify-between text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                        <span>{{ __('borrower.membership.year_progress') }}</span>
+                        <span class="font-semibold tabular-nums text-brand">{{ $progressPct }}%</span>
+                    </div>
+                    <div class="h-2.5 rounded-full bg-brand-muted overflow-hidden ring-1 ring-brand/5">
+                        <div class="h-full rounded-full bg-brand" style="width: {{ $progressPct }}%"></div>
+                    </div>
+                </div>
+                <dl class="relative mt-auto pt-5 grid grid-cols-2 gap-3 text-xs">
+                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
+                        <dt class="text-gray-500">{{ __('borrower.membership.issued_label') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $issued }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
+                        <dt class="text-gray-500">{{ __('borrower.membership.expires_label') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $expires }}</dd>
+                    </div>
+                </dl>
+            @else
+                <p class="relative mt-6 text-sm text-gray-600">{{ __('site.partner_portal.membership_due_title') }}</p>
+                <p class="relative mt-2 text-2xl font-black text-brand tabular-nums">{{ format_money($membership->feeFor($partner)) }}</p>
+                <a href="{{ route($payRouteName) }}" class="relative mt-auto inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5">
+                    {{ __('site.partner_portal.cta_pay_membership') }}
+                </a>
+            @endif
+        </div>
+    @endif
     </div>
 </div>

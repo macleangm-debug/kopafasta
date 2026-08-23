@@ -46,6 +46,7 @@
             <input type="file" name="{{ $name }}" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
         @endunless
         <button type="button" @click="openCamera()"
+                @if ($cameraOnly) x-show="!(previewUrl || previewName)" x-cloak @endif
                 class="inline-flex items-center justify-center rounded-xl {{ $cameraOnly ? 'bg-brand-gold text-brand hover:bg-yellow-400' : 'bg-white text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40' }} px-5 py-3 text-sm font-bold shadow-sm">
             {{ __('borrower.document_upload.camera') }}
         </button>

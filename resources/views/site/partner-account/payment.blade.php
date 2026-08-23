@@ -42,7 +42,8 @@
         :title="__('site.partner_account.payment_section')"
         :complete="! empty($payout)"
         :collapsible="true"
-        :default-open="true">
+        :default-open="true"
+        :default-edit="true">
         <x-slot:view>
             @if (empty($payout))
                 <p class="text-sm text-gray-600">{{ __('site.partner_account.payment_empty') }}</p>
@@ -100,7 +101,9 @@
                                class="w-full h-12 rounded-xl bg-white border border-gray-300 px-3.5 text-base outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10">
                     </div>
                 </div>
-                <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
+                <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
+                    {{ __('site.partner_account.save_payment') }}
+                </button>
             </form>
         </x-slot:form>
     </x-site.profile-section-card>
