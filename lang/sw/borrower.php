@@ -3186,6 +3186,7 @@ return [
     'penalty_payment' => 'Malipo ya Faini',
     'restructure_fee' => 'Ada ya Marekebisho',
     'top_up_fee' => 'Ada ya Ongezeko',
+    'partner_membership' => 'Uanachama wa mshirika',
 ],
 
 'payment_methods' => [

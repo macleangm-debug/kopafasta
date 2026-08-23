@@ -11,6 +11,7 @@ class CustomerPayment extends Model
     protected $fillable = [
         'reference',
         'customer_id',
+        'partner_id',
         'payment_type',
         'payment_method',
         'provider',
@@ -49,6 +50,11 @@ class CustomerPayment extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function partner(): BelongsTo
+    {
+        return $this->belongsTo(Partner::class, 'partner_id');
     }
 
     public function bankAccount(): BelongsTo

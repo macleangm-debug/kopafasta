@@ -8,10 +8,12 @@ use App\Models\CustomerAsset;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\LoanProduct;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\CustomerAssetService;
 use App\Services\PartnerMembershipService;
+use App\Services\PartnerWelcomeService;
 use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
 use App\Services\ValuationPartnerService;
@@ -451,13 +453,27 @@ class ValuationInspectionFlowTest extends TestCase
             ->post(route('site.partner.task.start', $task))
             ->assertRedirect(route('site.partner.membership.pay'));
 
+        Setting::set('partners.membership', [
+            'enabled' => true,
+            'default_fee_amount' => 15000,
+            'default_duration_days' => 365,
+            'grace_period_days' => 14,
+            'notify_days_before_expiry' => 30,
+            'categories_requiring_payment' => ['valuer' => true],
+            'category_fees' => ['valuer' => 15000],
+        ]);
+
         $this->actingAs($user)
-            ->from(route('site.partner.membership.pay'))
-            ->post(route('site.partner.membership.pay.post'), [
-                'channel' => 'mobile_money',
-                'payment_phone' => '255700000001',
-            ])
-            ->assertRedirect(route('site.partner.dashboard'));
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.membership.pay'))
+            ->assertOk()
+            ->assertSee(__('borrower.membership.pay_now'), false)
+            ->assertDontSee(__('borrower.membership.apply_promo_link'), false)
+            ->assertDontSee(__('site.partner_portal.membership_confirm_paid'), false)
+            ->assertSee('15,000', false)
+            ->assertDontSee('50,000', false);
+
+        app(PartnerMembershipService::class)->activate($valuer);
 
         $this->assertTrue(app(PartnerMembershipService::class)->isActive($valuer->fresh()));
 
@@ -512,5 +528,23 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertSee(__('site.partner_portal.cta_pay_membership'), false)
             ->assertSee(route('site.partner.membership.pay'), false)
             ->assertDontSee(__('borrower.membership.days_unit'), false);
+    }
+
+    public function test_first_login_welcome_lands_in_the_notification_bell(): void
+    {
+        [$user, $valuer] = $this->makeValuerUser();
+
+        app(PartnerWelcomeService::class)->sendIfFirstLogin($user);
+
+        $logs = \App\Models\NotificationLog::query()->where('template', 'partner_welcome')->get();
+        $this->assertNotEmpty($logs);
+        $count = $logs->count();
+
+        app(PartnerWelcomeService::class)->sendIfFirstLogin($user->fresh());
+
+        $this->assertSame(
+            $count,
+            \App\Models\NotificationLog::query()->where('template', 'partner_welcome')->count()
+        );
     }
 }

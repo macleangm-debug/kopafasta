@@ -198,6 +198,10 @@ class WebTwoFactorAuthService
 
         // Intentionally ignore $trustDevice for 2FA — every login must use a code.
 
+        if ($user->role === 'vendor') {
+            app(\App\Services\PartnerWelcomeService::class)->sendIfFirstLogin($user);
+        }
+
         return redirect()->to((string) ($pending['redirect_to'] ?? '/'));
     }
 

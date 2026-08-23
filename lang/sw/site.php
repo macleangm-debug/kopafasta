@@ -1002,6 +1002,8 @@ return [
         'job_requires_payment' => 'Lipa uanachama kabla ya kukubali au kuanza kazi.',
         'membership_pay' => 'Malipo ya uanachama',
         'membership_pay_subtitle' => 'Lipa ada ya uanachama ili kufungua kazi na kadi yako ya uthibitisho.',
+        'welcome_title' => 'Karibu :brand',
+        'welcome_body' => 'Habari :name, akaunti yako ya mshirika iko tayari. Kamilisha wasifu na uanachama ili uanze kupokea kazi.',
         'membership_fee' => 'Ada ya uanachama',
         'membership_confirm_paid' => 'Nimelipa',
         'membership_paid' => 'Uanachama umeanza. Kadi yako ya mshirika iko tayari.',

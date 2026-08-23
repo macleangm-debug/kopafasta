@@ -27,7 +27,7 @@ class PartnerAssignmentNotifier
         $actionUrl = $context['action_url'] ?? '/partner/tasks';
 
         try {
-            $this->notifications->notifyPartner($partner, 'partner.task_assigned', [
+            $this->notifications->notifyPartner($partner, 'partner_job_assigned', [
                 'task' => $taskLabel,
                 'partner' => $partner->name,
                 '_fallback_subject' => $title,

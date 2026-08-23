@@ -13,7 +13,7 @@
             <div class="rounded-xl bg-white ring-1 ring-gray-200 p-6 space-y-4">
                 <div>
                     <h3 class="text-sm font-semibold text-gray-900">Defaults</h3>
-                    <p class="text-xs text-gray-500 mt-1">Affiliates use Affiliate settings (TZS 25,000 individual / TZS 50,000 company). Other partners get a membership window after they finish profile on the portal, and can request renewal when expiry approaches.</p>
+                    <p class="text-xs text-gray-500 mt-1">The amounts saved here are what the partner portal charges. Affiliates use Affiliate settings (TZS 25,000 individual / TZS 50,000 company) — that fee is separate. Partner membership does not accept promo or affiliate codes.</p>
                 </div>
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800">
                     <input type="hidden" name="membership_enabled" value="0">
@@ -23,7 +23,7 @@
                     Enable partner membership tracking
                 </label>
                 <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <x-admin.input name="default_fee_amount" label="Default fee (TZS)" type="number" step="1000" min="0"
+                    <x-admin.input name="default_fee_amount" label="Default fee (TZS)" type="number" step="100" min="0"
                                    :value="$values['default_fee_amount'] ?? 0" money />
                     <x-admin.input name="default_duration_days" label="Duration (days)" type="number" min="1"
                                    :value="$values['default_duration_days'] ?? 365" />
@@ -39,7 +39,7 @@
             <div class="rounded-xl bg-white ring-1 ring-gray-200 p-6 space-y-4">
                 <div>
                     <h3 class="text-sm font-semibold text-gray-900">Who must pay</h3>
-                    <p class="text-xs text-gray-500 mt-1">Tick a membership fee for each partner type. Affiliates use Affiliate settings (TZS 25,000 individual / TZS 50,000 company). Unticked types still get a one-year membership window after they finish their portal profile.</p>
+                    <p class="text-xs text-gray-500 mt-1">Tick a membership fee for each partner type — that amount is charged on the partner pay screen. Valuers split individual vs company (TZS 1,500 / TZS 2,000 by default). Affiliates use Affiliate settings, not this list. Promo codes never apply to partner membership. Unticked types still get a one-year membership window after they finish their portal profile.</p>
                 </div>
                 <div class="space-y-3">
                     @foreach ($roles as $key => $label)
@@ -52,8 +52,29 @@
                                 {{ $label }}
                             </label>
                             <div class="flex-1">
-                                <x-admin.input :name="'category_fees['.$key.']'" label="Fee (TZS)" type="number" step="1000" min="0"
-                                               :value="$values['category_fees'][$key] ?? ($values['default_fee_amount'] ?? 0)" money />
+                                @php
+                                    $rawFee = $values['category_fees'][$key] ?? null;
+                                    $fallbackFee = $values['default_fee_amount'] ?? 0;
+                                    if (is_array($rawFee)) {
+                                        $individualFee = $rawFee['individual'] ?? $fallbackFee;
+                                        $companyFee = $rawFee['company'] ?? $individualFee;
+                                    } else {
+                                        $individualFee = $rawFee ?? $fallbackFee;
+                                        $companyFee = $individualFee;
+                                    }
+                                    $splitApplicant = \App\Services\PartnerMembershipService::roleSplitsByApplicant($key);
+                                @endphp
+                                @if ($splitApplicant)
+                                    <div class="grid sm:grid-cols-2 gap-3">
+                                        <x-admin.input :name="'category_fees['.$key.'][individual]'" label="Individual fee (TZS)" type="number" step="100" min="0"
+                                                       :value="$individualFee" money />
+                                        <x-admin.input :name="'category_fees['.$key.'][company]'" label="Company fee (TZS)" type="number" step="100" min="0"
+                                                       :value="$companyFee" money />
+                                    </div>
+                                @else
+                                    <x-admin.input :name="'category_fees['.$key.']'" label="Fee (TZS)" type="number" step="100" min="0"
+                                                   :value="is_array($rawFee) ? ($companyFee ?? $fallbackFee) : ($rawFee ?? $fallbackFee)" money />
+                                @endif
                             </div>
                         </div>
                     @endforeach

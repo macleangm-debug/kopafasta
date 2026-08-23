@@ -266,25 +266,6 @@
         </div>
 
         <div class="space-y-6">
-            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="font-bold">{{ __('site.partner_portal.notifications') }}</h2>
-                    <a href="{{ route('site.partner.notifications') }}" class="text-sm text-brand hover:underline font-semibold">{{ __('site.partner_portal.all') }}</a>
-                </div>
-                @if ($notifications->isEmpty())
-                    <p class="text-sm text-gray-500">{{ __('site.partner_portal.no_notifications') }}</p>
-                @else
-                    <ul class="space-y-3">
-                        @foreach ($notifications as $n)
-                            <li class="text-sm">
-                                <p class="text-gray-900">{{ $n->message ?? $n->subject ?? __('site.partner_portal.notifications') }}</p>
-                                <p class="text-xs text-gray-500">{{ $n->created_at?->diffForHumans() }}</p>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </div>
-
             @if ($isInsurance)
                 <div class="overflow-hidden rounded-2xl ring-1 ring-brand/15 bg-brand text-white shadow-md">
                     <div class="p-5">

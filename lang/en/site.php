@@ -1022,6 +1022,8 @@ return [
         'job_requires_payment' => 'Pay membership before you accept or start a job.',
         'membership_pay' => 'Membership payment',
         'membership_pay_subtitle' => 'Pay the partner membership fee to unlock jobs and your verification card.',
+        'welcome_title' => 'Welcome to :brand',
+        'welcome_body' => 'Hi :name, your partner account is ready. Complete your profile and membership to start receiving jobs.',
         'membership_fee' => 'Membership fee',
         'membership_confirm_paid' => 'I have paid',
         'membership_paid' => 'Membership is now active. Your partner card is ready.',

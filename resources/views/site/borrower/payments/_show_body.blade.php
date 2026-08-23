@@ -13,7 +13,13 @@
     $bankAccounts = $bankAccounts ?? [];
     $bankDetails = $bankDetails ?? null;
     $mobileDetails = is_array($mobileDetails ?? null) ? $mobileDetails : [];
-    $showPromo = false;
+    $payUrl = $payUrl ?? route('site.borrower.payments.pay', $payment);
+    $statusUrl = $statusUrl ?? route('site.borrower.payments.status', $payment);
+    $retryUrl = $retryUrl ?? route('site.borrower.payments.retry', $payment);
+    $gateUrl = $gateUrl ?? route('site.borrower.payments.gate', $payment);
+    $successUrl = $successUrl ?? null;
+    $defaultPhone = $defaultPhone ?? null;
+    $showPromo = $showPromo ?? true;
     $supportsDiscounts = \App\Services\CustomerPaymentService::supportsCodeDiscounts($payment->payment_type);
     $badge = match ($payment->status) {
         'verified', 'paid' => 'bg-emerald-500/20 text-emerald-100 ring-emerald-400/40',
@@ -39,6 +45,10 @@
         :payment="$payment"
         :initial-state="$showCollectFailed ? 'failed' : 'waiting'"
         :error-message="$collectError"
+        :status-url="$statusUrl"
+        :success-url="$successUrl"
+        :gate-url="$gateUrl"
+        :retry-url="$retryUrl"
     />
 @elseif ($isReadyToPay)
     <x-site.payment-gate-ready
@@ -46,6 +56,8 @@
         :bank-accounts="$bankAccounts"
         :mobile-details="$mobileDetails"
         :show-promo="$showPromo && $supportsDiscounts"
+        :form-action="$payUrl"
+        :default-phone="$defaultPhone"
     />
 @else
     <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand to-brand/90 text-white shadow-lg shadow-brand/20">

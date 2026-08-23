@@ -5,12 +5,14 @@
     'showPromo' => false,
     'quote' => null,
     'promoValue' => null,
+    'formAction' => null,
+    'defaultPhone' => null,
 ])
 
 @php
     $customer = $payment->customer;
-    // Always default to the member's registered phone on every payment gate.
-    $defaultPhone = old('mobile_number', $customer->phone ?? '');
+    $defaultPhone = $defaultPhone ?? old('mobile_number', $customer->phone ?? '');
+    $formAction = $formAction ?? route('site.borrower.payments.pay', $payment);
 @endphp
 
 {{-- Thin wrapper: every awaiting CustomerPayment uses the shared PSP gate. --}}
@@ -22,7 +24,7 @@
     :amount="$payment->amount"
     :currency="$payment->currency ?: 'TZS'"
     :reference="$payment->reference"
-    :form-action="route('site.borrower.payments.pay', $payment)"
+    :form-action="$formAction"
     method-field="payment_method"
     mobile-field="mobile_number"
     mobile-value="mobile_money"

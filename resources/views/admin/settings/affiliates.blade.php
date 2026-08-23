@@ -169,7 +169,7 @@
                 </div>
                 @php
                     $feeLabels = [
-                        'registration_fee'  => 'Membership fee',
+                        'registration_fee'  => 'Borrower membership fee',
                         'application_fee'   => 'Application fee',
                         'post_approval_fee' => 'Post approval fee',
                         'interest'          => 'Interest',

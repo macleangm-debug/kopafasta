@@ -652,6 +652,10 @@ class AuthController extends Controller
             }
         }
 
+        if ($user->role === 'vendor') {
+            app(\App\Services\PartnerWelcomeService::class)->sendIfFirstLogin($user);
+        }
+
         return $response;
     }
 

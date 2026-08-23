@@ -3,6 +3,7 @@
     'statusUrl' => null,
     'successUrl' => null,
     'gateUrl' => null,
+    'retryUrl' => null,
     'initialState' => 'waiting',
     'errorMessage' => null,
 ])

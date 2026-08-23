@@ -251,6 +251,10 @@ class NotificationService
         array $vars = [],
         ?string $actionUrl = null,
     ): ?NotificationLog {
+        if (! $this->messaging->eventEnabled($templateCode)) {
+            return null;
+        }
+
         $user = $partner->user;
         $locale = $user?->locale ?? app()->getLocale();
         $tpl = NotificationTemplate::resolveActive($templateCode, $locale);

@@ -553,6 +553,21 @@ class NotificationTemplateSeeder extends Seeder
                 ],
             ],
             [
+                'code' => 'partner_welcome',
+                'name' => 'Partner Welcome',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Welcome to {{ brand }}',
+                        'body' => "Hi {{ partner }}, your partner account is ready. Complete your profile and membership to start receiving jobs. — {$brand}",
+                    ],
+                    'sw' => [
+                        'subject' => 'Karibu {{ brand }}',
+                        'body' => "Habari {{ partner }}, akaunti yako ya mshirika iko tayari. Kamilisha wasifu na uanachama ili uanze kupokea kazi. — {$brand}",
+                    ],
+                ],
+            ],
+            [
                 'code' => 'partner_efficiency_warning',
                 'name' => 'Partner Efficiency Warning',
                 'channel' => 'all',

@@ -86,16 +86,6 @@ class VendorController extends Controller
             ->orderByRaw('COALESCE(due_at, created_at) ASC')
             ->limit(5)->get();
 
-        $notifications = NotificationLog::query()
-            ->when(
-                Schema::hasColumn('notification_logs', 'user_id'),
-                fn ($q) => $q->where('user_id', Auth::id()),
-                fn ($q) => $q->where('recipient', Auth::user()?->email)->orWhere('recipient', Auth::user()?->phone)
-            )
-            ->latest()
-            ->limit(4)
-            ->get();
-
         $affiliateStats = null;
         $affiliateShare = null;
         $affiliateLinks = null;
@@ -120,7 +110,7 @@ class VendorController extends Controller
         }
 
         return view('site.vendor.dashboard', compact(
-            'vendor', 'stats', 'upcoming', 'notifications',
+            'vendor', 'stats', 'upcoming',
             'affiliateStats', 'affiliateShare', 'affiliateLinks',
             'recoveryKpi', 'recoveryWallet', 'wallet',
         ));
@@ -712,58 +702,29 @@ class VendorController extends Controller
             return redirect()->route('site.partner.dashboard');
         }
 
-        $paymentReference = $membership->ensurePaymentReference($vendor);
-        $request->session()->put('partner_membership_payment_ref', $paymentReference);
-
+        $payment = app(\App\Services\PartnerMembershipPaymentService::class)->open($vendor);
         $accounts = app(PaymentAccountService::class);
-        $bankAccounts = $accounts->bankAccountsForDisplay('registration_fee', $paymentReference);
-        $mobileResolved = $accounts->resolve('registration_fee', 'mobile_money');
-        $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'] ?? null, $paymentReference);
+        $bankAccounts = $accounts->bankAccountsForDisplay('partner_membership', $payment->reference);
+        $canSwitchToBank = (bool) $accounts->resolveBankAccount('partner_membership');
 
         return view('site.vendor.membership-pay', [
             'vendor' => $vendor,
+            'payment' => $payment,
             'fee' => $membership->feeFor($vendor),
-            'paymentReference' => $paymentReference,
             'bankAccounts' => $bankAccounts,
-            'mobileDetails' => $mobileDetails,
+            'canSwitchToBank' => $canSwitchToBank,
+            'mobileDetails' => [],
+            'payUrl' => route('site.partner.membership.checkout.pay', $payment),
+            'statusUrl' => route('site.partner.membership.checkout.status', $payment),
+            'retryUrl' => route('site.partner.membership.checkout.retry', $payment),
+            'gateUrl' => route('site.partner.membership.checkout.gate', $payment),
+            'successUrl' => route('site.partner.dashboard'),
         ]);
     }
 
     public function membershipPay(Request $request)
     {
-        $vendor = $this->vendor();
-        $profile = app(PartnerProfileService::class);
-        if (! $profile->isComplete($vendor)) {
-            return redirect()->route('site.partner.profile')
-                ->with('error', __('site.partner_portal.job_requires_profile'));
-        }
-
-        $membership = app(PartnerMembershipService::class);
-        $data = $request->validate([
-            'channel' => ['required', 'in:mobile_money,bank'],
-            'payment_phone' => ['nullable', 'string', 'max:30'],
-            'payment_reference' => ['nullable', 'string', 'max:64'],
-        ]);
-
-        $ref = ($data['payment_reference'] ?? null)
-            ?: $request->session()->pull('partner_membership_payment_ref')
-            ?: $membership->ensurePaymentReference($vendor);
-
-        if ($data['channel'] === 'bank') {
-            $vendor->update([
-                'membership_status' => 'pending_payment',
-                'membership_payment_reference' => $ref,
-            ]);
-
-            return redirect()->route('site.partner.dashboard')
-                ->with('status', __('site.partner_portal.membership_pending').' · '.$ref);
-        }
-
-        $membership->activate($vendor, $ref);
-
-        return redirect()->route('site.partner.dashboard')
-            ->with('status', __('site.partner_portal.membership_paid'))
-            ->with('show_membership_card', true);
+        return redirect()->route('site.partner.membership.pay');
     }
 
     protected function redirectIfJobsBlocked(Vendor $vendor): ?\Illuminate\Http\RedirectResponse

@@ -646,6 +646,7 @@ class CustomerPaymentService
         }
 
         return match ($payment->payment_type) {
+            'partner_membership' => $this->partnerMembershipSuccessUrl($payment),
             'registration_fee' => route('site.borrower.dashboard'),
             'application_fee', 'valuation_fee' => $this->resolveLoanApplicationSource($payment)
                 ? route('site.borrower.application', $this->resolveLoanApplicationSource($payment))
@@ -665,6 +666,10 @@ class CustomerPaymentService
     public function celebrationCopy(CustomerPayment $payment): array
     {
         return match ($payment->payment_type) {
+            'partner_membership' => [
+                'title' => __('site.partner_portal.membership_paid'),
+                'message' => __('site.partner_portal.membership_paid'),
+            ],
             'registration_fee' => [
                 'title' => __('borrower.celebration.membership_title'),
                 'message' => __('borrower.celebration.membership'),
@@ -1003,6 +1008,13 @@ class CustomerPaymentService
             }
         }
 
+        if ($payment->payment_type === 'partner_membership' && $payment->partner_id) {
+            $partner = \App\Models\Partner::query()->find($payment->partner_id);
+            if ($partner) {
+                app(\App\Services\PartnerMembershipService::class)->activate($partner, $payment->reference);
+            }
+        }
+
         if ($payment->payment_type === 'registration_fee' && $payment->customer) {
             $this->settleMembershipFeeContext($payment);
 
@@ -1278,6 +1290,19 @@ class CustomerPaymentService
     /**
      * Human-readable PayIn description — never send raw payment_type keys (underscores are rejected).
      */
+    protected function partnerMembershipSuccessUrl(CustomerPayment $payment): string
+    {
+        $partner = $payment->partner_id
+            ? \App\Models\Partner::query()->find($payment->partner_id)
+            : null;
+
+        if ($partner && method_exists($partner, 'isAffiliate') && $partner->isAffiliate()) {
+            return route('site.affiliate.dashboard');
+        }
+
+        return route('site.partner.dashboard');
+    }
+
     public function payInDescription(string $type, string $reference, ?string $custom = null): string
     {
         $label = filled($custom)

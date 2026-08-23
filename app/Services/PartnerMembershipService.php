@@ -14,7 +14,19 @@ class PartnerMembershipService
         $defaults = config('partners.membership', []);
         $stored = Setting::get('partners.membership');
 
-        return array_merge($defaults, is_array($stored) ? $stored : []);
+        $merged = array_merge($defaults, is_array($stored) ? $stored : []);
+        $storedFees = is_array($stored) && isset($stored['category_fees']) && is_array($stored['category_fees'])
+            ? $stored['category_fees']
+            : [];
+        $merged['category_fees'] = self::mergeCategoryFees($defaults['category_fees'] ?? [], $storedFees);
+        $merged['categories_requiring_payment'] = $merged['categories_requiring_payment']
+            ?? $merged['categories_requiring_payment']
+            ?? [];
+        $merged['default_fee_amount'] = $merged['default_fee_amount']
+            ?? $merged['default_fee_amount']
+            ?? 0;
+
+        return $merged;
     }
 
     public function requiresPayment(Partner $partner): bool
@@ -30,17 +42,71 @@ class PartnerMembershipService
         return (bool) ($map[$category] ?? false);
     }
 
+    public static function roleSplitsByApplicant(string $role): bool
+    {
+        return $role === 'valuer';
+    }
+
+    /**
+     * @param  array<string, mixed>  $defaults
+     * @param  array<string, mixed>  $stored
+     * @return array<string, mixed>
+     */
+    public static function mergeCategoryFees(array $defaults, array $stored): array
+    {
+        $out = $defaults;
+        foreach ($stored as $role => $entry) {
+            $base = $out[$role] ?? null;
+            if (is_array($entry)) {
+                $out[$role] = array_merge(is_array($base) ? $base : [], $entry);
+            } elseif (is_numeric($entry) && is_array($base)) {
+                $out[$role] = [
+                    'individual' => (float) $entry,
+                    'company' => (float) $entry,
+                ];
+            } else {
+                $out[$role] = $entry;
+            }
+        }
+
+        return $out;
+    }
+
     public function feeFor(Partner $partner): float
     {
         $cfg = self::config();
         $category = (string) ($partner->category ?? '');
         $fees = $cfg['category_fees'] ?? $cfg['category_fees'] ?? [];
+        $fallback = (float) ($cfg['default_fee_amount'] ?? $cfg['default_fee_amount'] ?? 0);
 
-        if (isset($fees[$category]) && is_numeric($fees[$category])) {
-            return (float) $fees[$category];
+        return self::resolveCategoryFee(
+            $fees[$category] ?? null,
+            $partner->isIndividualApplicant(),
+            $fallback,
+        );
+    }
+
+    public static function resolveCategoryFee(mixed $entry, bool $individual, float $fallback): float
+    {
+        if (is_array($entry)) {
+            $key = $individual ? 'individual' : 'company';
+            if (isset($entry[$key]) && is_numeric($entry[$key])) {
+                return (float) $entry[$key];
+            }
+            foreach (['company', 'individual'] as $alt) {
+                if (isset($entry[$alt]) && is_numeric($entry[$alt])) {
+                    return (float) $entry[$alt];
+                }
+            }
+
+            return $fallback;
         }
 
-        return (float) ($cfg['default_fee_amount'] ?? $cfg['default_fee_amount'] ?? 0);
+        if (is_numeric($entry)) {
+            return (float) $entry;
+        }
+
+        return $fallback;
     }
 
     public function isActive(Partner $partner): bool

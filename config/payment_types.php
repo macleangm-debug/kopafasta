@@ -57,6 +57,11 @@ return [
             'credit_gl'   => 'fee_income_gl_account_id',
             'fallback_gl' => 'fee_income_gl_account_id',
         ],
+        'partner_membership' => [
+            'label'       => 'Partner membership',
+            'credit_gl'   => 'fee_income_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
     ],
 
     'methods' => [

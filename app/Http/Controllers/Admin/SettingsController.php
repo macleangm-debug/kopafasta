@@ -1471,14 +1471,24 @@ class SettingsController extends Controller
             'notify_days_before_expiry'     => ['nullable', 'integer', 'min:1', 'max:90'],
             'categories_requiring_payment'  => ['nullable', 'array'],
             'category_fees'                 => ['nullable', 'array'],
-            'category_fees.*'               => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $requirePay = [];
         $fees = [];
+        $fallback = (float) ($data['default_fee_amount'] ?? 0);
         foreach ($roles as $role) {
             $requirePay[$role] = $request->boolean("categories_requiring_payment.$role");
-            $fees[$role] = (float) ($data['category_fees'][$role] ?? $data['default_fee_amount'] ?? 0);
+            $raw = $request->input("category_fees.$role");
+            if (\App\Services\PartnerMembershipService::roleSplitsByApplicant($role) || is_array($raw)) {
+                $individual = (float) (is_array($raw) ? ($raw['individual'] ?? $fallback) : ($raw ?? $fallback));
+                $company = (float) (is_array($raw) ? ($raw['company'] ?? $individual) : ($raw ?? $fallback));
+                $fees[$role] = [
+                    'individual' => $individual,
+                    'company' => $company,
+                ];
+            } else {
+                $fees[$role] = (float) ($raw ?? $fallback);
+            }
         }
 
         Setting::setMany([

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Site\PartnerAccountController;
+use App\Http\Controllers\Site\PartnerMembershipPaymentController;
 use App\Http\Controllers\Site\VendorController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,10 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::put('/profile/{section}', [VendorController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
         Route::get('/membership/pay', [VendorController::class, 'membershipPayForm'])->name('membership.pay');
         Route::post('/membership/pay', [VendorController::class, 'membershipPay'])->name('membership.pay.post');
+        Route::post('/membership/checkout/{payment}/pay', [PartnerMembershipPaymentController::class, 'pay'])->name('membership.checkout.pay');
+        Route::get('/membership/checkout/{payment}/status', [PartnerMembershipPaymentController::class, 'status'])->name('membership.checkout.status');
+        Route::post('/membership/checkout/{payment}/retry', [PartnerMembershipPaymentController::class, 'retry'])->name('membership.checkout.retry');
+        Route::post('/membership/checkout/{payment}/gate', [PartnerMembershipPaymentController::class, 'returnToGate'])->name('membership.checkout.gate');
         Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
         Route::put('/settings/pin', [PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         Route::get('/support', [VendorController::class, 'support'])->name('support');

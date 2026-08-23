@@ -15,8 +15,15 @@ return [
         'categories_requiring_payment' => [
             'valuer' => true,
         ],
+        /**
+         * Live amounts come from Settings → Partner membership.
+         * Valuers split by applicant: individual vs company.
+         */
         'category_fees' => [
-            'valuer' => 50000,
+            'valuer' => [
+                'individual' => 1500,
+                'company' => 2000,
+            ],
         ],
     ],
 

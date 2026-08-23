@@ -3387,6 +3387,7 @@ return [
         'penalty_payment' => 'Penalty Payment',
         'restructure_fee' => 'Restructure Fee',
         'top_up_fee' => 'Top-Up Fee',
+        'partner_membership' => 'Partner membership',
     ],
 
     'payment_methods' => [
