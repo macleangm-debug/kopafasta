@@ -12,6 +12,7 @@
             'cancelled'   => 'Cancelled',
         ];
         $current = $status ?: 'all';
+        $isValuer = $vendor->isValuer();
         $badge = fn ($s) => match ($s) {
             'assigned'    => 'bg-amber-100 text-amber-700',
             'in_progress' => 'bg-brand-muted text-brand',
@@ -65,7 +66,9 @@
                         <th class="text-left px-4 py-3">Task</th>
                         <th class="text-left px-4 py-3">Priority</th>
                         <th class="text-left px-4 py-3">Customer</th>
-                        <th class="text-left px-4 py-3">Loan</th>
+                        @unless ($isValuer)
+                            <th class="text-left px-4 py-3">Loan</th>
+                        @endunless
                         <th class="text-left px-4 py-3">Due</th>
                         <th class="text-left px-4 py-3">Status</th>
                         <th class="px-4 py-3"></th>
@@ -86,6 +89,7 @@
                             <td class="px-4 py-3 font-semibold">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}<div class="text-[11px] text-gray-400">#{{ $t->id }}</div></td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $priorityBadge }}">{{ $priority['label'] }}</span></td>
                             <td class="px-4 py-3">{{ $t->customer_name ?: ($t->loanApplication?->customer?->name ?? '—') }}<div class="text-[11px] text-gray-400">{{ $t->customer_phone ?: ($t->loanApplication?->customer?->phone ?? '') }}</div></td>
+                            @unless ($isValuer)
                             <td class="px-4 py-3 text-gray-600">
                                 @if ($t->loan)
                                     <span class="font-mono text-xs">{{ $t->loan->loan_number ?? '#'.$t->loan->id }}</span>
@@ -97,6 +101,7 @@
                                     —
                                 @endif
                             </td>
+                            @endunless
                             <td class="px-4 py-3 text-gray-600">{{ $t->due_at ? $t->due_at->format('d M Y H:i') : '—' }}</td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge($t->status) }}">{{ str_replace('_',' ', $t->status) }}</span></td>
                             <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" data-kf-share="kf-task-{{ $t->id }}" class="text-brand hover:underline text-sm font-semibold">Open</a></td>
