@@ -33,15 +33,18 @@
                         <th class="px-5 py-3 text-left">Roles</th>
                         <th class="px-5 py-3 text-left">Phone</th>
                         <th class="px-5 py-3 text-left">Status</th>
-                        <th class="px-5 py-3"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @foreach ($rows as $row)
-                        <tr class="hover:bg-brand-muted/20">
+                        <tr class="hover:bg-brand-muted/20 cursor-pointer"
+                            role="link"
+                            tabindex="0"
+                            onclick="window.location='{{ route('admin.partners.show', $row) }}'"
+                            onkeydown="if(event.key==='Enter'){ window.location='{{ route('admin.partners.show', $row) }}'; }">
                             <td class="px-5 py-3 font-mono text-xs">{{ $row->vendor_number }}</td>
                             <td class="px-5 py-3 font-medium">
-                                <a href="{{ route('admin.partners.show', $row) }}" class="text-brand hover:underline">{{ $row->name }}</a>
+                                <span class="text-brand">{{ $row->name }}</span>
                             </td>
                             <td class="px-5 py-3 text-xs">
                                 @foreach (($row->roles ?? [$row->category]) as $role)
@@ -50,18 +53,16 @@
                             </td>
                             <td class="px-5 py-3">{{ $row->phone ?? '—' }}</td>
                             <td class="px-5 py-3">
-                                <span class="capitalize">{{ $row->status }}</span>
+                                <span @class([
+                                    'capitalize font-semibold',
+                                    'text-emerald-700' => $row->status === 'active',
+                                    'text-red-700' => $row->status === 'inactive',
+                                    'text-amber-800' => $row->status === 'suspended',
+                                ])>{{ $row->status }}</span>
                                 @if ($row->activated_at)
                                     <span class="block text-[10px] text-emerald-700 font-semibold">Activated</span>
                                 @elseif ($row->status === 'inactive')
                                     <span class="block text-[10px] text-amber-700 font-semibold">Awaiting activation</span>
-                                @endif
-                            </td>
-                            <td class="px-5 py-3 text-right">
-                                @if ($reviewOnly ?? false)
-                                    <a href="{{ route('admin.partners.show', $row) }}" class="font-semibold text-brand hover:underline">Review</a>
-                                @else
-                                    <a href="{{ route('admin.partners.edit', $row) }}" class="text-gray-600 hover:text-brand">Edit</a>
                                 @endif
                             </td>
                         </tr>

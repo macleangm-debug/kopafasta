@@ -2,36 +2,127 @@
     :title="$record->name"
     :heading="$record->name"
     :subheading="$record->vendor_number"
-    :backUrl="route('admin.partners.all')"
+    :backUrl="route('admin.partners.index')"
     :editUrl="route('admin.partners.edit', $record)"
     :fields="array_filter([
         'Partner #'  => $record->vendor_number,
-        'Name'      => $record->name,
         'Category'  => ucfirst(str_replace('_', ' ', $record->category)),
         'Status'    => ucfirst($record->status ?? ''),
-        'Open tasks' => ($openTasks ?? collect())->count() > 0
+        'Phone'     => $record->phone,
+        'Open jobs' => ($openTasks ?? collect())->count() > 0
             ? ($openTasks->count()).' ongoing'
             : 'None',
-        'Phone'     => $record->phone,
-        'Email'     => $record->email,
-        'Deposit markup %' => $record->deposit_markup_percent,
-        'Affiliate code' => $record->affiliate_code,
-        'Registration discount %' => $record->registration_discount_percent,
-        'Application discount %' => $record->application_discount_percent,
-        'Commission %' => $record->affiliate_commission_percent,
-        'Recovery commission %' => $record->recovery_commission_percent,
-        'Recovery markup %' => $record->recovery_markup_percent,
-        'Address'   => ['value' => $record->address, 'wide' => true],
-        'Created'   => $record->created_at?->format('Y-m-d H:i'),
     ])">
 
 @php
     $openTasks = $openTasks ?? collect();
     $openValuations = $openValuations ?? collect();
     $recentTasks = $recentTasks ?? collect();
+    $recoveryAssignments = $recoveryAssignments ?? collect();
     $taskRows = $openTasks->isNotEmpty() ? $openTasks : $recentTasks;
     $enrollmentApplication = $enrollmentApplication ?? null;
+    $jobsTabLabel = match (true) {
+        $record->isAffiliate() => 'Activity',
+        $record->isValuer(), $record->isGpsInstaller(), $record->isInsurance() => 'Jobs',
+        $record->isRecoveryPartner() => 'Cases',
+        default => 'Tasks',
+    };
+    $profileTabs = ['profile' => 'Profile', 'jobs' => $jobsTabLabel, 'performance' => 'Performance'];
+    if (auth()->user()?->hasPermission('finance.operations')) {
+        $profileTabs['payouts'] = 'Payouts';
+    }
+    $profileTabs['portal'] = 'Portal';
+    if ($record->isAffiliate()) {
+        $profileTabs['affiliate'] = 'Affiliate';
+    }
+    $profileTabs['account'] = 'Account';
+    $requestedTab = (string) request('tab', '');
+    $startTab = in_array($requestedTab, array_keys($profileTabs), true)
+        ? $requestedTab
+        : ((session('partner_invite_ready') || session('partner_activation_url')) ? 'portal' : 'profile');
 @endphp
+
+<div class="mt-6 space-y-4"
+     x-data="{
+        tab: @js($startTab),
+        setTab(next) {
+            this.tab = next;
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', next);
+            history.replaceState({}, '', url);
+        },
+     }">
+    <div class="flex flex-wrap gap-2">
+        @foreach ($profileTabs as $key => $label)
+            <button type="button" @click="setTab(@js($key))"
+                    :class="tab === @js($key) ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-600 ring-gray-200 hover:bg-brand-muted/40'"
+                    class="px-3 py-1.5 rounded-xl text-xs font-semibold ring-1 transition">
+                {{ $label }}
+            </button>
+        @endforeach
+    </div>
+
+    <div x-show="tab === 'profile'" x-cloak class="space-y-6">
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-900">Profile</h3>
+            <p class="text-xs text-gray-500 mt-1">View only. Use Edit to change name, coverage, rates, or contact details.</p>
+            <dl class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Email</dt>
+                    <dd class="mt-1 font-semibold text-gray-900">{{ $record->email ?: '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Created</dt>
+                    <dd class="mt-1 font-semibold text-gray-900">{{ $record->created_at?->format('Y-m-d H:i') ?: '—' }}</dd>
+                </div>
+                @if ($record->affiliate_code)
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Affiliate code</dt>
+                        <dd class="mt-1 font-semibold text-gray-900 font-mono">{{ $record->affiliate_code }}</dd>
+                    </div>
+                @endif
+                @if ($record->deposit_markup_percent)
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Deposit markup %</dt>
+                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->deposit_markup_percent }}</dd>
+                    </div>
+                @endif
+                @if ($record->registration_discount_percent)
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Registration discount %</dt>
+                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->registration_discount_percent }}</dd>
+                    </div>
+                @endif
+                @if ($record->application_discount_percent)
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Application discount %</dt>
+                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->application_discount_percent }}</dd>
+                    </div>
+                @endif
+                @if ($record->affiliate_commission_percent)
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Commission %</dt>
+                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->affiliate_commission_percent }}</dd>
+                    </div>
+                @endif
+                @if ($record->recovery_commission_percent)
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Recovery commission %</dt>
+                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->recovery_commission_percent }}</dd>
+                    </div>
+                @endif
+                @if ($record->recovery_markup_percent)
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Recovery markup %</dt>
+                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->recovery_markup_percent }}</dd>
+                    </div>
+                @endif
+                <div class="sm:col-span-2">
+                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Address</dt>
+                    <dd class="mt-1 font-semibold text-gray-900">{{ $record->address ?: '—' }}</dd>
+                </div>
+            </dl>
+        </div>
 
 @if ($enrollmentApplication)
     <a href="{{ route('admin.partner-applications.show', $enrollmentApplication) }}"
@@ -44,7 +135,9 @@
         <span class="text-sm font-semibold text-brand">Open dossier →</span>
     </a>
 @endif
+    </div>
 
+    <div x-show="tab === 'performance'" x-cloak class="space-y-6">
 @if ($efficiency ?? null)
     @php
         $effBand = $efficiency['band'];
@@ -81,24 +174,81 @@
         @endif
     </div>
 @endif
+    </div>
 
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 {{ $openTasks->isNotEmpty() ? 'ring-amber-200' : 'ring-gray-200' }} p-6">
+    <div x-show="tab === 'jobs'" x-cloak class="space-y-6">
+@php
+    $jobsIndexUrl = $record->isRecoveryPartner()
+        ? route('admin.recovery.assignments.index')
+        : route('admin.partners.tasks', ['partner' => $record->id]);
+    $jobsIndexLabel = $record->isRecoveryPartner() ? 'All cases →' : 'All tasks →';
+    $openCaseCount = $recoveryAssignments->filter(fn ($assignment) => $assignment->isOpen())->count();
+@endphp
+<div class="bg-white rounded-xl shadow-sm ring-1 {{ $openTasks->isNotEmpty() || $openCaseCount > 0 ? 'ring-amber-200' : 'ring-gray-200' }} p-6">
     <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
-            <h3 class="text-sm font-semibold {{ $openTasks->isNotEmpty() ? 'text-amber-900' : 'text-gray-700' }}">Tasks</h3>
+            <h3 class="text-sm font-semibold {{ $openTasks->isNotEmpty() || $openCaseCount > 0 ? 'text-amber-900' : 'text-gray-700' }}">{{ $jobsTabLabel }}</h3>
             <p class="text-xs text-gray-500 mt-0.5">
-                {{ $openTasks->count() }} ongoing
-                @if ($openValuations->isNotEmpty())
-                    · {{ $openValuations->count() }} open valuation{{ $openValuations->count() === 1 ? '' : 's' }}
+                @if ($record->isRecoveryPartner())
+                    {{ $openCaseCount }} open · {{ $recoveryAssignments->count() }} listed
+                @else
+                    {{ $openTasks->count() }} ongoing
+                    @if ($openValuations->isNotEmpty())
+                        · {{ $openValuations->count() }} open valuation{{ $openValuations->count() === 1 ? '' : 's' }}
+                    @endif
                 @endif
             </p>
         </div>
-        <a href="{{ route('admin.partners.tasks', ['partner' => $record->id]) }}"
-           class="text-sm font-semibold text-brand hover:underline">All tasks →</a>
+        <a href="{{ $jobsIndexUrl }}"
+           class="text-sm font-semibold text-brand hover:underline">{{ $jobsIndexLabel }}</a>
     </div>
 
-    @if ($taskRows->isEmpty())
-        <p class="text-sm text-gray-500">No tasks on this partner yet.</p>
+    @if ($record->isRecoveryPartner())
+        @if ($recoveryAssignments->isEmpty())
+            <p class="text-sm text-gray-500">No cases on this partner yet.</p>
+        @else
+            <ul class="text-sm text-gray-800 divide-y divide-gray-100">
+                @foreach ($recoveryAssignments as $assignment)
+                    @php
+                        $borrower = $assignment->arrearCase?->loan?->customer;
+                        $borrowerName = trim((string) ($borrower?->full_name ?? ''));
+                    @endphp
+                    <li class="py-2.5 first:pt-0 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <a href="{{ route('admin.recovery.assignments.show', $assignment) }}" class="font-semibold text-brand hover:underline">
+                            Case #{{ $assignment->id }}
+                        </a>
+                        <span class="text-xs font-semibold rounded-full px-2 py-0.5 {{ $assignment->isOpen() ? 'bg-amber-100 text-amber-900' : 'bg-gray-100 text-gray-600' }}">
+                            {{ ucfirst(str_replace('_', ' ', (string) $assignment->status)) }}
+                        </span>
+                        @if ($assignment->partner_type)
+                            <span class="text-gray-500">{{ display_label($assignment->partner_type, 'recovery_partner_type') }}</span>
+                        @endif
+                        @if ($borrowerName !== '')
+                            <span class="text-gray-500">{{ $borrowerName }}</span>
+                        @endif
+                        @if ($assignment->sla_due_at)
+                            <span class="text-xs {{ $assignment->slaBreached() ? 'text-red-700 font-semibold' : 'text-gray-500' }}">SLA {{ $assignment->sla_due_at->format('d M Y') }}</span>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+    @elseif ($record->isAffiliate())
+        <p class="text-sm text-gray-600">Clicks, registrations, and applications sit on the Affiliate tab. Performance scores sit on Performance.</p>
+        @if ($taskRows->isNotEmpty())
+            <ul class="mt-3 text-sm text-gray-800 divide-y divide-gray-100">
+                @foreach ($taskRows as $task)
+                    <li class="py-2.5 first:pt-0 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span class="font-semibold">{{ ucfirst(str_replace('_', ' ', (string) $task->task_type)) }}</span>
+                        <span class="text-xs font-semibold rounded-full px-2 py-0.5 {{ in_array($task->status, ['assigned', 'in_progress'], true) ? 'bg-amber-100 text-amber-900' : 'bg-gray-100 text-gray-600' }}">
+                            {{ ucfirst(str_replace('_', ' ', (string) $task->status)) }}
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+    @elseif ($taskRows->isEmpty())
+        <p class="text-sm text-gray-500">No {{ strtolower($jobsTabLabel) }} on this partner yet.</p>
     @else
         <ul class="text-sm text-gray-800 divide-y divide-gray-100">
             @foreach ($taskRows as $task)
@@ -140,10 +290,12 @@
         </form>
     @endif
 </div>
+    </div>
 
+    <div x-show="tab === 'payouts'" x-cloak class="space-y-6">
 @php $payouts = $payouts ?? collect(); @endphp
 @if (auth()->user()?->hasPermission('finance.operations'))
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+<div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
             <h3 class="text-sm font-semibold text-gray-700">Payouts</h3>
@@ -180,6 +332,7 @@
     @endif
 </div>
 @endif
+    </div>
 
 @php
     $activationService = app(\App\Services\PartnerActivationService::class);
@@ -192,8 +345,21 @@
         : null;
 @endphp
 
+@if ($record->isValuer())
+    <div x-show="tab === 'profile'" x-cloak class="rounded-xl px-5 py-4 text-sm ring-1 {{ $portalReady && $valuerCover !== 'No regions set' ? 'bg-brand-muted/40 ring-brand/10 text-brand' : 'bg-amber-50 ring-amber-200 text-amber-950' }}">
+        @if (! $portalReady)
+            Waiting valuation files match after this valuer is active and covers Nationwide or the borrower region. Leftover files: Assign valuer on the credit file.
+        @elseif ($valuerCover === 'No regions set')
+            This valuer has no region coverage yet. Set Nationwide or the borrower region so waiting files can match.
+        @else
+            Coverage is {{ $valuerCover }}. Waiting files that match auto-assign. If a credit file is still waiting, open Collateral → Assign valuer.
+        @endif
+    </div>
+@endif
+
+    <div x-show="tab === 'portal'" x-cloak class="space-y-6">
 @if (! $portalReady)
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 {{ session('partner_invite_ready') ? 'ring-brand' : 'ring-gray-200' }} p-6"
+<div class="bg-white rounded-xl shadow-sm ring-1 {{ session('partner_invite_ready') ? 'ring-brand' : 'ring-gray-200' }} p-6"
      x-data="{ copied: false }">
     <h3 class="text-sm font-semibold text-gray-900">Share activation</h3>
     <p class="text-xs text-gray-500 mt-1">
@@ -221,20 +387,7 @@
     <p x-show="copied" x-cloak class="mt-2 text-xs font-medium text-emerald-700">Message copied. Paste it in WhatsApp or SMS.</p>
 </div>
 @endif
-
-@if ($record->isValuer())
-    <div class="mt-6 rounded-xl px-5 py-4 text-sm ring-1 {{ $portalReady && $valuerCover !== 'No regions set' ? 'bg-brand-muted/40 ring-brand/10 text-brand' : 'bg-amber-50 ring-amber-200 text-amber-950' }}">
-        @if (! $portalReady)
-            Waiting valuation files match after this valuer is active and covers Nationwide or the borrower region. Leftover files: Assign valuer on the credit file.
-        @elseif ($valuerCover === 'No regions set')
-            This valuer has no region coverage yet. Set Nationwide or the borrower region so waiting files can match.
-        @else
-            Coverage is {{ $valuerCover }}. Waiting files that match auto-assign. If a credit file is still waiting, open Collateral → Assign valuer.
-        @endif
-    </div>
-@endif
-
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+<div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <h3 class="text-sm font-semibold text-gray-700 mb-1">Portal PIN</h3>
     <p class="text-xs text-gray-500 mb-4">
         Partners sign in with phone and a 4-digit PIN. Set a new PIN here, or re-issue activation so they create it themselves.
@@ -267,9 +420,11 @@
         </form>
     </div>
 </div>
+    </div>
 
+    <div x-show="tab === 'affiliate'" x-cloak class="space-y-6">
 @if ($affiliateStats ?? null)
-    <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <h3 class="text-sm font-semibold text-gray-700 mb-3">Affiliate performance</h3>
         <div class="grid sm:grid-cols-3 gap-4 text-sm">
             <div><span class="text-gray-500">Clicks</span><p class="text-xl font-bold">{{ format_number($affiliateStats['clicks']) }}</p></div>
@@ -486,9 +641,11 @@
         </div>
     @endif
 @endif
+    </div>
 
+    <div x-show="tab === 'performance'" x-cloak>
 @if ($recoveryStats ?? null)
-    <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <h3 class="text-sm font-semibold text-gray-700 mb-3">Recovery performance</h3>
         <div class="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
             <div><span class="text-gray-500">Assignments</span><p class="text-xl font-bold">{{ format_number($recoveryStats['assignments']) }}</p></div>
@@ -500,8 +657,10 @@
         </div>
     </div>
 @endif
+    </div>
 
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-red-200/80 p-6">
+    <div x-show="tab === 'account'" x-cloak>
+<div class="bg-white rounded-xl shadow-sm ring-1 ring-red-200/80 p-6">
     <h3 class="text-sm font-semibold text-red-700 mb-1">Danger zone</h3>
     <p class="text-xs text-gray-500 mb-3">
         Create the replacement partner first. Halt open work, then deactivate. Delete is only for partners with no history.
@@ -539,6 +698,8 @@
                 Deactivate
             </button>
         </form>
+    </div>
+</div>
     </div>
 </div>
 </x-admin.show-page>

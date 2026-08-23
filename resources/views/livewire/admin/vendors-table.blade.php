@@ -15,15 +15,16 @@
         @endif
         <x-admin.th :sort="$sort" :direction="$direction" col="phone"         label="Phone" />
         <x-admin.th :sort="$sort" :direction="$direction" col="status"        label="Status" />
-        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Open tasks</th>
-        <th class="px-5 py-3"></th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Open tasks</th>
     </x-slot:headers>
     <x-slot:rows>
         @forelse ($rows as $r)
-            <tr class="hover:bg-gray-50">
+            <tr class="hover:bg-gray-50 cursor-pointer"
+                role="link"
+                onclick="window.location='{{ route('admin.partners.show', $r) }}'">
                 <td class="px-5 py-3 font-mono text-xs text-gray-500">{{ $r->vendor_number }}</td>
                 <td class="px-5 py-3 font-medium">
-                    <a href="{{ route('admin.partners.show', $r) }}" class="text-brand hover:underline">{{ $r->name }}</a>
+                    <a href="{{ route('admin.partners.show', $r) }}" class="text-brand hover:underline" onclick="event.stopPropagation()">{{ $r->name }}</a>
                 </td>
                 @if ($affiliateMode ?? false)
                     <td class="px-5 py-3 font-mono text-xs">{{ $r->affiliate_code ?: '—' }}</td>
@@ -55,19 +56,16 @@
                 </td>
                 <td class="px-5 py-3">
                     @if ((int) ($r->open_tasks_count ?? 0) > 0)
-                        <a href="{{ route('admin.partners.show', $r) }}" class="inline-flex text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-900">
+                        <span class="inline-flex text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-900">
                             {{ $r->open_tasks_count }} open
-                        </a>
+                        </span>
                     @else
                         <span class="text-xs text-gray-400">None</span>
                     @endif
                 </td>
-                <td class="px-5 py-3 text-right text-sm">
-                    <a href="{{ route('admin.partners.edit', $r) }}" class="text-gray-600 hover:text-brand">Edit</a>
-                </td>
             </tr>
         @empty
-            <tr><td colspan="{{ ($affiliateMode ?? false) ? 12 : 7 }}" class="px-5 py-12 text-center text-gray-500">{{ ($affiliateMode ?? false) ? 'No affiliate partners found.' : 'No partners found.' }}</td></tr>
+            <tr><td colspan="{{ ($affiliateMode ?? false) ? 11 : 6 }}" class="px-5 py-12 text-center text-gray-500">{{ ($affiliateMode ?? false) ? 'No affiliate partners found.' : 'No partners found.' }}</td></tr>
         @endforelse
     </x-slot:rows>
 </x-admin.table-shell>

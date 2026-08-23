@@ -298,7 +298,7 @@ class PartnerDeletionFeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.show', $partner))
             ->assertOk()
-            ->assertSee('Tasks', false)
+            ->assertSee('Jobs', false)
             ->assertSee('1 ongoing', false)
             ->assertSee('Asset valuation', false)
             ->assertSee('Asha Test', false)

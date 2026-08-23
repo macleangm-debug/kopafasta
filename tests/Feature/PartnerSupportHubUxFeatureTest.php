@@ -107,6 +107,35 @@ class PartnerSupportHubUxFeatureTest extends TestCase
             ->assertSee('Partner efficiency', false);
     }
 
+    public function test_partners_hub_opens_profile_instead_of_inline_edit(): void
+    {
+        $partner = Vendor::create([
+            'name' => 'Kigoma Field Valuer',
+            'category' => 'valuer',
+            'status' => 'inactive',
+            'partner_number' => 'PT-VL-TZ-HUB1',
+            'phone' => '255784275297',
+        ]);
+
+        $this->actingAs($this->partnerSupport(), 'admin')
+            ->get(route('admin.partners.index'))
+            ->assertOk()
+            ->assertSee('Kigoma Field Valuer', false)
+            ->assertSee(route('admin.partners.show', $partner), false)
+            ->assertDontSee('>Edit</a>', false)
+            ->assertDontSee(route('admin.partners.edit', $partner), false);
+
+        $this->actingAs($this->partnerSupport(), 'admin')
+            ->get(route('admin.partners.show', $partner))
+            ->assertOk()
+            ->assertSee('Edit', false)
+            ->assertSee(route('admin.partners.edit', $partner), false)
+            ->assertSee('Profile', false)
+            ->assertSee('Jobs', false)
+            ->assertSee('Performance', false)
+            ->assertSee('View only. Use Edit to change', false);
+    }
+
     public function test_partner_support_create_form_hides_rate_overrides(): void
     {
         $this->actingAs($this->partnerSupport(), 'admin')

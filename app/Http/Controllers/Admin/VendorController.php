@@ -500,7 +500,14 @@ class VendorController extends ResourceController
         $deletion = app(\App\Services\PartnerDeletionService::class);
         $openTasks = $deletion->openTasks($record);
         $openValuations = $deletion->openValuationAssignments($record);
-        $recentTasks = $record->tasks()->orderByDesc('id')->limit(8)->get();
+        $recentTasks = $record->tasks()->orderByDesc('id')->limit(50)->get();
+        $recoveryAssignments = $record->isRecoveryPartner()
+            ? $record->recoveryAssignments()
+                ->with(['arrearCase.loan.customer'])
+                ->orderByDesc('id')
+                ->limit(50)
+                ->get()
+            : collect();
         $payouts = $record->payments()->latest()->limit(8)->get();
         $enrollmentApplication = \App\Models\PartnerApplication::query()
             ->where('partner_id', $record->id)
@@ -535,6 +542,7 @@ class VendorController extends ResourceController
                 'openTasks' => $openTasks,
                 'openValuations' => $openValuations,
                 'recentTasks' => $recentTasks,
+                'recoveryAssignments' => $recoveryAssignments,
                 'payouts' => $payouts,
                 'enrollmentApplication' => $enrollmentApplication,
             ],
