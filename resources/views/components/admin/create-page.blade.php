@@ -29,7 +29,7 @@
                 @csrf
 
                 @if ($errors->any())
-                    <div class="rounded-xl bg-red-50 ring-1 ring-red-200 p-4 text-sm text-red-700">
+                    <div data-server-errors class="rounded-xl bg-red-50 ring-1 ring-red-200 p-4 text-sm text-red-700">
                         <strong class="block mb-1">Please fix the following:</strong>
                         <ul class="list-disc ml-5 space-y-0.5">
                             @foreach ($errors->all() as $error)

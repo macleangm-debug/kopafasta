@@ -20,6 +20,7 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertOk()
             ->assertSee('Create this partner?', false)
             ->assertSee('partnerCreateConfirm', false)
+            ->assertSee('id="admin-create-form"', false)
             ->assertDontSee('querySelector(`[name=', false);
     }
 

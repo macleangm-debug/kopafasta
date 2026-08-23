@@ -6,6 +6,8 @@ const STORAGE_PREFIX = 'kf-form-draft:';
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const SKIP_NAME = /^(?:_token|_method|password|password_confirmation|current_password|pin|pin_confirmation|activation_pin|otp|cvv|card_number|secret)$/i;
 
+let restoring = false;
+
 function formKey(form) {
     const action = form.getAttribute('action') || '';
     const id = form.id || '';
@@ -33,7 +35,7 @@ function shouldSkipForm(form) {
 }
 
 function shouldSkipField(field) {
-    if (! field || ! field.name || field.disabled) {
+    if (! field || ! field.name) {
         return true;
     }
     if (field.type === 'password' || field.type === 'file') {
@@ -46,10 +48,77 @@ function shouldSkipField(field) {
     return false;
 }
 
+function alpineData(el) {
+    while (el) {
+        if (el._x_dataStack?.[0]) {
+            return el._x_dataStack[0];
+        }
+        el = el.parentElement;
+    }
+
+    return null;
+}
+
+function setSimpleAlpineModel(field, value) {
+    const model = field.getAttribute('x-model');
+    if (! model || ! /^[A-Za-z_$][\w$]*$/.test(model)) {
+        return;
+    }
+    const data = alpineData(field);
+    if (! data) {
+        return;
+    }
+    try {
+        data[model] = value;
+    } catch (error) {
+        // Ignore read-only Alpine getters.
+    }
+}
+
+function gateInFlow(gate) {
+    if (! gate) {
+        return true;
+    }
+    if (gate.hasAttribute('x-cloak') || gate.hidden) {
+        return false;
+    }
+    if (gate._x_isShown === false) {
+        return false;
+    }
+    const style = window.getComputedStyle(gate);
+    if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+    }
+
+    return true;
+}
+
+function wizardStepsInFlow(wizard) {
+    return [...wizard.querySelectorAll('[data-step]')].filter((el) => {
+        if (el.closest('template')) {
+            return false;
+        }
+
+        return gateInFlow(el.closest('[data-step-gate]'));
+    });
+}
+
+function currentWizardState(wizard) {
+    const steps = wizardStepsInFlow(wizard);
+    const current = steps.find((el) => ! el.classList.contains('wizard-step-inactive'))
+        || steps.find((el) => el.getAttribute('aria-hidden') === 'false')
+        || steps[0];
+
+    return {
+        wizardStep: current ? Math.max(0, steps.indexOf(current)) : 0,
+        wizardStepLabel: current?.dataset.stepLabel || '',
+    };
+}
+
 function collect(form) {
     const values = {};
     form.querySelectorAll('input, select, textarea').forEach((field) => {
-        if (shouldSkipField(field)) {
+        if (shouldSkipField(field) || field.disabled) {
             return;
         }
         if (field.type === 'checkbox') {
@@ -71,14 +140,9 @@ function collect(form) {
     });
 
     const wizard = form.querySelector('.admin-wizard');
-    let wizardStep = 0;
-    if (wizard) {
-        const all = [...wizard.querySelectorAll('[data-step]')].filter((el) => ! el.closest('template'));
-        const current = all.find((el) => ! el.classList.contains('wizard-step-inactive'));
-        wizardStep = current ? Math.max(0, all.indexOf(current)) : 0;
-    }
+    const wizardState = wizard ? currentWizardState(wizard) : { wizardStep: 0, wizardStepLabel: '' };
 
-    return { values, wizardStep, savedAt: Date.now() };
+    return { values, ...wizardState, savedAt: Date.now() };
 }
 
 function applyValues(form, values) {
@@ -98,24 +162,90 @@ function applyValues(form, values) {
             fields.forEach((field) => {
                 field.checked = field.value === value;
             });
+            setSimpleAlpineModel(fields.find((field) => field.checked) || fields[0], value);
             return;
         }
-        fields[0].value = value ?? '';
-        fields[0].dispatchEvent(new Event('input', { bubbles: true }));
-        fields[0].dispatchEvent(new Event('change', { bubbles: true }));
+        const field = fields[0];
+        field.value = value ?? '';
+        setSimpleAlpineModel(field, value ?? '');
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        if (! field.hasAttribute('x-model') && field.tagName !== 'SELECT') {
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     });
 }
 
+function syncPhoneWidgets(form) {
+    form.querySelectorAll('[data-phone-input]').forEach((wrap) => {
+        const hidden = wrap.querySelector('[data-phone-hidden], input[type="hidden"][name]');
+        const data = wrap._x_dataStack?.[0];
+        if (! hidden || ! data || typeof data.local === 'undefined') {
+            return;
+        }
+        const prefixDigits = String(data.prefix || '').replace(/\D/g, '');
+        let local = String(hidden.value || '').replace(/\D/g, '');
+        if (prefixDigits && local.startsWith(prefixDigits)) {
+            local = local.slice(prefixDigits.length);
+        }
+        data.local = local.replace(/^0+/, '');
+        if (typeof data.syncHidden === 'function') {
+            data.syncHidden();
+        }
+    });
+}
+
+function syncAddressWidgets(form, values) {
+    form.querySelectorAll('[x-data]').forEach((el) => {
+        const data = el._x_dataStack?.[0];
+        if (! data || typeof data.refreshDistricts !== 'function' || typeof data.region !== 'string') {
+            return;
+        }
+        const regionField = el.querySelector('select[name]');
+        const districtField = el.querySelector('input[type="hidden"][name]');
+        if (regionField && Object.prototype.hasOwnProperty.call(values, regionField.name)) {
+            data.region = values[regionField.name] || '';
+        }
+        if (districtField && Object.prototype.hasOwnProperty.call(values, districtField.name)) {
+            data.savedDistrict = values[districtField.name] || '';
+            data.district = values[districtField.name] || '';
+        }
+        data.refreshDistricts();
+        if (typeof data.syncDistrictSelection === 'function') {
+            data.syncDistrictSelection();
+        }
+    });
+}
+
+function applyDraft(form, payload) {
+    applyValues(form, payload.values);
+    syncPhoneWidgets(form);
+    syncAddressWidgets(form, payload.values || {});
+
+    const wizard = form.querySelector('.admin-wizard');
+    if (! wizard) {
+        return;
+    }
+    const steps = wizardStepsInFlow(wizard);
+    let index = Number.isInteger(payload.wizardStep) ? payload.wizardStep : 0;
+    if (payload.wizardStepLabel) {
+        const byLabel = steps.findIndex((el) => el.dataset.stepLabel === payload.wizardStepLabel);
+        if (byLabel >= 0) {
+            index = byLabel;
+        }
+    }
+    wizard.dataset.restoreStep = String(Math.max(0, index));
+    if (payload.wizardStepLabel) {
+        wizard.dataset.restoreStepLabel = payload.wizardStepLabel;
+    }
+    window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'));
+}
+
 function hasServerErrors(form) {
-    return Boolean(
-        form.querySelector('[data-has-error="true"]')
-        || form.previousElementSibling?.classList?.contains('bg-red-50')
-        || form.parentElement?.querySelector?.('.text-red-700')
-    );
+    return Boolean(form.querySelector('[data-has-error="true"], [data-server-errors]'));
 }
 
 function save(form) {
-    if (shouldSkipForm(form)) {
+    if (restoring || shouldSkipForm(form)) {
         return;
     }
     try {
@@ -126,7 +256,7 @@ function save(form) {
 }
 
 function restore(form) {
-    if (shouldSkipForm(form) || hasServerErrors(form)) {
+    if (shouldSkipForm(form) || hasServerErrors(form) || form.dataset.draftRestored === '1') {
         return;
     }
     let raw;
@@ -148,12 +278,36 @@ function restore(form) {
         sessionStorage.removeItem(formKey(form));
         return;
     }
-    applyValues(form, payload.values);
-    const wizard = form.querySelector('.admin-wizard');
-    if (wizard && Number.isInteger(payload.wizardStep)) {
-        wizard.dataset.restoreStep = String(payload.wizardStep);
-        window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'));
-    }
+
+    form.dataset.draftRestored = '1';
+    restoring = true;
+    applyDraft(form, payload);
+
+    const replay = () => {
+        applyValues(form, payload.values);
+        syncPhoneWidgets(form);
+        syncAddressWidgets(form, payload.values || {});
+        const wizard = form.querySelector('.admin-wizard');
+        if (wizard && payload.wizardStepLabel) {
+            wizard.dataset.restoreStepLabel = payload.wizardStepLabel;
+        }
+        if (wizard && Number.isInteger(payload.wizardStep)) {
+            wizard.dataset.restoreStep = String(payload.wizardStep);
+        }
+    };
+
+    requestAnimationFrame(() => {
+        replay();
+        setTimeout(() => {
+            replay();
+            restoring = false;
+            const wizard = form.querySelector('.admin-wizard');
+            if (wizard) {
+                delete wizard.dataset.restoreStep;
+                delete wizard.dataset.restoreStepLabel;
+            }
+        }, 250);
+    });
 }
 
 function clear(form) {
@@ -189,16 +343,18 @@ export function bindFormDrafts() {
         }
     }, true);
 
+    window.addEventListener('pagehide', () => {
+        document.querySelectorAll('form').forEach((form) => save(form));
+    });
+
     const boot = () => {
         document.querySelectorAll('form').forEach((form) => restore(form));
     };
 
-    const scheduleBoot = () => setTimeout(boot, 80);
-
-    document.addEventListener('alpine:initialized', scheduleBoot);
+    document.addEventListener('alpine:initialized', () => setTimeout(boot, 50));
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 280));
+        document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 350));
     } else {
-        setTimeout(boot, 280);
+        setTimeout(boot, 350);
     }
 }

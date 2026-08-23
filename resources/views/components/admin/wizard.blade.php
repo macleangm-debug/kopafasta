@@ -260,9 +260,17 @@
                         step = Math.max(0, stepEls.indexOf(owner));
                     }
                 }
+                const restoreLabel = root.dataset.restoreStepLabel || '';
+                const restoreByLabel = restoreLabel
+                    ? stepEls.findIndex(function (el) { return el.dataset.stepLabel === restoreLabel; })
+                    : -1;
                 const restore = parseInt(root.dataset.restoreStep || '', 10);
-                if (! Number.isNaN(restore) && restore >= 0 && restore < total && ! firstInvalid) {
-                    step = restore;
+                if (! firstInvalid) {
+                    if (restoreByLabel >= 0) {
+                        step = restoreByLabel;
+                    } else if (! Number.isNaN(restore) && restore >= 0 && restore < total) {
+                        step = restore;
+                    }
                 }
 
                 function validateCurrentStep() {
