@@ -32,6 +32,8 @@ class OriginationPartnerController extends Controller
 
     public function autoAssign(): View
     {
+        abort_unless(request()->user()?->hasPermission('settings.manage'), 403);
+
         $boards = app(\App\Services\PartnerAutoAssignOverviewService::class)->originationBoards();
 
         return view('admin.partners.origination-auto-assign', compact('boards'));
@@ -39,6 +41,8 @@ class OriginationPartnerController extends Controller
 
     public function saveAutoAssign(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->hasPermission('settings.manage'), 403);
+
         app(\App\Services\PartnerAutoAssignPolicy::class)->saveOriginationFromRequest($request->all());
 
         return redirect()

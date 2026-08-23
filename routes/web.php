@@ -554,7 +554,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
     });
 
     // Authenticated
-    Route::middleware(['auth:admin', 'two_factor:admin'])->group(function () use ($registerResource) {
+    Route::middleware(['auth:admin', 'two_factor:admin', 'settings.restrict'])->group(function () use ($registerResource) {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
         Route::get('/', DashboardController::class)->middleware('console')->name('dashboard');

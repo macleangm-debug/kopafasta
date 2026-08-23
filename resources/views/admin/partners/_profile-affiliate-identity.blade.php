@@ -9,26 +9,9 @@
             <p class="text-sm text-gray-600 mb-2">Leaderboard rank: <span class="font-semibold">#{{ $record->affiliate_leaderboard_rank }}</span></p>
         @endif
         @if ($record->affiliate_lifecycle_note)
-            <p class="text-xs text-gray-500 mb-4">Note: {{ $record->affiliate_lifecycle_note }}</p>
+            <p class="text-xs text-gray-500 mb-2">Note: {{ $record->affiliate_lifecycle_note }}</p>
         @endif
-        <form method="POST" action="{{ route('admin.partners.affiliate-lifecycle.update', $record) }}" class="grid sm:grid-cols-3 gap-3 items-end">
-            @csrf
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Set lifecycle status</label>
-                <select name="status" class="w-full rounded-lg border-gray-300 text-sm">
-                    @foreach ($lifecycle->statuses() as $status)
-                        <option value="{{ $status }}" @selected($lifecycle->statusFor($record) === $status)>{{ $lifecycle->label($status) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="sm:col-span-2">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Reason (optional)</label>
-                <input type="text" name="reason" maxlength="500" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Policy breach, manual review, reinstatement…">
-            </div>
-            <div class="sm:col-span-3">
-                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Update lifecycle</button>
-            </div>
-        </form>
+        <p class="text-xs text-gray-500">Lifecycle is set by the system from KYC, volume, and risk. It cannot be changed here.</p>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
@@ -95,17 +78,6 @@
             @if ($membership['due_at'])
                 <p class="text-xs text-gray-500 mb-4">Pay-by window: {{ $membership['due_at']->format('d M Y H:i') }}</p>
             @endif
-            @if ($membership['status'] === 'pending_payment')
-                <div class="flex flex-wrap gap-3">
-                    <form method="POST" action="{{ route('admin.partners.membership.approve', $record) }}">
-                        @csrf
-                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Approve payment</button>
-                    </form>
-                    <form method="POST" action="{{ route('admin.partners.membership.reject', $record) }}">
-                        @csrf
-                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Reject payment</button>
-                    </form>
-                </div>
-            @endif
+            <p class="text-xs text-gray-500">Payment status is updated when the fee clears. Affiliates do not approve membership payments.</p>
         </div>
     @endif

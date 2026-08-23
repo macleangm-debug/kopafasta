@@ -147,3 +147,11 @@ if (! function_exists('loan_product_card_description')) {
         return \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/', ' ', $text) ?? ''), $max, '…');
     }
 }
+
+if (! function_exists('format_phone')) {
+    /** Display a phone with the country prefix, e.g. +255 784275297. */
+    function format_phone(?string $phone): string
+    {
+        return \App\Support\PhoneNumber::format($phone) ?: '—';
+    }
+}

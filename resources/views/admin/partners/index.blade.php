@@ -61,15 +61,17 @@
         <span class="text-sm font-semibold text-brand">Open →</span>
     </a>
 
-    <a href="{{ route('admin.partners.origination-auto-assign') }}"
-       class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
-        <div>
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Origination</p>
-            <p class="text-sm font-bold text-gray-900 mt-0.5">Partner auto-assignment</p>
-            <p class="text-xs text-gray-500 mt-1">Valuer, GPS, and insurance — region match after the borrower pays.</p>
-        </div>
-        <span class="text-sm font-semibold text-brand">Open →</span>
-    </a>
+    @if (auth()->user()?->hasPermission('settings.manage'))
+        <a href="{{ route('admin.partners.origination-auto-assign') }}"
+           class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Origination</p>
+                <p class="text-sm font-bold text-gray-900 mt-0.5">Partner auto-assignment</p>
+                <p class="text-xs text-gray-500 mt-1">Valuer, GPS, and insurance — region match after the borrower pays.</p>
+            </div>
+            <span class="text-sm font-semibold text-brand">Open →</span>
+        </a>
+    @endif
 
     <div class="mb-4 flex flex-wrap gap-2">
         <a href="{{ route('admin.partners.index') }}"

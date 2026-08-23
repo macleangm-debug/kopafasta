@@ -79,10 +79,12 @@
            class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
             Membership queue →
         </a>
-        <a href="{{ route('admin.settings.payment-accounts') }}"
-           class="ml-auto text-sm font-semibold text-brand hover:text-brand-light self-center">
-            Payment account settings
-        </a>
+        @if (auth()->user()?->hasPermission('settings.manage'))
+            <a href="{{ route('admin.settings.payment-accounts') }}"
+               class="ml-auto text-sm font-semibold text-brand hover:text-brand-light self-center">
+                Payment account settings
+            </a>
+        @endif
     </div>
 
     @if ($status === 'awaiting_bank')

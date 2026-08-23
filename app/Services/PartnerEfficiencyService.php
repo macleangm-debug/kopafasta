@@ -175,4 +175,63 @@ class PartnerEfficiencyService
             'last_nudge_at' => $snapshot['last_nudge_at'] ?? null,
         ];
     }
+
+    /**
+     * Compact performance cells for a partner list page (avoids N+1).
+     *
+     * @param  Collection<int, Partner>  $partners
+     * @return array<int, array{label: string, band: string, score: int|null}|null>
+     */
+    public function summariesFor(Collection $partners): array
+    {
+        $ids = $partners->pluck('id')->filter()->values();
+        $taskGroups = PartnerTask::query()
+            ->whereIn('partner_id', $ids)
+            ->get(['id', 'partner_id', 'status', 'due_at', 'completed_at', 'created_at'])
+            ->groupBy('partner_id');
+        $recoveryGroups = RecoveryAssignment::query()
+            ->whereIn('partner_id', $ids)
+            ->get(['id', 'partner_id', 'status', 'sla_due_at', 'completed_at', 'assigned_at'])
+            ->groupBy('partner_id');
+
+        $lifecycle = app(AffiliateLifecycleService::class);
+        $fieldCategories = $this->policy->fieldCategories();
+        $out = [];
+
+        foreach ($partners as $partner) {
+            if ($partner->isAffiliate() || $partner->hasPartnerRole('affiliate')) {
+                $status = $lifecycle->statusFor($partner);
+                $out[$partner->id] = [
+                    'label' => $lifecycle->label($status),
+                    'band' => $status,
+                    'score' => null,
+                ];
+
+                continue;
+            }
+
+            $gauged = in_array((string) $partner->category, $fieldCategories, true)
+                || $taskGroups->has($partner->id)
+                || $recoveryGroups->has($partner->id);
+
+            if (! $gauged) {
+                $out[$partner->id] = null;
+
+                continue;
+            }
+
+            $row = $this->scorePartner(
+                $partner,
+                $taskGroups->get($partner->id, collect()),
+                $recoveryGroups->get($partner->id, collect()),
+            );
+            $out[$partner->id] = [
+                'label' => $row['band_label'],
+                'band' => $row['band'],
+                'score' => $row['score'],
+            ];
+        }
+
+        return $out;
+    }
 }

@@ -148,9 +148,8 @@ class Phase67AffiliatePhase4FeatureTest extends TestCase
                 'status' => AffiliateLifecycleService::TERMINATED,
                 'reason' => 'Policy violation',
             ])
-            ->assertRedirect();
+            ->assertForbidden();
 
-        $this->assertSame(AffiliateLifecycleService::TERMINATED, $affiliate->fresh()->affiliate_lifecycle_status);
-        $this->assertSame('Policy violation', $affiliate->fresh()->affiliate_lifecycle_note);
+        $this->assertSame(AffiliateLifecycleService::ACTIVE, $affiliate->fresh()->affiliate_lifecycle_status);
     }
 }

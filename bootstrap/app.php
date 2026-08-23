@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \App\Http\Middleware\EnsurePermission::class,
             'staff' => \App\Http\Middleware\EnsureStaffUser::class,
             'console' => \App\Http\Middleware\EnsureConsoleAccess::class,
+            'settings.restrict' => \App\Http\Middleware\RestrictConsoleSettings::class,
             'two_factor' => \App\Http\Middleware\EnsureTwoFactorVerified::class,
         ]);
 

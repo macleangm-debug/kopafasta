@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Services\PartnerEfficiencyService;
 use App\Services\PartnerService;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -60,6 +61,7 @@ class PartnersTable extends Component
         }
 
         $rows = $query->orderByDesc('id')->paginate(15);
+        $performance = app(PartnerEfficiencyService::class)->summariesFor(collect($rows->items()));
 
         return view('livewire.admin.partners-table', [
             'rows'         => $rows,
@@ -67,6 +69,7 @@ class PartnersTable extends Component
             'lockCategory' => $this->lockCategory,
             'lockedRole'   => $this->category,
             'reviewOnly'   => $this->reviewOnly,
+            'performance'  => $performance,
         ]);
     }
 }

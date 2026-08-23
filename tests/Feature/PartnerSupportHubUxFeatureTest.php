@@ -104,7 +104,8 @@ class PartnerSupportHubUxFeatureTest extends TestCase
             ->assertOk()
             ->assertDontSee('Partner support duties', false)
             ->assertDontSee('Do not screen, approve, or reject the loan', false)
-            ->assertSee('Partner efficiency', false);
+            ->assertSee('Partner efficiency', false)
+            ->assertDontSee('Partner auto-assignment', false);
     }
 
     public function test_partners_hub_opens_profile_instead_of_inline_edit(): void
@@ -122,6 +123,8 @@ class PartnerSupportHubUxFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Kigoma Field Valuer', false)
             ->assertSee(route('admin.partners.show', $partner), false)
+            ->assertSee('>Performance</th>', false)
+            ->assertDontSee('>Phone</th>', false)
             ->assertDontSee('>Edit</a>', false)
             ->assertDontSee(route('admin.partners.edit', $partner), false);
 
@@ -133,6 +136,8 @@ class PartnerSupportHubUxFeatureTest extends TestCase
             ->assertSee('Profile', false)
             ->assertSee('Jobs', false)
             ->assertSee('Performance', false)
+            ->assertSee('+255', false)
+            ->assertDontSee('784,275,297', false)
             ->assertSee('View only. Use Edit to change', false);
     }
 
@@ -289,6 +294,27 @@ class PartnerSupportHubUxFeatureTest extends TestCase
             ->get(route('admin.partners.efficiency'))
             ->assertOk()
             ->assertSee('Partner efficiency', false);
+    }
+
+    public function test_partner_support_cannot_open_settings_or_origination_auto_assign(): void
+    {
+        $support = $this->partnerSupport();
+
+        $this->actingAs($support, 'admin')
+            ->get(route('admin.settings.index'))
+            ->assertForbidden();
+
+        $this->actingAs($support, 'admin')
+            ->get(route('admin.partners.origination-auto-assign'))
+            ->assertForbidden();
+
+        $this->actingAs($this->admin(), 'admin')
+            ->get(route('admin.settings.account-security'))
+            ->assertOk();
+
+        $this->actingAs($support, 'admin')
+            ->get(route('admin.settings.account-security'))
+            ->assertOk();
     }
 
     private function partnerSupport(): User

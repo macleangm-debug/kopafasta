@@ -115,11 +115,10 @@ class AffiliateMembershipAndVerifyTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.partners.membership.approve', $vendor))
-            ->assertRedirect();
+            ->assertForbidden();
 
         $vendor->refresh();
-        $this->assertSame('active', $vendor->membership_status);
-        $this->assertNotNull($vendor->membership_expires_at);
+        $this->assertSame('pending_payment', $vendor->membership_status);
     }
 
     public function test_public_verify_index_and_phone_lookup(): void

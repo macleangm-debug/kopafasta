@@ -4,11 +4,20 @@
     'description' => null,
     'actionLabel' => null,
     'actionUrl' => null,
+    'compact' => false,
 ])
 
-<div {{ $attributes->merge(['class' => 'glass-card p-10 sm:p-14 text-center']) }}>
-    <div class="mx-auto size-16 rounded-2xl bg-brand-muted/60 grid place-items-center text-3xl mb-5 ring-1 ring-brand/10" aria-hidden="true">{{ $icon }}</div>
-    <h2 class="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">{{ $title }}</h2>
+<div {{ $attributes->merge(['class' => $compact ? 'py-8 text-center' : 'glass-card p-10 sm:p-14 text-center']) }}>
+    <div @class([
+        'mx-auto grid place-items-center rounded-2xl bg-brand-muted/60 ring-1 ring-brand/10',
+        'size-16 text-3xl mb-5' => ! $compact,
+        'size-12 text-2xl mb-3' => $compact,
+    ]) aria-hidden="true">{{ $icon }}</div>
+    <h2 @class([
+        'font-bold text-gray-900 tracking-tight',
+        'text-lg sm:text-xl' => ! $compact,
+        'text-base' => $compact,
+    ])>{{ $title }}</h2>
     @if ($description)
         <p class="text-sm text-gray-500 mt-2 max-w-md mx-auto leading-relaxed">{{ $description }}</p>
     @endif

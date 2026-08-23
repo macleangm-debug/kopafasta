@@ -31,7 +31,7 @@
                         <th class="px-5 py-3 text-left">Partner #</th>
                         <th class="px-5 py-3 text-left">Name</th>
                         <th class="px-5 py-3 text-left">Roles</th>
-                        <th class="px-5 py-3 text-left">Phone</th>
+                        <th class="px-5 py-3 text-left">Performance</th>
                         <th class="px-5 py-3 text-left">Status</th>
                     </tr>
                 </thead>
@@ -51,7 +51,23 @@
                                     <span class="inline-flex mr-1 mb-1 rounded-full bg-brand-muted px-2 py-0.5 text-brand">{{ $roleOptions[$role] ?? $role }}</span>
                                 @endforeach
                             </td>
-                            <td class="px-5 py-3">{{ $row->phone ?? '—' }}</td>
+                            <td class="px-5 py-3">
+                                @php $perf = $performance[$row->id] ?? null; @endphp
+                                @if ($perf)
+                                    <span @class([
+                                        'inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1',
+                                        'bg-emerald-50 text-emerald-800 ring-emerald-100' => in_array($perf['band'], ['strong', 'active'], true),
+                                        'bg-amber-50 text-amber-800 ring-amber-100' => in_array($perf['band'], ['watch', 'watchlist', 'pending_kyc'], true),
+                                        'bg-rose-50 text-rose-800 ring-rose-100' => in_array($perf['band'], ['at_risk', 'suspended', 'terminated'], true),
+                                        'bg-gray-100 text-gray-700 ring-gray-200' => in_array($perf['band'], ['new'], true),
+                                    ])>{{ $perf['label'] }}</span>
+                                    @if ($perf['score'] !== null)
+                                        <span class="block text-[10px] text-gray-500 tabular-nums mt-0.5">{{ $perf['score'] }}</span>
+                                    @endif
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3">
                                 <span @class([
                                     'capitalize font-semibold',

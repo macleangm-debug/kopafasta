@@ -575,7 +575,7 @@ class VendorController extends ResourceController
 
     public function updateAffiliateLifecycle(Request $request, Vendor $vendor): \Illuminate\Http\RedirectResponse
     {
-        abort_unless($vendor->isAffiliate(), 404);
+        abort(403, 'Affiliate lifecycle is automated and cannot be updated here.');
 
         $data = $request->validate([
             'status' => ['required', 'in:'.implode(',', app(\App\Services\AffiliateLifecycleService::class)->statuses())],
@@ -598,7 +598,7 @@ class VendorController extends ResourceController
 
     public function scanAffiliateFraud(Vendor $vendor): \Illuminate\Http\RedirectResponse
     {
-        abort_unless($vendor->isAffiliate(), 404);
+        abort(403, 'Fraud scans are run by the system.');
 
         $result = app(\App\Services\AffiliateFraudDetectionService::class)->scanAndPersist($vendor);
 
@@ -611,7 +611,7 @@ class VendorController extends ResourceController
 
     public function updateAffiliateRiskFlag(Request $request, Vendor $vendor): \Illuminate\Http\RedirectResponse
     {
-        abort_unless($vendor->isAffiliate(), 404);
+        abort(403, 'Risk flags are set by the system and cannot be overridden.');
 
         $data = $request->validate([
             'risk_flag' => ['required', 'in:'.implode(',', app(\App\Services\AffiliateFraudDetectionService::class)->flags())],
@@ -628,7 +628,7 @@ class VendorController extends ResourceController
 
     public function approveMembershipPayment(Vendor $vendor): \Illuminate\Http\RedirectResponse
     {
-        abort_unless($vendor->isAffiliate(), 404);
+        abort(403, 'Affiliate membership payments are recorded by the system.');
 
         app(\App\Services\AffiliateMembershipService::class)->approvePendingPayment($vendor);
 
@@ -641,7 +641,7 @@ class VendorController extends ResourceController
 
     public function rejectMembershipPayment(Vendor $vendor): \Illuminate\Http\RedirectResponse
     {
-        abort_unless($vendor->isAffiliate(), 404);
+        abort(403, 'Affiliate membership payments are recorded by the system.');
 
         app(\App\Services\AffiliateMembershipService::class)->rejectPendingPayment($vendor);
 

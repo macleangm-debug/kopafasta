@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Partner;
 use App\Models\User;
 use App\Models\Vendor;
 
@@ -41,7 +42,7 @@ class AffiliateLifecycleService
         };
     }
 
-    public function statusFor(Vendor $affiliate): string
+    public function statusFor(Partner $affiliate): string
     {
         if (! $affiliate->isAffiliate()) {
             return self::ACTIVE;

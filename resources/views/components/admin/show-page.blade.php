@@ -56,7 +56,9 @@
                                         {{ format_money($value, true, (int) ($row['decimals'] ?? 0)) }}
                                     @elseif (is_array($row) && ($row['numeric'] ?? false))
                                         {{ format_number($value, (int) ($row['decimals'] ?? 0)) }}
-                                    @elseif (is_numeric($value))
+                                    @elseif (is_array($row) && ($row['phone'] ?? false))
+                                        {{ format_phone((string) $value) }}
+                                    @elseif (is_numeric($value) && ! str_contains(strtolower((string) $label), 'phone'))
                                         {{ format_number($value) }}
                                     @else
                                         {!! e($value) !!}

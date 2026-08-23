@@ -9,9 +9,11 @@
             <a href="{{ route('admin.recovery.assignments.index') }}" class="inline-flex bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2 rounded-lg text-sm">
                 Recovery assignments
             </a>
-            <a href="{{ route('admin.settings.recovery') }}" class="inline-flex bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2 rounded-lg text-sm">
-                Recovery policy
-            </a>
+            @if (auth()->user()?->hasPermission('settings.manage'))
+                <a href="{{ route('admin.settings.recovery') }}" class="inline-flex bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2 rounded-lg text-sm">
+                    Recovery policy
+                </a>
+            @endif
         </div>
     </div>
 

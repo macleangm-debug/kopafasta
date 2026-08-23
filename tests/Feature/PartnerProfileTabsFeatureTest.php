@@ -53,6 +53,10 @@ class PartnerProfileTabsFeatureTest extends TestCase
             ->assertSee('Performance', false)
             ->assertSee('Profile', false)
             ->assertDontSee('>Affiliate</', false)
+            ->assertDontSee('Update lifecycle', false)
+            ->assertDontSee('Approve payment', false)
+            ->assertDontSee('Override risk flag', false)
+            ->assertDontSee('Run fraud scan', false)
             ->getContent();
 
         $this->assertStringContainsString("setTab('pipeline')", $html);
@@ -74,7 +78,7 @@ class PartnerProfileTabsFeatureTest extends TestCase
             ->get(route('admin.partners.show', $partner))
             ->assertOk()
             ->assertSee('Capital', false)
-            ->assertSee('No capital book is linked', false)
+            ->assertSee('No capital book yet', false)
             ->getContent();
 
         $this->assertStringContainsString("setTab('capital')", $html);

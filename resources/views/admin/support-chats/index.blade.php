@@ -1,7 +1,9 @@
 <x-admin.layout title="Support chats" heading="" subheading="">
     <x-admin.letterhead kicker="Support" title="Live support chats" subtitle="Borrower AI chat escalations and human-assist queue" />
 <div class="mb-4 flex gap-3 text-sm">
-        <a href="{{ route('admin.settings.chatbot') }}" class="font-semibold text-brand hover:underline">Manage chatbot FAQs →</a>
+        @if (auth()->user()?->hasPermission('settings.manage'))
+            <a href="{{ route('admin.settings.chatbot') }}" class="font-semibold text-brand hover:underline">Manage chatbot FAQs →</a>
+        @endif
     </div>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">

@@ -8,7 +8,7 @@
         'Partner #'  => $record->vendor_number,
         'Category'  => ucfirst(str_replace('_', ' ', $record->category)),
         'Status'    => ucfirst($record->status ?? ''),
-        'Phone'     => $record->phone,
+        'Phone'     => ['value' => $record->phone, 'phone' => true],
         'Open jobs' => isset($profileTabs['jobs'])
             ? ((($openTasks ?? collect())->count() > 0) ? $openTasks->count().' ongoing' : 'None')
             : null,
@@ -231,24 +231,7 @@
             @php $fraudSnap = $record->affiliate_fraud_snapshot; @endphp
             <p class="text-xs text-gray-500 mb-3">Last scan {{ $fraudSnap['scanned_at'] ?? '—' }} · Score {{ $fraudSnap['score'] ?? 0 }}</p>
         @endif
-        <div class="flex flex-wrap gap-3 items-end">
-            <form method="POST" action="{{ route('admin.partners.affiliate-fraud.scan', $record) }}">
-                @csrf
-                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Run fraud scan</button>
-            </form>
-            <form method="POST" action="{{ route('admin.partners.affiliate-risk-flag.update', $record) }}" class="flex flex-wrap gap-2 items-end">
-                @csrf
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Override risk flag</label>
-                    <select name="risk_flag" class="rounded-lg border-gray-300 text-sm">
-                        @foreach ($fraudService->flags() as $flag)
-                            <option value="{{ $flag }}" @selected(($record->affiliate_risk_flag ?? 'low') === $flag)>{{ $fraudService->label($flag) }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Save flag</button>
-            </form>
-        </div>
+        <p class="text-xs text-gray-500">Fraud score and risk flag are produced by the system. They cannot be overridden here.</p>
         @if (($affiliateEvaluations ?? collect())->isNotEmpty())
             <div class="mt-6 overflow-x-auto">
                 <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Evaluation history</h4>
@@ -291,7 +274,9 @@
             @forelse ($listingCounts as $status => $count)
                 <div><span class="text-gray-500 capitalize">{{ str_replace('_', ' ', $status) }}</span><p class="text-xl font-bold">{{ $count }}</p></div>
             @empty
-                <p class="text-sm text-gray-500 sm:col-span-3">No listings to score yet.</p>
+                <div class="sm:col-span-3">
+                    <x-site.empty-state compact icon="🏷️" title="No listings yet" />
+                </div>
             @endforelse
         </div>
     </div>
@@ -315,7 +300,7 @@
            class="text-sm font-semibold text-brand hover:underline">All tasks →</a>
     </div>
     @if ($taskRows->isEmpty())
-        <p class="text-sm text-gray-500">No jobs on this partner yet.</p>
+        <x-site.empty-state compact icon="📋" title="No jobs yet" />
     @else
         <ul class="text-sm text-gray-800 divide-y divide-gray-100">
             @foreach ($taskRows as $task)
@@ -368,7 +353,7 @@
         <a href="{{ route('admin.recovery.assignments.index') }}" class="text-sm font-semibold text-brand hover:underline">All cases →</a>
     </div>
     @if ($recoveryAssignments->isEmpty())
-        <p class="text-sm text-gray-500">No cases on this partner yet.</p>
+        <x-site.empty-state compact icon="🛡️" title="No cases yet" />
     @else
         <ul class="text-sm text-gray-800 divide-y divide-gray-100">
             @foreach ($recoveryAssignments as $assignment)
@@ -414,7 +399,7 @@
         <p class="text-xs text-gray-500 mb-4">Link: {{ app(\App\Services\AffiliateService::class)->affiliateLink($record) }}</p>
     @endif
     @if ($affiliatePipeline->isEmpty())
-        <p class="text-sm text-gray-500">No pipeline events yet.</p>
+        <x-site.empty-state compact icon="📈" title="No pipeline yet" />
     @else
         <ul class="text-sm text-gray-800 divide-y divide-gray-100">
             @foreach ($affiliatePipeline as $event)
@@ -444,7 +429,7 @@
         <a href="{{ route('admin.marketplace-assets.index') }}" class="text-sm font-semibold text-brand hover:underline">Marketplace →</a>
     </div>
     @if ($listings->isEmpty())
-        <p class="text-sm text-gray-500">No listings on this partner yet.</p>
+        <x-site.empty-state compact icon="🏷️" title="No listings yet" />
     @else
         <ul class="text-sm text-gray-800 divide-y divide-gray-100">
             @foreach ($listings as $asset)
@@ -471,8 +456,13 @@
         </div>
         <a href="{{ route('admin.lenders.show', $linkedLender) }}" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">Open capital book →</a>
     @else
-        <p class="text-sm text-gray-600 mb-3">No capital book is linked to this partner yet (match on login, phone, or email).</p>
-        <a href="{{ route('admin.lenders.index') }}" class="text-sm font-semibold text-brand hover:underline">Capital partners →</a>
+        <x-site.empty-state
+            compact
+            icon="🏦"
+            title="No capital book yet"
+            action-label="Capital partners"
+            :action-url="route('admin.lenders.index')"
+        />
     @endif
 </div>
     </div>
@@ -490,7 +480,7 @@
            class="text-sm font-semibold text-brand hover:underline">Money ledger →</a>
     </div>
     @if ($payouts->isEmpty())
-        <p class="text-sm text-gray-500">No payouts on this partner yet.</p>
+        <x-site.empty-state compact icon="💸" title="No payouts yet" />
     @else
         <ul class="text-sm divide-y divide-gray-100">
             @foreach ($payouts as $payout)
@@ -552,7 +542,7 @@
     </p>
     <p class="mt-4 text-[10px] uppercase tracking-widest text-brand font-semibold">Partner code</p>
     <p class="mt-1 text-2xl font-extrabold tracking-widest font-mono text-brand">{{ $record->vendor_number }}</p>
-    <p class="mt-2 text-sm text-gray-600">Registered phone: <span class="font-medium text-gray-900">{{ $record->phone ?: '—' }}</span></p>
+    <p class="mt-2 text-sm text-gray-600">Registered phone: <span class="font-medium text-gray-900">{{ format_phone($record->phone) }}</span></p>
     <p class="mt-3 text-xs text-gray-500 break-all">{{ $inviteUrl }}</p>
     <div class="mt-4 flex flex-wrap gap-2">
         <button type="button"
