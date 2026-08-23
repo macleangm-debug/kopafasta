@@ -7,6 +7,7 @@ use App\Models\PartnerDocument;
 use App\Models\Vendor;
 use App\Services\AffiliateService;
 use App\Services\PartnerCodeService;
+use App\Services\PartnerProfileTabs;
 use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -497,11 +498,16 @@ class VendorController extends ResourceController
         }
 
         $record = Vendor::findOrFail($id);
+        $tabs = app(PartnerProfileTabs::class);
+        $canSeePayouts = (bool) auth()->user()?->hasPermission('finance.operations');
+        $profileTabs = $tabs->tabs($record, $canSeePayouts);
         $deletion = app(\App\Services\PartnerDeletionService::class);
         $openTasks = $deletion->openTasks($record);
         $openValuations = $deletion->openValuationAssignments($record);
-        $recentTasks = $record->tasks()->orderByDesc('id')->limit(50)->get();
-        $recoveryAssignments = $record->isRecoveryPartner()
+        $recentTasks = $tabs->showsJobs($record) || $record->isTowing()
+            ? $record->tasks()->orderByDesc('id')->limit(50)->get()
+            : collect();
+        $recoveryAssignments = $tabs->showsCases($record)
             ? $record->recoveryAssignments()
                 ->with(['arrearCase.loan.customer'])
                 ->orderByDesc('id')
@@ -513,27 +519,41 @@ class VendorController extends ResourceController
             ->where('partner_id', $record->id)
             ->latest()
             ->first();
-        $affiliateStats = $record->isAffiliate()
+        $affiliateStats = $tabs->showsPipeline($record)
             ? app(AffiliateService::class)->stats($record)
             : null;
-        $affiliateEvaluations = $record->isAffiliate()
+        $affiliatePipeline = $tabs->showsPipeline($record)
+            ? app(AffiliateService::class)->recentEvents($record, 40)
+            : collect();
+        $affiliateEvaluations = $tabs->showsPipeline($record)
             ? $record->affiliateEvaluations()->latest('evaluated_at')->limit(6)->get()
             : collect();
-        $recoveryStats = $record->isRecoveryPartner()
+        $recoveryStats = $tabs->showsCases($record)
             ? app(\App\Services\RecoveryPartnerService::class)->statsForVendor($record)
             : null;
-        $membership = $record->isAffiliate()
+        $membership = $tabs->showsPipeline($record)
             ? app(\App\Services\AffiliateMembershipService::class)->summary($record)
             : null;
-        $efficiency = app(\App\Services\PartnerEfficiencyService::class)->forPartner($record);
-        $affiliateVolume = $record->isAffiliate()
+        $efficiency = $tabs->showsFieldPerformance($record)
+            ? app(\App\Services\PartnerEfficiencyService::class)->forPartner($record)
+            : null;
+        $affiliateVolume = $tabs->showsPipeline($record)
             ? app(\App\Services\AffiliateEvaluationService::class)->currentVolumeProgress($record)
+            : null;
+        $listings = $tabs->showsListings($record)
+            ? $record->marketplaceAssets()->latest('id')->limit(50)->get()
+            : collect();
+        $linkedLender = $tabs->showsCapital($record) ? $tabs->linkedLender($record) : null;
+        $capitalMetrics = $linkedLender
+            ? app(\App\Services\CapitalPartnerMetricsService::class)->forLender($linkedLender)
             : null;
 
         return view("admin.{$this->viewFolder}.show", array_merge(
             [
                 'record' => $record,
+                'profileTabs' => $profileTabs,
                 'affiliateStats' => $affiliateStats,
+                'affiliatePipeline' => $affiliatePipeline,
                 'affiliateEvaluations' => $affiliateEvaluations,
                 'recoveryStats' => $recoveryStats,
                 'membership' => $membership,
@@ -545,6 +565,9 @@ class VendorController extends ResourceController
                 'recoveryAssignments' => $recoveryAssignments,
                 'payouts' => $payouts,
                 'enrollmentApplication' => $enrollmentApplication,
+                'listings' => $listings,
+                'linkedLender' => $linkedLender,
+                'capitalMetrics' => $capitalMetrics,
             ],
             $this->formData($record),
         ));

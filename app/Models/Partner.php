@@ -103,6 +103,21 @@ class Partner extends Model
         return $this->category === 'gps_installer' || $this->hasPartnerRole('gps_installer');
     }
 
+    public function isCapitalPartner(): bool
+    {
+        return $this->category === 'capital' || $this->hasPartnerRole('capital');
+    }
+
+    public function isTowing(): bool
+    {
+        return $this->category === 'towing' || $this->hasPartnerRole('towing');
+    }
+
+    public function isYard(): bool
+    {
+        return $this->category === 'yard' || $this->hasPartnerRole('yard');
+    }
+
     /** Affiliates and valuers may be individual or company; other service types are company. */
     public function allowsPersonApplicant(): bool
     {
