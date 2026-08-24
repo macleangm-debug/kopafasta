@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Site\CardVerificationController;
 use App\Http\Controllers\Site\PartnerAccountController;
 use App\Http\Controllers\Site\PartnerMembershipPaymentController;
 use App\Http\Controllers\Site\VendorController;
@@ -48,5 +49,9 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
         Route::put('/settings/pin', [PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         Route::get('/support', [VendorController::class, 'support'])->name('support');
+        Route::get('/verify', [CardVerificationController::class, 'partnerIndex'])->name('verify');
+        Route::post('/verify', [CardVerificationController::class, 'partnerLookup'])->name('verify.lookup');
+        Route::get('/verify/member/{memberNo}', [CardVerificationController::class, 'partnerShowMember'])->name('verify.member');
+        Route::get('/verify/p/{partnerNo}', [CardVerificationController::class, 'partnerShowPartner'])->name('verify.partner');
     });
 };

@@ -31,7 +31,9 @@ class PartnerMatchingService
     {
         $requireRegion = (bool) ($this->autoAssign->forServiceCategory('valuer')['require_region'] ?? true);
 
-        return $this->coverage->filterAvailable($this->allActiveValuers(), $region, $requireRegion);
+        return app(PartnerProfileService::class)->onlyReadyForJobs(
+            $this->coverage->filterAvailable($this->allActiveValuers(), $region, $requireRegion)
+        );
     }
 
     /** @param  list<int>  $excludeIds */

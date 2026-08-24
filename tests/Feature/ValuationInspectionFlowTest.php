@@ -20,6 +20,7 @@ use App\Services\ValuationPartnerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ValuationInspectionFlowTest extends TestCase
@@ -65,14 +66,11 @@ class ValuationInspectionFlowTest extends TestCase
             ],
         ]);
 
-        $valuer = $valuer->fresh();
-
         if ($payMembership) {
             app(PartnerMembershipService::class)->activate($valuer);
-            $valuer = $valuer->fresh();
         }
 
-        return $valuer;
+        return $valuer->fresh();
     }
 
     private function makeVehicleAsset(Customer $customer): CustomerAsset
@@ -110,16 +108,18 @@ class ValuationInspectionFlowTest extends TestCase
 
     private function assignJob(Vendor $valuer, int $requestedAmount = 777_777): array
     {
-        $branch = Branch::create([
-            'code' => 'BR-INSP',
-            'name' => 'Inspection Branch',
-            'region' => 'Dar es Salaam',
-            'is_active' => true,
-        ]);
+        $branch = Branch::query()->firstOrCreate(
+            ['code' => 'BR-INSP'],
+            [
+                'name' => 'Inspection Branch',
+                'region' => 'Dar es Salaam',
+                'is_active' => true,
+            ],
+        );
 
         $customer = Customer::create([
             'branch_id' => $branch->id,
-            'customer_number' => 'CU-INSP-001',
+            'customer_number' => 'CU-INSP-'.uniqid(),
             'type' => 'individual',
             'status' => 'active',
             'first_name' => 'Geofrey',
@@ -130,21 +130,23 @@ class ValuationInspectionFlowTest extends TestCase
             'street' => 'Kigoma Rural',
         ]);
 
-        $product = LoanProduct::create([
-            'code' => 'AB',
-            'name' => 'Asset Backed',
-            'is_active' => true,
-            'interest_rate' => 3.5,
-            'min_amount' => 100_000,
-            'max_amount' => 10_000_000,
-            'tenure_min_months' => 3,
-            'tenure_max_months' => 24,
-        ]);
+        $product = LoanProduct::query()->firstOrCreate(
+            ['code' => 'AB'],
+            [
+                'name' => 'Asset Backed',
+                'is_active' => true,
+                'interest_rate' => 3.5,
+                'min_amount' => 100_000,
+                'max_amount' => 10_000_000,
+                'tenure_min_months' => 3,
+                'tenure_max_months' => 24,
+            ],
+        );
 
         $application = LoanApplication::create([
             'customer_id' => $customer->id,
             'loan_product_id' => $product->id,
-            'application_number' => 'APP-INSP-77',
+            'application_number' => 'APP-INSP-'.uniqid(),
             'status' => 'submitted',
             'current_stage' => 'submitted',
             'requested_amount' => $requestedAmount,
@@ -403,11 +405,26 @@ class ValuationInspectionFlowTest extends TestCase
         $this->assertFalse($asset->hasCompletePhotoSet());
     }
 
-    public function test_incomplete_profile_cannot_start_a_valuation_job(): void
+    public function test_incomplete_profile_cannot_receive_or_start_a_valuation_job(): void
     {
         [$user, $valuer] = $this->makeValuerUser();
+
+        try {
+            $this->assignJob($valuer);
+            $this->fail('Incomplete valuers must not receive assignments.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('vendor_id', $e->errors());
+        }
+
+        $this->completeValuerForJobs($valuer);
         [, $assignment] = $this->assignJob($valuer);
         $task = $assignment->vendorTask;
+
+        $valuer->update([
+            'phone' => null,
+            'email' => null,
+            'metadata' => [],
+        ]);
 
         $this->actingAs($user)
             ->withSession(['locale' => 'en'])
@@ -428,18 +445,32 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertRedirect(route('site.partner.profile'));
     }
 
-    public function test_unpaid_membership_cannot_start_until_paid(): void
+    public function test_unpaid_membership_cannot_receive_or_start_until_paid(): void
     {
         [$user, $valuer] = $this->makeValuerUser();
         $this->completeValuerForJobs($valuer, payMembership: false);
-        [, $assignment] = $this->assignJob($valuer);
-        $task = $assignment->vendorTask;
+
+        try {
+            $this->assignJob($valuer);
+            $this->fail('Unpaid membership valuers must not receive assignments.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('vendor_id', $e->errors());
+        }
 
         $this->actingAs($user)
             ->withSession(['locale' => 'en'])
             ->get(route('site.partner.dashboard'))
             ->assertOk()
             ->assertSee(__('site.partner_portal.cta_pay_membership'), false);
+
+        app(PartnerMembershipService::class)->activate($valuer);
+        [, $assignment] = $this->assignJob($valuer->fresh());
+        $task = $assignment->vendorTask;
+
+        $valuer->update([
+            'membership_status' => 'expired',
+            'membership_expires_at' => now()->subDay(),
+        ]);
 
         $this->actingAs($user)
             ->withSession(['locale' => 'en'])
@@ -473,7 +504,7 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertSee('15,000', false)
             ->assertDontSee('50,000', false);
 
-        app(PartnerMembershipService::class)->activate($valuer);
+        app(PartnerMembershipService::class)->activate($valuer->fresh());
 
         $this->assertTrue(app(PartnerMembershipService::class)->isActive($valuer->fresh()));
 

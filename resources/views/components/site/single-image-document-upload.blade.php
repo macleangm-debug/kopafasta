@@ -35,6 +35,7 @@
         $labelDefaults['saving'] = __('site.partner_portal.valuation_photo_saving');
     }
     $mergedLabels = array_merge($labelDefaults, $labels);
+    $inlinePreview = $autoSubmit && $cameraOnly;
 @endphp
 
 <div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly), @js($autoSubmit))"
@@ -62,6 +63,13 @@
     <p x-show="submitting" x-cloak class="mt-3 text-sm font-semibold text-gray-600" x-text="labels.saving"></p>
 
     <div x-show="(previewUrl || previewName) && !submitting" x-cloak class="mt-3">
+        @if ($inlinePreview)
+            <div class="relative">
+                <template x-if="previewUrl">
+                    <img :src="previewUrl" alt="" class="h-56 w-full object-cover rounded-xl ring-1 ring-gray-200">
+                </template>
+            </div>
+        @else
         <div class="relative inline-flex">
             <template x-if="previewUrl">
                 <button type="button" @click="expanded = true" class="h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
@@ -77,6 +85,7 @@
                     class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-white text-red-600 text-xs font-bold ring-1 ring-gray-200 grid place-items-center"
                     aria-label="{{ __('borrower.document_upload.remove') }}">×</button>
         </div>
+        @endif
     </div>
 
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2 mt-3" x-text="cameraNotice"></p>
@@ -120,6 +129,7 @@
         </div>
     </template>
 
+    @unless ($inlinePreview)
     <div x-show="expanded && previewUrl" x-cloak x-transition
          class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
          @keydown.escape.window="expanded = false"
@@ -127,6 +137,7 @@
         <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expanded = false" x-text="labels.close"></button>
         <img :src="previewUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
     </div>
+    @endunless
 
     <div id="{{ $hostId }}"></div>
 </div>

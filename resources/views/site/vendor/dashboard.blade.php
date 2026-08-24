@@ -138,13 +138,30 @@
                     @endphp
                     <p class="text-sm text-white/90 mt-3 max-w-lg">{{ __('site.partner_portal.membership_due_title') }}</p>
                     <p class="text-sm text-white/75 mt-1 max-w-lg">{{ __('site.partner_portal.membership_due_body', ['amount' => format_money($membershipFee)]) }}</p>
-                    <a href="{{ route($membershipPayRoute) }}"
-                       class="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-white text-brand font-bold px-5 py-2.5 hover:bg-white/90 shadow-sm">
-                        {{ __('site.partner_portal.cta_pay_membership') }}
-                    </a>
                 @else
                     <p class="text-sm text-white/80 mt-3 max-w-lg">{{ $heroBlurb }}</p>
                 @endif
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <a href="{{ route('site.partner.profile') }}"
+                       class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
+                        {{ __('site.partner_portal.cta_my_card') }}
+                    </a>
+                    <a href="{{ route('site.partner.verify') }}"
+                       class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25">
+                        {{ __('site.partner_portal.cta_verify_member') }}
+                    </a>
+                    @if ($showMembershipPayCta)
+                        <a href="{{ route($membershipPayRoute) }}"
+                           class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-brand-gold/95 text-brand hover:brightness-95 shadow-sm ring-1 ring-brand-gold/40">
+                            {{ __('site.partner_portal.cta_pay_membership') }}
+                        </a>
+                    @else
+                        <a href="{{ route($primaryCtaRoute) }}"
+                           class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-brand-gold/95 text-brand hover:brightness-95 shadow-sm ring-1 ring-brand-gold/40">
+                            {{ $primaryCtaLabel }}
+                        </a>
+                    @endif
+                </div>
             </div>
             <div class="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0 w-full sm:w-auto">
                 @php
@@ -167,16 +184,6 @@
                         <p class="text-xs text-white/70 mt-1">{{ __('site.partner_portal.wallet_withdraw_hint') }}</p>
                     </a>
                 @endif
-                @unless ($showMembershipPayCta)
-                    <div class="flex flex-col gap-2">
-                        <a href="{{ route($primaryCtaRoute) }}"
-                           class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shadow-md">
-                            {{ $primaryCtaLabel }}
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-                        </a>
-                        <a href="{{ route('site.card.verify') }}" class="text-center text-xs text-white/70 hover:text-white underline">{{ __('site.nav.verify') }}</a>
-                    </div>
-                @endunless
             </div>
         </div>
     </section>

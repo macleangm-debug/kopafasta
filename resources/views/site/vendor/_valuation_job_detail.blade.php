@@ -154,12 +154,7 @@
                                     <x-site.single-image-document-upload name="file" facing="environment" :required="empty($s['path'])" :camera-only="true" :auto-submit="true" />
                                 </form>
                             @endif
-                            <div class="flex items-center justify-between gap-3">
-                                @if ($i > 0)
-                                    <button type="button" @click="photo = {{ $i - 1 }}" class="text-sm font-semibold text-gray-600 hover:text-gray-900">{{ __('site.partner_portal.valuation_photo_back') }}</button>
-                                @else
-                                    <span></span>
-                                @endif
+                            <div class="flex items-center justify-end gap-3">
                                 @if (! empty($s['path']))
                                     <div class="flex items-center gap-3">
                                         @if ($open)

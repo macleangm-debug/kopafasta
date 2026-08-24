@@ -42,7 +42,9 @@ class GpsPartnerService
 
         $requireRegion = (bool) ($this->autoAssign->forServiceCategory('gps_installer')['require_region'] ?? true);
 
-        return $this->coverage->filterAvailable($all, $region, $requireRegion);
+        return app(PartnerProfileService::class)->onlyReadyForJobs(
+            $this->coverage->filterAvailable($all, $region, $requireRegion)
+        );
     }
 
     public function assign(LoanApplication $application, Vendor $installer, User $actor, ?string $notes = null): VendorTask
@@ -52,6 +54,8 @@ class GpsPartnerService
                 'vendor_id' => 'Selected partner is not a GPS installer.',
             ]);
         }
+
+        app(PartnerProfileService::class)->assertCanReceiveJobs($installer);
 
         $open = VendorTask::query()
             ->where('loan_application_id', $application->id)

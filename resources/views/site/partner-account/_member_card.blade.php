@@ -70,11 +70,22 @@
 <div {{ $attributes->merge(['class' => 'space-y-4 mb-6']) }}
      x-data="{
         copied: false,
+        linkCopied: false,
+        expanded: false,
         async copyId() {
             try {
                 await navigator.clipboard.writeText(@js($partnerNumber));
                 this.copied = true;
                 setTimeout(() => this.copied = false, 1600);
+            } catch (e) {}
+        },
+        copyId() { this.copyId(); },
+        async copyVerifyLink() {
+            if (! @js($verifyUrl)) return;
+            try {
+                await navigator.clipboard.writeText(@js($verifyUrl));
+                this.linkCopied = true;
+                setTimeout(() => this.linkCopied = false, 1600);
             } catch (e) {}
         },
         shareCard() {
@@ -104,7 +115,12 @@
              'grid gap-4 items-stretch',
              'md:grid-cols-2' => ($membershipActive && $partner->membership_expires_at) || $needsPay,
          ])>
-    <div class="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_20px_50px_rgba(8,47,39,0.28)] p-5 sm:p-6 ring-1 ring-brand-gold/35">
+    <div class="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_20px_50px_rgba(8,47,39,0.28)] p-5 sm:p-6 ring-1 ring-brand-gold/35 cursor-pointer"
+         role="button"
+         tabindex="0"
+         @click="expanded = true"
+         @keydown.enter="expanded = true"
+         aria-label="{{ __('site.card_verify.my_card_title') }}">
         <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold pointer-events-none"></div>
 
         <div class="relative flex items-center justify-between gap-3 mb-5">
@@ -137,7 +153,7 @@
                 @if ($isCompany && filled($partner->legal_name) && strcasecmp((string) $partner->legal_name, (string) $partner->name) !== 0)
                     <p class="mt-0.5 text-xs text-white/75 leading-snug">{{ $partner->legal_name }}</p>
                 @endif
-                <button type="button" @click="copyId()" class="mt-2 font-mono text-sm text-white/90 hover:text-white tracking-wider">
+                <button type="button" @click.stop="copyId()" class="mt-2 font-mono text-sm text-white/90 hover:text-white tracking-wider">
                     {{ $partnerNumber }}
                     <span x-show="copied" x-cloak class="ml-2 text-[10px] uppercase tracking-wider text-brand-gold">{{ __('site.card_verify.copied') }}</span>
                 </button>
@@ -175,25 +191,86 @@
             </div>
         </div>
 
-        @if ($verifyUrl)
-            <div class="relative mt-4 flex flex-wrap gap-2">
-                <a href="{{ $verifyUrl }}" target="_blank" rel="noopener"
-                   class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-xs font-bold px-3.5 py-2">
-                    {{ __('site.card_verify.preview') }}
-                </a>
-                @if ($whatsappUrl)
-                    <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener"
-                       class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
-                        WhatsApp
-                    </a>
-                @endif
-                <a href="{{ route('site.card.verify') }}"
-                   class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
-                    {{ __('site.card_verify.verify_another') }}
-                </a>
-            </div>
+        </div>
+    </div>
 
-        @endif
+    <div x-show="expanded" x-cloak
+         class="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 sm:p-8"
+         @keydown.escape.window="expanded = false">
+        <button type="button" class="absolute inset-0 cursor-zoom-out" @click="expanded = false" aria-label="Close"></button>
+        <div class="relative w-full max-w-3xl" @click.stop>
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-2xl p-6 sm:p-8 ring-1 ring-brand-gold/40">
+                <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
+                <div class="relative flex items-center justify-between gap-3 mb-6">
+                    <span class="inline-flex items-center gap-2.5 min-w-0">
+                        <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" class="h-11 w-auto object-contain shrink-0">
+                        <span class="text-2xl font-bold tracking-tight truncate">{{ brand_name() }}</span>
+                    </span>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-[0.14em] {{ $badgeClass }}">{{ $statusLabel }}</span>
+                </div>
+                <div class="relative flex items-start gap-4">
+                    @if ($isCompany)
+                        <div class="size-24 rounded-2xl bg-white/10 ring-2 ring-brand-gold/50 grid place-items-center shrink-0">
+                            <svg class="size-10 text-brand-gold" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/>
+                            </svg>
+                        </div>
+                    @elseif ($photoUrl)
+                        <img src="{{ $photoUrl }}" alt="" class="size-24 rounded-2xl object-cover ring-2 ring-brand-gold/50 shrink-0">
+                    @else
+                        <div class="size-24 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-3xl font-bold shrink-0">{{ $initial }}</div>
+                    @endif
+                    <div class="min-w-0 pt-1 flex-1">
+                        <p class="text-[11px] uppercase tracking-[0.2em] text-brand-gold font-semibold">{{ $role }}</p>
+                        <h3 class="mt-1.5 text-2xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
+                        <button type="button" @click="copyId()" class="mt-2 font-mono text-lg font-bold tracking-wider">
+                            {{ $partnerNumber }}
+                            <span x-show="copied" x-cloak class="ml-2 text-[10px] uppercase tracking-wider text-brand-gold">{{ __('site.card_verify.copied') }}</span>
+                        </button>
+                    </div>
+                    @if ($qrDataUri)
+                        <img src="{{ $qrDataUri }}" alt="" class="size-24 rounded-xl bg-white p-1.5 shrink-0">
+                    @endif
+                </div>
+                <dl class="mt-5 grid grid-cols-2 gap-3">
+                    <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
+                        <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.issued_label') }}</dt>
+                        <dd class="mt-1.5 font-semibold tabular-nums">{{ $issued }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
+                        <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.expires_label') }}</dt>
+                        <dd class="mt-1.5 font-semibold tabular-nums">{{ $expires }}</dd>
+                    </div>
+                </dl>
+                @if ($verifyUrl)
+                    <div class="relative mt-5 flex flex-wrap gap-2">
+                        <a href="{{ $verifyUrl }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-xs font-bold px-3.5 py-2">
+                            {{ __('site.card_verify.preview') }}
+                        </a>
+                        <button type="button"
+                                @click="copyVerifyLink()"
+                                class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
+                            {{ __('borrower.membership.copy_verify_link') }}
+                        </button>
+                        @if ($whatsappUrl)
+                            <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener"
+                               class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
+                                WhatsApp
+                            </a>
+                        @endif
+                        <a href="{{ route('site.partner.verify') }}"
+                           class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
+                            {{ __('site.card_verify.verify_another') }}
+                        </a>
+                    </div>
+                    <p x-show="linkCopied" x-cloak class="mt-2 text-xs font-medium text-brand-gold">{{ __('borrower.membership.link_copied') }}</p>
+                @endif
+            </div>
+            <button type="button" @click="expanded = false" class="mt-4 w-full rounded-xl bg-white/95 text-brand font-semibold py-3 text-sm shadow-lg">
+                {{ __('borrower.membership.close_card') }}
+            </button>
+        </div>
     </div>
 
     @if (($membershipActive && $partner->membership_expires_at) || $needsPay)

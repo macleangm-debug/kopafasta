@@ -75,7 +75,9 @@ class CollateralInsurancePartnerService
 
         $requireRegion = (bool) (app(PartnerAutoAssignPolicy::class)->forServiceCategory('insurance')['require_region'] ?? true);
 
-        return app(PartnerRegionCoverage::class)->filterAvailable($all, $region, $requireRegion);
+        return app(PartnerProfileService::class)->onlyReadyForJobs(
+            app(PartnerRegionCoverage::class)->filterAvailable($all, $region, $requireRegion)
+        );
     }
 
     public function suggestInsurer(LoanApplication $application): ?Vendor

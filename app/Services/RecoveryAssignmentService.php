@@ -34,6 +34,8 @@ class RecoveryAssignmentService
             ]);
         }
 
+        app(PartnerProfileService::class)->assertCanReceiveJobs($vendor);
+
         $loan = $arrearCase->loan;
         if (! $loan) {
             throw ValidationException::withMessages([

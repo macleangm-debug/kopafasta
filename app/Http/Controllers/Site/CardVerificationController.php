@@ -34,12 +34,34 @@ class CardVerificationController extends Controller
 
     public function lookup(Request $request, CardVerificationService $cards): RedirectResponse
     {
-        return $this->resolveLookup($request, $cards, inShell: false);
+        return $this->resolveLookup($request, $cards, 'public');
     }
 
     public function borrowerLookup(Request $request, CardVerificationService $cards): RedirectResponse
     {
-        return $this->resolveLookup($request, $cards, inShell: true);
+        return $this->resolveLookup($request, $cards, 'borrower');
+    }
+
+    public function partnerIndex(CardVerificationService $cards): View
+    {
+        return view('site.vendor.verify', $this->verifyPageData($cards));
+    }
+
+    public function partnerLookup(Request $request, CardVerificationService $cards): RedirectResponse
+    {
+        return $this->resolveLookup($request, $cards, 'partner');
+    }
+
+    public function partnerShowMember(string $memberNo, CardVerificationService $cards): View
+    {
+        return view('site.vendor.verify', $this->verifyPageData($cards, $cards->lookup('member', $memberNo), 'member'));
+    }
+
+    public function partnerShowPartner(string $partnerNo, CardVerificationService $cards): View
+    {
+        $result = $cards->resolvePartnerToken($partnerNo);
+
+        return view('site.vendor.verify', $this->verifyPageData($cards, $result, $result['type'] ?? 'supplier'));
     }
 
     public function showPartner(string $partnerNo, CardVerificationService $cards): View
@@ -81,7 +103,18 @@ class CardVerificationController extends Controller
         ]);
     }
 
-    private function resolveLookup(Request $request, CardVerificationService $cards, bool $inShell): RedirectResponse
+    private function verifyPageData(CardVerificationService $cards, ?array $result = null, ?string $selectedType = null): array
+    {
+        return [
+            'types' => $cards->types(),
+            'result' => $result,
+            'selectedType' => $selectedType ?? old('type', 'member'),
+            'number' => old('number', ''),
+            'showForm' => $result === null,
+        ];
+    }
+
+    private function resolveLookup(Request $request, CardVerificationService $cards, string $shell): RedirectResponse
     {
         $data = $request->validate([
             'type' => ['required', 'string', 'max:40'],
@@ -98,16 +131,21 @@ class CardVerificationController extends Controller
             return back()->withErrors(['number' => __('site.card_verify.invalid_number')])->withInput();
         }
 
+        $memberRoute = match ($shell) {
+            'borrower' => 'site.borrower.verify.member',
+            'partner' => 'site.partner.verify.member',
+            default => 'site.short.member',
+        };
+        $partnerRoute = match ($shell) {
+            'borrower' => 'site.borrower.verify.partner',
+            'partner' => 'site.partner.verify.partner',
+            default => 'site.short.partner',
+        };
+
         if ($data['type'] === 'member') {
-            return redirect()->route(
-                $inShell ? 'site.borrower.verify.member' : 'site.short.member',
-                ['memberNo' => $id]
-            );
+            return redirect()->route($memberRoute, ['memberNo' => $id]);
         }
 
-        return redirect()->route(
-            $inShell ? 'site.borrower.verify.partner' : 'site.short.partner',
-            ['partnerNo' => $id]
-        );
+        return redirect()->route($partnerRoute, ['partnerNo' => $id]);
     }
 }

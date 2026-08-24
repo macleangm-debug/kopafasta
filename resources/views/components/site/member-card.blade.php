@@ -100,35 +100,20 @@
                 </span>
             </div>
 
-            <div class="relative flex items-start gap-4">
+            <div class="relative flex items-start gap-3 sm:gap-4">
                 @if ($photoUrl)
                     <img src="{{ $photoUrl }}" alt="" class="size-16 sm:size-20 rounded-2xl object-cover ring-2 ring-brand-gold/50 bg-white/10 shrink-0">
                 @else
                     <div class="size-16 sm:size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
                 @endif
-                <div class="min-w-0 pt-0.5">
+                <div class="min-w-0 pt-0.5 flex-1">
                     <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ __('borrower.membership.member_role') }}</p>
                     <h3 class="mt-1 text-lg sm:text-xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
+                    <p class="mt-2 font-mono text-sm text-white/90 tracking-wider break-all">{{ $memberNoDisplay }}</p>
                 </div>
-            </div>
-
-            <div class="relative mt-5 rounded-2xl bg-black/25 px-4 py-4 ring-1 ring-white/15">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/55 mb-2">{{ __('borrower.membership.member_no_label') }}</p>
-                        <p class="font-mono text-lg sm:text-xl font-bold tracking-[0.12em] leading-tight break-all">{{ $memberNoDisplay }}</p>
-                    </div>
-                    @if ($memberNoRaw)
-                        <span
-                            role="button"
-                            tabindex="0"
-                            @click.stop="navigator.clipboard.writeText(copyNo).then(() => { copied = true; setTimeout(() => copied = false, 2500); })"
-                            class="shrink-0 inline-flex items-center justify-center size-10 rounded-xl bg-white/10 hover:bg-white/20 ring-1 ring-white/20 cursor-pointer">
-                            <svg x-show="!copied" class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                            <svg x-show="copied" x-cloak class="size-5 text-emerald-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                        </span>
-                    @endif
-                </div>
+                @if ($verifyUrl && $qrDataUri)
+                    <img src="{{ $qrDataUri }}" alt="" class="size-16 sm:size-20 rounded-xl bg-white p-1 shrink-0 ring-1 ring-white/30">
+                @endif
             </div>
 
             <dl class="mt-4 grid grid-cols-2 gap-3 relative">
@@ -141,13 +126,6 @@
                     <dd class="mt-1.5 text-sm font-semibold tabular-nums leading-tight">{{ $expires }}</dd>
                 </div>
             </dl>
-
-            @if ($verifyUrl && $qrDataUri)
-                <div class="relative mt-4 flex items-center gap-4 rounded-2xl bg-black/25 px-4 py-3.5 ring-1 ring-white/15">
-                    <img src="{{ $qrDataUri }}" alt="" class="size-[64px] rounded-xl bg-white p-1.5 shrink-0">
-                    <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
-                </div>
-            @endif
         </div>
 
         {{-- Days remaining --}}
@@ -266,7 +244,7 @@
          class="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 sm:p-8"
          @keydown.escape.window="expanded = false">
         <button type="button" class="absolute inset-0 cursor-zoom-out" @click="expanded = false" aria-label="Close"></button>
-        <div class="relative w-full max-w-md" @click.stop>
+        <div class="relative w-full max-w-3xl" @click.stop>
             <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-2xl p-6 sm:p-8 ring-1 ring-brand-gold/40">
                 <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
                 <div class="relative flex items-center justify-between gap-3 mb-6">
@@ -282,14 +260,14 @@
                     @else
                         <div class="size-24 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-3xl font-bold">{{ $initial }}</div>
                     @endif
-                    <div class="min-w-0 pt-1">
+                    <div class="min-w-0 pt-1 flex-1">
                         <p class="text-[11px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ __('borrower.membership.member_role') }}</p>
                         <h3 class="mt-1.5 text-2xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
+                        <p class="mt-2 font-mono text-lg font-bold tracking-[0.12em] break-all">{{ $memberNoDisplay }}</p>
                     </div>
-                </div>
-                <div class="relative mt-6 rounded-2xl bg-black/25 px-5 py-5 ring-1 ring-white/15">
-                    <p class="text-[10px] uppercase tracking-[0.2em] text-white/55 mb-2">{{ __('borrower.membership.member_no_label') }}</p>
-                    <p class="font-mono text-2xl font-bold tracking-[0.14em] break-all">{{ $memberNoDisplay }}</p>
+                    @if ($verifyUrl && $qrDataUri)
+                        <img src="{{ $qrDataUri }}" alt="" class="size-24 rounded-xl bg-white p-1.5 shrink-0">
+                    @endif
                 </div>
                 <dl class="mt-5 grid grid-cols-2 gap-3">
                     <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
@@ -301,11 +279,26 @@
                         <dd class="mt-1.5 font-semibold tabular-nums">{{ $expires }}</dd>
                     </div>
                 </dl>
-                @if ($verifyUrl && $qrDataUri)
-                    <div class="relative mt-6 flex items-center gap-4 rounded-2xl bg-black/25 px-4 py-4 ring-1 ring-white/15">
-                        <img src="{{ $qrDataUri }}" alt="" class="size-20 rounded-xl bg-white p-1.5">
-                        <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.membership.scan_to_verify') }}</p>
+                @if ($verifyUrl)
+                    <div class="relative mt-5 flex flex-wrap gap-2">
+                        <button type="button"
+                                @click="copyVerifyLink()"
+                                class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-xs font-bold px-3.5 py-2">
+                            {{ __('borrower.membership.copy_verify_link') }}
+                        </button>
+                        @if ($whatsappUrl)
+                            <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener"
+                               class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
+                                {{ __('borrower.membership.share_whatsapp') }}
+                            </a>
+                        @endif
+                        <button type="button"
+                                @click="shareMembership()"
+                                class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
+                            {{ __('borrower.membership.share') }}
+                        </button>
                     </div>
+                    <p x-show="shareCopied" x-cloak class="mt-2 text-xs font-medium text-brand-gold">{{ __('borrower.membership.link_copied') }}</p>
                 @endif
             </div>
             <button type="button" @click="expanded = false" class="mt-4 w-full rounded-xl bg-white/95 text-brand font-semibold py-3 text-sm shadow-lg">

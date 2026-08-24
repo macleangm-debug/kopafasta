@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Lender;
 use App\Models\Partner;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Drives the category-first partner profile hub (affiliate / supplier / vendor / investor),
@@ -189,7 +191,11 @@ class PartnerProfileService
     }
 
     /**
-     * Why this partner cannot accept or start a job yet.
+     * Why this partner cannot receive, accept, or start a job yet.
+     *
+     * Paying types (Settings → Partner membership) need a complete profile and
+     * an active membership. Other types only need a complete profile. Staff can
+     * move any type onto the paying list at any time.
      *
      * @return 'profile'|'payment'|null
      */
@@ -209,6 +215,40 @@ class PartnerProfileService
         }
 
         return null;
+    }
+
+    public function canReceiveJobs(Partner $partner): bool
+    {
+        $partner->refresh();
+
+        return $this->jobBlockReason($partner) === null;
+    }
+
+    /**
+     * @param  Collection<int, Partner>  $partners
+     * @return Collection<int, Partner>
+     */
+    public function onlyReadyForJobs(Collection $partners): Collection
+    {
+        return $partners
+            ->filter(fn (Partner $partner) => $this->canReceiveJobs($partner))
+            ->values();
+    }
+
+    public function assertCanReceiveJobs(Partner $partner, string $field = 'vendor_id'): void
+    {
+        $partner->refresh();
+        $reason = $this->jobBlockReason($partner);
+        if ($reason === 'profile') {
+            throw ValidationException::withMessages([
+                $field => __('site.partner_portal.job_requires_profile'),
+            ]);
+        }
+        if ($reason === 'payment') {
+            throw ValidationException::withMessages([
+                $field => __('site.partner_portal.job_requires_payment'),
+            ]);
+        }
     }
 
     public function payoutAccountName(Partner|Lender $entity): string

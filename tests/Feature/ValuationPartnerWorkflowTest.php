@@ -8,6 +8,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\PartnerMembershipService;
 use App\Services\PartnerMatchingService;
 use App\Services\ValuationPartnerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -61,6 +62,32 @@ class ValuationPartnerWorkflowTest extends TestCase
         ]);
     }
 
+    private function readyValuer(Vendor $valuer): Vendor
+    {
+        $valuer->update([
+            'phone' => '255700000010',
+            'email' => 'valuer-'.$valuer->id.'@test.local',
+            'legal_name' => $valuer->name.' Ltd',
+            'registration_number' => 'REG-'.$valuer->id,
+            'metadata' => [
+                'contact_person' => ['name' => 'Jane Contact'],
+                'identity' => [
+                    'national_id' => '19800101123456789012',
+                    'no_physical_nida_card' => true,
+                ],
+                'residence' => [
+                    'region' => 'Dar es Salaam',
+                    'district' => 'Ilala',
+                ],
+                'payout_account' => ['type' => 'mobile_money'],
+            ],
+        ]);
+
+        app(PartnerMembershipService::class)->activate($valuer);
+
+        return $valuer->fresh();
+    }
+
     public function test_matching_service_prefers_valuer_in_borrower_region(): void
     {
         $local = Vendor::create([
@@ -70,14 +97,16 @@ class ValuationPartnerWorkflowTest extends TestCase
             'status'        => 'active',
             'regions'       => ['Dar es Salaam'],
         ]);
+        $this->readyValuer($local);
 
-        Vendor::create([
+        $remote = Vendor::create([
             'vendor_number' => 'V-ARU',
             'name'          => 'Arusha Valuer',
             'category'      => 'valuer',
             'status'        => 'active',
             'regions'       => ['Arusha'],
         ]);
+        $this->readyValuer($remote);
 
         $application = $this->makeApplication('Dar es Salaam');
 
@@ -97,13 +126,14 @@ class ValuationPartnerWorkflowTest extends TestCase
             'partner_cost'  => 30_000,
             'regions'       => ['Dar es Salaam'],
         ]);
+        $this->readyValuer($valuer);
 
         $admin = User::factory()->create(['role' => 'super_admin']);
         $application = $this->makeApplication();
 
         $assignment = app(ValuationPartnerService::class)->assign(
             $application,
-            $valuer,
+            $valuer->fresh(),
             $admin,
             'Inspect vehicle at borrower location',
         );

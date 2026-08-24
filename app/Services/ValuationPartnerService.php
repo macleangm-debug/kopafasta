@@ -46,6 +46,8 @@ class ValuationPartnerService
             ]);
         }
 
+        app(PartnerProfileService::class)->assertCanReceiveJobs($valuer);
+
         $designatedIds = app(CustomerAssetService::class)->onLoanAssetIds($application);
         $pledges = LoanApplicationAsset::query()
             ->with('customerAsset')
@@ -316,6 +318,10 @@ class ValuationPartnerService
     public function assignWaitingJobsCoveredBy(Vendor $valuer, ?User $actor = null): int
     {
         if (! $valuer->isValuer() || $valuer->status !== 'active') {
+            return 0;
+        }
+
+        if (! app(PartnerProfileService::class)->canReceiveJobs($valuer)) {
             return 0;
         }
 

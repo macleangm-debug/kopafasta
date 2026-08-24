@@ -100,14 +100,16 @@ class RecoveryPartnerService
             return collect();
         }
 
-        return Vendor::query()
-            ->where('status', 'active')
-            ->where(function (Builder $q) use ($category): void {
-                $q->where('category', $category)
-                    ->orWhere('roles', 'like', '%"'.$category.'"%');
-            })
-            ->orderBy('name')
-            ->get();
+        return app(PartnerProfileService::class)->onlyReadyForJobs(
+            Vendor::query()
+                ->where('status', 'active')
+                ->where(function (Builder $q) use ($category): void {
+                    $q->where('category', $category)
+                        ->orWhere('roles', 'like', '%"'.$category.'"%');
+                })
+                ->orderBy('name')
+                ->get()
+        );
     }
 
     /**
