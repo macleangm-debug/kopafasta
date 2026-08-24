@@ -199,11 +199,18 @@ class BorrowerController extends Controller
         $kycFreshness = app(KycFreshnessService::class);
         $kycSectionsDue = $kycFreshness->sectionsDueForRefresh($customer);
 
+        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
+        $plusActive = app(\App\Services\Plus\PlusService::class)->isActive($customer);
+        $trustScore = app(\App\Services\MemberEngagementService::class)->trustScore($customer);
+        $trust = app(\App\Services\Grades\GradeBenefitService::class)
+            ->trustLabel((int) ($trustScore['percent'] ?? 0), $locale);
+
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'notifications','eligibility',
             'products','applyRequirements','onboardingBanner','groupInviteBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
             'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','financialSnapshot','financialHealth','kycSectionsDue',
+            'plusActive','trust',
         ));
     }
 

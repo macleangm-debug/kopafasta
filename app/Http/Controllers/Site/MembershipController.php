@@ -34,6 +34,9 @@ class MembershipController extends Controller
             return $redirect;
         }
 
+        return redirect()->route('site.borrower.dashboard')
+            ->with('status', __('borrower.membership.compulsory_retired'));
+
         if ($customer->isMembershipActive() && ! $customer->isMembershipExpiringSoon(30)) {
             return redirect()->route('site.borrower.profile', ['section' => 'membership'])
                 ->with('status', 'Your membership is active. Renewal opens within 30 days of expiry.');

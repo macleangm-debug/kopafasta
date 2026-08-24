@@ -52,6 +52,7 @@ export function applyWizard(config) {
                 kinRelationshipLabels: config.kinRelationshipLabels || {},
                 productQuestions: config.productQuestions,
                 profileSections: config.profileSections,
+                repeatJourney: config.repeatJourney || 'full',
                 incomeVerification: config.incomeVerification,
                 readinessUrl: config.readinessUrl,
                 loanProductsUrl: config.loanProductsUrl || '',
@@ -1982,10 +1983,7 @@ export function applyWizard(config) {
                     if (! this.readiness || this.readiness?.product?.id !== productId) {
                         await this.loadReadiness(productId);
                     }
-                    if (! this.membershipIsActive()) {
-                        this.showMembershipGateModal = true;
-                        return;
-                    }
+                    // Compulsory membership retired — never gate the application on a fee.
                     if (! this.steps.length) {
                         this.selectProduct(this.current, true);
                     }
@@ -2102,6 +2100,16 @@ export function applyWizard(config) {
                     // fee is a payment gate; artisan details live on Amount; signature on profile.
                     this.syncFeePaidState();
                     this.steps = this.steps.filter(s => !['application_fee', 'signature', 'product_questions'].includes(s.key));
+                    if (['confirm', 'welcome_back', 'prefill'].includes(this.repeatJourney)) {
+                        const skipKeys = ['personal', 'residence', 'kin', 'activity'];
+                        this.steps = this.steps.filter((step) => {
+                            if (! skipKeys.includes(step.key)) {
+                                return true;
+                            }
+                            const section = (this.profileSections || []).find((row) => row.key === step.key);
+                            return ! (section && section.complete);
+                        });
+                    }
 
                     this.step = this.resolveStepIndex(
                         (['application_fee', 'signature', 'product_questions'].includes(prevKey))

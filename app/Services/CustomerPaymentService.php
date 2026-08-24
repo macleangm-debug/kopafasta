@@ -233,7 +233,7 @@ class CustomerPaymentService
 
             // Fee types that unlock a next borrower step must wait for aggregator confirmation
             // whenever PayIn is configured — same gate pattern as insurance.
-            if (in_array($type, ['application_fee', 'registration_fee', 'valuation_fee'], true)
+            if (in_array($type, ['application_fee', 'registration_fee', 'valuation_fee', 'kopafasta_plus'], true)
                 && $method === 'mobile_money'
                 && $payIn->isConfigured()
             ) {
@@ -268,6 +268,12 @@ class CustomerPaymentService
             $status = $autoVerify
                 ? 'verified'
                 : ($usePayIn ? 'awaiting_payment' : ($isBank ? 'pending_verification' : ($liveGateway && $method === 'mobile_money' ? 'awaiting_payment' : 'paid')));
+
+            // Plus always uses the shared payment gate — never auto-activate from create().
+            if ($type === 'kopafasta_plus') {
+                $autoVerify = false;
+                $status = $isBank ? 'pending_verification' : 'awaiting_payment';
+            }
 
             $proofPath = null;
             $proofName = null;
@@ -305,7 +311,9 @@ class CustomerPaymentService
                 'payment_instructions'    => $instructions,
                 'proof_path'              => $proofPath,
                 'proof_original_name'     => $proofName,
-                'paid_at'                 => $autoVerify || (! $isBank && ! $usePayIn && ! $liveGateway) ? now() : null,
+                'paid_at'                 => $type === 'kopafasta_plus' || $type === 'insurance_premium'
+                    ? null
+                    : ($autoVerify || (! $isBank && ! $usePayIn && ! $liveGateway) ? now() : null),
                 'payment_date'            => $data['payment_date'] ?? ($isBank ? now(app_display_timezone())->toDateString() : null),
                 'source_type'             => isset($data['source']) ? $data['source']::class : null,
                 'source_id'               => ($data['source'] ?? null)?->getKey(),
@@ -332,8 +340,8 @@ class CustomerPaymentService
 
             $this->attachMarkupFeeSplitMeta($payment);
 
-            // Never instant-finalize insurance — partner case opens only after verified payment.
-            if ($type === 'insurance_premium') {
+            // Never instant-finalize insurance or Plus — activation waits for verified payment.
+            if (in_array($type, ['insurance_premium', 'kopafasta_plus'], true)) {
                 return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
             }
 
@@ -647,6 +655,7 @@ class CustomerPaymentService
 
         return match ($payment->payment_type) {
             'partner_membership' => $this->partnerMembershipSuccessUrl($payment),
+            'kopafasta_plus' => route('site.borrower.plus.welcome'),
             'registration_fee' => route('site.borrower.dashboard'),
             'application_fee', 'valuation_fee' => $this->resolveLoanApplicationSource($payment)
                 ? route('site.borrower.application', $this->resolveLoanApplicationSource($payment))
@@ -669,6 +678,10 @@ class CustomerPaymentService
             'partner_membership' => [
                 'title' => __('site.partner_portal.membership_paid'),
                 'message' => __('site.partner_portal.membership_paid'),
+            ],
+            'kopafasta_plus' => [
+                'title' => __('plus.welcome.title'),
+                'message' => __('plus.welcome.body'),
             ],
             'registration_fee' => [
                 'title' => __('borrower.celebration.membership_title'),
@@ -1013,6 +1026,13 @@ class CustomerPaymentService
             if ($partner) {
                 app(\App\Services\PartnerMembershipService::class)->activate($partner, $payment->reference);
             }
+        }
+
+        if ($payment->payment_type === 'kopafasta_plus' && $payment->customer) {
+            app(\App\Services\Plus\PlusService::class)->activate($payment->customer, [
+                'payment_reference' => $payment->reference,
+                'price_paid' => $payment->amount,
+            ]);
         }
 
         if ($payment->payment_type === 'registration_fee' && $payment->customer) {

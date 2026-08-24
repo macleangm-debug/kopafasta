@@ -34,15 +34,19 @@ class ApplyWizardLocaleFeatureTest extends TestCase
 
         app()->setLocale('en');
         $en = app(ApplicationRequirementsService::class)->checklist($customer);
-        $enRegistration = collect($en['items'])->firstWhere('key', 'registration_fee');
+        $this->assertNull(collect($en['items'])->firstWhere('key', 'registration_fee'));
+        $this->assertNull(collect($en['items'])->firstWhere('key', 'membership'));
+        $enPersonal = collect($en['items'])->firstWhere('key', 'personal');
 
         app()->setLocale('sw');
         $sw = app(ApplicationRequirementsService::class)->checklist($customer);
-        $swRegistration = collect($sw['items'])->firstWhere('key', 'registration_fee');
+        $swPersonal = collect($sw['items'])->firstWhere('key', 'personal');
 
-        $this->assertSame(__('borrower.apply.checklist.registration_fee', [], 'en'), $enRegistration['label']);
-        $this->assertSame(__('borrower.apply.checklist.registration_fee', [], 'sw'), $swRegistration['label']);
-        $this->assertNotSame($enRegistration['label'], $swRegistration['label']);
+        $this->assertNotNull($enPersonal);
+        $this->assertNotNull($swPersonal);
+        $this->assertSame(__('borrower.loan_profile.sections.personal', [], 'en'), $enPersonal['label']);
+        $this->assertSame(__('borrower.loan_profile.sections.personal', [], 'sw'), $swPersonal['label']);
+        $this->assertNotSame($enPersonal['label'], $swPersonal['label']);
     }
 
     public function test_onboarding_banner_labels_follow_session_locale(): void
@@ -53,8 +57,12 @@ class ApplyWizardLocaleFeatureTest extends TestCase
         $banner = app(ApplicationRequirementsService::class)->onboardingBanner($customer);
 
         $this->assertSame(__('borrower.onboarding.title_complete', [], 'sw'), $banner['title']);
-        $this->assertContains(
+        $this->assertNotContains(
             __('borrower.onboarding.registration_fee', [], 'sw'),
+            collect($banner['items'])->pluck('label')->all(),
+        );
+        $this->assertContains(
+            __('borrower.onboarding.activity', [], 'sw'),
             collect($banner['items'])->pluck('label')->all(),
         );
     }

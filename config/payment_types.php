@@ -62,6 +62,11 @@ return [
             'credit_gl'   => 'fee_income_gl_account_id',
             'fallback_gl' => 'fee_income_gl_account_id',
         ],
+        'kopafasta_plus' => [
+            'label'       => 'Kopafasta Plus',
+            'credit_gl'   => 'plus_subscription_income_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
     ],
 
     'methods' => [

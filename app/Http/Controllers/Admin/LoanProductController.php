@@ -86,6 +86,8 @@ class LoanProductController extends ResourceController
             'uses_capital_partner' => ['nullable', 'in:0,1'],
             'status'              => ['required', 'in:active,inactive,coming_soon'],
             'hides_interest'      => ['nullable', 'in:0,1'],
+            'eligible_grades'     => ['nullable', 'array'],
+            'eligible_grades.*'   => ['in:bronze,silver,gold,platinum'],
             'requirements'        => ['nullable', 'array'],
             'requirements.*.id'   => ['nullable', 'integer'],
             'requirements.*.name' => ['nullable', 'string', 'max:150'],
@@ -121,6 +123,10 @@ class LoanProductController extends ResourceController
         $data['status']              = $data['status'] ?? 'inactive';
         $data['is_active']           = $data['status'] === 'active';
         $data['hides_interest']      = (bool) ($data['hides_interest'] ?? false);
+        $data['eligible_grades']     = array_values(array_filter((array) ($data['eligible_grades'] ?? [])));
+        if ($data['eligible_grades'] === []) {
+            $data['eligible_grades'] = null;
+        }
         $data['repayment_cadence']   = $data['repayment_cadence'] ?? 'weekly';
 
         $data['min_amount'] = MoneyFormat::toNumber($data['min_amount'] ?? 0);

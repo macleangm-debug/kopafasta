@@ -81,6 +81,20 @@
         <x-admin.step title="Requirements">
             <x-admin.select name="requires_collateral" label="Requires collateral" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_collateral ?? '0')" />
             <x-admin.select name="requires_guarantor"  label="Requires guarantor"  :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" />
+            <div class="md:col-span-2">
+                <p class="text-sm font-medium text-gray-700 mb-2">Eligible grades</p>
+                <p class="text-xs text-gray-500 mb-2">Leave all unchecked to keep the product open to every grade.</p>
+                <div class="flex flex-wrap gap-4 text-sm">
+                    @foreach (['bronze','silver','gold','platinum'] as $grade)
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" name="eligible_grades[]" value="{{ $grade }}"
+                                   @checked(in_array($grade, old('eligible_grades', $r?->eligible_grades ?? []), true))
+                                   class="rounded border-gray-300 text-brand focus:ring-brand/30">
+                            <span class="capitalize">{{ $grade }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
 
             @php
                 $isGroupProduct = $r && (

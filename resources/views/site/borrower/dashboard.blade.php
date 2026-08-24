@@ -13,14 +13,8 @@
         }
         // Clean home card for active members; unpaid members still need clear guidance.
         if (in_array($hero['variant'] ?? '', ['applications', 'no_loan'], true)) {
-            $needsMembership = ! ($customer->isMembershipActive() || $customer->isMembershipInGrace());
-            if ($needsMembership && ($hero['variant'] ?? '') === 'no_loan') {
+            if (false) {
                 $hero['title'] = __('borrower.membership.banner_title');
-                $hero['subtitle'] = __('borrower.membership.banner_body');
-                $hero['cta_label'] = __('borrower.membership.banner_cta');
-                $hero['cta_url'] = route('site.membership.renew');
-                $hero['secondary_cta_label'] = __('borrower.dashboard.hero.apply_now');
-                $hero['secondary_cta_url'] = route('site.borrower.loan-products');
             } else {
                 $hero['title'] = null;
                 $hero['subtitle'] = null;
@@ -28,7 +22,7 @@
                 $hero['secondary_cta_url'] = null;
                 if (($hero['variant'] ?? '') === 'applications') {
                     $hero['cta_label'] = __('borrower.dashboard.hero.view_application');
-                } elseif (! empty($hero['membership_no']) && ($customer->isMembershipActive() || $customer->isMembershipInGrace())) {
+                } elseif (! empty($hero['membership_no'])) {
                     $hero['cta_label'] = __('borrower.membership.my_card');
                     $hero['cta_url'] = route('site.borrower.profile', ['section' => 'membership']);
                 }
@@ -36,7 +30,7 @@
         }
 
         // Active members always get a My Card action on the hero.
-        if (! empty($hero['membership_no']) && ($customer->isMembershipActive() || $customer->isMembershipInGrace())) {
+        if (! empty($hero['membership_no'])) {
             $cardUrl = route('site.borrower.profile', ['section' => 'membership']);
             $cardLabel = __('borrower.membership.my_card');
             if (empty($hero['cta_url'])) {
@@ -60,6 +54,26 @@
     @endif
 
     <x-site.borrower-financial-snapshot :snapshot="$financialSnapshot ?? []" />
+
+    @php
+        $gradeName = strtoupper((string) ($customer->grade ?? 'bronze'));
+        $underReview = in_array((string) ($customer->grade_status ?? ''), ['under_review'], true)
+            || in_array((string) ($customer->grade_integrity ?? ''), ['review'], true);
+    @endphp
+    <a href="{{ route('site.borrower.plus.home') }}" class="mb-6 block rounded-2xl bg-white ring-1 ring-brand/10 p-5">
+        <p class="text-xs uppercase tracking-widest text-brand font-semibold">
+            {{ $gradeName }}
+            @if ($plusActive ?? false)
+                · {{ __('plus.card.plus') }} ✦
+            @endif
+        </p>
+        @if ($underReview)
+            <p class="font-semibold text-gray-900 mt-1">{{ $gradeName }} — {{ __('plus.card.reviewing') }}</p>
+        @else
+            <p class="font-semibold text-gray-900 mt-1">{{ __('plus.card.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</p>
+        @endif
+        <p class="text-sm text-brand mt-2">{{ ($plusActive ?? false) ? __('plus.card.open') : __('plus.card.explore') }}</p>
+    </a>
 
     <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
 

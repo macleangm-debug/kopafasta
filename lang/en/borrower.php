@@ -3200,6 +3200,7 @@ return [
     ],
 
     'membership' => [
+        'compulsory_retired' => 'Compulsory membership fees no longer block lending. You can apply without paying a membership fee.',
         'registration_title' => 'Pay membership fee to continue',
         'membership_title'   => 'Pay membership fee to continue',
         'renew_title'        => 'Renew your KopaFasta membership',

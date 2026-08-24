@@ -2997,8 +2997,9 @@ return [
       'guarantor_request_cta' => 'Kagua ombi',
 ],
 ],
-  'membership' => 
+  'membership' =>
 [
+    'compulsory_retired' => 'Ada ya uanachama si kizuizi cha mkopo tena. Unaweza kuomba bila kulipa ada ya uanachama.',
     'registration_title' => 'Lipa ada ya uanachama kuendelea',
     'membership_title' => 'Lipa ada ya uanachama kuendelea',
     'renew_title' => 'Renew uanachama wako wa KopaFasta',

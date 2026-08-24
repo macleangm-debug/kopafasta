@@ -27,30 +27,7 @@ class ApplicationRequirementsService
             && $identityPolicy->requiredDuringProfileCreation()
             && $identityPolicy->nidaRequired();
 
-        $items = [
-            [
-                'key'        => 'registration_fee',
-                'label'      => __('borrower.apply.checklist.registration_fee'),
-                'complete'   => $customer->hasMembership(),
-                'pending'    => false,
-                'detail'     => $customer->hasMembership()
-                    ? __('borrower.apply.checklist.registration_issued')
-                    : __('borrower.apply.checklist.registration_pay'),
-                'action_url' => $customer->hasMembership() ? null : route('site.membership.renew'),
-            ],
-            [
-                'key'        => 'membership',
-                'label'      => __('borrower.apply.checklist.membership'),
-                'complete'   => $customer->isMembershipActive() || $customer->isMembershipInGrace(),
-                'pending'    => false,
-                'detail'     => $customer->isMembershipActive()
-                    ? __('borrower.apply.checklist.membership_valid_until', [
-                        'date' => optional($customer->membership_expires_at)->format('d M Y'),
-                    ])
-                    : __('borrower.apply.checklist.membership_renew'),
-                'action_url' => ($customer->isMembershipActive() || $customer->isMembershipInGrace()) ? null : route('site.membership.renew'),
-            ],
-        ];
+        $items = [];
 
         if ($requireNida) {
             $items[] = [
@@ -372,7 +349,7 @@ class ApplicationRequirementsService
         $freshness = app(KycFreshnessService::class);
         $faceStatus = $customer->face_verification_status ?? 'incomplete';
 
-        $registrationComplete = $customer->hasMembership();
+        $registrationComplete = true;
         $nidaComplete = $nida->isVerified($customer);
         $nidaRevision = ($customer->nida_verification_status ?? '') === 'revision_required'
             || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida')
@@ -389,14 +366,7 @@ class ApplicationRequirementsService
         $profilePercent = $profile->calculate($customer)['percent'];
         $requireIdentity = app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation();
 
-        $items = [
-            [
-                'key'        => 'registration_fee',
-                'label'      => __('borrower.onboarding.registration_fee'),
-                'status'     => $registrationComplete ? 'complete' : 'missing',
-                'action_url' => $registrationComplete ? null : route('site.membership.renew'),
-            ],
-        ];
+        $items = [];
 
         if ($requireIdentity) {
             $items[] = [

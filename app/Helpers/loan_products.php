@@ -127,6 +127,13 @@ if (! function_exists('loan_product_wizard_payload')) {
         $policy = app(\App\Services\LoanPolicyService::class);
 
         $groups = app(\App\Services\GroupLendingService::class);
+        $tmax = (int) $product->tenure_max_months;
+        if ($customer) {
+            $cap = app(\App\Services\Grades\GradeBenefitService::class)->maxTenureMonths($customer);
+            if ($cap) {
+                $tmax = min($tmax, $cap);
+            }
+        }
 
         return [
             'id'                => $product->id,
@@ -147,7 +154,7 @@ if (! function_exists('loan_product_wizard_payload')) {
             'min'               => (float) $product->min_amount,
             'max'               => (float) $product->max_amount,
             'tmin'              => (int) $product->tenure_min_months,
-            'tmax'              => (int) $product->tenure_max_months,
+            'tmax'              => $tmax,
             'tenure_options'    => $groups->tenureOptions($product),
             'desc'              => $product->description,
             'requires_guarantor' => (bool) $product->requires_guarantor,

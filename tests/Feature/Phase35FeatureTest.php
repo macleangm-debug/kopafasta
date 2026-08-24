@@ -61,10 +61,7 @@ class Phase35FeatureTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('site.membership.renew'))
-            ->assertOk()
-            ->assertSee('max-w-7xl', false)
-            ->assertDontSee('max-w-2xl mx-auto', false)
-            ->assertSee(__('borrower.membership.promo_inline_label'), false);
+            ->assertRedirect(route('site.borrower.dashboard'));
     }
 
     public function test_marketplace_reserve_page_uses_wide_layout(): void

@@ -28,6 +28,7 @@ class LoanProduct extends Model
             'collateral_rules' => 'array',
             'is_active' => 'boolean',
             'hides_interest' => 'boolean',
+            'eligible_grades' => 'array',
             'status' => 'string',
         ];
     }

@@ -7,6 +7,11 @@
         @if (session('status'))
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
         @endif
+        @if (in_array($repeatJourney ?? 'full', ['confirm', 'welcome_back', 'prefill'], true))
+            <div class="mb-4 rounded-xl bg-brand/5 ring-1 ring-brand/15 px-4 py-3 text-sm text-gray-800">
+                {{ __('plus.apply.repeat_welcome', ['grade' => strtoupper($customer->grade ?: 'bronze')]) }}
+            </div>
+        @endif
         @if (($errors ?? null)?->any())
             <div
                 x-data
@@ -113,7 +118,7 @@
                   profileUrl: @js(route('site.borrower.profile')),
                   profileAssetsUrl: @js(route('site.borrower.profile', ['section' => 'assets'])),
                   membershipRenewUrl: @js(route('site.membership.renew')),
-                  hasActiveMembership: @js($customer->isMembershipActive() || $customer->isMembershipInGrace()),
+                  hasActiveMembership: true,
                   canApply: @js((bool) ($applyRequirements['can_apply'] ?? false)),
                   openProfileGateOnLoad: @js((bool) (session('show_profile_gate') || request()->boolean('profile_gate'))),
                   openProfileReadyOnLoad: @js((bool) session('profile_ready_to_submit')),
@@ -147,6 +152,7 @@
                   firstActionUrl: @js($applyRequirements['first_action_url'] ?? null),
                   supplementMode: @js((bool) ($supplementMode ?? false)),
                   supplementApplicationId: @js(($supplementApplication ?? null)?->id),
+                  repeatJourney: @js($repeatJourney ?? 'full'),
                   i18n: @js([
                       'flexibleTerms' => __('borrower.apply.browse.flexible_terms'),
                       'monthsShort' => __('borrower.apply.browse.months_short'),

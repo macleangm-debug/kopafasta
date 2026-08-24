@@ -89,7 +89,10 @@ class MessagingCatalog
         return match ($code) {
             'pin_reset_otp', 'partner_activation' => 'registration',
             'membership_issued', 'membership_renewed', 'membership_expiry_30', 'membership_expiry_14',
-            'membership_expiry_7', 'membership_expiry_1', 'referral_points_earned' => 'membership',
+            'membership_expiry_7', 'membership_expiry_1', 'referral_points_earned',
+            'grade_upgraded', 'grade_under_review', 'grade_changed',
+            'plus_started', 'plus_expiring', 'plus_expired', 'plus_renewed',
+            'plus_monthly_lesson_published', 'plus_lesson_not_started', 'plus_lesson_completed' => 'membership',
             'repayment_due_soon', 'repayment_due_today', 'payment_received', 'loan_closed',
             'bank_payment_pending', 'bank_payment_verified' => 'repayment',
             'repayment_overdue', 'penalty_accrued', 'recovery_fee_accrued', 'loan_arrears', 'recovery_case_reminder',

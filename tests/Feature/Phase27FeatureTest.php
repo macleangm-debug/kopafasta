@@ -81,12 +81,7 @@ class Phase27FeatureTest extends TestCase
 
         $this->actingAs($customer->user)
             ->get(route('site.membership.renew'))
-            ->assertOk()
-            ->assertSee(__('borrower.membership.promo_inline_label'), false)
-            ->assertSee(__('borrower.membership.payment_reference_label'), false)
-            ->assertSee(__('borrower.membership.continue_to_payment'), false)
-            ->assertSee(__('borrower.membership.open_gate_hint'), false)
-            ->assertDontSee(__('borrower.payments_page.create.mobile_allowed'), false);
+            ->assertRedirect(route('site.borrower.dashboard'));
     }
 
     public function test_membership_renew_shows_invalid_promo_feedback(): void
@@ -106,10 +101,7 @@ class Phase27FeatureTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('site.membership.renew', ['promo_code' => 'PROMO2026']))
-            ->assertOk()
-            ->assertSee(__('borrower.membership.promo_bad_title'), false)
-            ->assertSee(__('borrower.membership.promo_invalid'), false)
-            ->assertSee('PROMO2026', false);
+            ->assertRedirect(route('site.borrower.dashboard'));
     }
 
     public function test_face_verification_uses_wide_content_layout(): void

@@ -145,21 +145,10 @@ class LoanProductReadinessService
         FaceVerificationService $face,
     ): array {
         $isGroup = strtoupper($product->code) === 'GL' || ($product->category ?? '') === 'group';
-        $membershipActive = $customer->isMembershipActive() || $customer->isMembershipInGrace();
         $kinComplete = (bool) ($profileSections['kin']['complete'] ?? false);
         $incomeComplete = $incomeProof->satisfiesRequirement($customer);
 
-        $checks = [
-            [
-                'key'        => 'membership',
-                'label'      => __('borrower.apply.readiness.requirements.membership.label'),
-                'complete'   => $membershipActive,
-                'detail'     => $membershipActive
-                    ? __('borrower.apply.readiness.requirements.membership.valid')
-                    : __('borrower.apply.readiness.requirements.membership.renew'),
-                'action_url' => $membershipActive ? null : route('site.membership.renew'),
-            ],
-        ];
+        $checks = [];
 
         $identityPolicy = app(IdentityVerificationPolicyService::class);
         if ($identityPolicy->requiredDuringProfileCreation() && $identityPolicy->nidaRequired()) {

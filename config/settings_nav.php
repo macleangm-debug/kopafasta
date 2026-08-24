@@ -55,6 +55,11 @@ return [
         ['Chart of accounts', 'admin.chart-of-accounts.index', 'chart-of-accounts'],
         ['Write-off rules', 'admin.write-off-rules.index', 'write-off-rules'],
     ],
+    'Customers' => [
+        ['Grades & Trust', 'admin.settings.grades', 'grades'],
+        ['Grade Watch', 'admin.settings.grades.watch', 'grade-watch'],
+        ['Kopafasta Plus', 'admin.settings.plus', 'plus'],
+    ],
     'Growth' => [
         ['Membership', 'admin.settings.membership', 'membership'],
         ['Referrals', 'admin.settings.referrals', 'referrals'],

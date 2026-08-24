@@ -36,6 +36,9 @@ class Customer extends Model
             'nida_locked_until' => 'datetime',
             'reminders_sent' => 'array',
             'legal_signed_at' => 'datetime',
+            'grade_review_until' => 'datetime',
+            'grade_next_review_at' => 'datetime',
+            'grade_override_expires_at' => 'datetime',
         ];
     }
 

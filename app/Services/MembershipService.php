@@ -214,6 +214,24 @@ class MembershipService
         return $code;
     }
 
+    /**
+     * Assign a member number as identity, without charging a fee or setting expiry.
+     */
+    public function ensureMemberNumber(Customer $customer): Customer
+    {
+        if (filled($customer->member_no)) {
+            return $customer;
+        }
+
+        $customer->member_no = $this->generateMemberNo();
+        if (blank($customer->membership_status)) {
+            $customer->membership_status = 'identity';
+        }
+        $customer->save();
+
+        return $customer->fresh();
+    }
+
     public function generatePaymentReference(Customer $customer): string
     {
         return app(CustomerPaymentService::class)->generateReference();

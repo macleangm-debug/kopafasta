@@ -34,6 +34,7 @@ return [
         'customers.edit'                 => ['label' => 'Edit customers', 'module' => 'customers'],
         'kyc.review'                     => ['label' => 'Review KYC & face verification', 'module' => 'customers'],
         'membership.approve_payments'    => ['label' => 'Approve membership payments', 'module' => 'customers'],
+        'grades.override'                => ['label' => 'Override customer grade (reason + expiry required)', 'module' => 'customers'],
 
         // Loans
         'loans.view'                     => ['label' => 'View loans', 'module' => 'loans'],
@@ -76,8 +77,8 @@ return [
             'applications.view', 'applications.acknowledge', 'applications.review',
             'applications.pre_approve', 'applications.approve', 'applications.reject',
             'applications.disburse', 'applications.request_documents', 'applications.edit',
-            'customers.view', 'customers.edit', 'kyc.review', 'membership.approve_payments',
-            'loans.view', 'loans.disburse', 'users.view',
+            'customers.view', 'customers.edit', 'kyc.review', 'membership.approve_payments', 'grades.override',
+            'loans.view', 'loans.disburse', 'users.view', 'settings.manage',
             'finance.accounts', 'finance.methods', 'finance.operations', 'finance.reports',
             'marketplace.view', 'marketplace.manage',
             'reports.view',

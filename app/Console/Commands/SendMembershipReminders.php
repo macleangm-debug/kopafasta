@@ -22,6 +22,11 @@ class SendMembershipReminders extends Command
 
     public function handle(NotificationService $notifier, MembershipService $membership): int
     {
+        $this->info('Compulsory borrower membership is retired. Historical receipts are unchanged; expiry reminders are not sent.');
+        return self::SUCCESS;
+
+        // unreachable historical reminder loop kept for audit.
+
         $dry   = (bool) $this->option('dry-run');
         $today = CarbonImmutable::today();
         $sent  = 0;

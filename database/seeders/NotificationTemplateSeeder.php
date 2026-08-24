@@ -672,6 +672,81 @@ class NotificationTemplateSeeder extends Seeder
                     ],
                 ],
             ],
+            [
+                'code' => 'grade_upgraded',
+                'name' => 'Customer grade upgraded',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Your Kopafasta status moved up',
+                        'body' => 'Hi {{ name }}, you reached {{ grade }}. Keep honouring your commitments on time. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Hadhi yako ya Kopafasta imepanda',
+                        'body' => 'Habari {{ name }}, umefikia {{ grade }}. Endelea kuweka ahadi zako kwa wakati. — '.$brand,
+                    ],
+                ],
+            ],
+            [
+                'code' => 'grade_under_review',
+                'name' => 'Customer grade under review',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Your Kopafasta status is being reviewed',
+                        'body' => 'Hi {{ name }}, your status is being reviewed. Keeping your commitments on time helps you maintain a strong Kopafasta status. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Hadhi yako ya Kopafasta inakaguliwa',
+                        'body' => 'Habari {{ name }}, hadhi yako inakaguliwa. Kulipa kwa wakati kunasaidia kudumisha hadhi thabiti. — '.$brand,
+                    ],
+                ],
+            ],
+            [
+                'code' => 'grade_changed',
+                'name' => 'Customer grade changed',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Your Kopafasta status was updated',
+                        'body' => 'Hi {{ name }}, your current status is {{ grade }}. You can build back by keeping your commitments. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Hadhi yako ya Kopafasta imesasishwa',
+                        'body' => 'Habari {{ name }}, hadhi yako sasa ni {{ grade }}. Unaweza kujenga tena kwa kuweka ahadi zako. — '.$brand,
+                    ],
+                ],
+            ],
+            [
+                'code' => 'plus_monthly_lesson_published',
+                'name' => 'Plus monthly lesson published',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Your monthly Plus lesson is ready',
+                        'body' => 'Hi {{ name }}, your Kopafasta Plus monthly lesson is ready. Watch it when you have 5–10 quiet minutes. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Somo lako la Plus la mwezi liko tayari',
+                        'body' => 'Habari {{ name }}, somo lako la Kopafasta Plus la mwezi liko tayari. Litazame unapokuwa na dakika 5–10. — '.$brand,
+                    ],
+                ],
+            ],
+            [
+                'code' => 'plus_lesson_unwatched',
+                'name' => 'Plus monthly lesson reminder',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Your monthly Plus lesson is ready',
+                        'body' => 'Hi {{ name }}, your Kopafasta Plus monthly lesson is ready. Watch it when you have 5–10 quiet minutes. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Somo lako la Plus la mwezi liko tayari',
+                        'body' => 'Habari {{ name }}, somo lako la Kopafasta Plus la mwezi liko tayari. Litazame unapokuwa na dakika 5–10. — '.$brand,
+                    ],
+                ],
+            ],
         ];
 
         foreach ($templates as $t) {

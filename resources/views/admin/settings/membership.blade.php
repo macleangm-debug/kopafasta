@@ -1,5 +1,9 @@
 <x-admin.layout title="Membership" heading="Membership Settings" subheading="Configure validity, renewals, grace period & reminders">
     @include('admin.settings._tabs', ['active' => 'membership'])
+        <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+        Compulsory borrower membership fees no longer gate lending. Historical registration_fee payments, GL 4030 and membership histories stay auditable. Kopafasta Plus is a separate optional subscription.
+    </div>
+
     <div class="mb-6">
         <a href="{{ route('admin.membership-payments.index') }}"
            class="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100">

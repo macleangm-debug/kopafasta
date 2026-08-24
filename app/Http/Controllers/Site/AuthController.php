@@ -647,7 +647,7 @@ class AuthController extends Controller
         }
 
         if ($user->role === 'borrower' && ($returnUrl = $request->session()->pull('login_redirect'))) {
-            if (is_string($returnUrl) && str_starts_with($returnUrl, url('/'))) {
+            if (is_string($returnUrl) && (str_starts_with($returnUrl, url('/')) || str_starts_with($returnUrl, '/'))) {
                 return redirect()->to($returnUrl);
             }
         }
@@ -1012,6 +1012,7 @@ class AuthController extends Controller
             ]);
 
             app(\App\Services\BranchService::class)->assignDefault($customer);
+            app(\App\Services\MembershipService::class)->ensureMemberNumber($customer);
 
             $referrals->attachReferrerFromSession($customer, $request);
             if (blank($customer->fresh()->referred_by_customer_id)) {

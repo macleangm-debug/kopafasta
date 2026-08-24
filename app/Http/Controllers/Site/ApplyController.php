@@ -395,6 +395,7 @@ class ApplyController extends Controller
                 $customer,
                 (float) ($feeQuote['base'] ?? $applicationFee ?? 0)
             );
+            $repeatJourney = app(\App\Services\Grades\GradeBenefitService::class)->repeatJourney($customer);
             $returnTo = $request->query('return_to');
             if (! is_string($returnTo) || $returnTo === '' || strlen($returnTo) > 64) {
                 $returnTo = null;
@@ -446,6 +447,7 @@ class ApplyController extends Controller
             'returnTo',
             'supplementMode',
             'supplementApplication',
+            'repeatJourney',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
             ->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
@@ -1842,8 +1844,16 @@ class ApplyController extends Controller
             return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors(['requested_amount' => 'Requested amount must be between '.format_number($loanProduct->min_amount).' and '.format_number($loanProduct->max_amount).'.']);
         }
 
-        if ($tenure < $loanProduct->tenure_min_months || $tenure > $loanProduct->tenure_max_months) {
-            return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors(['requested_tenure_months' => 'Tenure must be between '.$loanProduct->tenure_min_months.' and '.$loanProduct->tenure_max_months.' months.']);
+        $maxTenure = (int) $loanProduct->tenure_max_months;
+        $gradeCustomer = Auth::user()->customer ?? \App\Models\Customer::where('user_id', Auth::id())->first();
+        if ($gradeCustomer) {
+            $cap = app(\App\Services\Grades\GradeBenefitService::class)->maxTenureMonths($gradeCustomer);
+            if ($cap) {
+                $maxTenure = min($maxTenure, $cap);
+            }
+        }
+        if ($tenure < $loanProduct->tenure_min_months || $tenure > $maxTenure) {
+            return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors(['requested_tenure_months' => 'Tenure must be between '.$loanProduct->tenure_min_months.' and '.$maxTenure.' months.']);
         }
 
         $submittingBorrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();

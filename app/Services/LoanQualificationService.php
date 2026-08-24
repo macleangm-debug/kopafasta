@@ -61,12 +61,7 @@ class LoanQualificationService
             $factors[] = ['label' => 'CRB match score', 'detail' => (string) $crbScore];
         }
 
-        if ($customer->isMembershipActive()) {
-            $factors[] = ['label' => 'Membership', 'detail' => 'Active member'];
-        } else {
-            $base = (int) ($base * $cfg['membership_inactive_factor']);
-            $factors[] = ['label' => 'Membership', 'detail' => 'Inactive — limit reduced until membership is active'];
-        }
+        // Compulsory membership is retired and must not change credit limits.
 
         $boosts = app(MemberEngagementRewardService::class)->underwritingBoosts($customer);
         if (($boosts['limit_multiplier'] ?? 1.0) > 1.0) {

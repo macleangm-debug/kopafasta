@@ -142,6 +142,14 @@ class RepaymentPostingService
                 report($e);
             }
 
+            try {
+                if ($loan->customer) {
+                    app(\App\Services\Grades\CustomerGradeEngine::class)->evaluate($loan->customer, 'repayment_posted');
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             // 5) Post journal entry
             return $this->postJournal($repayment->fresh(), $loan);
         });
