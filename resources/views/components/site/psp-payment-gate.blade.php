@@ -42,7 +42,7 @@
 @endphp
 
 <div {{ $attributes->class('space-y-5') }}>
-    <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-brand via-brand to-brand-light text-white shadow-lg shadow-brand/20">
+    <div class="rounded-3xl kf-premium-panel">
         <div class="px-6 py-7">
             <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ $label }}</p>
             <div class="mt-3 flex flex-wrap items-end gap-3">

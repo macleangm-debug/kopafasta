@@ -97,13 +97,46 @@
     .scrollbar-none::-webkit-scrollbar {
         display: none;
     }
+
+    /*
+     * Canonical premium green shell for member/partner account cards,
+     * dashboard heroes, Plus, referrals, and payment.show amount panels.
+     */
+    .kf-premium-panel {
+        @apply relative overflow-hidden text-white bg-gradient-to-br from-[#0B3D32] via-[#127A5F] to-[#082f27]
+            shadow-[0_18px_40px_rgba(8,47,39,0.35)] ring-1 ring-brand-gold/30;
+    }
+
+    .kf-premium-panel-orange {
+        @apply relative overflow-hidden text-white bg-gradient-to-br from-[#7a4a10] via-[#b45309] to-[#5c370c]
+            shadow-[0_18px_40px_rgba(8,47,39,0.28)] ring-1 ring-brand-gold/30;
+    }
+
+    .kf-premium-panel-red {
+        @apply relative overflow-hidden text-white bg-gradient-to-br from-[#7f1d1d] via-[#b91c1c] to-[#450a0a]
+            shadow-[0_18px_40px_rgba(8,47,39,0.28)] ring-1 ring-brand-gold/30;
+    }
+
+    .kf-premium-panel-slate {
+        @apply relative overflow-hidden text-white bg-gradient-to-br from-slate-700 via-slate-600 to-slate-800
+            shadow-[0_18px_40px_rgba(8,47,39,0.22)] ring-1 ring-brand-gold/20;
+    }
 }
 
-/*
- * Cross-document view transitions stacked the outgoing page on the incoming one
- * (two screens visible at once). Keep chrome class names for layout; do not
- * animate navigations.
- */
+.kf-premium-panel::before,
+.kf-premium-panel-orange::before,
+.kf-premium-panel-red::before,
+.kf-premium-panel-slate::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 3px;
+    background-image: linear-gradient(to right, var(--color-brand-gold), #ffe9a3, var(--color-brand-gold));
+    pointer-events: none;
+    z-index: 1;
+}
+
 @view-transition {
     navigation: none;
 }

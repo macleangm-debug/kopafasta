@@ -7,11 +7,11 @@
     $color = $customer->membershipStatusColor();
     $label = $customer->membershipStatusLabel();
 
-    $bgGradient = match ($color) {
-        'green'  => 'from-[#0B3D32] via-[#127A5F] to-[#082f27]',
-        'orange' => 'from-[#7a4a10] via-[#b45309] to-[#5c370c]',
-        'red'    => 'from-[#7f1d1d] via-[#b91c1c] to-[#450a0a]',
-        default  => 'from-slate-700 via-slate-600 to-slate-800',
+    $panelClass = match ($color) {
+        'green'  => 'kf-premium-panel',
+        'orange' => 'kf-premium-panel-orange',
+        'red'    => 'kf-premium-panel-red',
+        default  => 'kf-premium-panel-slate',
     };
     $badgeClass = match ($color) {
         'green'  => 'bg-white text-emerald-800',
@@ -80,7 +80,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         {{-- Card face --}}
         <div
-            class="relative w-full text-left overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_24px_60px_rgba(8,47,39,0.45)] p-5 sm:p-6 ring-1 ring-brand-gold/35 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+            class="relative w-full text-left {{ $panelClass }} rounded-[1.35rem] p-5 sm:p-6 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
             role="button"
             tabindex="0"
             @click="expanded = true"
@@ -88,7 +88,6 @@
             aria-label="{{ __('borrower.membership.my_card') }}">
             <div class="absolute inset-[1px] rounded-[1.28rem] ring-1 ring-white/10 pointer-events-none"></div>
             <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-gold/10 pointer-events-none"></div>
-            <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold pointer-events-none"></div>
 
             <div class="relative flex items-center justify-between gap-3 mb-5">
                 <span class="inline-flex items-center gap-2.5 min-w-0">
@@ -224,7 +223,7 @@
     @endif
 
     {{-- Referral prompt --}}
-    <section class="rounded-[1.35rem] bg-brand text-white p-5 sm:p-6 shadow-lg relative overflow-hidden">
+    <section class="rounded-[1.35rem] kf-premium-panel p-5 sm:p-6">
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="min-w-0">
@@ -245,8 +244,7 @@
          @keydown.escape.window="expanded = false">
         <button type="button" class="absolute inset-0 cursor-zoom-out" @click="expanded = false" aria-label="Close"></button>
         <div class="relative w-full max-w-3xl" @click.stop>
-            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-2xl p-6 sm:p-8 ring-1 ring-brand-gold/40">
-                <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
+            <div class="relative {{ $panelClass }} rounded-3xl p-6 sm:p-8">
                 <div class="relative flex items-center justify-between gap-3 mb-6">
                     <span class="inline-flex items-center gap-2.5">
                         <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" class="h-11 w-auto object-contain">

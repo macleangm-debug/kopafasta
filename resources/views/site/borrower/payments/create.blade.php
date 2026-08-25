@@ -55,7 +55,7 @@
                   @sync-before-submit="paying = true">
                 @csrf
 
-                <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-brand via-brand to-brand-light text-white shadow-lg shadow-brand/20 -mx-1">
+                <div class="rounded-3xl kf-premium-panel overflow-hidden -mx-1">
                     <div class="px-6 py-7">
                         <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ __('borrower.payments_page.create.amount_label') }}</p>
                         <p class="mt-3 text-4xl font-extrabold tabular-nums tracking-tight">

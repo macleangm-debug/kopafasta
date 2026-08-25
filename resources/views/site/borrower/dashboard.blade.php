@@ -5,49 +5,30 @@
         $fullName = trim((string) ($customer->full_name ?? Auth::user()->name ?? ''));
         $hero['greeting'] = $fullName !== '' ? $fullName : (__('borrower.welcome').', '.(explode(' ', (string) (Auth::user()->name ?? ''))[0] ?? ''));
         $hero['membership_no'] = $customer->member_no ?? null;
-        if (! empty($eligibility) && ($eligibility['has_data'] ?? false)) {
-            $hero['eligibility_amount'] = format_money($eligibility['amount'] ?? 0);
+        $gradeAccess = app(\App\Services\Grades\GradeBenefitService::class)->potentialAccess($customer);
+        if ($gradeAccess > 0) {
+            $hero['eligibility_amount'] = format_money($gradeAccess);
             $hero['eligibility_hint'] = __('borrower.dashboard.eligibility_growth_hint_short');
-        } elseif (! empty($eligibility) && ! ($eligibility['has_data'] ?? false)) {
-            $hero['eligibility_hint'] = __('borrower.dashboard.eligibility_no_data_hint');
         }
         $hero['grade'] = $customer->grade ?? 'bronze';
         $hero['plus_active'] = (bool) ($plusActive ?? false);
-        if (($hero['variant'] ?? '') === 'under_review') {
+
+        // Home hero is membership + grade — never loan application tracking.
+        if (in_array($hero['variant'] ?? '', ['under_review', 'applications', 'no_loan'], true)) {
+            $hero['title'] = null;
             $hero['subtitle'] = null;
-        }
-        // Clean home card for active members; unpaid members still need clear guidance.
-        if (in_array($hero['variant'] ?? '', ['applications', 'no_loan'], true)) {
-            if (false) {
-                $hero['title'] = __('borrower.membership.banner_title');
-            } else {
-                $hero['title'] = null;
-                $hero['subtitle'] = null;
-                $hero['secondary_cta_label'] = null;
-                $hero['secondary_cta_url'] = null;
-                if (($hero['variant'] ?? '') === 'applications') {
-                    $hero['cta_label'] = __('borrower.dashboard.hero.view_application');
-                } elseif (! empty($hero['membership_no'])) {
-                    $hero['cta_label'] = __('borrower.membership.my_card');
-                    $hero['cta_url'] = route('site.borrower.profile', ['section' => 'membership']);
-                }
-            }
+            $hero['meta'] = null;
+            $hero['cta_label'] = null;
+            $hero['cta_url'] = null;
+            $hero['secondary_cta_label'] = null;
+            $hero['secondary_cta_url'] = null;
         }
 
-        // Active members always get a My Card action on the hero.
         if (! empty($hero['membership_no'])) {
-            $cardUrl = route('site.borrower.profile', ['section' => 'membership']);
-            $cardLabel = __('borrower.membership.my_card');
-            if (empty($hero['cta_url'])) {
-                $hero['cta_label'] = $cardLabel;
-                $hero['cta_url'] = $cardUrl;
-            } elseif (($hero['cta_url'] ?? '') !== $cardUrl) {
-                $hero['secondary_cta_label'] = $cardLabel;
-                $hero['secondary_cta_url'] = $cardUrl;
-            }
+            $hero['cta_label'] = __('borrower.membership.my_card');
+            $hero['cta_url'] = route('site.borrower.profile', ['section' => 'membership']);
         }
 
-        // Verify another Kopafasta card — stays inside the borrower account shell.
         $hero['tertiary_cta_label'] = __('borrower.nav.verify');
         $hero['tertiary_cta_url'] = route('site.borrower.verify');
     @endphp
@@ -65,8 +46,7 @@
         $underReview = in_array((string) ($customer->grade_status ?? ''), ['under_review'], true)
             || in_array((string) ($customer->grade_integrity ?? ''), ['review'], true);
     @endphp
-    <a href="{{ route('site.borrower.plus.home') }}" class="mb-6 block relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B3D32] via-[#127A5F] to-[#082f27] text-white shadow-[0_18px_40px_rgba(8,47,39,0.35)] ring-1 ring-brand-gold/30 p-5 sm:p-6">
-        <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
+    <a href="{{ route('site.borrower.plus.home') }}" class="mb-6 block kf-premium-panel rounded-2xl p-5 sm:p-6">
         <div class="relative flex flex-wrap items-start justify-between gap-3">
             <x-site.brand-mark size="sm" variant="light" />
             <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusActive ?? false" />
@@ -111,19 +91,25 @@
     @endif
 
     @if ($referralCode ?? null)
-        <section class="mb-8 bg-brand text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
-            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
+        @php $referralPoints = wallet_balance_as_points($referralWallet->balance ?? 0); @endphp
+        <section class="mb-8 kf-premium-panel rounded-2xl p-6 sm:p-8">
             <div class="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div>
+                <div class="min-w-0">
                     <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.referrals.grow') }}</p>
                     <h2 class="text-xl sm:text-2xl font-bold mt-1">{{ __('borrower.dashboard.referral_title') }}</h2>
                     <p class="text-sm text-white/80 mt-2">{{ __('borrower.referrals.your_code') }}: <span class="font-mono font-bold text-white">{{ $referralCode }}</span></p>
-                    <p class="text-sm text-white/80 mt-1">{{ __('borrower.dashboard.referral_wallet') }}: <span class="font-bold text-brand-gold">{{ number_format(wallet_balance_as_points($referralWallet->balance ?? 0)) }} {{ __('borrower.rewards.points_short') }}</span></p>
+                    <div class="mt-4">
+                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.dashboard.referral_wallet') }}</p>
+                        <p class="mt-1 flex items-end gap-2">
+                            <span class="text-5xl sm:text-6xl font-black tabular-nums text-brand-gold leading-none">{{ number_format($referralPoints) }}</span>
+                            <span class="pb-1 text-sm font-semibold text-white/80">{{ __('borrower.rewards.points_short') }}</span>
+                        </p>
+                    </div>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 shrink-0">
                     <x-site.referral-share :link="$referralLink" :code="$referralCode" :message="$referralShareMessage ?? null" :channels="['whatsapp']" />
-                    <a href="{{ route('site.borrower.engagement', ['tab' => 'referrals']) }}" class="inline-flex justify-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm ring-1 ring-white/20">
-                        {{ __('borrower.nav.referrals') }} →
+                    <a href="{{ route('site.borrower.engagement', ['tab' => 'referrals']) }}" class="inline-flex items-center justify-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm ring-1 ring-white/20">
+                        {{ __('borrower.nav.referrals') }}
                     </a>
                 </div>
             </div>

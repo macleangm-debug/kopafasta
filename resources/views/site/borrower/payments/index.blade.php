@@ -20,7 +20,7 @@
 
     {{-- Hero: next payment / empty state --}}
     @if ($hasLoans && $focus)
-        <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand to-brand/90 text-white shadow-lg shadow-brand/20 mb-8">
+        <section class="relative overflow-hidden rounded-3xl kf-premium-panel mb-8">
             <div class="absolute inset-0 opacity-[0.14]" style="background-image: radial-gradient(circle at 18% 20%, #fff 0, transparent 42%), radial-gradient(circle at 88% 0%, #fbbf24 0, transparent 38%);"></div>
             <div class="relative px-5 sm:px-8 py-7 sm:py-9">
                 <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">{{ __('borrower.nav.payments') }}</p>

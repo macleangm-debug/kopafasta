@@ -9,7 +9,7 @@
     <div class="grid lg:grid-cols-5 gap-6">
         <div class="lg:col-span-2 space-y-4">
             <section class="glass-card overflow-hidden ring-1 ring-brand/15">
-                <div class="bg-gradient-to-br from-brand to-brand-light text-white px-5 py-5">
+                <div class="kf-premium-panel px-5 py-5">
                     <p class="text-[10px] uppercase tracking-widest text-white/80">{{ __('borrower.apply.signature_legal_name') }}</p>
                     <p class="mt-2 text-xl font-bold" x-text="verifiedLegalName || '—'"></p>
                     <p x-show="identityVerified" x-cloak class="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold bg-white/15 px-2.5 py-1 rounded-lg">

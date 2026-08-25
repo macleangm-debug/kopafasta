@@ -34,7 +34,7 @@
     <x-site.borrower-dashboard-hero :hero="$hero" />
 
     @if ($sharingUnlocked && $code)
-        <section class="mb-8 bg-brand text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
+        <section class="mb-8 kf-premium-panel rounded-2xl p-6 sm:p-8">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
             <div class="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div>
@@ -52,7 +52,7 @@
                     @endif
                     <a href="{{ route('site.affiliate.wallet') }}"
                        class="inline-flex justify-center items-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm ring-1 ring-white/20">
-                        {{ __('site.affiliate_portal.view_wallet') }} →
+                        {{ __('site.affiliate_portal.view_wallet') }}
                     </a>
                 </div>
             </div>

@@ -4,7 +4,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
-            <div class="rounded-2xl bg-gradient-to-br from-brand to-emerald-900 text-white p-6 shadow-lg">
+            <div class="rounded-2xl kf-premium-panel p-6">
                 <p class="text-xs uppercase tracking-widest text-brand-gold/90 font-semibold">Available to deploy</p>
                 <p class="text-4xl font-extrabold mt-1 tabular-nums">TZS {{ $fmt($stats['available']) }}</p>
                 <p class="text-xs text-white/70 mt-2">Committed capital minus amounts currently in outstanding loans.</p>

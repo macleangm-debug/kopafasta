@@ -46,7 +46,7 @@
 
     <div x-show="showsValuationFeePayment()" x-cloak>
         <div class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">
-            <div class="bg-gradient-to-br from-brand to-brand-light text-white px-6 py-5">
+            <div class="kf-premium-panel px-6 py-5">
                 <p class="text-[10px] uppercase tracking-widest text-white/80">{{ __('borrower.apply.valuation_fee.amount_label') }}</p>
                 @if ($feeQuote && ($feeQuote['base'] ?? 0) > ($feeQuote['after_discount'] ?? 0))
                     <p class="mt-1 text-sm text-white/80 line-through tabular-nums">{{ $currency }} {{ format_number($feeQuote['base']) }}</p>

@@ -24,7 +24,7 @@ class PartnerPremiumShellFeatureTest extends TestCase
             ->assertSee(__('site.partner_portal.shell_debt_collector'), false)
             ->assertSee(__('site.partner_portal.nav_recovery'), false)
             ->assertSee(__('site.partner_portal.nav_commission'), false)
-            ->assertSee('rounded-3xl bg-brand', false)
+            ->assertSee('kf-premium-panel', false)
             ->assertSee(__('site.partner_portal.no_assigned_tasks'), false)
             ->assertSee('bg-[#faf8f5]', false);
     }
@@ -60,7 +60,7 @@ class PartnerPremiumShellFeatureTest extends TestCase
             ->assertSee(__('site.supplier_portal.title'), false)
             ->assertSee(__('site.supplier_portal.nav_assets'), false)
             ->assertSee(__('site.supplier_portal.no_assigned_tasks'), false)
-            ->assertSee('rounded-3xl bg-brand', false);
+            ->assertSee('kf-premium-panel', false);
     }
 
     public function test_partner_dashboard_swahili_translates_cards(): void

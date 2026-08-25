@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\LoanApplication;
+use App\Models\LoanProduct;
 use App\Models\User;
 use App\Services\ApplicationRequirementsService;
 use App\Services\Grades\CustomerGradeEngine;
@@ -307,6 +309,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(strtoupper((string) ($customer->grade ?: 'bronze')), false)
             ->assertSee(__('plus.card.explore'), false)
+            ->assertSee(format_money(500_000), false)
+            ->assertSee('kf-premium-panel', false)
             ->assertDontSee(__('borrower.dashboard.hero.under_review_subtitle'), false);
 
         $response = $this->actingAs($user)
@@ -399,5 +403,56 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->assertSame(0.0, (float) $subscription->price_paid);
         $this->assertNotEmpty($subscription->entitlements['complimentary_grants'] ?? []);
         $this->assertSame(0, \App\Models\CustomerPayment::query()->where('customer_id', $customer->id)->count());
+    }
+
+    public function test_hero_and_plus_follow_grade_access_and_hide_application_tracking(): void
+    {
+        $customer = $this->customer([
+            'grade' => 'bronze',
+            'member_no' => 'KPF-TZ-TEST',
+            'country_code' => 'TZ',
+        ]);
+        $user = $customer->user;
+        app(\App\Services\PinService::class)->setPin($user, '1234');
+        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Amina',
+            'birth_village' => 'Moshi',
+            'primary_school' => 'Uhuru',
+        ]);
+        $product = LoanProduct::create([
+            'code' => 'PL-GRD',
+            'name' => 'Grade Test Product',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 24,
+        ]);
+        LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-GL-HIDE',
+            'status' => 'submitted',
+            'current_stage' => 'screening',
+            'requested_amount' => 5_200_000,
+            'requested_tenure_months' => 12,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.dashboard'))
+            ->assertOk()
+            ->assertSee(format_money(500_000), false)
+            ->assertSee('KPF-TZ-TEST', false)
+            ->assertSee('kf-premium-panel', false)
+            ->assertDontSee('APP-GL-HIDE', false)
+            ->assertDontSee(__('borrower.dashboard.hero.under_review_title'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.home'))
+            ->assertOk()
+            ->assertSee(format_money(500_000), false)
+            ->assertSee(__('plus.home.explore'), false)
+            ->assertSee('kf-premium-panel', false);
     }
 }

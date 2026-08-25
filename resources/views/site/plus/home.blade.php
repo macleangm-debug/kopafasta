@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title('Kopafasta Plus')" active="dashboard">
+<x-site.borrower-layout :title="brand_title('Kopafasta Plus')" active="dashboard" content-width="wide">
     @php
         $days = (int) ($periodDays ?? 365);
         $priceAmount = format_money($price['amount'] ?? 0);
@@ -13,11 +13,10 @@
     @endphp
 
     <div class="space-y-6">
-        <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B3D32] via-[#127A5F] to-[#082f27] text-white shadow-[0_18px_40px_rgba(8,47,39,0.35)] ring-1 ring-brand-gold/30 p-5 sm:p-6">
-            <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
+        <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
             <div class="relative flex flex-wrap items-start justify-between gap-3">
                 <x-site.brand-mark size="sm" variant="light" />
-                <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusActive ?? false" />
+                <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusActive ?? false" size="lg" />
             </div>
             <p class="relative mt-5 text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
             <h1 class="relative text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ __('plus.home.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</h1>
@@ -65,23 +64,24 @@
                 <button class="mt-3 inline-flex rounded-xl bg-brand text-white px-5 py-3 font-semibold">{{ __('plus.home.renew') }}</button>
             </form>
         @else
-            <div class="rounded-2xl bg-white ring-1 ring-brand/15 p-6 space-y-4">
-                <p class="font-semibold text-gray-900 text-lg">{{ __('plus.home.explore') }}</p>
-                <p class="text-sm text-gray-600">{{ __('plus.home.explore_body') }}</p>
+            <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
+                <p class="relative text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
+                <h2 class="relative mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">{{ __('plus.home.explore') }}</h2>
+                <p class="relative mt-2 text-sm text-white/80 max-w-xl">{{ __('plus.home.explore_body') }}</p>
                 @if ($latestLesson)
-                    <div class="rounded-xl bg-brand/5 ring-1 ring-brand/10 p-4">
-                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.learn.this_month') }}</p>
-                        <p class="font-semibold text-gray-900 mt-1">{{ $lessonTitle }}</p>
-                        <p class="text-sm text-gray-600 mt-1">{{ __('plus.learn.preview') }}</p>
+                    <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/20 p-4 sm:p-5">
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.learn.this_month') }}</p>
+                        <p class="font-semibold text-white mt-1.5 text-lg">{{ $lessonTitle }}</p>
+                        <p class="text-sm text-white/75 mt-1">{{ __('plus.learn.preview') }}</p>
                     </div>
                 @endif
-                <p class="text-sm font-semibold text-gray-900">{{ $priceText }}</p>
-                <p class="text-xs text-gray-500">{{ __('plus.home.optional') }}</p>
-                <form method="post" action="{{ route('site.borrower.plus.join') }}">
+                <p class="relative mt-6 text-3xl sm:text-4xl font-black tabular-nums tracking-tight">{{ $priceText }}</p>
+                <p class="relative mt-1 text-xs text-white/65">{{ __('plus.home.optional') }}</p>
+                <form method="post" action="{{ route('site.borrower.plus.join') }}" class="relative mt-5">
                     @csrf
-                    <button class="inline-flex rounded-xl bg-brand text-white px-5 py-3 font-semibold">{{ __('plus.home.join') }}</button>
+                    <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-6 py-3 font-bold shadow-sm ring-1 ring-brand-gold/40">{{ __('plus.home.join') }}</button>
                 </form>
-            </div>
+            </section>
         @endif
     </div>
 </x-site.borrower-layout>

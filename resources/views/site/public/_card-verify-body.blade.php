@@ -5,11 +5,11 @@
     $verified = (bool) ($result['verified'] ?? false);
     $found = (bool) ($result['found'] ?? false);
     $statusColor = $result['status_color'] ?? 'slate';
-    $bgGradient = match ($statusColor) {
-        'green'  => 'from-[#0B3D32] via-[#127A5F] to-[#082f27]',
-        'orange' => 'from-[#7a4a10] via-[#b45309] to-[#5c370c]',
-        'red'    => 'from-[#7f1d1d] via-[#b91c1c] to-[#450a0a]',
-        default  => 'from-slate-700 via-slate-600 to-slate-800',
+    $panelClass = match ($statusColor) {
+        'green'  => 'kf-premium-panel',
+        'orange' => 'kf-premium-panel-orange',
+        'red'    => 'kf-premium-panel-red',
+        default  => 'kf-premium-panel-slate',
     };
     $badgeClass = match ($statusColor) {
         'green'  => 'bg-white text-emerald-800',
@@ -46,8 +46,7 @@
 
         @if ($result)
             @if ($verified && $found)
-                <div class="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_28px_70px_rgba(8,47,39,0.38)] p-5 sm:p-6 ring-1 ring-brand-gold/40">
-                    <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold pointer-events-none"></div>
+                <div class="relative {{ $panelClass }} rounded-[1.5rem] p-5 sm:p-6">
                     <div class="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-brand-gold/10 pointer-events-none"></div>
 
                     <div class="relative flex items-center justify-between gap-3 mb-6">
@@ -135,7 +134,7 @@
                     @endif
                 </div>
             @elseif ($found)
-                <div class="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-xl p-6 ring-1 ring-brand-gold/25">
+                <div class="relative {{ $panelClass }} rounded-[1.5rem] p-6">
                     <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
                     <div class="relative flex items-center gap-2.5 mb-5">
                         <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" class="h-9 w-auto object-contain">

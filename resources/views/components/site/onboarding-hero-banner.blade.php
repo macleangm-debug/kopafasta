@@ -1,7 +1,7 @@
 @props(['banner' => []])
 
 @if ($banner['show'] ?? false)
-    <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand to-brand-light text-white p-6 sm:p-8 shadow-lg relative overflow-hidden">
+    <div class="mb-6 rounded-2xl kf-premium-panel p-6 sm:p-8 relative">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
         <div class="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
             <div class="min-w-0 flex-1">

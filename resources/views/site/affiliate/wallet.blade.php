@@ -6,7 +6,7 @@
         :subtitle="__('site.affiliate_portal.wallet_subtitle')"
     />
 
-    <section class="mb-6 bg-brand text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
+    <section class="mb-6 kf-premium-panel rounded-2xl p-6 sm:p-8 relative">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
         <div class="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>

@@ -9,7 +9,7 @@
     @endif
 
     <div class="glass-card overflow-hidden ring-1 ring-brand/15">
-        <div class="bg-gradient-to-br from-brand to-brand-light px-6 py-5 text-white relative overflow-hidden">
+        <div class="kf-premium-panel px-6 py-5 relative">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
             <div class="relative">
                 <p class="text-[10px] uppercase tracking-widest text-white/70">{{ __('borrower.payments_page.refund.title') }}</p>

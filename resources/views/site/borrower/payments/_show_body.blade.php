@@ -60,7 +60,7 @@
         :default-phone="$defaultPhone"
     />
 @else
-    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand to-brand/90 text-white shadow-lg shadow-brand/20">
+    <section class="relative kf-premium-panel rounded-3xl">
         <div class="absolute inset-0 opacity-[0.14]" style="background-image: radial-gradient(circle at 18% 20%, #fff 0, transparent 42%), radial-gradient(circle at 88% 0%, #fbbf24 0, transparent 38%);"></div>
         <div class="relative px-5 sm:px-7 py-7">
             <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">{{ __('borrower.payments_page.show.payment_reference') }}</p>

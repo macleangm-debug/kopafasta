@@ -17,7 +17,7 @@
 ])
 
 <div class="space-y-5">
-    <div class="rounded-2xl bg-gradient-to-br from-brand to-brand-light text-white p-6 shadow-lg">
+    <div class="rounded-2xl kf-premium-panel p-6">
         <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $paymentLabel }}</p>
         <p class="mt-1 text-3xl font-extrabold tabular-nums">{{ $currency }} {{ format_number($amount) }}</p>
         @if ($reference)

@@ -24,10 +24,10 @@
     $profileComplete = $profile->isComplete($partner);
     $verified = ($partner->status ?? '') === 'active' && $membership->isActive($partner) && $profileComplete;
     $color = $verified ? 'green' : (($partner->status ?? '') === 'active' ? 'orange' : 'slate');
-    $bgGradient = match ($color) {
-        'green'  => 'from-[#0B3D32] via-[#127A5F] to-[#082f27]',
-        'orange' => 'from-[#7a4a10] via-[#b45309] to-[#5c370c]',
-        default  => 'from-slate-700 via-slate-600 to-slate-800',
+    $panelClass = match ($color) {
+        'green'  => 'kf-premium-panel',
+        'orange' => 'kf-premium-panel-orange',
+        default  => 'kf-premium-panel-slate',
     };
     $badgeClass = match ($color) {
         'green'  => 'bg-white text-emerald-800',
@@ -112,16 +112,15 @@
     @endif
 
     <div @class([
-             'grid gap-4 items-stretch',
+             'grid gap-4 items-stretch w-full',
              'md:grid-cols-2' => ($membershipActive && $partner->membership_expires_at) || $needsPay,
          ])>
-    <div class="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_20px_50px_rgba(8,47,39,0.28)] p-5 sm:p-6 ring-1 ring-brand-gold/35 cursor-pointer"
+    <div class="relative {{ $panelClass }} rounded-[1.35rem] p-5 sm:p-6 cursor-pointer"
          role="button"
          tabindex="0"
          @click="expanded = true"
          @keydown.enter="expanded = true"
          aria-label="{{ __('site.card_verify.my_card_title') }}">
-        <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold pointer-events-none"></div>
 
         <div class="relative flex items-center justify-between gap-3 mb-5">
             <span class="inline-flex items-center gap-2.5 min-w-0">
@@ -192,6 +191,54 @@
         </div>
 
         </div>
+
+    @if (($membershipActive && $partner->membership_expires_at) || $needsPay)
+        <div class="relative overflow-hidden rounded-[1.35rem] bg-white p-6 flex flex-col min-h-[280px] shadow-[0_18px_40px_rgba(8,47,39,0.08)] ring-1 ring-brand/10">
+            <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand via-brand-gold to-brand pointer-events-none"></div>
+            <div class="relative flex items-center justify-between gap-3">
+                <p class="text-[11px] uppercase tracking-[0.16em] text-brand font-semibold">{{ __('borrower.membership.status_title') }}</p>
+                @if ($membershipActive)
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
+                        {{ __('borrower.membership.active_chip') }}
+                    </span>
+                @endif
+            </div>
+            @if ($membershipActive)
+                <div class="relative mt-6 flex items-end gap-3">
+                    <span class="text-6xl font-black text-brand leading-none tabular-nums tracking-tight">{{ $daysLeft }}</span>
+                    <div class="pb-1.5">
+                        <p class="text-base font-bold text-gray-900 leading-none">{{ __('borrower.membership.days_unit') }}</p>
+                        <p class="mt-1.5 text-xs text-gray-500 leading-snug">{{ __('borrower.membership.days_remaining_label') }}</p>
+                    </div>
+                </div>
+                <div class="relative mt-6">
+                    <div class="flex justify-between text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                        <span>{{ __('borrower.membership.year_progress') }}</span>
+                        <span class="font-semibold tabular-nums text-brand">{{ $progressPct }}%</span>
+                    </div>
+                    <div class="h-2.5 rounded-full bg-brand-muted overflow-hidden ring-1 ring-brand/5">
+                        <div class="h-full rounded-full bg-brand" style="width: {{ $progressPct }}%"></div>
+                    </div>
+                </div>
+                <dl class="relative mt-auto pt-5 grid grid-cols-2 gap-3 text-xs">
+                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
+                        <dt class="text-gray-500">{{ __('borrower.membership.issued_label') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $issued }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
+                        <dt class="text-gray-500">{{ __('borrower.membership.expires_label') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $expires }}</dd>
+                    </div>
+                </dl>
+            @else
+                <p class="relative mt-6 text-sm text-gray-600">{{ __('site.partner_portal.membership_due_title') }}</p>
+                <p class="relative mt-2 text-2xl font-black text-brand tabular-nums">{{ format_money($membership->feeFor($partner)) }}</p>
+                <a href="{{ route($payRouteName) }}" class="relative mt-auto inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5">
+                    {{ __('site.partner_portal.cta_pay_membership') }}
+                </a>
+            @endif
+        </div>
+    @endif
     </div>
 
     <div x-show="expanded" x-cloak
@@ -199,8 +246,7 @@
          @keydown.escape.window="expanded = false">
         <button type="button" class="absolute inset-0 cursor-zoom-out" @click="expanded = false" aria-label="Close"></button>
         <div class="relative w-full max-w-3xl" @click.stop>
-            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-2xl p-6 sm:p-8 ring-1 ring-brand-gold/40">
-                <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
+            <div class="relative {{ $panelClass }} rounded-3xl p-6 sm:p-8">
                 <div class="relative flex items-center justify-between gap-3 mb-6">
                     <span class="inline-flex items-center gap-2.5 min-w-0">
                         <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" class="h-11 w-auto object-contain shrink-0">
@@ -271,54 +317,5 @@
                 {{ __('borrower.membership.close_card') }}
             </button>
         </div>
-    </div>
-
-    @if (($membershipActive && $partner->membership_expires_at) || $needsPay)
-        <div class="relative overflow-hidden rounded-[1.35rem] bg-white p-6 flex flex-col min-h-[280px] shadow-[0_18px_40px_rgba(8,47,39,0.08)] ring-1 ring-brand/10">
-            <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand via-brand-gold to-brand pointer-events-none"></div>
-            <div class="relative flex items-center justify-between gap-3">
-                <p class="text-[11px] uppercase tracking-[0.16em] text-brand font-semibold">{{ __('borrower.membership.status_title') }}</p>
-                @if ($membershipActive)
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
-                        {{ __('borrower.membership.active_chip') }}
-                    </span>
-                @endif
-            </div>
-            @if ($membershipActive)
-                <div class="relative mt-6 flex items-end gap-3">
-                    <span class="text-6xl font-black text-brand leading-none tabular-nums tracking-tight">{{ $daysLeft }}</span>
-                    <div class="pb-1.5">
-                        <p class="text-base font-bold text-gray-900 leading-none">{{ __('borrower.membership.days_unit') }}</p>
-                        <p class="mt-1.5 text-xs text-gray-500 leading-snug">{{ __('borrower.membership.days_remaining_label') }}</p>
-                    </div>
-                </div>
-                <div class="relative mt-6">
-                    <div class="flex justify-between text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
-                        <span>{{ __('borrower.membership.year_progress') }}</span>
-                        <span class="font-semibold tabular-nums text-brand">{{ $progressPct }}%</span>
-                    </div>
-                    <div class="h-2.5 rounded-full bg-brand-muted overflow-hidden ring-1 ring-brand/5">
-                        <div class="h-full rounded-full bg-brand" style="width: {{ $progressPct }}%"></div>
-                    </div>
-                </div>
-                <dl class="relative mt-auto pt-5 grid grid-cols-2 gap-3 text-xs">
-                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
-                        <dt class="text-gray-500">{{ __('borrower.membership.issued_label') }}</dt>
-                        <dd class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $issued }}</dd>
-                    </div>
-                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
-                        <dt class="text-gray-500">{{ __('borrower.membership.expires_label') }}</dt>
-                        <dd class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $expires }}</dd>
-                    </div>
-                </dl>
-            @else
-                <p class="relative mt-6 text-sm text-gray-600">{{ __('site.partner_portal.membership_due_title') }}</p>
-                <p class="relative mt-2 text-2xl font-black text-brand tabular-nums">{{ format_money($membership->feeFor($partner)) }}</p>
-                <a href="{{ route($payRouteName) }}" class="relative mt-auto inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5">
-                    {{ __('site.partner_portal.cta_pay_membership') }}
-                </a>
-            @endif
-        </div>
-    @endif
     </div>
 </div>

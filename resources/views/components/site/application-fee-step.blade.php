@@ -66,7 +66,7 @@
         </div>
 
         <div class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">
-            <div class="bg-gradient-to-br from-brand to-brand-light text-white px-6 py-5">
+            <div class="kf-premium-panel px-6 py-5">
                 <p class="text-[10px] uppercase tracking-widest text-white/80">{{ __('borrower.apply.application_fee.amount_label') }}</p>
                 <p class="mt-2 text-3xl font-extrabold tabular-nums" x-show="feeQuoteData && feeQuoteData.base > 0" x-text="formatAmount(feeQuoteData?.cash_due ?? feeQuoteData?.after_discount ?? effectiveFeeAmount())"></p>
                 <p class="mt-2 text-3xl font-extrabold tabular-nums" x-show="!feeQuoteData || feeQuoteData.base <= 0"><span x-text="formatAmount(effectiveFeeAmount())"></span></p>

@@ -123,7 +123,7 @@
         @include('site.vendor._recovery-kpi', ['kpi' => $recoveryKpi, 'wallet' => $recoveryWallet ?? null])
     @endif
 
-    <section class="relative overflow-hidden rounded-3xl bg-brand text-white mb-6 shadow-lg">
+    <section class="kf-premium-panel rounded-3xl mb-6">
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <div class="relative p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
             <div class="min-w-0">

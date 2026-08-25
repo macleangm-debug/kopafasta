@@ -8,7 +8,7 @@
     <x-site.investor-dashboard-quick-actions />
 
     {{-- Hero card --}}
-    <div class="rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light text-white p-6 lg:p-8 shadow-xl mb-6 relative overflow-hidden">
+    <div class="rounded-2xl kf-premium-panel p-6 lg:p-8 mb-6 relative">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
         <div class="relative grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div>

@@ -44,7 +44,7 @@
             <p class="text-sm text-gray-600 mt-3">{{ __('borrower.membership.open_gate_hint') }}</p>
         </div>
 
-        <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-brand via-brand to-brand-light text-white shadow-lg shadow-brand/20">
+        <div class="rounded-3xl kf-premium-panel overflow-hidden">
             <div class="px-6 py-7">
                 <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">
                     {{ $isFirstTime ? __('borrower.membership.membership_fee') : __('borrower.membership.renewal_fee') }}

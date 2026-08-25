@@ -11,7 +11,6 @@ use App\Models\PlusMoneyEntry;
 use App\Models\PlusRewardLedger;
 use Illuminate\Support\Facades\Storage;
 use App\Services\Grades\GradeBenefitService;
-use App\Services\LoanQualificationService;
 use App\Services\MemberEngagementService;
 use App\Services\Plus\PlusService;
 use Illuminate\Http\Request;
@@ -25,11 +24,7 @@ class PlusController extends Controller
         $active = $plus->isActive($customer);
         $trust = $engagement->trustScore($customer);
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
-        $qualification = app(LoanQualificationService::class)->calculate($customer);
-        $access = (float) ($qualification['amount'] ?? 0);
-        if ($access <= 0) {
-            $access = $benefits->potentialAccess($customer);
-        }
+        $access = $benefits->potentialAccess($customer);
 
         return view('site.plus.home', [
             'customer' => $customer,

@@ -25,7 +25,7 @@
         {{-- Overview --}}
         <div x-show="tab === 'overview'" class="space-y-4">
             <div class="glass-card overflow-hidden ring-1 ring-brand/10">
-                <div class="relative bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-8 py-6 text-white">
+                <div class="relative kf-premium-panel px-5 sm:px-8 py-6">
                     <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)]" aria-hidden="true"></div>
                     <div class="relative flex flex-wrap items-end justify-between gap-4">
                         <div class="min-w-0">
@@ -110,7 +110,7 @@
                     : ($milestones->isNotEmpty() ? 100 : 0);
             @endphp
             <div class="glass-card overflow-hidden ring-1 ring-brand/10">
-                <div class="relative bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-8 py-6 text-white">
+                <div class="relative kf-premium-panel px-5 sm:px-8 py-6">
                     <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)]" aria-hidden="true"></div>
                     <div class="relative">
                         <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.engagement.streak.title') }}</p>

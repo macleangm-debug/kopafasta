@@ -7,11 +7,11 @@
         : null;
     $statusLabel = $customer?->membershipStatusLabel();
     $statusColor = $customer?->membershipStatusColor() ?? 'slate';
-    $bgGradient = match ($statusColor) {
-        'green'  => 'from-[#0B3D32] via-[#127A5F] to-[#082f27]',
-        'orange' => 'from-[#7a4a10] via-[#b45309] to-[#5c370c]',
-        'red'    => 'from-[#7f1d1d] via-[#b91c1c] to-[#450a0a]',
-        default  => 'from-slate-700 via-slate-600 to-slate-800',
+    $panelClass = match ($statusColor) {
+        'green'  => 'kf-premium-panel',
+        'orange' => 'kf-premium-panel-orange',
+        'red'    => 'kf-premium-panel-red',
+        default  => 'kf-premium-panel-slate',
     };
     $badgeClass = match ($statusColor) {
         'green'  => 'bg-white text-emerald-800',
@@ -35,10 +35,9 @@
         <div class="absolute inset-0 bg-gradient-to-b from-[#0B3D32]/10 via-white to-[#f7faf8] pointer-events-none"></div>
         <div class="relative max-w-md mx-auto space-y-4">
             @if ($verified && $customer)
-                <div class="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-[0_24px_60px_rgba(8,47,39,0.35)] p-5 sm:p-6 ring-1 ring-brand-gold/35">
+                <div class="relative {{ $panelClass }} rounded-[1.35rem] p-5 sm:p-6">
                     <div class="absolute inset-[1px] rounded-[1.28rem] ring-1 ring-white/10 pointer-events-none"></div>
                     <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-gold/10 pointer-events-none"></div>
-                    <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold pointer-events-none"></div>
 
                     <div class="relative flex items-center justify-between gap-3 mb-6">
                         <span class="inline-flex items-center gap-2.5 min-w-0">
@@ -112,8 +111,7 @@
                     </div>
                 </div>
             @elseif ($customer)
-                <div class="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br {{ $bgGradient }} text-white shadow-xl p-6 ring-1 ring-brand-gold/25">
-                    <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
+                <div class="relative {{ $panelClass }} rounded-[1.35rem] p-6">
                     <div class="relative flex items-center gap-2.5 mb-5">
                         <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" class="h-9 w-auto object-contain">
                         <span class="text-xl font-bold tracking-tight">{{ brand_name() }}</span>
