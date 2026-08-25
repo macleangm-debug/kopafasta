@@ -27,7 +27,13 @@ function shouldSkipForm(form) {
         return true;
     }
     const action = (form.getAttribute('action') || '').toLowerCase();
-    if (action.includes('logout') || action.includes('login')) {
+    if (
+        action.includes('logout')
+        || action.includes('login')
+        || action.includes('/locale')
+        || action.endsWith('/country')
+        || action.includes('/country?')
+    ) {
         return true;
     }
 

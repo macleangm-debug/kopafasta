@@ -83,4 +83,31 @@ class ApplyWizardLocaleFeatureTest extends TestCase
         $this->assertSame('sw', session('locale'));
         $this->assertSame('sw', $customer->user->fresh()->preferences['preferred_locale'] ?? null);
     }
+
+    public function test_locale_switcher_does_not_draft_language_forms_and_english_sticks(): void
+    {
+        $customer = $this->makeCustomer();
+        app(PinService::class)->setPin($customer->user, '1234');
+
+        $this->actingAs($customer->user)
+            ->get(route('site.home'))
+            ->assertOk()
+            ->assertSee('data-no-draft', false);
+
+        $this->actingAs($customer->user)
+            ->from(route('site.home'))
+            ->post(route('site.locale.update'), [
+                'locale' => 'en',
+                'redirect' => url('/'),
+            ])
+            ->assertRedirect('/');
+
+        $this->assertSame('en', session('locale'));
+        $this->assertSame('en', $customer->user->fresh()->preferences['preferred_locale'] ?? null);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.home'))
+            ->assertOk()
+            ->assertSee(__('site.locale.english', [], 'en'), false);
+    }
 }

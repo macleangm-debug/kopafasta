@@ -21,6 +21,14 @@ class SetLocale
 
         $locale = $request->session()->get('locale');
 
+        $user = $request->user();
+        $preferred = data_get($user?->preferences, 'preferred_locale')
+            ?? data_get($user?->preferences, 'locale');
+        if ((! is_string($locale) || $locale === '') && is_string($preferred) && in_array($preferred, ['en', 'sw'], true)) {
+            $locale = $preferred;
+            $request->session()->put('locale', $locale);
+        }
+
         // Tanzania-first product: Kiswahili is the default until the visitor picks English.
         if (! is_string($locale) || $locale === '') {
             $country = strtoupper((string) $request->session()->get('country', 'TZ'));

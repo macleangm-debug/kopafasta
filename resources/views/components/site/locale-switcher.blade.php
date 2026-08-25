@@ -41,7 +41,7 @@
         <x-site.bottom-sheet :title="__('site.locale.country')" open="mobileCountryOpen">
             <div class="space-y-1">
                 @foreach ($siteCountries as $country)
-                    <form method="POST" action="{{ route('site.country.update') }}">
+                    <form method="POST" action="{{ route('site.country.update') }}" data-no-draft>
                         @csrf
                         <input type="hidden" name="country" value="{{ $country['code'] }}">
                         <button type="submit"
@@ -59,7 +59,7 @@
         <x-site.bottom-sheet :title="__('site.locale.language')" open="mobileLocaleOpen">
             <div class="space-y-1">
                 @foreach ($localeOptions as $code => $meta)
-                    <form method="POST" action="{{ route('site.locale.update') }}">
+                    <form method="POST" action="{{ route('site.locale.update') }}" data-no-draft>
                         @csrf
                         <input type="hidden" name="locale" value="{{ $code }}">
                         <input type="hidden" name="redirect" value="{{ url()->full() }}">
@@ -82,7 +82,7 @@
         <div x-cloak x-show="localeOpen" @click.outside="localeOpen = false" x-transition
              class="absolute right-0 top-full mt-1 w-40 z-[200] rounded-xl border border-gray-200 bg-white shadow-xl py-1">
             @foreach ($localeOptions as $code => $meta)
-                <form method="POST" action="{{ route('site.locale.update') }}">
+                <form method="POST" action="{{ route('site.locale.update') }}" data-no-draft>
                     @csrf
                     <input type="hidden" name="locale" value="{{ $code }}">
                     <input type="hidden" name="redirect" value="{{ url()->full() }}">
@@ -131,7 +131,7 @@
         <x-site.bottom-sheet :title="__('site.locale.country')" open="mobileCountryOpen">
             <div class="space-y-1">
                 @foreach ($siteCountries as $country)
-                    <form method="POST" action="{{ route('site.country.update') }}">
+                    <form method="POST" action="{{ route('site.country.update') }}" data-no-draft>
                         @csrf
                         <input type="hidden" name="country" value="{{ $country['code'] }}">
                         <button type="submit"
@@ -150,7 +150,7 @@
         <x-site.bottom-sheet :title="__('site.locale.language')" open="mobileLocaleOpen">
             <div class="space-y-1">
                 @foreach ($localeOptions as $code => $meta)
-                    <form method="POST" action="{{ route('site.locale.update') }}">
+                    <form method="POST" action="{{ route('site.locale.update') }}" data-no-draft>
                         @csrf
                         <input type="hidden" name="locale" value="{{ $code }}">
                         <input type="hidden" name="redirect" value="{{ url()->full() }}">
@@ -177,7 +177,7 @@
             <div x-cloak x-show="countryOpen" @click.outside="countryOpen = false" x-transition
                  class="absolute right-0 top-full mt-1 w-56 z-[200] rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-64 overflow-y-auto">
                 @foreach ($siteCountries as $country)
-                    <form method="POST" action="{{ route('site.country.update') }}">
+                    <form method="POST" action="{{ route('site.country.update') }}" data-no-draft>
                         @csrf
                         <input type="hidden" name="country" value="{{ $country['code'] }}">
                         <button type="submit"
@@ -202,7 +202,7 @@
             <div x-cloak x-show="localeOpen" @click.outside="localeOpen = false" x-transition
                  class="absolute right-0 top-full mt-1 w-44 z-[200] rounded-xl border border-gray-200 bg-white shadow-xl py-1 overflow-visible">
                 @foreach ($localeOptions as $code => $meta)
-                    <form method="POST" action="{{ route('site.locale.update') }}">
+                    <form method="POST" action="{{ route('site.locale.update') }}" data-no-draft>
                         @csrf
                         <input type="hidden" name="locale" value="{{ $code }}">
                         <input type="hidden" name="redirect" value="{{ url()->full() }}">
