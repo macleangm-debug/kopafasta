@@ -238,6 +238,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
             Route::get('/borrower/plus', [\App\Http\Controllers\Site\PlusController::class, 'home'])->name('borrower.plus.home');
             Route::get('/borrower/plus/learn', [\App\Http\Controllers\Site\PlusController::class, 'learn'])->name('borrower.plus.learn');
+            Route::get('/borrower/plus/learn/subjects/{subject}', [\App\Http\Controllers\Site\PlusController::class, 'subject'])->name('borrower.plus.subject');
+            Route::post('/borrower/plus/learn/subjects/{subject}/complete', [\App\Http\Controllers\Site\PlusController::class, 'completeSubject'])->name('borrower.plus.subject.complete');
+            Route::post('/borrower/plus/learn/subjects/{subject}/save', [\App\Http\Controllers\Site\PlusController::class, 'saveSubject'])->name('borrower.plus.subject.save');
+            Route::post('/borrower/plus/learn/subjects/{subject}/action', [\App\Http\Controllers\Site\PlusController::class, 'subjectAction'])->name('borrower.plus.subject.action');
             Route::get('/borrower/plus/welcome', [\App\Http\Controllers\Site\PlusController::class, 'welcome'])->name('borrower.plus.welcome');
             Route::post('/borrower/plus/join', [\App\Http\Controllers\Site\PlusController::class, 'join'])->name('borrower.plus.join');
             Route::post('/borrower/plus/renew', [\App\Http\Controllers\Site\PlusController::class, 'renew'])->name('borrower.plus.renew');
@@ -248,11 +252,16 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/plus/goals', [\App\Http\Controllers\Site\PlusController::class, 'goals'])->name('borrower.plus.goals');
             Route::post('/borrower/plus/goals', [\App\Http\Controllers\Site\PlusController::class, 'saveGoal'])->name('borrower.plus.goals.save');
             Route::post('/borrower/plus/goals/{goal}/contribute', [\App\Http\Controllers\Site\PlusController::class, 'contributeGoal'])->name('borrower.plus.goals.contribute');
+            Route::post('/borrower/plus/goals/{goal}/pause', [\App\Http\Controllers\Site\PlusController::class, 'pauseGoal'])->name('borrower.plus.goals.pause');
             Route::get('/borrower/plus/reports', [\App\Http\Controllers\Site\PlusController::class, 'reports'])->name('borrower.plus.reports');
             Route::get('/borrower/plus/offers', [\App\Http\Controllers\Site\PlusController::class, 'offers'])->name('borrower.plus.offers');
+            Route::post('/borrower/plus/offers/{offer}/open', [\App\Http\Controllers\Site\PlusController::class, 'openOffer'])->name('borrower.plus.offers.open');
+            Route::post('/borrower/plus/offers/{offer}/claim', [\App\Http\Controllers\Site\PlusController::class, 'claimOffer'])->name('borrower.plus.offers.claim');
             Route::get('/borrower/plus/rewards', [\App\Http\Controllers\Site\PlusController::class, 'rewards'])->name('borrower.plus.rewards');
             Route::post('/borrower/plus/rewards/redeem', [\App\Http\Controllers\Site\PlusController::class, 'redeem'])->name('borrower.plus.rewards.redeem');
             Route::get('/borrower/plus/lessons/{lesson}', [\App\Http\Controllers\Site\PlusController::class, 'lesson'])->name('borrower.plus.lesson');
+            Route::post('/borrower/plus/lessons/{lesson}/complete', [\App\Http\Controllers\Site\PlusController::class, 'completeLesson'])->name('borrower.plus.lesson.complete');
+            Route::post('/borrower/plus/lessons/{lesson}/action', [\App\Http\Controllers\Site\PlusController::class, 'lessonAction'])->name('borrower.plus.lesson.action');
             Route::get('/borrower/plus/lessons/{lesson}/video', [\App\Http\Controllers\Site\PlusController::class, 'video'])->name('borrower.plus.lesson.video')->middleware('signed');
             Route::get('/borrower/engagement', [\App\Http\Controllers\Site\EngagementHubController::class, 'show'])->name('borrower.engagement');
             Route::post('/borrower/engagement/redeem', [\App\Http\Controllers\Site\EngagementHubController::class, 'redeem'])->name('borrower.engagement.redeem');
@@ -1025,6 +1034,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/plus', [GradeSettingsController::class, 'savePlus'])->name('settings.plus.save');
         Route::post('settings/plus/lessons', [GradeSettingsController::class, 'saveLesson'])->name('settings.plus.lessons.save');
         Route::post('settings/plus/offers', [GradeSettingsController::class, 'saveOffer'])->name('settings.plus.offers.save');
+        Route::post('settings/plus/categories', [GradeSettingsController::class, 'saveCategory'])->name('settings.plus.categories.save');
+        Route::post('settings/plus/subjects', [GradeSettingsController::class, 'saveSubject'])->name('settings.plus.subjects.save');
+        Route::put('settings/plus/notifications', [GradeSettingsController::class, 'savePlusNotifications'])->name('settings.plus.notifications.save');
         Route::get('settings/membership',       [SettingsController::class, 'membership'])    ->name('settings.membership');
         Route::put('settings/membership',       [SettingsController::class, 'saveMembership'])->name('settings.membership.save');
         Route::get('settings/referrals',        [SettingsController::class, 'referrals'])     ->name('settings.referrals');

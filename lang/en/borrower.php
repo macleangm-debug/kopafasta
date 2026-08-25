@@ -2996,6 +2996,10 @@ return [
         'notif_credit_limit_hint' => 'On-time repayments raise your trust score and can increase your eligible loan amount. We only notify when that preference is on.',
         'notif_promotions' => 'Promotions & offers',
         'notif_push' => 'Push notifications (when available)',
+        'notif_plus_goals' => 'Goals',
+        'notif_plus_business' => 'Business summaries',
+        'notif_plus_learn' => 'Plus lessons',
+        'notif_plus_offers' => 'Offers and rewards',
         'notifications_saved' => 'Notification preferences saved.',
     ],
 
@@ -3163,6 +3167,11 @@ return [
             'next_payment' => 'Next payment',
             'next_payment_none' => 'No payment due',
             'membership' => 'Membership',
+            'membership_days' => ':days days left',
+            'trust' => 'Trust',
+            'plus' => 'Kopafasta Plus',
+            'plus_on' => 'Active',
+            'plus_off' => 'Not yet',
         ],
         'hero' => [
             'no_loan_title' => 'No active loan',

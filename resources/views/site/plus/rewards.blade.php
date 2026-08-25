@@ -1,23 +1,56 @@
 <x-site.borrower-layout :title="brand_title(__('plus.home.rewards'))" active="dashboard">
-    <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 sm:p-6 mb-4">
-        <p class="text-sm text-gray-600">{{ __('plus.rewards.balance') }}</p>
-        <p class="text-2xl font-semibold">{{ __('plus.rewards.points', ['balance' => $balance]) }}</p>
-        <p class="text-sm text-gray-500 mt-2">{{ __('plus.rewards.hint') }}</p>
-        @if ($balance > 0)
-            <form method="post" action="{{ route('site.borrower.plus.rewards.redeem') }}" class="mt-4 flex flex-col sm:flex-row gap-2">
-                @csrf
-                <input type="number" name="points" min="1" max="{{ $balance }}" inputmode="numeric" class="min-h-11 rounded-xl border-gray-300" placeholder="{{ __('plus.rewards.placeholder_points') }}">
-                <input name="reason" required class="flex-1 min-h-11 rounded-xl border-gray-300" placeholder="{{ __('plus.rewards.placeholder_reason') }}">
-                <button class="rounded-xl bg-brand text-white px-4 py-3 text-sm font-semibold">{{ __('plus.rewards.redeem') }}</button>
-            </form>
-        @endif
-    </div>
-    <div class="space-y-2">
-        @foreach ($ledger as $row)
-            <div class="rounded-xl bg-white ring-1 ring-gray-100 px-4 py-3 text-sm flex justify-between gap-3">
-                <span>{{ $row->reason }}</span>
-                <span>{{ $row->points > 0 ? '+' : '' }}{{ $row->points }}</span>
+    <div class="space-y-5" x-data="{ redeemOpen: false, code: '' }">
+        <a href="{{ route('site.borrower.plus.home') }}" class="text-sm font-semibold text-brand">← Plus</a>
+        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 sm:p-6">
+            <h1 class="text-xl font-bold text-gray-900">{{ __('plus.rewards.title') }}</h1>
+            <p class="text-3xl font-extrabold mt-3 tabular-nums">{{ __('plus.rewards.points', ['balance' => $balance]) }}</p>
+            <p class="text-sm text-gray-500 mt-2">{{ __('plus.rewards.borrow_line') }}</p>
+            @if ($balance > 0)
+                <button type="button" @click="redeemOpen = true" class="mt-4 rounded-xl bg-brand text-white px-5 py-2.5 text-sm font-semibold">{{ __('plus.rewards.use') }}</button>
+            @endif
+        </div>
+
+        <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-5">
+            <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold">{{ __('plus.rewards.can_get') }}</p>
+            <div class="mt-3 space-y-3">
+                @foreach ($catalog as $item)
+                    <div class="flex items-center justify-between gap-3 text-sm">
+                        <span>{{ $item['title'] }} — {{ $item['points'] }}</span>
+                        @if ($balance >= (int) $item['points'])
+                            <form method="post" action="{{ route('site.borrower.plus.rewards.redeem') }}">
+                                @csrf
+                                <input type="hidden" name="code" value="{{ $item['code'] }}">
+                                <button class="rounded-xl bg-brand text-white px-3 py-1.5 text-xs font-semibold">{{ __('plus.rewards.redeem') }}</button>
+                            </form>
+                        @endif
+                    </div>
+                @endforeach
             </div>
-        @endforeach
+        </div>
+
+        <div>
+            <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-2">{{ __('plus.rewards.earned') }}</p>
+            @forelse ($earned as $row)
+                <div class="rounded-xl bg-white ring-1 ring-gray-100 px-4 py-3 text-sm flex justify-between gap-3 mb-2">
+                    <span>{{ $row->reason }}</span>
+                    <span class="font-semibold">+{{ $row->points }}</span>
+                </div>
+            @empty
+                <x-site.empty-state compact icon="✦" :title="__('plus.rewards.empty')" />
+            @endforelse
+        </div>
+
+        <x-site.action-panel title="{{ __('plus.rewards.use') }}" open="redeemOpen">
+            <form method="post" action="{{ route('site.borrower.plus.rewards.redeem') }}" class="space-y-3">
+                @csrf
+                @foreach ($catalog as $item)
+                    <label class="flex items-center justify-between gap-3 rounded-xl ring-1 ring-gray-200 px-4 py-3 cursor-pointer">
+                        <span class="text-sm">{{ $item['title'] }} · {{ $item['points'] }}</span>
+                        <input type="radio" name="code" value="{{ $item['code'] }}" @checked($loop->first)>
+                    </label>
+                @endforeach
+                <button class="w-full rounded-xl bg-brand text-white py-3 font-semibold">{{ __('plus.rewards.redeem') }}</button>
+            </form>
+        </x-site.action-panel>
     </div>
 </x-site.borrower-layout>

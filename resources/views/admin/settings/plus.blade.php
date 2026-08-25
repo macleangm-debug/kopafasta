@@ -108,4 +108,61 @@
             </div>
         </div>
     </div>
+
+    <div class="mt-8 grid lg:grid-cols-2 gap-6">
+        <form method="post" action="{{ route('admin.settings.plus.categories.save') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-3">
+            @csrf
+            <h2 class="font-semibold text-gray-900">Learning category</h2>
+            <p class="text-sm text-gray-600">Customer-facing names. Archive subjects instead of deleting history.</p>
+            <x-admin.input name="slug" label="Slug" />
+            <x-admin.input name="title_en" label="Title (EN)" />
+            <x-admin.input name="title_sw" label="Title (SW)" />
+            <button class="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold">Save category</button>
+            <p class="text-xs text-gray-500">{{ $subjectCount ?? 0 }} subjects in catalogue · {{ $publishedCount ?? 0 }} published to members.</p>
+        </form>
+        <form method="post" action="{{ route('admin.settings.plus.subjects.save') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-3">
+            @csrf
+            <h2 class="font-semibold text-gray-900">Learning subject</h2>
+            <p class="text-sm text-gray-600">Keep new articles as Draft until reviewed. Do not dump unreviewed financial advice on members.</p>
+            <label class="block text-sm text-gray-700">Category
+                <select name="plus_subject_category_id" class="mt-1 w-full rounded-xl border-gray-300">
+                    @foreach ($categories ?? [] as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->title_en }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <x-admin.input name="title_en" label="Title (EN)" />
+            <x-admin.input name="title_sw" label="Title (SW)" />
+            <x-admin.textarea name="intro_en" label="Intro (EN)" rows="2" />
+            <x-admin.textarea name="intro_sw" label="Intro (SW)" rows="2" />
+            <x-admin.textarea name="body_en" label="Article (EN)" rows="4" />
+            <x-admin.textarea name="body_sw" label="Article (SW)" rows="4" />
+            <x-admin.input name="duration_minutes" label="Minutes" type="number" :value="4" />
+            <x-admin.input name="action_en" label="Practical action (EN)" />
+            <x-admin.input name="action_sw" label="Practical action (SW)" />
+            <x-admin.input name="action_route" label="Action route" value="site.borrower.plus.money" />
+            <x-admin.select name="status" label="Status" :options="['draft'=>'Draft','published'=>'Published','archived'=>'Archived']" />
+            <label class="text-sm inline-flex items-center gap-2">
+                <input type="checkbox" name="featured" value="1" class="rounded border-gray-300 text-brand"> Featured
+            </label>
+            <button class="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold">Save subject</button>
+        </form>
+    </div>
+
+    <form method="post" action="{{ route('admin.settings.plus.notifications.save') }}" class="mt-8 bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-3">
+        @csrf
+        @method('PUT')
+        <h2 class="font-semibold text-gray-900">Plus notification triggers</h2>
+        <p class="text-sm text-gray-600">Active/inactive lives here. English/Swahili templates, channels, quiet hours and cadence stay in Settings Hub → Transactional messaging. Each send re-checks current state (stop conditions).</p>
+        @foreach ($triggers ?? [] as $code => $label)
+            <input type="hidden" name="known[]" value="{{ $code }}">
+            <label class="flex items-center justify-between gap-3 rounded-xl ring-1 ring-gray-200 px-4 py-3">
+                <span class="text-sm">{{ $label }} <code class="text-xs text-gray-400">{{ $code }}</code></span>
+                <input type="checkbox" name="triggers[]" value="{{ $code }}"
+                       @checked(($notifications[$code]['active'] ?? true))
+                       class="rounded border-gray-300 text-brand">
+            </label>
+        @endforeach
+        <button class="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold">Save Plus triggers</button>
+    </form>
 </x-admin.layout>

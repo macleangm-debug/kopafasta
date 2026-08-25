@@ -3529,6 +3529,10 @@ class BorrowerController extends Controller
             'notifications.promotions'   => ['nullable', 'boolean'],
             'notifications.credit_limit_updates' => ['nullable', 'boolean'],
             'notifications.push'         => ['nullable', 'boolean'],
+            'notifications.plus_goals'   => ['nullable', 'boolean'],
+            'notifications.plus_business'=> ['nullable', 'boolean'],
+            'notifications.plus_learn'   => ['nullable', 'boolean'],
+            'notifications.plus_offers'  => ['nullable', 'boolean'],
         ]);
 
         $incoming = $data['notifications'] ?? [];
@@ -3539,6 +3543,10 @@ class BorrowerController extends Controller
             'promotions'   => array_key_exists('promotions', $incoming),
             'credit_limit_updates' => array_key_exists('credit_limit_updates', $incoming),
             'push'         => array_key_exists('push', $incoming),
+            'plus_goals'   => array_key_exists('plus_goals', $incoming),
+            'plus_business'=> array_key_exists('plus_business', $incoming),
+            'plus_learn'   => array_key_exists('plus_learn', $incoming),
+            'plus_offers'  => array_key_exists('plus_offers', $incoming),
         ];
 
         $prefs = $user->preferences ?? [];

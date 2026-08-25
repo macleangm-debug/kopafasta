@@ -284,4 +284,37 @@ class PlusService
             ->where('customer_id', $customer->id)
             ->sum('points');
     }
+
+    /** @return list<array{code: string, points: int, title_en: string, title_sw: string, title: string}> */
+    public function rewardCatalog(): array
+    {
+        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
+        $items = $this->config()['rewards']['catalog'] ?? config('kopafasta_plus.rewards.catalog', []);
+
+        return collect($items)->map(function (array $item) use ($locale) {
+            $item['title'] = $locale === 'sw'
+                ? ($item['title_sw'] ?? $item['title_en'] ?? '')
+                : ($item['title_en'] ?? '');
+
+            return $item;
+        })->values()->all();
+    }
+
+    public function recordOfferEvent(Customer $customer, \App\Models\PlusOffer $offer, string $event): void
+    {
+        \App\Models\PlusOfferEvent::query()->create([
+            'customer_id' => $customer->id,
+            'plus_offer_id' => $offer->id,
+            'event' => $event,
+        ]);
+    }
+
+    public function hasClaimed(Customer $customer, \App\Models\PlusOffer $offer): bool
+    {
+        return \App\Models\PlusOfferEvent::query()
+            ->where('customer_id', $customer->id)
+            ->where('plus_offer_id', $offer->id)
+            ->where('event', 'claimed')
+            ->exists();
+    }
 }

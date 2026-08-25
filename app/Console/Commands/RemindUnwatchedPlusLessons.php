@@ -3,9 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\PlusLesson;
-use App\Models\PlusLessonProgress;
 use App\Models\PlusSubscription;
-use App\Services\NotificationService;
+use App\Services\Plus\PlusNotificationGate;
 use Illuminate\Console\Command;
 
 class RemindUnwatchedPlusLessons extends Command
@@ -14,7 +13,7 @@ class RemindUnwatchedPlusLessons extends Command
 
     protected $description = 'Remind Plus members about an unwatched published monthly lesson after re-checking state.';
 
-    public function handle(NotificationService $notifications): int
+    public function handle(PlusNotificationGate $gate): int
     {
         $lesson = PlusLesson::query()
             ->whereNotNull('published_at')
@@ -37,17 +36,10 @@ class RemindUnwatchedPlusLessons extends Command
             if (! $customer) {
                 continue;
             }
-
-            $watched = PlusLessonProgress::query()
-                ->where('customer_id', $customer->id)
-                ->where('plus_lesson_id', $lesson->id)
-                ->whereNotNull('completed_at')
-                ->exists();
-            if ($watched) {
+            if (! $gate->lessonStillUnwatched($customer, $lesson)) {
                 continue;
             }
-
-            $notifications->notifyCustomer($customer, 'plus_lesson_unwatched', [
+            $gate->notify($customer, 'plus_lesson_unwatched', [
                 'lesson' => $lesson->title_en,
                 '_fallback_body' => 'Your Kopafasta Plus monthly lesson is ready. Watch it when you have 5–10 quiet minutes.',
             ]);

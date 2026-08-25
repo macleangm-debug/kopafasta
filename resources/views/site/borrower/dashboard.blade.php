@@ -46,18 +46,25 @@
         $underReview = in_array((string) ($customer->grade_status ?? ''), ['under_review'], true)
             || in_array((string) ($customer->grade_integrity ?? ''), ['review'], true);
     @endphp
-    <a href="{{ route('site.borrower.plus.home') }}" class="mb-6 block kf-premium-panel rounded-2xl p-5 sm:p-6">
+    <section class="mb-6 kf-premium-panel rounded-2xl p-5 sm:p-6">
         <div class="relative flex flex-wrap items-start justify-between gap-3">
             <x-site.brand-mark size="sm" variant="light" />
-            <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusActive ?? false" />
+            <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusActive ?? false" size="lg" />
         </div>
-        @if ($underReview)
-            <p class="relative font-semibold mt-4">{{ $gradeName }} — {{ __('plus.card.reviewing') }}</p>
-        @else
-            <p class="relative font-semibold mt-4 text-lg">{{ __('plus.card.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</p>
+        @if (! empty($customer->member_no))
+            <p class="relative mt-4 text-sm text-white/80">{{ __('plus.card.member', ['id' => $customer->member_no]) }}</p>
         @endif
-        <p class="relative text-sm text-brand-gold font-semibold mt-3">{{ ($plusActive ?? false) ? __('plus.card.open') : __('plus.card.explore') }}</p>
-    </a>
+        @if ($underReview)
+            <p class="relative font-semibold mt-2">{{ $gradeName }} — {{ __('plus.card.reviewing') }}</p>
+        @else
+            <p class="relative font-semibold mt-2 text-lg">{{ __('plus.card.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</p>
+        @endif
+        <p class="relative text-sm text-white/80 mt-2 max-w-xl">{{ __('plus.card.teaser_body') }}</p>
+        <a href="{{ route('site.borrower.plus.home') }}"
+           class="relative mt-4 inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">
+            {{ ($plusActive ?? false) ? __('plus.card.open') : __('plus.card.explore') }}
+        </a>
+    </section>
 
     <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
 

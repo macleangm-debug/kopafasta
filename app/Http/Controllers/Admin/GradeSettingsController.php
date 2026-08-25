@@ -53,11 +53,30 @@ class GradeSettingsController extends Controller
     public function plus(PlusService $plus)
     {
         $plus->ensureSampleContent();
+        app(\App\Services\Plus\PlusLearningService::class)->ensureCatalog();
 
         return view('admin.settings.plus', [
             'config' => $plus->config(),
             'lessons' => \App\Models\PlusLesson::query()->latest('id')->limit(24)->get(),
             'offers' => \App\Models\PlusOffer::query()->latest('id')->limit(24)->get(),
+            'categories' => \App\Models\PlusSubjectCategory::query()->orderBy('sort')->get(),
+            'subjects' => \App\Models\PlusSubject::query()->with('category')->latest('id')->limit(40)->get(),
+            'subjectCount' => \App\Models\PlusSubject::query()->count(),
+            'publishedCount' => \App\Models\PlusSubject::query()->where('status', 'published')->count(),
+            'notifications' => \App\Models\Setting::get('kopafasta_plus.notifications') ?: [],
+            'triggers' => [
+                'money_daily_reminder' => 'Money — daily reminder (stops after today’s entry)',
+                'business_no_activity' => 'Business — no activity today (stops after a sale/spend)',
+                'goal_near_target' => 'Goals — near target (stops when completed)',
+                'goal_completed' => 'Goals — completed',
+                'plus_monthly_lesson_published' => 'Learning — monthly lesson published',
+                'plus_lesson_unwatched' => 'Learning — lesson reminder (stops when finished)',
+                'learning_continue' => 'Learning — continue started subject',
+                'new_eligible_offer' => 'Offers — new eligible offer',
+                'reward_available' => 'Rewards — points ready to use',
+                'plus_started' => 'Plus — started (always on)',
+                'plus_expiring' => 'Plus — expiring',
+            ],
         ]);
     }
 
@@ -180,5 +199,65 @@ class GradeSettingsController extends Controller
         \App\Models\PlusOffer::query()->create($data);
 
         return back()->with('status', 'Offer saved.');
+    }
+
+    public function saveCategory(Request $request)
+    {
+        $data = $request->validate([
+            'slug' => ['required', 'string', 'max:40'],
+            'title_en' => ['required', 'string', 'max:80'],
+            'title_sw' => ['required', 'string', 'max:80'],
+        ]);
+        \App\Models\PlusSubjectCategory::query()->updateOrCreate(
+            ['slug' => $data['slug']],
+            [
+                'title_en' => $data['title_en'],
+                'title_sw' => $data['title_sw'],
+                'status' => 'published',
+                'sort' => (int) \App\Models\PlusSubjectCategory::query()->max('sort') + 1,
+            ]
+        );
+
+        return back()->with('status', 'Learning category saved.');
+    }
+
+    public function saveSubject(Request $request)
+    {
+        $data = $request->validate([
+            'plus_subject_category_id' => ['required', 'exists:plus_subject_categories,id'],
+            'title_en' => ['required', 'string', 'max:160'],
+            'title_sw' => ['required', 'string', 'max:160'],
+            'intro_en' => ['nullable', 'string'],
+            'intro_sw' => ['nullable', 'string'],
+            'body_en' => ['nullable', 'string'],
+            'body_sw' => ['nullable', 'string'],
+            'duration_minutes' => ['required', 'integer', 'min:2', 'max:15'],
+            'action_en' => ['nullable', 'string', 'max:160'],
+            'action_sw' => ['nullable', 'string', 'max:160'],
+            'action_route' => ['nullable', 'string', 'max:80'],
+            'status' => ['required', 'in:draft,published,archived'],
+            'featured' => ['nullable', 'boolean'],
+        ]);
+        $data['slug'] = \Illuminate\Support\Str::slug($data['title_en']).'-'.substr(sha1($data['title_en'].microtime()), 0, 6);
+        $data['featured'] = $request->boolean('featured');
+        $data['published_at'] = $data['status'] === 'published' ? now() : null;
+        $data['content_type'] = 'article';
+        \App\Models\PlusSubject::query()->create($data);
+
+        return back()->with('status', 'Subject saved. Published content is archived, not deleted, if you later change status.');
+    }
+
+    public function savePlusNotifications(Request $request)
+    {
+        $codes = array_keys($request->input('triggers', []));
+        $stored = [];
+        foreach ($request->input('known', []) as $code) {
+            $stored[$code] = [
+                'active' => in_array($code, $codes, true),
+            ];
+        }
+        \App\Models\Setting::set('kopafasta_plus.notifications', $stored);
+
+        return back()->with('status', 'Plus notification triggers saved. Templates and channels stay in Transactional messaging.');
     }
 }

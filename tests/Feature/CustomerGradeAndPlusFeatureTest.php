@@ -455,4 +455,75 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee(__('plus.home.explore'), false)
             ->assertSee('kf-premium-panel', false);
     }
+
+    public function test_plus_rooms_are_live_mini_dashboards_from_real_data(): void
+    {
+        $customer = $this->customer(['member_no' => 'KPF-TZ-PLUS']);
+        $user = $customer->user;
+        app(\App\Services\PinService::class)->setPin($user, '1234');
+        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Amina',
+            'birth_village' => 'Moshi',
+            'primary_school' => 'Uhuru',
+        ]);
+        app(PlusService::class)->grantComplimentary($customer, 'Test workspace.', 1, 30);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.dashboard'))
+            ->assertOk()
+            ->assertSee(__('plus.card.open'), false)
+            ->assertSee('KPF-TZ-PLUS', false);
+
+        $snapshot = app(\App\Services\BorrowerFinancialSnapshotService::class)->forCustomer($customer);
+        $this->assertArrayNotHasKey('available_limit', $snapshot);
+        $this->assertArrayHasKey('trust', $snapshot);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.welcome'))
+            ->assertOk()
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee(__('plus.welcome.open'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.home'))
+            ->assertOk()
+            ->assertSee(__('plus.today.title'), false)
+            ->assertSee(__('plus.home.money'), false)
+            ->assertDontSee('Plus haibadilishi Daraja lako', false)
+            ->assertDontSee('Plus never changes your Grade', false);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.plus.money.save'), [
+                'direction' => 'out',
+                'amount' => 120000,
+                'category' => 'food',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('plus_money_entries', [
+            'customer_id' => $customer->id,
+            'category' => 'food',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.money'))
+            ->assertOk()
+            ->assertSee(__('plus.money.in_action'), false);
+
+        $nba = app(\App\Services\Plus\PlusNextBestActionService::class)->forCustomer($customer->fresh());
+        $this->assertArrayHasKey('key', $nba);
+        $this->assertArrayHasKey('cta_url', $nba);
+
+        app(\App\Services\Plus\PlusLearningService::class)->ensureCatalog();
+        $this->assertGreaterThanOrEqual(500, \App\Models\PlusSubject::query()->count());
+        $this->assertSame(20, \App\Models\PlusSubjectCategory::query()->count());
+        $this->assertGreaterThan(0, \App\Models\PlusSubject::query()->where('status', 'published')->count());
+        $this->assertGreaterThan(400, \App\Models\PlusSubject::query()->where('status', 'draft')->count());
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.learn'))
+            ->assertOk()
+            ->assertSee(__('plus.learn.club'), false)
+            ->assertSee(__('plus.learn.for_you'), false);
+    }
 }

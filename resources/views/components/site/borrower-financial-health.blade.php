@@ -43,7 +43,7 @@
         <div class="rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.engagement.referral_progress') }}</p>
             <p class="mt-2 text-base font-bold text-gray-900">{{ ($health['referral_progress']['current'] ?? 0) }} / {{ ($health['referral_progress']['target'] ?? 5) }}</p>
-            <p class="text-xs text-gray-600 mt-1">{{ __('borrower.dashboard.snapshot.available_limit') }}: {{ $health['available_limit']['value'] ?? '—' }}</p>
+            <p class="text-xs text-gray-600 mt-1">{{ ($health['loyalty_points'] ?? 0) }} {{ __('borrower.engagement.points_short') }}</p>
         </div>
     </div>
 </section>

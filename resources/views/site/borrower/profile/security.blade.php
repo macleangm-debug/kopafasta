@@ -73,6 +73,10 @@
                     @foreach ([
                         'loan_updates' => __('borrower.security_tab.notif_loan_updates'),
                         'payments'     => __('borrower.security_tab.notif_payments'),
+                        'plus_goals'   => __('borrower.security_tab.notif_plus_goals'),
+                        'plus_business'=> __('borrower.security_tab.notif_plus_business'),
+                        'plus_learn'   => __('borrower.security_tab.notif_plus_learn'),
+                        'plus_offers'  => __('borrower.security_tab.notif_plus_offers'),
                         'promotions'   => __('borrower.security_tab.notif_promotions'),
                         'push'         => __('borrower.security_tab.notif_push'),
                     ] as $key => $label)
