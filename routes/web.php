@@ -85,6 +85,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::post('/country', [\App\Http\Controllers\Site\CountryController::class, 'update'])->name('country.update');
 
     Route::get('/',                 [\App\Http\Controllers\Site\PageController::class, 'home'])->name('home');
+    Route::get('/plus', [\App\Http\Controllers\Site\PageController::class, 'plus'])->name('plus');
     Route::get('/loans',            [\App\Http\Controllers\Site\PageController::class, 'products'])->name('products');
     Route::get('/loans/product/{code}', [\App\Http\Controllers\Site\PageController::class, 'product'])->name('product');
     Route::get('/how-it-works',     [\App\Http\Controllers\Site\PageController::class, 'howItWorks'])->name('how-it-works');
@@ -253,6 +254,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/plus/goals', [\App\Http\Controllers\Site\PlusController::class, 'saveGoal'])->name('borrower.plus.goals.save');
             Route::post('/borrower/plus/goals/{goal}/contribute', [\App\Http\Controllers\Site\PlusController::class, 'contributeGoal'])->name('borrower.plus.goals.contribute');
             Route::post('/borrower/plus/goals/{goal}/pause', [\App\Http\Controllers\Site\PlusController::class, 'pauseGoal'])->name('borrower.plus.goals.pause');
+            Route::post('/borrower/plus/goals/{goal}/complete', [\App\Http\Controllers\Site\PlusController::class, 'completeGoal'])->name('borrower.plus.goals.complete');
+            Route::post('/borrower/plus/goals/{goal}', [\App\Http\Controllers\Site\PlusController::class, 'updateGoal'])->name('borrower.plus.goals.update');
             Route::get('/borrower/plus/reports', [\App\Http\Controllers\Site\PlusController::class, 'reports'])->name('borrower.plus.reports');
             Route::get('/borrower/plus/offers', [\App\Http\Controllers\Site\PlusController::class, 'offers'])->name('borrower.plus.offers');
             Route::post('/borrower/plus/offers/{offer}/open', [\App\Http\Controllers\Site\PlusController::class, 'openOffer'])->name('borrower.plus.offers.open');

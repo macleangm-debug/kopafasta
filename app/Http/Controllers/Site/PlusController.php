@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Site;
 use App\Http\Controllers\Controller;
 use App\Models\PlusBusinessEntry;
 use App\Models\PlusGoal;
+use App\Models\PlusGoalContribution;
 use App\Models\PlusLesson;
 use App\Models\PlusLessonProgress;
 use App\Models\PlusMoneyEntry;
@@ -16,6 +17,7 @@ use App\Services\MemberEngagementService;
 use App\Services\Plus\PlusLearningService;
 use App\Services\Plus\PlusNextBestActionService;
 use App\Services\Plus\PlusNotificationGate;
+use App\Services\Plus\PlusReportService;
 use App\Services\Plus\PlusService;
 use App\Services\Plus\PlusWorkspaceService;
 use App\Support\MoneyFormat;
@@ -104,20 +106,20 @@ class PlusController extends Controller
         abort_unless($plus->isActive($customer), 403);
         $learning->markCompleted($customer, $subject);
 
-        return redirect()
-            ->route('site.borrower.plus.learn')
-            ->with('status', __('plus.learn.done_back'));
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return back();
     }
 
     public function saveSubject(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
     {
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
-        $row = $learning->toggleSaved($customer, $subject);
+        $learning->toggleSaved($customer, $subject);
 
-        return back()->with('status', $row->saved_at
-            ? __('plus.learn.saved_to_list')
-            : __('plus.learn.unsaved'));
+        return back();
     }
 
     public function subjectAction(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
@@ -193,19 +195,17 @@ class PlusController extends Controller
             'direction' => ['required', 'in:in,out'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'category' => ['required', 'string', 'max:40'],
-            'category_other' => [Rule::requiredIf(fn () => $request->input('category') === 'other'), 'nullable', 'string', 'max:40'],
+            'category_other' => [Rule::requiredIf(fn () => $request->input('category') === 'other'), 'nullable', 'string', 'max:80'],
         ]);
 
-        $category = $data['category'] === 'other'
-            ? trim((string) ($data['category_other'] ?? ''))
-            : $data['category'];
-
+        $isOther = $data['category'] === 'other';
         PlusMoneyEntry::query()->create([
             'customer_id' => $customer->id,
             'entry_date' => now()->toDateString(),
             'inflow' => $data['direction'] === 'in' ? $data['amount'] : 0,
             'outflow' => $data['direction'] === 'out' ? $data['amount'] : 0,
-            'category' => $category,
+            'category' => $isOther ? 'other' : $data['category'],
+            'other_label' => $isOther ? trim((string) ($data['category_other'] ?? '')) : null,
         ]);
 
         return back()->with('status', __('plus.money.saved_here'));
@@ -215,10 +215,13 @@ class PlusController extends Controller
     {
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
+        $period = in_array($request->query('period'), ['today', 'week', 'month'], true)
+            ? $request->query('period')
+            : 'today';
 
         return view('site.plus.business', array_merge(
             ['customer' => $customer],
-            $workspace->businessDashboard($customer),
+            $workspace->businessDashboard($customer, $period),
         ));
     }
 
@@ -228,34 +231,31 @@ class PlusController extends Controller
         abort_unless($plus->isActive($customer), 403);
         $this->mergeMoneyFields($request, ['sold', 'spent', 'amount']);
 
-        if ($request->filled('sold') || $request->filled('spent')) {
-            $data = $request->validate([
-                'sold' => ['nullable', 'numeric', 'min:0'],
-                'spent' => ['nullable', 'numeric', 'min:0'],
-            ]);
-            if (($data['sold'] ?? 0) > 0 || ($data['spent'] ?? 0) > 0) {
-                PlusBusinessEntry::query()->create([
-                    'customer_id' => $customer->id,
-                    'entry_date' => now()->toDateString(),
-                    'sold' => (float) ($data['sold'] ?? 0),
-                    'spent' => (float) ($data['spent'] ?? 0),
-                ]);
-            }
-
-            return back()->with('status', __('plus.business.saved_here'));
+        $kind = $request->input('kind');
+        if (! in_array($kind, ['sale', 'spend'], true)) {
+            $kind = $request->filled('sold') ? 'sale' : 'spend';
         }
+        $amount = $kind === 'sale'
+            ? (float) ($request->input('sold') ?: $request->input('amount') ?: 0)
+            : (float) ($request->input('spent') ?: $request->input('amount') ?: 0);
+        $request->merge(['kind' => $kind, 'amount' => $amount]);
 
         $data = $request->validate([
             'kind' => ['required', 'in:sale,spend'],
             'amount' => ['required', 'numeric', 'min:0.01'],
-            'category' => ['nullable', 'string', 'max:40'],
+            'category' => ['required', 'string', 'max:40'],
+            'category_other' => [Rule::requiredIf(fn () => $request->input('category') === 'other'), 'nullable', 'string', 'max:80'],
+            'note' => ['nullable', 'string', 'max:160'],
         ]);
+        $isOther = $data['category'] === 'other';
         PlusBusinessEntry::query()->create([
             'customer_id' => $customer->id,
             'entry_date' => now()->toDateString(),
             'sold' => $data['kind'] === 'sale' ? $data['amount'] : 0,
             'spent' => $data['kind'] === 'spend' ? $data['amount'] : 0,
-            'category' => $data['category'] ?? $data['kind'],
+            'category' => $isOther ? 'other' : $data['category'],
+            'other_label' => $isOther ? trim((string) ($data['category_other'] ?? '')) : null,
+            'note' => $data['note'] ?? null,
         ]);
 
         return back()->with('status', __('plus.business.saved_here'));
@@ -278,10 +278,10 @@ class PlusController extends Controller
         abort_unless($plus->isActive($customer), 403);
         $this->mergeMoneyFields($request, ['target_amount']);
         $data = $request->validate([
-            'kind' => ['required', 'in:business,school,home,vehicle,emergency,other,stock'],
-            'title' => ['nullable', 'string', 'max:80'],
+            'kind' => ['required', 'in:business,school,home,vehicle,emergency,other,stock,savings'],
+            'title' => [Rule::requiredIf(fn () => $request->input('kind') === 'other'), 'nullable', 'string', 'max:80'],
             'target_amount' => ['required', 'numeric', 'min:1'],
-            'target_date' => ['nullable', 'date'],
+            'target_date' => ['required', 'date', 'after_or_equal:tomorrow'],
         ]);
         $kinds = app(PlusWorkspaceService::class)->goalKinds();
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
@@ -314,6 +314,10 @@ class PlusController extends Controller
             'status' => $saved >= (float) $goal->target_amount ? 'completed' : ($goal->status ?: 'active'),
             'completed_at' => $saved >= (float) $goal->target_amount ? now() : $goal->completed_at,
         ]);
+        PlusGoalContribution::query()->create([
+            'plus_goal_id' => $goal->id,
+            'amount' => $data['amount'],
+        ]);
 
         return back()->with('status', __('plus.saved'));
     }
@@ -330,23 +334,44 @@ class PlusController extends Controller
         return back();
     }
 
-    public function reports(Request $request, PlusService $plus, PlusWorkspaceService $workspace, GradeBenefitService $benefits, MemberEngagementService $engagement)
+    public function completeGoal(Request $request, PlusService $plus, PlusGoal $goal)
     {
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
-        $period = in_array($request->query('period'), ['week', 'month', 'year'], true)
-            ? $request->query('period')
-            : 'month';
-        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
-        $trust = $benefits->trustLabel((int) ($engagement->trustScore($customer)['percent'] ?? 0), $locale);
-        $report = $workspace->reportsDashboard($customer, $period);
+        abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
+        $goal->update([
+            'status' => 'completed',
+            'completed_at' => $goal->completed_at ?? now(),
+        ]);
+
+        return back()->with('status', __('plus.goals.completed'));
+    }
+
+    public function updateGoal(Request $request, PlusService $plus, PlusGoal $goal)
+    {
+        $customer = $request->user()->customer;
+        abort_unless($plus->isActive($customer), 403);
+        abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
+        $this->mergeMoneyFields($request, ['target_amount']);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:80'],
+            'target_amount' => ['required', 'numeric', 'min:1'],
+            'target_date' => ['required', 'date', 'after_or_equal:today'],
+        ]);
+        $goal->update($data);
+
+        return back()->with('status', __('plus.saved'));
+    }
+
+    public function reports(Request $request, PlusService $plus, PlusReportService $reports)
+    {
+        $customer = $request->user()->customer;
+        abort_unless($plus->isActive($customer), 403);
+        $report = $reports->monthDashboard($customer, $request->query('month'));
 
         return view('site.plus.reports', [
             'customer' => $customer,
-            'period' => $period,
             'report' => $report,
-            'trust' => $trust,
-            'grade' => $customer->grade ?: 'bronze',
             'print' => $request->boolean('print'),
         ]);
     }
@@ -448,12 +473,18 @@ class PlusController extends Controller
             ['started_at' => now()]
         );
         $progress->update(['completed_at' => $progress->completed_at ?? now()]);
-        $gate->notify($customer, 'plus_lesson_completed', [
-            'lesson' => $lesson->title_en,
-            '_fallback_body' => 'You finished this month’s Plus lesson.',
-        ]);
+        if (! $request->wantsJson() && ! $request->ajax()) {
+            $gate->notify($customer, 'plus_lesson_completed', [
+                'lesson' => $lesson->title_en,
+                '_fallback_body' => 'You finished this month’s Plus lesson.',
+            ]);
+        }
 
-        return back()->with('status', __('plus.learn.marked_done'));
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return back();
     }
 
     public function lessonAction(Request $request, PlusService $plus, PlusLesson $lesson)

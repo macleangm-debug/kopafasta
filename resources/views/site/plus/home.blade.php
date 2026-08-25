@@ -55,7 +55,7 @@
                         :href="route('site.borrower.plus.money')"
                         icon="💸"
                         :title="__('plus.home.money')"
-                        :stat="format_money((float) ($money['left'] ?? 0))"
+                        :stat="format_money_compact((float) ($money['left'] ?? 0))"
                         :hint="__('plus.home.money_left')"
                         :cta="__('plus.home.open_room')"
                     />
@@ -63,8 +63,8 @@
                         :href="route('site.borrower.plus.business')"
                         icon="🏪"
                         :title="__('plus.home.business')"
-                        :stat="format_money((float) ($business['week']['sold'] ?? 0))"
-                        :hint="__('plus.business.sold').' · '.__('plus.business.diff').' '.format_money((float) ($business['week']['difference'] ?? 0))"
+                        :stat="format_money_compact((float) ($business['week']['sold'] ?? 0))"
+                        :hint="__('plus.business.sold').' · '.__('plus.business.diff').' '.format_money_compact((float) ($business['week']['difference'] ?? 0))"
                         :cta="__('plus.home.open_room')"
                     />
                     <x-site.plus-room-card
@@ -72,7 +72,7 @@
                         icon="🎯"
                         :title="__('plus.home.goals')"
                         :stat="$leadGoal ? $leadGoal->title.' · '.$leadGoal->progressPercent().'%' : '—'"
-                        :hint="$leadGoal ? __('plus.goals.remaining', ['amount' => format_money($leadGoal->remaining())]) : __('plus.goals.empty')"
+                        :hint="$leadGoal ? __('plus.goals.remaining', ['amount' => format_money_compact($leadGoal->remaining())]) : __('plus.goals.empty')"
                         :cta="__('plus.home.continue')"
                     />
                     <x-site.plus-room-card

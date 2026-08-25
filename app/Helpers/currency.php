@@ -48,6 +48,32 @@ if (! function_exists('format_money')) {
     }
 }
 
+if (! function_exists('format_money_compact')) {
+    /**
+     * Short KPI/card/chart amounts (TZS 1.25M). Not for receipts, tables or payment.show.
+     */
+    function format_money_compact(float|int|string|null $amount, bool $withCode = true): string
+    {
+        $compact = MoneyFormat::compact($amount);
+
+        if (! $withCode) {
+            return $compact;
+        }
+
+        $sign = str_starts_with($compact, '−') ? '−' : '';
+        $body = $sign === '' ? $compact : substr($compact, strlen('−'));
+
+        return $sign.currency_code().' '.$body;
+    }
+}
+
+if (! function_exists('format_money_spoken')) {
+    function format_money_spoken(float|int|string|null $amount, ?string $locale = null): string
+    {
+        return MoneyFormat::spoken($amount, $locale);
+    }
+}
+
 if (! function_exists('normalize_income_range_key')) {
     /**
      * Map legacy income-range keys to canonical selectable config keys.

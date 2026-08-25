@@ -29,6 +29,18 @@ class PageController extends Controller
             'landingVariant' => $landing['key'],
             'landingHeroPartial' => $landing['hero_partial'],
             'landingProductsFirst' => $landing['products_first'],
+            'plusPrice' => app(\App\Services\Plus\PlusService::class)->priceForCountry(session('country', 'TZ')),
+            'plusCycle' => app(\App\Services\Plus\PlusService::class)->billingCycle(),
+        ]);
+    }
+
+    public function plus(): View
+    {
+        $plus = app(\App\Services\Plus\PlusService::class);
+
+        return view('site.plus-public', [
+            'price' => $plus->priceForCountry(session('country', 'TZ')),
+            'cycle' => $plus->billingCycle(),
         ]);
     }
 

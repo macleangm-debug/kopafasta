@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PlusGoal extends Model
 {
@@ -47,6 +48,7 @@ class PlusGoal extends Model
             'home' => '🏠',
             'vehicle' => '🛵',
             'emergency' => '🛟',
+            'savings' => '💰',
             default => '🎯',
         };
     }
@@ -54,6 +56,11 @@ class PlusGoal extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function contributions(): HasMany
+    {
+        return $this->hasMany(PlusGoalContribution::class);
     }
 
     public function isComplete(): bool

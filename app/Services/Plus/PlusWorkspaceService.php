@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\PlusBusinessEntry;
 use App\Models\PlusGoal;
+use App\Models\PlusGoalContribution;
 use App\Models\PlusLesson;
 use App\Models\PlusLessonProgress;
 use App\Models\PlusMoneyEntry;
@@ -52,7 +53,30 @@ class PlusWorkspaceService
             'vehicle' => ['en' => 'Vehicle / motorcycle', 'sw' => 'Gari / pikipiki', 'icon' => '🛵'],
             'emergency' => ['en' => 'Emergency', 'sw' => 'Dharura', 'icon' => '🛟'],
             'stock' => ['en' => 'Stock', 'sw' => 'Bidhaa', 'icon' => '📦'],
+            'savings' => ['en' => 'Savings', 'sw' => 'Akiba', 'icon' => '💰'],
             'other' => ['en' => 'Something else', 'sw' => 'Kitu kingine', 'icon' => '🎯'],
+        ];
+    }
+
+    public function saleTypes(): array
+    {
+        return [
+            'products' => ['en' => 'Products', 'sw' => 'Bidhaa'],
+            'services' => ['en' => 'Services', 'sw' => 'Huduma'],
+            'other' => ['en' => 'Other', 'sw' => 'Nyingine'],
+        ];
+    }
+
+    public function spendTypes(): array
+    {
+        return [
+            'stock' => ['en' => 'Stock', 'sw' => 'Bidhaa'],
+            'transport' => ['en' => 'Transport', 'sw' => 'Usafiri'],
+            'rent' => ['en' => 'Rent', 'sw' => 'Kodi'],
+            'staff' => ['en' => 'Staff', 'sw' => 'Wafanyakazi'],
+            'utilities' => ['en' => 'Utilities', 'sw' => 'Bili'],
+            'services' => ['en' => 'Business services', 'sw' => 'Huduma za biashara'],
+            'other' => ['en' => 'Other', 'sw' => 'Nyingine'],
         ];
     }
 
@@ -84,52 +108,64 @@ class PlusWorkspaceService
                 ->where('customer_id', $customer->id)
                 ->latest('entry_date')
                 ->latest('id')
-                ->limit(20)
+                ->limit(50)
                 ->get(),
             'categories' => $this->moneyCategories(),
             'sources' => $this->incomeSources(),
         ];
     }
 
-    public function businessDashboard(Customer $customer): array
+    public function businessDashboard(Customer $customer, string $period = 'today'): array
     {
-        $today = $this->businessTotals($customer, now()->toDateString(), now()->toDateString());
-        $weekStart = now()->copy()->startOfWeek();
-        $thisWeek = $this->businessTotals($customer, $weekStart->toDateString(), now()->toDateString());
-        $lastWeek = $this->businessTotals(
-            $customer,
-            $weekStart->copy()->subWeek()->toDateString(),
-            $weekStart->copy()->subDay()->toDateString()
-        );
-        $delta = $thisWeek['sold'] - $lastWeek['sold'];
+        $period = in_array($period, ['today', 'week', 'month'], true) ? $period : 'today';
+        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
+        [$from, $to, $previousFrom, $previousTo, $periodLabel] = $this->businessPeriodWindow($period);
+
+        $summary = $this->businessTotals($customer, $from->toDateString(), $to->toDateString());
+        $previous = $this->businessTotals($customer, $previousFrom->toDateString(), $previousTo->toDateString());
+        $delta = $summary['sold'] - $previous['sold'];
         $insight = null;
-        if ($lastWeek['sold'] > 0 || $thisWeek['sold'] > 0) {
-            $insight = $delta >= 0
-                ? __('plus.business.insight_up')
-                : __('plus.business.insight_down');
+        if ($previous['sold'] > 0 || $summary['sold'] > 0) {
+            if ($previous['sold'] > 0) {
+                $pct = (int) round((($summary['sold'] - $previous['sold']) / $previous['sold']) * 100);
+                $insight = $pct >= 0
+                    ? __('plus.business.insight_pct_up', ['percent' => abs($pct), 'period' => $periodLabel])
+                    : __('plus.business.insight_pct_down', ['percent' => abs($pct), 'period' => $periodLabel]);
+            } else {
+                $insight = $delta >= 0
+                    ? __('plus.business.insight_up')
+                    : __('plus.business.insight_down');
+            }
         }
 
         $history = PlusBusinessEntry::query()
             ->where('customer_id', $customer->id)
             ->latest('entry_date')
             ->latest('id')
-            ->limit(21)
+            ->limit(50)
             ->get();
 
-        $points = $history->sortBy('entry_date')->values()->map(fn ($row) => [
-            'date' => $row->entry_date?->format('d M'),
-            'sold' => (float) $row->sold,
-            'spent' => (float) $row->spent,
-        ]);
+        $chart = $period === 'month'
+            ? $this->businessMonthWeeks($customer, $from)
+            : $this->businessWeekDays($customer, $period === 'today' ? now()->copy()->startOfWeek() : $from);
+
+        $chartReady = collect($chart)->contains(fn (array $point) => ($point['sold'] ?? 0) > 0 || ($point['spent'] ?? 0) > 0);
 
         return [
-            'today' => $today,
-            'week' => $thisWeek,
-            'last_week' => $lastWeek,
-            'week_improved' => $lastWeek['sold'] > 0 && $thisWeek['sold'] > $lastWeek['sold'],
+            'period' => $period,
+            'period_label' => $periodLabel,
+            'today' => $this->businessTotals($customer, now()->toDateString(), now()->toDateString()),
+            'week' => $this->businessTotals($customer, now()->copy()->startOfWeek()->toDateString(), now()->toDateString()),
+            'summary' => $summary,
+            'previous' => $previous,
+            'week_improved' => $previous['sold'] > 0 && $summary['sold'] > $previous['sold'],
             'insight' => $insight,
             'history' => $history,
-            'points' => $points,
+            'history_rows' => $this->businessHistoryRows($history),
+            'chart' => $chart,
+            'chart_ready' => $chartReady,
+            'sale_types' => $this->saleTypes(),
+            'spend_types' => $this->spendTypes(),
         ];
     }
 
@@ -137,6 +173,7 @@ class PlusWorkspaceService
     {
         $goals = PlusGoal::query()
             ->where('customer_id', $customer->id)
+            ->with(['contributions' => fn ($q) => $q->latest('id')->limit(8)])
             ->latest('id')
             ->get();
 
@@ -148,12 +185,10 @@ class PlusWorkspaceService
             'active' => $active,
             'lead' => $lead,
             'kinds' => $this->goalKinds(),
-            'contributed_this_month' => (float) PlusGoal::query()
-                ->where('customer_id', $customer->id)
-                ->whereMonth('updated_at', now()->month)
-                ->whereYear('updated_at', now()->year)
-                ->get()
-                ->sum(fn (PlusGoal $g) => (float) $g->saved_amount > 0 ? min((float) $g->saved_amount, (float) $g->target_amount) : 0),
+            'contributed_this_month' => (float) PlusGoalContribution::query()
+                ->whereIn('plus_goal_id', $goals->pluck('id'))
+                ->whereBetween('created_at', [now()->copy()->startOfMonth(), now()->copy()->endOfMonth()])
+                ->sum('amount'),
         ];
     }
 
@@ -211,11 +246,14 @@ class PlusWorkspaceService
 
     public function compactAmount(float $amount): string
     {
-        return format_money($amount);
+        return format_money_compact($amount);
     }
 
-    public function moneyCategoryLabel(?string $key): string
+    public function moneyCategoryLabel(?string $key, ?string $otherLabel = null): string
     {
+        if (filled($otherLabel)) {
+            return (string) $otherLabel;
+        }
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         if (! $key) {
             return '—';
@@ -229,7 +267,21 @@ class PlusWorkspaceService
             return $sources[$key][$locale];
         }
 
-        return $key;
+        return $key === 'other' ? ($cats['other'][$locale] ?? 'Other') : $key;
+    }
+
+    public function businessCategoryLabel(?string $key, ?string $otherLabel = null, string $kind = 'spend'): string
+    {
+        if (filled($otherLabel)) {
+            return (string) $otherLabel;
+        }
+        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
+        $set = $kind === 'sale' ? $this->saleTypes() : $this->spendTypes();
+        if ($key && isset($set[$key])) {
+            return $set[$key][$locale];
+        }
+
+        return $key ?: '—';
     }
 
     /** @return array{in: float, out: float} */
@@ -363,16 +415,18 @@ class PlusWorkspaceService
     /** @return list<array{key: string, label: string, amount: float}> */
     private function topSpend(Customer $customer, Carbon $from, Carbon $to): array
     {
-        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $rows = PlusMoneyEntry::query()
             ->where('customer_id', $customer->id)
             ->whereBetween('entry_date', [$from->toDateString(), $to->toDateString()])
             ->where('outflow', '>', 0)
             ->get()
-            ->groupBy(fn ($row) => $row->category ?: 'other')
+            ->groupBy(fn ($row) => filled($row->other_label) ? 'x:'.$row->other_label : ($row->category ?: 'other'))
             ->map(fn ($group, $key) => [
                 'key' => $key,
-                'label' => $this->moneyCategories()[$key][$locale] ?? $this->moneyCategories()['other'][$locale],
+                'label' => $this->moneyCategoryLabel(
+                    $group->first()->category,
+                    $group->first()->other_label,
+                ),
                 'amount' => (float) $group->sum('outflow'),
             ])
             ->sortByDesc('amount')
@@ -405,5 +459,116 @@ class PlusWorkspaceService
                 now()->locale($locale)->translatedFormat('F'),
             ],
         };
+    }
+
+    /** @return array{0: Carbon, 1: Carbon, 2: Carbon, 3: Carbon, 4: string} */
+    private function businessPeriodWindow(string $period): array
+    {
+        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
+
+        return match ($period) {
+            'week' => [
+                now()->copy()->startOfWeek(),
+                now()->copy()->endOfWeek(),
+                now()->copy()->startOfWeek()->subWeek(),
+                now()->copy()->startOfWeek()->subDay(),
+                __('plus.business.week'),
+            ],
+            'month' => [
+                now()->copy()->startOfMonth(),
+                now()->copy()->endOfMonth(),
+                now()->copy()->startOfMonth()->subMonth(),
+                now()->copy()->startOfMonth()->subDay(),
+                __('plus.business.month'),
+            ],
+            default => [
+                now()->copy()->startOfDay(),
+                now()->copy()->endOfDay(),
+                now()->copy()->subDay()->startOfDay(),
+                now()->copy()->subDay()->endOfDay(),
+                __('plus.business.today'),
+            ],
+        };
+    }
+
+    /** @return list<array{label: string, sold: float, spent: float}> */
+    private function businessWeekDays(Customer $customer, Carbon $weekStart): array
+    {
+        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
+        $days = [];
+        for ($i = 0; $i < 7; $i++) {
+            $day = $weekStart->copy()->addDays($i);
+            $totals = $this->businessTotals($customer, $day->toDateString(), $day->toDateString());
+            $days[] = [
+                'label' => $day->locale($locale)->isoFormat('dd'),
+                'sold' => $totals['sold'],
+                'spent' => $totals['spent'],
+            ];
+        }
+
+        return $days;
+    }
+
+    /** @return list<array{label: string, sold: float, spent: float}> */
+    private function businessMonthWeeks(Customer $customer, Carbon $monthStart): array
+    {
+        $weeks = [];
+        $cursor = $monthStart->copy()->startOfWeek();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        for ($n = 1; $n <= 5; $n++) {
+            $from = $cursor->copy();
+            $to = $cursor->copy()->endOfWeek();
+            if ($to->lt($monthStart)) {
+                $cursor->addWeek();
+                continue;
+            }
+            if ($from->lt($monthStart)) {
+                $from = $monthStart->copy();
+            }
+            if ($from->gt($monthEnd)) {
+                break;
+            }
+            if ($to->gt($monthEnd)) {
+                $to = $monthEnd->copy();
+            }
+            $totals = $this->businessTotals($customer, $from->toDateString(), $to->toDateString());
+            $weeks[] = [
+                'label' => __('plus.business.week_n', ['n' => $n]),
+                'sold' => $totals['sold'],
+                'spent' => $totals['spent'],
+            ];
+            $cursor->addWeek();
+        }
+
+        return $weeks;
+    }
+
+    /** @return list<array{id: int, date: Carbon, kind: string, label: string, amount: float, sold: float, spent: float}> */
+    public function businessHistoryRows(Collection $history): array
+    {
+        $rows = [];
+        foreach ($history as $entry) {
+            $date = $entry->entry_date ?? now();
+            if ((float) $entry->sold > 0) {
+                $rows[] = [
+                    'id' => $entry->id,
+                    'date' => $date,
+                    'kind' => 'sale',
+                    'label' => $this->businessCategoryLabel($entry->category, $entry->other_label, 'sale'),
+                    'amount' => (float) $entry->sold,
+                ];
+            }
+            if ((float) $entry->spent > 0) {
+                $rows[] = [
+                    'id' => $entry->id.'-out',
+                    'date' => $date,
+                    'kind' => 'spend',
+                    'label' => $this->businessCategoryLabel($entry->category, $entry->other_label, 'spend'),
+                    'amount' => (float) $entry->spent,
+                ];
+            }
+        }
+
+        return $rows;
     }
 }

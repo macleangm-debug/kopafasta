@@ -39,6 +39,13 @@ class PlusService
     public function priceFor(Customer $customer): array
     {
         $country = strtoupper((string) ($customer->country_code ?? 'TZ'));
+
+        return $this->priceForCountry($country);
+    }
+
+    public function priceForCountry(?string $country = null): array
+    {
+        $country = strtoupper((string) ($country ?: 'TZ'));
         $plan = $this->config()['plans']['monthly'];
 
         return $plan['prices'][$country] ?? $plan['prices']['TZ'];

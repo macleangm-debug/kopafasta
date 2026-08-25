@@ -718,6 +718,21 @@ class NotificationTemplateSeeder extends Seeder
                 ],
             ],
             [
+                'code' => 'plus_monthly_report_ready',
+                'name' => 'Plus monthly report ready',
+                'channel' => 'all',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Your {{ month }} Plus report is ready',
+                        'body' => 'Hi {{ name }}, see how your money, business, goals and Trust moved in {{ month }}. Open Plus → Reports. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Ripoti yako ya {{ month }} iko tayari',
+                        'body' => 'Habari {{ name }}, angalia jinsi pesa, biashara, malengo na Imani yako vilivyoendelea {{ month }}. Fungua Plus → Ripoti. — '.$brand,
+                    ],
+                ],
+            ],
+            [
                 'code' => 'plus_monthly_lesson_published',
                 'name' => 'Plus monthly lesson published',
                 'channel' => 'all',

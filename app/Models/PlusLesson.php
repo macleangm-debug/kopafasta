@@ -43,9 +43,17 @@ class PlusLesson extends Model
     /** @return list<string> */
     public function localizedSteps(?string $locale = null): array
     {
+        $editorial = $this->localizedEditorial($locale);
+
+        return array_values(array_filter([...$editorial['opening'], ...$editorial['cards']]));
+    }
+
+    /** @return array{opening: list<string>, cards: list<string>} */
+    public function localizedEditorial(?string $locale = null): array
+    {
         $locale ??= app()->getLocale();
         $intro = $locale === 'sw' ? ($this->intro_sw ?: $this->intro_en) : $this->intro_en;
 
-        return PlusArticleSteps::fromBody($intro);
+        return PlusArticleSteps::openingAndCards($intro);
     }
 }

@@ -30,6 +30,24 @@
                 required
             />
         </div>
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label class="inline-flex items-center gap-2 text-sm">
+                <input type="hidden" name="reports_enabled" value="0">
+                <input type="checkbox" name="reports_enabled" value="1" class="rounded border-gray-300 text-brand" @checked($config['reports']['enabled'] ?? true)>
+                Monthly reports enabled
+            </label>
+            <x-admin.input
+                name="reports_generation_day"
+                label="Generate on day (1–5 of following month)"
+                type="number"
+                :value="$config['reports']['generation_day'] ?? 1"
+            />
+            <label class="inline-flex items-center gap-2 text-sm">
+                <input type="hidden" name="reports_insights" value="0">
+                <input type="checkbox" name="reports_insights" value="1" class="rounded border-gray-300 text-brand" @checked($config['reports']['insights'] ?? true)>
+                Plain-language insights
+            </label>
+        </div>
     </x-admin.settings-editor>
 
     <div class="grid lg:grid-cols-2 gap-6">

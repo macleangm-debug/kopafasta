@@ -106,4 +106,70 @@ final class MoneyFormat
 
         return self::format(self::toNumber($value), $decimals);
     }
+
+    /**
+     * Compact KPI display: 1,500 → 1.5K · 50,000 → 50K · 1,250,000 → 1.25M.
+     * Keep full figures on receipts, tables, PDFs and payment screens.
+     */
+    public static function compact(mixed $value): string
+    {
+        $amount = self::toNumber($value);
+        $sign = $amount < 0 ? '−' : '';
+        $abs = abs($amount);
+
+        if ($abs < 1000) {
+            return $sign.self::format($abs, 0);
+        }
+
+        if ($abs < 1_000_000) {
+            return $sign.self::compactUnit($abs / 1000, 'K');
+        }
+
+        if ($abs < 1_000_000_000) {
+            return $sign.self::compactUnit($abs / 1_000_000, 'M');
+        }
+
+        return $sign.self::compactUnit($abs / 1_000_000_000, 'B');
+    }
+
+    public static function spoken(mixed $value, ?string $locale = null): string
+    {
+        $amount = abs(self::toNumber($value));
+        $locale = ($locale ?? app()->getLocale()) === 'sw' ? 'sw' : 'en';
+        if ($amount < 1000) {
+            return '';
+        }
+
+        if ($amount < 1_000_000) {
+            $n = self::trimUnit($amount / 1000);
+
+            return $locale === 'sw' ? "elfu {$n}" : "{$n} thousand";
+        }
+
+        if ($amount < 1_000_000_000) {
+            $n = self::trimUnit($amount / 1_000_000);
+
+            return $locale === 'sw' ? "milioni {$n}" : "{$n} million";
+        }
+
+        $n = self::trimUnit($amount / 1_000_000_000);
+
+        return $locale === 'sw' ? "bilioni {$n}" : "{$n} billion";
+    }
+
+    private static function compactUnit(float $value, string $suffix): string
+    {
+        return self::trimUnit($value).$suffix;
+    }
+
+    private static function trimUnit(float $value): string
+    {
+        $formatted = number_format($value, $value >= 10 ? 0 : 2, self::decimalSeparator(), '');
+
+        if (str_contains($formatted, self::decimalSeparator())) {
+            $formatted = rtrim(rtrim($formatted, '0'), self::decimalSeparator());
+        }
+
+        return $formatted;
+    }
 }

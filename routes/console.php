@@ -24,6 +24,7 @@ Schedule::command('loans:send-reminders --overdue')->dailyAt('08:00');
 Schedule::command('membership:send-reminders')->dailyAt('09:00');
 Schedule::command('grades:evaluate')->dailyAt('02:30');
 Schedule::command('plus:remind-unwatched')->dailyAt('10:15');
+Schedule::command('plus:generate-monthly-reports')->dailyAt('06:20');
 Schedule::command('partners:queue-weekly-settlements')->weeklyOn(5, '08:00');
 Schedule::command('affiliate:evaluate')->monthlyOn(1, '06:00');
 Schedule::command('partners:evaluate-efficiency')->weeklyOn(1, '06:30');

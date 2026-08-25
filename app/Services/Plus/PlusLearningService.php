@@ -45,7 +45,12 @@ class PlusLearningService
                 $q->where('title_en', 'like', $like)
                     ->orWhere('title_sw', 'like', $like)
                     ->orWhere('intro_en', 'like', $like)
-                    ->orWhere('intro_sw', 'like', $like);
+                    ->orWhere('intro_sw', 'like', $like)
+                    ->orWhere('body_en', 'like', $like)
+                    ->orWhere('body_sw', 'like', $like)
+                    ->orWhereHas('category', function ($cat) use ($like) {
+                        $cat->where('title_en', 'like', $like)->orWhere('title_sw', 'like', $like)->orWhere('slug', 'like', $like);
+                    });
             });
         }
         if ($category) {
@@ -55,7 +60,13 @@ class PlusLearningService
             }
         }
 
-        $results = $search || $category ? $published->latest('published_at')->limit(24)->get() : collect();
+        $limit = 12;
+        $offset = max(0, (int) request()->query('offset', 0));
+        $page = $search || $category
+            ? $published->latest('published_at')->offset($offset)->limit($limit + 1)->get()
+            : collect();
+        $hasMore = $page->count() > $limit;
+        $results = $page->take($limit);
 
         $progress = PlusSubjectProgress::query()
             ->where('customer_id', $customer->id)
@@ -63,12 +74,13 @@ class PlusLearningService
             ->keyBy('plus_subject_id');
 
         $forYou = $this->forYou($customer, $progress);
-        $featured = $this->publishedQuery()->where('featured', true)->latest('published_at')->limit(8)->get();
-        $continue = $this->continueReading($customer, $progress);
+        $featured = $this->publishedQuery()->where('featured', true)->latest('published_at')->limit(5)->get();
+        $continue = $this->continueReading($customer, $progress)->take(5);
         $saved = PlusSubject::query()
             ->published()
             ->whereIn('id', $progress->whereNotNull('saved_at')->pluck('plus_subject_id'))
             ->with('category')
+            ->limit(5)
             ->get();
         $icons = collect(app(PlusLearningCatalog::class)->categories())
             ->mapWithKeys(fn (array $cat) => [$cat['slug'] => $cat['icon']]);
@@ -80,6 +92,8 @@ class PlusLearningService
             'search' => $search,
             'category' => $category,
             'results' => $results,
+            'has_more' => $hasMore,
+            'offset' => $offset,
             'for_you' => $forYou,
             'featured' => $featured,
             'continue' => $continue,
@@ -140,7 +154,7 @@ class PlusLearningService
             ->whereIn('plus_subject_category_id', $ids)
             ->whereNotIn('id', $seen)
             ->latest('published_at')
-            ->limit(3)
+            ->limit(5)
             ->get();
     }
 
@@ -151,7 +165,7 @@ class PlusLearningService
             ->filter(fn ($row) => $row->started_at && ! $row->completed_at)
             ->pluck('plus_subject_id');
 
-        return PlusSubject::query()->published()->whereIn('id', $ids)->with('category')->limit(4)->get();
+        return PlusSubject::query()->published()->whereIn('id', $ids)->with('category')->limit(5)->get();
     }
 
     public function progressPercent(PlusSubjectProgress $row): int

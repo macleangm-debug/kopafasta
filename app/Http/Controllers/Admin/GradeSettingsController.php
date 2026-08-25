@@ -71,7 +71,7 @@ class GradeSettingsController extends Controller
                 'business_no_activity' => 'Business — no activity today (stops after a sale/spend)',
                 'goal_near_target' => 'Goals — near target (stops when completed)',
                 'goal_completed' => 'Goals — completed',
-                'plus_monthly_lesson_published' => 'Learning — monthly lesson published',
+                'plus_monthly_report_ready' => 'Reports — monthly progress ready (stops when viewed)',
                 'plus_lesson_unwatched' => 'Learning — lesson reminder (stops when finished)',
                 'learning_continue' => 'Learning — continue started subject',
                 'new_eligible_offer' => 'Offers — new eligible offer',
@@ -87,12 +87,20 @@ class GradeSettingsController extends Controller
         $data = $request->validate([
             'tz_price' => ['required'],
             'billing_cycle' => ['required', 'in:monthly,yearly'],
+            'reports_generation_day' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'reports_enabled' => ['nullable', 'boolean'],
+            'reports_insights' => ['nullable', 'boolean'],
         ]);
         $config = app(PlusService::class)->config();
         $cycle = $data['billing_cycle'];
         $config['plans']['monthly']['billing_cycle'] = $cycle;
         $config['plans']['monthly']['period_days'] = $cycle === 'monthly' ? 30 : 365;
         $config['plans']['monthly']['prices']['TZ']['amount'] = (float) MoneyFormat::toNumber($data['tz_price']);
+        $config['reports'] = [
+            'enabled' => $request->boolean('reports_enabled', true),
+            'generation_day' => (int) ($data['reports_generation_day'] ?? 1),
+            'insights' => $request->boolean('reports_insights', true),
+        ];
         \App\Models\Setting::set('kopafasta_plus.config', $config);
 
         return back()->with('status', 'Kopafasta Plus settings saved.');

@@ -11,7 +11,7 @@ use App\Services\NotificationService;
 class PlusNotificationGate
 {
     public const PREF_MAP = [
-        'plus_monthly_lesson_published' => 'plus_learn',
+        'plus_monthly_report_ready' => 'plus_learn',
         'plus_lesson_not_started' => 'plus_learn',
         'plus_lesson_unwatched' => 'plus_learn',
         'plus_lesson_completed' => 'plus_learn',

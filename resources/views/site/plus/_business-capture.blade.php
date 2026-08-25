@@ -1,28 +1,18 @@
 @php
     /** @var string $open */
-    /** @var string $title */
-    /** @var string $formId */
-    /** @var string $direction */
-    /** @var string $amountName */
-    /** @var string $amountId */
-    /** @var string $amountLabel */
-    /** @var string $categoryLabel */
-    /** @var string $categoryModel */
-    /** @var array<string, string> $options */
-    /** @var string $confirmTemplate */
-    /** @var string $saveLabel */
+    /** @var string $kind */
 @endphp
 <x-site.action-panel :title="$title" :open="$open">
     <div x-data="{
             step: 'form',
             message: '',
-            cta: @js($saveLabel ?? __('plus.money.save')),
+            cta: @js(__('plus.money.save')),
          }"
          x-effect="if (!{{ $open }}) { step = 'form'; message = ''; }">
         <form id="{{ $formId }}"
               x-ref="captureForm"
               method="post"
-              action="{{ route('site.borrower.plus.money.save') }}"
+              action="{{ route('site.borrower.plus.business.save') }}"
               data-no-draft
               class="space-y-4"
               x-show="step === 'form'"
@@ -32,11 +22,11 @@
                 const other = ($el.querySelector('[name=category_other]')?.value || '').trim();
                 const cat = other || (select?.options[select.selectedIndex]?.text || '');
                 message = {{ \Illuminate\Support\Js::from($confirmTemplate) }}.replaceAll(':amount', amount).replaceAll(':category', cat);
-                cta = {{ \Illuminate\Support\Js::from($saveLabel ?? __('plus.money.save')) }} + ' ' + amount;
+                cta = {{ \Illuminate\Support\Js::from(__('plus.money.save')) }} + ' ' + amount;
                 step = 'confirm';
               ">
             @csrf
-            <input type="hidden" name="direction" value="{{ $direction }}">
+            <input type="hidden" name="kind" value="{{ $kind }}">
             <x-site.plus-money-input :name="$amountName" :id="$amountId" :label="$amountLabel" required />
             <x-site.sheet-select
                 name="category"
@@ -58,7 +48,11 @@
                        :required="{{ $categoryModel }} === 'other'"
                        :disabled="{{ $categoryModel }} !== 'other'">
             </div>
-            <button type="submit" class="w-full rounded-xl bg-brand text-white py-3 font-semibold" x-text="cta || {{ \Illuminate\Support\Js::from($saveLabel ?? __('plus.money.save')) }}"></button>
+            <label class="block text-xs font-medium text-gray-600">
+                {{ $noteLabel }}
+                <input type="text" name="note" maxlength="160" class="mt-1 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+            </label>
+            <button type="submit" class="w-full rounded-xl bg-brand text-white py-3 font-semibold">{{ __('plus.money.save') }}</button>
         </form>
         <div class="space-y-4" x-show="step === 'confirm'" x-cloak>
             <p class="text-sm font-semibold text-gray-900" x-text="message"></p>

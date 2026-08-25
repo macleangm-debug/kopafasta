@@ -10,8 +10,6 @@
         outOpen: false,
         inCat: '',
         outCat: '',
-        confirmTitle: @js(__('plus.money.confirm_title')),
-        confirmLabel: @js(__('plus.money.save')),
         setInCat(val) { this.inCat = val; },
         setOutCat(val) { this.outCat = val; },
         resetAmount(id) {
@@ -19,18 +17,6 @@
             if (! el) return;
             el.value = '';
             el.dispatchEvent(new Event('input', { bubbles: true }));
-        },
-        confirmMoney(form, template) {
-            const amount = form.querySelector('[data-money-input]')?.value || '';
-            const select = form.querySelector('[name=category]');
-            const other = (form.querySelector('[name=category_other]')?.value || '').trim();
-            const cat = other || (select?.options[select.selectedIndex]?.text || '');
-            window.confirmForm(form, {
-                title: this.confirmTitle,
-                message: String(template).replaceAll(':amount', amount).replaceAll(':category', cat),
-                confirmLabel: this.confirmLabel,
-                confirmClass: 'bg-brand hover:bg-brand-light text-white',
-            });
         }
     }">
         <x-site.plus-nav />
@@ -39,15 +25,15 @@
             <div class="grid grid-cols-3 gap-3">
                 <div>
                     <p class="text-[10px] uppercase tracking-widest text-white/60">{{ __('plus.money.in') }}</p>
-                    <p class="font-bold tabular-nums mt-1 text-white">{{ format_money($in) }}</p>
+                    <p class="font-bold tabular-nums mt-1 text-lg" title="{{ format_money($in) }}">{{ format_money_compact($in) }}</p>
                 </div>
                 <div>
                     <p class="text-[10px] uppercase tracking-widest text-white/60">{{ __('plus.money.out') }}</p>
-                    <p class="font-bold tabular-nums mt-1 text-white">{{ format_money($out) }}</p>
+                    <p class="font-bold tabular-nums mt-1 text-lg" title="{{ format_money($out) }}">{{ format_money_compact($out) }}</p>
                 </div>
                 <div>
                     <p class="text-[10px] uppercase tracking-widest text-brand-gold">{{ __('plus.money.left_label') }}</p>
-                    <p class="font-extrabold tabular-nums mt-1 text-brand-gold">{{ format_money($left) }}</p>
+                    <p class="font-extrabold tabular-nums mt-1 text-lg text-brand-gold" title="{{ format_money($left) }}">{{ format_money_compact($left) }}</p>
                 </div>
             </div>
             @if ($insight)
@@ -79,7 +65,7 @@
                             <div class="mt-2 space-y-2">
                                 @foreach ($history->take(4) as $entry)
                                     <div class="flex justify-between gap-3 text-sm">
-                                        <span>{{ $entry->entry_date?->locale(app()->getLocale())->isoFormat('D MMM') }} · {{ $labels->moneyCategoryLabel($entry->category) }}</span>
+                                        <span>{{ $entry->entry_date?->locale(app()->getLocale())->isoFormat('D MMM') }} · {{ $labels->moneyCategoryLabel($entry->category, $entry->other_label) }}</span>
                                         <span class="tabular-nums">{{ (float) $entry->inflow > 0 ? '+'.format_money($entry->inflow) : '−'.format_money($entry->outflow) }}</span>
                                     </div>
                                 @endforeach
@@ -101,6 +87,43 @@
                         </div>
                     @endforeach
                 </div>
+            </div>
+        @endif
+
+        @if ($history->isNotEmpty())
+            <div x-data="{ shown: 10 }">
+                <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-2">{{ __('plus.money.history') }}</p>
+                <div class="hidden lg:block overflow-x-auto rounded-2xl ring-1 ring-gray-100 bg-white">
+                    <table class="w-full text-sm">
+                        <tbody>
+                            @foreach ($history as $i => $entry)
+                                <tr class="border-t border-gray-50 first:border-0" x-show="{{ $i }} < shown">
+                                    <td class="px-4 py-3 text-gray-600">{{ $entry->entry_date?->locale(app()->getLocale())->isoFormat('D MMM') }}</td>
+                                    <td class="px-4 py-3">{{ $labels->moneyCategoryLabel($entry->category, $entry->other_label) }}</td>
+                                    <td class="px-4 py-3 text-right font-semibold tabular-nums {{ (float) $entry->inflow > 0 ? 'text-emerald-700' : '' }}">
+                                        {{ (float) $entry->inflow > 0 ? '+'.format_money($entry->inflow) : '−'.format_money($entry->outflow) }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="lg:hidden space-y-2">
+                    @foreach ($history as $i => $entry)
+                        <div class="rounded-2xl bg-white ring-1 ring-gray-100 px-4 py-3 flex justify-between gap-3" x-show="{{ $i }} < shown">
+                            <div>
+                                <p class="text-sm font-semibold">{{ (float) $entry->inflow > 0 ? __('plus.money.in') : __('plus.money.out') }}</p>
+                                <p class="text-xs text-gray-500">{{ $labels->moneyCategoryLabel($entry->category, $entry->other_label) }} · {{ $entry->entry_date?->locale(app()->getLocale())->isoFormat('D MMM') }}</p>
+                            </div>
+                            <p class="text-sm font-bold tabular-nums {{ (float) $entry->inflow > 0 ? 'text-emerald-700' : '' }}">
+                                {{ (float) $entry->inflow > 0 ? '+'.format_money($entry->inflow) : '−'.format_money($entry->outflow) }}
+                            </p>
+                        </div>
+                    @endforeach
+                </div>
+                @if ($history->count() > 10)
+                    <button type="button" class="mt-3 text-sm font-semibold text-brand" x-show="shown < {{ $history->count() }}" @click="shown += 10">{{ __('plus.load_more') }}</button>
+                @endif
             </div>
         @endif
 

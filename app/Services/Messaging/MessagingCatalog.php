@@ -93,6 +93,7 @@ class MessagingCatalog
             'grade_upgraded', 'grade_under_review', 'grade_changed',
             'plus_started', 'plus_expiring', 'plus_expired', 'plus_renewed',
             'plus_monthly_lesson_published', 'plus_lesson_not_started', 'plus_lesson_unwatched', 'plus_lesson_completed',
+            'plus_monthly_report_ready',
             'money_daily_reminder', 'business_no_activity', 'goal_near_target', 'goal_completed',
             'new_eligible_offer', 'reward_available', 'learning_continue' => 'membership',
             'repayment_due_soon', 'repayment_due_today', 'payment_received', 'loan_closed',
@@ -482,6 +483,15 @@ class MessagingCatalog
                 'default_channels' => ['in_app'],
                 'default_enabled' => true,
                 'description' => 'Plus was renewed through payment.show.',
+            ],
+            [
+                'code' => 'plus_monthly_report_ready',
+                'name' => 'Plus monthly report ready',
+                'group' => 'membership',
+                'critical' => false,
+                'default_channels' => ['in_app'],
+                'default_enabled' => true,
+                'description' => 'Previous month’s progress report is ready. Deep link opens Plus → Reports for that month. Stops when viewed.',
             ],
             [
                 'code' => 'plus_monthly_lesson_published',

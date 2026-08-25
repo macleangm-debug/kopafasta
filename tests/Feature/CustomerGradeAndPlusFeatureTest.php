@@ -538,7 +538,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
 
         $this->assertDatabaseHas('plus_money_entries', [
             'customer_id' => $customer->id,
-            'category' => 'Mafuta',
+            'category' => 'other',
+            'other_label' => 'Mafuta',
             'outflow' => 5000,
         ]);
 
@@ -552,7 +553,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee('Mafuta', false)
             ->assertSee('name="in_amount"', false)
             ->assertSee('data-no-draft', false)
-            ->assertSee('window.confirmForm', false)
+            ->assertSee('step === \'confirm\'', false)
             ->assertDontSee('25 Aug · food', false);
 
         $nba = app(\App\Services\Plus\PlusNextBestActionService::class)->forCustomer($customer->fresh());
@@ -577,9 +578,9 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.plus.subject', $subject))
             ->assertOk()
-            ->assertSee('snap-x', false)
             ->assertSee(__('plus.learn.try_now'), false)
-            ->assertSee(__('plus.learn.step', ['n' => 1, 'of' => max(1, count($subject->localizedSteps()))]), false);
+            ->assertSee(__('plus.learn.save'), false)
+            ->assertDontSee(__('plus.learn.mark_done'), false);
 
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin, 'admin')
@@ -606,13 +607,34 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.plus.goals'))
             ->assertOk()
             ->assertSee('data-date-trigger', false)
+            ->assertSee(__('plus.goals.kind'), false)
             ->assertSee(__('plus.nav.home'), false);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.reports'))
             ->assertOk()
             ->assertSee('kf-print-sheet', false)
-            ->assertSee(__('plus.reports.summary'), false);
+            ->assertSee(__('plus.reports.heading'), false)
+            ->assertSee(__('plus.reports.glance'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.business'))
+            ->assertOk()
+            ->assertSee(__('plus.business.chart_empty_title'), false)
+            ->assertSee(__('plus.business.what_sold'), false)
+            ->assertSee('step === \'confirm\'', false);
+
+        $this->get(route('site.plus'))
+            ->assertOk()
+            ->assertSee(__('site.plus.hero_title'), false)
+            ->assertSee(__('site.plus.optional'), false)
+            ->assertSee(format_money(4500), false);
+
+        $this->assertSame('TZS 1.5K', format_money_compact(1500));
+        $this->assertSame('TZS 50K', format_money_compact(50000));
+        $this->assertSame('TZS 1.25M', format_money_compact(1_250_000));
+        $this->assertSame('TZS 25M', format_money_compact(25_000_000));
+        $this->assertSame('TZS 1.2B', format_money_compact(1_200_000_000));
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.offers'))

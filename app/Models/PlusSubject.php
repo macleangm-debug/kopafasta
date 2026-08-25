@@ -70,7 +70,18 @@ class PlusSubject extends Model
     /** @return list<string> */
     public function localizedSteps(?string $locale = null): array
     {
-        return PlusArticleSteps::fromBody($this->localizedBody($locale) ?: $this->localizedIntro($locale));
+        $editorial = $this->localizedEditorial($locale);
+
+        return array_values(array_filter([...$editorial['opening'], ...$editorial['cards']]));
+    }
+
+    /** @return array{opening: list<string>, cards: list<string>} */
+    public function localizedEditorial(?string $locale = null): array
+    {
+        return PlusArticleSteps::openingAndCards(
+            $this->localizedIntro($locale),
+            $this->localizedBody($locale),
+        );
     }
 
     public function actionUrl(): ?string

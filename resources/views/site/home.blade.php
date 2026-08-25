@@ -15,6 +15,32 @@
         @include('site.home._products-section')
     @endif
 
+    {{-- KOPAFASTA PLUS --}}
+    <section class="py-14 lg:py-18 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-10 items-center">
+            <div>
+                <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('site.plus.teaser_kicker') }}</p>
+                <h2 class="text-2xl sm:text-4xl font-bold text-gray-900">{{ __('site.plus.teaser_title') }}</h2>
+                <p class="mt-3 text-lg text-gray-600">{{ __('site.plus.hero_title') }}</p>
+                <p class="mt-2 text-gray-600">{{ __('site.plus.teaser_body') }}</p>
+                <a href="{{ route('site.plus') }}" class="mt-5 inline-flex rounded-xl bg-brand text-white px-5 py-3 font-semibold">{{ __('site.plus.explore') }} →</a>
+            </div>
+            <x-site.device-frame>
+                @include('site._plus-phone-screen', [
+                    'title' => __('plus.home.summary'),
+                    'body' => __('site.plus.screen_home_body'),
+                    'stats' => [
+                        ['label' => __('plus.money.left_label'), 'value' => '730K', 'gold' => true],
+                        ['label' => __('plus.business.diff'), 'value' => '+1.15M'],
+                        ['label' => __('plus.reports.trust'), 'value' => '81'],
+                    ],
+                    'bar' => 72,
+                    'note' => __('site.plus.screen_home_note'),
+                ])
+            </x-site.device-frame>
+        </div>
+    </section>
+
     {{-- MARKETPLACE --}}
     <section class="premium-gradient py-14 lg:py-18 border-y border-gray-100/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
