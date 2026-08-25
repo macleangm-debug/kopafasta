@@ -106,7 +106,7 @@ class BorrowerDashboardHeroService
             return [
                 'variant'   => 'under_review',
                 'title'     => __('borrower.dashboard.hero.under_review_title'),
-                'subtitle'  => __('borrower.dashboard.hero.under_review_subtitle'),
+                'subtitle'  => null,
                 'amount'    => null,
                 'meta'      => $underReview->application_number,
                 'cta_label' => __('borrower.dashboard.hero.view_application'),

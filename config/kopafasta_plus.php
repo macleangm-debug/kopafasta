@@ -4,7 +4,7 @@ return [
     'plans' => [
         'monthly' => [
             'code' => 'monthly',
-            'period_days' => 30,
+            'period_days' => 365,
             'prices' => [
                 'TZ' => ['amount' => 3000, 'currency' => 'TZS'],
                 'KE' => ['amount' => 200, 'currency' => 'KES'],

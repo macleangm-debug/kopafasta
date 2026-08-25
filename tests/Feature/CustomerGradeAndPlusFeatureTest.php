@@ -306,7 +306,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.dashboard'))
             ->assertOk()
             ->assertSee(strtoupper((string) ($customer->grade ?: 'bronze')), false)
-            ->assertSee(__('plus.card.explore'), false);
+            ->assertSee(__('plus.card.explore'), false)
+            ->assertDontSee(__('borrower.dashboard.hero.under_review_subtitle'), false);
 
         $response = $this->actingAs($user)
             ->from(route('site.borrower.plus.home'))
@@ -373,6 +374,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.plus.home'))
             ->assertOk()
+            ->assertSee('Kopafasta Plus', false)
             ->assertSee(__('plus.home.learn'), false)
             ->assertSee(__('plus.home.money'), false);
 

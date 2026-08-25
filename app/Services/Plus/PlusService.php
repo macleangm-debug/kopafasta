@@ -44,6 +44,57 @@ class PlusService
         return $plan['prices'][$country] ?? $plan['prices']['TZ'];
     }
 
+    public function periodDays(): int
+    {
+        return max(1, (int) ($this->config()['plans']['monthly']['period_days'] ?? 365));
+    }
+
+    /**
+     * Publish a short sample lesson and offer so Learn / Offers are not empty
+     * while staff write the first real Club content.
+     */
+    public function ensureSampleContent(): void
+    {
+        if (! \App\Models\PlusLesson::query()->exists()) {
+            \App\Models\PlusLesson::query()->create([
+                'month' => now()->format('Y-m'),
+                'title_en' => 'Keep a simple money diary',
+                'title_sw' => 'Weka daftari rahisi la pesa',
+                'intro_en' => "This month’s Club lesson is a short habit, not a lecture.\n\nEach evening, write three numbers: money that came in, money that went out, and what is left. Do this for seven days. You will see which days are heavy and which days are light — and that is the start of control.\n\nKopafasta Plus never asks you to borrow more. The lesson is only about seeing your own money clearly.",
+                'intro_sw' => "Somo la Klabu mwezi huu ni tabia fupi, si somo refu.\n\nKila jioni andika namba tatu: pesa zilizoingia, pesa zilizotoka, na salio. Fanya hivi kwa siku saba. Utaona siku nzito na siku nyepesi — ndiyo mwanzo wa kudhibiti pesa.\n\nKopafasta Plus haikuombi ukope zaidi. Somo ni kuona pesa zako wazi.",
+                'action_en' => 'Tonight, write today’s in, out, and left.',
+                'action_sw' => 'Leo usiku, andika kuingia, kutoka, na salio la leo.',
+                'duration_minutes' => 7,
+                'audience' => 'plus_members',
+                'published_at' => now()->subHour(),
+            ]);
+            \App\Models\PlusLesson::query()->create([
+                'month' => now()->copy()->subMonth()->format('Y-m'),
+                'title_en' => 'Separate home money and business money',
+                'title_sw' => 'Tenganisha pesa ya nyumbani na pesa ya biashara',
+                'intro_en' => "When shop money and house money sit in the same pocket, both suffer.\n\nUse two envelopes, two books, or two mobile wallets: one for the business, one for the home. Pay yourself a small, regular amount from the business envelope. That is your household money.\n\nThis is a Plus Club article. Watch it in 5–10 quiet minutes, then do the action once.",
+                'intro_sw' => "Pesaya duka na pesa ya nyumbani zikikaa mfukoni mmoja, zote zinateseka.\n\nTumia bahasha mbili, daftari mbili, au pochi mbili: moja ya biashara, moja ya nyumbani. Jilipe kiasi kidogo, mara kwa mara, kutoka bahasha ya biashara. Hiyo ndiyo pesa ya nyumbani.\n\nHii ni makala ya Klabu ya Plus. Soma dakika 5–10, kisha fanya hatua mara moja.",
+                'action_en' => 'Create two labelled places for money before the week ends.',
+                'action_sw' => 'Tengeneza sehemu mbili za pesa zenye lebo kabla wiki haijaisha.',
+                'duration_minutes' => 8,
+                'audience' => 'plus_members',
+                'published_at' => now()->subMonth()->endOfMonth(),
+            ]);
+        }
+
+        if (! \App\Models\PlusOffer::query()->exists()) {
+            \App\Models\PlusOffer::query()->create([
+                'title' => 'Plus Club — record 7 days of money in and out',
+                'body' => 'Sample Plus-only offer. Real partner offers will appear here for the matching grade and country. Completing the money diary does not change your Grade or Trust Score.',
+                'tier' => 'standard',
+                'country_code' => 'TZ',
+                'eligible_grades' => ['bronze', 'silver', 'gold', 'platinum'],
+                'plus_only' => true,
+                'active' => true,
+            ]);
+        }
+    }
+
     /**
      * Create (or reuse) a Kopafasta Plus payment obligation and leave method
      * selection to payments.show. Never talks to a PSP.

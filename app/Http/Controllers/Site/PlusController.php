@@ -11,6 +11,7 @@ use App\Models\PlusMoneyEntry;
 use App\Models\PlusRewardLedger;
 use Illuminate\Support\Facades\Storage;
 use App\Services\Grades\GradeBenefitService;
+use App\Services\LoanQualificationService;
 use App\Services\MemberEngagementService;
 use App\Services\Plus\PlusService;
 use Illuminate\Http\Request;
@@ -20,21 +21,33 @@ class PlusController extends Controller
     public function home(Request $request, PlusService $plus, GradeBenefitService $benefits, MemberEngagementService $engagement)
     {
         $customer = $request->user()->customer;
+        $plus->ensureSampleContent();
         $active = $plus->isActive($customer);
         $trust = $engagement->trustScore($customer);
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
+        $qualification = app(LoanQualificationService::class)->calculate($customer);
+        $access = (float) ($qualification['amount'] ?? 0);
+        if ($access <= 0) {
+            $access = $benefits->potentialAccess($customer);
+        }
 
         return view('site.plus.home', [
             'customer' => $customer,
             'plusActive' => $active,
             'subscription' => $plus->current($customer),
             'price' => $plus->priceFor($customer),
+            'periodDays' => $plus->periodDays(),
             'trust' => $benefits->trustLabel((int) ($trust['percent'] ?? 0), $locale),
-            'access' => $benefits->potentialAccess($customer),
-            'benefitList' => $benefits->customerBenefits($customer, $locale),
+            'access' => $access,
+            'benefitList' => $benefits->customerBenefits($customer, $locale, $access),
             'nextGrade' => $benefits->nextGradeCopy($customer, $locale),
             'offers' => $active ? $plus->eligibleOffers($customer) : collect(),
             'rewardBalance' => $active ? $plus->rewardBalance($customer) : 0,
+            'latestLesson' => PlusLesson::query()
+                ->whereNotNull('published_at')
+                ->where('published_at', '<=', now())
+                ->latest('published_at')
+                ->first(),
         ]);
     }
 
@@ -42,6 +55,7 @@ class PlusController extends Controller
     {
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
+        $plus->ensureSampleContent();
         $lessons = PlusLesson::query()
             ->whereNotNull('published_at')
             ->where('published_at', '<=', now())

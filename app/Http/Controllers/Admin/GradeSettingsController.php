@@ -52,6 +52,8 @@ class GradeSettingsController extends Controller
 
     public function plus(PlusService $plus)
     {
+        $plus->ensureSampleContent();
+
         return view('admin.settings.plus', [
             'config' => $plus->config(),
             'lessons' => \App\Models\PlusLesson::query()->latest('id')->limit(24)->get(),
@@ -63,7 +65,7 @@ class GradeSettingsController extends Controller
     {
         $config = app(PlusService::class)->config();
         $config['plans']['monthly']['prices']['TZ']['amount'] = (float) $request->input('tz_price', 3000);
-        $config['plans']['monthly']['period_days'] = (int) $request->input('period_days', 30);
+        $config['plans']['monthly']['period_days'] = (int) $request->input('period_days', 365);
         \App\Models\Setting::set('kopafasta_plus.config', $config);
 
         return back()->with('status', 'Kopafasta Plus settings saved.');
@@ -82,7 +84,7 @@ class GradeSettingsController extends Controller
             $customer->setAttribute('watch_copy', $benefits->staffIntegrityCopy($customer));
         });
 
-        return view('admin.settings.grade-watch', compact('queue'));
+        return view('admin.settings.grade-watch', ['queue' => $queue]);
     }
 
     public function saveWatch(Request $request, \App\Models\Customer $customer, CustomerGradeEngine $engine)

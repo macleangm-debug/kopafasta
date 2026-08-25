@@ -2,6 +2,10 @@
     @include('admin.settings._tabs', ['active' => 'grade-watch'])
 
     <div class="space-y-3">
+        <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+            <p class="font-semibold">What Grade Watch is</p>
+            <p class="mt-1">This queue fills only when a customer’s integrity flags need a staff decision (watch, review, or restricted). Ordinary Bronze/Silver/Gold/Platinum members never appear here. Customers never see this page — they only see that their status is being reviewed.</p>
+        </div>
         @forelse ($queue as $customer)
             <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-5">
                 <div class="flex flex-wrap items-start justify-between gap-3">
@@ -41,7 +45,10 @@
                 </form>
             </div>
         @empty
-            <p class="text-sm text-gray-600">No customers currently on Watch, Review or Restricted.</p>
+            <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-6 text-sm text-gray-600 space-y-2">
+                <p class="font-semibold text-gray-900">No customers currently on Watch, Review or Restricted.</p>
+                <p>That is the healthy state. People land here only after the Grade engine raises an integrity flag (for example unusual reversals or rapid facility cycling). Until then, this list stays empty — there is nothing to action.</p>
+            </div>
         @endforelse
     </div>
 </x-admin.layout>

@@ -35,10 +35,13 @@
     <div class="relative max-w-xl space-y-4">
         @if (! empty($hero['greeting']))
             <div>
-                <p @class([
-                    'text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight',
-                    $lightText ? 'text-white' : 'text-gray-900',
-                ])>{{ $hero['greeting'] }}</p>
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <p @class([
+                        'text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight min-w-0',
+                        $lightText ? 'text-white' : 'text-gray-900',
+                    ])>{{ $hero['greeting'] }}</p>
+                    <x-site.grade-badge :grade="$hero['grade'] ?? 'bronze'" :plus="! empty($hero['plus_active'])" size="sm" class="shrink-0 mt-1" />
+                </div>
                 @if (! empty($hero['membership_no']))
                     <p class="text-sm font-mono mt-1 {{ $lightText ? 'text-white/75' : 'opacity-80' }}">{{ $hero['membership_no'] }}</p>
                 @endif

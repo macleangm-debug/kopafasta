@@ -11,6 +11,11 @@
         } elseif (! empty($eligibility) && ! ($eligibility['has_data'] ?? false)) {
             $hero['eligibility_hint'] = __('borrower.dashboard.eligibility_no_data_hint');
         }
+        $hero['grade'] = $customer->grade ?? 'bronze';
+        $hero['plus_active'] = (bool) ($plusActive ?? false);
+        if (($hero['variant'] ?? '') === 'under_review') {
+            $hero['subtitle'] = null;
+        }
         // Clean home card for active members; unpaid members still need clear guidance.
         if (in_array($hero['variant'] ?? '', ['applications', 'no_loan'], true)) {
             if (false) {
@@ -60,19 +65,18 @@
         $underReview = in_array((string) ($customer->grade_status ?? ''), ['under_review'], true)
             || in_array((string) ($customer->grade_integrity ?? ''), ['review'], true);
     @endphp
-    <a href="{{ route('site.borrower.plus.home') }}" class="mb-6 block rounded-2xl bg-white ring-1 ring-brand/10 p-5">
-        <p class="text-xs uppercase tracking-widest text-brand font-semibold">
-            {{ $gradeName }}
-            @if ($plusActive ?? false)
-                · {{ __('plus.card.plus') }} ✦
-            @endif
-        </p>
+    <a href="{{ route('site.borrower.plus.home') }}" class="mb-6 block relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B3D32] via-[#127A5F] to-[#082f27] text-white shadow-[0_18px_40px_rgba(8,47,39,0.35)] ring-1 ring-brand-gold/30 p-5 sm:p-6">
+        <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-gold via-[#ffe9a3] to-brand-gold"></div>
+        <div class="relative flex flex-wrap items-start justify-between gap-3">
+            <x-site.brand-mark size="sm" variant="light" />
+            <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusActive ?? false" />
+        </div>
         @if ($underReview)
-            <p class="font-semibold text-gray-900 mt-1">{{ $gradeName }} — {{ __('plus.card.reviewing') }}</p>
+            <p class="relative font-semibold mt-4">{{ $gradeName }} — {{ __('plus.card.reviewing') }}</p>
         @else
-            <p class="font-semibold text-gray-900 mt-1">{{ __('plus.card.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</p>
+            <p class="relative font-semibold mt-4 text-lg">{{ __('plus.card.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</p>
         @endif
-        <p class="text-sm text-brand mt-2">{{ ($plusActive ?? false) ? __('plus.card.open') : __('plus.card.explore') }}</p>
+        <p class="relative text-sm text-brand-gold font-semibold mt-3">{{ ($plusActive ?? false) ? __('plus.card.open') : __('plus.card.explore') }}</p>
     </a>
 
     <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />

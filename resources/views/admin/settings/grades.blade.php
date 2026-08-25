@@ -14,9 +14,10 @@
         </div>
     @endif
 
-    <form method="post" action="{{ route('admin.settings.grades.save') }}" class="space-y-6">
-        @csrf
-        @method('PUT')
+    <x-admin.settings-editor
+        action="{{ route('admin.settings.grades.save') }}"
+        submit-label="Save new rule version"
+    >
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
             <x-admin.input name="weight_repayment" label="Repayment weight" type="number" :value="$rules['weights']['repayment'] ?? 35" />
             <x-admin.input name="weight_handled_credit" label="Handled credit weight" type="number" :value="$rules['weights']['handled_credit'] ?? 20" />
@@ -54,6 +55,5 @@
                 @endforeach
             </div>
         </div>
-        <button class="rounded-xl bg-brand text-white px-5 py-2.5 font-semibold">Save new rule version</button>
-    </form>
+    </x-admin.settings-editor>
 </x-admin.layout>

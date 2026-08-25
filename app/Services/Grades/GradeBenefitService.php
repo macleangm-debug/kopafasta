@@ -50,10 +50,10 @@ class GradeBenefitService
     }
 
     /** @return list<string> */
-    public function customerBenefits(Customer $customer, string $locale = 'en'): array
+    public function customerBenefits(Customer $customer, string $locale = 'en', ?float $accessAmount = null): array
     {
         $grade = (string) ($customer->grade ?: 'bronze');
-        $access = $this->potentialAccess($customer);
+        $access = $accessAmount ?? $this->potentialAccess($customer);
         $amount = function_exists('format_money') ? format_money($access) : (string) $access;
 
         $copy = [
