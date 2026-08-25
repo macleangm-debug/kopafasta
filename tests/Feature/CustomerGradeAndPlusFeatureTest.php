@@ -472,7 +472,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.dashboard'))
             ->assertOk()
             ->assertSee(__('plus.card.open'), false)
-            ->assertSee('KPF-TZ-PLUS', false);
+            ->assertSee('KPF-TZ-PLUS', false)
+            ->assertDontSee(url('/country'), false);
 
         $snapshot = app(\App\Services\BorrowerFinancialSnapshotService::class)->forCustomer($customer);
         $this->assertArrayNotHasKey('available_limit', $snapshot);
@@ -552,9 +553,11 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee('Chakula', false)
             ->assertSee('Mafuta', false)
             ->assertSee('name="in_amount"', false)
+            ->assertSee('name="category_other"', false)
             ->assertSee('data-no-draft', false)
             ->assertSee('step === \'confirm\'', false)
-            ->assertDontSee('25 Aug · food', false);
+            ->assertDontSee('25 Aug · food', false)
+            ->assertDontSee('x-text="spoken"', false);
 
         $nba = app(\App\Services\Plus\PlusNextBestActionService::class)->forCustomer($customer->fresh());
         $this->assertArrayHasKey('key', $nba);
@@ -575,6 +578,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
 
         $subject = \App\Models\PlusSubject::query()->published()->first();
         $this->assertNotNull($subject);
+        $this->assertGreaterThan(4000, strlen((string) $subject->body_en));
+        $this->assertGreaterThanOrEqual(12, (int) $subject->duration_minutes);
         $this->actingAs($user)
             ->get(route('site.borrower.plus.subject', $subject))
             ->assertOk()
@@ -608,7 +613,25 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('data-date-trigger', false)
             ->assertSee(__('plus.goals.kind'), false)
-            ->assertSee(__('plus.nav.home'), false);
+            ->assertSee(__('plus.goals.date_help'), false)
+            ->assertSee(__('plus.nav.home'), false)
+            ->assertSee('name="title"', false)
+            ->assertDontSee(__('plus.goals.mark_complete'), false);
+
+        $goal = \App\Models\PlusGoal::query()->create([
+            'customer_id' => $customer->id,
+            'kind' => 'emergency',
+            'title' => 'Dharura',
+            'target_amount' => 1_000_000,
+            'saved_amount' => 40_000,
+            'target_date' => now()->addMonths(3)->toDateString(),
+            'status' => 'active',
+        ]);
+        $this->actingAs($user)
+            ->from(route('site.borrower.plus.goals'))
+            ->post(route('site.borrower.plus.goals.complete', $goal))
+            ->assertForbidden();
+        $this->assertNull($goal->fresh()->completed_at);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.reports'))
@@ -622,7 +645,9 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('plus.business.chart_empty_title'), false)
             ->assertSee(__('plus.business.what_sold'), false)
-            ->assertSee('step === \'confirm\'', false);
+            ->assertSee('step === \'confirm\'', false)
+            ->assertSee('name="category_other"', false)
+            ->assertSee('window.kfMarkBusy', false);
 
         $this->get(route('site.plus'))
             ->assertOk()

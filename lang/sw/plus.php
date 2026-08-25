@@ -213,6 +213,7 @@ return [
         'name' => 'Jina',
         'target' => 'Kiasi',
         'date' => 'Kufikia lini?',
+        'date_help' => 'Kalenda inafunguka leo. Chagua siku baada ya leo — siku zilizopita zimefungwa.',
         'save' => 'Hifadhi lengo',
         'progress' => ':saved kati ya :target',
         'completed' => 'Limekamilika',
@@ -232,7 +233,10 @@ return [
         'more' => 'Zaidi',
         'edit' => 'Hariri lengo',
         'mark_complete' => 'Kamilisha lengo',
+        'complete_only_when_funded' => 'Lengo linakamilika pesa iliyowekwa inapofikia kiasi. Ongeza pesa hadi mstari ujae.',
         'confirm_add' => 'Ongeza :amount kwenye lengo hili?',
+        'history_more' => 'Onyesha hivi karibuni',
+        'history_less' => 'Ficha hivi karibuni',
     ],
     'reports' => [
         'title' => ':period yako',

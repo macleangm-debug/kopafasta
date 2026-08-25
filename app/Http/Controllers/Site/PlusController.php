@@ -339,6 +339,7 @@ class PlusController extends Controller
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
         abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
+        abort_unless($goal->remaining() <= 0, 403, __('plus.goals.complete_only_when_funded'));
         $goal->update([
             'status' => 'completed',
             'completed_at' => $goal->completed_at ?? now(),
@@ -356,7 +357,7 @@ class PlusController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:80'],
             'target_amount' => ['required', 'numeric', 'min:1'],
-            'target_date' => ['required', 'date', 'after_or_equal:today'],
+            'target_date' => ['required', 'date', 'after_or_equal:tomorrow'],
         ]);
         $goal->update($data);
 

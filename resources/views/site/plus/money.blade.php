@@ -8,10 +8,6 @@
     <div class="space-y-5" x-data="{
         inOpen: false,
         outOpen: false,
-        inCat: '',
-        outCat: '',
-        setInCat(val) { this.inCat = val; },
-        setOutCat(val) { this.outCat = val; },
         resetAmount(id) {
             const el = document.getElementById(id);
             if (! el) return;
@@ -140,8 +136,6 @@
             'amountId' => 'money-in-amount',
             'amountLabel' => __('plus.money.how_much_in'),
             'categoryLabel' => __('plus.money.from_where'),
-            'categoryModel' => 'inCat',
-            'categorySetter' => 'setInCat',
             'options' => $sourceOptions,
             'confirmTemplate' => __('plus.money.confirm_in'),
         ])
@@ -155,8 +149,6 @@
             'amountId' => 'money-out-amount',
             'amountLabel' => __('plus.money.how_much_out'),
             'categoryLabel' => __('plus.money.why'),
-            'categoryModel' => 'outCat',
-            'categorySetter' => 'setOutCat',
             'options' => $categoryOptions,
             'confirmTemplate' => __('plus.money.confirm_out'),
         ])

@@ -23,7 +23,9 @@ class PlusLearningCatalog
             foreach ($category['topics'] as $offset => $topic) {
                 $slug = $category['slug'].'-'.($offset + 1);
                 $publish = $offset === 0;
-                $body = $publish ? $this->article($topic[0], $topic[1], $category['action'], $category['slug']) : [null, null];
+                $body = $publish
+                    ? $this->article($topic[0], $topic[1], $category['action'], $category['slug'], $category['topics'])
+                    : [null, null];
 
                 PlusSubject::query()->firstOrCreate(
                     ['slug' => $slug],
@@ -108,26 +110,33 @@ class PlusLearningCatalog
             if (! $topic) {
                 continue;
             }
-            $body = $this->article($topic[0], $topic[1], $category['action'], $category['slug']);
+            $body = $this->article($topic[0], $topic[1], $category['action'], $category['slug'], $category['topics']);
             PlusSubject::query()->where('slug', $category['slug'].'-1')->update([
                 'intro_en' => $this->intro('en', $category['slug']),
                 'intro_sw' => $this->intro('sw', $category['slug']),
                 'body_en' => $body[0],
                 'body_sw' => $body[1],
+                'duration_minutes' => 12,
             ]);
         }
     }
 
     public function refreshPublishedCopyIfStale(): void
     {
-        $stale = PlusSubject::query()
+        $published = PlusSubject::query()
             ->where('status', 'published')
-            ->where(function ($q) {
-                $q->where('intro_en', 'like', '%Read for a few minutes%')
-                    ->orWhere('intro_sw', 'like', '%Soma dakika chache%')
-                    ->orWhere('body_en', 'like', '%This happens to many people%');
-            })
-            ->exists();
+            ->get(['intro_en', 'intro_sw', 'body_en']);
+
+        $stale = $published->contains(function (PlusSubject $row) {
+            $introEn = (string) $row->intro_en;
+            $introSw = (string) $row->intro_sw;
+            $bodyEn = (string) $row->body_en;
+
+            return str_contains($introEn, 'Read for a few minutes')
+                || str_contains($introSw, 'Soma dakika chache')
+                || str_contains($bodyEn, 'This happens to many people')
+                || strlen($bodyEn) < 4000;
+        });
 
         if ($stale) {
             $this->refreshPublishedCopy();
@@ -140,24 +149,26 @@ class PlusLearningCatalog
     }
 
     /** @return array{0: ?string, 1: ?string} */
-    private function article(string $en, string $sw, array $action, string $slug): array
+    private function article(string $en, string $sw, array $action, string $slug, array $topics = []): array
     {
-        $enBody = implode("\n\n", [
-            $en.'.',
-            $this->copy($slug, 'en', 'why'),
-            $this->copy($slug, 'en', 'how'),
-            $this->copy($slug, 'en', 'today'),
-            'Try now: '.$action['en'].'.',
-        ]);
-        $swBody = implode("\n\n", [
-            $sw.'.',
-            $this->copy($slug, 'sw', 'why'),
-            $this->copy($slug, 'sw', 'how'),
-            $this->copy($slug, 'sw', 'today'),
-            'Jaribu sasa: '.$action['sw'].'.',
-        ]);
+        $enTitles = array_map(fn ($t) => (string) $t[0], $topics);
+        $swTitles = array_map(fn ($t) => (string) $t[1], $topics);
 
-        return [$enBody, $swBody];
+        return [
+            implode("\n\n", \App\Support\PlusLearningLongCopy::paragraphs($slug, 'en', $en, $enTitles, $action['en'], $this->copyBundle($slug, 'en'))),
+            implode("\n\n", \App\Support\PlusLearningLongCopy::paragraphs($slug, 'sw', $sw, $swTitles, $action['sw'], $this->copyBundle($slug, 'sw'))),
+        ];
+    }
+
+    /** @return array<string, string> */
+    private function copyBundle(string $slug, string $locale): array
+    {
+        return [
+            'lead' => $this->copy($slug, $locale, 'lead'),
+            'why' => $this->copy($slug, $locale, 'why'),
+            'how' => $this->copy($slug, $locale, 'how'),
+            'today' => $this->copy($slug, $locale, 'today'),
+        ];
     }
 
     private function copy(string $slug, string $locale, string $part): string
@@ -1039,7 +1050,7 @@ class PlusLearningCatalog
     {
         $out = [];
         foreach ($pairs as $i => $pair) {
-            $out[] = [$pair[0], $pair[1], 3 + ($i % 4)];
+            $out[] = [$pair[0], $pair[1], $i === 0 ? 12 : 8];
         }
 
         return $out;

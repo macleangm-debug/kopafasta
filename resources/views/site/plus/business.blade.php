@@ -7,7 +7,6 @@
     <div class="space-y-5" x-data="{
         saleOpen: false,
         spendOpen: false,
-        setSpendCat(val) { this.spendCat = val; },
         resetAmount(id) {
             const el = document.getElementById(id);
             if (! el) return;
@@ -113,8 +112,6 @@
             'amountId' => 'business-sale-amount',
             'amountLabel' => __('plus.business.how_much_sold'),
             'categoryLabel' => __('plus.business.what_sold'),
-            'categoryModel' => 'saleCat',
-            'categorySetter' => 'setSaleCat',
             'options' => $saleOptions,
             'confirmTemplate' => __('plus.business.confirm_sale'),
             'noteLabel' => __('plus.business.note'),
@@ -128,8 +125,6 @@
             'amountId' => 'business-spend-amount',
             'amountLabel' => __('plus.business.how_much_spent'),
             'categoryLabel' => __('plus.business.what_for'),
-            'categoryModel' => 'spendCat',
-            'categorySetter' => 'setSpendCat',
             'options' => $spendOptions,
             'confirmTemplate' => __('plus.business.confirm_spend'),
             'noteLabel' => __('plus.business.note'),

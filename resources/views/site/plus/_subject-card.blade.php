@@ -4,7 +4,7 @@
         $row = $row->get($subject->id);
     }
 @endphp
-<a href="{{ route('site.borrower.plus.subject', $subject) }}" class="block rounded-2xl bg-white ring-1 ring-brand/10 p-5 hover:ring-brand/30 shadow-sm">
+<a href="{{ route('site.borrower.plus.subject', $subject) }}" data-loading="click" class="block rounded-2xl bg-white ring-1 ring-brand/10 p-5 hover:ring-brand/30 shadow-sm">
     <div class="flex items-start gap-3">
         <div class="size-11 shrink-0 rounded-2xl bg-brand/10 text-xl grid place-items-center">{{ $subject->icon ?: '📘' }}</div>
         <div class="min-w-0 flex-1">

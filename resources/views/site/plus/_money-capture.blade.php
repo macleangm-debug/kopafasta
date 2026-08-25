@@ -7,7 +7,6 @@
     /** @var string $amountId */
     /** @var string $amountLabel */
     /** @var string $categoryLabel */
-    /** @var string $categoryModel */
     /** @var array<string, string> $options */
     /** @var string $confirmTemplate */
     /** @var string $saveLabel */
@@ -42,29 +41,16 @@
                 name="category"
                 :label="$categoryLabel"
                 :options="$options"
-                :model="$categoryModel"
-                :setter="$categorySetter ?? null"
                 :required="true"
                 :placeholder="__('plus.money.choose')"
             />
-            <div x-show="{{ $categoryModel }} === 'other'" x-cloak>
-                <label class="block text-xs font-medium text-gray-600 mb-1">
-                    {{ __('plus.money.other_name') }} <span class="text-red-500">*</span>
-                </label>
-                <input type="text"
-                       name="category_other"
-                       maxlength="80"
-                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand"
-                       :required="{{ $categoryModel }} === 'other'"
-                       :disabled="{{ $categoryModel }} !== 'other'">
-            </div>
             <button type="submit" class="w-full rounded-xl bg-brand text-white py-3 font-semibold" x-text="cta || {{ \Illuminate\Support\Js::from($saveLabel ?? __('plus.money.save')) }}"></button>
         </form>
         <div class="space-y-4" x-show="step === 'confirm'" x-cloak>
             <p class="text-sm font-semibold text-gray-900" x-text="message"></p>
             <div class="grid grid-cols-2 gap-2">
                 <button type="button" class="rounded-xl bg-white ring-1 ring-gray-200 py-3 text-sm font-semibold" @click="step = 'form'">{{ __('plus.learn.prev') }}</button>
-                <button type="button" class="rounded-xl bg-brand text-white py-3 text-sm font-semibold" x-text="cta" @click="$refs.captureForm.submit()"></button>
+                <button type="button" class="rounded-xl bg-brand text-white py-3 text-sm font-semibold" x-text="cta" @click="if (window.kfMarkBusy) window.kfMarkBusy($event.currentTarget); $refs.captureForm.submit()"></button>
             </div>
         </div>
     </div>

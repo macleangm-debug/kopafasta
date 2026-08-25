@@ -45,10 +45,10 @@
         viewMonth: 0,
         init() {
             this.narrow = this.isNarrow();
-            const base = this.parse(this.value || this.fallback);
-            this.viewYear = base.getFullYear();
-            this.viewMonth = base.getMonth();
-            if (! this.value) this.draft = this.format(base);
+            const view = this.parse(this.value || this.format(new Date()));
+            this.viewYear = view.getFullYear();
+            this.viewMonth = view.getMonth();
+            if (! this.value) this.draft = this.clamp(this.min || this.fallback);
         },
         isNarrow() {
             return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
@@ -99,18 +99,18 @@
             return str;
         },
         openSheet() {
-            this.draft = this.clamp(this.value || this.fallback);
-            const d = this.parse(this.draft);
-            this.viewYear = d.getFullYear();
-            this.viewMonth = d.getMonth();
+            this.draft = this.clamp(this.value || this.min || this.fallback);
+            const view = this.parse(this.value || this.format(new Date()));
+            this.viewYear = view.getFullYear();
+            this.viewMonth = view.getMonth();
             this.pickerMode = 'calendar';
             this.open = true;
         },
         openDesktop() {
-            this.draft = this.clamp(this.value || this.fallback);
-            const d = this.parse(this.draft);
-            this.viewYear = d.getFullYear();
-            this.viewMonth = d.getMonth();
+            this.draft = this.clamp(this.value || this.min || this.fallback);
+            const view = this.parse(this.value || this.format(new Date()));
+            this.viewYear = view.getFullYear();
+            this.viewMonth = view.getMonth();
             this.desktopOpen = true;
         },
         years() {
@@ -273,7 +273,7 @@
     {{-- Fine pointer (desktop): teleport so glass-card backdrop-filter cannot clip the calendar --}}
     <template x-teleport="body">
         <div x-show="!narrow && desktopOpen" x-cloak @click.outside="desktopOpen = false"
-             class="fixed z-[90] w-[22rem] rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 p-4"
+             class="fixed z-[10200] w-[22rem] rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 p-4"
              x-ref="desktopCal"
              :style="desktopStyle"
              x-init="$watch('desktopOpen', v => { if (v) positionDesktop(); })">

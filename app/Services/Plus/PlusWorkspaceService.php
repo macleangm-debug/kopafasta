@@ -173,7 +173,7 @@ class PlusWorkspaceService
     {
         $goals = PlusGoal::query()
             ->where('customer_id', $customer->id)
-            ->with(['contributions' => fn ($q) => $q->latest('id')->limit(8)])
+            ->with(['contributions' => fn ($q) => $q->latest('id')->limit(100)])
             ->latest('id')
             ->get();
 

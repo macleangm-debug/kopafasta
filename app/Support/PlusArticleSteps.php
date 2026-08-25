@@ -40,7 +40,7 @@ class PlusArticleSteps
         $bodyParas = self::fromBody($body);
 
         if ($introParas !== [] && $bodyParas !== []) {
-            return ['opening' => $introParas, 'cards' => $bodyParas];
+            return ['opening' => $introParas, 'cards' => self::chunk($bodyParas, 3)];
         }
 
         $paras = $introParas !== [] ? $introParas : $bodyParas;
@@ -50,7 +50,21 @@ class PlusArticleSteps
 
         return [
             'opening' => array_slice($paras, 0, 2),
-            'cards' => array_slice($paras, 2),
+            'cards' => self::chunk(array_slice($paras, 2), 3),
         ];
+    }
+
+    /**
+     * @param  list<string>  $paras
+     * @return list<string>
+     */
+    private static function chunk(array $paras, int $size): array
+    {
+        $out = [];
+        foreach (array_chunk(array_values($paras), max(1, $size)) as $group) {
+            $out[] = implode("\n\n", $group);
+        }
+
+        return $out;
     }
 }

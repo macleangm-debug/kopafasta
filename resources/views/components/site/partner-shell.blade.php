@@ -205,32 +205,45 @@
             </div>
         </header>
 
-        <div x-show="open" x-cloak class="fixed inset-0 z-40 lg:hidden">
-            <div class="absolute inset-0 bg-black/40" @click="open = false"></div>
-            <div class="absolute inset-y-0 left-0 w-72 bg-brand text-white shadow-xl flex flex-col">
-                <div class="px-5 py-4 border-b border-white/15">
-                    <div class="flex items-start justify-between gap-3">
+        <template x-teleport="body">
+            <div x-show="open" x-cloak class="fixed inset-0 z-[10055] lg:hidden" role="dialog" aria-modal="true">
+                <div class="absolute inset-0 bg-black/40" @click="open = false" x-transition.opacity></div>
+                <div class="absolute inset-x-0 bottom-0 bg-brand text-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] rounded-t-2xl flex flex-col"
+                     style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+                     @click.stop
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="translate-y-full"
+                     x-transition:enter-end="translate-y-0"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="translate-y-0"
+                     x-transition:leave-end="translate-y-full">
+                    <div class="flex justify-center pt-3 pb-1 shrink-0">
+                        <div class="w-10 h-1 rounded-full bg-white/40"></div>
+                    </div>
+                    <div class="px-5 py-3 border-b border-white/15 flex items-start justify-between gap-3">
                         <x-site.brand-mark size="sm" variant="light" :portal="$portalLabel" />
-                        <button @click="open = false" class="p-1 text-white/80 shrink-0"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+                        <button type="button" @click="open = false" class="p-1 text-white/80 shrink-0" aria-label="Close">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                        </button>
+                    </div>
+                    <nav class="flex gap-2 overflow-x-auto overscroll-x-contain snap-x snap-mandatory px-4 py-4 scrollbar-none">
+                        @foreach ($nav as $item)
+                            @php $isActive = $active === $item['key']; @endphp
+                            <a href="{{ route($item['route']) }}"
+                               data-kf-motion="tab"
+                               class="snap-start shrink-0 w-[4.75rem] flex flex-col items-center gap-2 px-2 py-3 rounded-2xl text-center transition
+                                      {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm' : 'text-white/90 hover:bg-white/10' }}">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $navService->iconSvg($item['icon'] ?? 'home') !!}</svg>
+                                <span class="text-[11px] leading-tight">{{ $item['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </nav>
+                    <div class="px-4 pb-4 pt-1 border-t border-white/15">
+                        <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                     </div>
                 </div>
-                <nav class="flex-1 overflow-y-auto py-2">
-                    @foreach ($nav as $item)
-                        @php $isActive = $active === $item['key']; @endphp
-                        <a href="{{ route($item['route']) }}"
-                           data-kf-motion="tab"
-                           class="flex items-center gap-3 mx-3 my-0.5 px-3 py-3 text-sm rounded-xl
-                                  {{ $isActive ? 'bg-brand-gold text-brand font-bold' : 'text-white/90 hover:bg-white/10' }}">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $navService->iconSvg($item['icon'] ?? 'home') !!}</svg>
-                            {{ $item['label'] }}
-                        </a>
-                    @endforeach
-                </nav>
-                <div class="p-4 border-t border-white/15">
-                    <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                </div>
             </div>
-        </div>
+        </template>
 
         @if ($banner)
             <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 text-sm text-brand">

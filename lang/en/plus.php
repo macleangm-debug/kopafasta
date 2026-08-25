@@ -213,6 +213,7 @@ return [
         'name' => 'Name',
         'target' => 'Amount',
         'date' => 'By when?',
+        'date_help' => 'The calendar opens on today. Choose a day after today — earlier days stay closed.',
         'save' => 'Save goal',
         'progress' => ':saved of :target',
         'completed' => 'Completed',
@@ -232,7 +233,10 @@ return [
         'more' => 'More',
         'edit' => 'Edit goal',
         'mark_complete' => 'Complete goal',
+        'complete_only_when_funded' => 'A goal completes when the saved amount reaches the target. Add money until the bar is full.',
         'confirm_add' => 'Add :amount to this goal?',
+        'history_more' => 'Show recent',
+        'history_less' => 'Hide recent',
     ],
     'reports' => [
         'title' => 'Your :period',
