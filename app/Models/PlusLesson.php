@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PlusArticleSteps;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
@@ -37,5 +38,14 @@ class PlusLesson extends Model
             'lesson' => $this->id,
             'locale' => $locale,
         ]);
+    }
+
+    /** @return list<string> */
+    public function localizedSteps(?string $locale = null): array
+    {
+        $locale ??= app()->getLocale();
+        $intro = $locale === 'sw' ? ($this->intro_sw ?: $this->intro_en) : $this->intro_en;
+
+        return PlusArticleSteps::fromBody($intro);
     }
 }

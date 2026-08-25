@@ -1,6 +1,7 @@
 @props([
     'title' => '',
     'open' => 'open',
+    'layer' => 'z-[10050]',
 ])
 
 {{-- Teleport to body so sticky/backdrop-blur ancestors cannot trap position:fixed.
@@ -8,7 +9,7 @@
 <template x-teleport="body">
     <div x-show="{{ $open }} && window.matchMedia('(max-width: 1023px)').matches"
          x-cloak
-         class="fixed inset-0 z-[10050]"
+         class="fixed inset-0 {{ $layer }}"
          role="dialog"
          aria-modal="true"
          x-effect="

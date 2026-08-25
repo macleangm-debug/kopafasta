@@ -4,6 +4,7 @@
     'title',
     'cta',
     'stat' => null,
+    'statClass' => 'mt-1.5 text-lg font-bold tabular-nums text-gray-900',
     'hint' => null,
 ])
 
@@ -12,7 +13,7 @@
         <div class="size-12 rounded-2xl bg-brand/10 ring-1 ring-brand/10 text-2xl grid place-items-center">{{ $icon }}</div>
         <h3 class="mt-3 text-base font-extrabold text-brand leading-snug tracking-tight">{{ $title }}</h3>
         @if ($stat)
-            <p class="mt-1.5 text-lg font-bold tabular-nums text-gray-900">{{ $stat }}</p>
+            <p class="{{ $statClass }}">{{ $stat }}</p>
         @endif
         @if ($hint)
             <p class="mt-0.5 text-xs text-gray-600 leading-snug">{{ $hint }}</p>

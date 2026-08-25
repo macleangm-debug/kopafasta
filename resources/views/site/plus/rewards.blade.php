@@ -2,7 +2,7 @@
     <div class="space-y-5" x-data="{ redeemOpen: false, code: '' }">
         <x-site.plus-nav />
         <x-site.plus-hero kicker="Kopafasta Plus" :title="__('plus.rewards.title')" :body="__('plus.rewards.hero_body')">
-            <p class="text-3xl font-extrabold tabular-nums">{{ __('plus.rewards.points', ['balance' => $balance]) }}</p>
+            <p class="text-4xl sm:text-5xl font-black tabular-nums tracking-tight">{{ __('plus.rewards.points', ['balance' => $balance]) }}</p>
             <p class="text-sm text-white/80 mt-2">{{ __('plus.rewards.borrow_line') }}</p>
             @if ($balance > 0)
                 <button type="button" @click="redeemOpen = true" class="mt-4 rounded-xl bg-brand-gold text-brand px-5 py-2.5 text-sm font-bold">{{ __('plus.rewards.use') }}</button>

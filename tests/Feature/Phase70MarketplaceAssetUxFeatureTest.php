@@ -179,6 +179,48 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
         $this->get(route('site.marketplace'))
             ->assertOk()
             ->assertSee('Dar Motors', false)
-            ->assertSee('Nationwide', false);
+            ->assertSee('Nationwide', false)
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee(__('borrower.marketplace.request_collapsed_title'), false);
+    }
+
+    public function test_borrower_asset_request_takes_name_only_and_get_link_opens_form(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        app(PinService::class)->setPin($user, '1234');
+        Customer::create([
+            'user_id'               => $user->id,
+            'customer_number'       => 'CU-P70-REQ',
+            'type'                  => 'individual',
+            'status'                => 'active',
+            'first_name'            => 'Asha',
+            'last_name'             => 'Mushi',
+            'phone'                 => '255712340072',
+            'membership_status'     => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.marketplace'))
+            ->assertOk()
+            ->assertSee('name="asset_name"', false)
+            ->assertDontSee('name="photo"', false)
+            ->assertDontSee('singleImageDocumentUpload', false);
+
+        $this->actingAs($user)
+            ->get('/borrower/marketplace/request')
+            ->assertRedirect(route('site.borrower.marketplace', ['request' => 1]));
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.marketplace.request'), [
+                'asset_name' => 'Bajaji ya mzigo',
+            ])
+            ->assertRedirect(route('site.borrower.marketplace'));
+
+        $this->assertDatabaseHas('asset_requests', [
+            'asset_name' => 'Bajaji ya mzigo',
+            'photo_path' => null,
+            'status' => 'sourcing',
+        ]);
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\AssetRequest;
 use App\Models\AssetReservation;
+use App\Models\Customer;
 use App\Models\MarketplaceAsset;
 use App\Services\ApplicationRequirementsService;
 use App\Services\AssetMarketplaceFeeService;
@@ -306,6 +307,11 @@ class AssetMarketplaceController extends Controller
         return $this->persistAssetRequest($request, $customer);
     }
 
+    public function openRequest(): RedirectResponse
+    {
+        return redirect()->route('site.borrower.marketplace', ['request' => 1]);
+    }
+
     public function storePublicRequest(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -326,21 +332,7 @@ class AssetMarketplaceController extends Controller
         $data = $request->validate([
             'asset_name'  => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'photo'       => ['nullable', 'image', 'max:5120'],
-            'photos'      => ['nullable', 'array'],
-            'photos.*'    => ['image', 'max:5120'],
         ]);
-
-        $path = $request->hasFile('photo')
-            ? $request->file('photo')->store("customer/{$customer->id}/asset-requests", 'public')
-            : null;
-
-        $additional = [];
-        if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $file) {
-                $additional[] = $file->store("customer/{$customer->id}/asset-requests", 'public');
-            }
-        }
 
         AssetRequest::create([
             'customer_id'             => $customer->id,
@@ -348,8 +340,8 @@ class AssetMarketplaceController extends Controller
             'description'             => $data['description'] ?? null,
             'budget'                  => null,
             'preferred_tenure_months' => null,
-            'photo_path'              => $path,
-            'additional_photos'       => $additional ?: null,
+            'photo_path'              => null,
+            'additional_photos'       => null,
             'status'                  => 'sourcing',
         ]);
 
@@ -357,7 +349,7 @@ class AssetMarketplaceController extends Controller
 
         return redirect()
             ->route('site.borrower.marketplace')
-            ->with('status', 'Asset sourcing request submitted. Our team will work with suppliers to find a match.');
+            ->with('status', __('borrower.marketplace.request_submitted'));
     }
 
     /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */

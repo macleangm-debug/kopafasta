@@ -44,9 +44,29 @@ class PlusService
         return $plan['prices'][$country] ?? $plan['prices']['TZ'];
     }
 
+    public function billingCycle(): string
+    {
+        $plan = $this->config()['plans']['monthly'] ?? [];
+        $cycle = $plan['billing_cycle'] ?? null;
+        if (in_array($cycle, ['monthly', 'yearly'], true)) {
+            return $cycle;
+        }
+
+        return ((int) ($plan['period_days'] ?? 365)) <= 31 ? 'monthly' : 'yearly';
+    }
+
     public function periodDays(): int
     {
-        return max(1, (int) ($this->config()['plans']['monthly']['period_days'] ?? 365));
+        $plan = $this->config()['plans']['monthly'] ?? [];
+        $cycle = $plan['billing_cycle'] ?? null;
+        if ($cycle === 'monthly') {
+            return 30;
+        }
+        if ($cycle === 'yearly') {
+            return 365;
+        }
+
+        return max(1, (int) ($plan['period_days'] ?? 365));
     }
 
     /**

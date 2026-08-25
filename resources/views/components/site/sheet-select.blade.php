@@ -69,7 +69,7 @@
             <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
         </button>
 
-        <x-site.bottom-sheet :title="$label ?: $placeholder" open="pickerOpen">
+        <x-site.bottom-sheet :title="$label ?: $placeholder" open="pickerOpen" layer="z-[10100]">
             <div class="space-y-1 max-h-[60vh] overflow-y-auto">
                 @if (! $required)
                     <button type="button" @click="choose('')"

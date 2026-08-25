@@ -1,5 +1,25 @@
 <x-site.borrower-layout :title="brand_title(__('plus.home.business'))" active="dashboard">
-    <div class="space-y-5" x-data="{ saleOpen: false, spendOpen: false }">
+    <div class="space-y-5" x-data="{
+        saleOpen: false,
+        spendOpen: false,
+        confirmTitle: @js(__('plus.business.confirm_title')),
+        confirmLabel: @js(__('plus.money.save')),
+        resetAmount(id) {
+            const el = document.getElementById(id);
+            if (! el) return;
+            el.value = '';
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+        confirmAmount(form, template) {
+            const amount = form.querySelector('[data-money-input]')?.value || '';
+            window.confirmForm(form, {
+                title: this.confirmTitle,
+                message: String(template).replaceAll(':amount', amount),
+                confirmLabel: this.confirmLabel,
+                confirmClass: 'bg-brand hover:bg-brand-light text-white',
+            });
+        }
+    }">
         <x-site.plus-nav />
 
         <x-site.plus-hero kicker="Kopafasta Plus · {{ __('plus.business.today') }}" :title="__('plus.business.title')" :body="__('plus.business.hero_body')">
@@ -18,8 +38,8 @@
                 </div>
             </div>
             <div class="mt-5 grid grid-cols-2 gap-2">
-                <button type="button" @click="saleOpen = true" class="rounded-xl bg-brand-gold text-brand px-4 py-3 text-sm font-bold">{{ __('plus.business.sold_action') }}</button>
-                <button type="button" @click="spendOpen = true" class="rounded-xl bg-white/10 ring-1 ring-white/20 text-white px-4 py-3 text-sm font-semibold">{{ __('plus.business.spent_action') }}</button>
+                <button type="button" @click="saleOpen = true; resetAmount('business-sale-amount')" class="rounded-xl bg-brand-gold text-brand px-4 py-3 text-sm font-bold">{{ __('plus.business.sold_action') }}</button>
+                <button type="button" @click="spendOpen = true; resetAmount('business-spend-amount')" class="rounded-xl bg-white/10 ring-1 ring-white/20 text-white px-4 py-3 text-sm font-semibold">{{ __('plus.business.spent_action') }}</button>
             </div>
 
             <div class="mt-5 rounded-2xl bg-white/10 ring-1 ring-white/15 p-4">
@@ -65,18 +85,18 @@
         </div>
 
         <x-site.action-panel title="{{ __('plus.business.sold_action') }}" open="saleOpen">
-            <form method="post" action="{{ route('site.borrower.plus.business.save') }}" class="space-y-4">
+            <form id="plus-business-sale" method="post" action="{{ route('site.borrower.plus.business.save') }}" data-no-draft class="space-y-4"
+                  @submit.prevent="confirmAmount($el, {{ \Illuminate\Support\Js::from(__('plus.business.confirm_sale')) }})">
                 @csrf
-                <input type="hidden" name="kind" value="sale">
-                <x-site.numeric-input name="amount" id="business-sale-amount" :money="true" :label="__('plus.business.amount')" required />
+                <x-site.numeric-input name="sold" id="business-sale-amount" :money="true" :label="__('plus.business.amount')" required />
                 <button class="w-full rounded-xl bg-brand text-white py-3 font-semibold">{{ __('plus.money.save') }}</button>
             </form>
         </x-site.action-panel>
         <x-site.action-panel title="{{ __('plus.business.spent_action') }}" open="spendOpen">
-            <form method="post" action="{{ route('site.borrower.plus.business.save') }}" class="space-y-4">
+            <form id="plus-business-spend" method="post" action="{{ route('site.borrower.plus.business.save') }}" data-no-draft class="space-y-4"
+                  @submit.prevent="confirmAmount($el, {{ \Illuminate\Support\Js::from(__('plus.business.confirm_spend')) }})">
                 @csrf
-                <input type="hidden" name="kind" value="spend">
-                <x-site.numeric-input name="amount" id="business-spend-amount" :money="true" :label="__('plus.business.amount')" required />
+                <x-site.numeric-input name="spent" id="business-spend-amount" :money="true" :label="__('plus.business.amount')" required />
                 <button class="w-full rounded-xl bg-brand text-white py-3 font-semibold">{{ __('plus.money.save') }}</button>
             </form>
         </x-site.action-panel>

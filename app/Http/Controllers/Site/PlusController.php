@@ -20,6 +20,7 @@ use App\Services\Plus\PlusService;
 use App\Services\Plus\PlusWorkspaceService;
 use App\Support\MoneyFormat;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 
 class PlusController extends Controller
@@ -174,32 +175,37 @@ class PlusController extends Controller
         abort_unless($plus->isActive($customer), 403);
         $this->mergeMoneyFields($request, ['in_amount', 'out_amount', 'amount']);
 
-        if ($request->filled('in_amount') || $request->filled('out_amount')) {
-            $data = $request->validate([
-                'in_amount' => ['nullable', 'numeric', 'min:0'],
-                'out_amount' => ['nullable', 'numeric', 'min:0'],
-            ]);
-            PlusMoneyEntry::query()->create([
-                'customer_id' => $customer->id,
-                'entry_date' => now()->toDateString(),
-                'inflow' => (float) ($data['in_amount'] ?? 0),
-                'outflow' => (float) ($data['out_amount'] ?? 0),
-            ]);
-
-            return back()->with('status', __('plus.money.saved_here'));
+        $direction = $request->input('direction');
+        if (! in_array($direction, ['in', 'out'], true)) {
+            $direction = $request->filled('in_amount') && ! $request->filled('out_amount') ? 'in' : 'out';
         }
+
+        $amount = $direction === 'in'
+            ? (float) ($request->input('in_amount') ?: $request->input('amount') ?: 0)
+            : (float) ($request->input('out_amount') ?: $request->input('amount') ?: 0);
+
+        $request->merge([
+            'direction' => $direction,
+            'amount' => $amount,
+        ]);
 
         $data = $request->validate([
             'direction' => ['required', 'in:in,out'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'category' => ['required', 'string', 'max:40'],
+            'category_other' => [Rule::requiredIf(fn () => $request->input('category') === 'other'), 'nullable', 'string', 'max:40'],
         ]);
+
+        $category = $data['category'] === 'other'
+            ? trim((string) ($data['category_other'] ?? ''))
+            : $data['category'];
+
         PlusMoneyEntry::query()->create([
             'customer_id' => $customer->id,
             'entry_date' => now()->toDateString(),
             'inflow' => $data['direction'] === 'in' ? $data['amount'] : 0,
             'outflow' => $data['direction'] === 'out' ? $data['amount'] : 0,
-            'category' => $data['category'],
+            'category' => $category,
         ]);
 
         return back()->with('status', __('plus.money.saved_here'));

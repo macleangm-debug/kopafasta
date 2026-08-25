@@ -95,6 +95,7 @@
                         icon="✦"
                         :title="__('plus.home.rewards')"
                         :stat="__('plus.rewards.points', ['balance' => $rewardBalance])"
+                        stat-class="mt-1.5 text-3xl font-black tabular-nums tracking-tight text-gray-900"
                         :hint="__('plus.rewards.borrow_line')"
                         :cta="__('plus.home.open_room')"
                     />

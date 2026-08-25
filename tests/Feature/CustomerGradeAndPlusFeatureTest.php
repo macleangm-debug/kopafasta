@@ -491,6 +491,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee(__('plus.home.money'), false)
             ->assertSee(__('plus.home.rooms_title'), false)
             ->assertSee(__('plus.home.renew_title'), false)
+            ->assertSee('text-3xl font-black', false)
             ->assertDontSee('Plus haibadilishi Daraja lako', false)
             ->assertDontSee('Plus never changes your Grade', false);
 
@@ -509,11 +510,49 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->assertEquals(120000.0, (float) \App\Models\PlusMoneyEntry::query()->where('customer_id', $customer->id)->latest('id')->value('outflow'));
 
         $this->actingAs($user)
+            ->post(route('site.borrower.plus.money.save'), [
+                'direction' => 'in',
+                'in_amount' => '12,000',
+                'category' => 'salary',
+            ])
+            ->assertRedirect();
+
+        $in = \App\Models\PlusMoneyEntry::query()
+            ->where('customer_id', $customer->id)
+            ->where('inflow', '>', 0)
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($in);
+        $this->assertEquals(12000.0, (float) $in->inflow);
+        $this->assertEquals(0.0, (float) $in->outflow);
+        $this->assertSame('salary', $in->category);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.plus.money.save'), [
+                'direction' => 'out',
+                'out_amount' => '5,000',
+                'category' => 'other',
+                'category_other' => 'Mafuta',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('plus_money_entries', [
+            'customer_id' => $customer->id,
+            'category' => 'Mafuta',
+            'outflow' => 5000,
+        ]);
+
+        $this->actingAs($user)
             ->get(route('site.borrower.plus.money'))
             ->assertOk()
             ->assertSee(__('plus.money.in_action'), false)
             ->assertSee(format_money(120000), false)
+            ->assertSee(format_money(12000), false)
             ->assertSee('Chakula', false)
+            ->assertSee('Mafuta', false)
+            ->assertSee('name="in_amount"', false)
+            ->assertSee('data-no-draft', false)
+            ->assertSee('window.confirmForm', false)
             ->assertDontSee('25 Aug · food', false);
 
         $nba = app(\App\Services\Plus\PlusNextBestActionService::class)->forCustomer($customer->fresh());
@@ -532,6 +571,36 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee(__('plus.learn.club'), false)
             ->assertSee(__('plus.learn.for_you'), false)
             ->assertSee(__('plus.nav.home'), false);
+
+        $subject = \App\Models\PlusSubject::query()->published()->first();
+        $this->assertNotNull($subject);
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.subject', $subject))
+            ->assertOk()
+            ->assertSee('snap-x', false)
+            ->assertSee(__('plus.learn.try_now'), false)
+            ->assertSee(__('plus.learn.step', ['n' => 1, 'of' => max(1, count($subject->localizedSteps()))]), false);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.plus'))
+            ->assertOk()
+            ->assertSee('Billing period', false)
+            ->assertSee('name="billing_cycle"', false)
+            ->assertSee('data-money-input', false)
+            ->assertDontSee('Subscription length (days)', false);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.plus.save'), [
+                'tz_price' => '4,500',
+                'billing_cycle' => 'monthly',
+            ])
+            ->assertRedirect();
+
+        $plus = app(PlusService::class);
+        $this->assertSame('monthly', $plus->billingCycle());
+        $this->assertSame(30, $plus->periodDays());
+        $this->assertEquals(4500.0, (float) $plus->priceFor($customer)['amount']);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.goals'))

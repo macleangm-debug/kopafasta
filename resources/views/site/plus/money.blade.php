@@ -2,8 +2,37 @@
     @php
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $labels = app(\App\Services\Plus\PlusWorkspaceService::class);
+        $sourceOptions = collect($sources)->mapWithKeys(fn ($row, $key) => [$key => $row[$locale]])->all();
+        $categoryOptions = collect($categories)->mapWithKeys(fn ($row, $key) => [$key => $row[$locale]])->all();
     @endphp
-    <div class="space-y-5" x-data="{ inOpen: false, outOpen: false }">
+    <div class="space-y-5" x-data="{
+        inOpen: false,
+        outOpen: false,
+        inCat: '',
+        outCat: '',
+        confirmTitle: @js(__('plus.money.confirm_title')),
+        confirmLabel: @js(__('plus.money.save')),
+        setInCat(val) { this.inCat = val; },
+        setOutCat(val) { this.outCat = val; },
+        resetAmount(id) {
+            const el = document.getElementById(id);
+            if (! el) return;
+            el.value = '';
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+        confirmMoney(form, template) {
+            const amount = form.querySelector('[data-money-input]')?.value || '';
+            const select = form.querySelector('[name=category]');
+            const other = (form.querySelector('[name=category_other]')?.value || '').trim();
+            const cat = other || (select?.options[select.selectedIndex]?.text || '');
+            window.confirmForm(form, {
+                title: this.confirmTitle,
+                message: String(template).replaceAll(':amount', amount).replaceAll(':category', cat),
+                confirmLabel: this.confirmLabel,
+                confirmClass: 'bg-brand hover:bg-brand-light text-white',
+            });
+        }
+    }">
         <x-site.plus-nav />
 
         <x-site.plus-hero kicker="Kopafasta Plus · {{ $month_label }}" :title="__('plus.money.title')" :body="__('plus.money.hero_body')">
@@ -25,8 +54,8 @@
                 <p class="mt-4 text-sm text-white/85"><span class="font-semibold text-white">{{ __('plus.money.how_going') }}</span> {{ $insight }}</p>
             @endif
             <div class="mt-5 grid grid-cols-2 gap-2">
-                <button type="button" @click="inOpen = true" class="rounded-xl bg-brand-gold text-brand px-4 py-3 text-sm font-bold">{{ __('plus.money.in_action') }}</button>
-                <button type="button" @click="outOpen = true" class="rounded-xl bg-white/10 ring-1 ring-white/20 text-white px-4 py-3 text-sm font-semibold">{{ __('plus.money.out_action') }}</button>
+                <button type="button" @click="inOpen = true; resetAmount('money-in-amount')" class="rounded-xl bg-brand-gold text-brand px-4 py-3 text-sm font-bold">{{ __('plus.money.in_action') }}</button>
+                <button type="button" @click="outOpen = true; resetAmount('money-out-amount')" class="rounded-xl bg-white/10 ring-1 ring-white/20 text-white px-4 py-3 text-sm font-semibold">{{ __('plus.money.out_action') }}</button>
             </div>
 
             @if (count($top_spend) || $history->isNotEmpty())
@@ -79,40 +108,34 @@
             <x-site.empty-state compact icon="💸" :title="__('plus.money.empty')" />
         @endif
 
-        <x-site.action-panel title="{{ __('plus.money.in_action') }}" open="inOpen">
-            <form method="post" action="{{ route('site.borrower.plus.money.save') }}" class="space-y-4">
-                @csrf
-                <input type="hidden" name="direction" value="in">
-                <x-site.numeric-input name="amount" id="money-in-amount" :money="true" :label="__('plus.money.how_much')" required />
-                <p class="text-xs font-medium text-gray-600">{{ __('plus.money.from_where') }}</p>
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($sources as $key => $labelsRow)
-                        <label class="cursor-pointer">
-                            <input type="radio" name="category" value="{{ $key }}" class="peer sr-only" @checked($loop->first) required>
-                            <span class="inline-flex rounded-full ring-1 ring-gray-200 px-3 py-2 text-sm peer-checked:bg-brand peer-checked:text-white peer-checked:ring-brand">{{ $labelsRow[$locale] }}</span>
-                        </label>
-                    @endforeach
-                </div>
-                <button class="w-full rounded-xl bg-brand text-white py-3 font-semibold">{{ __('plus.money.save') }}</button>
-            </form>
-        </x-site.action-panel>
+        @include('site.plus._money-capture', [
+            'open' => 'inOpen',
+            'title' => __('plus.money.in_action'),
+            'formId' => 'plus-money-in',
+            'direction' => 'in',
+            'amountName' => 'in_amount',
+            'amountId' => 'money-in-amount',
+            'amountLabel' => __('plus.money.how_much_in'),
+            'categoryLabel' => __('plus.money.from_where'),
+            'categoryModel' => 'inCat',
+            'categorySetter' => 'setInCat',
+            'options' => $sourceOptions,
+            'confirmTemplate' => __('plus.money.confirm_in'),
+        ])
 
-        <x-site.action-panel title="{{ __('plus.money.out_action') }}" open="outOpen">
-            <form method="post" action="{{ route('site.borrower.plus.money.save') }}" class="space-y-4">
-                @csrf
-                <input type="hidden" name="direction" value="out">
-                <x-site.numeric-input name="amount" id="money-out-amount" :money="true" :label="__('plus.money.how_much')" required />
-                <p class="text-xs font-medium text-gray-600">{{ __('plus.money.why') }}</p>
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($categories as $key => $labelsRow)
-                        <label class="cursor-pointer">
-                            <input type="radio" name="category" value="{{ $key }}" class="peer sr-only" @checked($loop->first) required>
-                            <span class="inline-flex rounded-full ring-1 ring-gray-200 px-3 py-2 text-sm peer-checked:bg-brand peer-checked:text-white peer-checked:ring-brand">{{ $labelsRow[$locale] }}</span>
-                        </label>
-                    @endforeach
-                </div>
-                <button class="w-full rounded-xl bg-brand text-white py-3 font-semibold">{{ __('plus.money.save') }}</button>
-            </form>
-        </x-site.action-panel>
+        @include('site.plus._money-capture', [
+            'open' => 'outOpen',
+            'title' => __('plus.money.out_action'),
+            'formId' => 'plus-money-out',
+            'direction' => 'out',
+            'amountName' => 'out_amount',
+            'amountId' => 'money-out-amount',
+            'amountLabel' => __('plus.money.how_much_out'),
+            'categoryLabel' => __('plus.money.why'),
+            'categoryModel' => 'outCat',
+            'categorySetter' => 'setOutCat',
+            'options' => $categoryOptions,
+            'confirmTemplate' => __('plus.money.confirm_out'),
+        ])
     </div>
 </x-site.borrower-layout>

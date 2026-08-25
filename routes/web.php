@@ -279,6 +279,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/verify/p/{partnerNo}',           [\App\Http\Controllers\Site\CardVerificationController::class, 'borrowerShowPartner'])->name('borrower.verify.partner');
             Route::get('/borrower/applications',                   [\App\Http\Controllers\Site\BorrowerController::class, 'applications']) ->name('borrower.applications');
             Route::get('/borrower/marketplace',                    [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'index'])->name('borrower.marketplace');
+            Route::get('/borrower/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'openRequest'])->name('borrower.marketplace.request.open');
+            Route::post('/borrower/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storeRequest'])->name('borrower.marketplace.request');
             Route::get('/borrower/marketplace/{assetId}',          [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'show'])->name('borrower.marketplace.show');
             Route::get('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserveFlow'])->name('borrower.marketplace.reserve');
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
@@ -368,7 +370,6 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'postApprovalFees'])->name('borrower.application.post-approval-fees');
             Route::get('/borrower/applications/{application}/disbursement-details', [\App\Http\Controllers\Site\BorrowerController::class, 'disbursementDetails'])->name('borrower.application.disbursement-details');
             Route::post('/borrower/applications/{application}/disbursement-details/confirm', [\App\Http\Controllers\Site\BorrowerController::class, 'confirmDisbursementDetails'])->name('borrower.application.disbursement-details.confirm');
-            Route::post('/borrower/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storeRequest'])->name('borrower.marketplace.request');
             Route::get('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'kycReconfirm'])->name('borrower.kyc-reconfirm');
             Route::put('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'updateKycReconfirm'])->name('borrower.kyc-reconfirm.update');
             Route::get('/borrower/guarantor-notifications',        [\App\Http\Controllers\Site\BorrowerController::class, 'guarantorNotifications'])->name('borrower.guarantor-notifications');

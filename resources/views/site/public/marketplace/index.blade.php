@@ -23,18 +23,16 @@
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         @guest
-        <div class="mb-8 glass-card overflow-hidden" x-data="{ requestOpen: false }">
-            <button type="button" @click="requestOpen = !requestOpen" class="w-full text-left p-6 flex items-center justify-between gap-4 hover:bg-brand-muted/20 transition">
-                <div class="flex items-start gap-3">
-                    <span class="text-2xl" aria-hidden="true">🔍</span>
-                    <div>
-                        <h2 class="font-semibold text-lg">{{ __('borrower.marketplace.request_collapsed_title') }}</h2>
-                        <p class="text-sm text-gray-500 mt-1">{{ __('borrower.marketplace.find_subtitle') }}</p>
-                    </div>
+        <div class="mb-8 kf-premium-panel rounded-2xl overflow-hidden" x-data="{ requestOpen: false }">
+            <button type="button" @click="requestOpen = !requestOpen" class="relative w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">{{ __('borrower.nav.marketplace') }}</p>
+                    <h2 class="mt-2 text-lg sm:text-xl font-extrabold tracking-tight text-white">{{ __('borrower.marketplace.request_collapsed_title') }}</h2>
+                    <p class="text-sm text-white/80 mt-1 max-w-xl">{{ __('borrower.marketplace.find_subtitle') }}</p>
                 </div>
-                <span class="shrink-0 text-sm font-semibold text-brand" x-text="requestOpen ? '−' : '+'"></span>
+                <span class="relative shrink-0 size-10 rounded-full bg-white/10 ring-1 ring-white/25 text-brand-gold text-xl font-bold grid place-items-center" x-text="requestOpen ? '−' : '+'"></span>
             </button>
-            <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.marketplace.request') }}" class="px-6 pb-6 grid gap-4 border-t border-gray-100/80 pt-4">
+            <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.marketplace.request') }}" class="relative mx-5 sm:mx-6 mb-5 grid gap-4 rounded-2xl bg-white p-4 sm:p-5">
                 @csrf
                 <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand">
                     {{ __('borrower.marketplace.request_signup_hint') }}

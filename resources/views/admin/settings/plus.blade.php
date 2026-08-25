@@ -2,7 +2,7 @@
     @include('admin.settings._tabs', ['active' => 'plus'])
 
     <div class="mb-6 rounded-xl bg-brand/5 ring-1 ring-brand/10 px-4 py-3 text-sm text-gray-700 space-y-1">
-        <p><strong>Billing period (days)</strong> is how long one payment covers. Use <strong>365</strong> for a yearly plan. The price next to it is the amount charged for that whole period — not a monthly fee unless the period is 30 days.</p>
+        <p><strong>Billing period</strong> is monthly or yearly. The price is charged once for that whole period — not a monthly fee unless you choose monthly.</p>
         <p><strong>Monthly Club lesson</strong> is a short article (and optional private video) members open in Learn. Sample lessons are loaded so you can see the layout; replace them with your own.</p>
         <p><strong>Targeted offer</strong> is a partner or Club offer shown only in Plus Offers. You choose grade, country, and whether it is Plus-only. It never changes Grade or Trust.</p>
     </div>
@@ -13,8 +13,22 @@
         class="mb-8"
     >
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <x-admin.input name="tz_price" label="Subscription price (TZS)" type="number" :value="$config['plans']['monthly']['prices']['TZ']['amount'] ?? 3000" help="Charged once for the period below. Same payment page as other customer payments." />
-            <x-admin.input name="period_days" label="Subscription length (days)" type="number" :value="$config['plans']['monthly']['period_days'] ?? 365" help="365 = one year. 30 = one month. This is the number of days the payment unlocks Plus." />
+            <x-admin.select
+                name="billing_cycle"
+                label="Billing period"
+                :options="['monthly' => 'Monthly', 'yearly' => 'Yearly']"
+                :value="$billingCycle ?? 'yearly'"
+                help="Monthly = 30 days. Yearly = 365 days. One payment covers the whole period."
+                required
+            />
+            <x-admin.input
+                name="tz_price"
+                label="Subscription price (TZS)"
+                :money="true"
+                :value="$config['plans']['monthly']['prices']['TZ']['amount'] ?? 3000"
+                help="Charged once for the period on the left. Same payment page as other customer payments."
+                required
+            />
         </div>
     </x-admin.settings-editor>
 

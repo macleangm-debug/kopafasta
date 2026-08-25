@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Grades\CustomerGradeEngine;
 use App\Services\Grades\GradeSettings;
 use App\Services\Plus\PlusService;
+use App\Support\MoneyFormat;
 use Illuminate\Http\Request;
 
 class GradeSettingsController extends Controller
@@ -57,6 +58,7 @@ class GradeSettingsController extends Controller
 
         return view('admin.settings.plus', [
             'config' => $plus->config(),
+            'billingCycle' => $plus->billingCycle(),
             'lessons' => \App\Models\PlusLesson::query()->latest('id')->limit(24)->get(),
             'offers' => \App\Models\PlusOffer::query()->latest('id')->limit(24)->get(),
             'categories' => \App\Models\PlusSubjectCategory::query()->orderBy('sort')->get(),
@@ -82,9 +84,15 @@ class GradeSettingsController extends Controller
 
     public function savePlus(Request $request)
     {
+        $data = $request->validate([
+            'tz_price' => ['required'],
+            'billing_cycle' => ['required', 'in:monthly,yearly'],
+        ]);
         $config = app(PlusService::class)->config();
-        $config['plans']['monthly']['prices']['TZ']['amount'] = (float) $request->input('tz_price', 3000);
-        $config['plans']['monthly']['period_days'] = (int) $request->input('period_days', 365);
+        $cycle = $data['billing_cycle'];
+        $config['plans']['monthly']['billing_cycle'] = $cycle;
+        $config['plans']['monthly']['period_days'] = $cycle === 'monthly' ? 30 : 365;
+        $config['plans']['monthly']['prices']['TZ']['amount'] = (float) MoneyFormat::toNumber($data['tz_price']);
         \App\Models\Setting::set('kopafasta_plus.config', $config);
 
         return back()->with('status', 'Kopafasta Plus settings saved.');

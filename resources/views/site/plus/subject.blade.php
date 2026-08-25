@@ -10,18 +10,19 @@
             </x-site.plus-hero>
 
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 sm:p-6 space-y-4">
-                <div class="text-[15px] text-gray-800 leading-relaxed whitespace-pre-line">{{ $subject->localizedBody() ?: $subject->localizedIntro() }}</div>
-                @if ($subject->localizedAction())
-                    <div class="rounded-xl bg-brand/5 ring-1 ring-brand/10 p-4">
-                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.learn.try_now') }}</p>
-                        <p class="text-sm font-semibold text-gray-900 mt-1">{{ $subject->localizedAction() }}</p>
-                        <p class="text-xs text-gray-500 mt-1">{{ __('plus.learn.try_hint') }}</p>
-                        <form method="post" action="{{ route('site.borrower.plus.subject.action', $subject) }}" class="mt-3">
-                            @csrf
-                            <button class="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">{{ $subject->localizedAction() }} →</button>
-                        </form>
-                    </div>
-                @endif
+                <x-site.plus-article-steps :steps="$subject->localizedSteps()">
+                    @if ($subject->localizedAction())
+                        <div class="rounded-xl bg-brand/5 ring-1 ring-brand/10 p-4">
+                            <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.learn.try_now') }}</p>
+                            <p class="text-sm font-semibold text-gray-900 mt-1">{{ $subject->localizedAction() }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ __('plus.learn.try_hint') }}</p>
+                            <form method="post" action="{{ route('site.borrower.plus.subject.action', $subject) }}" class="mt-3">
+                                @csrf
+                                <button class="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">{{ $subject->localizedAction() }} →</button>
+                            </form>
+                        </div>
+                    @endif
+                </x-site.plus-article-steps>
                 <div class="flex flex-wrap gap-2">
                     <form method="post" action="{{ route('site.borrower.plus.subject.complete', $subject) }}">
                         @csrf

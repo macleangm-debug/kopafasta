@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PlusArticleSteps;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -64,6 +65,12 @@ class PlusSubject extends Model
         $value = $locale === 'sw' ? ($this->action_sw ?: $this->action_en) : $this->action_en;
 
         return filled($value) ? $value : null;
+    }
+
+    /** @return list<string> */
+    public function localizedSteps(?string $locale = null): array
+    {
+        return PlusArticleSteps::fromBody($this->localizedBody($locale) ?: $this->localizedIntro($locale));
     }
 
     public function actionUrl(): ?string

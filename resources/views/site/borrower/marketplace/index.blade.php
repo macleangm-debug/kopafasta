@@ -11,23 +11,20 @@
         $pendingRequest = session('pending_asset_request', []);
         $openRequest = request()->boolean('request') || filled($pendingRequest);
     @endphp
-    <div class="mb-8 glass-card overflow-hidden" x-data="{ requestOpen: @js($openRequest) }">
-        <button type="button" @click="requestOpen = !requestOpen" class="w-full text-left p-6 flex items-center justify-between gap-4 hover:bg-brand-muted/20 transition">
+    <div class="mb-8 kf-premium-panel rounded-2xl overflow-hidden" x-data="{ requestOpen: @js($openRequest) }">
+        <button type="button" @click="requestOpen = !requestOpen" class="relative w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4">
             <div>
-                <h2 class="font-semibold text-lg">{{ __('borrower.marketplace.request_collapsed_title') }}</h2>
-                <p class="text-sm text-gray-500 mt-1">{{ __('borrower.marketplace.find_subtitle') }}</p>
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">{{ __('borrower.nav.marketplace') }}</p>
+                <h2 class="mt-2 text-lg sm:text-xl font-extrabold tracking-tight text-white">{{ __('borrower.marketplace.request_collapsed_title') }}</h2>
+                <p class="text-sm text-white/80 mt-1 max-w-xl">{{ __('borrower.marketplace.find_subtitle') }}</p>
             </div>
-            <span class="shrink-0 text-sm font-semibold text-brand" x-text="requestOpen ? '−' : '+'"></span>
+            <span class="relative shrink-0 size-10 rounded-full bg-white/10 ring-1 ring-white/25 text-brand-gold text-xl font-bold grid place-items-center" x-text="requestOpen ? '−' : '+'"></span>
         </button>
-        <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.borrower.marketplace.request') }}" enctype="multipart/form-data" class="px-6 pb-6 grid gap-4 border-t border-gray-100/80 pt-4">
+        <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.borrower.marketplace.request') }}" class="relative mx-5 sm:mx-6 mb-5 grid gap-4 rounded-2xl bg-white p-4 sm:p-5">
             @csrf
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.asset_name') }}</label>
                 <input name="asset_name" required value="{{ old('asset_name', $pendingRequest['asset_name'] ?? '') }}" placeholder="e.g. Toyota Hilux 2019" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.photo') }}</label>
-                <x-site.single-image-document-upload name="photo" facing="environment" :required="false" />
             </div>
             <div>
                 <button class="bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">{{ __('borrower.marketplace.submit_request') }}</button>
