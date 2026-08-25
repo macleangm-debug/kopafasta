@@ -15,10 +15,13 @@ class PlusLearningService
     public function ensureCatalog(): void
     {
         if (PlusSubjectCategory::query()->exists() && PlusSubject::query()->count() >= 500) {
+            app(PlusLearningCatalog::class)->refreshPublishedCopyIfStale();
+
             return;
         }
 
         app(PlusLearningCatalog::class)->seed();
+        app(PlusLearningCatalog::class)->refreshPublishedCopyIfStale();
     }
 
     public function publishedQuery()
@@ -67,9 +70,12 @@ class PlusLearningService
             ->whereIn('id', $progress->whereNotNull('saved_at')->pluck('plus_subject_id'))
             ->with('category')
             ->get();
+        $icons = collect(app(PlusLearningCatalog::class)->categories())
+            ->mapWithKeys(fn (array $cat) => [$cat['slug'] => $cat['icon']]);
 
         return [
             'categories' => $categories,
+            'category_icons' => $icons,
             'locale' => $locale,
             'search' => $search,
             'category' => $category,

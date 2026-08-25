@@ -18,6 +18,7 @@ use App\Services\Plus\PlusNextBestActionService;
 use App\Services\Plus\PlusNotificationGate;
 use App\Services\Plus\PlusService;
 use App\Services\Plus\PlusWorkspaceService;
+use App\Support\MoneyFormat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -102,16 +103,20 @@ class PlusController extends Controller
         abort_unless($plus->isActive($customer), 403);
         $learning->markCompleted($customer, $subject);
 
-        return back()->with('status', __('plus.learn.marked_done'));
+        return redirect()
+            ->route('site.borrower.plus.learn')
+            ->with('status', __('plus.learn.done_back'));
     }
 
     public function saveSubject(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
     {
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
-        $learning->toggleSaved($customer, $subject);
+        $row = $learning->toggleSaved($customer, $subject);
 
-        return back();
+        return back()->with('status', $row->saved_at
+            ? __('plus.learn.saved_to_list')
+            : __('plus.learn.unsaved'));
     }
 
     public function subjectAction(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
@@ -167,6 +172,7 @@ class PlusController extends Controller
     {
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
+        $this->mergeMoneyFields($request, ['in_amount', 'out_amount', 'amount']);
 
         if ($request->filled('in_amount') || $request->filled('out_amount')) {
             $data = $request->validate([
@@ -180,7 +186,7 @@ class PlusController extends Controller
                 'outflow' => (float) ($data['out_amount'] ?? 0),
             ]);
 
-            return back()->with('status', __('plus.saved'));
+            return back()->with('status', __('plus.money.saved_here'));
         }
 
         $data = $request->validate([
@@ -196,7 +202,7 @@ class PlusController extends Controller
             'category' => $data['category'],
         ]);
 
-        return back()->with('status', __('plus.saved'));
+        return back()->with('status', __('plus.money.saved_here'));
     }
 
     public function business(Request $request, PlusService $plus, PlusWorkspaceService $workspace)
@@ -214,6 +220,7 @@ class PlusController extends Controller
     {
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
+        $this->mergeMoneyFields($request, ['sold', 'spent', 'amount']);
 
         if ($request->filled('sold') || $request->filled('spent')) {
             $data = $request->validate([
@@ -229,7 +236,7 @@ class PlusController extends Controller
                 ]);
             }
 
-            return back()->with('status', __('plus.saved'));
+            return back()->with('status', __('plus.business.saved_here'));
         }
 
         $data = $request->validate([
@@ -245,7 +252,7 @@ class PlusController extends Controller
             'category' => $data['category'] ?? $data['kind'],
         ]);
 
-        return back()->with('status', __('plus.saved'));
+        return back()->with('status', __('plus.business.saved_here'));
     }
 
     public function goals(Request $request, PlusService $plus, PlusWorkspaceService $workspace)
@@ -263,6 +270,7 @@ class PlusController extends Controller
     {
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
+        $this->mergeMoneyFields($request, ['target_amount']);
         $data = $request->validate([
             'kind' => ['required', 'in:business,school,home,vehicle,emergency,other,stock'],
             'title' => ['nullable', 'string', 'max:80'],
@@ -292,6 +300,7 @@ class PlusController extends Controller
         $customer = $request->user()->customer;
         abort_unless($plus->isActive($customer), 403);
         abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
+        $this->mergeMoneyFields($request, ['amount']);
         $data = $request->validate(['amount' => ['required', 'numeric', 'min:0.01']]);
         $saved = (float) $goal->saved_amount + (float) $data['amount'];
         $goal->update([
@@ -466,5 +475,19 @@ class PlusController extends Controller
             'Content-Type' => 'video/mp4',
             'Cache-Control' => 'private, no-store',
         ]);
+    }
+
+    /** @param list<string> $keys */
+    private function mergeMoneyFields(Request $request, array $keys): void
+    {
+        $merge = [];
+        foreach ($keys as $key) {
+            if ($request->filled($key)) {
+                $merge[$key] = MoneyFormat::toNumber($request->input($key));
+            }
+        }
+        if ($merge !== []) {
+            $request->merge($merge);
+        }
     }
 }

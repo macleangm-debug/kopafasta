@@ -178,3 +178,27 @@
         overscroll-behavior: none;
     }
 }
+
+@media print {
+    .kf-chrome-sidebar,
+    .kf-chrome-topbar-desktop,
+    .kf-chrome-topbar-mobile,
+    footer {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+        color: #111 !important;
+    }
+
+    .kf-chrome-page {
+        padding: 0 !important;
+    }
+
+    .kf-print-sheet {
+        box-shadow: none !important;
+        border: 1px solid #0B3D32;
+        break-inside: avoid;
+    }
+}

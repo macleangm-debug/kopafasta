@@ -10,11 +10,13 @@
     'help' => null,
     'money' => false,
     'decimals' => 0,
+    'id' => null,
 ])
 
 @php
-    $inputMode = $mode === 'decimal' ? 'decimal' : 'numeric';
-    $pattern = $mode === 'decimal' ? '[0-9.,]*' : '[0-9]*';
+    $inputId = $id ?: $name;
+    $inputMode = ($money || $mode === 'decimal') ? 'decimal' : 'numeric';
+    $pattern = ($money || $mode === 'decimal') ? '[0-9.,]*' : '[0-9]*';
     $rawValue = old($name, $value);
     $displayValue = $money
         ? \App\Support\MoneyFormat::forInput($rawValue, (int) $decimals)
@@ -23,12 +25,12 @@
 
 <div @error($name) data-has-error="true" @enderror>
     @if ($label)
-        <label for="{{ $name }}" class="block text-xs font-medium text-gray-600 mb-1">
+        <label for="{{ $inputId }}" class="block text-xs font-medium text-gray-600 mb-1">
             {{ $label }} @if ($required)<span class="text-red-500">*</span>@endif
         </label>
     @endif
     <input
-        id="{{ $name }}"
+        id="{{ $inputId }}"
         name="{{ $name }}"
         type="text"
         inputmode="{{ $inputMode }}"

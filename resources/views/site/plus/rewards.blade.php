@@ -1,14 +1,13 @@
 <x-site.borrower-layout :title="brand_title(__('plus.home.rewards'))" active="dashboard">
     <div class="space-y-5" x-data="{ redeemOpen: false, code: '' }">
-        <a href="{{ route('site.borrower.plus.home') }}" class="text-sm font-semibold text-brand">← Plus</a>
-        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 sm:p-6">
-            <h1 class="text-xl font-bold text-gray-900">{{ __('plus.rewards.title') }}</h1>
-            <p class="text-3xl font-extrabold mt-3 tabular-nums">{{ __('plus.rewards.points', ['balance' => $balance]) }}</p>
-            <p class="text-sm text-gray-500 mt-2">{{ __('plus.rewards.borrow_line') }}</p>
+        <x-site.plus-nav />
+        <x-site.plus-hero kicker="Kopafasta Plus" :title="__('plus.rewards.title')" :body="__('plus.rewards.hero_body')">
+            <p class="text-3xl font-extrabold tabular-nums">{{ __('plus.rewards.points', ['balance' => $balance]) }}</p>
+            <p class="text-sm text-white/80 mt-2">{{ __('plus.rewards.borrow_line') }}</p>
             @if ($balance > 0)
-                <button type="button" @click="redeemOpen = true" class="mt-4 rounded-xl bg-brand text-white px-5 py-2.5 text-sm font-semibold">{{ __('plus.rewards.use') }}</button>
+                <button type="button" @click="redeemOpen = true" class="mt-4 rounded-xl bg-brand-gold text-brand px-5 py-2.5 text-sm font-bold">{{ __('plus.rewards.use') }}</button>
             @endif
-        </div>
+        </x-site.plus-hero>
 
         <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-5">
             <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold">{{ __('plus.rewards.can_get') }}</p>

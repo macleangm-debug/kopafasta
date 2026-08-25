@@ -85,13 +85,22 @@ class PlusService
         if (! \App\Models\PlusOffer::query()->exists()) {
             \App\Models\PlusOffer::query()->create([
                 'title' => 'Plus Club — record 7 days of money in and out',
-                'body' => 'Sample Plus-only offer. Real partner offers will appear here for the matching grade and country. Completing the money diary does not change your Grade or Trust Score.',
+                'body' => 'Write money in and out for seven days. Partner offers for your country will appear here when they are live.',
                 'tier' => 'standard',
                 'country_code' => 'TZ',
                 'eligible_grades' => ['bronze', 'silver', 'gold', 'platinum'],
                 'plus_only' => true,
                 'active' => true,
             ]);
+        } else {
+            \App\Models\PlusOffer::query()
+                ->where(function ($q) {
+                    $q->where('body', 'like', '%does not change your Grade%')
+                        ->orWhere('body', 'like', '%haibadilishi Daraja%');
+                })
+                ->update([
+                    'body' => 'Write money in and out for seven days. Partner offers for your country will appear here when they are live.',
+                ]);
         }
     }
 

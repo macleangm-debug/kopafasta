@@ -51,6 +51,7 @@ class PlusWorkspaceService
             'home' => ['en' => 'Home', 'sw' => 'Nyumba', 'icon' => '🏠'],
             'vehicle' => ['en' => 'Vehicle / motorcycle', 'sw' => 'Gari / pikipiki', 'icon' => '🛵'],
             'emergency' => ['en' => 'Emergency', 'sw' => 'Dharura', 'icon' => '🛟'],
+            'stock' => ['en' => 'Stock', 'sw' => 'Bidhaa', 'icon' => '📦'],
             'other' => ['en' => 'Something else', 'sw' => 'Kitu kingine', 'icon' => '🎯'],
         ];
     }
@@ -210,15 +211,25 @@ class PlusWorkspaceService
 
     public function compactAmount(float $amount): string
     {
-        $abs = abs($amount);
-        if ($abs >= 1_000_000) {
-            $value = number_format($abs / 1_000_000, 1);
-            $value = rtrim(rtrim($value, '0'), '.');
+        return format_money($amount);
+    }
 
-            return ($amount < 0 ? '−' : '').'TZS '.$value.'m';
+    public function moneyCategoryLabel(?string $key): string
+    {
+        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
+        if (! $key) {
+            return '—';
+        }
+        $cats = $this->moneyCategories();
+        if (isset($cats[$key])) {
+            return $cats[$key][$locale];
+        }
+        $sources = $this->incomeSources();
+        if (isset($sources[$key])) {
+            return $sources[$key][$locale];
         }
 
-        return format_money($amount);
+        return $key;
     }
 
     /** @return array{in: float, out: float} */

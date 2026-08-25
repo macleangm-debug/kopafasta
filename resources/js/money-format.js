@@ -177,4 +177,10 @@ export function bindMoneyFormatGlobally() {
             Livewire.hook('morph.updated', () => boot());
         }
     });
+
+    let moneyInputTimer = 0;
+    new MutationObserver(() => {
+        window.clearTimeout(moneyInputTimer);
+        moneyInputTimer = window.setTimeout(() => initMoneyInputs(), 50);
+    }).observe(document.documentElement, { childList: true, subtree: true });
 }

@@ -23,7 +23,7 @@ class PlusLearningCatalog
             foreach ($category['topics'] as $offset => $topic) {
                 $slug = $category['slug'].'-'.($offset + 1);
                 $publish = $offset === 0;
-                $body = $publish ? $this->article($topic[0], $topic[1], $category['action']) : [null, null];
+                $body = $publish ? $this->article($topic[0], $topic[1], $category['action'], $category['slug']) : [null, null];
 
                 PlusSubject::query()->firstOrCreate(
                     ['slug' => $slug],
@@ -31,8 +31,8 @@ class PlusLearningCatalog
                         'plus_subject_category_id' => $row->id,
                         'title_en' => $topic[0],
                         'title_sw' => $topic[1],
-                        'intro_en' => $this->intro($topic[0], 'en'),
-                        'intro_sw' => $this->intro($topic[1], 'sw'),
+                        'intro_en' => $this->intro('en', $category['slug']),
+                        'intro_sw' => $this->intro('sw', $category['slug']),
                         'body_en' => $body[0],
                         'body_sw' => $body[1],
                         'duration_minutes' => $topic[2] ?? 4,
@@ -90,20 +90,328 @@ class PlusLearningCatalog
         ];
     }
 
-    private function intro(string $title, string $locale): string
+    public function categoryIcon(string $slug): string
     {
-        return $locale === 'sw'
-            ? $title.'. Soma dakika chache, kisha fanya hatua moja rahisi leo.'
-            : $title.'. Read for a few minutes, then do one simple action today.';
+        foreach ($this->categories() as $category) {
+            if ($category['slug'] === $slug) {
+                return $category['icon'];
+            }
+        }
+
+        return '📘';
+    }
+
+    public function refreshPublishedCopy(): void
+    {
+        foreach ($this->categories() as $category) {
+            $topic = $category['topics'][0] ?? null;
+            if (! $topic) {
+                continue;
+            }
+            $body = $this->article($topic[0], $topic[1], $category['action'], $category['slug']);
+            PlusSubject::query()->where('slug', $category['slug'].'-1')->update([
+                'intro_en' => $this->intro('en', $category['slug']),
+                'intro_sw' => $this->intro('sw', $category['slug']),
+                'body_en' => $body[0],
+                'body_sw' => $body[1],
+            ]);
+        }
+    }
+
+    public function refreshPublishedCopyIfStale(): void
+    {
+        $stale = PlusSubject::query()
+            ->where('status', 'published')
+            ->where(function ($q) {
+                $q->where('intro_en', 'like', '%Read for a few minutes%')
+                    ->orWhere('intro_sw', 'like', '%Soma dakika chache%')
+                    ->orWhere('body_en', 'like', '%This happens to many people%');
+            })
+            ->exists();
+
+        if ($stale) {
+            $this->refreshPublishedCopy();
+        }
+    }
+
+    private function intro(string $locale, string $slug): string
+    {
+        return $this->copy($slug, $locale, 'lead');
     }
 
     /** @return array{0: ?string, 1: ?string} */
-    private function article(string $en, string $sw, array $action): array
+    private function article(string $en, string $sw, array $action, string $slug): array
     {
-        $enBody = $en."\n\nThis happens to many people, especially when money arrives on different days.\n\nToday try one thing.\n\nWhen money comes in, before you start spending, split it into three:\n\nMust-haves — rent, food, travel.\nComing soon — fees, bills, repayments.\nLater — a small save or your goal.\n\nYou do not need a large amount to start.\n\nTry now: ".$action['en'].'.';
-        $swBody = $sw."\n\nHili hutokea kwa watu wengi, hasa kama pesa inaingia kwa nyakati tofauti.\n\nLeo jaribu kitu kimoja.\n\nUkipokea pesa, kabla hujaanza kuitumia, gawa kwa mambo matatu:\n\nYa lazima — kodi, chakula, usafiri.\nYanayokuja — ada, bili, malipo.\nYa baadaye — akiba au lengo lako.\n\nHuhitaji kuanza na kiasi kikubwa.\n\nJaribu sasa: ".$action['sw'].'.';
+        $enBody = implode("\n\n", [
+            $en.'.',
+            $this->copy($slug, 'en', 'why'),
+            $this->copy($slug, 'en', 'how'),
+            $this->copy($slug, 'en', 'today'),
+            'Try now: '.$action['en'].'.',
+        ]);
+        $swBody = implode("\n\n", [
+            $sw.'.',
+            $this->copy($slug, 'sw', 'why'),
+            $this->copy($slug, 'sw', 'how'),
+            $this->copy($slug, 'sw', 'today'),
+            'Jaribu sasa: '.$action['sw'].'.',
+        ]);
 
         return [$enBody, $swBody];
+    }
+
+    private function copy(string $slug, string $locale, string $part): string
+    {
+        $en = [
+            'money' => [
+                'lead' => 'A clear picture of money in, money out, and what is left — before the month surprises you.',
+                'why' => 'Money often feels like it disappeared because it was never written down. When cash, mobile money and a shop till mix, the month looks full on Monday and empty by Thursday. That is not a character problem. It is a missing picture.',
+                'how' => 'Keep three numbers, not a perfect book: what came in, what went out, and what is left. Split the leftover into must-haves (rent, food, travel), coming-soon (fees, bills, repayments), and later (a small save or your goal). You do not need a large amount to start.',
+                'today' => 'Open Your money in Plus and write today’s in or out. One number is enough. Tomorrow you will already see the month moving in the card.',
+            ],
+            'saving' => [
+                'lead' => 'A small save you can actually reach — without waiting for a windfall.',
+                'why' => 'People wait for a big leftover before they save. The leftover rarely arrives. A reachable save is a number you can add on an ordinary day, even TZS 1,000, kept in a named place so it is not “borrowed” by the week.',
+                'how' => 'Name the save (emergency, school, stock). Put it in Plus Goals. Add a little on days money comes in — before the rest of the week spends it. Protect it by writing it as already gone.',
+                'today' => 'Open Goals and start or add to a small target. The bar only moves when you add. That is the point.',
+            ],
+            'business' => [
+                'lead' => 'Shop money and house money stay clearer when today’s sale and spend sit in one card.',
+                'why' => 'A quiet day still happened. If it is not written, last week and this week look the same, and you cannot tell whether the shop is helping the home or the home is eating the shop.',
+                'how' => 'Write what you sold and what the shop spent. The difference is the only number that matters today. Do not wait for a full till count. One sale still counts.',
+                'today' => 'Open Your business and record today’s sale or spend. The card at the top is your summary.',
+            ],
+            'loans' => [
+                'lead' => 'Borrowing is a tool. The story that matters is the one you keep when you are not borrowing.',
+                'why' => 'A loan does not fix a month that has no picture. Trust grows from keeping promises: paying on time, writing money, finishing a small goal. Plus never asks you to borrow to look active.',
+                'how' => 'Use Plus for the days between loans. Write money. Check the report. Keep a goal moving. When you do borrow, you already know what the month can carry.',
+                'today' => 'Open your Plus dashboard and complete today’s step. That is the useful action — not a new application.',
+            ],
+            'debt' => [
+                'lead' => 'Debts get quieter when you can see what is coming — and what you already wrote down.',
+                'why' => 'A repayment that “suddenly” arrives usually sat in the calendar all along. Fear grows in the dark. A list of coming amounts, even three lines, turns panic into a plan.',
+                'how' => 'Write the next payment and the date. Keep household money and shop money apart so a debt does not empty both. Pay the promised amount; do not skip writing the week just because a bill is due.',
+                'today' => 'Open Your money and look at what is coming. If nothing is listed, write the next bill as an upcoming amount in your head, then record today’s out so the card stays true.',
+            ],
+            'goals' => [
+                'lead' => 'A named target with a date beats a wish that waits for leftover money.',
+                'why' => 'Goals stall because they stay in the air. A target in Plus has an amount, a date, and a bar. Adding a little on a good day is the whole method.',
+                'how' => 'Pick one kind: school, home, emergency, stock, business. Set the amount. Choose a date on the calendar. Add progress when money comes in — before the week spends it.',
+                'today' => 'Open Goals and create or add to one target. Watch the card update. That is the summary.',
+            ],
+            'family' => [
+                'lead' => 'Household money stays calmer when everyone can see the same three numbers.',
+                'why' => 'Family asks often arrive on payday. If the month has no picture, every ask feels like a crisis. A shared plan — must-haves, coming-soon, later — makes “not this week” easier to say without a fight.',
+                'how' => 'Write household in and out in Your money. Agree one small later amount (a save or a goal) that is already spoken for. Giving can still happen; it just has a place.',
+                'today' => 'Open Your money and record today’s household amount. The card is the picture you can show at home.',
+            ],
+            'emergency' => [
+                'lead' => 'An emergency is less shocking when a small, reachable amount already exists.',
+                'why' => 'Emergencies empty the week because there was nowhere else to take from. A named emergency goal, even a modest one, is a shock absorber — not a full insurance policy.',
+                'how' => 'Create an emergency goal in Plus. Add on good days. Keep it separate from shop money and from the goal you are building for school or stock.',
+                'today' => 'Open Goals and start or add to an emergency target. One add is enough for today.',
+            ],
+            'work' => [
+                'lead' => 'Income that arrives on different days still needs a picture of the week.',
+                'why' => 'Uneven pay makes people feel behind even after a good day. Writing money in when it arrives — salary, a job, someone paying you — stops the “I don’t know where it went” week.',
+                'how' => 'Record money in the day it comes. Split it before you spend: must-haves, coming-soon, later. Do not wait for a “proper” payday.',
+                'today' => 'Open Your money and write what came in, even if it is small. The month card will show it.',
+            ],
+            'pricing' => [
+                'lead' => 'Price and profit stay honest when a sale is written the same day.',
+                'why' => 'A price that “feels right” can still lose money if stock and spending are invisible. One recorded sale plus one recorded spend tells you more than a long argument about markup.',
+                'how' => 'Write the sale. Write what the shop spent to make it. Look at the difference in Your business. Adjust the next price from that number, not from a neighbour’s rumour.',
+                'today' => 'Open Your business and record a sale. The card at the top is today’s profit picture.',
+            ],
+            'customers' => [
+                'lead' => 'Customers return when the shop is calm, priced clearly, and remembered.',
+                'why' => 'A busy chat is not cash. A regular who pays and comes back is the business. Recording sales helps you see which days actually fed the home.',
+                'how' => 'Keep a simple habit: every sale in Plus, even a small one. Note quiet days too — they still happened. Clear prices reduce bargaining that eats the week.',
+                'today' => 'Open Your business and write today’s sales. If there were none, write a spend or leave the card at zero — honesty is the record.',
+            ],
+            'stock' => [
+                'lead' => 'Stock is money sitting on a shelf. Buying without writing it hides the week.',
+                'why' => 'A restock can look like a good day until you see that the shop spent more than it sold. Writing spending the same day keeps stock from pretending to be profit.',
+                'how' => 'Record shop spending in Your business. Compare it to sales in the same card. Buy again only when the difference still leaves the house standing.',
+                'today' => 'Open Your business and record today’s stock spend or a sale. The summary stays in the card.',
+            ],
+            'payments' => [
+                'lead' => 'Paying and being paid both need a line in the same picture.',
+                'why' => 'Mobile money, cash, and a promised payment scatter the week. If you only remember the big one, the small leaks empty the leftover.',
+                'how' => 'Write money in when you are paid. Write money out when you pay. Upcoming amounts belong in the coming-soon pile so they do not “appear” on Friday.',
+                'today' => 'Open Your money and write one payment — in or out. The month card is the summary.',
+            ],
+            'safety' => [
+                'lead' => 'Money safety is mostly habits: a PIN, a separate place, and a record you trust.',
+                'why' => 'Loss often starts with mixing: one phone, one wallet, no picture. Plus is a companion for the days you are not borrowing — a place to see the month without sharing your PIN with the street.',
+                'how' => 'Keep shop and home apart. Write amounts in Plus, not on a scrap that tears. Do not show balances in public. A report you can open is safer than a memory.',
+                'today' => 'Open the Plus dashboard and complete today’s step. That is a safety habit, not a lecture.',
+            ],
+            'insurance' => [
+                'lead' => 'Protection starts with seeing what would hurt — then using the offers that actually fit.',
+                'why' => 'People skip protection because it sounds like a product pitch. A useful first step is knowing your month, your goal, and any Plus offer that matches your country — without confusing it with Grade.',
+                'how' => 'Read the offer. Claim only what you will use. Keep writing money so an emergency does not wipe the week. Offers sit in Plus; they are not a new loan.',
+                'today' => 'Open Offers and read the one marked best for you. Claim it if it helps this week.',
+            ],
+            'home' => [
+                'lead' => 'A home goal is a date and an amount — not a wish that waits for leftover.',
+                'why' => 'House and asset plans stall when they stay spoken only. A Plus goal with a calendar date turns “someday” into a bar you can add to on a good day.',
+                'how' => 'Create a home goal. Set the amount and the date with the same calendar the rest of Kopafasta uses. Add progress when money comes in, before the week spends it.',
+                'today' => 'Open Goals and start or add to a home target. The card will show how far you have come.',
+            ],
+            'farming' => [
+                'lead' => 'Seasonal money still needs a month picture — harvest is not a plan by itself.',
+                'why' => 'A good harvest can vanish between school fees, stock, and family asks if it is not written. Seasonal income is uneven; the method is the same three numbers.',
+                'how' => 'Record money in when the season pays. Split must-haves, coming-soon, and later (seed, a save, a goal). Do not wait for the next harvest to start the picture.',
+                'today' => 'Open Your money and write what came in or went out. The month card holds the season in small lines.',
+            ],
+            'digital' => [
+                'lead' => 'A chat is not a till. Digital sales still need today’s number in the card.',
+                'why' => 'Online talk feels like work. Cash is what landed. Recording sales and spending in Plus keeps a busy phone from hiding an empty week.',
+                'how' => 'Write the sale when the money arrives, not when the message was sent. Treat data bundles as shop spending. Close the day with sold, spent, leftover.',
+                'today' => 'Open Your business and record today’s digital sale or spend. The card is the till.',
+            ],
+            'tax' => [
+                'lead' => 'A record today is a calmer month-end — receipts, sales, and spending in one place.',
+                'why' => 'Fear of “tax talk” is often fear of a missing book. You do not need a perfect system. You need what you sold, what you spent, and what is left, kept as you go.',
+                'how' => 'Use Plus reports as the monthly picture. Keep receipts (a photo is still a receipt). Write large spends with a name. Do not wait for a folder to feel official.',
+                'today' => 'Open your report and read the month. Then write today’s money or sale so next month’s picture is already started.',
+            ],
+            'growth' => [
+                'lead' => 'Growth is a small action repeated — leftover after a hard week, then another ordinary Tuesday.',
+                'why' => 'Discipline is not a personality. It is writing the number, adding to a goal, and opening the month without shame. Trust is easier to see when the picture is honest.',
+                'how' => 'Compare yourself to last month, not a neighbour. Learn for a few minutes, then do one thing in Plus. Rest is part of the plan; skipping the record is not.',
+                'today' => 'Open your report or Your money and take one step. That is the growth action — not a longer article.',
+            ],
+        ];
+
+        $sw = [
+            'money' => [
+                'lead' => 'Picha wazi ya pesa inayoingia, inayotoka, na iliyobaki — kabla mwezi haujakushangaza.',
+                'why' => 'Pesa inaonekana “imepotea” kwa sababu haikuandikwa. Taslimu, simu na duka zikichanganyika, wiki inaonekana imejaa Jumatatu na tupu Alhamisi. Si tabia mbaya. Ni picha inayokosekana.',
+                'how' => 'Shika namba tatu, si daftari kamili: zilizoingia, zilizotoka, na salio. Gawa salio: ya lazima (kodi, chakula, usafiri), yanayokuja (ada, bili, malipo), na ya baadaye (akiba au lengo). Huhitaji kuanza na kiasi kikubwa.',
+                'today' => 'Fungua Pesa zako katika Plus na andika za leo. Namba moja inatosha. Kesho utaona mwezi ukisogea kwenye kadi.',
+            ],
+            'saving' => [
+                'lead' => 'Akiba ndogo unayoweza kuifikia — bila kusubiri upepo wa pesa.',
+                'why' => 'Watu husubiri salio kubwa ndipo waweke. Salio hilo mara chache linakuja. Akiba inayofikiwa ni kiasi unachoweza kuongeza siku ya kawaida, hata TZS 1,000, mahali palipo na jina ili wiki isipoikopa.',
+                'how' => 'Ipe jina (dharura, ada, bidhaa). Iweke kwenye Malengo ya Plus. Ongeza kidogo siku pesa inapoingia — kabla wiki haijaitumia. Ilinda kwa kuiandika kama tayari imetoka.',
+                'today' => 'Fungua Malengo na anza au ongeza kwenye lengo dogo. Mstari unasogea unapoongeza. Ndivyo ilivyo.',
+            ],
+            'business' => [
+                'lead' => 'Pesa ya duka na ya nyumbani inakuwa wazi mauzo na matumizi ya leo yakikaa kadi moja.',
+                'why' => 'Siku tulivu bado ilitokea. Ikiwa haijaandikwa, wiki hii na iliypita zinafanana, na huwezi kuona kama duka linasaidia nyumba au nyumba inakula duka.',
+                'how' => 'Andika ulichouza na duka lilichotumia. Tofauti ndiyo namba ya leo. Usisubiri kuhesabu kila kitu. Mauzo moja bado yanahesabika.',
+                'today' => 'Fungua Biashara yako na andika mauzo au matumizi ya leo. Kadi juu ndiyo muhtasari.',
+            ],
+            'loans' => [
+                'lead' => 'Kukopa ni chombo. Hadithi muhimu ni ile unayoendelea nayo siku usizokopa.',
+                'why' => 'Mkopo hauwezi kurekebisha mwezi usio na picha. Imani inakua kwa kutimiza ahadi: kulipa kwa wakati, kuandika pesa, kumaliza lengo dogo. Plus haikuombi ukope ili uonekane mwenye bidii.',
+                'how' => 'Tumia Plus siku kati ya mikopo. Andika pesa. Angalia ripoti. Sogeza lengo. Ukitaka kukopa, tayari unajua mwezi unachoweza kubeba.',
+                'today' => 'Fungua dashibodi ya Plus na kamilisha hatua ya leo. Hiyo ndiyo hatua yenye manufaa — si ombi jipya.',
+            ],
+            'debt' => [
+                'lead' => 'Madeni yanatulia unapoweza kuona yanayokuja — na ulichokwishaandika.',
+                'why' => 'Malipo “ya ghafla” mara nyingi yalikuwa kwenye kalenda. Hofu inakua gizani. Orodha ya kiasi kinachokuja, hata mistari mitatu, inageuza hofu kuwa mpango.',
+                'how' => 'Andika malipo yajayo na tarehe. Tenganisha pesa ya nyumbani na ya duka ili deni lisitumie zote. Lipa kiasi ulichoahidi; usiache kuandika wiki kwa sababu bili inakuja.',
+                'today' => 'Fungua Pesa zako na angalia yanayokuja. Kisha andika zilizotoka leo ili kadi ibaki ya kweli.',
+            ],
+            'goals' => [
+                'lead' => 'Lengo lenye jina na tarehe linashinda tamaa inayosubiri salio.',
+                'why' => 'Malengo yanakwama yanapobaki angani. Lengo katika Plus lina kiasi, tarehe, na mstari. Kuongeza kidogo siku nzuri ndiyo njia yote.',
+                'how' => 'Chagua aina: ada, nyumba, dharura, bidhaa, biashara. Weka kiasi. Chagua tarehe kwenye kalenda. Ongeza pesa inapoingia — kabla wiki haijaitumia.',
+                'today' => 'Fungua Malengo na tengeneza au ongeza kwenye lengo moja. Kadi itasasisha. Huo ndio muhtasari.',
+            ],
+            'family' => [
+                'lead' => 'Pesa ya nyumbani inatulia kila mtu akinena namba zilezile tatu.',
+                'why' => 'Maombi ya familia huja siku ya malipo. Mwezi usipo na picha, kila ombi ni dharura. Mpango wa pamoja — ya lazima, yanayokuja, ya baadaye — unawezesha “si wiki hii” bila vita.',
+                'how' => 'Andika zinazoingia na kutoka za nyumbani. Kubaliana kiasi kidogo cha baadaye (akiba au lengo) ambacho tayari kimezungumzwa. Kutoa bado kunaweza; kina nafasi.',
+                'today' => 'Fungua Pesa zako na andika kiasi cha leo cha nyumbani. Kadi ndiyo picha unaweza kuionyesha nyumbani.',
+            ],
+            'emergency' => [
+                'lead' => 'Dharura inashangaza kidogo kama kiasi kidogo kinachofikiwa tayari kipo.',
+                'why' => 'Dharura inamaliza wiki kwa sababu hakukuwa na mahali pengine pa kuchukua. Lengo la dharura, hata dogo, ni kinga — si bima kamili.',
+                'how' => 'Tengeneza lengo la dharura katika Plus. Ongeza siku nzuri. Litenganishe na pesa ya duka na lengo la ada au bidhaa.',
+                'today' => 'Fungua Malengo na anza au ongeza kwenye lengo la dharura. Ongezo moja linatosha leo.',
+            ],
+            'work' => [
+                'lead' => 'Kipato kinachofika siku tofauti bado kinahitaji picha ya wiki.',
+                'why' => 'Malipo yasiyo thabiti yanakufanya uhisi umebaki nyuma hata baada ya siku nzuri. Kuandika pesa inapoingia — mshahara, kazi, mtu aliyekulipa — kunazuia wiki ya “sijui ilienda wapi”.',
+                'how' => 'Andika zinazoingia siku zinapofika. Gawa kabla ya kutumia: ya lazima, yanayokuja, ya baadaye. Usisubiri “siku rasmi” ya malipo.',
+                'today' => 'Fungua Pesa zako na andika kilichoingia, hata kiwe kidogo. Kadi ya mwezi itaonyesha.',
+            ],
+            'pricing' => [
+                'lead' => 'Bei na faida zinakuwa za kweli mauzo yakandikwa siku ileile.',
+                'why' => 'Bei “inayohisi sawa” bado inaweza hasara kama stock na matumizi havionekani. Mauzo moja na matumizi moja yaliyoandikwa yanasema zaidi ya mabishano ya ongezeko la bei.',
+                'how' => 'Andika mauzo. Andika duka lilichotumia kuyafanya. Angalia tofauti kwenye Biashara yako. Rekebisha bei ijayo kutoka namba hiyo, si uvumi wa jirani.',
+                'today' => 'Fungua Biashara yako na andika mauzo. Kadi juu ndiyo picha ya faida ya leo.',
+            ],
+            'customers' => [
+                'lead' => 'Wateja wanarudi duka likiwa tulivu, bei wazi, na likikumbukwa.',
+                'why' => 'Chat nyingi si taslimu. Mteja anayelipa na kurudi ndiye biashara. Kuandika mauzo kunakusaidia kuona siku zipi zililisha nyumba.',
+                'how' => 'Kila mauzo katika Plus, hata madogo. Andika pia siku tulivu — zilitokea. Bei wazi inapunguza ubargaining unaokula wiki.',
+                'today' => 'Fungua Biashara yako na andika mauzo ya leo. Ikiwa hakukuwa, andika matumizi au acha kadi iwe sifuri — ukweli ndio kumbukumbu.',
+            ],
+            'stock' => [
+                'lead' => 'Stock ni pesa rafuni. Kununua bila kuandika kunaficha wiki.',
+                'why' => 'Kujaza tena kunaweza kuonekana siku nzuri hadi uone duka lilitumia zaidi ya lililouza. Kuandika matumizi siku ileile kunazuia stock kujifanya faida.',
+                'how' => 'Andika matumizi ya duka. Linganisha na mauzo kwenye kadi ileile. Nunua tena tofauti ikiwa bado inawaacha nyumbani wamesimama.',
+                'today' => 'Fungua Biashara yako na andika matumizi ya stock au mauzo ya leo. Muhtasari unakaa kwenye kadi.',
+            ],
+            'payments' => [
+                'lead' => 'Kulipa na kulipwa vyote vinahitaji mstari kwenye picha ileile.',
+                'why' => 'Simu, taslimu, na ahadi ya malipo vinatawanya wiki. Ulikumbuka kubwa tu, mianya midogo inamaliza salio.',
+                'how' => 'Andika zinazoingia unapolipwa. Andika zinazotoka unapolipa. Yanayokuja yawekwe kwenye “yanayokuja” ili yasionekane “ghafla” Ijumaa.',
+                'today' => 'Fungua Pesa zako na andika malipo moja — kuingia au kutoka. Kadi ya mwezi ndiyo muhtasari.',
+            ],
+            'safety' => [
+                'lead' => 'Usalama wa pesa ni tabia: PIN, sehemu tofauti, na kumbukumbu unayoiamini.',
+                'why' => 'Hasara mara nyingi inaanza kwa kuchanganya: simu moja, pochi moja, bila picha. Plus ni mwenzako siku usizokopa — mahali pa kuona mwezi bila kushiriki PIN mtaani.',
+                'how' => 'Tenganisha duka na nyumbani. Andika kiasi katika Plus, si karatasi inayoraruka. Usionyeshe salio hadharani. Ripoti unayoweza kufungua ni salama kuliko kumbukumbu kichwani.',
+                'today' => 'Fungua dashibodi ya Plus na kamilisha hatua ya leo. Hiyo ni tabia ya usalama, si somo.',
+            ],
+            'insurance' => [
+                'lead' => 'Ulinzi unaanza kwa kuona kitakachoumiza — kisha kutumia ofa inayokufaa.',
+                'why' => 'Watu wanakwepa ulinzi kwa sababu unasikika kama bidhaa. Hatua ya kwanza ni kujua mwezi wako, lengo lako, na ofa ya Plus ya nchi yako — bila kuichanganya na Daraja.',
+                'how' => 'Soma ofa. Dai ile utakayoitumia. Endelea kuandika pesa ili dharura isimalize wiki. Ofa ziko Plus; si mkopo mpya.',
+                'today' => 'Fungua Ofa na soma ile inayokufaa zaidi. Idai ikiwa inasaidia wiki hii.',
+            ],
+            'home' => [
+                'lead' => 'Lengo la nyumba ni tarehe na kiasi — si tamaa inayosubiri salio.',
+                'why' => 'Mipango ya nyumba na mali inakwama inapobaki maneno tu. Lengo la Plus lenye tarehe ya kalenda linageuza “siku moja” kuwa mstari unaoweza kuongeza siku nzuri.',
+                'how' => 'Tengeneza lengo la nyumba. Weka kiasi na tarehe kwa kalenda ileile ya Kopafasta. Ongeza pesa inapoingia, kabla wiki haijaitumia.',
+                'today' => 'Fungua Malengo na anza au ongeza kwenye lengo la nyumba. Kadi itaonyesha umefikia wapi.',
+            ],
+            'farming' => [
+                'lead' => 'Pesa ya msimu bado inahitaji picha ya mwezi — mavuno si mpango peke yake.',
+                'why' => 'Mavuno mazuri yanaweza kutoweka kati ya ada, bidhaa na maombi ya familia yakiwa hayajaandikwa. Kipato cha msimu si thabiti; njia ni namba zilezile tatu.',
+                'how' => 'Andika zinazoingia msimu unapolipa. Gawa ya lazima, yanayokuja, na ya baadaye (mbegu, akiba, lengo). Usisubiri mavuno yajayo kuanza picha.',
+                'today' => 'Fungua Pesa zako na andika kilichoingia au kilichotoka. Kadi ya mwezi inashikilia msimu kwa mistari midogo.',
+            ],
+            'digital' => [
+                'lead' => 'Chat si duka. Mauzo ya simu bado yanahitaji namba ya leo kwenye kadi.',
+                'why' => 'Mazungumzo mtandaoni yanahisi kazi. Taslimu ndiyo iliyofika. Kuandika mauzo na matumizi katika Plus kunazuia simu yenye shughuli kuficha wiki tupu.',
+                'how' => 'Andika mauzo pesa inapofika, si ujumbe ulipotumwa. Bundles ni matumizi ya duka. Funga siku: mauzo, matumizi, salio.',
+                'today' => 'Fungua Biashara yako na andika mauzo au matumizi ya leo ya simu. Kadi ndiyo duka.',
+            ],
+            'tax' => [
+                'lead' => 'Kumbukumbu leo ni mwisho wa mwezi tulivu — risiti, mauzo na matumizi mahali pamoja.',
+                'why' => 'Hofu ya “kodi” mara nyingi ni hofu ya daftari lisilokuwepo. Huhitaji mfumo kamili. Unahitaji ulichouza, ulichotumia, na kilichobaki, ukiendelea kuandika.',
+                'how' => 'Tumia ripoti ya Plus kama picha ya mwezi. Tunga risiti (picha bado ni risiti). Andika matumizi makubwa na jina. Usisubiri folda ihisi rasmi.',
+                'today' => 'Fungua ripoti yako na soma mwezi. Kisha andika pesa au mauzo ya leo ili picha ya mwezi ujao ianze.',
+            ],
+            'growth' => [
+                'lead' => 'Kukua ni hatua ndogo inayorudiwa — salio baada ya wiki ngumu, kisha Jumanne nyingine ya kawaida.',
+                'why' => 'Nidhamu si tabia ya kuzaliwa. Ni kuandika namba, kuongeza kwenye lengo, na kufungua mwezi bila aibu. Imani inaonekana picha ikiwa ya kweli.',
+                'how' => 'Jilinganishe na mwezi uliopita, si jirani. Soma dakika chache, kisha fanya kitu kimoja katika Plus. Pumziko ni sehemu ya mpango; kuruka kumbukumbu siyo.',
+                'today' => 'Fungua ripoti au Pesa zako na fanya hatua moja. Hiyo ndiyo kukua — si makala ndefu zaidi.',
+            ],
+        ];
+
+        $bundle = $locale === 'sw' ? $sw : $en;
+        $fallback = $locale === 'sw' ? $sw['money'] : $en['money'];
+
+        return $bundle[$slug][$part] ?? $fallback[$part];
     }
 
     private function money(): array

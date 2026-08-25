@@ -489,13 +489,15 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('plus.today.title'), false)
             ->assertSee(__('plus.home.money'), false)
+            ->assertSee(__('plus.home.rooms_title'), false)
+            ->assertSee(__('plus.home.renew_title'), false)
             ->assertDontSee('Plus haibadilishi Daraja lako', false)
             ->assertDontSee('Plus never changes your Grade', false);
 
         $this->actingAs($user)
             ->post(route('site.borrower.plus.money.save'), [
                 'direction' => 'out',
-                'amount' => 120000,
+                'amount' => '120,000',
                 'category' => 'food',
             ])
             ->assertRedirect();
@@ -504,11 +506,15 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             'customer_id' => $customer->id,
             'category' => 'food',
         ]);
+        $this->assertEquals(120000.0, (float) \App\Models\PlusMoneyEntry::query()->where('customer_id', $customer->id)->latest('id')->value('outflow'));
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.money'))
             ->assertOk()
-            ->assertSee(__('plus.money.in_action'), false);
+            ->assertSee(__('plus.money.in_action'), false)
+            ->assertSee(format_money(120000), false)
+            ->assertSee('Chakula', false)
+            ->assertDontSee('25 Aug · food', false);
 
         $nba = app(\App\Services\Plus\PlusNextBestActionService::class)->forCustomer($customer->fresh());
         $this->assertArrayHasKey('key', $nba);
@@ -524,6 +530,26 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.plus.learn'))
             ->assertOk()
             ->assertSee(__('plus.learn.club'), false)
-            ->assertSee(__('plus.learn.for_you'), false);
+            ->assertSee(__('plus.learn.for_you'), false)
+            ->assertSee(__('plus.nav.home'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.goals'))
+            ->assertOk()
+            ->assertSee('data-date-trigger', false)
+            ->assertSee(__('plus.nav.home'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.reports'))
+            ->assertOk()
+            ->assertSee('kf-print-sheet', false)
+            ->assertSee(__('plus.reports.summary'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.offers'))
+            ->assertOk()
+            ->assertDontSee('does not change your Grade', false)
+            ->assertDontSee('haibadilishi Daraja', false)
+            ->assertSee(__('plus.offers.sample_title'), false);
     }
 }
