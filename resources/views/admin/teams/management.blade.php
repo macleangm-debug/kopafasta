@@ -9,7 +9,12 @@
                     Own the facility after committee approval — offer, fees, destination, contract, then release and payout.
                 </p>
             </div>
-            <div class="bg-white px-6 py-5 grid sm:grid-cols-3 gap-4">
+            <div class="bg-white px-6 py-5 grid sm:grid-cols-4 gap-4">
+                <div class="rounded-xl bg-brand-gold/20 ring-1 ring-brand-gold/40 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Management approval</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['awaiting_management'] ?? 0 }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Committee done · matrix requires you</p>
+                </div>
                 <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-4 py-4">
                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Management queue</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['approved'] }}</p>
@@ -32,8 +37,12 @@
     <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 sm:p-6">
         <p class="text-xs font-semibold uppercase tracking-widest text-brand mb-3">Queues</p>
         <div class="flex flex-wrap gap-3">
-            <a href="{{ route('admin.loan-applications.pipeline.approved') }}"
+            <a href="{{ route('admin.loan-applications.pipeline.management-approval') }}"
                class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm ring-1 ring-brand/15">
+                Management approval
+            </a>
+            <a href="{{ route('admin.loan-applications.pipeline.approved') }}"
+               class="inline-flex items-center gap-2 bg-white hover:bg-brand-muted/40 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl ring-1 ring-brand/20">
                 Management queue
             </a>
             <a href="{{ route('admin.loan-applications.pipeline.disbursement') }}"

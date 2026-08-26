@@ -21,10 +21,12 @@ use Database\Seeders\DefaultChartOfAccountsSeeder;
 use Database\Seeders\FinanceDefaultsSeeder;
 use Database\Seeders\ValuationPricingDefaultsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
 class ValuationFeeMarkupSplitFeatureTest extends TestCase
 {
+    use CompletesPartnerJobs;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -138,13 +140,14 @@ class ValuationFeeMarkupSplitFeatureTest extends TestCase
             'current_stage' => 'screening',
         ]);
 
-        $valuer = Vendor::create([
+        $valuer = $this->completePartnerForJobs(Vendor::create([
             'vendor_number' => 'VAL-ACC-1',
             'name' => 'Test Valuer',
             'category' => 'valuer',
             'status' => 'active',
+            'coverage_type' => 'nationwide',
             'regions' => ['Dar'],
-        ]);
+        ]));
 
         $actor = User::factory()->create(['role' => 'admin']);
         $service = app(ValuationPartnerService::class);

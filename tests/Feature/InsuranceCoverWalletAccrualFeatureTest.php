@@ -15,10 +15,12 @@ use App\Models\VendorPayment;
 use App\Models\VendorTask;
 use App\Services\CollateralInsurancePartnerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
 class InsuranceCoverWalletAccrualFeatureTest extends TestCase
 {
+    use CompletesPartnerJobs;
     use RefreshDatabase;
 
     public function test_premium_accrues_on_complete_as_base_only_not_on_open(): void
@@ -85,7 +87,7 @@ class InsuranceCoverWalletAccrualFeatureTest extends TestCase
             'metadata' => ['details' => []],
         ]);
 
-        $partner = Vendor::create([
+        $partner = $this->completePartnerForJobs(Vendor::create([
             'vendor_number' => 'PT-IN-ICW',
             'name' => 'Aventris Test',
             'category' => 'insurance',
@@ -95,7 +97,7 @@ class InsuranceCoverWalletAccrualFeatureTest extends TestCase
             'phone' => '255712000222',
             'coverage_type' => 'nationwide',
             'activated_at' => now(),
-        ]);
+        ]));
 
         $payment = CustomerPayment::create([
             'reference' => 'INS-ICW-1',

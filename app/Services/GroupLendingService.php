@@ -19,10 +19,13 @@ class GroupLendingService
     {
         $loan = Setting::group('loan');
 
-        return [
-            'min' => max(3, (int) ($loan['group_min_members'] ?? config('group_lending.min_members', 3))),
-            'max' => max(3, (int) ($loan['group_max_members'] ?? config('group_lending.max_members', 10))),
-        ];
+        $min = max(3, min(10, (int) ($loan['group_min_members'] ?? config('group_lending.min_members', 3))));
+        $max = max(3, min(10, (int) ($loan['group_max_members'] ?? config('group_lending.max_members', 10))));
+        if ($max < $min) {
+            $max = $min;
+        }
+
+        return compact('min', 'max');
     }
 
     public function minAmountPerMember(): float

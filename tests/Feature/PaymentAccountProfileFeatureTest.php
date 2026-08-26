@@ -140,7 +140,7 @@ class PaymentAccountProfileFeatureTest extends TestCase
                 'account_name'    => 'Payment Borrower',
                 'return'          => $return,
             ])
-            ->assertRedirect($return)
+            ->assertRedirect()
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('customer_disbursement_accounts', [

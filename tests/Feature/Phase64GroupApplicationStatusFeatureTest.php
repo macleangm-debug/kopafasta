@@ -85,7 +85,7 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
 
     public function test_member_completion_when_members_added_but_kyc_incomplete(): void
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = $this->verifiedCustomer('L2', '255712346002');
         $member = Customer::create([
@@ -144,10 +144,11 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
 
     public function test_application_status_maps_workflow_stages(): void
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = $this->verifiedCustomer('L4', '255712346006');
         $member = $this->verifiedCustomer('M4', '255712346007');
+        $third = $this->verifiedCustomer('T4', '255712346016');
         $product = $this->groupProduct();
 
         $application = LoanApplication::create([
@@ -166,10 +167,11 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
             [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000, 'role' => 'leader'],
                 ['customer_id' => $member->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $third->id, 'requested_amount' => 300_000, 'role' => 'member'],
             ],
             'Workflow Group',
             'Business',
-            2,
+            3,
         );
 
         $statusService = app(GroupApplicationStatusService::class);
@@ -185,10 +187,11 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
 
     public function test_sync_application_persists_status_and_scoring_on_loan_group(): void
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = $this->verifiedCustomer('L5', '255712346008');
         $member = $this->verifiedCustomer('M5', '255712346009');
+        $third = $this->verifiedCustomer('T5', '255712346017');
         $product = $this->groupProduct();
 
         CreditHistory::create([
@@ -201,6 +204,12 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
             'customer_id' => $member->id,
             'source'      => 'crb_stub',
             'score'       => 680,
+            'checked_at'  => now(),
+        ]);
+        CreditHistory::create([
+            'customer_id' => $third->id,
+            'source'      => 'crb_stub',
+            'score'       => 700,
             'checked_at'  => now(),
         ]);
 
@@ -217,6 +226,7 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
                 'group_member_crb' => [
                     ['customer_id' => $leader->id, 'score' => 720],
                     ['customer_id' => $member->id, 'score' => 680],
+                    ['customer_id' => $third->id, 'score' => 700],
                 ],
             ],
         ]);
@@ -226,10 +236,11 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
             [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000, 'role' => 'leader'],
                 ['customer_id' => $member->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $third->id, 'requested_amount' => 300_000, 'role' => 'member'],
             ],
             'Scored Group',
             'Business',
-            2,
+            3,
         );
 
         $scoring = app(GroupScoringService::class)->score(
@@ -252,7 +263,7 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
 
     public function test_group_scoring_service_computes_credit_and_income_averages(): void
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = $this->verifiedCustomer('L6', '255712346010');
         $member = $this->verifiedCustomer('M6', '255712346011');
@@ -287,7 +298,7 @@ class Phase64GroupApplicationStatusFeatureTest extends TestCase
 
     public function test_refresh_group_member_statuses_endpoint_returns_status_and_scoring(): void
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = $this->verifiedCustomer('L7', '255712346012');
         $user = User::factory()->create([

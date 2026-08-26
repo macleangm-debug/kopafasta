@@ -182,6 +182,7 @@ class CustomerPaymentService
     public function create(array $data): CustomerPayment
     {
         return DB::transaction(function () use ($data) {
+            app(\App\Services\Marketing\DemoGuard::class)->assertCanMoveMoney('create a customer payment');
             $customer = $data['customer'];
             $loan = $data['loan'] ?? null;
             $product = $data['loan_product'] ?? $loan?->product ?? null;
@@ -1024,7 +1025,14 @@ class CustomerPaymentService
         if ($payment->payment_type === 'partner_membership' && $payment->partner_id) {
             $partner = \App\Models\Partner::query()->find($payment->partner_id);
             if ($partner) {
-                app(\App\Services\PartnerMembershipService::class)->activate($partner, $payment->reference);
+                $partner = app(\App\Services\PartnerMembershipService::class)->activate($partner, $payment->reference);
+                if ($partner->isValuer()) {
+                    try {
+                        app(\App\Services\ValuationPartnerService::class)->assignWaitingJobsCoveredBy($partner);
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
+                }
             }
         }
 

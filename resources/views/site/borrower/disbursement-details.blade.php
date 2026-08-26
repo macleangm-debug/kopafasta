@@ -14,7 +14,7 @@
         @endif
 
         <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h1 class="text-xl font-bold text-gray-900">{{ __('borrower.disbursement_details.title') }}</h1>
+            <h1 class="text-xl font-bold text-gray-900">{{ __('borrower.disbursement_details.where_send') }}</h1>
             <p class="text-sm text-gray-600 mt-1">{{ __('borrower.disbursement_details.select_account_subtitle') }}</p>
 
             <div class="mt-4 rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3 text-sm">
@@ -30,10 +30,23 @@
                 </div>
             @else
                 <form method="POST" action="{{ route('site.borrower.application.disbursement-details.confirm', $application) }}" class="mt-6 space-y-4"
+                      x-data="{
+                          selected: @js((string) old('disbursement_account_id', $accounts->firstWhere('is_default', true)?->id ?? $accounts->first()?->id)),
+                          accounts: @js($accounts->mapWithKeys(fn ($account) => [
+                              (string) $account->id => [
+                                  'label' => $detailsService->accountLabel($account),
+                                  'name' => $account->account_name,
+                                  'method' => $account->isMobile() ? $detailsService->shortProviderLabel($account->mobile_provider) : ($account->bank_name ?: 'Bank'),
+                                  'masked' => $account->isMobile()
+                                      ? $detailsService->maskDestinationPhone((string) $account->mobile_number)
+                                      : $detailsService->maskAccountNumber((string) $account->account_number),
+                              ],
+                          ])->all()),
+                      }"
                       @submit.prevent="window.confirmForm($el, {
                           title: @js(__('borrower.disbursement_details.confirm_title')),
                           message: @js(__('borrower.disbursement_details.confirm_message')),
-                          confirmLabel: @js(__('borrower.disbursement_details.confirm_account_button')),
+                          confirmLabel: @js(__('borrower.disbursement_details.use_this_account')),
                           tone: 'confirm'
                       })">
                     @csrf
@@ -43,7 +56,7 @@
                     <div class="space-y-3">
                         @foreach ($accounts as $account)
                             <label class="flex items-start gap-3 rounded-xl ring-1 ring-gray-200 px-4 py-3 cursor-pointer hover:bg-amber-50/50 has-[:checked]:ring-amber-400 has-[:checked]:bg-amber-50/60">
-                                <input type="radio" name="disbursement_account_id" value="{{ $account->id }}" class="mt-1 text-amber-600" @checked(old('disbursement_account_id', $accounts->firstWhere('is_default', true)?->id ?? $accounts->first()?->id) == $account->id) required>
+                                <input type="radio" name="disbursement_account_id" value="{{ $account->id }}" class="mt-1 text-amber-600" x-model="selected" @checked(old('disbursement_account_id', $accounts->firstWhere('is_default', true)?->id ?? $accounts->first()?->id) == $account->id) required>
                                 <span class="min-w-0">
                                     <span class="block text-sm font-semibold text-gray-900">{{ $detailsService->accountLabel($account) }}</span>
                                     <span class="block text-xs text-gray-500 mt-0.5">{{ $account->account_name }}</span>
@@ -52,10 +65,17 @@
                         @endforeach
                     </div>
 
+                    <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-4" x-show="accounts[selected]" x-cloak>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.disbursement_details.money_will_be_sent_to') }}</p>
+                        <p class="text-lg font-bold text-gray-900 mt-1" x-text="accounts[selected]?.method"></p>
+                        <p class="text-sm font-mono text-gray-800 mt-1" x-text="accounts[selected]?.masked"></p>
+                        <p class="text-sm text-gray-700 mt-0.5" x-text="accounts[selected]?.name"></p>
+                    </div>
+
                     <div class="flex flex-wrap items-center gap-3 pt-2">
                         <button type="submit"
                                 class="inline-flex justify-center items-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full text-sm">
-                            {{ __('borrower.disbursement_details.confirm_account_button') }}
+                            {{ __('borrower.disbursement_details.use_this_account') }}
                         </button>
                         <a href="{{ route('site.borrower.profile', ['section' => 'payment', 'edit' => 1, 'return' => route('site.borrower.application.disbursement-details', $application)]) }}"
                            class="text-sm font-semibold text-amber-700 hover:text-amber-800">

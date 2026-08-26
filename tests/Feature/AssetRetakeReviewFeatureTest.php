@@ -78,7 +78,7 @@ class AssetRetakeReviewFeatureTest extends TestCase
         ]);
 
         $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $application).'?tab=documents')
+            ->get(route('admin.loan-applications.show', $application).'?workspace=profiles&tab=collateral')
             ->assertOk()
             ->assertSee('Request all asset photos retaken', false)
             ->assertSee('Photo 1', false)
@@ -136,7 +136,7 @@ class AssetRetakeReviewFeatureTest extends TestCase
         ]);
 
         $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $application).'?tab=documents')
+            ->get(route('admin.loan-applications.show', $application).'?workspace=profiles&tab=collateral')
             ->assertOk()
             ->assertSee('Asset-backed collateral', false)
             ->assertSee('Request all asset photos retaken', false)

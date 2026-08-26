@@ -42,10 +42,8 @@ class Phase50FeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Setup', false)
-            ->assertSee('Transactions', false)
-            ->assertSee('Financial reports', false)
-            ->assertSee('Trial Balance', false)
-            ->assertSee('Portfolio', false);
+            ->assertSee('Home', false)
+            ->assertSee('Portfolio', false)
+            ->assertSee('Credit screening', false);
     }
 }

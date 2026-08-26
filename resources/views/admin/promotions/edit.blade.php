@@ -4,6 +4,8 @@
     :action="route('admin.promotions.update', $record)"
     :destroyAction="route('admin.promotions.destroy', $record)"
     :cancelUrl="route('admin.promotions.show', $record)"
-    submitLabel="Save campaign">
+    submitLabel="Save campaign"
+    :confirmBeforeSubmit="true"
+    :alpine="$wizardAlpine">
     @include('admin.promotions._form')
 </x-admin.edit-page>

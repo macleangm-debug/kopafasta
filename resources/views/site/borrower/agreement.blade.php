@@ -20,12 +20,13 @@
             </div>
             <div class="p-6">
             <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ __('borrower.offer.label') }}</p>
-            <h1 class="text-xl font-bold text-gray-900">{{ __('borrower.offer.title') }}</h1>
+            <h1 class="text-xl font-bold text-gray-900">{{ __('borrower.offer.your_loan_offer') }}</h1>
             <p class="text-sm text-gray-600 mt-1">{{ __('borrower.offer.intro_approved', ['reference' => $application->application_number]) }}</p>
 
             @php
                 $documentStatuses = __('borrower.agreement.document_statuses');
                 $repaymentCadences = __('borrower.agreement.repayment_cadences');
+                $offerFacts = $offerFacts ?? app(\App\Services\LendingJourneyService::class)->offerPresentation($application);
             @endphp
 
             @if (! $agreement)
@@ -42,26 +43,8 @@
                     };
                 @endphp
 
-                <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.reference') }}</div><div class="font-mono text-gray-900">{{ $agreement->reference }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.status') }}</div>
-                        <span @class([
-                            'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase',
-                            'bg-emerald-100 text-emerald-800' => $agreement->status === 'signed',
-                            'bg-amber-100 text-amber-800'     => $agreement->status === 'sent',
-                            'bg-gray-100 text-gray-700'       => in_array($agreement->status, ['draft','expired','cancelled']),
-                        ])>{{ $statusLabel }}</span>
-                    </div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.approved_amount') }}</div><div class="text-gray-900 font-semibold">{{ format_money($snap['principal'] ?? 0) }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.interest_rate') }}</div><div class="text-gray-900">{{ __('borrower.agreement.interest_rate_monthly', ['rate' => format_number(($snap['interest_rate'] ?? 0) * 100, 2)]) }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.tenure') }}</div><div class="text-gray-900">{{ __('borrower.agreement.tenure_months', ['count' => $snap['tenure_months'] ?? '—']) }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.installment_amount') }}</div><div class="text-gray-900">{{ format_money($snap['estimated_emi'] ?? 0) }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.repayment_frequency') }}</div><div class="text-gray-900">{{ $repaymentCadences[$snap['repayment_cadence'] ?? 'weekly'] ?? ucfirst($snap['repayment_cadence'] ?? 'weekly') }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.number_of_installments') }}</div><div class="text-gray-900">{{ $snap['installment_count'] ?? count($snap['repayment_schedule'] ?? []) }}</div></div>
-                    <div class="sm:col-span-2"><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.total_repayable') }}</div><div class="text-gray-900 font-semibold">{{ format_money($snap['total_repayable'] ?? 0) }}</div></div>
-                    @if ($agreement->expires_at)
-                        <div class="sm:col-span-2"><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.offer_expires') }}</div><div class="text-gray-900">{{ $agreement->expires_at->format('d M Y, H:i') }}</div></div>
-                    @endif
+                <div class="mt-5">
+                    @include('site.borrower._offer_facts', ['offerFacts' => $offerFacts])
                 </div>
 
                 <p class="mt-4 text-xs text-gray-500 rounded-lg bg-sky-50 ring-1 ring-sky-100 px-3 py-2">

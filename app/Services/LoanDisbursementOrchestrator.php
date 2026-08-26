@@ -24,101 +24,146 @@ class LoanDisbursementOrchestrator
 
     public function disburse(Loan $loan, ?User $actor = null, string $channel = 'bank_transfer', ?Disbursement $existingDisbursement = null): Loan
     {
-        return DB::transaction(function () use ($loan, $actor, $channel, $existingDisbursement) {
-            $loan = $loan->fresh(['application', 'customer', 'product']);
+        app(\App\Services\Marketing\DemoGuard::class)->assertCanMoveMoney('disburse a loan');
+        $loan = $loan->fresh(['application', 'customer', 'product', 'disbursements']);
 
-            if ($loan->product && is_marketplace_loan_product($loan->product->code)) {
-                return app(AssetHandoverService::class)->completeHandover($loan, $actor);
-            }
+        if ($loan->product && is_marketplace_loan_product($loan->product->code)) {
+            return app(AssetHandoverService::class)->completeHandover($loan, $actor);
+        }
 
-            if (! in_array($loan->status, ['pending'], true)) {
-                throw ValidationException::withMessages([
-                    'loan' => 'Only pending loans can be disbursed.',
+        $released = $loan->disbursements->first(fn (Disbursement $row) => $row->status === Disbursement::STATUS_RELEASED);
+        if ($released) {
+            if ($loan->status === 'pending') {
+                $loan->update([
+                    'status' => 'active',
+                    'disbursement_date' => $loan->disbursement_date ?? $released->released_at?->toDateString() ?? now()->toDateString(),
                 ]);
             }
-
-            if ($loan->loan_application_id) {
-                $application = LoanApplication::find($loan->loan_application_id);
-                if ($application) {
-                    $blocking = $this->readiness->blockingMessages($application);
-                    if ($blocking !== []) {
-                        throw ValidationException::withMessages([
-                            'disburse' => implode(' ', $blocking),
-                        ]);
-                    }
-                }
-            }
-
-            $payoutBlock = app(GroupPayoutService::class)->blockingMessageForLoan($loan);
-            if ($payoutBlock) {
-                throw ValidationException::withMessages([
-                    'disburse' => $payoutBlock,
-                ]);
-            }
-
-            $this->capital->allocateForLoan($loan);
-
-            $loan->update([
-                'status'            => 'active',
-                'disbursement_date' => $loan->disbursement_date ?? now()->toDateString(),
-            ]);
-
-            $fees = $this->disbursement->applyFees($loan->fresh());
-            $installments = $this->scheduler->generate($loan->fresh());
-
-            if ($loan->loan_application_id) {
-                app(LoanAgreementService::class)->generateRepaymentScheduleAnnex($loan->fresh());
-                app(LoanAgreementService::class)->generateFinalLoanContract($loan->fresh());
-            }
-
-            $netAmount = (float) ($loan->fresh()->net_disbursed_amount ?? $loan->principal_amount);
-
-            if (! $loan->disbursements()->where('status', 'released')->exists()) {
-                $notes = 'Disbursed · '.count($fees).' fee(s) · '.$installments.' installment(s)';
-
-                if ($existingDisbursement
-                    && (int) $existingDisbursement->loan_id === (int) $loan->id
-                    && $existingDisbursement->status !== 'released') {
-                    $existingDisbursement->update([
-                        'channel'     => $channel,
-                        'amount'      => $netAmount,
-                        'status'      => 'released',
-                        'released_at' => now(),
-                        'approved_by' => $actor?->id,
-                        'notes'       => trim(($existingDisbursement->notes ? $existingDisbursement->notes.' · ' : '').$notes),
-                    ]);
-                } else {
-                    Disbursement::create([
-                        'loan_id'      => $loan->id,
-                        'reference'    => 'DSB-'.strtoupper(Str::random(10)),
-                        'channel'      => $channel,
-                        'amount'       => $netAmount,
-                        'status'       => 'released',
-                        'released_at'  => now(),
-                        'approved_by'  => $actor?->id,
-                        'notes'        => $notes,
-                    ]);
-                }
-            }
-
-            if ($loan->loan_application_id) {
-                $application = LoanApplication::find($loan->loan_application_id);
-                if ($application) {
-                    $application->update([
-                        'status'        => 'disbursed',
-                        'current_stage' => 'disbursement',
-                        'disbursed_at'  => now(),
-                    ]);
-                    app(AssetReservationService::class)->syncFromApplication($application->fresh());
-                }
-            }
-
-            app(GroupPayoutService::class)->markMemberDisbursed($loan->fresh());
-
-            app(LoanDisbursementNotificationService::class)->notifyDisbursement($loan->fresh(['application.customer', 'product', 'repaymentSchedules']));
 
             return $loan->fresh(['customer', 'product', 'disbursements']);
-        });
+        }
+
+        if (! in_array($loan->status, ['pending'], true)) {
+            throw ValidationException::withMessages([
+                'loan' => 'Only pending loans can be disbursed.',
+            ]);
+        }
+
+        if ($loan->loan_application_id) {
+            $application = LoanApplication::find($loan->loan_application_id);
+            if ($application) {
+                $blocking = $this->readiness->blockingMessages($application);
+                if ($blocking !== []) {
+                    throw ValidationException::withMessages([
+                        'disburse' => implode(' ', $blocking),
+                    ]);
+                }
+            }
+        }
+
+        $payoutBlock = app(GroupPayoutService::class)->blockingMessageForLoan($loan);
+        if ($payoutBlock) {
+            throw ValidationException::withMessages([
+                'disburse' => $payoutBlock,
+            ]);
+        }
+
+        $record = $existingDisbursement
+            && (int) $existingDisbursement->loan_id === (int) $loan->id
+            ? $existingDisbursement
+            : $loan->disbursements
+                ->first(fn (Disbursement $row) => in_array($row->status, [
+                    Disbursement::STATUS_QUEUED,
+                    Disbursement::STATUS_PROCESSING,
+                    Disbursement::STATUS_FAILED,
+                    'pending',
+                ], true));
+
+        if (! $record) {
+            $record = Disbursement::create([
+                'loan_id'     => $loan->id,
+                'reference'   => 'DSB-'.strtoupper(Str::random(10)),
+                'channel'     => $channel,
+                'amount'      => (float) ($loan->principal_amount ?? 0),
+                'status'      => Disbursement::STATUS_QUEUED,
+                'approved_by' => $actor?->id,
+                'notes'       => 'Queued for disbursement',
+            ]);
+        } else {
+            $record->update([
+                'channel' => $channel,
+                'status'  => Disbursement::STATUS_QUEUED,
+            ]);
+        }
+
+        $record->update(['status' => Disbursement::STATUS_PROCESSING]);
+
+        try {
+            $loan = DB::transaction(function () use ($loan, $actor, $channel, $record) {
+                $this->capital->allocateForLoan($loan);
+
+                $fees = $this->disbursement->applyFees($loan->fresh());
+                $installments = $this->scheduler->generate($loan->fresh());
+
+                if ($loan->loan_application_id) {
+                    app(LoanAgreementService::class)->generateRepaymentScheduleAnnex($loan->fresh());
+                    app(LoanAgreementService::class)->generateFinalLoanContract($loan->fresh());
+                }
+
+                $netAmount = (float) ($loan->fresh()->net_disbursed_amount ?? $loan->principal_amount);
+                $notes = 'Disbursed · '.count($fees).' fee(s) · '.$installments.' installment(s)';
+
+                $record->update([
+                    'channel'     => $channel,
+                    'amount'      => $netAmount,
+                    'status'      => Disbursement::STATUS_RELEASED,
+                    'released_at' => now(),
+                    'approved_by' => $actor?->id,
+                    'notes'       => trim(($record->notes ? $record->notes.' · ' : '').$notes),
+                ]);
+
+                $loan->update([
+                    'status'            => 'active',
+                    'disbursement_date' => $loan->disbursement_date ?? now()->toDateString(),
+                ]);
+
+                if ($loan->loan_application_id) {
+                    $application = LoanApplication::find($loan->loan_application_id);
+                    if ($application) {
+                        $application->update([
+                            'status'        => 'disbursed',
+                            'current_stage' => 'disbursement',
+                            'disbursed_at'  => now(),
+                        ]);
+                        app(AssetReservationService::class)->syncFromApplication($application->fresh());
+                    }
+                }
+
+                app(GroupPayoutService::class)->markMemberDisbursed($loan->fresh());
+
+                return $loan->fresh(['customer', 'product', 'disbursements', 'application.customer', 'repaymentSchedules']);
+            });
+        } catch (\Throwable $e) {
+            $record->refresh();
+            if ($record->status !== Disbursement::STATUS_RELEASED) {
+                $record->update([
+                    'status' => Disbursement::STATUS_FAILED,
+                    'notes'  => trim(($record->notes ? $record->notes.' · ' : '').'Failed: '.$e->getMessage()),
+                ]);
+            }
+
+            if ($e instanceof ValidationException) {
+                throw $e;
+            }
+
+            throw ValidationException::withMessages([
+                'disburse' => 'Disbursement failed. The loan is not active. '.$e->getMessage(),
+            ]);
+        }
+
+        app(LoanDisbursementNotificationService::class)->notifyDisbursement($loan);
+
+        return $loan->fresh(['customer', 'product', 'disbursements']);
     }
 
     /** @return list<string> */
@@ -172,8 +217,8 @@ class LoanDisbursementOrchestrator
 
             RepaymentSchedule::where('loan_id', $loan->id)->delete();
 
-            $loan->disbursements()->where('status', 'released')->update([
-                'status' => 'cancelled',
+            $loan->disbursements()->where('status', Disbursement::STATUS_RELEASED)->update([
+                'status' => Disbursement::STATUS_REVERSED,
                 'notes'  => trim(($reason ?: 'Disbursement reversed').' · reversed by admin #'.($actor?->id ?? 'system')),
             ]);
 

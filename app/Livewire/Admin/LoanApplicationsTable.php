@@ -94,6 +94,10 @@ class LoanApplicationsTable extends Component
                 $q->where('current_stage', 'pre_approval')
                     ->whereNotIn('status', ['approved', 'disbursed', 'rejected']);
             })
+            ->when($this->pipeline === 'management_approval', function ($q) {
+                $q->where('current_stage', 'awaiting_management')
+                    ->whereNotIn('status', ['approved', 'disbursed', 'rejected']);
+            })
             ->when($this->pipeline === 'approved', function ($q) {
                 $q->where(function ($q) {
                     $q->where(function ($q) {
@@ -123,10 +127,12 @@ class LoanApplicationsTable extends Component
             })
             ->when(
                 app(\App\Services\CreditDeskAssignmentService::class)->isManagementOnly(auth()->user())
+                    && $this->pipeline !== 'rejected'
                     && $this->stage !== 'rejected',
                 function ($q) {
-                    $q->where('status', '!=', 'rejected')
-                        ->where('current_stage', '!=', 'rejected');
+                    $desk = app(\App\Services\CreditDeskAssignmentService::class);
+                    $q->whereIn('current_stage', $desk->managementVisibleStages())
+                        ->whereNotIn('status', ['rejected', 'draft', 'awaiting_guarantor', 'withdrawn', 'cancelled', 'expired']);
                 }
             )
             ->when($this->pipeline === 'under_review', function ($q) {

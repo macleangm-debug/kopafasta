@@ -59,12 +59,6 @@ class GradeSettingsController extends Controller
         return view('admin.settings.plus', [
             'config' => $plus->config(),
             'billingCycle' => $plus->billingCycle(),
-            'lessons' => \App\Models\PlusLesson::query()->latest('id')->limit(24)->get(),
-            'offers' => \App\Models\PlusOffer::query()->latest('id')->limit(24)->get(),
-            'categories' => \App\Models\PlusSubjectCategory::query()->orderBy('sort')->get(),
-            'subjects' => \App\Models\PlusSubject::query()->with('category')->latest('id')->limit(40)->get(),
-            'subjectCount' => \App\Models\PlusSubject::query()->count(),
-            'publishedCount' => \App\Models\PlusSubject::query()->where('status', 'published')->count(),
             'notifications' => \App\Models\Setting::get('kopafasta_plus.notifications') ?: [],
             'triggers' => [
                 'money_daily_reminder' => 'Money — daily reminder (stops after today’s entry)',
@@ -119,7 +113,7 @@ class GradeSettingsController extends Controller
             $customer->setAttribute('watch_copy', $benefits->staffIntegrityCopy($customer));
         });
 
-        return view('admin.settings.grade-watch', ['queue' => $queue]);
+        return view('admin.customers.grade-watch', ['queue' => $queue]);
     }
 
     public function saveWatch(Request $request, \App\Models\Customer $customer, CustomerGradeEngine $engine)
@@ -152,115 +146,30 @@ class GradeSettingsController extends Controller
 
     public function saveLesson(Request $request)
     {
-        $data = $request->validate([
-            'month' => ['required', 'string', 'max:7'],
-            'title_en' => ['required', 'string', 'max:160'],
-            'title_sw' => ['nullable', 'string', 'max:160'],
-            'intro_en' => ['nullable', 'string'],
-            'intro_sw' => ['nullable', 'string'],
-            'action_en' => ['nullable', 'string', 'max:200'],
-            'action_sw' => ['nullable', 'string', 'max:200'],
-            'duration_minutes' => ['required', 'integer', 'min:5', 'max:10'],
-            'audience' => ['required', 'string', 'max:40'],
-            'published_at' => ['nullable', 'date'],
-            'video_en' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm', 'max:51200'],
-            'video_sw' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm', 'max:51200'],
-        ]);
-        $data['created_by'] = $request->user()?->id;
-        unset($data['video_en'], $data['video_sw']);
-        if ($request->hasFile('video_en')) {
-            $data['video_en_path'] = $request->file('video_en')->store('plus/lessons', 'local');
-        }
-        if ($request->hasFile('video_sw')) {
-            $data['video_sw_path'] = $request->file('video_sw')->store('plus/lessons', 'local');
-        }
-        $lesson = \App\Models\PlusLesson::query()->create($data);
-
-        if (filled($lesson->published_at) && $lesson->published_at->lte(now())) {
-            $subscribers = \App\Models\PlusSubscription::query()
-                ->where('status', 'active')
-                ->where('expires_at', '>', now())
-                ->with('customer')
-                ->get();
-            $notifications = app(\App\Services\NotificationService::class);
-            foreach ($subscribers as $subscription) {
-                $customer = $subscription->customer;
-                if (! $customer) {
-                    continue;
-                }
-                $notifications->notifyCustomer($customer, 'plus_monthly_lesson_published', [
-                    'lesson' => $lesson->title_en,
-                    '_fallback_body' => 'Your Kopafasta Plus monthly lesson is ready. Watch it when you have 5–10 quiet minutes.',
-                ]);
-            }
-            $lesson->update(['notified' => true]);
-        }
-
-        return back()->with('status', 'Monthly Club lesson saved.');
+        return redirect()
+            ->route('admin.content.plus-learning')
+            ->with('status', 'Plus Learning is managed from Content.');
     }
 
     public function saveOffer(Request $request)
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:160'],
-            'body' => ['nullable', 'string'],
-            'tier' => ['required', 'in:standard,silver,gold,platinum'],
-            'country_code' => ['nullable', 'string', 'size:2'],
-            'eligible_grades' => ['nullable', 'array'],
-            'plus_only' => ['nullable', 'boolean'],
-            'active' => ['nullable', 'boolean'],
-        ]);
-        $data['plus_only'] = $request->boolean('plus_only', true);
-        $data['active'] = $request->boolean('active', true);
-        \App\Models\PlusOffer::query()->create($data);
-
-        return back()->with('status', 'Offer saved.');
+        return redirect()
+            ->route('admin.growth.offers.index')
+            ->with('status', 'Offers are managed from Growth.');
     }
 
     public function saveCategory(Request $request)
     {
-        $data = $request->validate([
-            'slug' => ['required', 'string', 'max:40'],
-            'title_en' => ['required', 'string', 'max:80'],
-            'title_sw' => ['required', 'string', 'max:80'],
-        ]);
-        \App\Models\PlusSubjectCategory::query()->updateOrCreate(
-            ['slug' => $data['slug']],
-            [
-                'title_en' => $data['title_en'],
-                'title_sw' => $data['title_sw'],
-                'status' => 'published',
-                'sort' => (int) \App\Models\PlusSubjectCategory::query()->max('sort') + 1,
-            ]
-        );
-
-        return back()->with('status', 'Learning category saved.');
+        return redirect()
+            ->route('admin.content.plus-learning')
+            ->with('status', 'Plus Learning is managed from Content.');
     }
 
     public function saveSubject(Request $request)
     {
-        $data = $request->validate([
-            'plus_subject_category_id' => ['required', 'exists:plus_subject_categories,id'],
-            'title_en' => ['required', 'string', 'max:160'],
-            'title_sw' => ['required', 'string', 'max:160'],
-            'intro_en' => ['nullable', 'string'],
-            'intro_sw' => ['nullable', 'string'],
-            'body_en' => ['nullable', 'string'],
-            'body_sw' => ['nullable', 'string'],
-            'duration_minutes' => ['required', 'integer', 'min:2', 'max:15'],
-            'action_en' => ['nullable', 'string', 'max:160'],
-            'action_sw' => ['nullable', 'string', 'max:160'],
-            'action_route' => ['nullable', 'string', 'max:80'],
-            'status' => ['required', 'in:draft,published,archived'],
-            'featured' => ['nullable', 'boolean'],
-        ]);
-        $data['slug'] = \Illuminate\Support\Str::slug($data['title_en']).'-'.substr(sha1($data['title_en'].microtime()), 0, 6);
-        $data['featured'] = $request->boolean('featured');
-        $data['published_at'] = $data['status'] === 'published' ? now() : null;
-        $data['content_type'] = 'article';
-        \App\Models\PlusSubject::query()->create($data);
-
-        return back()->with('status', 'Subject saved. Published content is archived, not deleted, if you later change status.');
+        return redirect()
+            ->route('admin.content.plus-learning')
+            ->with('status', 'Plus Learning is managed from Content.');
     }
 
     public function savePlusNotifications(Request $request)

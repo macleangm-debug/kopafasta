@@ -39,7 +39,7 @@ return [
         ['Integrations hub', 'admin.settings.integrations', 'integrations'],
         ['PayIn', 'admin.settings.payin', 'payin'],
         ['SMS / Email', 'admin.settings.gateways', 'gateways'],
-        ['CRB', 'admin.settings.crb', 'crb'],
+        ['CRB integration', 'admin.settings.crb', 'crb'],
     ],
     'Legal' => [
         ['Contracts & clauses', 'admin.settings.legal', 'legal'],
@@ -57,7 +57,6 @@ return [
     ],
     'Customers' => [
         ['Grades & Trust', 'admin.settings.grades', 'grades'],
-        ['Grade Watch', 'admin.settings.grades.watch', 'grade-watch'],
         ['Kopafasta Plus', 'admin.settings.plus', 'plus'],
     ],
     'Growth' => [
@@ -65,7 +64,6 @@ return [
         ['Referrals', 'admin.settings.referrals', 'referrals'],
         ['Engagement', 'admin.settings.engagement', 'engagement'],
         ['Affiliates', 'admin.settings.affiliates', 'affiliates'],
-        ['Campaigns', 'admin.promotions.index', 'campaigns'],
     ],
     'Partners & recovery' => [
         ['Partners hub', 'admin.partners.index', 'partners-hub'],
@@ -78,7 +76,5 @@ return [
     'Communications' => [
         ['Transactional messaging', 'admin.settings.messaging', 'messaging'],
         ['Group notifications', 'admin.settings.group-notifications', 'group-notifications', 'group lending consent contract signature'],
-        ['Notification templates', 'admin.notification-templates.index', 'notification-templates'],
-        ['Chatbot', 'admin.settings.chatbot', 'chatbot'],
     ],
 ];

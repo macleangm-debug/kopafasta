@@ -8,6 +8,7 @@
         'awaiting_disbursement_details',
         'contract_generation',
     ], true);
+    $isManagementApprovalStage = $stage === 'awaiting_management';
     $isDisbursementStage = $stage === 'disbursement' || $record->status === 'disbursed';
     $linkedLoan = $record->loan;
     $isServicingFile = $record->hasActiveFacility();
@@ -196,6 +197,8 @@
         @include('admin.loan-applications.review._management_workspace')
     @elseif ($isOpsStage)
         @include('admin.loan-applications.review._ops_workspace')
+    @elseif ($isManagementApprovalStage)
+        @include('admin.loan-applications.review._management_approval_workspace')
     @else
         @include('admin.loan-applications.review._credit_workspace')
     @endif

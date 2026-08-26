@@ -1,7 +1,9 @@
 <x-admin.layout title="Grades & Trust" heading="Customer grades & trust" subheading="Source of Truth for Bronze–Platinum. Saving creates a new rule version.">
     @include('admin.settings._tabs', ['active' => 'grades'])
 
-    <p class="mb-4 text-sm text-gray-600">Current rule version: <strong>{{ $version ?? 'defaults' }}</strong></p>
+    <p class="mb-4 text-sm text-gray-600">Current rule version: <strong>{{ $version ?? 'defaults' }}</strong>
+        · <a href="{{ route('admin.customers.grade-watch') }}" class="font-semibold text-brand hover:underline">Operate Grade Watch from Customers →</a>
+    </p>
 
     @if (!empty($backtest))
         <div class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">

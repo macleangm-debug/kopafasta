@@ -40,7 +40,7 @@ class Phase58GroupContractSignaturesFeatureTest extends TestCase
     /** @return array{application: LoanApplication, leader: Customer, member: Customer, memberRow: LoanGroupMember} */
     protected function groupApplicationFixture(): array
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = Customer::create([
             'customer_number' => 'CU-P58-L',
@@ -58,6 +58,15 @@ class Phase58GroupContractSignaturesFeatureTest extends TestCase
             'first_name'      => 'Member',
             'last_name'       => 'P58',
             'phone'           => '255712345921',
+        ]);
+
+        $third = Customer::create([
+            'customer_number' => 'CU-P58-T',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Third',
+            'last_name'       => 'P58',
+            'phone'           => '255712345922',
         ]);
 
         $product = $this->groupProduct();
@@ -78,6 +87,7 @@ class Phase58GroupContractSignaturesFeatureTest extends TestCase
             [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000, 'role' => 'leader'],
                 ['customer_id' => $member->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $third->id, 'requested_amount' => 300_000, 'role' => 'member'],
             ],
             'P58 Group',
             'Business',
@@ -99,26 +109,37 @@ class Phase58GroupContractSignaturesFeatureTest extends TestCase
 
         app(GroupContractSignatureService::class)->syncLeaderFromContract($application->fresh());
 
-        return compact('application', 'leader', 'member', 'memberRow');
+        return compact('application', 'leader', 'member', 'memberRow', 'third');
     }
 
     public function test_group_contract_progress_tracks_member_signatures(): void
     {
-        ['application' => $application, 'member' => $member, 'memberRow' => $memberRow] = $this->groupApplicationFixture();
+        ['application' => $application, 'member' => $member, 'memberRow' => $memberRow, 'third' => $third] = $this->groupApplicationFixture();
 
         $service = app(GroupContractSignatureService::class);
         $progress = $service->progress($application->fresh());
 
         $this->assertNotNull($progress);
-        $this->assertSame(2, $progress['target']);
+        $this->assertSame(3, $progress['target']);
         $this->assertSame(1, $progress['signed']);
-        $this->assertSame(1, $progress['pending']);
+        $this->assertSame(2, $progress['pending']);
         $this->assertFalse($progress['all_signed']);
 
         $service->recordSignature(
             $memberRow,
             $member,
             'Member P58',
+            'data:image/png;base64,iVBORw0KGgo=',
+        );
+
+        $thirdRow = \App\Models\LoanGroupMember::query()
+            ->where('loan_group_id', $application->loan_group_id)
+            ->where('customer_id', $third->id)
+            ->firstOrFail();
+        $service->recordSignature(
+            $thirdRow,
+            $third,
+            'Third P58',
             'data:image/png;base64,iVBORw0KGgo=',
         );
 

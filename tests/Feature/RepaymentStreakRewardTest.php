@@ -30,7 +30,7 @@ class RepaymentStreakRewardTest extends TestCase
         ], $overrides));
     }
 
-    public function test_streak_discount_caps_at_thirty_percent_for_application_fee(): void
+    public function test_streak_rewards_are_points_not_fee_discounts(): void
     {
         $customer = $this->makeCustomer();
         $this->mock(MemberEngagementService::class, function ($mock) {
@@ -39,22 +39,21 @@ class RepaymentStreakRewardTest extends TestCase
 
         $result = app(RepaymentStreakRewardService::class)->discountForFee($customer, 'application_fee', 10_000);
 
-        $this->assertSame(30.0, $result['percent']);
-        $this->assertSame(3000.0, $result['discount']);
+        $this->assertSame(0.0, $result['percent']);
+        $this->assertSame(0.0, $result['discount']);
     }
 
-    public function test_payment_gate_applies_streak_and_disables_wallet_when_streak_selected(): void
+    public function test_payment_gate_quote_does_not_apply_a_streak_fee_discount(): void
     {
         $customer = $this->makeCustomer();
         $this->mock(MemberEngagementService::class, function ($mock) {
             $mock->shouldReceive('repaymentStreak')->andReturn(['count' => 5]);
         });
 
-        $withStreak = app(PaymentGateService::class)->quote($customer, 10_000, 'application_fee', useWallet: true, useStreak: true);
+        $quote = app(PaymentGateService::class)->quote($customer, 10_000, 'application_fee', useWallet: true);
 
-        $this->assertSame(1500.0, $withStreak['streak_discount']);
-        $this->assertSame(0.0, $withStreak['wallet_applied']);
-        $this->assertSame(8500.0, $withStreak['cash_due']);
+        $this->assertSame(0.0, $quote['streak_discount']);
+        $this->assertArrayHasKey('cash_due', $quote);
     }
 
     public function test_engagement_hub_renders(): void

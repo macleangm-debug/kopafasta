@@ -112,6 +112,11 @@ class Customer extends Model
         return $this->hasMany(AssetReservation::class);
     }
 
+    public function plusSubscriptions(): HasMany
+    {
+        return $this->hasMany(PlusSubscription::class);
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim(collect([$this->first_name, $this->middle_name, $this->last_name])->filter()->implode(' '));

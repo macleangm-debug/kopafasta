@@ -27,6 +27,10 @@ class NotificationService
     {
         $message = $this->ensureLicensedSmsIdentity($message);
 
+        if (app(\App\Services\Marketing\DemoGuard::class)->isActive()) {
+            return $this->skippedLog('sms', $phone, $message, $customer, $templateCode);
+        }
+
         if (! $this->messaging->channelEnabled('sms')
             || ($templateCode && ! $this->messaging->eventEnabled($templateCode))) {
             return $this->skippedLog('sms', $phone, $message, $customer, $templateCode);

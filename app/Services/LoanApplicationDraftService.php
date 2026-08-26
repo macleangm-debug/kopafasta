@@ -291,7 +291,8 @@ class LoanApplicationDraftService
     }
 
     /**
-     * First quote-like step key for a product (quote / asset / group).
+     * Amount/terms step for "Edit amount": quote when present, otherwise the product setup step.
+     * Group loans keep group_setup (identity) then quote (amount per member) — edit amount uses quote.
      *
      * @param  list<array{key: string}>  $stepPlan
      */

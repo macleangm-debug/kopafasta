@@ -62,7 +62,7 @@ class Phase63GroupLoanRevisedRulesFeatureTest extends TestCase
     public function test_group_progress_blocks_submit_until_all_kyc_complete(): void
     {
         Setting::setMany([
-            'loan.group_min_members' => 2,
+            'loan.group_min_members' => 3,
             'loan.group_max_members' => 10,
         ]);
 

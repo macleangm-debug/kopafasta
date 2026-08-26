@@ -40,7 +40,7 @@ return [
             'user_form'          => true,
             'users_filter'       => true,
             'desk'               => 'CRM',
-            'duty'               => 'After committee approval: offer, fees, contract, and disbursement. Does not sit on Screening and Committee at once.',
+            'duty'               => 'Authorizes committee-approved loans when Settings Hub requires Management, then runs offer, fees, contract, and disbursement. Does not screen or sit on Committee.',
             'api_capabilities'   => ['core', 'reports', 'system', 'collections', 'support'],
         ],
         'officer' => [
@@ -120,6 +120,18 @@ return [
             'desk'               => 'OPS',
             'duty'               => 'Manages marketplace listings and borrower asset requests.',
             'api_capabilities'   => [],
+        ],
+        'marketer' => [
+            'label'              => 'Marketer',
+            'console_access'     => true,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => true,
+            'users_filter'       => true,
+            'desk'               => 'MKT',
+            'duty'               => 'Runs campaigns, audiences, offers and marketing demos. Does not change Settings Hub rules.',
+            'api_capabilities'   => ['reports'],
         ],
         'partner_support' => [
             'label'              => 'Partner support',

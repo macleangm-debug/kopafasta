@@ -15,10 +15,12 @@ use App\Services\CollateralSecureService;
 use App\Services\ValuationPartnerService;
 use Database\Seeders\ValuationPricingDefaultsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
 class ScreeningValuationGateFeatureTest extends TestCase
 {
+    use CompletesPartnerJobs;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -73,20 +75,11 @@ class ScreeningValuationGateFeatureTest extends TestCase
 
     private function pledge(LoanApplication $application, Customer $customer): CustomerAsset
     {
-        $asset = CustomerAsset::create([
+        $asset = CustomerAsset::create(array_merge([
             'customer_id' => $customer->id,
-            'asset_type' => 'vehicle',
+        ], $this->completeVehicleAssetAttributes([
             'label' => 'Toyota',
-            'is_active' => true,
-            'registration_number' => 'T123ABC',
-            'photo_paths' => ['assets/car.jpg', 'assets/car-rear.jpg'],
-            'metadata' => [
-                'details' => ['insurance_expires_at' => now()->addYears(3)->toDateString()],
-                'insurance_document_path' => 'assets/ins.pdf',
-                'ownership_document_path' => 'assets/title.pdf',
-                'person_with_asset_path' => 'assets/owner.jpg',
-            ],
-        ]);
+        ])));
 
         LoanApplicationAsset::create([
             'loan_application_id' => $application->id,
@@ -151,6 +144,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
             'status' => 'active',
             'regions' => ['Dar es Salaam'],
         ]);
+        $this->completePartnerForJobs($valuer);
 
         $this->expectException(\Illuminate\Validation\ValidationException::class);
         app(ValuationPartnerService::class)->assign($application, $valuer, $admin);
@@ -178,6 +172,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
             'status' => 'active',
             'regions' => ['Dar es Salaam'],
         ]);
+        $this->completePartnerForJobs($valuer);
         $assignment = app(ValuationPartnerService::class)->assign($application->fresh(), $valuer, $admin);
         app(ValuationPartnerService::class)->complete($assignment, 1_000_000, 800_000);
 
@@ -213,6 +208,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
             'status' => 'active',
             'regions' => ['Dar es Salaam'],
         ]);
+        $this->completePartnerForJobs($valuer);
         $assignment = app(ValuationPartnerService::class)->assign($application->fresh(), $valuer, $admin);
         app(ValuationPartnerService::class)->complete($assignment, 2_000_000, 1_500_000);
 
@@ -245,20 +241,11 @@ class ScreeningValuationGateFeatureTest extends TestCase
     {
         $customer = $this->borrower();
         $application = $this->installment($customer, 800_000);
-        $asset = CustomerAsset::create([
+        $asset = CustomerAsset::create(array_merge([
             'customer_id' => $customer->id,
-            'asset_type' => 'vehicle',
+        ], $this->completeVehicleAssetAttributes([
             'label' => 'Rav4',
-            'is_active' => true,
-            'registration_number' => 'T123ABC',
-            'photo_paths' => ['assets/car.jpg', 'assets/car-rear.jpg'],
-            'metadata' => [
-                'details' => ['insurance_expires_at' => now()->addYears(3)->toDateString()],
-                'insurance_document_path' => 'assets/ins.pdf',
-                'ownership_document_path' => 'assets/title.pdf',
-                'person_with_asset_path' => 'assets/owner.jpg',
-            ],
-        ]);
+        ])));
 
         app(\App\Services\CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
 
@@ -308,19 +295,11 @@ class ScreeningValuationGateFeatureTest extends TestCase
             'requested_tenure_months' => 6,
             'submitted_at' => now(),
         ]);
-        $asset = CustomerAsset::create([
+        $asset = CustomerAsset::create(array_merge([
             'customer_id' => $customer->id,
-            'asset_type' => 'vehicle',
+        ], $this->completeVehicleAssetAttributes([
             'label' => 'Rav4',
-            'is_active' => true,
-            'photo_paths' => ['assets/car.jpg', 'assets/car-rear.jpg'],
-            'metadata' => [
-                'details' => ['insurance_expires_at' => now()->addYears(3)->toDateString()],
-                'insurance_document_path' => 'assets/ins.pdf',
-                'ownership_document_path' => 'assets/title.pdf',
-                'person_with_asset_path' => 'assets/owner.jpg',
-            ],
-        ]);
+        ])));
 
         app(\App\Services\CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
 

@@ -18,10 +18,12 @@ use App\Services\RecoveryAssignmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
+use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
 class PartnerTaskReassignmentFeatureTest extends TestCase
 {
+    use CompletesPartnerJobs;
     use RefreshDatabase;
 
     public function test_open_gps_task_can_be_reassigned_to_another_regional_partner(): void
@@ -252,7 +254,7 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
             'regions' => ['Arusha'],
         ]);
 
-        return [$application, $current, $replacement];
+        return [$application, $this->completePartnerForJobs($current), $this->completePartnerForJobs($replacement)];
     }
 
     /** @return array{0: PartnerTask, 1: RecoveryAssignment, 2: Vendor} */
@@ -327,6 +329,9 @@ class PartnerTaskReassignmentFeatureTest extends TestCase
             'phone' => '255701'.random_int(100000, 999999),
             'coverage_type' => 'nationwide',
         ]);
+
+        $current = $this->completePartnerForJobs($current);
+        $replacement = $this->completePartnerForJobs($replacement);
 
         $admin = User::factory()->create(['role' => 'admin']);
         $assignment = app(RecoveryAssignmentService::class)->assign(

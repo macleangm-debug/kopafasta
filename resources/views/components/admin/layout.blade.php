@@ -48,13 +48,20 @@
             ->get();
     }
     $adminBellCount = $adminAlertItems->sum(fn ($item) => (int) ($item['count'] ?? 0)) + $adminPersonalNotifications->count();
+    $shortcutService = app(\App\Services\AdminShortcutService::class);
+    $adminShortcuts = auth()->user() ? $shortcutService->list(auth()->user()) : [];
+    $shortcutCandidate = auth()->user() ? $shortcutService->currentCandidate(auth()->user(), $currentRoute) : null;
+    $shortcutPinned = $shortcutCandidate ? $shortcutService->isSaved(auth()->user(), $shortcutCandidate['route']) : false;
 @endphp
 
 <div class="min-h-screen flex flex-col">
 
     {{-- Top bar: brand + utilities --}}
     <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-brand/10 shadow-sm">
-        <div class="flex h-14 items-center justify-between gap-4 px-4 lg:px-6">
+        <div class="flex h-14 items-center justify-between gap-4 px-4 lg:px-6"
+             x-data="adminGlobalSearch(@js(route('admin.search')))"
+             @keydown.window.prevent.meta.k="openSearch()"
+             @keydown.window.prevent.ctrl.k="openSearch()">
             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 shrink-0">
                 <x-site.brand-mark size="sm" />
                 <div class="hidden sm:block">
@@ -63,7 +70,93 @@
                 </div>
             </a>
 
+            <div class="flex-1 max-w-xl mx-2 hidden md:block">
+                <button type="button" @click="openSearch()"
+                        class="w-full flex items-center gap-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-sm text-gray-500 hover:ring-brand/30">
+                    <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                    <span class="flex-1 text-left">Search Kopafasta…</span>
+                    <kbd class="hidden lg:inline text-[10px] font-semibold text-gray-400 ring-1 ring-gray-200 rounded px-1.5 py-0.5">⌘K / Ctrl+K</kbd>
+                </button>
+            </div>
+            <button type="button" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+                    @click="openSearch()" aria-label="Search">
+                <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"/></svg>
+            </button>
+            <template x-teleport="body">
+                    <div x-show="open" x-cloak class="fixed inset-0 z-[80]" @keydown.escape.window="closeSearch()">
+                    <div class="absolute inset-0 bg-black/40" @click="open = false"></div>
+                    <div class="relative mx-auto mt-0 md:mt-[8vh] w-full max-w-xl h-full md:h-auto px-0 md:px-4">
+                        <div class="rounded-none md:rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 overflow-hidden h-full md:h-auto flex flex-col">
+                            <input type="search" x-ref="input" x-model="q" @input.debounce.250ms="run()"
+                                   @keydown.arrow-down.prevent="move(1)"
+                                   @keydown.arrow-up.prevent="move(-1)"
+                                   @keydown.enter.prevent="openActive()"
+                                   placeholder="What are you looking for?"
+                                   class="w-full border-0 px-4 py-3 text-base outline-none ring-0">
+                            <div class="flex-1 max-h-none md:max-h-[60vh] overflow-y-auto border-t border-gray-100">
+                                <template x-if="q.trim() === ''">
+                                    <div>
+                                        <p class="px-4 pt-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">Recent</p>
+                                        <template x-for="item in recents" :key="item.url">
+                                            <a :href="item.url" class="block px-4 py-2 hover:bg-brand-muted/40" @click="remember(item)">
+                                                <p class="text-sm font-semibold text-gray-900" x-text="item.title"></p>
+                                                <p class="text-xs text-gray-500" x-text="item.subtitle"></p>
+                                            </a>
+                                        </template>
+                                        <p class="px-4 py-6 text-sm text-gray-500" x-show="recents.length === 0">Type a customer, loan, campaign, or an action like Create demo. ↑ ↓ Enter Esc.</p>
+                                    </div>
+                                </template>
+                                <template x-if="loading">
+                                    <p class="px-4 py-6 text-sm text-gray-500">Searching…</p>
+                                </template>
+                                <template x-if="error && !loading">
+                                    <p class="px-4 py-6 text-sm text-red-700">Search failed. Try again.</p>
+                                </template>
+                                <template x-if="q.trim() !== '' && groups.length === 0 && !loading && !error">
+                                    <p class="px-4 py-6 text-sm text-gray-500">No matches you have permission to see.</p>
+                                </template>
+                                <template x-if="!loading && !error">
+                                    <div>
+                                <template x-for="group in groups" :key="group.group">
+                                    <div class="py-2">
+                                        <p class="px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400" x-text="group.group"></p>
+                                        <template x-for="(item, idx) in group.items" :key="item.url + item.title">
+                                            <a :href="item.url" class="block px-4 py-2"
+                                               :class="flat[activeIndex] && flat[activeIndex].url === item.url ? 'bg-brand-muted/60' : 'hover:bg-brand-muted/40'"
+                                               @click="remember(item)">
+                                                <p class="text-sm font-semibold text-gray-900" x-text="item.title"></p>
+                                                <p class="text-xs text-gray-500" x-text="item.subtitle"></p>
+                                            </a>
+                                        </template>
+                                    </div>
+                                </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
             <div class="admin-menu flex items-center gap-2 sm:gap-3">
+            @if ($shortcutCandidate)
+                <form method="post" action="{{ $shortcutPinned ? route('admin.nav.shortcuts.destroy') : route('admin.nav.shortcuts.store') }}"
+                      @if ($shortcutPinned)
+                          onsubmit="event.preventDefault(); confirmForm(this, { title: 'Remove shortcut?', message: 'It will disappear from ☆ Shortcuts.' })"
+                      @endif>
+                    @csrf
+                    @if ($shortcutPinned) @method('DELETE') @endif
+                    <input type="hidden" name="route" value="{{ $shortcutCandidate['route'] }}">
+                    <input type="hidden" name="label" value="{{ $shortcutCandidate['label'] }}">
+                    <button type="submit" class="p-2 rounded-lg text-gray-600 hover:bg-gray-100" title="{{ $shortcutPinned ? 'Remove shortcut' : 'Add to ☆ Shortcuts (max 6)' }}" aria-label="{{ $shortcutPinned ? 'Remove shortcut' : 'Add shortcut' }}">
+                        @if ($shortcutPinned)
+                            <span class="text-brand-gold text-lg leading-none">★</span>
+                        @else
+                            <span class="text-lg leading-none">☆</span>
+                        @endif
+                    </button>
+                </form>
+            @endif
                 <details class="relative">
                     <summary class="relative inline-flex items-center gap-1.5 p-2 rounded-lg text-gray-600 hover:bg-gray-100 cursor-pointer" aria-label="Alerts">
                         <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
@@ -159,64 +252,95 @@
 
         {{-- Horizontal main navigation --}}
         <nav class="admin-menu bg-brand border-t border-white/10" aria-label="Main navigation">
-            <div class="flex flex-wrap items-stretch gap-0.5 px-2 lg:px-4">
+            <div class="flex items-stretch gap-0.5 px-2 lg:px-4 overflow-x-auto">
                 @foreach ($visibleSections as $section)
-                    @if (count($section['items']) === 1)
-                        <a href="{{ route($section['targetRoute']) }}"
-                           class="shrink-0 inline-flex items-center px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
-                                  {{ $section['isActive']
-                                       ? 'bg-brand-gold text-brand font-bold'
-                                       : 'text-white/85 hover:text-white hover:bg-white/10' }}">
-                            {{ $section['label'] }}
+                    <a href="{{ route($section['targetRoute']) }}"
+                       class="shrink-0 inline-flex items-center px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
+                              {{ ($section['separated'] ?? false) ? 'ml-auto' : '' }}
+                              {{ $section['isActive']
+                                   ? 'bg-brand-gold text-brand font-bold'
+                                   : 'text-white/85 hover:text-white hover:bg-white/10' }}">
+                        {{ $section['label'] }}
+                    </a>
+                @endforeach
+            </div>
+        </nav>
+        @php
+            $workspaceItems = collect($activeSectionTabs)->reject(fn ($item) => ($item[1] ?? '') === '__group__');
+            $pinned = $workspaceItems->reject(fn ($item) => ($item[4]['nav'] ?? null) === 'more');
+            $more = $workspaceItems->filter(fn ($item) => ($item[4]['nav'] ?? null) === 'more');
+        @endphp
+        @if ($workspaceItems->count() > 1)
+            <div class="bg-white border-b border-brand/10">
+                <nav class="flex items-center gap-1 overflow-x-auto px-2 lg:px-4" aria-label="Workspace">
+                    @foreach ($pinned as $item)
+                        @php
+                            $itemRoute = $item[1];
+                            $itemQuery = is_array($item[3] ?? null) ? $item[3] : [];
+                            $itemActive = $currentRoute === $itemRoute;
+                        @endphp
+                        <a href="{{ route($itemRoute, $itemQuery) }}"
+                           class="shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 -mb-px
+                                  {{ $itemActive ? 'border-brand text-brand font-semibold' : 'border-transparent text-gray-500 hover:text-gray-800' }}">
+                            {{ $item[0] }}
                         </a>
-                    @else
+                    @endforeach
+                    @if ($more->isNotEmpty())
                         <details class="relative shrink-0">
-                            <summary class="inline-flex items-center gap-1 px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
-                                           {{ $section['isActive']
-                                                ? 'bg-brand-gold text-brand font-bold'
-                                                : 'text-white/85 hover:text-white hover:bg-white/10' }}">
-                                {{ $section['label'] }}
-                                <svg class="size-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </summary>
-                            <div class="absolute left-0 top-full z-50 min-w-[13rem] max-h-80 overflow-y-auto rounded-b-lg rounded-tr-lg bg-white shadow-xl ring-1 ring-gray-200 py-1">
-                                @foreach ($section['items'] as $item)
-                                    @if (($item[1] ?? '') === '__group__')
-                                        <div class="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 first:pt-1">
-                                            {{ trim($item[0], ' —') }}
-                                        </div>
-                                    @else
-                                        @php
-                                            $itemRoute = $item[1];
-                                            $itemQuery = is_array($item[3] ?? null) ? $item[3] : [];
-                                            $itemActive = $currentRoute === $itemRoute;
-                                            if ($itemActive && $itemQuery !== []) {
-                                                foreach ($itemQuery as $qKey => $qVal) {
-                                                    if ((string) request($qKey, '') !== (string) $qVal) {
-                                                        $itemActive = false;
-                                                        break;
-                                                    }
-                                                }
-                                            } elseif ($itemActive && $itemRoute === 'admin.payments.ledger' && request('direction') === 'out' && ! isset($itemQuery['direction'])) {
-                                                $itemActive = false;
-                                            }
-                                        @endphp
-                                        <a href="{{ route($itemRoute, $itemQuery) }}"
-                                           class="block px-4 py-2 text-sm transition
-                                                  {{ $itemActive
-                                                       ? 'bg-brand-muted text-brand font-semibold'
-                                                       : 'text-gray-700 hover:bg-gray-50' }}">
-                                            {{ $item[0] }}
-                                        </a>
-                                    @endif
+                            <summary class="px-3 py-2.5 text-sm font-medium text-gray-500 cursor-pointer">More</summary>
+                            <div class="absolute left-0 top-full z-40 min-w-[12rem] rounded-xl bg-white shadow-xl ring-1 ring-gray-200 py-1">
+                                @foreach ($more as $item)
+                                    <a href="{{ route($item[1], is_array($item[3] ?? null) ? $item[3] : []) }}"
+                                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{{ $item[0] }}</a>
                                 @endforeach
                             </div>
                         </details>
                     @endif
+                </nav>
+            </div>
+        @endif
+        @if (count($adminShortcuts) > 0)
+            <div class="bg-white border-b border-brand/10 px-2 lg:px-4 py-2 flex items-center gap-2 overflow-x-auto">
+                <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold shrink-0">☆ Shortcuts {{ count($adminShortcuts) }}/6</p>
+                @foreach ($adminShortcuts as $index => $shortcut)
+                    <div class="shrink-0 inline-flex items-center gap-1 rounded-full bg-brand-muted text-brand text-xs font-semibold pl-3 pr-1 py-1">
+                        @if ($index > 0)
+                            <form method="post" action="{{ route('admin.nav.shortcuts.reorder') }}" class="inline">
+                                @csrf @method('PUT')
+                                @foreach (array_merge(
+                                    array_slice($adminShortcuts, 0, $index - 1),
+                                    [$adminShortcuts[$index], $adminShortcuts[$index - 1]],
+                                    array_slice($adminShortcuts, $index + 1)
+                                ) as $item)
+                                    <input type="hidden" name="routes[]" value="{{ $item['route'] }}">
+                                @endforeach
+                                <button class="text-brand/60 hover:text-brand px-0.5" title="Move left">‹</button>
+                            </form>
+                        @endif
+                        <a href="{{ $shortcut['url'] }}">{{ $shortcut['label'] }}</a>
+                        @if ($index < count($adminShortcuts) - 1)
+                            <form method="post" action="{{ route('admin.nav.shortcuts.reorder') }}" class="inline">
+                                @csrf @method('PUT')
+                                @foreach (array_merge(
+                                    array_slice($adminShortcuts, 0, $index),
+                                    [$adminShortcuts[$index + 1], $adminShortcuts[$index]],
+                                    array_slice($adminShortcuts, $index + 2)
+                                ) as $item)
+                                    <input type="hidden" name="routes[]" value="{{ $item['route'] }}">
+                                @endforeach
+                                <button class="text-brand/60 hover:text-brand px-0.5" title="Move right">›</button>
+                            </form>
+                        @endif
+                        <form method="post" action="{{ route('admin.nav.shortcuts.destroy') }}" class="inline"
+                              onsubmit="event.preventDefault(); confirmForm(this, { title: 'Remove shortcut?' })">
+                            @csrf @method('DELETE')
+                            <input type="hidden" name="route" value="{{ $shortcut['route'] }}">
+                            <button class="text-brand/50 hover:text-red-600 px-1" title="Remove" aria-label="Remove shortcut">×</button>
+                        </form>
+                    </div>
                 @endforeach
             </div>
-        </nav>
+        @endif
     </header>
 
     {{-- Page content --}}

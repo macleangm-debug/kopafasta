@@ -206,7 +206,11 @@
     @endif
 
     @if ($showDisbursementChecklist)
-        @include('site.borrower.loan-profile._disbursement_checklist', ['checklist' => $profile['disbursement_checklist']])
+        @include('site.borrower.loan-profile._disbursement_checklist', [
+            'checklist' => $profile['disbursement_checklist'],
+            'nextAction' => $profile['next_action'] ?? null,
+            'identityComplete' => (bool) ($progress['profile_complete'] ?? false),
+        ])
     @endif
 
     @if ($isPostApproval && ! empty($groupContract ?? null) && ! empty($application))

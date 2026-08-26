@@ -39,15 +39,6 @@ class BorrowerFinancialSnapshotService
                 'value' => ($trust['percent'] ?? 0).' — '.($trust['label'] ?? ''),
                 'url' => route('site.borrower.plus.home'),
             ],
-            'plus' => [
-                'icon' => '✦',
-                'label' => __('borrower.dashboard.snapshot.plus'),
-                'value' => $plusActive
-                    ? __('borrower.dashboard.snapshot.plus_on')
-                    : __('borrower.dashboard.snapshot.plus_off'),
-                'status' => $plusActive ? 'active' : null,
-                'url' => route('site.borrower.plus.home'),
-            ],
         ];
 
         $totalRepaid = (float) Repayment::query()

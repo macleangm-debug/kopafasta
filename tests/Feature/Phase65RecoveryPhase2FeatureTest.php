@@ -34,10 +34,12 @@ use App\Services\RecoveryPolicyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
 class Phase65RecoveryPhase2FeatureTest extends TestCase
 {
+    use CompletesPartnerJobs;
     use RefreshDatabase;
 
     protected function loanFixture(bool $secured = false, string $suffix = ''): array
@@ -752,8 +754,11 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $this->actingAs($borrowerUser)
             ->get(route('site.borrower.loans.show', $fixture['loan']))
             ->assertOk()
-            ->assertSee('repossessed', false)
-            ->assertSee('day', false);
+            ->assertSee(__('borrower.loan_servicing.repossession_status'), false)
+            ->assertSee(__('borrower.loan_servicing.days_until_auction', [
+                'days' => 4,
+                'date' => now()->addDays(4)->format('d M Y'),
+            ]), false);
     }
 
     public function test_gps_install_persists_tracking_url_for_collateral_map(): void
@@ -838,6 +843,7 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
             'roles' => ['debt_collector', 'auctioneer'],
             'status' => 'active',
             'phone' => '255712346140',
+            'email' => 'both-auction@test.local',
         ]);
         $otherAuctioneer = Vendor::create([
             'vendor_number' => 'PTR-P65-AUC',
@@ -846,7 +852,10 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
             'roles' => ['auctioneer'],
             'status' => 'active',
             'phone' => '255712346141',
+            'email' => 'other-auction@test.local',
         ]);
+        $partner = $this->completePartnerForJobs($partner);
+        $this->completePartnerForJobs($otherAuctioneer);
 
         RecoveryAssignment::create([
             'arrear_case_id' => $fixture['arrearCase']->id,

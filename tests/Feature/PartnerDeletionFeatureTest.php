@@ -11,10 +11,12 @@ use App\Models\ValuationAssignment;
 use App\Models\Vendor;
 use App\Services\PartnerDeletionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
 class PartnerDeletionFeatureTest extends TestCase
 {
+    use CompletesPartnerJobs;
     use RefreshDatabase;
 
     public function test_empty_partner_is_hard_deleted_and_user_disabled(): void
@@ -224,6 +226,8 @@ class PartnerDeletionFeatureTest extends TestCase
             'coverage_type' => 'nationwide',
             'regions' => [],
         ]);
+        $this->completePartnerForJobs($outgoing);
+        $this->completePartnerForJobs($incoming);
 
         $task = PartnerTask::query()->create([
             'partner_id' => $outgoing->id,

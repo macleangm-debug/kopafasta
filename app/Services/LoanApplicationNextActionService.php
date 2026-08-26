@@ -198,6 +198,16 @@ class LoanApplicationNextActionService
             );
         }
 
+        if ((string) ($application->current_stage ?? '') === 'awaiting_management') {
+            return $this->action(
+                'awaiting_management',
+                __('borrower.loan_profile.next_actions.under_review'),
+                __('borrower.applications_list.view'),
+                $profileUrl,
+                tone: 'secondary',
+            );
+        }
+
         if (app(GuarantorSupplementService::class)->hasOpenRequest($application)) {
             return $this->action(
                 'add_guarantor',

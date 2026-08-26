@@ -10,6 +10,7 @@
 ])
 
 <div class="admin-wizard space-y-6"
+     data-restore-step
      @if ($confirmBeforeSubmit) data-confirm-before-submit="1" @endif>
     <style>
         .admin-wizard:not([data-ready]) [data-step]:not(:first-of-type) { display: none !important; }

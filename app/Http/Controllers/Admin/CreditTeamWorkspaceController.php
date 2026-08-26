@@ -54,6 +54,7 @@ class CreditTeamWorkspaceController extends Controller
         abort_unless(auth()->user()?->hasPermission('applications.view') || auth()->user()?->hasPermission('loans.view'), 403);
 
         $counts = [
+            'awaiting_management' => LoanApplication::query()->where('current_stage', 'awaiting_management')->count(),
             'approved' => LoanApplication::query()->where('current_stage', 'approval')->count(),
             'disbursement_stage' => LoanApplication::query()->where('current_stage', 'disbursement')->count(),
             'pending_loans' => Loan::query()->where('status', 'pending')->count(),

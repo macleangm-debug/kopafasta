@@ -2,6 +2,7 @@
     $stage = $record->current_stage ?? 'submitted';
     $isScreeningSticky = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
     $isCommitteeSticky = $stage === 'pre_approval';
+    $isManagementSticky = $stage === 'awaiting_management';
     $recType = data_get($review, 'recommendation.type');
     $canReview = auth()->user()?->hasPermission('applications.review');
     $workspace = $workspace ?? request('workspace', 'checklist');
@@ -31,9 +32,11 @@
         && in_array($workspace, ['checklist', 'decision'], true);
     $showCommitteeSticky = ! ($fileIsClosed ?? $record->isClosed())
         && $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty() && $workspace === 'decision';
+    $showManagementSticky = ! ($fileIsClosed ?? $record->isClosed())
+        && $isManagementSticky && collect($availableActions ?? [])->isNotEmpty() && $workspace === 'decision';
 @endphp
 
-@if ($showScreeningSticky || $showCommitteeSticky)
+@if ($showScreeningSticky || $showCommitteeSticky || $showManagementSticky)
     <div class="fixed inset-x-0 bottom-0 z-40 pointer-events-none">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-4 pointer-events-auto">
             <div class="rounded-2xl bg-brand text-white shadow-2xl ring-1 ring-brand-gold/40 px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
@@ -70,6 +73,17 @@
                                 Record decision
                             </button>
                         @endif
+                    </div>
+                @elseif ($showManagementSticky)
+                    <div class="min-w-0">
+                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Credit management</p>
+                        <p class="text-sm font-bold mt-0.5 truncate">Approve within authority, refer back, or reject</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        <a href="{{ $decisionPanelUrl }}"
+                           class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
+                            Go to decision
+                        </a>
                     </div>
                 @else
                     <div class="min-w-0">

@@ -231,7 +231,9 @@ class AuctionHoldService
 
         $region = $loan->customer?->region;
         $vendor = $this->preferredAuctioneerAfterRepossession($case);
-        if ($vendor && ! app(PartnerRegionCoverage::class)->covers($vendor, $region)
+        if ($vendor
+            && filled($region)
+            && ! app(PartnerRegionCoverage::class)->covers($vendor, $region)
             && (bool) (app(PartnerAutoAssignPolicy::class)->forRecoveryType('auctioneer')['require_region'] ?? true)) {
             $vendor = null;
         }

@@ -22,31 +22,7 @@
     <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
         <p class="text-sm text-gray-600 mb-4">{{ __('borrower.offer.intro') }}</p>
 
-        <div class="grid sm:grid-cols-2 gap-4 mb-6">
-            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 p-4">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.offer.requested') }}</p>
-                <p class="text-lg font-bold text-gray-900 mt-1">{{ format_money((float) $application->requested_amount) }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('borrower.applications_list.tenure_months', ['count' => $application->requested_tenure_months]) }}</p>
-            </div>
-            <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
-                <p class="text-[10px] uppercase tracking-widest text-amber-700">{{ __('borrower.offer.offered') }}</p>
-                <p class="text-lg font-bold text-amber-900 mt-1">{{ format_money((float) $application->offered_amount) }}</p>
-                <p class="text-xs text-amber-800 mt-1">
-                    {{ __('borrower.applications_list.tenure_months', ['count' => $application->offered_tenure_months ?? $application->requested_tenure_months]) }}
-                </p>
-            </div>
-        </div>
-
-        <dl class="grid sm:grid-cols-2 gap-4 text-sm mb-6">
-            <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.offer.estimated_installment') }}</dt>
-                <dd class="font-semibold text-gray-900 mt-1">{{ format_money((float) $installment) }}</dd>
-            </div>
-            <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.offer.product') }}</dt>
-                <dd class="font-semibold text-gray-900 mt-1">{{ $application->product?->name ?? '—' }}</dd>
-            </div>
-        </dl>
+        @include('site.borrower._offer_facts', ['offerFacts' => $offerFacts ?? []])
 
         @if ($application->committee_recommendation)
             <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3 text-sm text-sky-900 mb-6">

@@ -169,19 +169,22 @@ class BorrowerPaymentController extends Controller
                 ? 'Payment received and verified.'
                 : "Payment submitted. Reference: {$payment->reference}.");
 
-        return redirect()->route('site.borrower.payments.show', $payment)
-            ->with('status', $message)
-            ->when($payment->isVerified(), function ($r) {
-                $existing = session(\App\Support\Celebration::SESSION_KEY, []);
-                if (! is_array($existing)) {
-                    $existing = [];
-                }
+        $redirect = redirect()->route('site.borrower.payments.show', $payment)
+            ->with('status', $message);
 
-                return $r->with(
-                    \App\Support\Celebration::SESSION_KEY,
-                    array_values(array_unique(array_merge($existing, ['payment'])))
-                );
-            });
+        if ($payment->isVerified()) {
+            $existing = session(\App\Support\Celebration::SESSION_KEY, []);
+            if (! is_array($existing)) {
+                $existing = [];
+            }
+
+            $redirect->with(
+                \App\Support\Celebration::SESSION_KEY,
+                array_values(array_unique(array_merge($existing, ['payment'])))
+            );
+        }
+
+        return $redirect;
     }
 
     public function showRefund(BorrowerRefund $borrowerRefund): View

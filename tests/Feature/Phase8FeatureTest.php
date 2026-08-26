@@ -76,8 +76,8 @@ class Phase8FeatureTest extends TestCase
             ->assertSee('Settings hub', false)
             ->assertSee('Organization', false)
             ->assertSee('Partners', false)
-            ->assertSee('Reports', false)
-            ->assertSee('Capital', false);
+            ->assertSee('Growth', false)
+            ->assertSee('Communications', false);
     }
 
     private function makePartnerUser(): User

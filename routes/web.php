@@ -600,6 +600,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::view('loan-applications/pipeline/under-review',  'admin.loan-applications.pipeline-under-review') ->name('loan-applications.pipeline.under-review');
         Route::view('loan-applications/pipeline/system-sorted', 'admin.loan-applications.pipeline-system-sorted')->name('loan-applications.pipeline.system-sorted');
         Route::view('loan-applications/pipeline/approved',      'admin.loan-applications.pipeline-approved')     ->name('loan-applications.pipeline.approved');
+        Route::view('loan-applications/pipeline/management-approval', 'admin.loan-applications.pipeline-management-approval')->name('loan-applications.pipeline.management-approval');
         Route::view('loan-applications/pipeline/disbursement',  'admin.loan-applications.pipeline-disbursement') ->name('loan-applications.pipeline.disbursement');
         Route::view('loan-applications/new',              'admin.loan-applications.new')              ->name('loan-applications.new');
         Route::view('loan-applications/pending-documents','admin.loan-applications.pending-documents')->name('loan-applications.pending-documents');
@@ -695,6 +696,12 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('customers.documents.reject');
         Route::post('customers/{customer}/nida-unlock', [CustomerController::class, 'unlockNidaIdentity'])
             ->name('customers.nida.unlock');
+        Route::middleware('permission:customers.view')->group(function (): void {
+            Route::get('customers/grade-watch', [GradeSettingsController::class, 'watch'])->name('customers.grade-watch');
+            Route::post('customers/grade-watch/{customer}', [GradeSettingsController::class, 'saveWatch'])->name('customers.grade-watch.save');
+            Route::post('customers/grade-override/{customer}', [GradeSettingsController::class, 'saveOverride'])->name('customers.grade-override.save');
+            Route::get('customers/profiles', [\App\Http\Controllers\Admin\CustomerProfileOpsController::class, 'index'])->name('customers.profiles');
+        });
         $registerResource('customers',     'customer',      CustomerController::class);
         $registerResource('customer-kycs', 'customer_kyc',  CustomerKycController::class);
         Route::get('face-verifications', [FaceVerificationController::class, 'index'])->name('face-verifications.index');
@@ -807,8 +814,87 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         $registerAdminPartners = require base_path('routes/admin_partners.php');
         $registerAdminPartners();
-        $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
         $registerResource('profile-sections', 'profile_section', ProfileSectionDefinitionController::class);
+
+        Route::get('search', \App\Http\Controllers\Admin\AdminSearchController::class)->name('search');
+        Route::get('nav/shortcuts', [\App\Http\Controllers\Admin\AdminShortcutController::class, 'index'])->name('nav.shortcuts.index');
+        Route::post('nav/shortcuts', [\App\Http\Controllers\Admin\AdminShortcutController::class, 'store'])->name('nav.shortcuts.store');
+        Route::delete('nav/shortcuts', [\App\Http\Controllers\Admin\AdminShortcutController::class, 'destroy'])->name('nav.shortcuts.destroy');
+        Route::put('nav/shortcuts/reorder', [\App\Http\Controllers\Admin\AdminShortcutController::class, 'reorder'])->name('nav.shortcuts.reorder');
+
+        Route::middleware('permission:marketing.view')->group(function () use ($registerResource): void {
+            $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
+            Route::get('growth', [\App\Http\Controllers\Admin\GrowthController::class, 'index'])->name('growth.index');
+            Route::get('growth/affiliates', [\App\Http\Controllers\Admin\GrowthController::class, 'affiliates'])->name('growth.affiliates');
+            Route::get('growth/performance', [\App\Http\Controllers\Admin\GrowthController::class, 'performance'])
+                ->middleware('permission:marketing.performance.view')
+                ->name('growth.performance');
+
+            Route::get('growth/audiences', [\App\Http\Controllers\Admin\MarketingAudienceController::class, 'index'])
+                ->middleware('permission:marketing.audiences.manage')
+                ->name('growth.audiences.index');
+            Route::get('growth/audiences/estimate', [\App\Http\Controllers\Admin\MarketingAudienceController::class, 'estimate'])
+                ->middleware('permission:marketing.audiences.manage')
+                ->name('growth.audiences.estimate');
+            Route::post('growth/audiences', [\App\Http\Controllers\Admin\MarketingAudienceController::class, 'store'])
+                ->middleware('permission:marketing.audiences.manage')
+                ->name('growth.audiences.store');
+            Route::delete('growth/audiences/{audience}', [\App\Http\Controllers\Admin\MarketingAudienceController::class, 'destroy'])
+                ->middleware('permission:marketing.audiences.manage')
+                ->name('growth.audiences.destroy');
+
+            Route::get('growth/personas', [\App\Http\Controllers\Admin\MarketingPersonaController::class, 'index'])
+                ->middleware('permission:marketing.personas.manage')
+                ->name('growth.personas.index');
+            Route::post('growth/personas', [\App\Http\Controllers\Admin\MarketingPersonaController::class, 'store'])
+                ->middleware('permission:marketing.personas.manage')
+                ->name('growth.personas.store');
+            Route::delete('growth/personas/{persona}', [\App\Http\Controllers\Admin\MarketingPersonaController::class, 'destroy'])
+                ->middleware('permission:marketing.personas.manage')
+                ->name('growth.personas.destroy');
+
+            Route::get('growth/demos', [\App\Http\Controllers\Admin\MarketingDemoController::class, 'index'])->name('growth.demos.index');
+            Route::get('growth/demos/create', [\App\Http\Controllers\Admin\MarketingDemoController::class, 'create'])
+                ->middleware('permission:marketing.demos.create')
+                ->name('growth.demos.create');
+            Route::post('growth/demos', [\App\Http\Controllers\Admin\MarketingDemoController::class, 'store'])
+                ->middleware('permission:marketing.demos.create')
+                ->name('growth.demos.store');
+            Route::get('growth/demos/{demo}', [\App\Http\Controllers\Admin\MarketingDemoController::class, 'show'])->name('growth.demos.show');
+            Route::get('growth/demos/{demo}/play', [\App\Http\Controllers\Admin\MarketingDemoController::class, 'play'])->name('growth.demos.play');
+            Route::post('growth/demos/{demo}/customize', [\App\Http\Controllers\Admin\MarketingDemoController::class, 'customize'])
+                ->middleware('permission:marketing.demos.create')
+                ->name('growth.demos.customize');
+            Route::post('growth/demos/{demo}/end', [\App\Http\Controllers\Admin\MarketingDemoController::class, 'end'])
+                ->name('growth.demos.end');
+
+            Route::get('growth/offers', [\App\Http\Controllers\Admin\GrowthOfferController::class, 'index'])
+                ->middleware('permission:marketing.offers.manage')
+                ->name('growth.offers.index');
+            Route::post('growth/offers', [\App\Http\Controllers\Admin\GrowthOfferController::class, 'store'])
+                ->middleware('permission:marketing.offers.manage')
+                ->name('growth.offers.store');
+        });
+
+        Route::middleware('permission:content.plus.manage')->group(function (): void {
+            Route::get('content/plus-learning', [\App\Http\Controllers\Admin\ContentPlusLearningController::class, 'index'])->name('content.plus-learning');
+            Route::post('content/plus-learning/lessons', [\App\Http\Controllers\Admin\ContentPlusLearningController::class, 'saveLesson'])->name('content.plus-learning.lessons.save');
+            Route::post('content/plus-learning/categories', [\App\Http\Controllers\Admin\ContentPlusLearningController::class, 'saveCategory'])->name('content.plus-learning.categories.save');
+            Route::post('content/plus-learning/subjects', [\App\Http\Controllers\Admin\ContentPlusLearningController::class, 'saveSubject'])->name('content.plus-learning.subjects.save');
+        });
+
+        Route::get('communications', [\App\Http\Controllers\Admin\CommunicationsController::class, 'index'])
+            ->middleware('permission:communications.view,support.tickets,communications.templates.manage')
+            ->name('communications.index');
+        Route::get('communications/chatbot', [\App\Http\Controllers\Admin\CommunicationsController::class, 'chatbot'])
+            ->middleware('permission:communications.chatbot.manage')
+            ->name('communications.chatbot');
+        Route::put('communications/chatbot', [\App\Http\Controllers\Admin\CommunicationsController::class, 'saveChatbot'])
+            ->middleware('permission:communications.chatbot.manage')
+            ->name('communications.chatbot.save');
+        Route::middleware('permission:communications.templates.manage')->group(function () use ($registerResource): void {
+            $registerResource('notification-templates', 'notification_template', NotificationTemplateController::class);
+        });
 
         // Capital
         Route::get('capital-funding', [\App\Http\Controllers\Admin\CapitalPartnerFundingController::class, 'index'])->name('capital-funding.index');
@@ -1031,7 +1117,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings/loan-products',    [SettingsController::class, 'loanProducts']) ->name('settings.loan-products');
         Route::get('settings/grades', [GradeSettingsController::class, 'grades'])->name('settings.grades');
         Route::put('settings/grades', [GradeSettingsController::class, 'saveGrades'])->name('settings.grades.save');
-        Route::get('settings/grades/watch', [GradeSettingsController::class, 'watch'])->name('settings.grades.watch');
+        Route::get('settings/grades/watch', fn () => redirect()->route('admin.customers.grade-watch'))->name('settings.grades.watch');
         Route::post('settings/grades/watch/{customer}', [GradeSettingsController::class, 'saveWatch'])->name('settings.grades.watch.save');
         Route::post('settings/grades/override/{customer}', [GradeSettingsController::class, 'saveOverride'])->name('settings.grades.override.save');
         Route::get('settings/plus', [GradeSettingsController::class, 'plus'])->name('settings.plus');
@@ -1068,7 +1154,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/partners',         [SettingsController::class, 'savePartners'])  ->name('settings.partners.save');
         Route::get('settings/partner-performance', [SettingsController::class, 'partnerPerformance'])->name('settings.partner-performance');
         Route::put('settings/partner-performance', [SettingsController::class, 'savePartnerPerformance'])->name('settings.partner-performance.save');
-        Route::get('settings/chatbot',          [SettingsController::class, 'chatbot'])       ->name('settings.chatbot');
+        Route::get('settings/chatbot', fn () => redirect()->route('admin.communications.chatbot'))->name('settings.chatbot');
         Route::put('settings/chatbot',          [SettingsController::class, 'saveChatbot'])   ->name('settings.chatbot.save');
         Route::get('settings/countries',        [SettingsController::class, 'countries'])     ->name('settings.countries');
         Route::put('settings/countries/{country}', [SettingsController::class, 'saveCountry'])->name('settings.countries.save');
@@ -1092,6 +1178,5 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('roles',                 'role',                  RoleController::class);
         $registerResource('approval-limits',       'approval_limit',        ApprovalLimitController::class);
         $registerResource('document-templates',    'document_template',     DocumentTemplateController::class);
-        $registerResource('notification-templates','notification_template', NotificationTemplateController::class);
     });
 });

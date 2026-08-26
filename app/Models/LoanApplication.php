@@ -14,6 +14,7 @@ class LoanApplication extends Model
         'screening',
         'credit_appraisal',
         'pre_approval',
+        'awaiting_management',
         'approval',
         'disbursement',
         'rejected',

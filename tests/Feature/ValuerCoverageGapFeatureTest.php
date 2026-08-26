@@ -16,10 +16,12 @@ use App\Services\CollateralSecureService;
 use App\Services\ValuationPartnerService;
 use Database\Seeders\ValuationPricingDefaultsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
 class ValuerCoverageGapFeatureTest extends TestCase
 {
+    use CompletesPartnerJobs;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -167,6 +169,8 @@ class ValuerCoverageGapFeatureTest extends TestCase
         $partner = Vendor::query()->where('name', 'First Valuer Co')->first();
         $this->assertNotNull($partner);
         $this->assertSame('active', $partner->status);
+        $this->completePartnerForJobs($partner);
+        $this->placeWaitingValuerJobs($partner->fresh(), $admin);
 
         $assignment = ValuationAssignment::query()
             ->where('loan_application_id', $application->id)
@@ -204,7 +208,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
                 'activation_mode' => 'draft',
             ])
             ->assertRedirect()
-            ->assertSessionHas('status', fn ($status) => str_contains((string) $status, 'activate the portal PIN'));
+            ->assertSessionHas('status', fn ($status) => str_contains((string) $status, 'inactive draft'));
 
         $this->assertSame(0, ValuationAssignment::query()->where('loan_application_id', $application->id)->count());
     }
@@ -299,7 +303,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
         $this->assertGreaterThanOrEqual(1, NotificationLog::query()->where('template', 'partner.coverage_staff')->count());
     }
 
-    public function test_credit_manager_asks_partners_management_instead_of_adding_a_valuer(): void
+    public function test_credit_manager_cannot_open_a_screening_valuation_file(): void
     {
         $customer = $this->borrower();
         $customer->update(['region' => 'Kigoma']);
@@ -318,10 +322,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
                 'desk_phase' => 'security',
                 'open_group' => 'collateral',
             ]))
-            ->assertOk()
-            ->assertSee('Ask Partner support to add a valuer', false)
-            ->assertDontSee('Create this partner?', false)
-            ->assertDontSee('Add valuer', false);
+            ->assertForbidden();
     }
 
     public function test_partners_team_officer_can_open_the_add_valuer_form(): void
@@ -362,6 +363,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
             'regions' => ['Dar es Salaam'],
             'metadata' => ['residence' => ['region' => 'Kigoma']],
         ]);
+        $this->completePartnerForJobs($valuer);
 
         app(CollateralSecureService::class)->requestValuation($application, $admin);
         app(CollateralSecureService::class)->markValuationFeePaid($application->fresh());

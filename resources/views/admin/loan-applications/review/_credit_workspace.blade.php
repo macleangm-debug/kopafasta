@@ -6,6 +6,7 @@
     $crbExplain = app(\App\Services\CrbCreditCheckService::class)->recommendationExplanation($crb);
     $stage = $record->current_stage ?? 'submitted';
     $isCommitteeStage = $stage === 'pre_approval';
+    $isManagementApprovalStage = $stage === 'awaiting_management';
     $isScreeningStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
     $afford = $affordability ?? ($review['affordability'] ?? []);
     $affordPass = (bool) ($afford['pass'] ?? false);
@@ -91,7 +92,7 @@
             'info' => 'bg-sky-500',
         ];
         $anomalyCounts = collect($anomalies)->countBy(fn ($a) => $a['severity'] ?? 'info');
-        $screeningReadiness = ($isScreeningStage || $isCommitteeStage)
+        $screeningReadiness = ($isScreeningStage || $isCommitteeStage || $isManagementApprovalStage)
             ? app(\App\Services\ScreeningReadinessService::class)->forApplication(
                 $record,
                 $review,
@@ -118,7 +119,7 @@
                         · Group loan
                     @endif
                 @else
-                    {{ $isCommitteeStage ? 'Committee workspace' : 'Screening workspace' }}
+                    {{ $isManagementApprovalStage ? 'Management approval workspace' : ($isCommitteeStage ? 'Committee workspace' : 'Screening workspace') }}
                     @if ($isGroupLoan)
                         · Group loan
                     @endif
@@ -139,11 +140,13 @@
                 @elseif ($fileIsClosed)
                     This file is {{ display_label($closedStatus, 'application_status') }}. It is view-only — no edit, withdraw, or workflow actions.
                 @else
-                    {{ $isCommitteeStage
+                    {{ $isManagementApprovalStage
+                        ? 'Committee already decided. Review the decision pack, then approve, refer back, or reject. Grade and Trust do not skip this step.'
+                        : ($isCommitteeStage
                         ? 'Sprint critical areas on the same evidence screening used, change anything that needs a reason, then record the committee decision.'
                         : ($isGroupLoan
                             ? 'Review the leader and each member on the checklist, then record your recommendation.'
-                            : 'Review CRB, affordability and the borrower file — then submit your credit recommendation.') }}
+                            : 'Review CRB, affordability and the borrower file — then submit your credit recommendation.')) }}
                 @endif
             </p>
         </div>
@@ -708,7 +711,7 @@
                     </p>
                 </div>
             @else
-                @if ($isCommitteeStage)
+                @if ($isCommitteeStage || $isManagementApprovalStage)
                     @include('admin.loan-applications.review._committee_inputs')
                     @include('admin.loan-applications.review._committee_sprint', [
                         'screeningReadiness' => $screeningReadiness ?? null,

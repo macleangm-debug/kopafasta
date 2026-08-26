@@ -6,9 +6,10 @@
     $stage = $record->current_stage ?? 'submitted';
     $isCreditStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
     $isCommitteeStage = $stage === 'pre_approval';
-    $showAnalystPanel = $isCreditStage || (! $isCommitteeStage && ! empty($rec['type']));
-    $showCommitteePanel = $isCommitteeStage;
-    if ($isCommitteeStage) {
+    $isManagementApprovalStage = $stage === 'awaiting_management';
+    $showAnalystPanel = $isCreditStage || (! $isCommitteeStage && ! $isManagementApprovalStage && ! empty($rec['type']));
+    $showCommitteePanel = $isCommitteeStage || $isManagementApprovalStage;
+    if ($isCommitteeStage || $isManagementApprovalStage) {
         $showAnalystPanel = false;
     }
     $viewer = auth()->user();
@@ -217,10 +218,12 @@
     <div class="bg-white rounded-2xl shadow-sm ring-1 overflow-hidden ring-brand-gold ring-2">
         <div class="px-5 sm:px-6 py-4 border-b border-brand-gold/30 bg-gradient-to-r from-brand-gold/20 to-white flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 2 · Credit committee</p>
-                <h3 class="text-base font-bold text-gray-900 mt-0.5">Record the committee decision</h3>
+                <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">{{ $isManagementApprovalStage ? 'Step 3 · Credit management' : 'Step 2 · Credit committee' }}</p>
+                <h3 class="text-base font-bold text-gray-900 mt-0.5">{{ $isManagementApprovalStage ? 'Record the management decision' : 'Record the committee decision' }}</h3>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Compare CRB vs screening above, then issue an offer, final-approve, or reject. Request any missing files on Review checklist → Docs.
+                    {{ $isManagementApprovalStage
+                        ? 'Screening recommended; committee decided. Approve within authority, refer back, or reject. Do not re-enter the file.'
+                        : 'Compare CRB vs screening above, then approve, approve with conditions, refer back, or reject. Request any missing files on Review checklist → Docs.' }}
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">

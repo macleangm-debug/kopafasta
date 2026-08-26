@@ -39,6 +39,11 @@
                     <p class="text-sm text-white/85 mt-1">{{ $today['body'] }}</p>
                     <a href="{{ $today['cta_url'] }}" class="mt-4 inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">{{ $today['cta_label'] }} →</a>
                 </div>
+            @elseif ($plusExpired ?? false)
+                <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/15 p-4">
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.home.expired_kicker') }}</p>
+                    <p class="text-sm font-semibold mt-1">{{ __('plus.home.expired_body') }}</p>
+                </div>
             @elseif (! $plusActive)
                 <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/15 p-4">
                     <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.home.next_step') }}</p>
@@ -46,75 +51,93 @@
                 </div>
             @endif
 
-            @if ($plusActive)
+            @if ($plusNeedsRenewal ?? false)
                 <form method="post" action="{{ route('site.borrower.plus.renew') }}" class="relative mt-4">
                     @csrf
                     <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">{{ __('plus.home.renew') }}</button>
+                    @if ($plusActive && ($plusDaysRemaining ?? null) !== null)
+                        <p class="mt-2 text-xs text-white/70">{{ __('plus.home.renew_soon', ['days' => $plusDaysRemaining]) }}</p>
+                    @endif
                 </form>
             @endif
         </section>
 
-        @if ($plusActive)
+        @if ($plusActive || ($plusExpired ?? false))
             <section>
                 <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.home.rooms_title') }}</p>
+                @if ($plusExpired ?? false)
+                    <p class="text-sm text-gray-600 mb-3">{{ __('plus.home.locked_rooms') }}</p>
+                @endif
+                @php
+                    $roomLocked = (bool) ($plusExpired ?? false);
+                    $roomHref = $roomLocked ? route('site.borrower.plus.home') : null;
+                    $roomCta = $roomLocked ? __('plus.home.renew') : __('plus.home.open_room');
+                @endphp
                 <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 items-stretch -mx-1 px-1">
                     <x-site.plus-room-card
-                        :href="route('site.borrower.plus.money')"
+                        :href="$roomLocked ? '#' : route('site.borrower.plus.money')"
                         icon="💸"
                         :title="__('plus.home.money')"
                         :stat="format_money_compact((float) ($money['left'] ?? 0))"
                         :stat-class="(float) ($money['left'] ?? 0) > 0 ? 'mt-1.5 text-lg font-bold tabular-nums text-emerald-700' : 'mt-1.5 text-lg font-bold tabular-nums text-gray-900'"
                         :hint="__('plus.home.money_left')"
-                        :cta="__('plus.home.open_room')"
+                        :cta="$roomCta"
+                        :locked="$roomLocked"
                     />
                     <x-site.plus-room-card
-                        :href="route('site.borrower.plus.business')"
+                        :href="$roomLocked ? '#' : route('site.borrower.plus.business')"
                         icon="🏪"
                         :title="__('plus.home.business')"
                         :stat="format_money_compact((float) ($business['week']['sold'] ?? 0))"
                         :stat-class="(float) ($business['week']['sold'] ?? 0) > 0 ? 'mt-1.5 text-lg font-bold tabular-nums text-emerald-700' : 'mt-1.5 text-lg font-bold tabular-nums text-gray-900'"
                         :hint="__('plus.business.sold').' · '.__('plus.business.diff').' '.format_money_compact((float) ($business['week']['difference'] ?? 0))"
-                        :cta="__('plus.home.open_room')"
+                        :cta="$roomCta"
+                        :locked="$roomLocked"
                     />
                     <x-site.plus-room-card
-                        :href="route('site.borrower.plus.goals')"
+                        :href="$roomLocked ? '#' : route('site.borrower.plus.goals')"
                         icon="🎯"
                         :title="__('plus.home.goals')"
                         :stat="$leadGoal ? $leadGoal->title.' · '.$leadGoal->progressPercent().'%' : '—'"
                         :hint="$leadGoal ? __('plus.goals.remaining', ['amount' => format_money_compact($leadGoal->remaining())]) : __('plus.goals.empty')"
-                        :cta="__('plus.home.open_room')"
+                        :cta="$roomCta"
+                        :locked="$roomLocked"
                     />
                     <x-site.plus-room-card
-                        :href="route('site.borrower.plus.reports')"
+                        :href="$roomLocked ? '#' : route('site.borrower.plus.reports')"
                         icon="📊"
                         :title="__('plus.home.reports')"
                         :stat="now()->locale(app()->getLocale())->translatedFormat('F')"
                         :hint="__('plus.home.reports_hint')"
-                        :cta="__('plus.home.open_room')"
+                        :cta="$roomCta"
+                        :locked="$roomLocked"
                     />
                     <x-site.plus-room-card
-                        :href="route('site.borrower.plus.offers')"
+                        :href="$roomLocked ? '#' : route('site.borrower.plus.offers')"
                         icon="🎁"
                         :title="__('plus.home.offers')"
                         :stat="__('plus.home.offers_hint', ['count' => (int) $offers])"
-                        :cta="__('plus.home.open_room')"
+                        :cta="$roomCta"
+                        :locked="$roomLocked"
                     />
                     <x-site.plus-room-card
-                        :href="route('site.borrower.plus.rewards')"
+                        :href="$roomLocked ? '#' : route('site.borrower.plus.rewards')"
                         icon="✦"
                         :title="__('plus.home.rewards')"
                         :stat="__('plus.rewards.points', ['balance' => $rewardBalance])"
                         stat-class="mt-1.5 text-3xl font-black tabular-nums tracking-tight text-gray-900"
                         :hint="__('plus.rewards.borrow_line')"
-                        :cta="__('plus.home.open_room')"
+                        :cta="$roomCta"
+                        :locked="$roomLocked"
                     />
                     <x-site.plus-room-card
-                        :href="route('site.borrower.plus.learn')"
+                        :href="$roomLocked ? '#' : route('site.borrower.plus.learn')"
                         icon="📚"
                         :title="__('plus.home.learn')"
                         :stat="$latestLesson ? __('plus.home.learn_live') : __('plus.learn.tagline')"
                         :hint="$latestLesson ? $lessonTitle.' · '.__('plus.learn.minutes', ['minutes' => $latestLesson->duration_minutes ?? 7]).' · '.(($summary['lesson_watched'] ?? false) ? __('plus.home.learn_seen') : __('plus.home.learn_unseen')) : null"
-                        :cta="__('plus.home.open_room')"
+                        :cta="$roomCta"
+                        :locked="$roomLocked"
                     />
                 </div>
             </section>

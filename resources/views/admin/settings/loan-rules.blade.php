@@ -105,8 +105,8 @@
                 <h3 class="text-sm font-semibold text-brand mb-1">Group lending — staggered payouts</h3>
                 <p class="text-xs text-gray-500 mb-4">Members are not paid at the same time. The next member unlocks only after the current recipient has made enough successful repayments (and optionally waited a set number of days). This keeps the group standing on each other to repay.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '3'" required />
-                    <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '10'" required />
+                    <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '3'" min="3" max="10" required help="Groups must have between 3 and 10 members." />
+                    <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '10'" min="3" max="10" required help="Hard cap is 10 members." />
                     <x-admin.input name="group_leader_unlock_repayments" label="Successful repayments before next payout" type="number" :value="$values['group_leader_unlock_repayments'] ?? '2'" required help="How many successful repayments the current recipient must make before the next member unlocks." />
                     <x-admin.input name="group_unlock_days" label="Minimum days before next payout (optional)" type="number" :value="$values['group_unlock_days'] ?? '0'" help="Extra waiting period after the current member was disbursed. Use 0 to rely on repayments only." />
                     <div>

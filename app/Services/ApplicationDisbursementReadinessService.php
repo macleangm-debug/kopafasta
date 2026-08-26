@@ -37,6 +37,10 @@ class ApplicationDisbursementReadinessService
 
     public function offerSigned(LoanApplication $application): bool
     {
+        if ($this->isLatched($application, 'offer_accepted')) {
+            return true;
+        }
+
         if ((string) $application->offer_status === 'accepted') {
             return true;
         }
@@ -48,6 +52,10 @@ class ApplicationDisbursementReadinessService
 
     public function contractSigned(LoanApplication $application): bool
     {
+        if ($this->isLatched($application, 'contract_signed')) {
+            return true;
+        }
+
         $contract = $this->loanContract($application);
 
         if (! $contract || ! $contract->isSigned()) {
@@ -66,11 +74,19 @@ class ApplicationDisbursementReadinessService
 
     public function feesPaid(LoanApplication $application): bool
     {
+        if ($this->isLatched($application, 'post_approval_fees_paid')) {
+            return true;
+        }
+
         return $this->fees->allPaid($application);
     }
 
     public function disbursementDetailsConfirmed(LoanApplication $application): bool
     {
+        if ($this->isLatched($application, 'disbursement_account_confirmed')) {
+            return true;
+        }
+
         return $this->disbursementDetails->disbursementDetailsConfirmed($application);
     }
 
@@ -620,7 +636,10 @@ class ApplicationDisbursementReadinessService
         $application->update([
             'current_stage'            => $this->resolveBorrowerStageAfterOfferAcceptance($application),
             'borrower_current_action'  => $this->resolveBorrowerCurrentAction($application),
-            'borrower_completed_steps' => $this->resolveBorrowerCompletedSteps($application),
+            'borrower_completed_steps' => array_values(array_unique(array_merge(
+                $application->borrower_completed_steps ?? [],
+                $this->resolveBorrowerCompletedSteps($application),
+            ))),
         ]);
 
         return $application->fresh(['product', 'postApprovalFees', 'loan']);
@@ -831,5 +850,10 @@ class ApplicationDisbursementReadinessService
         ];
 
         return $checklist;
+    }
+
+    private function isLatched(LoanApplication $application, string $step): bool
+    {
+        return in_array($step, $application->borrower_completed_steps ?? [], true);
     }
 }

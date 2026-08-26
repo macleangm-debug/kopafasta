@@ -47,9 +47,56 @@
         </div>
     @endif
 
+    @if ($loan->status === 'closed')
+        @php $completion = app(\App\Services\LendingJourneyService::class)->completionSummary($loan); @endphp
+        <div class="mb-6 rounded-3xl bg-emerald-50 ring-1 ring-emerald-200 p-6">
+            <p class="text-lg font-bold text-emerald-900">{{ __('borrower.loan_servicing.completed_title') }} ✓</p>
+            <p class="text-sm text-emerald-800 mt-1">{{ __('borrower.loan_servicing.completed_body') }}</p>
+            <dl class="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-emerald-800/70">{{ __('borrower.loan_servicing.amount_borrowed') }}</dt>
+                    <dd class="font-bold text-emerald-950 mt-1 tabular-nums">{{ format_money((float) $completion['amount_borrowed']) }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-emerald-800/70">{{ __('borrower.loan_servicing.amount_repaid') }}</dt>
+                    <dd class="font-bold text-emerald-950 mt-1 tabular-nums">{{ format_money((float) $completion['amount_repaid']) }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-emerald-800/70">{{ __('borrower.loan_servicing.completed_on') }}</dt>
+                    <dd class="font-bold text-emerald-950 mt-1">{{ optional($completion['completed_at'])->format('d M Y') ?? '—' }}</dd>
+                </div>
+            </dl>
+        </div>
+    @endif
+
     {{-- Loan summary --}}
     <div class="glass-card p-5 mb-6">
         <h2 class="font-semibold text-gray-900 mb-4">{{ __('borrower.loan_servicing.summary_title') }}</h2>
+        @if ($loan->status !== 'closed')
+            <div class="grid sm:grid-cols-2 gap-4 mb-5">
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.balance_remaining') }}</p>
+                    <p class="text-3xl font-extrabold text-gray-900 mt-1 tabular-nums">{{ format_money((float) $servicing['outstanding_balance']) }}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.next_payment') }}</p>
+                    <p class="text-xl font-bold text-gray-900 mt-1">
+                        @if ($servicing['next_due_amount'])
+                            {{ format_money((float) $servicing['next_due_amount']) }}
+                            @if ($servicing['next_due_date'])
+                                <span class="text-gray-500 font-semibold">· {{ $servicing['next_due_date']->format('d M') }}</span>
+                            @endif
+                        @else
+                            —
+                        @endif
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.loan_servicing.payments_progress', [
+                        'paid' => $servicing['installments_paid'] ?? 0,
+                        'total' => $servicing['installments_total'] ?? 0,
+                    ]) }}</p>
+                </div>
+            </div>
+        @endif
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.reference') }}</p>
@@ -118,13 +165,15 @@
             </div>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{{ route('site.borrower.schedule', $loan->id) }}" class="bg-brand hover:bg-brand-light text-white text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.view_schedule') }}</a>
-            @if (! empty($openPayment))
-                <a href="{{ route('site.borrower.payments.show', $openPayment) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">
-                    {{ __('borrower.loans_page.make_payment') }} · {{ format_money((float) $openPayment->amount) }}
-                </a>
-            @else
-                <a href="{{ route('site.borrower.payments.create', ['loan' => $loan->id]) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.make_payment') }}</a>
+            @if ($loan->status !== 'closed')
+                <a href="{{ route('site.borrower.schedule', $loan->id) }}" class="bg-brand hover:bg-brand-light text-white text-xs font-semibold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.view_schedule') }}</a>
+                @if (! empty($openPayment))
+                    <a href="{{ route('site.borrower.payments.show', $openPayment) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">
+                        {{ __('borrower.loans_page.make_payment') }} · {{ format_money((float) $openPayment->amount) }}
+                    </a>
+                @else
+                    <a href="{{ route('site.borrower.payments.create', ['loan' => $loan->id]) }}" class="bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-4 py-2 rounded-xl">{{ __('borrower.loans_page.make_payment') }}</a>
+                @endif
             @endif
         </div>
         @if (! empty($openPayment))

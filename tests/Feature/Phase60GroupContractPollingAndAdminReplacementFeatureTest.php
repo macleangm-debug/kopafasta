@@ -38,7 +38,7 @@ class Phase60GroupContractPollingAndAdminReplacementFeatureTest extends TestCase
     /** @return array{application: LoanApplication, leader: Customer, member: LoanGroupMember} */
     protected function groupFixture(): array
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = Customer::create([
             'customer_number'       => 'CU-P60-L',
@@ -60,6 +60,16 @@ class Phase60GroupContractPollingAndAdminReplacementFeatureTest extends TestCase
             'membership_expires_at' => now()->addYear(),
         ]);
 
+        $third = Customer::create([
+            'customer_number'       => 'CU-P60-T',
+            'type'                  => 'individual',
+            'status'                => 'active',
+            'first_name'            => 'Third',
+            'last_name'             => 'P60',
+            'phone'                 => '255712345942',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+
         $product = $this->groupProduct();
 
         $application = LoanApplication::create([
@@ -78,6 +88,7 @@ class Phase60GroupContractPollingAndAdminReplacementFeatureTest extends TestCase
             [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000, 'role' => 'leader'],
                 ['customer_id' => $member->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $third->id, 'requested_amount' => 300_000, 'role' => 'member'],
             ],
             'P60 Group',
             'Business',
@@ -107,8 +118,8 @@ class Phase60GroupContractPollingAndAdminReplacementFeatureTest extends TestCase
             ->getJson(route('site.borrower.group-contract.progress', $application))
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('progress.target', 2)
-            ->assertJsonPath('progress.pending', 2);
+            ->assertJsonPath('progress.target', 3)
+            ->assertJsonPath('progress.pending', 3);
     }
 
     public function test_admin_can_request_member_replacement(): void
@@ -150,6 +161,6 @@ class Phase60GroupContractPollingAndAdminReplacementFeatureTest extends TestCase
             ->getJson(route('admin.loan-applications.group-contract-progress', $application))
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('contract_signatures.target', 2);
+            ->assertJsonPath('contract_signatures.target', 3);
     }
 }

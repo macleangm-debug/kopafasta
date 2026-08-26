@@ -21,6 +21,8 @@ class GuarantorDeadlineFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
+    private static int $heldPairSeq = 0;
+
     public function test_deadline_days_default_to_seven(): void
     {
         $this->assertSame(7, app(GuarantorDeadlineService::class)->deadlineDays());
@@ -106,16 +108,18 @@ class GuarantorDeadlineFeatureTest extends TestCase
      */
     private function heldApplicationPair(\DateTimeInterface $deadline): array
     {
+        $seq = ++self::$heldPairSeq;
+        $suffix = str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
         $borrowerUser = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($borrowerUser, '1234');
         $borrower = Customer::create([
             'user_id' => $borrowerUser->id,
-            'customer_number' => 'CU-GD-B-'.random_int(100, 999),
+            'customer_number' => 'CU-GD-B-'.$suffix,
             'type' => 'individual',
             'status' => 'active',
             'first_name' => 'Borrow',
             'last_name' => 'Deadline',
-            'phone' => '2557123488'.random_int(10, 99),
+            'phone' => '25571234'.$suffix,
             'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
@@ -124,12 +128,12 @@ class GuarantorDeadlineFeatureTest extends TestCase
         app(PinService::class)->setPin($guarantorUser, '1234');
         $guarantorCustomer = Customer::create([
             'user_id' => $guarantorUser->id,
-            'customer_number' => 'CU-GD-G-'.random_int(100, 999),
+            'customer_number' => 'CU-GD-G-'.$suffix,
             'type' => 'individual',
             'status' => 'active',
             'first_name' => 'Gua',
             'last_name' => 'Rantor',
-            'phone' => '2557133488'.random_int(10, 99),
+            'phone' => '25571334'.$suffix,
             'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);

@@ -14,7 +14,7 @@ class ConsoleNavService
     ) {}
 
     /**
-     * @return list<array{label: string, items: list<array>, isActive: bool, targetRoute: string}>
+     * @return list<array{label: string, items: list<array>, isActive: bool, targetRoute: string, workspace: bool, separated: bool}>
      */
     public function visibleSections(?User $user, ?string $currentRoute = null): array
     {
@@ -36,10 +36,20 @@ class ConsoleNavService
                 fn ($route) => $route !== '__group__',
             ));
 
+            $isActive = in_array($currentRoute, $childRoutes, true);
+            foreach ($section['active_prefixes'] ?? [] as $prefix) {
+                if (is_string($currentRoute) && str_starts_with($currentRoute, $prefix)) {
+                    $isActive = true;
+                    break;
+                }
+            }
+
             $visible[] = [
                 'label' => $section['label'],
                 'items' => $items,
-                'isActive' => in_array($currentRoute, $childRoutes, true),
+                'isActive' => $isActive,
+                'workspace' => (bool) ($section['workspace'] ?? false),
+                'separated' => (bool) ($section['separated'] ?? false),
                 'targetRoute' => collect($items)->first(fn ($item) => ($item[1] ?? '') !== '__group__')[1] ?? $items[0][1],
             ];
         }
@@ -48,21 +58,37 @@ class ConsoleNavService
     }
 
     /**
-     * @return list<array{label: string, items: list<array>, perms: ?list<string>, hide_from: list<string>}>
+     * @return list<array{label: string, items: list<array>, perms: ?list<string>, hide_from: list<string>, workspace?: bool, separated?: bool, active_prefixes?: list<string>}>
      */
     public function catalog(): array
     {
         return [
             [
-                'label' => 'Dashboard',
+                'label' => 'Home',
+                'workspace' => false,
                 'items' => [
-                    ['Dashboard', 'admin.dashboard'],
+                    ['Home', 'admin.dashboard'],
                 ],
                 'perms' => null,
                 'hide_from' => [],
             ],
             [
+                'label' => 'Customers',
+                'workspace' => true,
+                'active_prefixes' => ['admin.customers.', 'admin.profile-sections.'],
+                'items' => [
+                    ['All', 'admin.customers.index'],
+                    ['Grade Watch', 'admin.customers.grade-watch', 'customers.view'],
+                    ['Profiles', 'admin.customers.profiles', 'customers.view'],
+                    ['Section rules', 'admin.profile-sections.index', 'customers.edit', null, ['nav' => 'more']],
+                ],
+                'perms' => ['customers.view', 'applications.view'],
+                'hide_from' => ['partner_support', 'asset_manager', 'marketer'],
+            ],
+            [
                 'label' => 'Lending',
+                'workspace' => true,
+                'active_prefixes' => ['admin.loan-applications.', 'admin.loans.', 'admin.recovery.', 'admin.teams.', 'admin.credit-team.', 'admin.repayments.'],
                 'items' => [
                     ['— Credit screening —', '__group__'],
                     ['Screening home',        'admin.teams.screening'],
@@ -73,6 +99,7 @@ class ConsoleNavService
                     ['System sorted',         'admin.loan-applications.pipeline.system-sorted'],
                     ['— Credit management —', '__group__'],
                     ['Management home',       'admin.teams.management'],
+                    ['Management approval',   'admin.loan-applications.pipeline.management-approval'],
                     ['Management queue',      'admin.loan-applications.pipeline.approved'],
                     ['Release queue',         'admin.loan-applications.pipeline.disbursement'],
                     ['Payout queue',          'admin.loans.disbursement'],
@@ -82,6 +109,7 @@ class ConsoleNavService
                     ['— Loans —', '__group__'],
                     ['All loans',           'admin.loans.index'],
                     ['Active loans',        'admin.loans.active'],
+                    ['Loan repayments',     'admin.repayments.index'],
                     ['Collection cases',    'admin.arrear-cases.index'],
                     ['Write-off requests',  'admin.write-off-requests.index'],
                     ['Loans in arrears',  'admin.loans.arrears'],
@@ -89,63 +117,22 @@ class ConsoleNavService
                     ['Top-up requests',     'admin.top-up-requests.index'],
                     ['Restructuring',       'admin.loans.restructuring'],
                     ['Closed loans',        'admin.loans.closed'],
+                    ['— Recovery —', '__group__'],
+                    ['Recovery assignments', 'admin.recovery.assignments.index'],
                     ['Credit teams',        'admin.credit-team.index', 'applications.view'],
                 ],
                 'perms' => ['applications.view', 'loans.view'],
                 'hide_from' => ['partner_support', 'asset_manager'],
             ],
             [
-                'label' => 'Customers',
-                'items' => [
-                    ['All customers', 'admin.customers.index'],
-                ],
-                'perms' => ['customers.view', 'applications.view'],
-                'hide_from' => ['partner_support', 'asset_manager'],
-            ],
-            [
-                'label' => 'Payments',
-                'items' => [
-                    ['Payments',              'admin.payments.index'],
-                    ['Payments ledger',       'admin.payments.ledger'],
-                    ['Loan repayments',       'admin.repayments.index'],
-                    ['Membership & renewals', 'admin.payments.ledger', null, ['tab' => 'membership']],
-                ],
-                'perms' => ['finance.operations', 'membership.approve_payments', 'loans.view'],
-                'hide_from' => ['partner_support', 'asset_manager'],
-            ],
-            [
-                'label' => 'Field & recovery',
-                'items' => [
-                    ['Recovery assignments', 'admin.recovery.assignments.index'],
-                    ['Partner tasks',        'admin.partners.tasks'],
-                ],
-                'perms' => ['applications.view', 'loans.view', 'partners.manage'],
-                'hide_from' => [],
-            ],
-            [
-                'label' => 'Assets',
-                'items' => [
-                    ['Asset Marketplace',   'admin.marketplace-assets.index', 'marketplace.view'],
-                    ['Asset Requests',      'admin.asset-requests.index', 'marketplace.view'],
-                    ['Suppliers',           'admin.partners.suppliers'],
-                ],
-                'perms' => ['marketplace.view'],
-                'hide_from' => [],
-            ],
-            [
-                'label' => 'Partners',
-                'items' => [
-                    ['Partners hub',            'admin.partners.index'],
-                    ['Partner applications',    'admin.partner-applications.index'],
-                    ['Partner efficiency',      'admin.partners.efficiency'],
-                    ['Partner payout requests', 'admin.partner-payout-requests.index', 'finance.operations'],
-                ],
-                'perms' => ['partners.manage'],
-                'hide_from' => [],
-            ],
-            [
                 'label' => 'Money',
+                'workspace' => true,
+                'active_prefixes' => ['admin.payments.', 'admin.capital-funding.', 'admin.lenders.', 'admin.expenses.', 'admin.journal-entries.', 'admin.reconciliations.'],
                 'items' => [
+                    ['— Payments —', '__group__'],
+                    ['Payments',              'admin.payments.index'],
+                    ['Payments ledger',       'admin.payments.ledger',              'finance.operations'],
+                    ['Membership & renewals', 'admin.payments.ledger',              null, ['tab' => 'membership']],
                     ['— Capital —', '__group__'],
                     ['Capital funding',      'admin.capital-funding.index'],
                     ['Funded loans',         'admin.capital-funding.funded-loans'],
@@ -154,21 +141,70 @@ class ConsoleNavService
                     ['Funding Pools',      'admin.funding-pools.index'],
                     ['Loan allocations',   'admin.lender-investments.index'],
                     ['— Ledgers —', '__group__'],
-                    ['Payments ledger',           'admin.payments.ledger',              'finance.operations'],
                     ['Payout ledger',             'admin.payments.ledger',              'finance.operations', ['direction' => 'out']],
                     ['Operational expenses',      'admin.expenses.index',               'finance.operations'],
                     ['Journal Entries',           'admin.journal-entries.index',        'finance.operations'],
                     ['Reconciliations',           'admin.reconciliations.index',        'finance.operations'],
-                    ['— Other money ops —', '__group__'],
                     ['Payment gateway settlements', 'admin.settlements.index',       'finance.operations'],
                     ['Borrower refunds',      'admin.borrower-refunds.index',        'finance.operations'],
                     ['Chart of accounts',     'admin.chart-of-accounts.index',       'finance.accounts'],
                 ],
-                'perms' => ['finance.accounts', 'finance.methods', 'finance.operations'],
-                'hide_from' => ['partner_support', 'asset_manager'],
+                'perms' => ['finance.accounts', 'finance.methods', 'finance.operations', 'membership.approve_payments'],
+                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee'],
+            ],
+            [
+                'label' => 'Partners',
+                'workspace' => true,
+                'active_prefixes' => ['admin.partners.', 'admin.partner-applications.', 'admin.vendors.', 'admin.marketplace-assets.', 'admin.asset-requests.'],
+                'items' => [
+                    ['Partners hub',            'admin.partners.index', 'partners.manage'],
+                    ['Partner applications',    'admin.partner-applications.index', 'partners.manage'],
+                    ['Partner efficiency',      'admin.partners.efficiency', 'partners.manage'],
+                    ['Partner tasks',           'admin.partners.tasks', 'partners.manage'],
+                    ['Partner payout requests', 'admin.partner-payout-requests.index', 'finance.operations'],
+                    ['Suppliers',               'admin.partners.suppliers', 'marketplace.view'],
+                    ['Asset Marketplace',       'admin.marketplace-assets.index', 'marketplace.view'],
+                    ['Asset Requests',          'admin.asset-requests.index', 'marketplace.view'],
+                    ['Recovery assignments',    'admin.recovery.assignments.index', 'partners.manage'],
+                ],
+                'perms' => ['partners.manage', 'marketplace.view'],
+                'hide_from' => [],
+            ],
+            [
+                'label' => 'Growth',
+                'workspace' => true,
+                'active_prefixes' => ['admin.growth.', 'admin.promotions.'],
+                'items' => [
+                    ['Overview', 'admin.growth.index', 'marketing.view'],
+                    ['Campaigns', 'admin.promotions.index', 'marketing.view'],
+                    ['Audiences', 'admin.growth.audiences.index', 'marketing.audiences.manage'],
+                    ['Offers', 'admin.growth.offers.index', 'marketing.offers.manage'],
+                    ['Affiliates', 'admin.growth.affiliates', 'marketing.view'],
+                    ['Personas', 'admin.growth.personas.index', 'marketing.personas.manage', null, ['nav' => 'more']],
+                    ['Demo Accounts', 'admin.growth.demos.index', 'marketing.view', null, ['nav' => 'more']],
+                    ['Performance', 'admin.growth.performance', 'marketing.performance.view', null, ['nav' => 'more']],
+                ],
+                'perms' => ['marketing.view'],
+                'hide_from' => [],
+            ],
+            [
+                'label' => 'Communications',
+                'workspace' => true,
+                'active_prefixes' => ['admin.communications.', 'admin.notification-templates.', 'admin.support-tickets.', 'admin.complaints.'],
+                'items' => [
+                    ['Overview', 'admin.communications.index', 'communications.view'],
+                    ['Tickets', 'admin.support-tickets.index', 'support.tickets'],
+                    ['Templates', 'admin.notification-templates.index', 'communications.templates.manage'],
+                    ['Chatbot', 'admin.communications.chatbot', 'communications.chatbot.manage'],
+                    ['Complaints', 'admin.complaints.index', 'support.tickets', null, ['nav' => 'more']],
+                ],
+                'perms' => ['communications.view', 'support.tickets', 'communications.templates.manage', 'communications.chatbot.manage'],
+                'hide_from' => [],
             ],
             [
                 'label' => 'Reports',
+                'workspace' => true,
+                'active_prefixes' => ['admin.reports.', 'admin.compliance.'],
                 'items' => [
                     ['— Lending —', '__group__'],
                     ['Portfolio',         'admin.reports.portfolio',          'reports.view'],
@@ -201,30 +237,36 @@ class ConsoleNavService
                 'hide_from' => ['partner_support', 'asset_manager'],
             ],
             [
-                'label' => 'Ops',
+                'label' => 'More',
+                'workspace' => true,
+                'active_prefixes' => ['admin.content.', 'admin.users.', 'admin.departments.', 'admin.roles.', 'admin.audit-logs.', 'admin.suspicious-activities.', 'admin.blacklist-entries.', 'admin.aml-rules.', 'admin.risk-scoring-rules.', 'admin.pep-flags.'],
                 'items' => [
-                    ['— Compliance tools —', '__group__'],
-                    ['Suspicious Activity', 'admin.suspicious-activities.index'],
-                    ['Blacklist',           'admin.blacklist-entries.index'],
-                    ['PEP Flags',           'admin.pep-flags.index'],
-                    ['AML Rules',           'admin.aml-rules.index'],
-                    ['Risk Scoring',        'admin.risk-scoring-rules.index'],
-                    ['Audit Logs',          'admin.audit-logs.index'],
-                    ['— Support —', '__group__'],
-                    ['Tickets',    'admin.support-tickets.index'],
-                    ['Complaints', 'admin.complaints.index'],
-                    ['— Marketing —', '__group__'],
-                    ['Campaigns', 'admin.promotions.index'],
-                    ['— Administration —', '__group__'],
+                    ['Plus Learning', 'admin.content.plus-learning', 'content.plus.manage'],
                     ['Credit teams', 'admin.credit-team.index', 'applications.view'],
                     ['Departments', 'admin.departments.index', 'users.view'],
                     ['Users', 'admin.users.index', 'users.view'],
                     ['Roles & Permissions', 'admin.roles.index', 'users.manage'],
-                    ['— Settings —', '__group__'],
+                    ['— Compliance —', '__group__'],
+                    ['Suspicious Activity', 'admin.suspicious-activities.index', 'audit.view'],
+                    ['Blacklist',           'admin.blacklist-entries.index', 'audit.view'],
+                    ['PEP Flags',           'admin.pep-flags.index', 'audit.view'],
+                    ['AML Rules',           'admin.aml-rules.index', 'audit.view'],
+                    ['Risk Scoring',        'admin.risk-scoring-rules.index', 'audit.view'],
+                    ['Audit Logs',          'admin.audit-logs.index', 'audit.view'],
+                ],
+                'perms' => ['audit.view', 'users.view', 'users.manage', 'content.plus.manage', 'applications.view'],
+                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee'],
+            ],
+            [
+                'label' => 'Settings',
+                'workspace' => false,
+                'separated' => true,
+                'active_prefixes' => ['admin.settings.'],
+                'items' => [
                     ['Settings hub', 'admin.settings.index', 'settings.manage'],
                 ],
-                'perms' => ['audit.view', 'users.manage', 'settings.manage'],
-                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee', 'manager'],
+                'perms' => ['settings.manage'],
+                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee'],
             ],
         ];
     }

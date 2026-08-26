@@ -121,7 +121,7 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('optionEntries', $sheet);
         $this->assertStringContainsString('change_purpose', $quote);
         $this->assertStringContainsString('purposeEditing', $quote);
-        $this->assertStringContainsString('x-show="!form.purpose || purposeEditing || purposeNeedsDetail()"', $quote);
+        $this->assertStringContainsString('x-show="!(isGroupProduct(current) ? group.purpose : form.purpose) || purposeEditing || purposeNeedsDetail()"', $quote);
         $this->assertStringNotContainsString('template x-if="!form.purpose || purposeEditing"', $quote);
         $this->assertStringContainsString('guarantorHoldTitle()', $submit);
         $this->assertStringContainsString('guarantorProgressSteps()', $submit);

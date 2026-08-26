@@ -234,9 +234,11 @@ class Phase40FeatureTest extends TestCase
                 'min_guarantors'       => 1,
                 'max_restructures'     => 2,
                 'restructure_cooldown_days' => 30,
-                'group_min_members'    => 8,
-                'group_max_members'    => 25,
+                'group_min_members'    => 5,
+                'group_max_members'    => 10,
+                'group_repayment_cadence' => 'weekly',
                 'group_leader_unlock_repayments' => 2,
+                'group_payout_order' => 'leader_first',
                 'group_application_fee_per_member' => 1,
                 'group_post_approval_fee_per_group' => 1,
             ])
@@ -244,8 +246,8 @@ class Phase40FeatureTest extends TestCase
 
         $values = Setting::group('loan');
 
-        $this->assertSame('8', (string) ($values['group_min_members'] ?? ''));
-        $this->assertSame('25', (string) ($values['group_max_members'] ?? ''));
+        $this->assertSame('5', (string) ($values['group_min_members'] ?? ''));
+        $this->assertSame('10', (string) ($values['group_max_members'] ?? ''));
     }
 
     public function test_field_partner_requires_operating_regions(): void

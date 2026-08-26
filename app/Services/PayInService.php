@@ -105,6 +105,7 @@ class PayInService
      */
     public function collect(string $phone, float $amount, string $reference, ?string $description = null, ?string $operator = null): array
     {
+        app(\App\Services\Marketing\DemoGuard::class)->assertCanMoveMoney('collect via PayIn');
         $this->assertReady();
 
         $phone = $this->normalizePhone($phone);
@@ -177,6 +178,7 @@ class PayInService
      */
     public function disburse(string $phone, float $amount, string $reference, ?string $description = null, ?string $operator = null): array
     {
+        app(\App\Services\Marketing\DemoGuard::class)->assertCanMoveMoney('disburse via PayIn');
         $this->assertReady();
 
         $payload = array_filter([

@@ -31,3 +31,4 @@ Schedule::command('partners:evaluate-efficiency')->weeklyOn(1, '06:30');
 Schedule::command('affiliate:scan-fraud')->weeklyOn(1, '07:00');
 Schedule::command('customers:send-birthday-wishes')->dailyAt('07:30');
 Schedule::command('integrations:health-check --quiet-ok')->hourly();
+Schedule::command('marketing:expire-demos')->everyFiveMinutes();

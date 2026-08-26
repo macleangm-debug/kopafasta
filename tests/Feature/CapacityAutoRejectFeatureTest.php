@@ -300,11 +300,8 @@ class CapacityAutoRejectFeatureTest extends TestCase
 
         $html = $this->actingAs($manager, 'admin')
             ->get(route('admin.loan-applications.show', $application))
-            ->assertOk()
+            ->assertForbidden()
             ->getContent();
-
-        $this->assertStringContainsString('credit committee confirms', $html);
-        $this->assertStringNotContainsString('Send rejection now', $html);
         $this->assertTrue($service->isPending($application->fresh()));
     }
 

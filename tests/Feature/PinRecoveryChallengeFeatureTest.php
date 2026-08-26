@@ -36,6 +36,15 @@ class PinRecoveryChallengeFeatureTest extends TestCase
             ->post(route('site.borrower.setup-pin.post'), [
                 'pin' => '1234',
                 'pin_confirmation' => '1234',
+            ])
+            ->assertRedirect(route('site.borrower.setup-pin'));
+
+        $this->assertTrue(app(PinService::class)->hasPin($user->fresh()));
+        $this->assertFalse(app(PinRecoveryChallengeService::class)->hasEnrolledAnswers($user->fresh()));
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.setup-pin.post'), [
+                'phase' => 'questions',
                 'answers' => $answers,
             ])
             ->assertRedirect(route('site.borrower.dashboard'));
@@ -168,7 +177,7 @@ class PinRecoveryChallengeFeatureTest extends TestCase
 
     private function makeBorrowerUser(array $customerAttrs = []): User
     {
-        $user = User::factory()->create([
+        $user = User::factory()->needsPinSetup()->create([
             'role' => 'borrower',
             'phone' => '255712345678',
             'is_active' => true,

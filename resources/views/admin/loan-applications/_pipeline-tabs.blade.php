@@ -4,6 +4,7 @@
         'under_review'   => ['Credit screening', 'admin.loan-applications.pipeline.under-review'],
         'system_sorted'  => ['System sorted', 'admin.loan-applications.pipeline.system-sorted'],
         'committee'      => ['Credit committee', 'admin.loan-applications.pre-approvals'],
+        'management_approval' => ['Management approval', 'admin.loan-applications.pipeline.management-approval'],
         'approved'       => ['Management queue', 'admin.loan-applications.pipeline.approved'],
         'disbursement'   => ['Release queue', 'admin.loan-applications.pipeline.disbursement'],
         'rejected'       => ['Rejected', 'admin.loan-applications.rejected'],
@@ -22,7 +23,7 @@
             $keep = array_merge($keep, ['system_sorted', 'committee', 'rejected']);
         }
         if ($onManagement) {
-            $keep = array_merge($keep, ['approved', 'disbursement']);
+            $keep = array_merge($keep, ['management_approval', 'approved', 'disbursement']);
         }
         $tabs = array_intersect_key($tabs, array_flip(array_unique($keep)));
     }

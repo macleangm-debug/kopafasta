@@ -21,6 +21,7 @@ use App\Services\Plus\PlusReportService;
 use App\Services\Plus\PlusService;
 use App\Services\Plus\PlusWorkspaceService;
 use App\Support\MoneyFormat;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
@@ -40,16 +41,20 @@ class PlusController extends Controller
         $plus->ensureSampleContent();
         $learning->ensureCatalog();
         $active = $plus->isActive($customer);
+        $expired = $plus->isExpired($customer);
         $rawTrust = $engagement->trustScore($customer);
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $trust = $benefits->trustLabel((int) ($rawTrust['percent'] ?? 0), $locale);
         $access = $benefits->potentialAccess($customer);
-        $summary = $active ? $workspace->homeSummary($customer) : null;
+        $summary = ($active || $expired) ? $workspace->homeSummary($customer) : null;
 
         return view('site.plus.home', [
             'customer' => $customer,
             'plusActive' => $active,
-            'subscription' => $plus->current($customer),
+            'plusExpired' => $expired,
+            'plusNeedsRenewal' => $plus->needsRenewal($customer),
+            'plusDaysRemaining' => $plus->daysRemaining($customer),
+            'subscription' => $plus->current($customer) ?? $plus->latest($customer),
             'price' => $plus->priceFor($customer),
             'periodDays' => $plus->periodDays(),
             'trust' => $trust,
@@ -70,8 +75,7 @@ class PlusController extends Controller
 
     public function learn(Request $request, PlusService $plus, PlusLearningService $learning)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $plus->ensureSampleContent();
         $discover = $learning->discover(
             $customer,
@@ -92,8 +96,7 @@ class PlusController extends Controller
 
     public function subject(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         abort_unless($subject->status === 'published', 404);
         $progress = $learning->markViewed($customer, $subject);
 
@@ -102,8 +105,7 @@ class PlusController extends Controller
 
     public function completeSubject(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $learning->markCompleted($customer, $subject);
 
         if ($request->wantsJson() || $request->ajax()) {
@@ -115,8 +117,7 @@ class PlusController extends Controller
 
     public function saveSubject(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $learning->toggleSaved($customer, $subject);
 
         return back();
@@ -124,8 +125,7 @@ class PlusController extends Controller
 
     public function subjectAction(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $learning->markActionClicked($customer, $subject);
         $url = $subject->actionUrl() ?: route('site.borrower.plus.home');
 
@@ -145,7 +145,6 @@ class PlusController extends Controller
     public function renew(Request $request, PlusService $plus)
     {
         $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
 
         return redirect()->route('site.borrower.payments.show', $plus->startCheckout($customer));
     }
@@ -162,8 +161,7 @@ class PlusController extends Controller
 
     public function money(Request $request, PlusService $plus, PlusWorkspaceService $workspace)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
 
         return view('site.plus.money', array_merge(
             ['customer' => $customer],
@@ -173,8 +171,7 @@ class PlusController extends Controller
 
     public function saveMoney(Request $request, PlusService $plus)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $this->mergeMoneyFields($request, ['in_amount', 'out_amount', 'amount']);
 
         $direction = $request->input('direction');
@@ -213,8 +210,7 @@ class PlusController extends Controller
 
     public function business(Request $request, PlusService $plus, PlusWorkspaceService $workspace)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $period = in_array($request->query('period'), ['today', 'week', 'month'], true)
             ? $request->query('period')
             : 'today';
@@ -227,8 +223,7 @@ class PlusController extends Controller
 
     public function saveBusiness(Request $request, PlusService $plus)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $this->mergeMoneyFields($request, ['sold', 'spent', 'amount']);
 
         $kind = $request->input('kind');
@@ -263,8 +258,7 @@ class PlusController extends Controller
 
     public function goals(Request $request, PlusService $plus, PlusWorkspaceService $workspace)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
 
         return view('site.plus.goals', array_merge(
             ['customer' => $customer],
@@ -274,8 +268,7 @@ class PlusController extends Controller
 
     public function saveGoal(Request $request, PlusService $plus)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $this->mergeMoneyFields($request, ['target_amount']);
         $data = $request->validate([
             'kind' => ['required', 'in:business,school,home,vehicle,emergency,other,stock,savings'],
@@ -303,8 +296,7 @@ class PlusController extends Controller
 
     public function contributeGoal(Request $request, PlusService $plus, PlusGoal $goal)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
         $this->mergeMoneyFields($request, ['amount']);
         $data = $request->validate(['amount' => ['required', 'numeric', 'min:0.01']]);
@@ -324,8 +316,7 @@ class PlusController extends Controller
 
     public function pauseGoal(Request $request, PlusService $plus, PlusGoal $goal)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
         $goal->update([
             'status' => $goal->isPaused() ? 'active' : 'paused',
@@ -336,8 +327,7 @@ class PlusController extends Controller
 
     public function completeGoal(Request $request, PlusService $plus, PlusGoal $goal)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
         abort_unless($goal->remaining() <= 0, 403, __('plus.goals.complete_only_when_funded'));
         $goal->update([
@@ -350,8 +340,7 @@ class PlusController extends Controller
 
     public function updateGoal(Request $request, PlusService $plus, PlusGoal $goal)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
         $this->mergeMoneyFields($request, ['target_amount']);
         $data = $request->validate([
@@ -366,8 +355,7 @@ class PlusController extends Controller
 
     public function reports(Request $request, PlusService $plus, PlusReportService $reports)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $report = $reports->monthDashboard($customer, $request->query('month'));
 
         return view('site.plus.reports', [
@@ -379,8 +367,7 @@ class PlusController extends Controller
 
     public function offers(Request $request, PlusService $plus)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $offers = $plus->eligibleOffers($customer);
         foreach ($offers as $offer) {
             $plus->recordOfferEvent($customer, $offer, 'viewed');
@@ -395,8 +382,7 @@ class PlusController extends Controller
 
     public function openOffer(Request $request, PlusService $plus, PlusOffer $offer)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $plus->recordOfferEvent($customer, $offer, 'opened');
 
         return back();
@@ -404,8 +390,7 @@ class PlusController extends Controller
 
     public function claimOffer(Request $request, PlusService $plus, PlusOffer $offer)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         abort_unless($plus->eligibleOffers($customer)->contains('id', $offer->id), 403);
         $plus->recordOfferEvent($customer, $offer, 'claimed');
 
@@ -414,8 +399,7 @@ class PlusController extends Controller
 
     public function rewards(Request $request, PlusService $plus, PlusWorkspaceService $workspace)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
 
         return view('site.plus.rewards', [
             'customer' => $customer,
@@ -428,8 +412,7 @@ class PlusController extends Controller
 
     public function redeem(Request $request, PlusService $plus)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $catalog = collect($plus->rewardCatalog());
         $data = $request->validate([
             'code' => ['nullable', 'string', 'max:40'],
@@ -449,8 +432,7 @@ class PlusController extends Controller
 
     public function lesson(Request $request, PlusService $plus, PlusLesson $lesson)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $progress = PlusLessonProgress::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'plus_lesson_id' => $lesson->id],
@@ -467,8 +449,7 @@ class PlusController extends Controller
 
     public function completeLesson(Request $request, PlusService $plus, PlusNotificationGate $gate, PlusLesson $lesson)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $progress = PlusLessonProgress::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'plus_lesson_id' => $lesson->id],
             ['started_at' => now()]
@@ -490,8 +471,7 @@ class PlusController extends Controller
 
     public function lessonAction(Request $request, PlusService $plus, PlusLesson $lesson)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         PlusLessonProgress::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'plus_lesson_id' => $lesson->id],
             ['started_at' => now()]
@@ -502,8 +482,7 @@ class PlusController extends Controller
 
     public function video(Request $request, PlusService $plus, PlusLesson $lesson)
     {
-        $customer = $request->user()->customer;
-        abort_unless($plus->isActive($customer), 403);
+        $customer = $this->requireActivePlus($request, $plus);
         $locale = $request->query('locale', 'en');
         $path = $locale === 'sw' ? $lesson->video_sw_path : $lesson->video_en_path;
         $path = $path ?: $lesson->video_en_path;
@@ -513,6 +492,23 @@ class PlusController extends Controller
             'Content-Type' => 'video/mp4',
             'Cache-Control' => 'private, no-store',
         ]);
+    }
+
+    /**
+     * Money diary, Learn, Reports, Offers and Rewards stay closed until Plus is paid.
+     */
+    private function requireActivePlus(Request $request, PlusService $plus): \App\Models\Customer
+    {
+        $customer = $request->user()->customer;
+        if ($plus->isActive($customer)) {
+            return $customer;
+        }
+
+        throw new HttpResponseException(
+            redirect()
+                ->route('site.borrower.plus.home')
+                ->with('status', __('plus.home.locked_body'))
+        );
     }
 
     /** @param list<string> $keys */

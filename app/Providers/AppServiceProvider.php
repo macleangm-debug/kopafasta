@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Models\ArrearCase;
 use App\Models\Customer;
 use App\Models\CustomerKyc;
@@ -44,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(\App\Services\Marketing\DemoContext::class);
+        $this->app->singleton(\App\Services\Marketing\DemoGuard::class);
         $this->app->bind(
             \App\Contracts\CrbClientInterface::class,
             \App\Services\Crb\DnbLiveCrbClient::class,

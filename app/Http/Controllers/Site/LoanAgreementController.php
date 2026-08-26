@@ -54,6 +54,7 @@ class LoanAgreementController extends Controller
                 'requireAcceptanceCode' => app(OfferSettingsService::class)->requireOfferAcceptanceCode(),
                 'canRespondToOffer' => $this->service->borrowerCanRespondToOffer($application, $agreement),
                 'offerDeclined' => $this->service->borrowerOfferDeclined($application, $agreement),
+                'offerFacts' => app(\App\Services\LendingJourneyService::class)->offerPresentation($application),
             ]);
     }
 

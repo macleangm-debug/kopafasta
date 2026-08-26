@@ -112,14 +112,23 @@ class Phase9FeatureTest extends TestCase
             ->assertSee('Partner dashboard', false);
     }
 
-    public function test_settings_hub_lists_campaigns_under_marketing(): void
+    public function test_campaigns_live_in_growth_workspace_not_settings_hub(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
+
+        $growthRoutes = collect(app(\App\Services\ConsoleNavService::class)->visibleSections($admin))
+            ->firstWhere('label', 'Growth')['items'] ?? [];
+        $this->assertContains('admin.promotions.index', array_column($growthRoutes, 1));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.promotions.index'))
+            ->assertOk();
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.settings.index'))
             ->assertOk()
-            ->assertSee('Campaigns', false);
+            ->assertSee('Affiliates', false)
+            ->assertSee('Membership', false);
     }
 
     public function test_affiliate_verification_page_shows_qr_code_for_active_affiliate(): void

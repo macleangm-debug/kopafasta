@@ -338,6 +338,10 @@ class ApplicationBorrowerStatusService
             return 'withdrawn';
         }
 
+        if ((string) $application->current_stage === 'awaiting_management') {
+            return 'under_review';
+        }
+
         if ($this->isClosed($application)) {
             return 'closed';
         }

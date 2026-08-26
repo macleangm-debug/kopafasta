@@ -1,5 +1,5 @@
 <div>
-    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
+    <div class="hidden md:block bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <table class="min-w-full text-sm">
             <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                 <tr>
@@ -28,10 +28,20 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No campaigns yet.</td></tr>
+                    <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No campaigns yet. Start from Growth → Campaigns → New Campaign.</td></tr>
                 @endforelse
             </tbody>
         </table>
+    </div>
+    <div class="md:hidden space-y-3">
+        @forelse ($rows as $row)
+            <a href="{{ route('admin.promotions.show', $row) }}" class="block rounded-2xl bg-white ring-1 ring-gray-200 p-4">
+                <p class="font-semibold">{{ $row->name }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ $row->code }} · {{ $row->status }}</p>
+            </a>
+        @empty
+            <p class="text-sm text-gray-500">No campaigns yet.</p>
+        @endforelse
     </div>
     <div class="mt-4">{{ $rows->links() }}</div>
 </div>

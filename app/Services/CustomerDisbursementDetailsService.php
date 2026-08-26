@@ -213,7 +213,7 @@ class CustomerDisbursementDetailsService
         }
 
         $this->syncLegacyCustomerFields($customer->fresh());
-        $this->clearConfirmationForCustomerApplications($customer->fresh());
+        $this->clearUnlatchedConfirmationsForCustomer($customer->fresh());
 
         return $account;
     }
@@ -221,6 +221,19 @@ class CustomerDisbursementDetailsService
     public function deleteAccount(Customer $customer, CustomerDisbursementAccount $account): void
     {
         abort_unless((int) $account->customer_id === (int) $customer->id, 403);
+
+        $confirmedInUse = LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->where('disbursement_account_id', $account->id)
+            ->whereNotNull('disbursement_details_confirmed_at')
+            ->whereNotIn('status', ['disbursed', 'rejected', 'closed', 'withdrawn'])
+            ->exists();
+
+        if ($confirmedInUse) {
+            throw ValidationException::withMessages([
+                'account' => __('borrower.disbursement_details.cannot_delete_confirmed'),
+            ]);
+        }
 
         $wasDefault = $account->is_default;
         $account->delete();
@@ -233,7 +246,7 @@ class CustomerDisbursementDetailsService
         }
 
         $this->syncLegacyCustomerFields($customer->fresh());
-        $this->clearConfirmationForCustomerApplications($customer->fresh());
+        $this->clearUnlatchedConfirmationsForCustomer($customer->fresh());
     }
 
     public function setDefaultAccount(Customer $customer, CustomerDisbursementAccount $account): void
@@ -310,11 +323,23 @@ class CustomerDisbursementDetailsService
 
     public function clearConfirmationForCustomerApplications(Customer $customer): void
     {
+        $this->clearUnlatchedConfirmationsForCustomer($customer);
+    }
+
+    public function clearUnlatchedConfirmationsForCustomer(Customer $customer): void
+    {
         LoanApplication::query()
             ->where('customer_id', $customer->id)
             ->whereNotNull('disbursement_details_confirmed_at')
-            ->whereNotIn('status', ['disbursed', 'rejected', 'closed'])
-            ->each(fn (LoanApplication $application) => $this->clearApplicationConfirmation($application));
+            ->whereNotIn('status', ['disbursed', 'rejected', 'closed', 'withdrawn'])
+            ->get()
+            ->each(function (LoanApplication $application): void {
+                if (in_array('disbursement_account_confirmed', $application->borrower_completed_steps ?? [], true)) {
+                    return;
+                }
+
+                $this->clearApplicationConfirmation($application);
+            });
     }
 
     public function accountLabel(CustomerDisbursementAccount $account): string
@@ -407,6 +432,28 @@ class CustomerDisbursementDetailsService
         }
 
         return substr($digits, 0, 4).str_repeat('X', max(0, strlen($digits) - 7)).substr($digits, -3);
+    }
+
+    public function maskDestinationPhone(string $phone): string
+    {
+        $digits = preg_replace('/\D/', '', $phone) ?? '';
+
+        if (strlen($digits) < 6) {
+            return $phone ?: '—';
+        }
+
+        return substr($digits, 0, 2).'•• ••• '.substr($digits, -3);
+    }
+
+    public function maskAccountNumber(string $number): string
+    {
+        $digits = preg_replace('/\D/', '', $number) ?? $number;
+
+        if (strlen($digits) < 4) {
+            return $number ?: '—';
+        }
+
+        return str_repeat('•', max(0, strlen($digits) - 4)).substr($digits, -4);
     }
 
     /** @param  array<string, mixed>  $snapshot */

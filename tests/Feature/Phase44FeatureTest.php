@@ -14,10 +14,12 @@ use App\Services\PartnerMatchingService;
 use Database\Seeders\LocationMasterSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
+use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
 class Phase44FeatureTest extends TestCase
 {
+    use CompletesPartnerJobs;
     use RefreshDatabase;
 
     public function test_unified_partner_supplier_routes_are_registered(): void
@@ -28,14 +30,14 @@ class Phase44FeatureTest extends TestCase
 
     public function test_nationwide_valuer_matches_any_region(): void
     {
-        Vendor::create([
+        $this->completePartnerForJobs(Vendor::create([
             'vendor_number'  => 'PTR-P44-001',
             'name'           => 'Nationwide Valuer',
             'category'       => 'valuer',
             'status'         => 'active',
             'coverage_type'  => 'nationwide',
             'regions'        => [],
-        ]);
+        ]));
 
         $matches = app(PartnerMatchingService::class)->valuersForRegion('Mwanza');
 

@@ -15,6 +15,9 @@ return [
         'settings'     => 'Settings & admin',
         'marketplace'  => 'Asset marketplace',
         'partners'     => 'Partners',
+        'marketing'    => 'Growth & marketing',
+        'communications' => 'Communications',
+        'content'      => 'Content',
     ],
 
     'permissions' => [
@@ -62,6 +65,27 @@ return [
         'marketplace.view'               => ['label' => 'View marketplace assets & requests', 'module' => 'marketplace'],
         'marketplace.manage'             => ['label' => 'Create & edit marketplace assets', 'module' => 'marketplace'],
         'partners.manage'                => ['label' => 'Enroll partners, edit coverage, and activate portal access', 'module' => 'partners'],
+
+        // Growth / marketing operations (not Settings Hub)
+        'marketing.view'                 => ['label' => 'View Growth workspace', 'module' => 'marketing'],
+        'marketing.campaigns.create'     => ['label' => 'Create campaigns', 'module' => 'marketing'],
+        'marketing.campaigns.edit'       => ['label' => 'Edit campaigns', 'module' => 'marketing'],
+        'marketing.campaigns.publish'    => ['label' => 'Publish / launch campaigns', 'module' => 'marketing'],
+        'marketing.audiences.manage'     => ['label' => 'Manage saved audiences', 'module' => 'marketing'],
+        'marketing.personas.manage'      => ['label' => 'Manage marketing personas', 'module' => 'marketing'],
+        'marketing.demos.create'         => ['label' => 'Create marketing demo accounts', 'module' => 'marketing'],
+        'marketing.demos.end'            => ['label' => 'End marketing demo sessions', 'module' => 'marketing'],
+        'marketing.demos.unrestricted'   => ['label' => 'Unrestricted demo customization (trusted admins)', 'module' => 'marketing'],
+        'marketing.offers.manage'        => ['label' => 'Create and publish Plus offers', 'module' => 'marketing'],
+        'marketing.performance.view'     => ['label' => 'View marketing performance', 'module' => 'marketing'],
+
+        // Communications operations (templates / chatbot copy — not gateways)
+        'communications.view'            => ['label' => 'View Communications workspace', 'module' => 'communications'],
+        'communications.templates.manage'=> ['label' => 'Edit notification templates', 'module' => 'communications'],
+        'communications.chatbot.manage'  => ['label' => 'Edit chatbot FAQ content', 'module' => 'communications'],
+
+        // Plus learning content operations
+        'content.plus.manage'            => ['label' => 'Manage Plus Learning content', 'module' => 'content'],
     ],
 
     /** Fallback when roles table has no row for users.role */
@@ -82,6 +106,23 @@ return [
             'finance.accounts', 'finance.methods', 'finance.operations', 'finance.reports',
             'marketplace.view', 'marketplace.manage',
             'reports.view',
+            'marketing.view', 'marketing.campaigns.create', 'marketing.campaigns.edit', 'marketing.campaigns.publish',
+            'marketing.audiences.manage', 'marketing.personas.manage', 'marketing.demos.create', 'marketing.demos.end',
+            'marketing.offers.manage', 'marketing.performance.view',
+            'communications.view', 'communications.templates.manage', 'communications.chatbot.manage',
+            'content.plus.manage',
+        ],
+        'marketer' => [
+            'marketing.view',
+            'marketing.campaigns.create', 'marketing.campaigns.edit', 'marketing.campaigns.publish',
+            'marketing.audiences.manage', 'marketing.personas.manage',
+            'marketing.demos.create', 'marketing.demos.end',
+            'marketing.offers.manage', 'marketing.performance.view',
+            'customers.view',
+            'reports.view',
+            'communications.view',
+            'communications.templates.manage',
+            'communications.chatbot.manage',
         ],
         'credit_analyst' => [
             'applications.view', 'applications.review', 'applications.request_documents',
@@ -103,6 +144,9 @@ return [
         ],
         'agent' => [
             'support.tickets',
+            'communications.view',
+            'communications.templates.manage',
+            'communications.chatbot.manage',
         ],
         'auditor' => [
             'audit.view', 'finance.reports', 'reports.view',

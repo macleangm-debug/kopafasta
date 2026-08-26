@@ -212,7 +212,7 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
         $customer = $this->borrower();
 
         $cases = [
-            ['code' => 'GL', 'category' => 'group', 'expected' => 'group_setup'],
+            ['code' => 'GL', 'category' => 'group', 'expected' => 'quote'],
             ['code' => 'AL', 'category' => 'asset', 'expected' => 'asset_tenure'],
             ['code' => 'AB', 'category' => 'secured', 'expected' => 'asset_details'],
         ];

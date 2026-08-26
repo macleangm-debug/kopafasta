@@ -85,24 +85,15 @@ class CollateralSecureService
             return false;
         }
 
+        if ($this->valuationFeeSatisfied($application, $state)) {
+            return false;
+        }
+
         if (($state['status'] ?? '') === self::STATUS_AWAITING_VALUATION_FEE) {
             return true;
         }
 
         if (($state['status'] ?? '') !== self::STATUS_SECURED) {
-            return false;
-        }
-
-        if (filled($state['valuation_fee_paid_at'] ?? null)) {
-            return false;
-        }
-
-        $assetRow = LoanApplicationAsset::query()
-            ->where('loan_application_id', $application->id)
-            ->where('customer_asset_id', (int) ($state['customer_asset_id'] ?? 0))
-            ->first();
-
-        if (filled($assetRow?->valuation_fee_paid_at)) {
             return false;
         }
 
@@ -113,31 +104,65 @@ class CollateralSecureService
     }
 
     /**
+     * Paid or assigned valuation must never reopen as "waiting on borrower".
+     *
+     * @param  array<string, mixed>|null  $state
+     */
+    public function valuationFeeSatisfied(LoanApplication $application, ?array $state = null): bool
+    {
+        $state ??= $this->state($application);
+        if (! $state) {
+            return $this->completedValuationFeePaymentExists($application);
+        }
+
+        if (filled($state['valuation_fee_paid_at'] ?? null)) {
+            return true;
+        }
+
+        if (in_array($state['status'] ?? '', [self::STATUS_AWAITING_VALUER, self::STATUS_SECURED], true)
+            && $this->valuationAlreadyAssigned($application, $state)) {
+            return true;
+        }
+
+        $assetRow = LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->when(! empty($state['customer_asset_id']), fn ($q) => $q->where('customer_asset_id', (int) $state['customer_asset_id']))
+            ->first();
+
+        if (filled($assetRow?->valuation_fee_paid_at)) {
+            return true;
+        }
+
+        if (in_array((string) ($assetRow?->valuation_status ?? ''), ['assigned', 'in_progress', 'completed'], true)) {
+            return true;
+        }
+
+        return $this->completedValuationFeePaymentExists($application);
+    }
+
+    /**
      * Open the IL/GL valuation-fee gate after a pledge (same as IL). Also heals
      * apps that reached "secured" without VAL_FEE (legacy / zero-then-fee).
+     * Never reopens a fee that is already paid, assigned, or completed.
      */
     public function healValuationFeeGate(LoanApplication $application): void
     {
         $state = $this->state($application);
         if ($state && ($state['status'] ?? '') === self::STATUS_SECURED) {
-            if (filled($state['valuation_fee_paid_at'] ?? null)) {
+            if ($this->valuationFeeSatisfied($application, $state)) {
+                if (blank($state['valuation_fee_paid_at'] ?? null)) {
+                    $paidAt = $this->valuationFeePaidAt($application, $state);
+                    if ($paidAt) {
+                        $state['valuation_fee_paid_at'] = $paidAt;
+                        $this->saveState($application, $state);
+                    }
+                }
+
                 return;
             }
 
             $due = (int) quoted_valuation_fee($application->customer, max(1, app(CustomerAssetService::class)->onLoanCount($application)));
             if ($due <= 0) {
-                return;
-            }
-
-            $assetRow = LoanApplicationAsset::query()
-                ->where('loan_application_id', $application->id)
-                ->where('customer_asset_id', (int) ($state['customer_asset_id'] ?? 0))
-                ->first();
-
-            if (filled($assetRow?->valuation_fee_paid_at)) {
-                $state['valuation_fee_paid_at'] = optional($assetRow->valuation_fee_paid_at)?->toIso8601String();
-                $this->saveState($application, $state);
-
                 return;
             }
 
@@ -149,15 +174,61 @@ class CollateralSecureService
             return;
         }
 
+        if ($state && in_array($state['status'] ?? '', [self::STATUS_AWAITING_VALUER, self::STATUS_AWAITING_INSURANCE, self::STATUS_SHORTFALL], true)) {
+            return;
+        }
+
         $hasPledge = LoanApplicationAsset::query()
             ->where('loan_application_id', $application->id)
             ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
             ->whereNotNull('customer_asset_id')
             ->exists();
 
-        if ($hasPledge) {
+        if ($hasPledge && ! $this->valuationFeeSatisfied($application, $state)) {
             $this->promptValuationFeeAfterPledge($application);
         }
+    }
+
+    /** @param  array<string, mixed>|null  $state */
+    private function valuationAlreadyAssigned(LoanApplication $application, ?array $state): bool
+    {
+        return LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->when(! empty($state['customer_asset_id']), fn ($q) => $q->where('customer_asset_id', (int) $state['customer_asset_id']))
+            ->whereIn('valuation_status', ['assigned', 'in_progress', 'completed'])
+            ->exists();
+    }
+
+    private function completedValuationFeePaymentExists(LoanApplication $application): bool
+    {
+        return \App\Models\CustomerPayment::query()
+            ->where('payment_type', 'valuation_fee')
+            ->complete()
+            ->where('source_type', $application->getMorphClass())
+            ->where('source_id', $application->id)
+            ->exists();
+    }
+
+    /** @param  array<string, mixed>|null  $state */
+    private function valuationFeePaidAt(LoanApplication $application, ?array $state): ?string
+    {
+        $assetRow = LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->when(! empty($state['customer_asset_id']), fn ($q) => $q->where('customer_asset_id', (int) $state['customer_asset_id']))
+            ->first();
+        if (filled($assetRow?->valuation_fee_paid_at)) {
+            return optional($assetRow->valuation_fee_paid_at)?->toIso8601String();
+        }
+
+        $payment = \App\Models\CustomerPayment::query()
+            ->where('payment_type', 'valuation_fee')
+            ->complete()
+            ->where('source_type', $application->getMorphClass())
+            ->where('source_id', $application->id)
+            ->latest('id')
+            ->first();
+
+        return optional($payment?->paid_at ?? $payment?->verified_at)?->toIso8601String();
     }
 
     public function decisionDays(): int
@@ -1072,6 +1143,11 @@ class CollateralSecureService
 
         $this->healValuationFeeGate($application);
         $application->refresh();
+        $state = $this->state($application);
+        if ($this->valuationFeeSatisfied($application, $state)) {
+            return $state ?? [];
+        }
+
         $state = $this->requireOpen($application);
         abort_unless(($state['status'] ?? '') === self::STATUS_AWAITING_VALUATION_FEE, 422);
 

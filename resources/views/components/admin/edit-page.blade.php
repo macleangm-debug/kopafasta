@@ -17,6 +17,8 @@
     'deactivateConfirm' => 'Portal access will be disabled. History is kept.',
     'deactivateLabel' => 'Deactivate',
     'enctype' => null,
+    'alpine' => null,
+    'confirmBeforeSubmit' => false,
 ])
 
 <x-admin.layout
@@ -34,7 +36,7 @@
             @endif
         </div>
         <div class="p-6">
-            <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="space-y-6">
+            <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="space-y-6" @if ($alpine) x-data="{!! $alpine !!}" @endif>
                 @csrf
                 @method('PUT')
 
@@ -49,7 +51,7 @@
                     </div>
                 @endif
 
-                <x-admin.wizard :submitLabel="$submitLabel" :cancelUrl="$cancelUrl">
+                <x-admin.wizard :submitLabel="$submitLabel" :cancelUrl="$cancelUrl" :confirmBeforeSubmit="$confirmBeforeSubmit">
                     {{ $slot }}
                 </x-admin.wizard>
             </form>

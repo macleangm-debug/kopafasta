@@ -205,13 +205,11 @@ class LoanApplicationController extends ResourceController
             ->with(['customer', 'product', 'loan', 'loanGroup.members.customer', 'loanGroup.leader', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'assignedAnalyst', 'collateralAsset', 'collateralAssets.customerAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees', 'valuationAssignments.vendor'])
             ->findOrFail($id);
 
-        if ($record->isClosed() && $record->closedStatus() === 'rejected') {
-            abort_unless(
-                app(CreditDeskAssignmentService::class)->canViewRejected(auth()->user()),
-                403,
-                'Rejected applications are for screening and committee only.'
-            );
-        }
+        abort_unless(
+            app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $record),
+            403,
+            'This file is not on the Management desk. Management only authorizes committee-approved loans that require Management, then runs post-approval ops.'
+        );
 
         $workflow = app(LoanApplicationWorkflowService::class);
         $review = app(LoanApplicationReviewService::class)->dossier($record);
@@ -585,6 +583,11 @@ class LoanApplicationController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
         $this->assertApplicationMutable($loan_application);
+        abort_unless(
+            app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $loan_application),
+            403,
+            'This file is not on the Management desk.'
+        );
 
         $data = $request->validate([
             'action' => ['required', 'string', 'in:'.implode(',', array_keys(LoanApplicationWorkflowService::ACTIONS))],
@@ -610,9 +613,10 @@ class LoanApplicationController extends ResourceController
             'preferred_lender_id' => ['nullable', 'integer', 'exists:lenders,id'],
             'document_presets' => ['nullable', 'array'],
             'document_presets.*' => ['string', 'max:120'],
+            'refer_back_to' => ['nullable', 'in:committee,screening'],
         ]);
 
-        if ($data['action'] === 'approve' && application_needs_funding_choice($loan_application->product)) {
+        if (in_array($data['action'], ['approve', 'approve_with_conditions'], true) && application_needs_funding_choice($loan_application->product)) {
             if (empty($data['funding_source'])) {
                 return back()->withErrors(['funding_source' => 'Select internal or external funding source.'])->withInput();
             }
@@ -621,11 +625,11 @@ class LoanApplicationController extends ResourceController
             }
         }
 
-        if ($data['action'] === 'approve' && empty(trim((string) ($data['approval_reason_code'] ?? '')))) {
+        if (in_array($data['action'], ['approve', 'approve_with_conditions'], true) && empty(trim((string) ($data['approval_reason_code'] ?? '')))) {
             return back()->withErrors(['approval_reason_code' => 'Select a reason for approval.'])->withInput();
         }
 
-        if ($data['action'] === 'approve'
+        if (in_array($data['action'], ['approve', 'approve_with_conditions'], true)
             && ($data['approval_reason_code'] ?? null) === 'custom'
             && empty(trim((string) ($data['approval_reason_notes'] ?? '')))) {
             return back()->withErrors(['approval_reason_notes' => 'Enter the custom approval reason.'])->withInput();
@@ -669,7 +673,7 @@ class LoanApplicationController extends ResourceController
         $stage = $loan_application->current_stage ?? 'submitted';
         $isCommitteeStage = $stage === 'pre_approval';
         $screeningType = $loan_application->recommendation_type;
-        $divergingCommitteeActions = ['approve', 'reject', 'issue_offer'];
+        $divergingCommitteeActions = ['approve', 'approve_with_conditions', 'reject', 'issue_offer', 'refer_back'];
 
         try {
             if ($data['action'] === 'validate_screening') {
@@ -712,9 +716,14 @@ class LoanApplicationController extends ResourceController
                         'Validated the screening approval.',
                     );
 
+                    $loan_application = $loan_application->fresh();
+                    $validatedMessage = $loan_application->current_stage === 'awaiting_management'
+                        ? 'Screening decision validated — waiting for management approval.'
+                        : 'Screening decision validated — application approved.';
+
                     return redirect()
                         ->route("{$this->routePrefix}.show", $loan_application)
-                        ->with('status', 'Screening decision validated — application approved.');
+                        ->with('status', $validatedMessage);
                 }
             }
 
@@ -794,7 +803,7 @@ class LoanApplicationController extends ResourceController
                     && filled($screeningType)
                 ) {
                     $differs = ($data['action'] === 'reject')
-                        || ($data['action'] === 'approve' && $screeningType !== ApplicationOfferService::RECOMMEND_APPROVE)
+                        || (in_array($data['action'], ['approve', 'approve_with_conditions'], true) && $screeningType !== ApplicationOfferService::RECOMMEND_APPROVE)
                         || ($data['action'] === 'issue_offer' && $screeningType !== ApplicationOfferService::RECOMMEND_COUNTER);
 
                     if ($differs) {
@@ -808,7 +817,7 @@ class LoanApplicationController extends ResourceController
                     }
                 }
 
-                if ($data['action'] === 'approve' && application_needs_funding_choice($loan_application->product)) {
+                if (in_array($data['action'], ['approve', 'approve_with_conditions'], true) && application_needs_funding_choice($loan_application->product)) {
                     $loan_application->update([
                         'funding_source' => $data['funding_source'],
                         'preferred_lender_id' => $data['funding_source'] === 'external'
@@ -830,6 +839,7 @@ class LoanApplicationController extends ResourceController
                     $rejectionCodes !== [] ? $rejectionCodes : null,
                     $data['approval_reason_code'] ?? null,
                     $data['approval_reason_notes'] ?? null,
+                    $data['refer_back_to'] ?? null,
                 );
 
                 if ($data['action'] === 'return_for_documents' && ! empty($data['document_presets'])) {

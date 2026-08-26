@@ -20,6 +20,7 @@ class LedgerService
     {
         $lines = array_values(array_filter($lines, fn ($l) => ((float) ($l['debit'] ?? 0)) > 0 || ((float) ($l['credit'] ?? 0)) > 0));
         if (empty($lines)) return null;
+        app(\App\Services\Marketing\DemoGuard::class)->assertCanMoveMoney('post a journal entry');
 
         $totalDr = array_sum(array_map(fn ($l) => (float) ($l['debit'] ?? 0), $lines));
         $totalCr = array_sum(array_map(fn ($l) => (float) ($l['credit'] ?? 0), $lines));

@@ -52,10 +52,28 @@ class LoanApplicationWorkflowService
             'from'       => ['pre_approval'],
         ],
         'approve' => [
-            'label'      => 'Final approve',
+            'label'      => 'Approve',
             'to_stage'   => 'approval',
             'permission' => 'applications.approve',
             'from'       => ['pre_approval'],
+        ],
+        'approve_with_conditions' => [
+            'label'      => 'Approve with conditions',
+            'to_stage'   => 'approval',
+            'permission' => 'applications.approve',
+            'from'       => ['pre_approval'],
+        ],
+        'refer_back' => [
+            'label'      => 'Refer back',
+            'to_stage'   => 'screening',
+            'permission' => 'applications.approve',
+            'from'       => ['pre_approval', 'awaiting_management'],
+        ],
+        'management_approve' => [
+            'label'      => 'Management approve',
+            'to_stage'   => 'approval',
+            'permission' => 'applications.approve',
+            'from'       => ['awaiting_management'],
         ],
         'disburse' => [
             'label'      => 'Mark ready for disbursement',
@@ -67,7 +85,7 @@ class LoanApplicationWorkflowService
             'label'      => 'Reject application',
             'to_stage'   => 'rejected',
             'permission' => 'applications.reject',
-            'from'       => ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'approval'],
+            'from'       => ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'awaiting_management', 'approval'],
         ],
         'return_for_documents' => [
             'label'      => 'Return for documents',
@@ -107,7 +125,11 @@ class LoanApplicationWorkflowService
                 || $application->offer_status === 'pending_borrower'
             )))
             ->filter(fn (array $action, string $key) => ! ($key === 'suggest_asset_alternative' && ! app(UnderwritingSettingsService::class)->assetBackedAlternativeEnabled()))
-            ->filter(fn (array $action, string $key) => ! ($key === 'approve' && ! app(ApplicationOfferService::class)->canFinalApprove($application)))
+            ->filter(fn (array $action, string $key) => ! (in_array($key, ['approve', 'approve_with_conditions'], true) && ! app(ApplicationOfferService::class)->canFinalApprove($application)))
+            ->filter(fn (array $action, string $key) => ! (in_array($key, ['approve', 'approve_with_conditions'], true)
+                && app(CreditDeskAssignmentService::class)->isManagementOnly($user)))
+            ->filter(fn (array $action, string $key) => ! ($key === 'management_approve'
+                && ! app(CreditAuthorityService::class)->canManagementApprove($user)))
             ->filter(fn (array $action, string $key) => ! ($key === 'disburse' && ! app(ApplicationDisbursementReadinessService::class)->canMarkDisbursement($application)))
             ->filter(fn (array $action, string $key) => ! ($key === 'validate_screening' && ! app(ApplicationOfferService::class)->canValidateScreening($application, $user)))
             ->filter(fn (array $action) => $this->sameBranch($user, $application))
@@ -133,6 +155,7 @@ class LoanApplicationWorkflowService
         ?array $rejectionReasonCodes = null,
         ?string $approvalReasonCode = null,
         ?string $approvalReasonNotes = null,
+        ?string $referBackTo = null,
     ): LoanApplication {
         $action = self::ACTIONS[$actionKey] ?? null;
 
@@ -183,17 +206,38 @@ class LoanApplicationWorkflowService
             }
         }
 
-        if ($actionKey === 'approve' && ! app(ApplicationOfferService::class)->canFinalApprove($application)) {
+        if (in_array($actionKey, ['approve', 'approve_with_conditions'], true) && ! app(ApplicationOfferService::class)->canFinalApprove($application)) {
             throw ValidationException::withMessages([
                 'action' => 'Counter-offers must be accepted by the borrower before final approval.',
             ]);
         }
 
+        if ($actionKey === 'refer_back' && blank(trim((string) $remarks))) {
+            throw ValidationException::withMessages(['remarks' => 'Explain why this file is returning to screening.']);
+        }
+
+        if ($actionKey === 'approve_with_conditions' && blank(trim((string) $approvalReasonNotes))) {
+            throw ValidationException::withMessages([
+                'approval_reason_notes' => 'Enter the approval conditions.',
+            ]);
+        }
+
+        if ($actionKey === 'management_approve' && ! app(CreditAuthorityService::class)->canManagementApprove($user)) {
+            throw ValidationException::withMessages([
+                'action' => 'Only credit management can complete this approval.',
+            ]);
+        }
+
         $to = $action['to_stage'];
+
+        if ($actionKey === 'refer_back' && $from === 'awaiting_management') {
+            $to = $referBackTo === 'screening' ? 'screening' : 'pre_approval';
+        }
 
         $appraisal = $application->credit_appraisal_payload ?? [];
 
-        if (in_array($to, ['credit_appraisal', 'pre_approval', 'approval', 'disbursement'], true)) {
+        if (in_array($to, ['credit_appraisal', 'pre_approval', 'approval', 'disbursement'], true)
+            && $actionKey !== 'refer_back') {
             $result = app(AffordabilityService::class)->evaluate($application->loadMissing(['customer', 'product']));
             $appraisal['affordability'] = $result;
 
@@ -207,6 +251,7 @@ class LoanApplicationWorkflowService
         }
 
         if (in_array($to, ['pre_approval', 'approval', 'disbursement'], true)
+            && $actionKey !== 'refer_back'
             && ! in_array($user->role, ['admin', 'super_admin', 'credit_committee'], true)) {
             $limit = $user->approval_limit;
             if ($limit !== null && (float) $limit > 0) {
@@ -251,7 +296,7 @@ class LoanApplicationWorkflowService
             $fromStage = $from;
         }
 
-        if ($actionKey === 'approve') {
+        if (in_array($actionKey, ['approve', 'approve_with_conditions', 'management_approve'], true)) {
             $approvalReasons = config('credit_recommendation.approval_reasons', []);
             $approvalReasonCode = filled($approvalReasonCode) && array_key_exists($approvalReasonCode, $approvalReasons)
                 ? $approvalReasonCode
@@ -262,20 +307,55 @@ class LoanApplicationWorkflowService
                     'approval_reason_notes' => 'Enter the custom approval reason.',
                 ]);
             }
-            if ($approvalReasonCode === null && $approvalReasonNotes === null) {
+            if ($actionKey !== 'management_approve' && $approvalReasonCode === null && $approvalReasonNotes === null) {
                 throw ValidationException::withMessages([
                     'approval_reason_code' => 'Select a reason for approval.',
                 ]);
             }
-            $appraisal['committee_approval'] = [
+            $decision = [
+                'outcome' => $actionKey === 'approve_with_conditions' ? 'approve_with_conditions' : 'approve',
                 'reason_code' => $approvalReasonCode,
                 'reason_label' => $approvalReasonCode
                     ? ($approvalReasons[$approvalReasonCode] ?? $approvalReasonCode)
                     : null,
                 'notes' => $approvalReasonNotes,
-                'approved_by' => $user->id,
-                'approved_at' => now()->toIso8601String(),
+                'conditions' => $actionKey === 'approve_with_conditions' ? $approvalReasonNotes : null,
+                'decided_by' => $user->id,
+                'decided_at' => now()->toIso8601String(),
             ];
+            if ($actionKey === 'management_approve') {
+                $appraisal['management_approval'] = $decision;
+            } else {
+                $appraisal['committee_approval'] = $decision;
+            }
+        }
+
+        if (in_array($actionKey, ['approve', 'approve_with_conditions'], true)
+            && app(CreditAuthorityService::class)->managementApprovalRequired($application, $user)) {
+            $to = 'awaiting_management';
+            $appraisal['awaiting_management'] = [
+                'queued_at' => now()->toIso8601String(),
+                'queued_by' => $user->id,
+                'reason' => app(CreditAuthorityService::class)->managementRequirementReason($application)
+                    ?? 'Approval matrix requires management after committee.',
+            ];
+        }
+
+        if ($actionKey === 'refer_back') {
+            $appraisal['management_refer_back'] = $from === 'awaiting_management'
+                ? [
+                    'at' => now()->toIso8601String(),
+                    'by' => $user->id,
+                    'to' => $to,
+                    'reason' => $remarks,
+                ]
+                : ($appraisal['management_refer_back'] ?? null);
+            if ($from === 'awaiting_management') {
+                unset($appraisal['awaiting_management'], $appraisal['management_approval']);
+                if ($to === 'pre_approval') {
+                    unset($appraisal['committee_approval']);
+                }
+            }
         }
 
         $application->update([
@@ -374,6 +454,7 @@ class LoanApplicationWorkflowService
             'screening'        => 'applications.acknowledge',
             'credit_appraisal' => 'applications.review',
             'pre_approval'     => 'applications.pre_approve',
+            'awaiting_management' => 'applications.approve',
             'approval'         => 'applications.approve',
             'disbursement'     => 'applications.disburse',
             'rejected'         => 'applications.reject',
@@ -643,6 +724,7 @@ class LoanApplicationWorkflowService
             'rejected'     => 'rejected',
             'disbursement' => 'approved',
             'pre_approval' => 'pre_approved',
+            'awaiting_management' => 'pre_approved',
             'approval'     => 'approved',
             'credit_appraisal' => 'under_review',
             'screening'    => 'submitted',

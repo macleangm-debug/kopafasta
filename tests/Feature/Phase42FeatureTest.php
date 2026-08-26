@@ -98,7 +98,7 @@ class Phase42FeatureTest extends TestCase
     {
         Setting::setMany([
             'loan.group_leader_unlock_repayments' => 2,
-            'loan.group_min_members' => 2,
+            'loan.group_min_members' => 3,
             'loan.group_max_members' => 10,
         ]);
 
@@ -132,6 +132,15 @@ class Phase42FeatureTest extends TestCase
             'phone'           => '255712345864',
         ]);
 
+        $memberThree = Customer::create([
+            'customer_number' => 'CU-P42-23',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Third',
+            'last_name'       => 'Member',
+            'phone'           => '255712345865',
+        ]);
+
         $application = LoanApplication::create([
             'customer_id'             => $leader->id,
             'loan_product_id'         => $product->id,
@@ -145,6 +154,7 @@ class Phase42FeatureTest extends TestCase
         $group = app(GroupLendingService::class)->createForApplication($application, [
             ['customer_id' => $leader->id, 'role' => 'leader'],
             ['customer_id' => $memberTwo->id],
+            ['customer_id' => $memberThree->id],
         ]);
 
         $leaderMember = $group->members->firstWhere('role', 'leader');

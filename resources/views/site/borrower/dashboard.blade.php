@@ -62,6 +62,7 @@
         $underReview = in_array((string) ($customer->grade_status ?? ''), ['under_review'], true)
             || in_array((string) ($customer->grade_integrity ?? ''), ['review'], true);
         $plusIsOn = (bool) ($plusActive ?? false);
+        $plusNeedsRenewal = (bool) ($plusNeedsRenewal ?? false);
     @endphp
     <section class="mb-6 kf-premium-panel rounded-2xl p-5 sm:p-6">
         <div class="relative flex flex-wrap items-start justify-between gap-3">
@@ -78,7 +79,7 @@
         @endif
         <p class="relative text-sm text-white/80 mt-2 max-w-xl">{{ __('plus.card.teaser_body') }}</p>
         <div class="relative mt-4 flex flex-wrap gap-2">
-            @if ($plusIsOn)
+            @if ($plusIsOn && $plusNeedsRenewal)
                 <form method="post" action="{{ route('site.borrower.plus.renew') }}">
                     @csrf
                     <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">
@@ -87,6 +88,11 @@
                 </form>
                 <a href="{{ route('site.borrower.plus.home') }}"
                    class="inline-flex rounded-xl bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 text-sm font-bold ring-1 ring-white/20">
+                    {{ __('plus.card.open') }}
+                </a>
+            @elseif ($plusIsOn)
+                <a href="{{ route('site.borrower.plus.home') }}"
+                   class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">
                     {{ __('plus.card.open') }}
                 </a>
             @else

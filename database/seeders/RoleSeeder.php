@@ -23,6 +23,7 @@ class RoleSeeder extends Seeder
         'vendor'         => 'Partner portal account.',
         'investor'       => 'Investor / capital partner portal account.',
         'asset_manager'  => 'Manages asset lending marketplace listings and borrower asset requests.',
+        'marketer'       => 'Runs Growth campaigns, audiences, offers and isolated marketing demos. Does not change Settings Hub rules.',
         'partner_support'=> 'Enrolls partners, extends regional coverage, and activates portal access. Does not screen or decide loans.',
     ];
 

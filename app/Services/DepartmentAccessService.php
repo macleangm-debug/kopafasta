@@ -67,6 +67,8 @@ class DepartmentAccessService
     private function isAlwaysAllowed(string $routeName): bool
     {
         return $routeName === 'admin.dashboard'
+            || $routeName === 'admin.search'
+            || str_starts_with($routeName, 'admin.nav.shortcuts')
             || str_starts_with($routeName, 'admin.settings.account-security');
     }
 }

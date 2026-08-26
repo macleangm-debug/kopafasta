@@ -200,7 +200,9 @@ class BorrowerController extends Controller
         $kycSectionsDue = $kycFreshness->sectionsDueForRefresh($customer);
 
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
-        $plusActive = app(\App\Services\Plus\PlusService::class)->isActive($customer);
+        $plusService = app(\App\Services\Plus\PlusService::class);
+        $plusActive = $plusService->isActive($customer);
+        $plusNeedsRenewal = $plusService->needsRenewal($customer);
         $trustScore = app(\App\Services\MemberEngagementService::class)->trustScore($customer);
         $trust = app(\App\Services\Grades\GradeBenefitService::class)
             ->trustLabel((int) ($trustScore['percent'] ?? 0), $locale);
@@ -210,7 +212,7 @@ class BorrowerController extends Controller
             'notifications','eligibility',
             'products','applyRequirements','onboardingBanner','groupInviteBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
             'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','financialSnapshot','financialHealth','kycSectionsDue',
-            'plusActive','trust',
+            'plusActive','plusNeedsRenewal','trust',
         ));
     }
 
@@ -450,13 +452,10 @@ class BorrowerController extends Controller
         abort_unless($application->offer_status === 'pending_borrower', 404);
 
         $application->loadMissing(['product']);
-        $installment = app(\App\Services\AffordabilityService::class)->estimateInstallment(
-            (float) $application->offered_amount,
-            (float) ($application->product?->interest_rate ?? 0),
-            (int) ($application->offered_tenure_months ?? $application->requested_tenure_months),
-        );
+        $offerFacts = app(\App\Services\LendingJourneyService::class)->offerPresentation($application);
+        $installment = $offerFacts['installment'];
 
-        return view('site.borrower.offer', compact('customer', 'application', 'installment'));
+        return view('site.borrower.offer', compact('customer', 'application', 'installment', 'offerFacts'));
     }
 
     public function respondToOffer(Request $request, LoanApplication $application): RedirectResponse
@@ -2276,7 +2275,12 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if((int) $account->customer_id !== (int) $customer->id, 404);
 
-        app(\App\Services\CustomerDisbursementDetailsService::class)->deleteAccount($customer, $account);
+        try {
+            app(\App\Services\CustomerDisbursementDetailsService::class)->deleteAccount($customer, $account);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
         $this->auditBorrower('profile.payment_account_removed', $customer, ['account_id' => $account->id]);
 
         if ($return = $this->validatedReturnUrl($request)) {

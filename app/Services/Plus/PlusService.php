@@ -10,6 +10,9 @@ use App\Services\CustomerPaymentService;
 
 class PlusService
 {
+    /** Show renew this many days before expiry — same window as membership’s 14-day reminder. */
+    public const RENEWAL_WINDOW_DAYS = 14;
+
     public function config(): array
     {
         $stored = Setting::get('kopafasta_plus.config');
@@ -34,6 +37,52 @@ class PlusService
             ->where('expires_at', '>', now())
             ->latest('expires_at')
             ->first();
+    }
+
+    public function latest(Customer $customer): ?PlusSubscription
+    {
+        return PlusSubscription::query()
+            ->where('customer_id', $customer->id)
+            ->latest('expires_at')
+            ->first();
+    }
+
+    public function isExpired(Customer $customer): bool
+    {
+        if ($this->isActive($customer)) {
+            return false;
+        }
+
+        $latest = $this->latest($customer);
+
+        return $latest?->expires_at !== null && $latest->expires_at->lte(now());
+    }
+
+    public function daysRemaining(Customer $customer): ?int
+    {
+        $subscription = $this->current($customer);
+        if (! $subscription?->expires_at) {
+            return null;
+        }
+
+        return (int) max(0, now()->startOfDay()->diffInDays($subscription->expires_at->copy()->startOfDay(), false));
+    }
+
+    /**
+     * Standard renew CTA: after expiry, or in the last 14 days of a paid period.
+     */
+    public function needsRenewal(Customer $customer): bool
+    {
+        if ($this->isExpired($customer)) {
+            return true;
+        }
+
+        $subscription = $this->current($customer);
+        if (! $subscription?->expires_at) {
+            return false;
+        }
+
+        return $subscription->expires_at->lte(now()->addDays(self::RENEWAL_WINDOW_DAYS));
     }
 
     public function priceFor(Customer $customer): array

@@ -260,7 +260,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ->first();
 
         $this->assertNotNull($sent);
-        $this->assertStringContainsString('sent successfully', (string) $sent->message);
+        $this->assertStringContainsString('Jane Guarantor', (string) $sent->message);
         $this->assertStringStartsWith('/borrower/loans', (string) $sent->recipient);
     }
 
@@ -402,6 +402,25 @@ class GuarantorInviteUxFeatureTest extends TestCase
 
         app(GuarantorInvitationService::class)->approve($link);
 
+        // Accepted guarantees stay on Guarantor requests until the loan itself is approved.
+        $this->actingAs($member->user)
+            ->get(route('site.borrower.loans', ['tab' => 'guarantor']))
+            ->assertOk()
+            ->assertSee('APP-GUX-50', false)
+            ->assertSee('Borrow Five', false)
+            ->assertSee(__('borrower.guaranteed.waiting_on_your_profile'), false)
+            ->assertSee(__('borrower.guaranteed.view_details'), false);
+
+        $this->actingAs($member->user)
+            ->get(route('site.borrower.loans', ['tab' => 'guaranteed']))
+            ->assertOk()
+            ->assertDontSee('APP-GUX-50', false);
+
+        $application->update([
+            'status'        => 'approved',
+            'current_stage' => 'approval',
+        ]);
+
         $this->actingAs($member->user)
             ->get(route('site.borrower.loans', ['tab' => 'guarantor']))
             ->assertOk()
@@ -410,11 +429,9 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $this->actingAs($member->user)
             ->get(route('site.borrower.loans', ['tab' => 'guaranteed']))
             ->assertOk()
-            ->assertDontSee(__('borrower.loans_page.no_guaranteed'), false)
-            ->assertSee(__('borrower.guaranteed.waiting_on_your_profile'), false)
-            ->assertSee(__('borrower.guaranteed.view_details'), false)
+            ->assertSee('APP-GUX-50', false)
             ->assertSee('Borrow Five', false)
-            ->assertSee('APP-GUX-50', false);
+            ->assertSee(__('borrower.guaranteed.view_details'), false);
     }
 
     public function test_member_can_accept_guarantee_without_signature(): void

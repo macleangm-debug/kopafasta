@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\LoanApplication;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -14,6 +15,22 @@ class CreditDeskAssignmentService
     public const COMMITTEE_DEPT = 'CRC';
 
     public const MANAGEMENT_DEPT = 'CRM';
+
+    /** Authorization queue: committee already decided, matrix requires Management. */
+    public const MANAGEMENT_AUTHORIZATION_STAGES = ['awaiting_management'];
+
+    /**
+     * Post-final-approval ops that Credit Management runs after the offer is issued.
+     *
+     * @var list<string>
+     */
+    public const MANAGEMENT_OPS_STAGES = [
+        'approval',
+        'post_approval_fees',
+        'awaiting_disbursement_details',
+        'contract_generation',
+        'disbursement',
+    ];
 
     public const HEAD_OFFICE = 'HQ001';
 
@@ -101,6 +118,57 @@ class CreditDeskAssignmentService
         return $this->isExempt($user->role)
             || $this->onScreeningDesk($user)
             || $this->onCommitteeDesk($user);
+    }
+
+    /**
+     * Stages a management-only desk may see: committee-approved authorization, then post-approval ops.
+     *
+     * @return list<string>
+     */
+    public function managementVisibleStages(): array
+    {
+        return [
+            ...self::MANAGEMENT_AUTHORIZATION_STAGES,
+            ...self::MANAGEMENT_OPS_STAGES,
+        ];
+    }
+
+    /**
+     * Management is an authorization layer for committee-approved loans, not a screening queue.
+     * They never receive files still in screening, still with committee, referred back, incomplete, or rejected.
+     */
+    public function canViewApplication(?User $user, LoanApplication $application): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->isExempt($user->role)) {
+            return true;
+        }
+
+        if ($application->isClosed() && $application->closedStatus() === 'rejected') {
+            return $this->canViewRejected($user);
+        }
+
+        if (! $this->isManagementOnly($user)) {
+            return true;
+        }
+
+        $stage = (string) ($application->current_stage ?? '');
+        $status = (string) ($application->status ?? '');
+
+        if (in_array($status, ['rejected', 'draft', 'awaiting_guarantor'], true)
+            || $stage === 'rejected'
+            || in_array($stage, ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'awaiting_guarantor'], true)) {
+            return false;
+        }
+
+        if ($application->hasActiveFacility() || $status === 'disbursed') {
+            return true;
+        }
+
+        return in_array($stage, $this->managementVisibleStages(), true);
     }
 
     /**

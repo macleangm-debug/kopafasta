@@ -111,7 +111,7 @@ class NotificationTemplatePagesProbeTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.settings.messaging'))
             ->assertOk()
-            ->assertSee('Open notification templates', false)
+            ->assertSee('Open Communications → Templates', false)
             ->assertSee(route('admin.notification-templates.index'), false);
     }
 

@@ -133,6 +133,7 @@ class PaymentGateService
             'promo_valid'           => $promoValid,
             'code_kind'             => $codeKind,
             'referrer'              => $hasReferrer ? $referrals->referrer($customer) : null,
+            'streak_discount'       => 0.0,
         ], $feeType);
     }
 

@@ -282,6 +282,14 @@ class PartnerProfileService
         if (! $membership->requiresPayment($entity) && ! $membership->isActive($entity)) {
             $membership->activate($entity);
         }
+
+        if ($entity->isValuer() && $this->canReceiveJobs($entity)) {
+            try {
+                app(ValuationPartnerService::class)->assignWaitingJobsCoveredBy($entity);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
     }
 
     /* ------------------------------------------------------------------ */

@@ -70,4 +70,30 @@ class CreditDeskAssignmentServiceTest extends TestCase
         $this->assertTrue($desk->isManagementOnly($manager));
         $this->assertFalse($desk->isManagementOnly($committee));
     }
+
+    public function test_management_only_sees_committee_approved_authorization_and_post_approval_ops(): void
+    {
+        $und = Department::query()->create(['name' => 'Underwriting', 'code' => 'UND']);
+        $crc = Department::query()->create(['name' => 'Credit Committee', 'code' => 'CRC']);
+        $crm = Department::query()->create(['name' => 'Credit Management', 'code' => 'CRM']);
+        $desk = app(CreditDeskAssignmentService::class);
+
+        $manager = \App\Models\User::factory()->create(['role' => 'manager', 'department_id' => $crm->id]);
+        $analyst = \App\Models\User::factory()->create(['role' => 'credit_analyst', 'department_id' => $und->id]);
+        $committee = \App\Models\User::factory()->create(['role' => 'credit_committee', 'department_id' => $crc->id]);
+        $admin = \App\Models\User::factory()->create(['role' => 'admin']);
+
+        $screening = new \App\Models\LoanApplication(['current_stage' => 'screening', 'status' => 'under_review']);
+        $committeeFile = new \App\Models\LoanApplication(['current_stage' => 'pre_approval', 'status' => 'pre_approved']);
+        $awaiting = new \App\Models\LoanApplication(['current_stage' => 'awaiting_management', 'status' => 'pre_approved']);
+        $ops = new \App\Models\LoanApplication(['current_stage' => 'approval', 'status' => 'approved']);
+
+        $this->assertFalse($desk->canViewApplication($manager, $screening));
+        $this->assertFalse($desk->canViewApplication($manager, $committeeFile));
+        $this->assertTrue($desk->canViewApplication($manager, $awaiting));
+        $this->assertTrue($desk->canViewApplication($manager, $ops));
+        $this->assertTrue($desk->canViewApplication($analyst, $screening));
+        $this->assertTrue($desk->canViewApplication($committee, $committeeFile));
+        $this->assertTrue($desk->canViewApplication($admin, $screening));
+    }
 }

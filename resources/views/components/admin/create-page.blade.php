@@ -8,6 +8,7 @@
     'submitLabel' => 'Create',
     'enctype' => null,
     'confirmBeforeSubmit' => false,
+    'alpine' => null,
 ])
 
 <x-admin.layout
@@ -25,7 +26,7 @@
             @endif
         </div>
         <div class="p-6">
-            <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="space-y-6" id="admin-create-form">
+            <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="space-y-6" id="admin-create-form" @if ($alpine) x-data="{!! $alpine !!}" @endif>
                 @csrf
 
                 @if ($errors->any())

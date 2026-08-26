@@ -133,11 +133,12 @@ class GuarantorCreditReviewFeatureTest extends TestCase
 
         $this->assertStringContainsString('Borrower CRB', $html);
         $this->assertStringContainsString('Open guarantor file', $html);
-        $this->assertStringContainsString('Profile incomplete', $html);
+        $this->assertStringContainsString('person=guarantor', $html);
 
         $tab = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', [
                 'loan_application' => $app,
+                'workspace' => 'checklist',
                 'person' => 'guarantor',
                 'tab' => 'overview',
                 'g' => $app->customerGuarantors()->first()?->id,

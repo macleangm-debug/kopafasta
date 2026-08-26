@@ -51,7 +51,7 @@ class Phase62GroupNotificationsAndAdminI18nFeatureTest extends TestCase
     /** @return array{application: LoanApplication, leader: Customer, member: Customer, memberRow: LoanGroupMember} */
     protected function contractFixture(): array
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = Customer::create([
             'customer_number'       => 'CU-P62-L',
@@ -75,6 +75,17 @@ class Phase62GroupNotificationsAndAdminI18nFeatureTest extends TestCase
             'membership_expires_at' => now()->addYear(),
         ]);
 
+        $third = Customer::create([
+            'customer_number'       => 'CU-P62-T',
+            'type'                  => 'individual',
+            'status'                => 'active',
+            'first_name'            => 'Third',
+            'last_name'             => 'P62',
+            'phone'                 => '255712345962',
+            'email'                 => 'third-p62@example.com',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+
         $product = $this->groupProduct();
 
         $application = LoanApplication::create([
@@ -93,6 +104,7 @@ class Phase62GroupNotificationsAndAdminI18nFeatureTest extends TestCase
             [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000, 'role' => 'leader'],
                 ['customer_id' => $member->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $third->id, 'requested_amount' => 300_000, 'role' => 'member'],
             ],
             'P62 Group',
             'Business',
@@ -143,7 +155,7 @@ class Phase62GroupNotificationsAndAdminI18nFeatureTest extends TestCase
 
     public function test_internal_member_lookup_sends_consent_sms(): void
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = Customer::create([
             'customer_number'       => 'CU-P62-L2',

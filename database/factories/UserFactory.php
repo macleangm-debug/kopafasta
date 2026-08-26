@@ -33,6 +33,39 @@ class UserFactory extends Factory
         ];
     }
 
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            if (($user->pin_hash ?? null) === '__needs_pin_setup__') {
+                $user->forceFill(['pin_hash' => null, 'pin_set_at' => null])->save();
+
+                return;
+            }
+
+            if ($user->role === 'borrower') {
+                if (! app(\App\Services\PinService::class)->hasPin($user)) {
+                    app(\App\Services\PinService::class)->setPin($user, '1234');
+                }
+                if (! app(\App\Services\PinRecoveryChallengeService::class)->hasEnrolledAnswers($user)) {
+                    app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+                        'mother_first_name' => 'Asha',
+                        'primary_school' => 'Uhuru Primary',
+                        'nida_middle4' => '4582',
+                    ]);
+                }
+            }
+
+            if (in_array($user->role, ['vendor', 'partner'], true) && ! app(\App\Services\PinService::class)->hasPin($user)) {
+                app(\App\Services\PinService::class)->setPin($user, '1234');
+            }
+        });
+    }
+
+    public function needsPinSetup(): static
+    {
+        return $this->state(fn () => ['pin_hash' => '__needs_pin_setup__']);
+    }
+
     /**
      * Indicate that the model's email address should be unverified.
      */

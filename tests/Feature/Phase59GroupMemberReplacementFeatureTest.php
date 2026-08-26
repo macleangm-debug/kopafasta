@@ -40,7 +40,7 @@ class Phase59GroupMemberReplacementFeatureTest extends TestCase
     /** @return array{application: LoanApplication, leader: Customer, declinedMember: LoanGroupMember, replacement: Customer} */
     protected function declinedMemberFixture(): array
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = Customer::create([
             'customer_number'       => 'CU-P59-L',
@@ -59,6 +59,16 @@ class Phase59GroupMemberReplacementFeatureTest extends TestCase
             'first_name'            => 'Declined',
             'last_name'             => 'Member',
             'phone'                 => '255712345931',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+
+        $third = Customer::create([
+            'customer_number'       => 'CU-P59-T',
+            'type'                  => 'individual',
+            'status'                => 'active',
+            'first_name'            => 'Third',
+            'last_name'             => 'Member',
+            'phone'                 => '255712345933',
             'membership_expires_at' => now()->addYear(),
         ]);
 
@@ -91,6 +101,7 @@ class Phase59GroupMemberReplacementFeatureTest extends TestCase
             [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000, 'role' => 'leader'],
                 ['customer_id' => $declined->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $third->id, 'requested_amount' => 300_000, 'role' => 'member'],
             ],
             'P59 Group',
             'Business',
@@ -181,9 +192,9 @@ class Phase59GroupMemberReplacementFeatureTest extends TestCase
 
         $progress = app(GroupContractSignatureService::class)->progress($application->fresh());
 
-        $this->assertSame(2, $progress['target']);
+        $this->assertSame(3, $progress['target']);
         $this->assertSame(1, $progress['signed']);
-        $this->assertSame(1, $progress['pending']);
+        $this->assertSame(2, $progress['pending']);
         $this->assertFalse($progress['all_signed']);
     }
 }

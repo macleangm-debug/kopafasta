@@ -48,7 +48,7 @@ class StaffDeskConsoleFeatureTest extends TestCase
             ->pluck('label')
             ->all();
 
-        $this->assertSame(['Dashboard', 'Field & recovery', 'Assets', 'Partners'], $labels);
+        $this->assertSame(['Home', 'Partners'], $labels);
 
         $partnerItems = collect(app(ConsoleNavService::class)->visibleSections($user))
             ->firstWhere('label', 'Partners')['items'] ?? [];
@@ -57,7 +57,8 @@ class StaffDeskConsoleFeatureTest extends TestCase
         $this->assertContains('admin.partners.index', $partnerRoutes);
         $this->assertContains('admin.partner-applications.index', $partnerRoutes);
         $this->assertContains('admin.partners.efficiency', $partnerRoutes);
-        $this->assertNotContains('admin.partners.tasks', $partnerRoutes);
+        $this->assertContains('admin.partners.tasks', $partnerRoutes);
+        $this->assertContains('admin.marketplace-assets.index', $partnerRoutes);
         $this->assertNotContains('admin.partners.applications', $partnerRoutes);
         $this->assertNotContains('admin.partner-payout-requests.index', $partnerRoutes);
     }
@@ -212,9 +213,10 @@ class StaffDeskConsoleFeatureTest extends TestCase
             ->pluck('label')
             ->all();
 
-        $this->assertContains('Dashboard', $labels);
+        $this->assertContains('Home', $labels);
         $this->assertContains('Lending', $labels);
         $this->assertNotContains('Ops', $labels);
+        $this->assertNotContains('Growth', $labels);
         $this->assertNotContains('Partners', $labels);
 
         $this->actingAs($officer, 'admin')

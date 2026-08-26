@@ -91,12 +91,12 @@ class AdminAlertService
      */
     private function visibleTo(?User $user, array $item, bool $canManagePartners): bool
     {
+        $key = (string) ($item['key'] ?? '');
+        $category = (string) ($item['category'] ?? '');
+
         if (! $user) {
             return ! str_starts_with($key, 'partner_coverage_') || $canManagePartners;
         }
-
-        $key = (string) ($item['key'] ?? '');
-        $category = (string) ($item['category'] ?? '');
 
         if (str_starts_with($key, 'partner_coverage_') && ! $canManagePartners) {
             return false;

@@ -32,7 +32,7 @@
                                 <input type="hidden" name="action" value="reject">
 
                                 <div class="px-6 pt-6 pb-5 bg-gradient-to-br from-rose-700 via-rose-600 to-brand text-white">
-                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-rose-100">Credit committee</p>
+                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-rose-100">{{ ($record->current_stage ?? '') === 'awaiting_management' ? 'Credit management' : 'Credit committee' }}</p>
                                     <h4 class="text-xl font-bold mt-1">Reject application</h4>
                                     <p class="text-sm text-white/75 mt-1.5">
                                         Select every reason that applies. The borrower sees reasons and advice in their language.
@@ -561,6 +561,96 @@
                                     <button type="submit" class="inline-flex items-center justify-center min-w-[12rem] bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm">
                                         Approve application
                                     </button>
+                                </div>
+                            </form>
+                        </dialog>
+                    @elseif ($action['key'] === 'approve_with_conditions')
+                        <button type="button"
+                                data-open-dialog="approve-conditions-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-white hover:bg-brand-muted/40 px-5 py-2.5 rounded-lg ring-1 ring-brand/20 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="approve-conditions-{{ $record->id }}"
+                                class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-xl p-0 backdrop:bg-brand/40 open:flex open:flex-col"
+                                x-data="{ approvalReason: '{{ old('approval_reason_code', 'custom') }}' }">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="max-h-[90vh] overflow-y-auto">
+                                @csrf
+                                <input type="hidden" name="action" value="approve_with_conditions">
+                                <div class="px-6 pt-6 pb-5 bg-gradient-to-br from-brand via-brand to-brand-light text-white">
+                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Credit committee</p>
+                                    <h4 class="text-xl font-bold mt-1">Approve with conditions</h4>
+                                </div>
+                                <div class="p-6 space-y-5">
+                                    @include('admin.loan-applications.review._approval_reason_fields')
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1.5">Conditions <span class="text-red-500">*</span></label>
+                                        <textarea name="approval_reason_notes" required rows="3" class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3">{{ old('approval_reason_notes') }}</textarea>
+                                    </div>
+                                </div>
+                                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex justify-end gap-2">
+                                    <button type="button" data-close-dialog="approve-conditions-{{ $record->id }}" class="px-4 py-2.5 text-sm font-medium text-gray-600 rounded-xl">Cancel</button>
+                                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl">Approve with conditions</button>
+                                </div>
+                            </form>
+                        </dialog>
+                    @elseif ($action['key'] === 'refer_back')
+                        @php $fromManagement = ($record->current_stage ?? '') === 'awaiting_management'; @endphp
+                        <button type="button"
+                                data-open-dialog="refer-back-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-amber-950 bg-amber-100 hover:bg-amber-200 px-5 py-2.5 rounded-lg ring-1 ring-amber-200 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="refer-back-{{ $record->id }}" class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-xl p-0 backdrop:bg-brand/40 open:flex open:flex-col">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}">
+                                @csrf
+                                <input type="hidden" name="action" value="refer_back">
+                                <div class="px-6 pt-6 pb-5 bg-gradient-to-br from-amber-700 to-brand text-white">
+                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-amber-100">{{ $fromManagement ? 'Credit management' : 'Credit committee' }}</p>
+                                    <h4 class="text-xl font-bold mt-1">{{ $fromManagement ? 'Refer back' : 'Refer back to screening' }}</h4>
+                                </div>
+                                <div class="p-6 space-y-4">
+                                    @if ($fromManagement)
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Send to <span class="text-red-500">*</span></label>
+                                            <select name="refer_back_to" required class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3">
+                                                <option value="committee" @selected(old('refer_back_to', 'committee') === 'committee')>Credit Committee</option>
+                                                <option value="screening" @selected(old('refer_back_to') === 'screening')>Credit Screening</option>
+                                            </select>
+                                        </div>
+                                    @endif
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1.5">Reason <span class="text-red-500">*</span></label>
+                                        <textarea name="remarks" required rows="3" class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3">{{ old('remarks') }}</textarea>
+                                    </div>
+                                </div>
+                                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex justify-end gap-2">
+                                    <button type="button" data-close-dialog="refer-back-{{ $record->id }}" class="px-4 py-2.5 text-sm font-medium text-gray-600 rounded-xl">Cancel</button>
+                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl">Refer back</button>
+                                </div>
+                            </form>
+                        </dialog>
+                    @elseif ($action['key'] === 'management_approve')
+                        <button type="button"
+                                data-open-dialog="management-approve-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-brand/20 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="management-approve-{{ $record->id }}"
+                                class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-xl p-0 backdrop:bg-brand/40 open:flex open:flex-col"
+                                x-data="{ approvalReason: '{{ old('approval_reason_code', data_get($record->credit_appraisal_payload, 'committee_approval.reason_code', 'aligns_with_screening')) }}' }">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="max-h-[90vh] overflow-y-auto">
+                                @csrf
+                                <input type="hidden" name="action" value="management_approve">
+                                <div class="px-6 pt-6 pb-5 bg-gradient-to-br from-brand via-brand to-brand-light text-white">
+                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Credit management</p>
+                                    <h4 class="text-xl font-bold mt-1">Approve for offer</h4>
+                                </div>
+                                <div class="p-6 space-y-5">
+                                    @include('admin.loan-applications.review._approval_reason_fields')
+                                </div>
+                                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex justify-end gap-2">
+                                    <button type="button" data-close-dialog="management-approve-{{ $record->id }}" class="px-4 py-2.5 text-sm font-medium text-gray-600 rounded-xl">Cancel</button>
+                                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl">Approve for offer</button>
                                 </div>
                             </form>
                         </dialog>
