@@ -1393,9 +1393,10 @@ return [
         'no_documents'           => 'No documents yet.',
         'task_ref'               => 'Task #:id',
         'view'                   => 'View',
-        'settings_locale'        => 'Language & region',
-        'settings_locale_hint'   => 'Language (English / Kiswahili) and country (Tanzania) are switched from the top bar — same controls as the rest of the site. There is nothing extra to configure here.',
-        'settings_locale_control'=> 'Your choice applies for this browser session across the partner portal.',
+        'settings_locale'        => 'Language',
+        'settings_locale_hint'   => 'Choose English or Kiswahili. This is the same language as the rest of kopafasta.',
+        'settings_locale_control'=> 'Your choice is saved on this account.',
+        'settings_locale_save'   => 'Save language',
         'settings_account'       => 'Account',
         'contact_support'        => 'Contact support',
         'contact_person_name'    => 'Contact person name',
@@ -1663,6 +1664,7 @@ return [
         'status' => [
             'active' => 'Active',
             'inactive' => 'Inactive',
+            'verified' => 'Verified',
         ],
         'types' => [
             'member' => 'Member',

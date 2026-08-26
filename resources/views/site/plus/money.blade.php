@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('plus.home.money'))" active="dashboard">
+<x-site.borrower-layout :title="brand_title(__('plus.home.money'))" active="plus">
     @php
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $labels = app(\App\Services\Plus\PlusWorkspaceService::class);
@@ -87,40 +87,18 @@
         @endif
 
         @if ($history->isNotEmpty())
-            <div x-data="{ shown: 10 }">
-                <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-2">{{ __('plus.money.history') }}</p>
-                <div class="hidden lg:block overflow-x-auto rounded-2xl ring-1 ring-gray-100 bg-white">
-                    <table class="w-full text-sm">
-                        <tbody>
-                            @foreach ($history as $i => $entry)
-                                <tr class="border-t border-gray-50 first:border-0" x-show="{{ $i }} < shown">
-                                    <td class="px-4 py-3 text-gray-600">{{ $entry->entry_date?->locale(app()->getLocale())->isoFormat('D MMM') }}</td>
-                                    <td class="px-4 py-3">{{ $labels->moneyCategoryLabel($entry->category, $entry->other_label) }}</td>
-                                    <td class="px-4 py-3 text-right font-semibold tabular-nums {{ (float) $entry->inflow > 0 ? 'text-emerald-700' : '' }}">
-                                        {{ (float) $entry->inflow > 0 ? '+'.format_money($entry->inflow) : '−'.format_money($entry->outflow) }}
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <div class="lg:hidden space-y-2">
-                    @foreach ($history as $i => $entry)
-                        <div class="rounded-2xl bg-white ring-1 ring-gray-100 px-4 py-3 flex justify-between gap-3" x-show="{{ $i }} < shown">
-                            <div>
-                                <p class="text-sm font-semibold">{{ (float) $entry->inflow > 0 ? __('plus.money.in') : __('plus.money.out') }}</p>
-                                <p class="text-xs text-gray-500">{{ $labels->moneyCategoryLabel($entry->category, $entry->other_label) }} · {{ $entry->entry_date?->locale(app()->getLocale())->isoFormat('D MMM') }}</p>
-                            </div>
-                            <p class="text-sm font-bold tabular-nums {{ (float) $entry->inflow > 0 ? 'text-emerald-700' : '' }}">
-                                {{ (float) $entry->inflow > 0 ? '+'.format_money($entry->inflow) : '−'.format_money($entry->outflow) }}
-                            </p>
-                        </div>
-                    @endforeach
-                </div>
-                @if ($history->count() > 10)
-                    <button type="button" class="mt-3 text-sm font-semibold text-brand" x-show="shown < {{ $history->count() }}" @click="shown += 10">{{ __('plus.load_more') }}</button>
-                @endif
-            </div>
+            @include('site.plus._history-table', [
+                'title' => __('plus.money.history'),
+                'dateLabel' => __('plus.money.col_date'),
+                'whatLabel' => __('plus.money.col_what'),
+                'amountLabel' => __('plus.money.amount'),
+                'rows' => $history->map(fn ($entry) => [
+                    'date' => $entry->entry_date?->locale(app()->getLocale())->isoFormat('D MMM'),
+                    'label' => $labels->moneyCategoryLabel($entry->category, $entry->other_label),
+                    'in' => (float) $entry->inflow > 0,
+                    'amount' => (float) $entry->inflow > 0 ? $entry->inflow : $entry->outflow,
+                ])->all(),
+            ])
         @endif
 
         @if ($history->isEmpty() && ! count($top_spend))

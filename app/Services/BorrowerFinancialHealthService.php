@@ -21,6 +21,13 @@ class BorrowerFinancialHealthService
         $profile = $this->profileCompletion->calculate($customer);
         $percent = (int) ($profile['percent'] ?? 0);
         $trust = $this->engagement->trustScore($customer);
+        $grade = strtolower((string) ($customer->grade ?: 'bronze'));
+        $gradeFilled = match ($grade) {
+            'platinum' => 4,
+            'gold' => 3,
+            'silver' => 2,
+            default => 1,
+        };
         $referral = $this->engagement->referralProgress($customer);
         $qualification = $this->qualification->calculate($customer);
         $strength = $this->engagement->profileStrength($percent);
@@ -34,6 +41,12 @@ class BorrowerFinancialHealthService
                 'strength' => $strength,
             ],
             'trust_score' => $trust,
+            'grade' => [
+                'key' => $grade,
+                'label' => __('borrower.loan_profile.grades.'.$grade),
+                'filled' => $gradeFilled,
+                'max' => 4,
+            ],
             'repayment_score' => [
                 'streak' => $streak['count'],
                 'label'  => $streak['count'] > 0

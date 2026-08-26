@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('plus.home.reports'))" active="dashboard">
+<x-site.borrower-layout :title="brand_title(__('plus.home.reports'))" active="plus">
     @php
         $money = $report['money'];
         $biz = $report['business'];

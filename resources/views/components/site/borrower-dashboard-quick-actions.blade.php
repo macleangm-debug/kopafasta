@@ -26,7 +26,7 @@
         ],
         [
             'label' => __('borrower.dashboard.quick_actions.statements'),
-            'route' => route('site.borrower.loans'),
+            'route' => route('site.borrower.payments'),
             'icon'  => '📄',
         ],
         [

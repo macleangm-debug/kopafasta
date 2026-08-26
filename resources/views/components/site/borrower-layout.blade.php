@@ -23,6 +23,7 @@
         ]
         : [
             ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
+            ['key' => 'plus',          'label' => __('borrower.nav.plus'),          'route' => 'site.borrower.plus.home',     'icon' => 'plus'],
             ['key' => 'engagement',    'label' => __('borrower.nav.engagement'),    'route' => 'site.borrower.engagement',    'icon' => 'users'],
             ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
             ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
@@ -48,6 +49,7 @@
     $icon = function (string $name) {
         return match ($name) {
             'home'    => '<path d="M3 12 12 4l9 8M5 10v10h14V10"/>',
+            'plus'    => '<path d="M12 3.2 13.4 8h4.8L15.2 11l1.4 4.8L12 13.2 7.4 15.8 8.8 11 5.8 8h4.8L12 3.2z"/>',
             'doc'     => '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"/>',
             'wallet'  => '<path d="M3 7h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zm0 0V5a2 2 0 0 1 2-2h11M16 13h2"/>',
             'calendar'=> '<path d="M5 7h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM8 3v4M16 3v4M4 11h16"/>',

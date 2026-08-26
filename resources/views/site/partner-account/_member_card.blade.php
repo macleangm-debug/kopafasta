@@ -128,7 +128,7 @@
                 <span class="text-xl font-bold tracking-tight truncate">{{ brand_name() }}</span>
             </span>
             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] {{ $badgeClass }} shrink-0">
-                {{ $statusLabel }}
+                {{ $verified ? $role : $statusLabel }}
             </span>
         </div>
 
@@ -198,8 +198,8 @@
             <div class="relative flex items-center justify-between gap-3">
                 <p class="text-[11px] uppercase tracking-[0.16em] text-brand font-semibold">{{ __('borrower.membership.status_title') }}</p>
                 @if ($membershipActive)
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
-                        {{ __('borrower.membership.active_chip') }}
+                    <span class="inline-flex items-center rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
+                        {{ $verified ? __('site.card_verify.status.verified') : $role }}
                     </span>
                 @endif
             </div>
@@ -222,12 +222,14 @@
                 </div>
                 <dl class="relative mt-auto pt-5 grid grid-cols-2 gap-3 text-xs">
                     <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
-                        <dt class="text-gray-500">{{ __('borrower.membership.issued_label') }}</dt>
-                        <dd class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $issued }}</dd>
+                        <dt class="text-gray-500">{{ __('site.card_verify.types.partner') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $role }}</dd>
                     </div>
                     <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
-                        <dt class="text-gray-500">{{ __('borrower.membership.expires_label') }}</dt>
-                        <dd class="font-semibold text-gray-900 mt-0.5 tabular-nums">{{ $expires }}</dd>
+                        <dt class="text-gray-500">{{ __('borrower.membership.access_label') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">
+                            {{ $verified ? __('site.card_verify.status.verified') : $statusLabel }}
+                        </dd>
                     </div>
                 </dl>
             @else
@@ -252,7 +254,7 @@
                         <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" class="h-11 w-auto object-contain shrink-0">
                         <span class="text-2xl font-bold tracking-tight truncate">{{ brand_name() }}</span>
                     </span>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-[0.14em] {{ $badgeClass }}">{{ $statusLabel }}</span>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-[0.14em] {{ $badgeClass }}">{{ $verified ? $role : $statusLabel }}</span>
                 </div>
                 <div class="relative flex items-start gap-4">
                     @if ($isCompany)
@@ -288,33 +290,9 @@
                         <dd class="mt-1.5 font-semibold tabular-nums">{{ $expires }}</dd>
                     </div>
                 </dl>
-                @if ($verifyUrl)
-                    <div class="relative mt-5 flex flex-wrap gap-2">
-                        <a href="{{ $verifyUrl }}" target="_blank" rel="noopener"
-                           class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-xs font-bold px-3.5 py-2">
-                            {{ __('site.card_verify.preview') }}
-                        </a>
-                        <button type="button"
-                                @click="copyVerifyLink()"
-                                class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
-                            {{ __('borrower.membership.copy_verify_link') }}
-                        </button>
-                        @if ($whatsappUrl)
-                            <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener"
-                               class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
-                                WhatsApp
-                            </a>
-                        @endif
-                        <a href="{{ route('site.partner.verify') }}"
-                           class="inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/20">
-                            {{ __('site.card_verify.verify_another') }}
-                        </a>
-                    </div>
-                    <p x-show="linkCopied" x-cloak class="mt-2 text-xs font-medium text-brand-gold">{{ __('borrower.membership.link_copied') }}</p>
-                @endif
             </div>
-            <button type="button" @click="expanded = false" class="mt-4 w-full rounded-xl bg-white/95 text-brand font-semibold py-3 text-sm shadow-lg">
-                {{ __('borrower.membership.close_card') }}
+            <button type="button" @click="expanded = false" class="absolute top-3 right-3 z-10 size-10 rounded-full bg-black/40 text-white grid place-items-center" aria-label="{{ __('borrower.membership.close_card') }}">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
         </div>
     </div>

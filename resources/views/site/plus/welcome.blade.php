@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('plus.welcome.title'))" active="dashboard">
+<x-site.borrower-layout :title="brand_title(__('plus.welcome.title'))" active="plus">
     <section class="kf-premium-panel rounded-2xl p-6 sm:p-8 space-y-4 text-center">
         <p class="relative text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">{{ __('plus.welcome.kicker') }} ✦</p>
         <h1 class="relative text-2xl sm:text-3xl font-extrabold tracking-tight">{{ __('plus.welcome.title') }}</h1>

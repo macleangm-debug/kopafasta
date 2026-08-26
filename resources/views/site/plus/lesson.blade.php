@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title($lesson->title_en)" active="dashboard">
+<x-site.borrower-layout :title="brand_title($lesson->title_en)" active="plus">
     @php
         $title = app()->getLocale() === 'sw' ? ($lesson->title_sw ?: $lesson->title_en) : $lesson->title_en;
         $action = app()->getLocale() === 'sw' ? ($lesson->action_sw ?: $lesson->action_en) : $lesson->action_en;

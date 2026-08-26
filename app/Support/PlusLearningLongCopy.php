@@ -5,71 +5,46 @@ namespace App\Support;
 class PlusLearningLongCopy
 {
     /**
-     * Long-form Plus Club copy: many short paragraphs, not a 3-minute snippet.
+     * Full paragraphs for a published subject. Title and lead live on the page
+     * already, so the body starts at why/how and does not expand every draft topic.
      *
-     * @param  list<string>  $topicTitles
      * @param  array<string, string>  $bundle
      * @return list<string>
      */
-    public static function paragraphs(string $slug, string $locale, string $title, array $topicTitles, string $action, array $bundle): array
+    public static function paragraphs(string $slug, string $locale, array $bundle): array
     {
         $paras = [];
-        $paras[] = rtrim($title, '.').'.';
-
-        foreach (['lead', 'why', 'how', 'today'] as $key) {
-            foreach (self::splitSentences((string) ($bundle[$key] ?? '')) as $sentence) {
-                $paras[] = $sentence;
+        foreach (['why', 'how'] as $key) {
+            $text = trim((string) ($bundle[$key] ?? ''));
+            if ($text !== '') {
+                $paras[] = $text;
             }
         }
 
         foreach (self::core($slug, $locale) as $block) {
-            foreach (self::splitSentences($block) as $sentence) {
-                $paras[] = $sentence;
+            $text = trim($block);
+            if ($text !== '') {
+                $paras[] = $text;
             }
         }
 
-        foreach ($topicTitles as $index => $topicTitle) {
-            if ($index === 0 || trim($topicTitle) === '') {
-                continue;
-            }
-            foreach (self::splitSentences(self::angle($slug, $locale, $topicTitle, $index)) as $sentence) {
-                $paras[] = $sentence;
-            }
+        $today = trim((string) ($bundle['today'] ?? ''));
+        if ($today !== '') {
+            $paras[] = $today;
         }
-
-        $paras[] = $locale === 'sw'
-            ? 'Jaribu sasa: '.$action.'.'
-            : 'Try now: '.$action.'.';
 
         $clean = [];
+        $last = null;
         foreach ($paras as $para) {
-            $text = trim($para);
-            if ($text !== '') {
-                $clean[] = $text;
+            $norm = mb_strtolower($para);
+            if ($norm === $last) {
+                continue;
             }
+            $clean[] = $para;
+            $last = $norm;
         }
 
         return $clean;
-    }
-
-    /** @return list<string> */
-    private static function splitSentences(string $text): array
-    {
-        $text = trim($text);
-        if ($text === '') {
-            return [];
-        }
-
-        $parts = preg_split('/(?<=[.!?])\s+/u', $text) ?: [$text];
-        $out = [];
-        foreach ($parts as $part) {
-            $sentence = trim($part);
-            if ($sentence !== '') {
-                $out[] = rtrim($sentence, '.').'.';
-            }
-        }
-
-        return $out !== [] ? $out : [$text];
     }
 
     /** @return list<string> */
@@ -331,32 +306,5 @@ class PlusLearningLongCopy
         $localeKey = $locale === 'sw' ? 'sw' : 'en';
 
         return $all[$slug][$localeKey] ?? $all['money'][$localeKey];
-    }
-
-    private static function angle(string $slug, string $locale, string $topicTitle, int $index): string
-    {
-        $title = rtrim($topicTitle, '.');
-        $en = [
-            $title.' is not a separate subject. It is the same three numbers — in, out, leftover — on a real day, written before the week spends the leftover.',
-            'When '.$title.' shows up in your week, write the amount the same day. A late memory is how a clear Monday becomes an empty Thursday.',
-            'People postpone '.$title.' because it sounds like extra work. It is one honest line in Plus, then a look at what is left for must-haves, coming-soon, and later.',
-            $title.' stays useful when you treat it as a habit, not a mood. Open the card on an ordinary day. Add or record something small. That is progress.',
-            'If '.$title.' still feels large, shrink the action: one sale, one out, one add to a goal. The picture grows from small lines, not from a perfect book.',
-            $title.' belongs next to the rest of your month. Keep shop money and house money apart so one hard day does not empty both. Then look at leftover before you promise more.',
-        ];
-        $sw = [
-            $title.' si somo tofauti. Ni namba zilezile tatu — kuingia, kutoka, salio — siku halisi, zikiandikwa kabla wiki haijatumia salio.',
-            $title.' inapotokea wiki yako, andika kiasi siku ileile. Kumbukumbu ya kuchelewa ndiyo Jumatatu wazi inavyokuwa Alhamisi tupu.',
-            'Watu wanachelewesha '.$title.' kwa sababu inasikika kazi ya ziada. Ni mstari mmoja wa kweli katika Plus, kisha kuangalia kilichobaki kwa ya lazima, yanayokuja, na ya baadaye.',
-            $title.' inakuwa na manufaa unapoichukua kama tabia, si hisia. Fungua kadi siku ya kawaida. Ongeza au andika kitu kidogo. Hiyo ndiyo maendeleo.',
-            $title.' bado ikionekana kubwa, punguza hatua: mauzo moja, kutoka moja, ongezo moja kwenye lengo. Picha inakua kwa mistari midogo, si daftari kamili.',
-            $title.' iko pamoja na mwezi wako. Tenganisha pesa ya duka na ya nyumbani ili siku ngumu isitumie zote. Kisha angalia salio kabla ya kuahidi zaidi.',
-        ];
-
-        $pool = $locale === 'sw' ? $sw : $en;
-        $first = $pool[($index - 1) % count($pool)];
-        $second = $pool[($index + 2) % count($pool)];
-
-        return $first.' '.$second;
     }
 }

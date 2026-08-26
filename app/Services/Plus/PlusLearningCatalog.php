@@ -24,7 +24,7 @@ class PlusLearningCatalog
                 $slug = $category['slug'].'-'.($offset + 1);
                 $publish = $offset === 0;
                 $body = $publish
-                    ? $this->article($topic[0], $topic[1], $category['action'], $category['slug'], $category['topics'])
+                    ? $this->article($category['slug'])
                     : [null, null];
 
                 PlusSubject::query()->firstOrCreate(
@@ -110,13 +110,13 @@ class PlusLearningCatalog
             if (! $topic) {
                 continue;
             }
-            $body = $this->article($topic[0], $topic[1], $category['action'], $category['slug'], $category['topics']);
+            $body = $this->article($category['slug']);
             PlusSubject::query()->where('slug', $category['slug'].'-1')->update([
                 'intro_en' => $this->intro('en', $category['slug']),
                 'intro_sw' => $this->intro('sw', $category['slug']),
                 'body_en' => $body[0],
                 'body_sw' => $body[1],
-                'duration_minutes' => 12,
+                'duration_minutes' => 6,
             ]);
         }
     }
@@ -135,7 +135,9 @@ class PlusLearningCatalog
             return str_contains($introEn, 'Read for a few minutes')
                 || str_contains($introSw, 'Soma dakika chache')
                 || str_contains($bodyEn, 'This happens to many people')
-                || strlen($bodyEn) < 4000;
+                || str_contains($bodyEn, 'is not a separate subject')
+                || str_contains($bodyEn, 'si somo tofauti')
+                || substr_count(trim($bodyEn), "\n\n") > 14;
         });
 
         if ($stale) {
@@ -149,14 +151,11 @@ class PlusLearningCatalog
     }
 
     /** @return array{0: ?string, 1: ?string} */
-    private function article(string $en, string $sw, array $action, string $slug, array $topics = []): array
+    private function article(string $slug): array
     {
-        $enTitles = array_map(fn ($t) => (string) $t[0], $topics);
-        $swTitles = array_map(fn ($t) => (string) $t[1], $topics);
-
         return [
-            implode("\n\n", \App\Support\PlusLearningLongCopy::paragraphs($slug, 'en', $en, $enTitles, $action['en'], $this->copyBundle($slug, 'en'))),
-            implode("\n\n", \App\Support\PlusLearningLongCopy::paragraphs($slug, 'sw', $sw, $swTitles, $action['sw'], $this->copyBundle($slug, 'sw'))),
+            implode("\n\n", \App\Support\PlusLearningLongCopy::paragraphs($slug, 'en', $this->copyBundle($slug, 'en'))),
+            implode("\n\n", \App\Support\PlusLearningLongCopy::paragraphs($slug, 'sw', $this->copyBundle($slug, 'sw'))),
         ];
     }
 
@@ -1050,7 +1049,7 @@ class PlusLearningCatalog
     {
         $out = [];
         foreach ($pairs as $i => $pair) {
-            $out[] = [$pair[0], $pair[1], $i === 0 ? 12 : 8];
+            $out[] = [$pair[0], $pair[1], $i === 0 ? 6 : 5];
         }
 
         return $out;

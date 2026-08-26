@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('plus.learn.title'))" active="dashboard" content-width="wide">
+<x-site.borrower-layout :title="brand_title(__('plus.learn.title'))" active="plus" content-width="wide">
     @php
         $featuredLesson = $lessons->first();
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
@@ -6,6 +6,15 @@
         $browse = request()->boolean('browse');
         $hasMore = $has_more ?? false;
         $offset = (int) ($offset ?? 0);
+        $forYouTab = collect($for_you ?? [])
+            ->concat($featured ?? [])
+            ->unique('id')
+            ->values()
+            ->take(5);
+        $continueTab = collect($continue ?? [])->take(5);
+        $savedTab = collect($saved ?? [])->take(5);
+        $allowedTabs = ['for_you', 'continue', 'saved'];
+        $defaultTab = in_array(request('tab'), $allowedTabs, true) ? request('tab') : 'for_you';
     @endphp
     <div class="space-y-6">
         <x-site.plus-nav />
@@ -57,57 +66,45 @@
                 </div>
             </section>
         @else
-            @if ($continue->isNotEmpty())
-                <div>
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.learn.continue') }}</p>
-                    <div class="flex gap-4 overflow-x-auto snap-x pb-2">
-                        @foreach ($continue->take(5) as $subject)
-                            <div class="snap-start shrink-0 w-[min(280px,calc(100vw-3rem))]">
-                                @include('site.plus._subject-card', ['subject' => $subject, 'progress' => $progress[$subject->id] ?? null])
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            @if ($for_you->isNotEmpty())
-            <div>
-                <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.learn.for_you') }}</p>
-                <div class="flex gap-4 overflow-x-auto snap-x pb-2">
-                    @foreach ($for_you->take(5) as $subject)
-                        <div class="snap-start shrink-0 w-[min(280px,calc(100vw-3rem))]">
-                            @include('site.plus._subject-card', ['subject' => $subject])
-                        </div>
+            <div x-data="{ tab: @js($defaultTab) }" class="space-y-4">
+                <nav class="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
+                    @foreach ([
+                        'for_you' => __('plus.learn.for_you'),
+                        'continue' => __('plus.learn.tab_continue'),
+                        'saved' => __('plus.learn.saved'),
+                    ] as $key => $label)
+                        <button type="button" @click="tab = @js($key)" role="tab"
+                                class="min-w-0 px-1.5 sm:px-2 py-2.5 rounded-xl text-[11px] sm:text-sm font-bold tracking-tight transition text-center"
+                                :class="tab === @js($key) ? 'bg-brand text-white shadow-sm' : 'text-brand/70 hover:bg-white hover:text-brand'">
+                            {{ $label }}
+                        </button>
                     @endforeach
+                </nav>
+
+                <div x-show="tab === 'for_you'" x-cloak class="space-y-3">
+                    @forelse ($forYouTab as $subject)
+                        @include('site.plus._subject-card', ['subject' => $subject, 'progress' => $progress[$subject->id] ?? null])
+                    @empty
+                        <p class="text-sm text-gray-600">{{ __('plus.learn.empty') }}</p>
+                    @endforelse
+                </div>
+
+                <div x-show="tab === 'continue'" x-cloak class="space-y-3">
+                    @forelse ($continueTab as $subject)
+                        @include('site.plus._subject-card', ['subject' => $subject, 'progress' => $progress[$subject->id] ?? null])
+                    @empty
+                        <p class="text-sm text-gray-600">{{ __('plus.learn.empty_continue') }}</p>
+                    @endforelse
+                </div>
+
+                <div x-show="tab === 'saved'" x-cloak class="space-y-3">
+                    @forelse ($savedTab as $subject)
+                        @include('site.plus._subject-card', ['subject' => $subject, 'progress' => $progress[$subject->id] ?? null])
+                    @empty
+                        <p class="text-sm text-gray-600">{{ __('plus.learn.empty_saved') }}</p>
+                    @endforelse
                 </div>
             </div>
-            @endif
-
-            @if ($saved->isNotEmpty())
-                <div>
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.learn.saved') }}</p>
-                    <div class="flex gap-4 overflow-x-auto snap-x pb-2">
-                        @foreach ($saved->take(5) as $subject)
-                            <div class="snap-start shrink-0 w-[min(280px,calc(100vw-3rem))]">
-                                @include('site.plus._subject-card', ['subject' => $subject])
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            @if (($featured ?? collect())->isNotEmpty())
-                <div>
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.learn.featured') }}</p>
-                    <div class="flex gap-4 overflow-x-auto snap-x pb-2">
-                        @foreach ($featured->take(5) as $subject)
-                            <div class="snap-start shrink-0 w-[min(280px,calc(100vw-3rem))]">
-                                @include('site.plus._subject-card', ['subject' => $subject])
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
 
             <a href="{{ route('site.borrower.plus.learn', ['browse' => 1]) }}" class="inline-flex text-sm font-semibold text-brand">{{ __('plus.learn.browse_all') }} →</a>
         @endif

@@ -1373,9 +1373,10 @@ return [
         'no_documents'           => 'Hakuna hati bado.',
         'task_ref'               => 'Kazi #:id',
         'view'                   => 'Tazama',
-        'settings_locale'        => 'Lugha na eneo',
-        'settings_locale_hint'   => 'Lugha (English / Kiswahili) na nchi (Tanzania) hubadilishwa kutoka sehemu ya juu — vidhibiti sawa na tovuti nzima. Hakuna cha ziada hapa.',
-        'settings_locale_control'=> 'Chaguo lako linatumika kwa kipindi hiki cha kivinjari kwenye portal ya mshirika.',
+        'settings_locale'        => 'Lugha',
+        'settings_locale_hint'   => 'Chagua English au Kiswahili. Ni lugha ileile ya kopafasta yote.',
+        'settings_locale_control'=> 'Chaguo lako linahifadhiwa kwenye akaunti hii.',
+        'settings_locale_save'   => 'Hifadhi lugha',
         'settings_account'       => 'Akaunti',
         'contact_support'        => 'Wasiliana na msaada',
         'contact_person_name'    => 'Jina la mtu wa mawasiliano',
@@ -1639,6 +1640,7 @@ return [
         'status' => [
             'active' => 'Hai',
             'inactive' => 'Si hai',
+            'verified' => 'Imethibitishwa',
         ],
         'types' => [
             'member' => 'Mwanachama',

@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('plus.home.offers'))" active="dashboard">
+<x-site.borrower-layout :title="brand_title(__('plus.home.offers'))" active="plus">
     @php $best = $offers->first(); $rest = $offers->slice(1); @endphp
     <div class="space-y-5" x-data="{ claimOpen: false }">
         <x-site.plus-nav />
@@ -18,7 +18,7 @@
                 <div class="mt-4 flex flex-wrap gap-2">
                     <form method="post" action="{{ route('site.borrower.plus.offers.open', $best) }}">
                         @csrf
-                        <button class="rounded-xl bg-white ring-1 ring-gray-200 px-4 py-2.5 text-sm font-semibold">{{ __('plus.offers.view') }}</button>
+                        <button class="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">{{ __('plus.offers.view') }}</button>
                     </form>
                     @unless ($claimed[$best->id] ?? false)
                         <button type="button" @click="claimOpen = true" class="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">{{ __('plus.offers.claim') }}</button>
@@ -46,7 +46,7 @@
                     @unless ($claimed[$offer->id] ?? false)
                         <form method="post" action="{{ route('site.borrower.plus.offers.claim', $offer) }}" class="mt-3">
                             @csrf
-                            <button class="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold">{{ __('plus.offers.claim') }}</button>
+                            <button class="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">{{ __('plus.offers.claim') }}</button>
                         </form>
                     @endunless
                 </div>

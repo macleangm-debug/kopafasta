@@ -53,6 +53,8 @@
         :share="($application?->id ?? $draft?->id) ? 'kf-app-'.($application?->id ?? $draft?->id) : null"
     />
 
+    <x-site.borrower-standing :customer="$customer" />
+
     @if (! empty($summary['loan_number']))
         <p class="text-xs text-emerald-700 -mt-4 mb-4 font-mono">{{ __('borrower.loan_profile.loan_number') }}: {{ $summary['loan_number'] }}</p>
     @endif

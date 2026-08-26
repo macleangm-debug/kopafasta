@@ -113,6 +113,7 @@ return [
   'nav' => 
 [
     'dashboard' => 'Dashibodi',
+    'plus' => 'Kopafasta Plus',
     'membership' => 'Uanachama',
     'referrals' => 'Rufaa',
     'rewards' => 'Zawadi',
@@ -1406,6 +1407,7 @@ return [
     'submit_request' => 'Wasilisha ombi la mali',
     'all' => 'Zote',
     'search' => 'Tafuta chapa / modeli',
+    'search_placeholder' => 'Tafuta jina, chapa au muuzaji…',
     'min_price' => 'Bei ya chini (TZS]',
     'max_price' => 'Bei ya juu (TZS]',
     'max_tenure' => 'Muda wa juu',
@@ -1419,6 +1421,19 @@ return [
     'categories' => 'Jamii',
     'apply_filters' => 'Tumia vichujio',
     'sort_by' => 'Panga kwa',
+    'sort_title' => 'Jina',
+    'sort_price_asc' => 'Bei (chini)',
+    'sort_price_desc' => 'Bei (juu)',
+    'sort_deposit_asc' => 'Malipo ya awali (chini)',
+    'category' => [
+        'vehicle' => 'Gari',
+        'motorcycle' => 'Pikipiki',
+        'truck' => 'Lori',
+        'machinery' => 'Mashine',
+        'house' => 'Nyumba',
+        'land' => 'Ardhi',
+        'other' => 'Nyingine',
+    ],
     'clear' => 'Futa',
     'empty_title' => 'Hakuna mali zinazolingana na utafutaji wako.',
     'empty_desc' => 'Jaribu vichujio tofauti au wasilisha ombi la mali hapo juu.',
@@ -1735,63 +1750,70 @@ return [
     'status_action_required' => 'Hatua inahitajika',
     'status_pending' => 'Inasubiri',
 ],
-  'support_page' => 
+  'support_page' =>
 [
-    'title' => 'Kituo cha msaada',
-    'subtitle' => 'Maswali yanayoulizwa mara kwa mara, msaidizi wa AI, na msaada wa binadamu.',
+    'title' => 'Unahitaji msaada?',
+    'subtitle' => 'Piga simu, tuma WhatsApp, au uliza msaidizi. Anza na njia rahisi.',
+    'hero_kicker' => 'Msaada',
+    'hero_title' => 'Njia tatu za kupata jibu',
+    'hero_body' => 'Maswali mengi yanajibiwa haraka. Chagua jinsi unavyotaka kuongea nasi.',
+    'chat_cta' => 'Uliza msaidizi',
+    'chat_cta_hint' => 'Andika swali kwa maneno rahisi',
     'identity_appeal_title' => 'Rufaa ya uthibitisho wa utambulisho',
-    'identity_appeal_contact_hint' => 'Unapotuwasiliana, jumuisha nambari yako ya simu iliyosajiliwa na maelezo mafupi (kwa mfano: mabadiliko ya jina la kisheria, kosa la usajili, au kosa la bureau]. Timu yetu itakagua na kujibu wakati wa saa za kazi.',
+    'identity_appeal_contact_hint' => 'Unapotuwasiliana, andika nambari yako ya simu iliyosajiliwa na maelezo mafupi (kwa mfano: jina limebadilika kisheria, kosa wakati wa kusajili). Timu itakagua na kujibu saa za kazi.',
     'call' => 'Piga :phone',
     'email' => 'Barua pepe :email',
-    'identity_help_title' => 'Msaada wa uthibitisho wa utambulisho',
-    'identity_help_body' => 'Ikiwa jina lako la NIDA halilingani na usajili, au uthibitisho umesitishwa, wasiliana nasi na nambari yako ya simu na maelezo ya NIDA. Tunakagua rufaa kulingana na kila kesi — kwa mfano mabadiliko ya jina la kisheria au makosa ya bureau.',
+    'identity_help_title' => 'Msaada wa uthibitisho wa kitambulisho',
+    'identity_help_body' => 'Ikiwa jina lako la NIDA halilingani na usajili, au ukaguzi umesitishwa, tuma barua pepe na nambari yako ya simu na taarifa za NIDA. Tunakagua kila kesi — kwa mfano mabadiliko ya jina yaliyo halali.',
     'assistant_title' => 'Msaidizi wa KopaFasta',
     'assistant_subtitle' => 'Uliza kuhusu uanachama, mikopo, malipo, au wadhamini',
     'chat_placeholder' => 'Andika swali lako…',
     'chat_send' => 'Tuma',
-    'chat' => 
+    'chat' =>
 [
       'greeting' => 'Habari! Naweza kukusaidia nini leo?',
-      'membership' => 'Uanachama una uhalali wa mwaka mmoja. Lipa ada ya uanachama mara moja, kisha fanya upyaishaji kabla ya kuisha ili uendelee kuomba mikopo.',
+      'membership' => 'Uanachama una uhalali wa mwaka mmoja. Lipa ada ya uanachama mara moja, kisha fanya upya kabla ya kuisha ili uendelee kuomba mikopo.',
       'loan' => 'Nenda Dashibodi → chagua bidhaa → Omba. Unabaki kwenye akaunti yako ya mkopaji muda wote.',
       'guarantor' => 'Wadhamini hukusanywa wakati wa ombi la mkopo bidhaa yako inapohitaji — si kipengele tofauti kwenye menyu.',
       'repayment' => 'Fungua Malipo kurekodi malipo, au angalia ratiba yako chini ya Mikopo.',
       'penalty' => 'Malipo ya kuchelewa yanaweza kuleta ada za adhabu kulingana na mkataba wako wa mkopo.',
       'default' => 'Naweza kusaidia kuhusu uanachama, mikopo, wadhamini, malipo, na adhabu. Jaribu kuuliza kuhusu moja ya mada hizo.',
 ],
-    'faq_title' => 'Maswali yanayoulizwa mara kwa mara',
-    'faq' => 
+    'faq_title' => 'Maswali ya kawaida',
+    'faq_intro' => 'Majibu mafupi. Fungua swali linalofanana na unachohitaji.',
+    'faq' =>
 [
-      0 => 
+      0 =>
 [
         'q' => 'Ada ya uanachama ni nini?',
-        'a' => 'Ada ya uanachama ya mara moja unapojiunga, kisha upyaishaji wa kila mwaka baada ya kipindi chako cha uanachama kuisha (kawaida mwaka 1].',
+        'a' => 'Ada unayolipa unapojiunga. Baada ya takriban mwaka mmoja, lipa tena ili uendelee kuomba mikopo mipya.',
 ],
-      1 => 
+      1 =>
 [
         'q' => 'Ninaombaje mkopo?',
-        'a' => 'Kutoka dashibodi yako, chagua bidhaa ya mkopo, kamilisha ombi ndani ya portal, na pakia nyaraka zinazohitajika.',
+        'a' => 'Kwenye dashibodi, chagua bidhaa ya mkopo, kisha gusa Omba. Fuata hatua moja baada ya nyingine na pakia tunachokuomba.',
 ],
-      2 => 
+      2 =>
 [
-        'q' => 'Je, ninahitaji wadhamini?',
-        'a' => 'Bidhaa zingine zinahitaji wadhamini. Utaombwa wakati wa ombi la mkopo ikiwa bidhaa uliyochagua inawahitaji.',
+        'q' => 'Je, ninahitaji mdhamini?',
+        'a' => 'Bidhaa zingine tu ndizo zinahitaji. Ikiwa yako inahitaji, tutakuambia wakati wa kuomba — hutaenda kuitafuta kwenye menyu.',
 ],
-      3 => 
+      3 =>
 [
-        'q' => 'Malipo yanafanywaje?',
-        'a' => 'Angalia ratiba yako chini ya Mikopo na fanya malipo kutoka sehemu ya Malipo. Malipo ya kuchelewa yanaweza kuleta adhabu kulingana na masharti ya mkopo wako.',
+        'q' => 'Ninalipaje mkopo?',
+        'a' => 'Fungua Malipo. Utaona kiasi na tarehe. Lipa kwa pesa ya simu au benki.',
 ],
-      4 => 
+      4 =>
 [
-        'q' => 'Nini kitatokea uanachama wangu ukiisha?',
-        'a' => 'Fanya upyaishaji kutoka Uanachama kabla ya kuomba mikopo mipya. Bado unaweza kuona historia ukiwa umeisha muda.',
+        'q' => 'Uanachama ukiisha?',
+        'a' => 'Fanya upya kabla ya kuomba mkopo mpya. Bado unaweza kuona mikopo na historia yako ya zamani.',
 ],
 ],
     'call_title' => 'Tupigie simu',
-    'call_hours' => ':phone · 8am–8pm',
+    'call_hours' => ':phone · 8asubuhi–8jioni',
     'whatsapp_title' => 'WhatsApp',
-    'whatsapp_hint' => 'Majibu ya haraka wakati wa saa za kazi',
+    'whatsapp_hint' => 'Tuma ujumbe wakati wa saa za kazi',
+    'no_phone' => 'Nambari ya simu itaonekana hapa baada ya mawasiliano ya msaada kuwekwa.',
 ],
   'profile' => 
 [
@@ -2964,9 +2986,14 @@ return [
     'quick_actions' => [
         'apply' => 'Omba mkopo',
         'marketplace' => 'Soko la mali',
-        'payments' => 'Fanya malipo',
+        'payments' => 'Lipa',
         'profile' => 'Wasifu wangu',
+        'collaterals' => 'Dhamana',
+        'referral' => 'Rufaa',
+        'statements' => 'Taarifa',
+        'support' => 'Msaada',
     ],
+    'quick_actions_title' => 'Hatua za haraka',
     'snapshot' => [
         'title' => 'Muhtasari wa fedha',
         'active_loan' => 'Mkopo unaofanya kazi',
@@ -2979,7 +3006,7 @@ return [
         'next_payment_none' => 'Hakuna malipo',
         'membership' => 'Uanachama',
         'membership_days' => 'Siku :days zimebaki',
-        'trust' => 'Imani',
+        'trust' => 'Uaminifu',
         'plus' => 'Kopafasta Plus',
         'plus_on' => 'Hai',
         'plus_off' => 'Bado',
@@ -3054,6 +3081,13 @@ return [
     'days_unit' => 'siku zimesalia',
     'year_progress' => 'Maendeleo ya mwaka',
     'active_chip' => 'Hai',
+    'grade_label' => 'Daraja',
+    'plus_label' => 'Plus',
+    'plus_on' => 'Mwanachama wa Plus',
+    'plus_off' => 'Si Plus',
+    'access_label' => 'Upatikanaji',
+    'access_ready' => 'Tayari kwa mikopo',
+    'access_renew' => 'Fanya upyaishaji ili kuomba',
     'standing_title' => 'Uko katika hali nzuri',
     'standing_body' => 'Uanachama wako ni hai na uko tayari kwa mikopo.',
     'standing_renew_hint' => 'Fanya upyaishaji mapema ili usikate huduma.',
@@ -3344,6 +3378,16 @@ return [
 ],
     'title' => 'Wasifu wa mkopo',
     'label' => 'Ombi la mkopo',
+    'standing_title' => 'Hali yako',
+    'standing_hint' => 'Daraja linaonyesha mikopo unayoweza kuomba. Nyota za uaminifu zinaonyesha jinsi unavyolipa kwa wakati na kukamilisha wasifu.',
+    'standing_grade' => 'Daraja',
+    'standing_trust' => 'Alama ya Uaminifu',
+    'grades' => [
+        'bronze' => 'Bronze',
+        'silver' => 'Silver',
+        'gold' => 'Gold',
+        'platinum' => 'Platinum',
+    ],
     'back' => '← Rudi kwenye maombi',
     'summary_title' => 'Muhtasari wa ombi',
     'draft_summary_eyebrow' => 'Ombi la rasimu',

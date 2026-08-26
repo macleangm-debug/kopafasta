@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('plus.home.rewards'))" active="dashboard">
+<x-site.borrower-layout :title="brand_title(__('plus.home.rewards'))" active="plus">
     <div class="space-y-5" x-data="{ redeemOpen: false, code: '' }">
         <x-site.plus-nav />
         <x-site.plus-hero kicker="Kopafasta Plus" :title="__('plus.rewards.title')" :body="__('plus.rewards.hero_body')">

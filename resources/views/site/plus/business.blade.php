@@ -3,7 +3,7 @@
     $saleOptions = collect($sale_types)->mapWithKeys(fn ($row, $key) => [$key => $row[$locale]])->all();
     $spendOptions = collect($spend_types)->mapWithKeys(fn ($row, $key) => [$key => $row[$locale]])->all();
 @endphp
-<x-site.borrower-layout :title="brand_title(__('plus.home.business'))" active="dashboard">
+<x-site.borrower-layout :title="brand_title(__('plus.home.business'))" active="plus">
     <div class="space-y-5" x-data="{
         saleOpen: false,
         spendOpen: false,
@@ -55,53 +55,22 @@
             </div>
         </x-site.plus-hero>
 
-        <div x-data="{ shown: 10 }">
-            <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-2">{{ __('plus.business.history') }}</p>
-            <div class="hidden lg:block overflow-x-auto rounded-2xl ring-1 ring-gray-100 bg-white">
-                <table class="w-full text-sm">
-                    <thead class="text-[10px] uppercase tracking-widest text-gray-500">
-                        <tr>
-                            <th class="text-left px-4 py-3 font-semibold">{{ __('plus.business.col_date') }}</th>
-                            <th class="text-left px-4 py-3 font-semibold">{{ __('plus.business.col_what') }}</th>
-                            <th class="text-right px-4 py-3 font-semibold">{{ __('plus.business.amount') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($history_rows as $i => $row)
-                            <tr class="border-t border-gray-50" x-show="{{ $i }} < shown">
-                                <td class="px-4 py-3 text-gray-600">{{ $row['date']->locale(app()->getLocale())->isoFormat('D MMM') }}</td>
-                                <td class="px-4 py-3">{{ $row['kind'] === 'sale' ? __('plus.business.sale') : __('plus.business.spend') }} · {{ $row['label'] }}</td>
-                                <td class="px-4 py-3 text-right font-semibold tabular-nums {{ $row['kind'] === 'sale' ? 'text-emerald-700' : 'text-gray-900' }}">
-                                    {{ $row['kind'] === 'sale' ? '+' : '−' }}{{ format_money($row['amount']) }}
-                                </td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="3" class="px-4 py-6"><x-site.empty-state compact icon="🏪" :title="__('plus.business.empty')" /></td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div class="lg:hidden space-y-2">
-                @forelse ($history_rows as $i => $row)
-                    <div class="rounded-2xl bg-white ring-1 ring-gray-100 px-4 py-3" x-show="{{ $i }} < shown">
-                        <div class="flex justify-between gap-3">
-                            <div>
-                                <p class="text-sm font-semibold">{{ $row['kind'] === 'sale' ? __('plus.business.sale') : __('plus.business.spend') }}</p>
-                                <p class="text-xs text-gray-500 mt-0.5">{{ $row['label'] }} · {{ $row['date']->locale(app()->getLocale())->isoFormat('D MMM') }}</p>
-                            </div>
-                            <p class="text-sm font-bold tabular-nums {{ $row['kind'] === 'sale' ? 'text-emerald-700' : 'text-gray-900' }}">
-                                {{ $row['kind'] === 'sale' ? '+' : '−' }}{{ format_money($row['amount']) }}
-                            </p>
-                        </div>
-                    </div>
-                @empty
-                    <x-site.empty-state compact icon="🏪" :title="__('plus.business.empty')" />
-                @endforelse
-            </div>
-            @if (count($history_rows) > 10)
-                <button type="button" class="mt-3 text-sm font-semibold text-brand" x-show="shown < {{ count($history_rows) }}" @click="shown += 10">{{ __('plus.load_more') }}</button>
-            @endif
-        </div>
+        @if (count($history_rows))
+            @include('site.plus._history-table', [
+                'title' => __('plus.business.history'),
+                'dateLabel' => __('plus.business.col_date'),
+                'whatLabel' => __('plus.business.col_what'),
+                'amountLabel' => __('plus.business.amount'),
+                'rows' => collect($history_rows)->map(fn ($row) => [
+                    'date' => $row['date']->locale(app()->getLocale())->isoFormat('D MMM'),
+                    'label' => ($row['kind'] === 'sale' ? __('plus.business.sale') : __('plus.business.spend')).' · '.$row['label'],
+                    'in' => $row['kind'] === 'sale',
+                    'amount' => $row['amount'],
+                ])->all(),
+            ])
+        @else
+            <x-site.empty-state compact icon="🏪" :title="__('plus.business.empty')" />
+        @endif
 
         @include('site.plus._business-capture', [
             'open' => 'saleOpen',

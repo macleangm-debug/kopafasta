@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('plus.home.goals'))" active="dashboard">
+<x-site.borrower-layout :title="brand_title(__('plus.home.goals'))" active="plus">
     @php
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $kindOptions = collect($kinds)->mapWithKeys(fn ($meta, $key) => [$key => ($meta['icon'] ?? '').' '.$meta[$locale]])->all();

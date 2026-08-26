@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title('Kopafasta Plus')" active="dashboard" content-width="wide">
+<x-site.borrower-layout :title="brand_title('Kopafasta Plus')" active="plus" content-width="wide">
     @php
         $days = (int) ($periodDays ?? 365);
         $priceAmount = format_money($price['amount'] ?? 0);
@@ -56,6 +56,7 @@
                         icon="💸"
                         :title="__('plus.home.money')"
                         :stat="format_money_compact((float) ($money['left'] ?? 0))"
+                        :stat-class="(float) ($money['left'] ?? 0) > 0 ? 'mt-1.5 text-lg font-bold tabular-nums text-emerald-700' : 'mt-1.5 text-lg font-bold tabular-nums text-gray-900'"
                         :hint="__('plus.home.money_left')"
                         :cta="__('plus.home.open_room')"
                     />
@@ -64,6 +65,7 @@
                         icon="🏪"
                         :title="__('plus.home.business')"
                         :stat="format_money_compact((float) ($business['week']['sold'] ?? 0))"
+                        :stat-class="(float) ($business['week']['sold'] ?? 0) > 0 ? 'mt-1.5 text-lg font-bold tabular-nums text-emerald-700' : 'mt-1.5 text-lg font-bold tabular-nums text-gray-900'"
                         :hint="__('plus.business.sold').' · '.__('plus.business.diff').' '.format_money_compact((float) ($business['week']['difference'] ?? 0))"
                         :cta="__('plus.home.open_room')"
                     />
@@ -73,7 +75,7 @@
                         :title="__('plus.home.goals')"
                         :stat="$leadGoal ? $leadGoal->title.' · '.$leadGoal->progressPercent().'%' : '—'"
                         :hint="$leadGoal ? __('plus.goals.remaining', ['amount' => format_money_compact($leadGoal->remaining())]) : __('plus.goals.empty')"
-                        :cta="__('plus.home.continue')"
+                        :cta="__('plus.home.open_room')"
                     />
                     <x-site.plus-room-card
                         :href="route('site.borrower.plus.reports')"
@@ -105,7 +107,7 @@
                         :title="__('plus.home.learn')"
                         :stat="$latestLesson ? __('plus.home.learn_live') : __('plus.learn.tagline')"
                         :hint="$latestLesson ? $lessonTitle.' · '.__('plus.learn.minutes', ['minutes' => $latestLesson->duration_minutes ?? 7]).' · '.(($summary['lesson_watched'] ?? false) ? __('plus.home.learn_seen') : __('plus.home.learn_unseen')) : null"
-                        :cta="__('plus.today.watch')"
+                        :cta="__('plus.home.open_room')"
                     />
                 </div>
             </section>

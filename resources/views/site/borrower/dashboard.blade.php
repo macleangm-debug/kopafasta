@@ -10,10 +10,8 @@
             $hero['eligibility_amount'] = format_money($gradeAccess);
             $hero['eligibility_hint'] = __('borrower.dashboard.eligibility_growth_hint_short');
         }
-        $hero['grade'] = $customer->grade ?? 'bronze';
-        $hero['plus_active'] = (bool) ($plusActive ?? false);
 
-        // Home hero is membership + grade — never loan application tracking.
+        // Home hero is greeting + eligibility — never loan application tracking.
         if (in_array($hero['variant'] ?? '', ['under_review', 'applications', 'no_loan'], true)) {
             $hero['title'] = null;
             $hero['subtitle'] = null;
@@ -35,6 +33,29 @@
 
     <x-site.borrower-dashboard-hero :hero="$hero" />
 
+    <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
+
+    <div class="mb-8" id="loan-products">
+        <div class="flex items-end justify-between gap-3 mb-4">
+            <div>
+                <h2 class="text-lg font-semibold">{{ __('borrower.loan_products') }}</h2>
+                <p class="text-sm text-gray-500">{{ __('borrower.dashboard.browse_products') }}</p>
+            </div>
+            <a href="{{ route('site.borrower.loan-products') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
+        </div>
+        @if(isset($products) && $products->isNotEmpty())
+            <div class="relative -mx-4 lg:mx-0" x-data="{ open: null }">
+                <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 items-stretch">
+                    @foreach($products as $p)
+                        <x-site.loan-product-card :product="$p" />
+                    @endforeach
+                </div>
+            </div>
+        @else
+            <div class="text-sm text-gray-500">{{ __('borrower.dashboard_page.no_products') }}</div>
+        @endif
+    </div>
+
     @if (! empty($financialHealth))
         <x-site.borrower-financial-health :health="$financialHealth" />
     @endif
@@ -42,20 +63,16 @@
     <x-site.borrower-financial-snapshot :snapshot="$financialSnapshot ?? []" />
 
     @php
-        $gradeName = strtoupper((string) ($customer->grade ?? 'bronze'));
         $underReview = in_array((string) ($customer->grade_status ?? ''), ['under_review'], true)
             || in_array((string) ($customer->grade_integrity ?? ''), ['review'], true);
     @endphp
     <section class="mb-6 kf-premium-panel rounded-2xl p-5 sm:p-6">
-        <div class="relative flex flex-wrap items-start justify-between gap-3">
-            <x-site.brand-mark size="sm" variant="light" />
-            <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusActive ?? false" size="lg" />
-        </div>
+        <x-site.brand-mark size="sm" variant="light" />
         @if (! empty($customer->member_no))
             <p class="relative mt-4 text-sm text-white/80">{{ __('plus.card.member', ['id' => $customer->member_no]) }}</p>
         @endif
         @if ($underReview)
-            <p class="relative font-semibold mt-2">{{ $gradeName }} — {{ __('plus.card.reviewing') }}</p>
+            <p class="relative font-semibold mt-2">{{ __('plus.card.reviewing') }}</p>
         @else
             <p class="relative font-semibold mt-2 text-lg">{{ __('plus.card.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</p>
         @endif
@@ -65,8 +82,6 @@
             {{ ($plusActive ?? false) ? __('plus.card.open') : __('plus.card.explore') }}
         </a>
     </section>
-
-    <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
 
     @if (! empty($groupInviteBanner['show']))
         <div class="mb-6 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-white p-5 sm:p-6">
@@ -122,26 +137,5 @@
             </div>
         </section>
     @endif
-
-    <div class="mb-8" id="loan-products">
-        <div class="flex items-end justify-between gap-3 mb-4">
-            <div>
-                <h2 class="text-lg font-semibold">{{ __('borrower.loan_products') }}</h2>
-                <p class="text-sm text-gray-500">{{ __('borrower.dashboard.browse_products') }}</p>
-            </div>
-            <a href="{{ route('site.borrower.loan-products') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
-        </div>
-        @if(isset($products) && $products->isNotEmpty())
-            <div class="relative -mx-4 lg:mx-0" x-data="{ open: null }">
-                <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 items-stretch">
-                    @foreach($products as $p)
-                        <x-site.loan-product-card :product="$p" />
-                    @endforeach
-                </div>
-            </div>
-        @else
-            <div class="text-sm text-gray-500">{{ __('borrower.dashboard_page.no_products') }}</div>
-        @endif
-    </div>
 
 </x-site.borrower-layout>

@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title($subject->localizedTitle())" active="dashboard">
+<x-site.borrower-layout :title="brand_title($subject->localizedTitle())" active="plus">
     @php $editorial = $subject->localizedEditorial(); @endphp
     <div class="space-y-5">
         <x-site.plus-nav :back-url="route('site.borrower.plus.learn')" :back-label="__('plus.nav.learn')" />
@@ -27,7 +27,7 @@
                 </x-site.plus-article-steps>
                 <form method="post" action="{{ route('site.borrower.plus.subject.save', $subject) }}">
                     @csrf
-                    <button class="rounded-xl bg-white ring-1 ring-gray-200 px-4 py-2.5 text-sm font-semibold">
+                    <button class="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">
                         {{ $progress->saved_at ? '♥ '.__('plus.learn.saved_on') : '♡ '.__('plus.learn.save') }}
                     </button>
                 </form>

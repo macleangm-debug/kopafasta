@@ -307,8 +307,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.dashboard'))
             ->assertOk()
-            ->assertSee(strtoupper((string) ($customer->grade ?: 'bronze')), false)
-            ->assertSee(__('plus.card.explore'), false)
+            ->assertSee(__('borrower.nav.plus'), false)
+            ->assertSee(__('plus.card.teaser_body'), false)
             ->assertSee(format_money(500_000), false)
             ->assertSee('kf-premium-panel', false)
             ->assertDontSee(__('borrower.dashboard.hero.under_review_subtitle'), false);
@@ -385,7 +385,31 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.dashboard'))
             ->assertOk()
-            ->assertSee(__('plus.card.plus'), false);
+            ->assertSee(__('plus.card.teaser_body'), false);
+    }
+
+    public function test_dashboard_exposes_plus_nav_swahili_actions_and_loan_products(): void
+    {
+        $customer = $this->customer();
+        $user = $customer->user;
+        app(\App\Services\PinService::class)->setPin($user, '1234');
+        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Amina',
+            'birth_village' => 'Moshi',
+            'primary_school' => 'Uhuru',
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'sw'])
+            ->get(route('site.borrower.dashboard'))
+            ->assertOk()
+            ->assertSee('Kopafasta Plus', false)
+            ->assertSee('Hatua za haraka', false)
+            ->assertSee('Dhamana', false)
+            ->assertSee('Taarifa', false)
+            ->assertSee(route('site.borrower.payments'), false)
+            ->assertSee('id="loan-products"', false)
+            ->assertSee(__('borrower.membership.grade_label', [], 'sw'), false);
     }
 
     public function test_complimentary_plus_is_recorded_without_a_payment(): void
@@ -548,8 +572,12 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.plus.money'))
             ->assertOk()
             ->assertSee(__('plus.money.in_action'), false)
+            ->assertSee(__('plus.money.col_date'), false)
+            ->assertSee(__('plus.money.col_what'), false)
             ->assertSee(format_money(120000), false)
             ->assertSee(format_money(12000), false)
+            ->assertSee('text-emerald-700', false)
+            ->assertSee('text-gray-900', false)
             ->assertSee('Chakula', false)
             ->assertSee('Mafuta', false)
             ->assertSee('name="in_amount"', false)
@@ -574,12 +602,19 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('plus.learn.club'), false)
             ->assertSee(__('plus.learn.for_you'), false)
+            ->assertSee(__('plus.learn.tab_continue'), false)
+            ->assertSee(__('plus.learn.saved'), false)
             ->assertSee(__('plus.nav.home'), false);
 
         $subject = \App\Models\PlusSubject::query()->published()->first();
         $this->assertNotNull($subject);
-        $this->assertGreaterThan(4000, strlen((string) $subject->body_en));
-        $this->assertGreaterThanOrEqual(12, (int) $subject->duration_minutes);
+        $this->assertGreaterThan(400, strlen((string) $subject->body_en));
+        $this->assertLessThanOrEqual(14, substr_count(trim((string) $subject->body_en), "\n\n"));
+        $this->assertStringNotContainsString('is not a separate subject', (string) $subject->body_en);
+        $this->assertGreaterThanOrEqual(5, (int) $subject->duration_minutes);
+        $editorial = \App\Support\PlusArticleSteps::openingAndCards($subject->localizedIntro(), $subject->localizedBody());
+        $this->assertNotEmpty($editorial['opening']);
+        $this->assertLessThanOrEqual(4, count($editorial['cards']));
         $this->actingAs($user)
             ->get(route('site.borrower.plus.subject', $subject))
             ->assertOk()
@@ -666,6 +701,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertOk()
             ->assertDontSee('does not change your Grade', false)
             ->assertDontSee('haibadilishi Daraja', false)
-            ->assertSee(__('plus.offers.sample_title'), false);
+            ->assertSee(__('plus.offers.sample_title'), false)
+            ->assertSee(__('plus.offers.view'), false)
+            ->assertSee(__('plus.offers.claim'), false);
     }
 }

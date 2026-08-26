@@ -8,6 +8,7 @@ use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\User;
+use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,6 +21,11 @@ class Phase31FeatureTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Asha',
+            'primary_school' => 'Uhuru Primary',
+            'nida_middle4' => '4582',
+        ]);
 
         return Customer::create([
             'user_id'               => $user->id,
@@ -81,9 +87,11 @@ class Phase31FeatureTest extends TestCase
         $this->actingAs($customer->user)
             ->get(route('site.borrower.application', $application))
             ->assertOk()
-            ->assertSee('max-w-7xl', false)
+            ->assertSee('max-w-3xl', false)
             ->assertSee(__('borrower.loan_profile.summary_title'), false)
-            ->assertSee(__('borrower.loan_profile.label'), false);
+            ->assertSee(__('borrower.loan_profile.label'), false)
+            ->assertSee(__('borrower.loan_profile.standing_title'), false)
+            ->assertSee(__('borrower.loan_profile.standing_grade'), false);
     }
 
     public function test_loan_restructure_and_top_up_pages_use_wide_layout(): void

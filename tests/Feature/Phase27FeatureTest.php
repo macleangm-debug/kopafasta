@@ -61,7 +61,8 @@ class Phase27FeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('borrower.support_page.assistant_title'), false)
             ->assertSee(__('borrower.support_page.faq_title'), false)
-            ->assertSee(__('borrower.support_page.identity_help_title'), false);
+            ->assertSee(__('borrower.support_page.identity_help_title'), false)
+            ->assertSee(__('borrower.support_page.chat_cta'), false);
     }
 
     public function test_membership_renew_page_uses_translated_promo_and_payment_labels(): void

@@ -9,6 +9,7 @@
     $opening = array_values(array_filter(is_array($opening) ? $opening : [], fn ($p) => filled(trim((string) $p))));
     $cards = array_values(array_filter(is_array($cards) ? $cards : [], fn ($p) => filled(trim((string) $p))));
     $count = count($cards);
+    $paraClass = 'text-[15px] text-gray-800 leading-[1.55]';
 @endphp
 
 <div class="space-y-4" x-data="{
@@ -34,7 +35,7 @@
     @if ($opening)
         <div class="space-y-3">
             @foreach ($opening as $para)
-                <p class="text-[15px] text-gray-800 leading-relaxed">{{ $para }}</p>
+                <p class="{{ $paraClass }}">{{ $para }}</p>
             @endforeach
         </div>
     @endif
@@ -47,14 +48,18 @@
                 if (i === n - 1) markDone();
              ">
             @foreach ($cards as $idx => $card)
-                <div class="min-w-full snap-start shrink-0 px-1">
-                    <p class="text-[15px] text-gray-800 leading-relaxed whitespace-pre-line">{{ $card }}</p>
+                <div class="min-w-full snap-start shrink-0 px-1 space-y-3">
+                    @foreach (preg_split('/\n\s*\n/', trim($card)) as $para)
+                        @if (filled(trim($para)))
+                            <p class="{{ $paraClass }}">{{ trim($para) }}</p>
+                        @endif
+                    @endforeach
                 </div>
             @endforeach
         </div>
         <div class="flex items-center justify-between gap-3">
             <button type="button"
-                    class="text-sm font-semibold text-brand disabled:text-gray-300"
+                    class="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold disabled:bg-gray-200 disabled:text-gray-400"
                     :disabled="i === 0"
                     @click="$refs.scroller.scrollBy({ left: -$refs.scroller.clientWidth, behavior: 'smooth' })">{{ __('plus.learn.prev') }}</button>
             <div class="flex gap-1.5">
@@ -66,7 +71,7 @@
                 @endforeach
             </div>
             <button type="button"
-                    class="text-sm font-semibold text-brand disabled:text-gray-300"
+                    class="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold disabled:bg-gray-200 disabled:text-gray-400"
                     :disabled="i === n - 1"
                     @click="$refs.scroller.scrollBy({ left: $refs.scroller.clientWidth, behavior: 'smooth' })">{{ __('plus.learn.next') }}</button>
         </div>

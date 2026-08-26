@@ -4,6 +4,10 @@ namespace App\Support;
 
 class PlusArticleSteps
 {
+    public const MAX_OPENING = 4;
+
+    public const MAX_CARDS = 4;
+
     /** @return list<string> */
     public static function fromBody(?string $body): array
     {
@@ -29,29 +33,91 @@ class PlusArticleSteps
     }
 
     /**
-     * Opening paragraphs stay on the first screen. Remaining paragraphs swipe.
-     * Swipe controls length per screen — it does not turn the article into numbered school steps.
+     * Most of the article stays on the first screen as real paragraphs.
+     * Remaining copy is at most four swipe cards — never a sentence-per-slide deck.
      *
      * @return array{opening: list<string>, cards: list<string>}
      */
     public static function openingAndCards(?string $intro, ?string $body = null): array
     {
         $introParas = self::fromBody($intro);
-        $bodyParas = self::fromBody($body);
+        $bodyParas = self::withoutLeadingDupes(self::fromBody($body), $introParas);
+        $all = self::uniqueConsecutive([...$introParas, ...$bodyParas]);
 
-        if ($introParas !== [] && $bodyParas !== []) {
-            return ['opening' => $introParas, 'cards' => self::chunk($bodyParas, 3)];
+        if ($all === []) {
+            return ['opening' => [], 'cards' => []];
         }
 
-        $paras = $introParas !== [] ? $introParas : $bodyParas;
-        if (count($paras) <= 3) {
-            return ['opening' => $paras, 'cards' => []];
+        if (count($all) <= self::MAX_OPENING) {
+            return ['opening' => $all, 'cards' => []];
         }
+
+        $opening = array_slice($all, 0, self::MAX_OPENING);
+        $rest = array_slice($all, self::MAX_OPENING);
 
         return [
-            'opening' => array_slice($paras, 0, 2),
-            'cards' => self::chunk(array_slice($paras, 2), 3),
+            'opening' => $opening,
+            'cards' => self::chunkToMax($rest, self::MAX_CARDS),
         ];
+    }
+
+    /**
+     * @param  list<string>  $paras
+     * @param  list<string>  $skip
+     * @return list<string>
+     */
+    private static function withoutLeadingDupes(array $paras, array $skip): array
+    {
+        if ($paras === [] || $skip === []) {
+            return $paras;
+        }
+
+        $skipNorm = array_map(fn (string $p) => mb_strtolower(trim($p)), $skip);
+        $out = [];
+        foreach ($paras as $para) {
+            $norm = mb_strtolower(trim($para));
+            if ($out === [] && in_array($norm, $skipNorm, true)) {
+                continue;
+            }
+            $out[] = $para;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<string>  $paras
+     * @return list<string>
+     */
+    private static function uniqueConsecutive(array $paras): array
+    {
+        $out = [];
+        $last = null;
+        foreach ($paras as $para) {
+            $norm = mb_strtolower(trim($para));
+            if ($norm === '' || $norm === $last) {
+                continue;
+            }
+            $out[] = $para;
+            $last = $norm;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<string>  $paras
+     * @return list<string>
+     */
+    private static function chunkToMax(array $paras, int $maxCards): array
+    {
+        if ($paras === []) {
+            return [];
+        }
+
+        $size = (int) ceil(count($paras) / max(1, $maxCards));
+
+        return self::chunk($paras, max(1, $size));
     }
 
     /**
