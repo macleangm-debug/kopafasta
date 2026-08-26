@@ -7,35 +7,37 @@
             <h2 class="font-semibold text-gray-900">{{ __('borrower.dashboard.snapshot.title') }}</h2>
         </div>
     </div>
-    <div class="p-5 sm:p-6 grid grid-cols-2 lg:grid-cols-3 gap-3">
-        @foreach ($snapshot as $item)
-            @php
-                $status = $item['status'] ?? null;
-                $valueClass = match ($status) {
-                    'active' => 'text-emerald-700',
-                    'inactive' => 'text-amber-700',
-                    default => 'text-gray-900',
-                };
-            @endphp
-            @if (! empty($item['url']))
-                <a href="{{ $item['url'] }}"
-                   class="rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-4 hover:ring-brand/30 hover:shadow-sm transition block">
-            @else
-                <div class="rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-4">
-            @endif
-                <div class="flex items-start justify-between gap-2">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold leading-tight">{{ $item['label'] }}</p>
-                    <span class="text-lg leading-none shrink-0" aria-hidden="true">{{ $item['icon'] ?? '📋' }}</span>
-                </div>
-                <p class="mt-2 text-base font-bold tabular-nums truncate {{ $valueClass }}">{{ $item['value'] }}</p>
-                @if (! empty($item['hint']))
-                    <p class="text-xs text-gray-500 mt-0.5">{{ $item['hint'] }}</p>
+    <div class="p-5 sm:p-6">
+        <div class="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1 scrollbar-none lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0">
+            @foreach ($snapshot as $item)
+                @php
+                    $status = $item['status'] ?? null;
+                    $valueClass = match ($status) {
+                        'active' => 'text-emerald-700',
+                        'inactive' => 'text-amber-700',
+                        default => 'text-gray-900',
+                    };
+                    $shell = 'min-w-[78%] sm:min-w-[46%] lg:min-w-0 snap-start rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-4';
+                @endphp
+                @if (! empty($item['url']))
+                    <a href="{{ $item['url'] }}" class="{{ $shell }} hover:ring-brand/30 hover:shadow-sm transition block">
+                @else
+                    <div class="{{ $shell }}">
                 @endif
-            @if (! empty($item['url']))
-                </a>
-            @else
-                </div>
-            @endif
-        @endforeach
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold leading-tight">{{ $item['label'] }}</p>
+                        <span class="text-lg leading-none shrink-0" aria-hidden="true">{{ $item['icon'] ?? '📋' }}</span>
+                    </div>
+                    <p class="mt-2 text-base font-bold tabular-nums truncate {{ $valueClass }}">{{ $item['value'] }}</p>
+                    @if (! empty($item['hint']))
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $item['hint'] }}</p>
+                    @endif
+                @if (! empty($item['url']))
+                    </a>
+                @else
+                    </div>
+                @endif
+            @endforeach
+        </div>
     </div>
 </section>

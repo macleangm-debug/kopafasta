@@ -75,7 +75,7 @@ class PlusSubject extends Model
         return array_values(array_filter([...$editorial['opening'], ...$editorial['cards']]));
     }
 
-    /** @return array{opening: list<string>, cards: list<string>} */
+    /** @return array{opening: list<string>, cards: list<string>, slides: list<string>} */
     public function localizedEditorial(?string $locale = null): array
     {
         return PlusArticleSteps::openingAndCards(

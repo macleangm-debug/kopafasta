@@ -5,6 +5,8 @@
         $fullName = trim((string) ($customer->full_name ?? Auth::user()->name ?? ''));
         $hero['greeting'] = $fullName !== '' ? $fullName : (__('borrower.welcome').', '.(explode(' ', (string) (Auth::user()->name ?? ''))[0] ?? ''));
         $hero['membership_no'] = $customer->member_no ?? null;
+        $hero['grade'] = $customer->grade ?? 'bronze';
+        $hero['plus_active'] = (bool) ($plusActive ?? false);
         $gradeAccess = app(\App\Services\Grades\GradeBenefitService::class)->potentialAccess($customer);
         if ($gradeAccess > 0) {
             $hero['eligibility_amount'] = format_money($gradeAccess);
@@ -56,18 +58,16 @@
         @endif
     </div>
 
-    @if (! empty($financialHealth))
-        <x-site.borrower-financial-health :health="$financialHealth" />
-    @endif
-
-    <x-site.borrower-financial-snapshot :snapshot="$financialSnapshot ?? []" />
-
     @php
         $underReview = in_array((string) ($customer->grade_status ?? ''), ['under_review'], true)
             || in_array((string) ($customer->grade_integrity ?? ''), ['review'], true);
+        $plusIsOn = (bool) ($plusActive ?? false);
     @endphp
     <section class="mb-6 kf-premium-panel rounded-2xl p-5 sm:p-6">
-        <x-site.brand-mark size="sm" variant="light" />
+        <div class="relative flex flex-wrap items-start justify-between gap-3">
+            <x-site.brand-mark size="sm" variant="light" />
+            <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusIsOn" size="lg" />
+        </div>
         @if (! empty($customer->member_no))
             <p class="relative mt-4 text-sm text-white/80">{{ __('plus.card.member', ['id' => $customer->member_no]) }}</p>
         @endif
@@ -77,11 +77,32 @@
             <p class="relative font-semibold mt-2 text-lg">{{ __('plus.card.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</p>
         @endif
         <p class="relative text-sm text-white/80 mt-2 max-w-xl">{{ __('plus.card.teaser_body') }}</p>
-        <a href="{{ route('site.borrower.plus.home') }}"
-           class="relative mt-4 inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">
-            {{ ($plusActive ?? false) ? __('plus.card.open') : __('plus.card.explore') }}
-        </a>
+        <div class="relative mt-4 flex flex-wrap gap-2">
+            @if ($plusIsOn)
+                <form method="post" action="{{ route('site.borrower.plus.renew') }}">
+                    @csrf
+                    <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">
+                        {{ __('plus.home.renew') }}
+                    </button>
+                </form>
+                <a href="{{ route('site.borrower.plus.home') }}"
+                   class="inline-flex rounded-xl bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 text-sm font-bold ring-1 ring-white/20">
+                    {{ __('plus.card.open') }}
+                </a>
+            @else
+                <a href="{{ route('site.borrower.plus.home') }}"
+                   class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">
+                    {{ __('plus.card.explore') }}
+                </a>
+            @endif
+        </div>
     </section>
+
+    @if (! empty($financialHealth))
+        <x-site.borrower-financial-health :health="$financialHealth" />
+    @endif
+
+    <x-site.borrower-financial-snapshot :snapshot="$financialSnapshot ?? []" />
 
     @if (! empty($groupInviteBanner['show']))
         <div class="mb-6 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-white p-5 sm:p-6">

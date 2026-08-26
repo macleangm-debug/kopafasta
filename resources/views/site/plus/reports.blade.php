@@ -5,25 +5,17 @@
         $left = (float) ($money['left'] ?? ((float) $money['in'] - (float) $money['out']));
         $months = $report['months'] ?? [];
         $currentMonth = $report['month'] ?? now()->format('Y-m');
+        $monthIndex = collect($months)->search(fn ($choice) => ($choice['value'] ?? '') === $currentMonth);
+        $newer = is_int($monthIndex) && $monthIndex > 0 ? $months[$monthIndex - 1] : null;
+        $older = is_int($monthIndex) && isset($months[$monthIndex + 1]) ? $months[$monthIndex + 1] : null;
+        $review = $report['observations'] ?? [];
+        if ($review === []) {
+            $review = $report['noticed'] ?? [];
+        }
     @endphp
     <div class="space-y-5" @if($print ?? false) x-init="setTimeout(() => window.print(), 300)" @endif>
-        <div class="print:hidden space-y-5" x-data="{ monthOpen: false }">
+        <div class="print:hidden">
             <x-site.plus-nav />
-            <x-site.plus-hero kicker="Kopafasta Plus" :title="__('plus.reports.heading')" :body="__('plus.reports.hero_body')">
-                <button type="button" class="rounded-full bg-white/10 ring-1 ring-white/20 px-4 py-2 text-sm font-semibold" @click="monthOpen = true">
-                    ‹ {{ $report['label'] }} ›
-                </button>
-            </x-site.plus-hero>
-            <x-site.action-panel :title="__('plus.reports.pick_month')" open="monthOpen">
-                <div class="space-y-1">
-                    @foreach ($months as $choice)
-                        <a href="{{ route('site.borrower.plus.reports', ['month' => $choice['value']]) }}"
-                           class="block rounded-xl px-4 py-3 text-sm {{ $choice['value'] === $currentMonth ? 'bg-brand text-white font-semibold' : 'hover:bg-gray-50' }}">
-                            {{ $choice['label'] }} @if($choice['value'] === $currentMonth) ✓ @endif
-                        </a>
-                    @endforeach
-                </div>
-            </x-site.action-panel>
         </div>
 
         @if ($report['thin'] ?? false)
@@ -34,46 +26,78 @@
             </div>
         @endif
 
-        <div class="grid grid-cols-2 gap-3">
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_left') }}</p>
-                <p class="mt-2 text-xl font-extrabold tabular-nums {{ $left < 0 ? 'text-red-700' : 'text-brand' }}" title="{{ format_money($left) }}">{{ format_money_compact($left) }}</p>
-            </div>
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_biz') }}</p>
-                <p class="mt-2 text-xl font-extrabold tabular-nums text-brand" title="{{ format_money($biz['difference']) }}">{{ ($biz['difference'] >= 0 ? '+' : '').format_money_compact($biz['difference']) }}</p>
-            </div>
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_goals') }}</p>
-                <p class="mt-2 text-xl font-extrabold tabular-nums" title="{{ format_money($report['goals_added'] ?? 0) }}">+{{ format_money_compact($report['goals_added'] ?? 0) }}</p>
-            </div>
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.trust') }}</p>
-                <p class="mt-2 text-xl font-extrabold">{{ $report['trust_percent'] ?? 0 }} <span class="text-sm font-semibold text-emerald-700">↑</span></p>
-                <p class="text-xs text-gray-500">{{ $report['trust']['label'] ?? '' }}</p>
-            </div>
-        </div>
-
-        @if (! empty($report['observations']))
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 space-y-3">
-                <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.reports.glance') }}</p>
-                @foreach ($report['observations'] as $obs)
-                    <div>
-                        <p class="font-semibold text-gray-900">{{ $obs['title'] }}</p>
-                        <p class="text-sm text-gray-600 mt-0.5">{{ $obs['body'] }}</p>
-                    </div>
-                @endforeach
-            </div>
-        @endif
-
         <div class="kf-print-sheet max-w-3xl mx-auto rounded-2xl bg-white ring-1 ring-brand/15 overflow-hidden">
             <div class="bg-brand text-white px-5 sm:px-8 py-5">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus · {{ __('plus.reports.a4_kicker') }}</p>
-                <h2 class="text-2xl font-extrabold mt-1">{{ $report['label'] }}</h2>
-                <p class="text-sm text-white/80 mt-1">{{ $report['member_name'] }} · {{ $report['grade'] }} · {{ $report['trust_percent'] ?? 0 }}</p>
+                <div class="mt-2 flex items-center justify-between gap-3">
+                    @if ($older)
+                        <a href="{{ route('site.borrower.plus.reports', ['month' => $older['value']]) }}"
+                           class="print:hidden size-9 grid place-items-center rounded-full bg-white/10 ring-1 ring-white/20 text-lg font-bold hover:bg-white/20"
+                           aria-label="{{ $older['label'] }}">‹</a>
+                    @else
+                        <span class="print:hidden size-9"></span>
+                    @endif
+                    <h2 class="text-2xl font-extrabold text-center flex-1">{{ $report['label'] }}</h2>
+                    @if ($newer)
+                        <a href="{{ route('site.borrower.plus.reports', ['month' => $newer['value']]) }}"
+                           class="print:hidden size-9 grid place-items-center rounded-full bg-white/10 ring-1 ring-white/20 text-lg font-bold hover:bg-white/20"
+                           aria-label="{{ $newer['label'] }}">›</a>
+                    @else
+                        <span class="print:hidden size-9"></span>
+                    @endif
+                </div>
+                <p class="text-sm text-white/80 mt-1 text-center">{{ $report['member_name'] }} · {{ $report['grade'] }} · {{ $report['trust_percent'] ?? 0 }}</p>
+                @if (count($months) > 1)
+                    <form method="get" action="{{ route('site.borrower.plus.reports') }}" class="print:hidden mt-4">
+                        <label class="sr-only">{{ __('plus.reports.pick_month') }}</label>
+                        <select name="month" onchange="this.form.submit()"
+                                class="w-full rounded-xl bg-white/10 ring-1 ring-white/20 border-0 text-sm text-white py-2.5">
+                            @foreach ($months as $choice)
+                                <option value="{{ $choice['value'] }}" @selected($choice['value'] === $currentMonth) class="text-gray-900">
+                                    {{ $choice['label'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+                @endif
             </div>
+
             <div class="p-5 sm:p-8 space-y-6">
+                @if ($review !== [])
+                    <section>
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold mb-3">{{ __('plus.reports.glance') }}</p>
+                        <div class="space-y-3">
+                            @foreach ($review as $obs)
+                                <div>
+                                    <p class="font-bold text-gray-900">{{ $obs['title'] }}</p>
+                                    <p class="text-sm text-gray-600 mt-0.5 leading-snug">{{ $obs['body'] }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
+
                 <p class="text-sm text-gray-700 italic">{{ $report['sentence'] ?? '' }}</p>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="rounded-xl bg-brand/5 p-3">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_left') }}</p>
+                        <p class="mt-1 text-lg font-extrabold tabular-nums {{ $left < 0 ? 'text-red-700' : 'text-brand' }}">{{ format_money_compact($left) }}</p>
+                    </div>
+                    <div class="rounded-xl bg-brand/5 p-3">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_biz') }}</p>
+                        <p class="mt-1 text-lg font-extrabold tabular-nums text-brand">{{ ($biz['difference'] >= 0 ? '+' : '').format_money_compact($biz['difference']) }}</p>
+                    </div>
+                    <div class="rounded-xl bg-brand/5 p-3">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_goals') }}</p>
+                        <p class="mt-1 text-lg font-extrabold tabular-nums">+{{ format_money_compact($report['goals_added'] ?? 0) }}</p>
+                    </div>
+                    <div class="rounded-xl bg-brand/5 p-3">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.trust') }}</p>
+                        <p class="mt-1 text-lg font-extrabold">{{ $report['trust_percent'] ?? 0 }}</p>
+                        <p class="text-xs text-gray-500">{{ $report['trust']['label'] ?? '' }}</p>
+                    </div>
+                </div>
 
                 <section>
                     <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold mb-3">{{ __('plus.reports.money') }}</p>
@@ -129,20 +153,10 @@
 
                 <section>
                     <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold mb-2">{{ __('plus.reports.trust') }}</p>
-                    <p class="text-4xl font-black">{{ $report['trust_percent'] ?? 0 }}</p>
+                    <p class="text-4xl font-black text-brand">{{ $report['trust_percent'] ?? 0 }}</p>
                     <p class="text-sm text-gray-600">{{ $report['trust']['label'] ?? '' }} · {{ $report['grade'] }}</p>
-                    <p class="text-sm text-gray-600 mt-2">{{ __('plus.reports.trust_help') }}</p>
+                    <p class="text-sm text-gray-600 mt-2 leading-snug">{{ __('plus.reports.trust_help') }}</p>
                 </section>
-
-                @if (! empty($report['noticed']))
-                    <section>
-                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold mb-3">{{ __('plus.reports.noticed') }}</p>
-                        @foreach ($report['noticed'] as $item)
-                            <p class="font-semibold text-sm mt-2">{{ $item['title'] }}</p>
-                            <p class="text-sm text-gray-600">{{ $item['body'] }}</p>
-                        @endforeach
-                    </section>
-                @endif
 
                 @if (! empty($report['next']))
                     <section class="print:hidden rounded-xl bg-brand/5 p-4">
@@ -158,19 +172,5 @@
         <a href="{{ route('site.borrower.plus.reports', ['month' => $currentMonth, 'print' => 1]) }}"
            class="inline-flex rounded-xl bg-brand text-white px-5 py-3 font-semibold print:hidden">{{ __('plus.reports.print') }}</a>
         <p class="text-xs text-gray-500 print:hidden">{{ __('plus.reports.print_goes') }}</p>
-
-        @if (! empty($report['history']))
-            <div class="print:hidden">
-                <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-2">{{ __('plus.reports.previous') }}</p>
-                <div class="space-y-2">
-                    @foreach ($report['history'] as $row)
-                        <a href="{{ route('site.borrower.plus.reports', ['month' => $row['month']]) }}" class="flex justify-between rounded-xl bg-white ring-1 ring-gray-100 px-4 py-3 text-sm">
-                            <span>{{ $row['label'] }}</span>
-                            <span class="text-gray-500">{{ __('plus.reports.trust') }} {{ $row['trust'] }} →</span>
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-        @endif
     </div>
 </x-site.borrower-layout>

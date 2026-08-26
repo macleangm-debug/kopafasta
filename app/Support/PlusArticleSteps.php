@@ -36,7 +36,7 @@ class PlusArticleSteps
      * Most of the article stays on the first screen as real paragraphs.
      * Remaining copy is at most four swipe cards — never a sentence-per-slide deck.
      *
-     * @return array{opening: list<string>, cards: list<string>}
+     * @return array{opening: list<string>, cards: list<string>, slides: list<string>}
      */
     public static function openingAndCards(?string $intro, ?string $body = null): array
     {
@@ -45,19 +45,25 @@ class PlusArticleSteps
         $all = self::uniqueConsecutive([...$introParas, ...$bodyParas]);
 
         if ($all === []) {
-            return ['opening' => [], 'cards' => []];
+            return ['opening' => [], 'cards' => [], 'slides' => []];
         }
 
         if (count($all) <= self::MAX_OPENING) {
-            return ['opening' => $all, 'cards' => []];
+            return [
+                'opening' => $all,
+                'cards' => [],
+                'slides' => self::slidesFrom($all, []),
+            ];
         }
 
         $opening = array_slice($all, 0, self::MAX_OPENING);
         $rest = array_slice($all, self::MAX_OPENING);
+        $cards = self::chunkToMax($rest, self::MAX_CARDS);
 
         return [
             'opening' => $opening,
-            'cards' => self::chunkToMax($rest, self::MAX_CARDS),
+            'cards' => $cards,
+            'slides' => self::slidesFrom($opening, $cards),
         ];
     }
 
@@ -132,5 +138,67 @@ class PlusArticleSteps
         }
 
         return $out;
+    }
+
+    /**
+     * @param  list<string>  $opening
+     * @param  list<string>  $cards
+     * @return list<string>
+     */
+    public static function slidesFrom(array $opening, array $cards): array
+    {
+        $slides = [];
+        if ($opening !== []) {
+            $slides[] = implode("\n\n", $opening);
+        }
+        foreach ($cards as $card) {
+            $text = trim((string) $card);
+            if ($text !== '') {
+                $slides[] = $text;
+            }
+        }
+
+        return $slides;
+    }
+
+    /**
+     * @return list<array{type: string, text?: string, html?: string}>
+     */
+    public static function blocks(string $slide): array
+    {
+        $paras = preg_split('/\n\s*\n/', trim($slide)) ?: [];
+        $blocks = [];
+        foreach ($paras as $i => $para) {
+            $para = trim($para);
+            if ($para === '') {
+                continue;
+            }
+            if (preg_match('/^#\s+(.+)/s', $para, $m)) {
+                $blocks[] = ['type' => 'h', 'text' => trim($m[1])];
+                continue;
+            }
+            $shortTitle = $i === 0
+                && mb_strlen($para) <= 72
+                && ! str_contains($para, "\n")
+                && substr_count($para, '.') === 0;
+            if ($shortTitle) {
+                $blocks[] = ['type' => 'h', 'text' => $para];
+                continue;
+            }
+            $blocks[] = ['type' => 'p', 'html' => self::inlineHtml($para)];
+        }
+
+        return $blocks;
+    }
+
+    private static function inlineHtml(string $text): string
+    {
+        $escaped = e($text);
+
+        return (string) preg_replace(
+            '/\*\*(.+?)\*\*/u',
+            '<strong class="font-bold text-gray-900">$1</strong>',
+            $escaped
+        );
     }
 }

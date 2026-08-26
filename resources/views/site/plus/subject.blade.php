@@ -8,11 +8,12 @@
 
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 sm:p-6 space-y-4">
                 <x-site.plus-article-steps
-                    :opening="$editorial['opening']"
-                    :cards="$editorial['cards']"
-                    :complete-url="route('site.borrower.plus.subject.complete', $subject)"
-                    :completed="(bool) $progress->completed_at"
-                >
+                :opening="$editorial['opening']"
+                :cards="$editorial['cards']"
+                :slides="$editorial['slides'] ?? null"
+                :complete-url="route('site.borrower.plus.subject.complete', $subject)"
+                :completed="(bool) $progress->completed_at"
+            >
                     @if ($subject->localizedAction())
                         <div class="rounded-xl bg-brand/5 ring-1 ring-brand/10 p-4">
                             <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.learn.try_now') }}</p>

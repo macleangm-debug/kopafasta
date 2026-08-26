@@ -45,6 +45,13 @@
                     <p class="text-sm font-semibold mt-1">{{ __('plus.home.access', ['amount' => format_money($access)]) }}</p>
                 </div>
             @endif
+
+            @if ($plusActive)
+                <form method="post" action="{{ route('site.borrower.plus.renew') }}" class="relative mt-4">
+                    @csrf
+                    <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">{{ __('plus.home.renew') }}</button>
+                </form>
+            @endif
         </section>
 
         @if ($plusActive)
@@ -126,14 +133,6 @@
                 </section>
             @endif
 
-            <form method="post" action="{{ route('site.borrower.plus.renew') }}" class="kf-premium-panel rounded-2xl p-5 sm:p-6">
-                @csrf
-                <p class="relative text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus ✦</p>
-                <h2 class="relative mt-2 text-xl font-extrabold">{{ __('plus.home.renew_title') }}</h2>
-                <p class="relative mt-2 text-sm text-white/85">{{ __('plus.home.renew_hint') }}</p>
-                <p class="relative mt-4 text-2xl font-black tabular-nums">{{ $priceText }}</p>
-                <button class="relative mt-4 inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-6 py-3 font-bold shadow-sm ring-1 ring-brand-gold/40">{{ __('plus.home.renew') }}</button>
-            </form>
         @else
             <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
                 <p class="relative text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus ✦</p>

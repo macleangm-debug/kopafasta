@@ -18,6 +18,7 @@
             <x-site.plus-article-steps
                 :opening="$editorial['opening']"
                 :cards="$editorial['cards']"
+                :slides="$editorial['slides'] ?? null"
                 :complete-url="route('site.borrower.plus.lesson.complete', $lesson)"
                 :completed="(bool) $progress->completed_at"
             >

@@ -34,7 +34,12 @@
     </div>
 
     <div class="relative">
-        <x-site.brand-mark size="sm" variant="light" />
+        <div class="flex items-start justify-between gap-3">
+            <x-site.brand-mark size="sm" variant="light" />
+            @if (filled($hero['grade'] ?? null))
+                <x-site.grade-badge :grade="$hero['grade']" :plus="! empty($hero['plus_active'])" size="lg" class="shrink-0" />
+            @endif
+        </div>
 
         <div class="mt-5 space-y-4 max-w-2xl">
             @if (! empty($hero['greeting']))

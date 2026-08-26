@@ -3,7 +3,7 @@
         $featuredLesson = $lessons->first();
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $icons = $category_icons ?? collect();
-        $browse = request()->boolean('browse');
+        $categories = collect($categories ?? []);
         $hasMore = $has_more ?? false;
         $offset = (int) ($offset ?? 0);
         $forYouTab = collect($for_you ?? [])
@@ -35,8 +35,26 @@
 
         <form method="get" action="{{ route('site.borrower.plus.learn') }}" class="rounded-2xl bg-white ring-1 ring-gray-200 p-3 flex gap-2">
             <input name="q" value="{{ $search }}" placeholder="🔎 {{ __('plus.learn.search') }}" class="flex-1 min-h-11 rounded-xl border-0 text-sm">
+            @if ($category)
+                <input type="hidden" name="category" value="{{ $category }}">
+            @endif
             <button class="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold">{{ __('plus.learn.read') }}</button>
         </form>
+
+        @if ($categories->isNotEmpty() && ! $search && ! $category)
+            <section>
+                <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.learn.browse') }}</p>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    @foreach ($categories as $cat)
+                        <a href="{{ route('site.borrower.plus.learn', ['category' => $cat->slug]) }}"
+                           class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-3 flex items-center gap-3 hover:ring-brand/30 shadow-sm">
+                            <span class="size-11 shrink-0 rounded-2xl bg-brand/10 text-2xl grid place-items-center">{{ $icons[$cat->slug] ?? '📘' }}</span>
+                            <span class="font-semibold text-gray-900">{{ $cat->localizedTitle() }}</span>
+                        </a>
+                    @endforeach
+                </div>
+            </section>
+        @endif
 
         @if ($search || $category)
             <div class="space-y-3">
@@ -52,19 +70,8 @@
                     <a href="{{ route('site.borrower.plus.learn', array_filter(['q' => $search, 'category' => $category, 'offset' => $offset + 12])) }}"
                        class="inline-flex text-sm font-semibold text-brand">{{ __('plus.load_more') }}</a>
                 @endif
+                <a href="{{ route('site.borrower.plus.learn') }}" class="inline-flex text-sm font-semibold text-brand">← {{ __('plus.learn.browse') }}</a>
             </div>
-        @elseif ($browse)
-            <section>
-                <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.learn.browse') }}</p>
-                <div class="grid sm:grid-cols-2 gap-3">
-                    @foreach ($categories as $cat)
-                        <a href="{{ route('site.borrower.plus.learn', ['category' => $cat->slug]) }}" class="rounded-2xl bg-white ring-1 ring-gray-100 px-4 py-3 flex items-center gap-3">
-                            <span class="text-2xl">{{ $icons[$cat->slug] ?? '📘' }}</span>
-                            <span class="font-semibold text-gray-900">{{ $cat->localizedTitle() }}</span>
-                        </a>
-                    @endforeach
-                </div>
-            </section>
         @else
             <div x-data="{ tab: @js($defaultTab) }" class="space-y-4">
                 <nav class="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
@@ -105,8 +112,6 @@
                     @endforelse
                 </div>
             </div>
-
-            <a href="{{ route('site.borrower.plus.learn', ['browse' => 1]) }}" class="inline-flex text-sm font-semibold text-brand">{{ __('plus.learn.browse_all') }} →</a>
         @endif
     </div>
 </x-site.borrower-layout>

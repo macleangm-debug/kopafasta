@@ -515,7 +515,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee(__('plus.today.title'), false)
             ->assertSee(__('plus.home.money'), false)
             ->assertSee(__('plus.home.rooms_title'), false)
-            ->assertSee(__('plus.home.renew_title'), false)
+            ->assertSee(__('plus.home.renew'), false)
+            ->assertDontSee(__('plus.home.renew_title'), false)
             ->assertSee('text-3xl font-black', false)
             ->assertDontSee('Plus haibadilishi Daraja lako', false)
             ->assertDontSee('Plus never changes your Grade', false);
@@ -614,6 +615,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->assertGreaterThanOrEqual(5, (int) $subject->duration_minutes);
         $editorial = \App\Support\PlusArticleSteps::openingAndCards($subject->localizedIntro(), $subject->localizedBody());
         $this->assertNotEmpty($editorial['opening']);
+        $this->assertNotEmpty($editorial['slides']);
+        $this->assertLessThanOrEqual(5, count($editorial['slides']));
         $this->assertLessThanOrEqual(4, count($editorial['cards']));
         $this->actingAs($user)
             ->get(route('site.borrower.plus.subject', $subject))
@@ -672,8 +675,9 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.plus.reports'))
             ->assertOk()
             ->assertSee('kf-print-sheet', false)
-            ->assertSee(__('plus.reports.heading'), false)
-            ->assertSee(__('plus.reports.glance'), false);
+            ->assertSee(__('plus.reports.a4_kicker'), false)
+            ->assertSee(__('plus.reports.money'), false)
+            ->assertSee('name="month"', false);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.business'))
