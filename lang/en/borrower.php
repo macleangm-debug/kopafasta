@@ -116,13 +116,16 @@ return [
 
     'nav' => [
         'dashboard'     => 'Dashboard',
+        'home'          => 'Home',
         'plus'          => 'Kopafasta Plus',
+        'plus_short'    => 'Plus',
         'membership'    => 'Membership',
         'referrals'     => 'Referrals',
         'rewards'       => 'Rewards',
         'engagement'    => 'Rewards & referrals',
         'loans'         => 'Loans',
         'marketplace'   => 'Asset marketplace',
+        'marketplace_short' => 'Marketplace',
         'verify'        => 'Verify card',
         'payments'      => 'Payments',
         'refunds'       => 'Refunds',
@@ -219,6 +222,7 @@ return [
         'help_center'       => 'Help center',
         'sign_out'          => 'Sign out',
         'help'              => 'Help',
+        'back_to_kopafasta' => 'Kopafasta',
         'fix_errors'        => 'Please fix:',
     ],
 
@@ -1940,6 +1944,10 @@ return [
             'edit' => 'Edit',
             'manage' => 'Manage',
             'start_verification' => 'Start face capture',
+            'group_account' => 'My account',
+            'group_setup' => 'My financial setup',
+            'group_relationships' => 'My relationships',
+            'group_help' => 'Help',
         ],
         'gaps' => [
             'summary' => 'Still needed: :items',

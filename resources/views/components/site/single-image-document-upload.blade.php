@@ -8,14 +8,16 @@
     'autoSubmit' => false,
     'guide' => null,
     'showOval' => null,
+    'largePreview' => false,
 ])
 
 @php
-    $hostId = $inputHostId ?? ('single-image-'.md5($name.'|'.(string) $guide.'|'.$facingMode));
     $facingMode = in_array($facing, ['user', 'environment'], true) ? $facing : 'environment';
+    $hostId = $inputHostId ?? ('single-image-'.md5($name.'|'.(string) $guide.'|'.$facingMode));
     $lockFront = $facingMode === 'user'; // facial/selfie captures stay front-camera only
     $cameraOnly = (bool) $cameraOnly;
     $autoSubmit = (bool) $autoSubmit;
+    $largePreview = (bool) $largePreview;
     $showOval = $showOval === null ? $facingMode === 'user' : (bool) $showOval;
     $labelDefaults = [
         'captureImage' => __('borrower.profile.capture_image'),
@@ -39,25 +41,25 @@
 @endphp
 
 <div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly), @js($autoSubmit))"
+     @clear-capture.window="if ($event.detail && $event.detail.hostId === hostId) clearFile()"
      @if ($autoSubmit) data-auto-submit="1" @endif>
     {{-- Gate helper: filled when a preview exists --}}
     <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required && ! $autoSubmit) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
 
-    <div class="flex flex-wrap items-center gap-3">
+    {{-- Pickers stay unnamed. A named file input is created in the host only after capture, so an empty file= is never posted. --}}
+    <div class="flex flex-wrap items-center gap-3" x-show="!(previewUrl || previewName || submitting)">
         @unless ($cameraOnly)
         <label class="inline-flex items-center justify-center bg-white hover:bg-brand-muted/40 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm ring-1 ring-brand/20">
             <span>{{ __('borrower.profile.upload') }}</span>
-            <input type="file" name="{{ $name }}" accept="image/*,application/pdf" class="sr-only" @change="setFile($event)">
+            <input type="file" accept="image/*,application/pdf" class="sr-only" @change="setFile($event)">
         </label>
         @if($facingMode === 'environment')
             <input type="file" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
         @endif
         @else
-            {{-- Unnamed: the named input is created in the host after capture so the empty picker is not posted. --}}
             <input type="file" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
         @endunless
         <button type="button" @click="openCamera()"
-                @if ($cameraOnly) x-show="!(previewUrl || previewName || submitting)" x-cloak @endif
                 class="inline-flex items-center justify-center rounded-xl {{ $cameraOnly ? 'bg-brand-gold text-brand hover:bg-yellow-400' : 'bg-white text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40' }} px-5 py-3 text-sm font-bold shadow-sm">
             {{ __('borrower.document_upload.camera') }}
         </button>
@@ -66,10 +68,10 @@
     <p x-show="submitting" x-cloak class="mt-3 text-sm font-semibold text-gray-600" x-text="labels.saving"></p>
 
     <div x-show="(previewUrl || previewName) && !submitting" x-cloak class="mt-3">
-        @if ($inlinePreview)
+        @if ($inlinePreview || $largePreview)
             <div class="relative">
                 <template x-if="previewUrl">
-                    <img :src="previewUrl" alt="" class="h-56 w-full object-cover rounded-xl ring-1 ring-gray-200">
+                    <img :src="previewUrl" alt="" class="w-full aspect-[4/3] object-contain bg-gray-50 rounded-xl ring-1 ring-gray-200">
                 </template>
             </div>
         @else

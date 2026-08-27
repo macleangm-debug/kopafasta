@@ -61,9 +61,23 @@
             'user'    => '<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0"/>',
             'help'    => '<path d="M12 18v.01M9.1 9a3 3 0 1 1 4.4 3.4c-1 .6-1.5 1.2-1.5 2.6M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/>',
             'shield'  => '<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3zM9 12l2 2 4-4"/>',
+            'list'    => '<path d="M3 6h18M3 12h18M3 18h18"/>',
+            'chart'   => '<path d="M4 19V5M4 19h16M8 16V9M12 16V6M16 16v-4"/>',
+            'trend'   => '<path d="M3 17l6-6 4 4 8-8M21 7h-5M21 7v5"/>',
             default   => '<circle cx="12" cy="12" r="8"/>',
         };
     };
+
+    $routeName = \Illuminate\Support\Facades\Route::currentRouteName();
+    $mobileNavService = app(\App\Services\BorrowerMobileNavService::class);
+    $mobileNavService->rememberPlusRoom($routeName);
+    $plusWorkspace = $portalMode !== 'guarantor' && $mobileNavService->isPlusWorkspace($routeName);
+    $hideMobileNav = $portalMode !== 'guarantor' && $mobileNavService->hidesMobileNav($routeName);
+    $mobileNav = $portalMode === 'guarantor'
+        ? array_slice($nav, 0, 5)
+        : ($plusWorkspace ? $mobileNavService->plusWorkspaceNav() : $mobileNavService->mobilePrimaryNav());
+    $mobileActive = $plusWorkspace ? $mobileNavService->plusActiveKey($routeName) : $active;
+    $plusMoreItems = $plusWorkspace ? $mobileNavService->plusMoreItems() : [];
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">
@@ -79,7 +93,7 @@
     @stack('styles')
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false, profileSheet:false}">
+<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false, profileSheet:false, plusMoreOpen:false}">
 
 @if (session('feedback') || session('status') || session('warning') || session('error'))
     <div class="sr-only" aria-hidden="true"
@@ -226,9 +240,16 @@
 
         {{-- Topbar (mobile) --}}
         <header class="kf-chrome-topbar-mobile lg:hidden sticky top-0 z-40 glass-nav flex items-center justify-between px-3 h-14 gap-2">
-            <a href="{{ route('site.borrower.dashboard') }}" data-kf-motion="tab" class="flex items-center gap-2 shrink-0">
-                <x-site.brand-mark size="sm" />
-            </a>
+            @if ($plusWorkspace)
+                <a href="{{ route('site.borrower.dashboard') }}" data-kf-motion="tab" class="flex items-center gap-2 min-w-0 text-sm font-extrabold text-brand">
+                    <span aria-hidden="true">←</span>
+                    <span class="truncate">{{ __('borrower.layout.back_to_kopafasta') }}</span>
+                </a>
+            @else
+                <a href="{{ route('site.borrower.dashboard') }}" data-kf-motion="tab" class="flex items-center gap-2 shrink-0">
+                    <x-site.brand-mark size="sm" />
+                </a>
+            @endif
             <div class="flex items-center gap-0.5 shrink-0">
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <div class="relative" x-data="notificationBell()" x-init="load()">
@@ -279,17 +300,20 @@
                         </div>
                     </template>
                 </div>
-                <button type="button" @click="profileSheet = true" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('borrower.layout.menu') }}">
+                <a href="{{ route('site.borrower.profile') }}" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('borrower.nav.profile') }}">
                     <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">
                         {{ strtoupper(substr($displayName, 0, 1)) }}
                     </div>
-                </button>
+                </a>
+                @if ($portalMode === 'guarantor')
                 <button @click="open = true" class="p-2 text-gray-700" aria-label="{{ __('borrower.layout.menu') }}">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
+                @endif
             </div>
         </header>
 
+        @if ($portalMode === 'guarantor')
         {{-- Mobile menu: horizontal tabs in a bottom sheet --}}
         <template x-teleport="body">
             <div x-show="open" x-cloak class="fixed inset-0 z-[10055] lg:hidden" role="dialog" aria-modal="true">
@@ -370,6 +394,7 @@
                 </div>
             </div>
         </template>
+        @endif
 
         {{-- Validation feedback uses modal (not inline error walls) --}}
         @if ($errors->any())
@@ -389,7 +414,7 @@
             ></div>
         @endif
 
-        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8" data-kf-busy-scope>
+        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 {{ $hideMobileNav ? '' : 'pb-28 lg:pb-8' }}" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full">
                 @if ($portalMode !== 'guarantor')
 
@@ -398,11 +423,62 @@
             </div>
         </main>
 
-        <footer class="px-4 lg:px-8 py-6 text-center text-xs text-gray-400 border-t border-gray-200/60">
+        <footer class="px-4 lg:px-8 py-6 text-center text-xs text-gray-400 border-t border-gray-200/60 hidden lg:block">
             © {{ date('Y') }} {{ brand('legal_name') }} · <a href="{{ route('site.faq') }}" class="hover:text-brand">{{ __('borrower.layout.help') }}</a>
         </footer>
     </div>
 </div>
+
+@if (! $hideMobileNav)
+<nav class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-brand/15"
+     style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+    <div class="grid {{ count($mobileNav) === 4 ? 'grid-cols-4' : 'grid-cols-5' }}">
+        @foreach ($mobileNav as $item)
+            @php $isActive = $mobileActive === $item['key']; @endphp
+            @if (($item['action'] ?? null) === 'more')
+                <button type="button" @click="plusMoreOpen = true"
+                        class="flex flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-center {{ $isActive ? 'text-brand font-bold' : 'text-brand/70' }}">
+                    <span class="grid place-items-center size-11 rounded-2xl {{ $isActive ? 'bg-brand text-white' : 'bg-brand/10 text-brand' }}">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon($item['icon']) !!}</svg>
+                    </span>
+                    <span class="text-[10px] leading-tight line-clamp-2 w-full">{{ $item['label'] }}</span>
+                </button>
+            @else
+                <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
+                   data-kf-motion="tab"
+                   class="flex flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-center {{ $isActive ? 'text-brand font-bold' : 'text-brand/70' }}">
+                    <span class="grid place-items-center size-11 rounded-2xl {{ $isActive ? 'bg-brand text-white' : 'bg-brand/10 text-brand' }}">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon($item['icon']) !!}</svg>
+                    </span>
+                    <span class="text-[10px] leading-tight line-clamp-2 w-full">{{ $item['label'] }}</span>
+                </a>
+            @endif
+        @endforeach
+    </div>
+</nav>
+@endif
+
+@if ($plusWorkspace)
+<template x-teleport="body">
+    <div x-show="plusMoreOpen" x-cloak class="fixed inset-0 z-[10058] lg:hidden" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/40" @click="plusMoreOpen = false"></div>
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-5 space-y-2 shadow-[0_-8px_40px_rgba(0,0,0,0.18)]"
+             style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom))"
+             @click.stop>
+            <div class="flex justify-center pb-1"><div class="w-10 h-1 rounded-full bg-gray-300"></div></div>
+            <p class="font-extrabold text-gray-900">{{ __('plus.nav.more_title') }}</p>
+            @foreach ($plusMoreItems as $more)
+                <a href="{{ route($more['route']) }}" @click="plusMoreOpen = false"
+                   class="block rounded-xl ring-1 ring-gray-200 px-4 py-3.5 hover:bg-brand-muted/40">
+                    <p class="text-sm font-extrabold text-gray-900">{{ $more['label'] }}</p>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ $more['hint'] }}</p>
+                </a>
+            @endforeach
+            <a href="{{ route('site.borrower.dashboard') }}" class="block text-center text-sm font-bold text-brand pt-2">← {{ __('borrower.layout.back_to_kopafasta') }}</a>
+        </div>
+    </div>
+</template>
+@endif
 
 <x-site.guarantor-request-popup :pending="$pendingGuarantorPopup" />
 <x-site.upload-busy-overlay />

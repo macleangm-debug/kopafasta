@@ -113,13 +113,16 @@ return [
   'nav' => 
 [
     'dashboard' => 'Dashibodi',
+    'home' => 'Nyumbani',
     'plus' => 'Kopafasta Plus',
+    'plus_short' => 'Plus',
     'membership' => 'Uanachama',
     'referrals' => 'Rufaa',
     'rewards' => 'Zawadi',
     'engagement' => 'Zawadi na rufaa',
     'loans' => 'Mikopo',
     'marketplace' => 'Soko la mali',
+    'marketplace_short' => 'Soko',
     'verify' => 'Thibitisha kadi',
     'payments' => 'Malipo',
     'notifications' => 'Arifa',
@@ -217,6 +220,7 @@ return [
     'help_center' => 'Kituo cha msaada',
     'sign_out' => 'Toka',
     'help' => 'Msaada',
+    'back_to_kopafasta' => 'Kopafasta',
     'form_errors' => 'Tafadhali sahihisha:',
     'fix_errors' => 'Tafadhali rekebisha:',
 ],
@@ -1864,6 +1868,10 @@ return [
       'edit' => 'Hariri',
       'manage' => 'Simamia',
       'start_verification' => 'Anza uthibitisho',
+      'group_account' => 'Akaunti yangu',
+      'group_setup' => 'Mipangilio ya fedha',
+      'group_relationships' => 'Mahusiano yangu',
+      'group_help' => 'Msaada',
     ],
     'gaps' =>
     [

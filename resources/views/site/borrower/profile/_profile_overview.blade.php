@@ -99,3 +99,31 @@
         @endforeach
     </div>
 </section>
+
+<section class="space-y-5">
+    <div>
+        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_account') }}</p>
+        <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
+            <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.profile.kyc') }}</a>
+            <a href="{{ route('site.borrower.profile', ['section' => 'security']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.profile.security') }}</a>
+            <a href="{{ route('site.borrower.settings') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.settings') }}</a>
+        </div>
+    </div>
+    <div>
+        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_relationships') }}</p>
+        <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
+            <a href="{{ route('site.borrower.engagement') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.engagement') }}</a>
+            <a href="{{ route('site.borrower.guarantors') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.loans_page.tab_guarantor_requests') }}</a>
+        </div>
+    </div>
+    <div>
+        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_help') }}</p>
+        <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
+            <a href="{{ route('site.borrower.support') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.layout.help_center') }}</a>
+        </div>
+    </div>
+    <form method="POST" action="{{ route('site.logout') }}">
+        @csrf
+        <button type="submit" class="w-full rounded-xl bg-red-50 text-red-600 text-sm font-semibold py-3.5">{{ __('borrower.layout.sign_out') }}</button>
+    </form>
+</section>

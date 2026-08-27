@@ -8,6 +8,12 @@ return [
     'look' => 'Look',
     'nav' => [
         'home' => 'Plus dashboard',
+        'plus_home' => 'Plus Home',
+        'money' => 'Money',
+        'business' => 'Business',
+        'goals' => 'Goals',
+        'more' => 'More',
+        'more_title' => 'More in Kopafasta Plus',
         'learn' => 'Learn',
     ],
     'home' => [

@@ -93,7 +93,12 @@ class PartnerPortalUxPassTest extends TestCase
             ->withSession(['locale' => 'sw'])
             ->get(route('site.borrower.dashboard'))
             ->assertOk()
-            ->assertDontSee(__('borrower.dashboard.snapshot.title'), false);
+            ->assertDontSee(__('borrower.dashboard.snapshot.title'), false)
+            ->assertSee(__('borrower.nav.home'), false)
+            ->assertSee(__('borrower.nav.loans'), false)
+            ->assertSee(__('borrower.nav.marketplace_short'), false)
+            ->assertSee(__('borrower.nav.plus_short'), false)
+            ->assertDontSee('aria-label="'.__('borrower.layout.menu').'"', false);
     }
 
     public function test_sla_reassignment_preserves_photos_and_does_not_create_a_valuation_fee(): void

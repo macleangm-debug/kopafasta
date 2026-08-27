@@ -492,10 +492,13 @@ class VendorController extends Controller
         $assets = $inspection->assetsForTask($task);
         $needsVehicle = $assets->contains(fn ($asset) => $asset->isVehicleLike());
         $driveDone = ! $needsVehicle || filled($checks['test_drive'] ?? null);
-        $tab = $driveDone ? 'values' : 'inspect';
+        $params = ['task' => $task, 'tab' => $driveDone ? 'values' : 'inspect'];
+        if (! $driveDone) {
+            $params['step'] = 'drive';
+        }
 
         return redirect()
-            ->route('site.partner.task', ['task' => $task, 'tab' => $tab])
+            ->route('site.partner.task', $params)
             ->with('status', __('site.partner_portal.valuation_checks_saved'));
     }
 

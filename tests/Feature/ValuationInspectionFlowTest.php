@@ -231,7 +231,7 @@ class ValuationInspectionFlowTest extends TestCase
             ->withSession(['locale' => 'en'])
             ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
             ->assertOk()
-            ->assertSee(__('site.partner_portal.valuation_photos_intro'), false)
+            ->assertDontSee(__('site.partner_portal.valuation_photos_intro'), false)
             ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => $this->photoStepTotal()]), false)
             ->assertSee(__('borrower.document_upload.camera'), false)
             ->assertSee('capture="environment"', false)
@@ -241,6 +241,7 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertSee('assets/front.jpg', false)
             ->assertSee('id="val-photo-'.$asset->id.'-front"', false)
             ->assertSee('id="val-photo-'.$asset->id.'-back"', false)
+            ->assertDontSee('name="file"', false)
             ->assertDontSee('grid grid-cols-2 sm:grid-cols-3 gap-2', false);
 
         $this->actingAs($user)

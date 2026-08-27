@@ -8,6 +8,12 @@ return [
     'look' => 'Angalia',
     'nav' => [
         'home' => 'Dashibodi ya Plus',
+        'plus_home' => 'Plus',
+        'money' => 'Pesa',
+        'business' => 'Biashara',
+        'goals' => 'Malengo',
+        'more' => 'Zaidi',
+        'more_title' => 'Zaidi katika Kopafasta Plus',
         'learn' => 'Jifunze',
     ],
     'home' => [
