@@ -190,10 +190,11 @@ class ConsoleNavService
             [
                 'label' => 'Communications',
                 'workspace' => true,
-                'active_prefixes' => ['admin.communications.', 'admin.notification-templates.', 'admin.support-tickets.', 'admin.complaints.'],
+                'active_prefixes' => ['admin.communications.', 'admin.notification-templates.', 'admin.support-tickets.', 'admin.complaints.', 'admin.broken-pages.'],
                 'items' => [
                     ['Overview', 'admin.communications.index', 'communications.view'],
                     ['Tickets', 'admin.support-tickets.index', 'support.tickets'],
+                    ['Broken pages', 'admin.broken-pages.index', 'support.tickets'],
                     ['Templates', 'admin.notification-templates.index', 'communications.templates.manage'],
                     ['Chatbot', 'admin.communications.chatbot', 'communications.chatbot.manage'],
                     ['Complaints', 'admin.complaints.index', 'support.tickets', null, ['nav' => 'more']],

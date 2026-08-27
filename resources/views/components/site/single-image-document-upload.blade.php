@@ -45,10 +45,13 @@
 
     <div class="flex flex-wrap items-center gap-3">
         @unless ($cameraOnly)
-        <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
+        <label class="inline-flex items-center justify-center bg-white hover:bg-brand-muted/40 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm ring-1 ring-brand/20">
             <span>{{ __('borrower.profile.upload') }}</span>
             <input type="file" name="{{ $name }}" accept="image/*,application/pdf" class="sr-only" @change="setFile($event)">
         </label>
+        @if($facingMode === 'environment')
+            <input type="file" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
+        @endif
         @else
             {{-- Unnamed: the named input is created in the host after capture so the empty picker is not posted. --}}
             <input type="file" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">

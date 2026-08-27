@@ -91,6 +91,11 @@
             <input type="hidden" name="auto_assign_cold_start_{{ $suffix }}" value="{{ $coldStart }}">
             @if ($showSlaDays)
                 <input type="hidden" name="auto_assign_sla_days_{{ $suffix }}" value="{{ $slaDays }}">
+                <input type="hidden" name="auto_assign_sla_hours_{{ $suffix }}" value="{{ $s['sla_hours'] ?? '' }}">
+                <input type="hidden" name="auto_assign_remind_hours_{{ $suffix }}" value="{{ $s['remind_hours'] ?? '12,4' }}">
+                <input type="hidden" name="auto_assign_grace_hours_{{ $suffix }}" value="{{ $s['grace_hours'] ?? 0 }}">
+                <input type="hidden" name="auto_assign_max_reassignments_{{ $suffix }}" value="{{ $s['max_reassignments'] ?? 3 }}">
+                <input type="hidden" name="auto_assign_reassign_mode_{{ $suffix }}" value="{{ $s['reassign_mode'] ?? 'auto' }}">
             @endif
             <input type="hidden" name="auto_assign_weight_load_{{ $suffix }}" value="{{ $weightLoad }}">
             <input type="hidden" name="auto_assign_weight_efficiency_{{ $suffix }}" value="{{ $weightEfficiency }}">
@@ -137,6 +142,34 @@
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Task SLA / lead days</label>
                         <input type="number" name="auto_assign_sla_days_{{ $suffix }}" value="{{ $slaDays }}" min="1" max="90"
                                class="w-full rounded-lg border-gray-300 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">SLA hours (optional override)</label>
+                        <input type="number" name="auto_assign_sla_hours_{{ $suffix }}" value="{{ $s['sla_hours'] ?? '' }}" min="1" max="2160"
+                               placeholder="Uses days × 24" class="w-full rounded-lg border-gray-300 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Remind hours remaining</label>
+                        <input type="text" name="auto_assign_remind_hours_{{ $suffix }}" value="{{ $s['remind_hours'] ?? '12,4' }}"
+                               class="w-full rounded-lg border-gray-300 text-sm">
+                        <p class="mt-1 text-[11px] text-gray-500">Comma-separated, e.g. 12,4</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Grace hours after breach</label>
+                        <input type="number" name="auto_assign_grace_hours_{{ $suffix }}" value="{{ $s['grace_hours'] ?? 0 }}" min="0" max="72"
+                               class="w-full rounded-lg border-gray-300 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Max auto-reassignments</label>
+                        <input type="number" name="auto_assign_max_reassignments_{{ $suffix }}" value="{{ $s['max_reassignments'] ?? 3 }}" min="1" max="10"
+                               class="w-full rounded-lg border-gray-300 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Reassignment mode</label>
+                        <select name="auto_assign_reassign_mode_{{ $suffix }}" class="w-full rounded-lg border-gray-300 text-sm">
+                            <option value="auto" @selected(($s['reassign_mode'] ?? 'auto') === 'auto')>Automatic</option>
+                            <option value="manual" @selected(($s['reassign_mode'] ?? 'auto') === 'manual')>Needs reassignment queue</option>
+                        </select>
                     </div>
                 @endif
             </div>

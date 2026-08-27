@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\NotificationLog;
+use App\Models\Partner;
 use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Support\Facades\Log;
@@ -20,7 +21,7 @@ class PartnerAssignmentNotifier
      *
      * @param  array{title?: string, body?: string, action_url?: string|null, staff_permission?: string, staff_url?: string|null}  $context
      */
-    public function notifyAssigned(Vendor $partner, string $taskLabel, array $context = []): void
+    public function notifyAssigned(Partner $partner, string $taskLabel, array $context = []): void
     {
         $title = $context['title'] ?? 'New task assigned';
         $body = $context['body'] ?? ('You have been assigned: '.$taskLabel);

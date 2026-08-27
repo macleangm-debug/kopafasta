@@ -79,7 +79,7 @@
     @stack('styles')
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false}">
+<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false, profileSheet:false}">
 
 @if (session('feedback') || session('status') || session('warning') || session('error'))
     <div class="sr-only" aria-hidden="true"
@@ -279,24 +279,11 @@
                         </div>
                     </template>
                 </div>
-                <div class="relative" x-data="{ profileOpen: false }">
-                    <button type="button" @click="profileOpen = !profileOpen" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('borrower.layout.my_profile') }}">
-                        <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">
-                            {{ strtoupper(substr($displayName, 0, 1)) }}
-                        </div>
-                    </button>
-                    <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
-                         class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95 shadow-xl">
-                        <a href="{{ route('site.borrower.profile') }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
-                        <a href="{{ route('site.borrower.settings') }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.nav.settings') }}</a>
-                        <a href="{{ route('site.borrower.support') }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
-                        <div class="border-t border-gray-100 my-1"></div>
-                        <form method="POST" action="{{ route('site.logout') }}">
-                            @csrf
-                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ __('borrower.layout.sign_out') }}</button>
-                        </form>
+                <button type="button" @click="profileSheet = true" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('borrower.layout.menu') }}">
+                    <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">
+                        {{ strtoupper(substr($displayName, 0, 1)) }}
                     </div>
-                </div>
+                </button>
                 <button @click="open = true" class="p-2 text-gray-700" aria-label="{{ __('borrower.layout.menu') }}">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
@@ -337,8 +324,48 @@
                             </a>
                         @endforeach
                     </nav>
-                    <div class="px-4 pb-4 pt-1 border-t border-white/15">
+                    <div class="px-4 pb-4 pt-1 border-t border-white/15 space-y-3">
                         <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                        <form method="POST" action="{{ route('site.logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full rounded-xl bg-white/10 text-red-200 text-sm font-semibold py-3">{{ __('borrower.layout.sign_out') }}</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template x-teleport="body">
+            <div x-show="profileSheet" x-cloak class="fixed inset-0 z-[10056] lg:hidden" role="dialog" aria-modal="true">
+                <div class="absolute inset-0 bg-black/40" @click="profileSheet = false" x-transition.opacity></div>
+                <div class="absolute inset-x-0 bottom-0 bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] rounded-t-2xl flex flex-col"
+                     style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+                     @click.stop
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="translate-y-full"
+                     x-transition:enter-end="translate-y-0"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="translate-y-0"
+                     x-transition:leave-end="translate-y-full">
+                    <div class="flex justify-center pt-3 pb-1 shrink-0">
+                        <div class="w-10 h-1 rounded-full bg-gray-300"></div>
+                    </div>
+                    <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                        <h2 class="text-base font-bold text-gray-900">{{ $displayName }}</h2>
+                        <button type="button" @click="profileSheet = false" class="p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Close">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                        </button>
+                    </div>
+                    <nav class="px-2 py-2">
+                        <a href="{{ route('site.borrower.profile') }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
+                        <a href="{{ route('site.borrower.settings') }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ __('borrower.nav.settings') }}</a>
+                        <a href="{{ route('site.borrower.support') }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
+                    </nav>
+                    <div class="px-4 pb-4 pt-1 border-t border-gray-100">
+                        <form method="POST" action="{{ route('site.logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full rounded-xl bg-red-50 text-red-600 text-sm font-semibold py-3.5">{{ __('borrower.layout.sign_out') }}</button>
+                        </form>
                     </div>
                 </div>
             </div>

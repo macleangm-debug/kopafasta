@@ -8,6 +8,7 @@
         @endcan
         @can('support.tickets')
             <a href="{{ route('admin.support-tickets.index') }}" class="inline-flex items-center rounded-xl bg-white ring-1 ring-brand/15 text-sm font-semibold px-4 py-2.5">Open tickets</a>
+            <a href="{{ route('admin.broken-pages.index') }}" class="inline-flex items-center rounded-xl bg-white ring-1 ring-brand/15 text-sm font-semibold px-4 py-2.5">Broken pages</a>
         @endcan
     </div>
 

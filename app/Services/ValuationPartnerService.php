@@ -112,11 +112,12 @@ class ValuationPartnerService
                 $customer->region ?? null,
             ])->filter()->implode(', '));
 
-            $slaDays = app(PartnerAutoAssignPolicy::class)->slaDaysForService('valuer');
+            $slaHours = app(PartnerAutoAssignPolicy::class)->slaHoursForService('valuer');
 
             $profileIds = $pledges->pluck('customer_asset_id')->filter()->map(fn ($id) => (int) $id)->values()->all();
             $profileAsset = $asset->customerAsset;
-            $angleLabels = CustomerAsset::photoAngleLabels($profileAsset?->asset_type);
+            $evidence = app(ValuationEvidenceService::class);
+            $angleLabels = $evidence->labels($profileAsset?->asset_type, requiredOnly: true);
             $taskNotes = json_encode([
                 'message' => $notes,
                 'customer_asset_id' => $profileIds[0] ?? $profileAsset?->id,
@@ -124,9 +125,9 @@ class ValuationPartnerService
                 'photo_angles' => array_keys($angleLabels),
             ], JSON_UNESCAPED_UNICODE);
             $angleList = implode(', ', array_values($angleLabels));
-            $instruction = ($notes ?: 'Inspect each pledged asset physically, photograph the same angles as the owner (camera only), check systems, then submit market and forced sale values per asset.')
+            $instruction = ($notes ?: 'Inspect each pledged asset physically, photograph the required evidence angles, check systems, then submit market and forced sale values per asset.')
                 ."\n\nAssets on this job: ".($assetDescription ?: '1 asset')
-                .".\nTake the same angles as the borrower profile: {$angleList}.";
+                .".\nRequired evidence: {$angleList}.";
 
             $unitCost = (int) round(app(PartnerDefaultsService::class)->valuerBaseCost($valuer));
             $task = VendorTask::create([
@@ -135,7 +136,7 @@ class ValuationPartnerService
                 'loan_application_id' => $application->id,
                 'task_type'       => 'asset_valuation',
                 'status'          => 'assigned',
-                'due_at'          => now()->addDays($slaDays),
+                'due_at'          => now()->addHours($slaHours),
                 'customer_name'   => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'customer_phone'  => $customer->phone ?? null,
                 'vehicle_details' => $assetDescription ?: null,
@@ -163,7 +164,7 @@ class ValuationPartnerService
 
             app(PartnerAssignmentNotifier::class)->notifyAssigned($valuer, 'Asset valuation', [
                 'title' => 'New valuation task',
-                'body' => 'A new asset inspection was assigned. SLA '.$slaDays.' day(s). Photograph the asset at the listed location.',
+                'body' => 'A new asset inspection was assigned. Complete by '.$task->due_at?->format('d M Y H:i').'. Photograph the required evidence at the listed location.',
                 'action_url' => '/partner/tasks',
                 'staff_permission' => 'applications.view',
                 'staff_url' => route('admin.loan-applications.show', $application),

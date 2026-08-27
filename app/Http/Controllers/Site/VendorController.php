@@ -59,7 +59,7 @@ class VendorController extends Controller
     protected function tasksQuery(Vendor $vendor)
     {
         return VendorTask::where('partner_id', $vendor->id)
-            ->with(['loan.customer', 'loanApplication.customer', 'loanApplication.assetReservation.asset']);
+            ->with(['loan.customer', 'loanApplication.customer', 'loanApplication.assetReservation.asset', 'documents', 'valuationAssignment']);
     }
 
     /* ------------------------------------------------------------------ */
@@ -371,6 +371,7 @@ class VendorController extends Controller
         if ($redirect = $this->redirectIfJobsBlocked($vendor)) {
             return $redirect;
         }
+        abort_unless($task->isWritable(), 403);
         $task->update(['status' => 'in_progress', 'accepted_at' => now()]);
         $this->markValuationInProgress($task);
 
@@ -384,6 +385,7 @@ class VendorController extends Controller
         if ($redirect = $this->redirectIfJobsBlocked($vendor)) {
             return $redirect;
         }
+        abort_unless($task->isWritable(), 403);
         $task->update([
             'status' => 'in_progress',
             'started_at' => now(),
@@ -400,16 +402,44 @@ class VendorController extends Controller
         return back()->with('status', 'Marked as in progress.');
     }
 
+    public function declineTask(Request $request, VendorTask $task)
+    {
+        $vendor = $this->vendor();
+        abort_unless($task->vendor_id === $vendor->id, 404);
+        abort_unless($task->isWritable(), 403);
+
+        $data = $request->validate([
+            'reason' => ['required', 'in:too_far,unavailable,conflict,other'],
+            'detail' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $ok = app(\App\Services\ServicePartnerReassignmentService::class)
+            ->declineTask($task, $data['reason'], $data['detail'] ?? null);
+
+        if (! $ok) {
+            $task->mergeNotesMeta(['declined_reason' => $data['reason'], 'declined_detail' => $data['detail'] ?? null]);
+            $task->update([
+                'status' => 'rejected',
+                'completed_at' => now(),
+            ]);
+        }
+
+        return redirect()
+            ->route('site.partner.tasks')
+            ->with('status', __('site.partner_portal.decline_thanks'));
+    }
+
     public function inspectValuationPhoto(Request $request, VendorTask $task)
     {
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
         abort_unless($task->task_type === 'asset_valuation', 404);
+        abort_unless($task->isWritable(), 403);
         abort_unless(filled($task->started_at) || $task->status === 'in_progress', 403);
 
         $data = $request->validate([
             'customer_asset_id' => ['required', 'integer'],
-            'angle' => ['required', 'string', 'max:20'],
+            'angle' => ['required', 'string', 'max:40'],
             'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
@@ -423,7 +453,10 @@ class VendorController extends Controller
         $task->load('documents');
         $assets = $inspection->assetsForTask($task);
         $steps = $inspection->photoSteps($task, $assets);
-        $next = collect($steps)->search(fn (array $step) => blank($step['path']));
+        $next = collect($steps)->search(fn (array $step) => ($step['required'] ?? true) && blank($step['path']));
+        if ($next === false) {
+            $next = collect($steps)->search(fn (array $step) => blank($step['path']));
+        }
         $params = ['task' => $task, 'tab' => 'inspect'];
         if ($next !== false) {
             $params['photo'] = $next;
@@ -439,12 +472,16 @@ class VendorController extends Controller
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
         abort_unless($task->task_type === 'asset_valuation', 404);
+        abort_unless($task->isWritable(), 403);
         abort_unless(filled($task->started_at) || $task->status === 'in_progress', 403);
 
         $inspection = app(ValuationInspectionService::class);
         $data = $request->validate([
             'engine' => ['nullable', 'string', Rule::in(array_keys($inspection->engineOptions()))],
             'test_drive' => ['nullable', 'string', Rule::in(array_keys($inspection->driveOptions()))],
+            'body_condition' => ['nullable', 'string', Rule::in(array_keys($inspection->bodyConditionOptions()))],
+            'tyres' => ['nullable', 'string', Rule::in(array_keys($inspection->tyreOptions()))],
+            'interior' => ['nullable', 'string', Rule::in(array_keys($inspection->interiorOptions()))],
         ]);
 
         $assignment = ValuationAssignment::query()->where('partner_task_id', $task->id)->first();
@@ -481,6 +518,7 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
+        abort_unless($task->isWritable(), 403);
 
         $data = $request->validate([
             'gps_serial' => ['nullable', 'string', 'max:60'],

@@ -80,7 +80,7 @@ class GpsPartnerService
                 $customer->region ?? null,
             ])->filter()->implode(', '));
 
-            $slaDays = $this->autoAssign->slaDaysForService('gps_installer');
+            $slaHours = $this->autoAssign->slaHoursForService('gps_installer');
 
             $task = VendorTask::create([
                 'vendor_id'           => $installer->id,
@@ -88,7 +88,7 @@ class GpsPartnerService
                 'loan_application_id' => $application->id,
                 'task_type'           => 'gps_install',
                 'status'              => 'assigned',
-                'due_at'              => now()->addDays($slaDays),
+                'due_at'              => now()->addHours($slaHours),
                 'customer_name'       => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'customer_phone'      => $customer->phone ?? null,
                 'vehicle_details'     => $asset?->title,
@@ -98,7 +98,7 @@ class GpsPartnerService
 
             app(PartnerAssignmentNotifier::class)->notifyAssigned($installer, 'GPS installation', [
                 'title' => 'New GPS install task',
-                'body' => 'GPS installation assigned for application '.($application->application_number ?? '#'.$application->id).'. SLA '.$slaDays.' day(s).',
+                'body' => 'GPS installation assigned for application '.($application->application_number ?? '#'.$application->id).'. Complete by '.$task->due_at?->format('d M Y H:i').'.',
                 'action_url' => '/partner/tasks',
                 'staff_permission' => 'applications.view',
                 'staff_url' => route('admin.loan-applications.show', $application),

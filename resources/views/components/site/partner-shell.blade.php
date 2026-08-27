@@ -45,6 +45,10 @@
         );
     $partnerUnread = (clone $partnerNotificationsQuery)->whereNull('read_at')->count();
     $partnerPreview = (clone $partnerNotificationsQuery)->latest()->limit(8)->get();
+    $shellVendor = \App\Models\Vendor::query()->where('user_id', auth()->id())->first();
+    $mobileNav = $navService->mobilePrimaryNav($nav, $shellVendor);
+    $mobileNavKeys = array_column($mobileNav, 'key');
+    $overflowNav = array_values(array_filter($nav, fn (array $item) => ! in_array($item['key'], $mobileNavKeys, true)));
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">
@@ -58,7 +62,7 @@
     @stack('styles')
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false}">
+<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false, profileSheet:false}">
 
 @if (session('status') || session('warning') || session('error'))
     <div class="sr-only" aria-hidden="true"
@@ -181,34 +185,18 @@
                         <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $partnerUnread > 9 ? '9+' : $partnerUnread }}</span>
                     @endif
                 </a>
-                <div class="relative" x-data="{ profileOpen: false }">
-                    <button type="button" @click="profileOpen = !profileOpen" class="p-1.5 rounded-lg hover:bg-brand-muted/60">
-                        <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">
-                            {{ strtoupper(substr($name, 0, 1)) }}
-                        </div>
-                    </button>
-                    <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
-                         class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95 shadow-xl">
-                        @foreach ($profileLinks as $link)
-                            <a href="{{ route($link['route']) }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $link['label'] }}</a>
-                        @endforeach
-                        <div class="border-t border-gray-100 my-1"></div>
-                        <form method="POST" action="{{ route('site.logout') }}">
-                            @csrf
-                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ __('borrower.layout.sign_out') }}</button>
-                        </form>
+                <button type="button" @click="profileSheet = true" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('site.partner_portal.nav_profile') }}">
+                    <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">
+                        {{ strtoupper(substr($name, 0, 1)) }}
                     </div>
-                </div>
-                <button @click="open = true" class="p-2 text-gray-700" aria-label="{{ __('borrower.layout.menu') }}">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
             </div>
         </header>
 
         <template x-teleport="body">
-            <div x-show="open" x-cloak class="fixed inset-0 z-[10055] lg:hidden" role="dialog" aria-modal="true">
-                <div class="absolute inset-0 bg-black/40" @click="open = false" x-transition.opacity></div>
-                <div class="absolute inset-x-0 bottom-0 bg-brand text-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] rounded-t-2xl flex flex-col"
+            <div x-show="profileSheet" x-cloak class="fixed inset-0 z-[10056] lg:hidden" role="dialog" aria-modal="true">
+                <div class="absolute inset-0 bg-black/40" @click="profileSheet = false" x-transition.opacity></div>
+                <div class="absolute inset-x-0 bottom-0 bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] rounded-t-2xl flex flex-col"
                      style="padding-bottom: env(safe-area-inset-bottom, 0px)"
                      @click.stop
                      x-transition:enter="transition ease-out duration-300"
@@ -218,28 +206,27 @@
                      x-transition:leave-start="translate-y-0"
                      x-transition:leave-end="translate-y-full">
                     <div class="flex justify-center pt-3 pb-1 shrink-0">
-                        <div class="w-10 h-1 rounded-full bg-white/40"></div>
+                        <div class="w-10 h-1 rounded-full bg-gray-300"></div>
                     </div>
-                    <div class="px-5 py-3 border-b border-white/15 flex items-start justify-between gap-3">
-                        <x-site.brand-mark size="sm" variant="light" :portal="$portalLabel" />
-                        <button type="button" @click="open = false" class="p-1 text-white/80 shrink-0" aria-label="Close">
-                            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                    <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                        <h2 class="text-base font-bold text-gray-900">{{ $name }}</h2>
+                        <button type="button" @click="profileSheet = false" class="p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Close">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
                         </button>
                     </div>
-                    <nav class="flex gap-2 overflow-x-auto overscroll-x-contain snap-x snap-mandatory px-4 py-4 scrollbar-none">
-                        @foreach ($nav as $item)
-                            @php $isActive = $active === $item['key']; @endphp
-                            <a href="{{ route($item['route']) }}"
-                               data-kf-motion="tab"
-                               class="snap-start shrink-0 w-[4.75rem] flex flex-col items-center gap-2 px-2 py-3 rounded-2xl text-center transition
-                                      {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm' : 'text-white/90 hover:bg-white/10' }}">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $navService->iconSvg($item['icon'] ?? 'home') !!}</svg>
-                                <span class="text-[11px] leading-tight">{{ $item['label'] }}</span>
-                            </a>
+                    <nav class="px-2 py-2 max-h-[50vh] overflow-y-auto">
+                        @foreach ($profileLinks as $link)
+                            <a href="{{ route($link['route']) }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ $link['label'] }}</a>
+                        @endforeach
+                        @foreach ($overflowNav as $item)
+                            <a href="{{ route($item['route']) }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ $item['label'] }}</a>
                         @endforeach
                     </nav>
-                    <div class="px-4 pb-4 pt-1 border-t border-white/15">
-                        <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                    <div class="px-4 pb-4 pt-1 border-t border-gray-100">
+                        <form method="POST" action="{{ route('site.logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full rounded-xl bg-red-50 text-red-600 text-sm font-semibold py-3.5">{{ __('borrower.layout.sign_out') }}</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -268,17 +255,32 @@
             ></div>
         @endif
 
-        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8" data-kf-busy-scope>
+        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-24 lg:pb-8" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full mx-auto">
                 {{ $slot }}
             </div>
         </main>
 
-        <footer class="px-4 lg:px-8 py-6 text-center text-xs text-gray-400 border-t border-gray-200/60">
+        <footer class="px-4 lg:px-8 py-6 text-center text-xs text-gray-400 border-t border-gray-200/60 hidden lg:block">
             © {{ date('Y') }} {{ brand('legal_name') }} · <a href="{{ route('site.faq') }}" class="hover:text-brand">{{ __('borrower.layout.help') }}</a>
         </footer>
     </div>
 </div>
+
+<nav class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200/80"
+     style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+    <div class="grid grid-cols-5">
+        @foreach ($mobileNav as $item)
+            @php $isActive = $active === $item['key']; @endphp
+            <a href="{{ route($item['route']) }}"
+               data-kf-motion="tab"
+               class="flex flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-center {{ $isActive ? 'text-brand font-bold' : 'text-gray-500' }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $navService->iconSvg($item['icon'] ?? 'home') !!}</svg>
+                <span class="text-[10px] leading-tight truncate w-full">{{ $item['label'] }}</span>
+            </a>
+        @endforeach
+    </div>
+</nav>
 
 <x-site.upload-busy-overlay />
 <x-site.confirm-modal name="default" />

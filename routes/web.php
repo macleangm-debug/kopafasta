@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BankAccountController;
 use App\Http\Controllers\Admin\BlacklistEntryController;
+use App\Http\Controllers\Admin\BrokenPageController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\ChargesFeeController;
 use App\Http\Controllers\Admin\ChartOfAccountController;
@@ -962,6 +963,11 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         // Support
         $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
+        Route::middleware('permission:support.tickets')->group(function (): void {
+            Route::get('broken-pages', [BrokenPageController::class, 'index'])->name('broken-pages.index');
+            Route::get('broken-pages/{brokenPage}', [BrokenPageController::class, 'show'])->name('broken-pages.show');
+            Route::post('broken-pages/{brokenPage}/resolve', [BrokenPageController::class, 'resolve'])->name('broken-pages.resolve');
+        });
         Route::get('support-chats', [SupportChatController::class, 'index'])->name('support-chats.index');
         Route::get('support-chats/{supportConversation}', [SupportChatController::class, 'show'])->name('support-chats.show');
         Route::post('support-chats/{supportConversation}/assign', [SupportChatController::class, 'assign'])->name('support-chats.assign');

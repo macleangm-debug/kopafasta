@@ -97,10 +97,11 @@ class ValuationInspectionService
     public function valuerPhotosByAsset(PartnerTask $task, $assets): array
     {
         $docs = $task->documents ?? collect();
+        $evidence = app(ValuationEvidenceService::class);
         $out = [];
         foreach ($assets as $asset) {
             $angles = [];
-            foreach (array_keys(CustomerAsset::photoAngleLabels($asset->asset_type)) as $angle) {
+            foreach (array_keys($evidence->labels($asset->asset_type)) as $angle) {
                 $doc = $docs->first(function ($row) use ($asset, $angle) {
                     $type = (string) ($row->doc_type ?? '');
 
@@ -125,11 +126,12 @@ class ValuationInspectionService
     public function missingValuerAngles(PartnerTask $task, $assets): array
     {
         $captured = $this->valuerPhotosByAsset($task, $assets);
+        $evidence = app(ValuationEvidenceService::class);
         $missing = [];
         foreach ($assets as $asset) {
-            foreach (array_keys(CustomerAsset::photoAngleLabels($asset->asset_type)) as $angle) {
+            foreach ($evidence->labels($asset->asset_type, requiredOnly: true) as $angle => $label) {
                 if (! filled($captured[$asset->id][$angle] ?? null)) {
-                    $missing[] = $asset->label.' · '.(CustomerAsset::photoAngleLabels($asset->asset_type)[$angle] ?? $angle);
+                    $missing[] = $asset->label.' · '.$label;
                 }
             }
         }
@@ -141,20 +143,23 @@ class ValuationInspectionService
      * One capture at a time — valuer photos only; owner uploads are never included.
      *
      * @param  \Illuminate\Support\Collection<int, CustomerAsset>  $assets
-     * @return list<array{asset_id: int, asset_label: string, angle: string, label: string, path: ?string}>
+     * @return list<array{asset_id: int, asset_label: string, angle: string, label: string, path: ?string, guidance: string, required: bool}>
      */
     public function photoSteps(PartnerTask $task, $assets): array
     {
         $captured = $this->valuerPhotosByAsset($task, $assets);
+        $evidence = app(ValuationEvidenceService::class);
         $steps = [];
         foreach ($assets as $asset) {
-            foreach (CustomerAsset::photoAngleLabels($asset->asset_type) as $angle => $label) {
+            foreach ($evidence->checklist($asset->asset_type) as $item) {
                 $steps[] = [
                     'asset_id' => $asset->id,
                     'asset_label' => (string) $asset->label,
-                    'angle' => $angle,
-                    'label' => $label,
-                    'path' => $captured[$asset->id][$angle] ?? null,
+                    'angle' => $item['angle'],
+                    'label' => $item['label'],
+                    'path' => $captured[$asset->id][$item['angle']] ?? null,
+                    'guidance' => $item['guidance'],
+                    'required' => $item['required'],
                 ];
             }
         }
@@ -169,7 +174,7 @@ class ValuationInspectionService
         string $angle,
         UploadedFile $file,
     ): PartnerDocument {
-        $labels = CustomerAsset::photoAngleLabels($asset->asset_type);
+        $labels = app(ValuationEvidenceService::class)->labels($asset->asset_type);
         if (! isset($labels[$angle])) {
             throw ValidationException::withMessages([
                 'angle' => __('site.partner_portal.valuation_unknown_angle'),
@@ -217,6 +222,11 @@ class ValuationInspectionService
         }
         if (isset($data['test_drive'])) {
             $payload['test_drive'] = (string) $data['test_drive'];
+        }
+        foreach (['body_condition', 'tyres', 'interior'] as $field) {
+            if (isset($data[$field])) {
+                $payload[$field] = (string) $data[$field];
+            }
         }
         $assignment->update(['inspection' => $payload]);
 
@@ -299,6 +309,40 @@ class ValuationInspectionService
             'engine_label' => $this->engineOptions()[$engine] ?? null,
             'test_drive' => $drive,
             'drive_label' => $this->driveOptions()[$drive] ?? null,
+            'body_condition' => (string) ($payload['body_condition'] ?? ''),
+            'tyres' => (string) ($payload['tyres'] ?? ''),
+            'interior' => (string) ($payload['interior'] ?? ''),
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function bodyConditionOptions(): array
+    {
+        return [
+            'excellent' => __('site.partner_portal.valuation_condition_excellent'),
+            'good' => __('site.partner_portal.valuation_condition_good'),
+            'fair' => __('site.partner_portal.valuation_condition_fair'),
+            'poor' => __('site.partner_portal.valuation_condition_poor'),
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function tyreOptions(): array
+    {
+        return [
+            'good' => __('site.partner_portal.valuation_tyres_good'),
+            'fair' => __('site.partner_portal.valuation_tyres_fair'),
+            'replace_soon' => __('site.partner_portal.valuation_tyres_replace'),
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function interiorOptions(): array
+    {
+        return [
+            'good' => __('site.partner_portal.valuation_interior_good'),
+            'fair' => __('site.partner_portal.valuation_interior_fair'),
+            'poor' => __('site.partner_portal.valuation_interior_poor'),
         ];
     }
 }

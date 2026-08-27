@@ -39,6 +39,48 @@ class PartnerAutoAssignPolicy
         return max(1, min(90, $days));
     }
 
+    public function slaHoursForService(string $category): int
+    {
+        $hours = $this->forServiceCategory($category)['sla_hours'] ?? null;
+        if (filled($hours) && (int) $hours > 0) {
+            return max(1, min(90 * 24, (int) $hours));
+        }
+
+        return $this->slaDaysForService($category) * 24;
+    }
+
+    /** @return list<int> */
+    public function remindHoursForService(string $category): array
+    {
+        $raw = $this->forServiceCategory($category)['remind_hours'] ?? '12,4';
+        $parts = is_array($raw) ? $raw : explode(',', (string) $raw);
+
+        return collect($parts)
+            ->map(fn ($v) => (int) $v)
+            ->filter(fn ($v) => $v > 0)
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->all();
+    }
+
+    public function graceHoursForService(string $category): int
+    {
+        return max(0, min(72, (int) ($this->forServiceCategory($category)['grace_hours'] ?? 0)));
+    }
+
+    public function maxReassignmentsForService(string $category): int
+    {
+        return max(1, min(10, (int) ($this->forServiceCategory($category)['max_reassignments'] ?? 3)));
+    }
+
+    public function reassignModeForService(string $category): string
+    {
+        $mode = (string) ($this->forServiceCategory($category)['reassign_mode'] ?? 'auto');
+
+        return in_array($mode, ['auto', 'manual'], true) ? $mode : 'auto';
+    }
+
     /** @return list<string> */
     public function strategies(): array
     {
@@ -166,6 +208,15 @@ class PartnerAutoAssignPolicy
             'weight_fairness' => max(0, 100 - (int) round(($weightLoad / $sum) * 100) - (int) round(($weightEfficiency / $sum) * 100)),
             'cold_start_rate' => max(0, min(100, (float) ($input["auto_assign_cold_start_{$suffix}"] ?? $defaults['cold_start_rate'] ?? 50))),
             'sla_days' => max(1, min(90, (int) ($input["auto_assign_sla_days_{$suffix}"] ?? $defaults['sla_days'] ?? 5))),
+            'sla_hours' => filled($input["auto_assign_sla_hours_{$suffix}"] ?? null)
+                ? max(1, min(90 * 24, (int) $input["auto_assign_sla_hours_{$suffix}"]))
+                : ($defaults['sla_hours'] ?? null),
+            'remind_hours' => (string) ($input["auto_assign_remind_hours_{$suffix}"] ?? $defaults['remind_hours'] ?? '12,4'),
+            'grace_hours' => max(0, min(72, (int) ($input["auto_assign_grace_hours_{$suffix}"] ?? $defaults['grace_hours'] ?? 0))),
+            'max_reassignments' => max(1, min(10, (int) ($input["auto_assign_max_reassignments_{$suffix}"] ?? $defaults['max_reassignments'] ?? 3))),
+            'reassign_mode' => in_array(($input["auto_assign_reassign_mode_{$suffix}"] ?? $defaults['reassign_mode'] ?? 'auto'), ['auto', 'manual'], true)
+                ? (string) ($input["auto_assign_reassign_mode_{$suffix}"] ?? $defaults['reassign_mode'] ?? 'auto')
+                : 'auto',
         ];
 
         if ($group === 'recovery') {
@@ -179,7 +230,7 @@ class PartnerAutoAssignPolicy
     {
         return match ($field) {
             'enabled', 'require_region', 'reassign_on_sla' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
-            'max_open', 'weight_load', 'weight_efficiency', 'weight_fairness', 'sla_days' => $value === null || $value === ''
+            'max_open', 'weight_load', 'weight_efficiency', 'weight_fairness', 'sla_days', 'sla_hours', 'grace_hours', 'max_reassignments' => $value === null || $value === ''
                 ? null
                 : (int) $value,
             'cold_start_rate' => (float) $value,

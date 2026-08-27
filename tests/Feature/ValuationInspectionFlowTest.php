@@ -73,6 +73,11 @@ class ValuationInspectionFlowTest extends TestCase
         return $valuer->fresh();
     }
 
+    private function requiredPhotoTotal(): int
+    {
+        return count(app(\App\Services\ValuationEvidenceService::class)->requiredAngles('vehicle'));
+    }
+
     private function makeVehicleAsset(Customer $customer): CustomerAsset
     {
         return CustomerAsset::create([
@@ -227,7 +232,7 @@ class ValuationInspectionFlowTest extends TestCase
             ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
             ->assertOk()
             ->assertSee(__('site.partner_portal.valuation_photos_intro'), false)
-            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => 5]), false)
+            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => $this->requiredPhotoTotal()]), false)
             ->assertSee(__('borrower.document_upload.camera'), false)
             ->assertSee('capture="environment"', false)
             ->assertSee('>Front</h3>', false)
@@ -263,8 +268,8 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertOk()
             ->assertSee('>Nyuma</h3>', false)
             ->assertDontSee('>Back</h3>', false)
-            ->assertSee('data-auto-submit="1"', false)
-            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => 5]), false);
+            ->assertSee(__('site.partner_portal.valuation_use_photo'), false)
+            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => $this->requiredPhotoTotal()]), false);
 
         $this->actingAs($user)
             ->withSession(['locale' => 'sw'])
@@ -279,7 +284,7 @@ class ValuationInspectionFlowTest extends TestCase
             ->withSession(['locale' => 'sw'])
             ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect', 'photo' => 1]))
             ->assertOk()
-            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 2, 'total' => 5]), false)
+            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 2, 'total' => $this->requiredPhotoTotal()]), false)
             ->assertSee('>Nyuma</h3>', false)
             ->assertDontSee('>Back</h3>', false);
     }
@@ -294,7 +299,7 @@ class ValuationInspectionFlowTest extends TestCase
 
         $this->actingAs($user)->post(route('site.partner.task.start', $task));
 
-        foreach (array_keys(CustomerAsset::photoAngleLabels('vehicle')) as $angle) {
+        foreach (app(\App\Services\ValuationEvidenceService::class)->requiredAngles('vehicle') as $angle) {
             $this->actingAs($user)
                 ->post(route('site.partner.task.inspect.photo', $task), [
                     'customer_asset_id' => $asset->id,

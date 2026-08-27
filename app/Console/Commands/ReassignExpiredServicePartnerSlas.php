@@ -9,12 +9,12 @@ class ReassignExpiredServicePartnerSlas extends Command
 {
     protected $signature = 'partners:reassign-expired-service-slas';
 
-    protected $description = 'Reassign overdue valuer / GPS / insurance tasks when auto-assign reassign-on-SLA is enabled';
+    protected $description = 'Remind, escalate and reassign overdue valuer / GPS / insurance tasks when SLA rules are enabled';
 
     public function handle(ServicePartnerReassignmentService $service): int
     {
-        $result = $service->reassignExpired();
-        $this->info('Reassigned: '.$result['reassigned'].' · Skipped: '.$result['skipped']);
+        $result = $service->processSla();
+        $this->info('Reminded: '.$result['reminded'].' · Escalated: '.$result['escalated'].' · Reassigned: '.$result['reassigned'].' · Skipped: '.$result['skipped']);
 
         return self::SUCCESS;
     }

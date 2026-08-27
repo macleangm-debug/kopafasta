@@ -145,14 +145,14 @@ class CollateralInsurancePartnerService
             $task = null;
             if ($partner) {
                 $partnerShare = (int) $quote['base_premium'];
-                $slaDays = app(PartnerAutoAssignPolicy::class)->slaDaysForService('insurance');
+                $slaHours = app(PartnerAutoAssignPolicy::class)->slaHoursForService('insurance');
                 $task = VendorTask::create([
                     'vendor_id' => $partner->id,
                     'loan_id' => $application->loan_id,
                     'loan_application_id' => $application->id,
                     'task_type' => self::TASK_TYPE,
                     'status' => 'assigned',
-                    'due_at' => now()->addDays($slaDays),
+                    'due_at' => now()->addHours($slaHours),
                     'customer_name' => $customer?->legalDisplayName() ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                     'customer_phone' => $customer?->phone,
                     'vehicle_details' => $details ?: $asset->label,

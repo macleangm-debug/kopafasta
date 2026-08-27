@@ -121,19 +121,34 @@
                         'indigo' => 'bg-indigo-100 text-brand',
                         default  => 'bg-gray-100 text-gray-600',
                     };
+                    $cardTitle = $t->vehicle_details ?: ($t->customer_name ?: ucfirst(str_replace('_',' ', $t->task_type)));
+                    $photoHint = null;
+                    $cta = $t->status === 'assigned' ? __('site.partner_portal.valuation_start_work') : __('site.partner_portal.valuation_continue');
+                    if ($isValuer && $t->task_type === 'asset_valuation') {
+                        $insp = app(\App\Services\ValuationInspectionService::class);
+                        $jobAssets = $insp->assetsForTask($t);
+                        $steps = collect($insp->photoSteps($t, $jobAssets))->where('required', true);
+                        $done = $steps->filter(fn ($s) => filled($s['path'] ?? null))->count();
+                        $photoHint = __('site.partner_portal.valuation_photos_done', ['done' => $done, 'total' => $steps->count()]);
+                    }
                 @endphp
                 <a href="{{ route('site.partner.task', $t) }}" data-kf-share="kf-task-{{ $t->id }}" class="block glass-card rounded-2xl ring-1 ring-brand/10 p-4 hover:shadow-sm">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
-                            <p class="font-semibold text-sm">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}</p>
-                            <p class="text-xs text-gray-500 truncate">{{ $t->customer_name ?: ($t->loanApplication?->customer?->name ?? '—') }} · {{ $t->location ?: '—' }}</p>
+                            <p class="font-semibold text-sm truncate">{{ $cardTitle }}</p>
+                            <p class="text-xs text-gray-500 truncate">{{ ucfirst(str_replace('_',' ', $t->task_type)) }} · {{ $priority['label'] }}</p>
                         </div>
-                        <div class="flex flex-col items-end gap-1 shrink-0">
-                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge($t->status) }}">{{ str_replace('_',' ', $t->status) }}</span>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $priorityBadge }}">{{ $priority['label'] }}</span>
-                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge($t->status) }}">{{ str_replace('_',' ', $t->status) }}</span>
                     </div>
-                    <div class="mt-2 text-xs text-gray-500">Due {{ $t->due_at ? $t->due_at->format('d M H:i') : '—' }}</div>
+                    @if ($photoHint)
+                        <p class="mt-2 text-xs font-semibold text-brand">{{ $photoHint }}</p>
+                    @endif
+                    <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
+                        <span>{{ $t->due_at ? $t->due_at->format('d M H:i') : __('site.partner_portal.flexible') }}</span>
+                        @if (in_array($t->status, ['assigned', 'in_progress'], true))
+                            <span class="font-semibold text-brand">{{ $cta }} →</span>
+                        @endif
+                    </div>
                 </a>
             @endforeach
         </div>

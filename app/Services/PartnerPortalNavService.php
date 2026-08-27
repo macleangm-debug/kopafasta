@@ -144,6 +144,54 @@ class PartnerPortalNavService
         ];
     }
 
+    /**
+     * Compact field-work tabs for phones: Home · Tasks · Payments · Notifications · Profile.
+     *
+     * @param  list<array{key: string, label: string, route: string, icon: string}>  $nav
+     * @return list<array{key: string, label: string, route: string, icon: string}>
+     */
+    public function mobilePrimaryNav(array $nav, ?Vendor $vendor = null): array
+    {
+        $prefer = ['dashboard', 'tasks', 'recovery', 'payments', 'recovery_wallet', 'notifications', 'profile'];
+        if ($vendor && app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            $prefer = ['dashboard', 'recovery', 'recovery_wallet', 'notifications', 'profile'];
+        }
+        if (($nav[0]['route'] ?? null) === 'site.affiliate.dashboard') {
+            $prefer = ['dashboard', 'referrals', 'wallet', 'notifications', 'profile'];
+        }
+        if (($nav[0]['route'] ?? null) === 'site.supplier.dashboard') {
+            $prefer = ['dashboard', 'requests', 'applications', 'settlements', 'profile'];
+        }
+
+        $byKey = [];
+        foreach ($nav as $item) {
+            $byKey[$item['key']] = $item;
+        }
+
+        $picked = [];
+        foreach ($prefer as $key) {
+            if (isset($byKey[$key])) {
+                $picked[] = $byKey[$key];
+            }
+            if (count($picked) >= 5) {
+                break;
+            }
+        }
+
+        if (count($picked) < 5) {
+            foreach ($nav as $item) {
+                if (! in_array($item['key'], array_column($picked, 'key'), true)) {
+                    $picked[] = $item;
+                }
+                if (count($picked) >= 5) {
+                    break;
+                }
+            }
+        }
+
+        return array_slice($picked, 0, 5);
+    }
+
     public function portalSubtitle(?Vendor $vendor): string
     {
         return match ($vendor?->category) {

@@ -116,4 +116,27 @@ class PartnerTask extends Model
 
         return ['label' => 'Low', 'tone' => 'gray'];
     }
+
+    /** @return array<string, mixed> */
+    public function notesMeta(): array
+    {
+        $decoded = json_decode((string) $this->notes, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    public function mergeNotesMeta(array $patch): void
+    {
+        $meta = $this->notesMeta();
+        if ($meta === [] && filled($this->notes)) {
+            $meta = ['message' => (string) $this->notes];
+        }
+
+        $this->update(['notes' => json_encode(array_merge($meta, $patch), JSON_UNESCAPED_UNICODE)]);
+    }
+
+    public function isWritable(): bool
+    {
+        return ! in_array((string) $this->status, ['completed', 'cancelled', 'rejected'], true);
+    }
 }

@@ -108,8 +108,6 @@
         <x-site.borrower-financial-health :health="$financialHealth" />
     @endif
 
-    <x-site.borrower-financial-snapshot :snapshot="$financialSnapshot ?? []" />
-
     @if (! empty($groupInviteBanner['show']))
         <div class="mb-6 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-white p-5 sm:p-6">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

@@ -75,6 +75,15 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->stopIgnoring(AuthorizationException::class);
 
+        // Status-driven incident log only (403/404/419/429/500/503). Successful
+        // routes under the Kopafasta base URL never enter this pipeline.
+        $exceptions->report(function (\Throwable $e): void {
+            try {
+                app(\App\Services\BrokenPageRecorder::class)->record($e);
+            } catch (\Throwable) {
+            }
+        });
+
         $exceptions->render(function (PostTooLargeException $e, $request) {
             $message = __('borrower.profile.upload_too_large');
 
@@ -83,6 +92,14 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return redirect()->back()->withErrors(['upload' => $message]);
+        });
+
+        // HttpExceptions (404/403/…) are not reported by default; record them here.
+        $exceptions->renderable(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request): void {
+            try {
+                app(\App\Services\BrokenPageRecorder::class)->record($e, $request);
+            } catch (\Throwable) {
+            }
         });
 
         $exceptions->report(function (AuthorizationException $e): void {
