@@ -100,32 +100,19 @@
                     }
                     this.step = index + 1;
                 }
-             }">
+             }"
+             @photo-carousel-retake="capturing = true; step = $event.detail.index"
+             @photo-carousel-open="preview = $event.detail.url">
             <p class="text-sm text-gray-600">{{ __('site.partner_account.face_camera_intro') }}</p>
             <p class="text-xs text-gray-500">{{ __('borrower.face_verification_page.oval_hint') }}</p>
 
             @if ($faceComplete)
-                <div x-show="!capturing" class="space-y-4">
-                    <div class="grid sm:grid-cols-2 gap-3">
-                        @foreach ($faceSteps as $i => $step)
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                <p class="text-xs text-gray-500">{{ $step['label'] }}</p>
-                                <div class="mt-2 flex items-start gap-3">
-                                    <button type="button" @click="preview = @js(asset('storage/'.$step['path']))"
-                                            class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white">
-                                        <img src="{{ asset('storage/'.$step['path']) }}" alt="" class="h-full w-full object-cover object-top">
-                                    </button>
-                                    <div class="min-w-0 flex-1 flex flex-col gap-2 pt-0.5">
-                                        <p class="text-[11px] text-gray-500">{{ __('borrower.profile.tap_to_enlarge') }}</p>
-                                        <button type="button" @click="capturing = true; step = {{ $i }}"
-                                                class="self-start rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-semibold text-brand">
-                                            {{ __('site.partner_account.face_retake') }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
+                <div x-show="!capturing" class="space-y-3">
+                    <x-site.photo-carousel :photos="collect($faceSteps)->map(fn ($step, $i) => [
+                        'url' => filled($step['path'] ?? null) ? asset('storage/'.$step['path']) : null,
+                        'label' => $step['label'],
+                        'index' => $i,
+                    ])->all()" />
                 </div>
             @endif
 
@@ -134,6 +121,14 @@
                 @csrf @method('PUT')
                 <p class="text-xs font-semibold uppercase tracking-widest text-brand"
                    x-text="'{{ __('site.partner_account.face_step', ['current' => '__C__', 'total' => count($faceSteps)]) }}'.replace('__C__', String(step + 1))"></p>
+                <div class="flex items-center gap-1.5" role="list">
+                    @foreach ($faceSteps as $i => $step)
+                        <button type="button" @click="step = {{ $i }}"
+                                class="size-2.5 rounded-full"
+                                :class="step === {{ $i }} ? 'bg-brand scale-125' : '{{ filled($step['path']) ? 'bg-emerald-500' : 'bg-gray-300' }}'"
+                                aria-label="{{ $step['label'] }}"></button>
+                    @endforeach
+                </div>
                 @foreach ($faceSteps as $i => $step)
                     <div x-show="step === {{ $i }}" x-cloak class="space-y-3">
                         <h3 class="text-lg font-bold text-gray-900">{{ $step['label'] }}</h3>
@@ -141,6 +136,7 @@
                         <div @doc-preview="if ($event.detail.filled && $event.detail.name === @js($step['field'])) advance({{ $i }})">
                             <x-site.single-image-document-upload
                                 :name="$step['field']"
+                                :input-host-id="$step['field'].'-host'"
                                 facing="user"
                                 :camera-only="true"
                                 :required="blank($step['path'])"

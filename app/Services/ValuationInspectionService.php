@@ -143,7 +143,7 @@ class ValuationInspectionService
      * One capture at a time — valuer photos only; owner uploads are never included.
      *
      * @param  \Illuminate\Support\Collection<int, CustomerAsset>  $assets
-     * @return list<array{asset_id: int, asset_label: string, angle: string, label: string, path: ?string, guidance: string, required: bool}>
+     * @return list<array{asset_id: int, asset_label: string, angle: string, label: string, path: ?string, borrower_path: ?string, guidance: string, required: bool}>
      */
     public function photoSteps(PartnerTask $task, $assets): array
     {
@@ -152,12 +152,14 @@ class ValuationInspectionService
         $steps = [];
         foreach ($assets as $asset) {
             foreach ($evidence->checklist($asset->asset_type) as $item) {
+                $borrowerAngles = $asset->photosByAngle();
                 $steps[] = [
                     'asset_id' => $asset->id,
                     'asset_label' => (string) $asset->label,
                     'angle' => $item['angle'],
                     'label' => $item['label'],
                     'path' => $captured[$asset->id][$item['angle']] ?? null,
+                    'borrower_path' => $borrowerAngles[$item['angle']] ?? null,
                     'guidance' => $item['guidance'],
                     'required' => $item['required'],
                 ];
@@ -174,6 +176,10 @@ class ValuationInspectionService
         string $angle,
         UploadedFile $file,
     ): PartnerDocument {
+        $angle = match ($angle) {
+            'rear' => 'back',
+            default => $angle,
+        };
         $labels = app(ValuationEvidenceService::class)->labels($asset->asset_type);
         if (! isset($labels[$angle])) {
             throw ValidationException::withMessages([

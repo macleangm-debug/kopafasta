@@ -255,7 +255,7 @@
             ></div>
         @endif
 
-        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-24 lg:pb-8" data-kf-busy-scope>
+        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-28 lg:pb-8" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full mx-auto">
                 {{ $slot }}
             </div>
@@ -267,16 +267,18 @@
     </div>
 </div>
 
-<nav class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200/80"
+<nav class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-brand/15"
      style="padding-bottom: env(safe-area-inset-bottom, 0px)">
     <div class="grid grid-cols-5">
         @foreach ($mobileNav as $item)
             @php $isActive = $active === $item['key']; @endphp
             <a href="{{ route($item['route']) }}"
                data-kf-motion="tab"
-               class="flex flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-center {{ $isActive ? 'text-brand font-bold' : 'text-gray-500' }}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $navService->iconSvg($item['icon'] ?? 'home') !!}</svg>
-                <span class="text-[10px] leading-tight truncate w-full">{{ $item['label'] }}</span>
+               class="flex flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-center {{ $isActive ? 'text-brand font-bold' : 'text-brand/70' }}">
+                <span class="grid place-items-center size-11 rounded-2xl {{ $isActive ? 'bg-brand text-white' : 'bg-brand/10 text-brand' }}">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $navService->iconSvg($item['icon'] ?? 'home') !!}</svg>
+                </span>
+                <span class="text-[10px] leading-tight line-clamp-2 w-full">{{ $item['label'] }}</span>
             </a>
         @endforeach
     </div>

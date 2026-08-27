@@ -176,64 +176,96 @@
                 <div x-show="step === 'photos'" class="space-y-4">
                     <p class="text-sm text-gray-600">{{ __('site.partner_portal.valuation_photos_intro') }}</p>
                     <p class="text-sm font-semibold text-gray-900">{{ __('site.partner_portal.valuation_photos_done', ['done' => $requiredDoneCount, 'total' => $requiredTotal]) }}</p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        @foreach ($photoSteps as $i => $s)
-                            <button type="button" @click="photo = {{ $i }}"
-                                    class="rounded-xl ring-1 px-3 py-2.5 text-left text-xs {{ filled($s['path']) ? 'ring-emerald-200 bg-emerald-50 text-emerald-900' : 'ring-gray-200 bg-white text-gray-700' }}">
-                                <span class="block font-semibold">{{ filled($s['path']) ? '✓' : '○' }} {{ $s['label'] }}</span>
-                                @if (! ($s['required'] ?? true))
-                                    <span class="text-[10px] text-gray-500">{{ __('site.partner_portal.valuation_optional') }}</span>
-                                @endif
-                            </button>
-                        @endforeach
-                    </div>
-                    @forelse ($photoSteps as $i => $s)
-                        <div x-show="photo === {{ $i }}" x-cloak class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 space-y-4" x-data="{ retake: {{ empty($s['path']) ? 'true' : 'false' }}, sending: false }">
-                            <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_portal.valuation_photo_progress', ['current' => $i + 1, 'total' => max(1, $requiredTotal)]) }}</p>
-                            <h3 class="text-lg font-bold text-gray-900">{{ $s['label'] }}</h3>
-                            <p class="text-sm text-gray-600">{{ $s['guidance'] ?? '' }}</p>
-                            <p class="text-sm text-gray-500">{{ $s['asset_label'] }}</p>
-                            @if (! empty($s['path']))
-                                <img x-show="!retake" src="{{ asset('storage/'.$s['path']) }}" alt="" class="h-56 w-full object-cover rounded-xl ring-1 ring-gray-200">
-                            @endif
-                            @if ($open)
-                                <form x-show="retake" method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3"
-                                      @submit="sending = true">
-                                    @csrf
-                                    <input type="hidden" name="customer_asset_id" value="{{ $s['asset_id'] }}">
-                                    <input type="hidden" name="angle" value="{{ $s['angle'] }}">
-                                    <x-site.single-image-document-upload
-                                        name="file"
-                                        facing="environment"
-                                        :required="empty($s['path'])"
-                                        :camera-only="false"
-                                        :auto-submit="false"
-                                        :guide="$s['guidance'] ?? $s['label']"
-                                    />
-                                    <p x-show="sending" x-cloak class="text-sm font-semibold text-amber-800">{{ __('site.partner_portal.valuation_pending_upload') }}</p>
-                                    <div class="flex flex-col sm:flex-row gap-2">
-                                        <button type="submit" class="flex-1 rounded-xl bg-brand text-white text-sm font-semibold py-3">{{ __('site.partner_portal.valuation_use_photo') }}</button>
-                                        <button type="button" @click="retake = true; $dispatch('clear-capture')" class="flex-1 rounded-xl ring-1 ring-gray-200 text-sm font-semibold py-3">{{ __('site.partner_portal.valuation_retake') }}</button>
-                                    </div>
-                                </form>
-                            @endif
-                            <div class="flex items-center justify-end gap-3">
-                                @if (! empty($s['path']))
-                                    <div class="flex items-center gap-3">
-                                        @if ($open)
-                                            <button type="button" x-show="!retake" @click="retake = true" class="text-sm font-semibold text-brand hover:underline">{{ __('site.partner_portal.valuation_retake') }}</button>
-                                        @endif
-                                        @if ($i < count($photoSteps) - 1)
-                                            <button type="button" x-show="!retake" @click="photo = {{ $i + 1 }}" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2 w-full sm:w-auto">{{ __('site.partner_portal.valuation_continue') }}</button>
-                                        @elseif ($photosDone && $needsVehicle)
-                                            <button type="button" x-show="!retake" @click="step = 'condition'" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
-                                        @elseif ($photosDone)
-                                            <button type="button" x-show="!retake" @click="tab = 'values'" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
-                                        @endif
-                                    </div>
-                                @endif
-                            </div>
+                    @if ($photoSteps !== [])
+                        <div class="flex items-center gap-1.5 overflow-x-auto pb-1" role="list" aria-label="{{ __('site.partner_portal.valuation_step_photos') }}">
+                            @foreach ($photoSteps as $i => $s)
+                                <button type="button" @click="photo = {{ $i }}"
+                                        role="listitem"
+                                        class="size-2.5 shrink-0 rounded-full transition"
+                                        :class="photo === {{ $i }} ? 'bg-brand scale-125' : '{{ filled($s['path']) ? 'bg-emerald-500' : 'bg-gray-300' }}'"
+                                        title="{{ $s['label'] }}"
+                                        aria-label="{{ $s['label'] }}"></button>
+                            @endforeach
                         </div>
+                    @endif
+                    @forelse ($photoSteps as $i => $s)
+                        <template x-if="photo === {{ $i }}">
+                            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 space-y-4" x-data="{ retake: {{ empty($s['path']) ? 'true' : 'false' }}, sending: false }">
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_portal.valuation_photo_progress', ['current' => $i + 1, 'total' => max(1, count($photoSteps))]) }}</p>
+                                <h3 class="text-lg font-bold text-gray-900">{{ $s['label'] }}</h3>
+                                <p class="text-sm text-gray-600">{{ $s['guidance'] ?? '' }}</p>
+                                <p class="text-sm text-gray-500">{{ $s['asset_label'] }}</p>
+                                @if (! ($s['required'] ?? true))
+                                    <p class="text-xs text-gray-500">{{ __('site.partner_portal.valuation_optional') }}</p>
+                                @endif
+
+                                @php
+                                    $stepAsset = $assets->firstWhere('id', $s['asset_id']);
+                                    $borrowerAngles = array_keys(\App\Models\CustomerAsset::photoAngleLabels($stepAsset?->asset_type));
+                                    $isOwnerAngle = in_array($s['angle'], $borrowerAngles, true);
+                                @endphp
+                                @if (! empty($s['borrower_path']))
+                                    <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 p-3">
+                                        <p class="text-xs font-semibold text-brand mb-2">{{ __('site.partner_portal.valuation_owner_reference') }}</p>
+                                        <img src="{{ asset('storage/'.$s['borrower_path']) }}" alt="" class="h-40 w-full object-cover rounded-lg ring-1 ring-brand/10">
+                                    </div>
+                                @elseif ($isOwnerAngle)
+                                    <p class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">{{ __('site.partner_portal.valuation_no_owner_photo') }}</p>
+                                @else
+                                    <p class="text-xs text-gray-600 bg-gray-50 ring-1 ring-gray-200 rounded-xl px-3 py-2">{{ __('site.partner_portal.valuation_valuer_only_angle') }}</p>
+                                @endif
+
+                                @if (! empty($s['path']))
+                                    <img x-show="!retake" src="{{ asset('storage/'.$s['path']) }}" alt="" class="h-56 w-full object-cover rounded-xl ring-1 ring-gray-200">
+                                @endif
+                                @if ($open)
+                                    <form x-show="retake" method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3"
+                                          @submit="sending = true">
+                                        @csrf
+                                        <input type="hidden" name="customer_asset_id" value="{{ $s['asset_id'] }}">
+                                        <input type="hidden" name="angle" value="{{ $s['angle'] }}">
+                                        <x-site.single-image-document-upload
+                                            name="file"
+                                            :input-host-id="'val-photo-'.$s['asset_id'].'-'.$s['angle']"
+                                            facing="environment"
+                                            :required="empty($s['path'])"
+                                            :camera-only="false"
+                                            :auto-submit="false"
+                                            :guide="$s['guidance'] ?? $s['label']"
+                                        />
+                                        <p x-show="sending" x-cloak class="text-sm font-semibold text-amber-800">{{ __('site.partner_portal.valuation_pending_upload') }}</p>
+                                        <div class="flex flex-col sm:flex-row gap-2">
+                                            <button type="submit" class="flex-1 rounded-xl bg-brand text-white text-sm font-semibold py-3">{{ __('site.partner_portal.valuation_use_photo') }}</button>
+                                            <button type="button" @click="retake = true; $dispatch('clear-capture')" class="flex-1 rounded-xl ring-1 ring-gray-200 text-sm font-semibold py-3">{{ __('site.partner_portal.valuation_retake') }}</button>
+                                        </div>
+                                    </form>
+                                @endif
+                                <div class="flex items-center justify-between gap-3">
+                                    @if ($i > 0)
+                                        <button type="button" @click="photo = {{ $i - 1 }}" class="text-sm font-semibold text-brand">{{ __('site.partner_portal.valuation_photo_back') }}</button>
+                                    @else
+                                        <span></span>
+                                    @endif
+                                    <div class="flex items-center gap-3">
+                                        @if (! ($s['required'] ?? true) && empty($s['path']))
+                                            <button type="button" @click="photo = {{ min($i + 1, count($photoSteps) - 1) }}" class="text-sm font-semibold text-gray-600">{{ __('site.partner_portal.valuation_skip_optional') }}</button>
+                                        @endif
+                                        @if (! empty($s['path']))
+                                            @if ($open)
+                                                <button type="button" x-show="!retake" @click="retake = true" class="text-sm font-semibold text-brand hover:underline">{{ __('site.partner_portal.valuation_retake') }}</button>
+                                            @endif
+                                            @if ($i < count($photoSteps) - 1)
+                                                <button type="button" x-show="!retake" @click="photo = {{ $i + 1 }}" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
+                                            @elseif ($photosDone && $needsVehicle)
+                                                <button type="button" x-show="!retake" @click="step = 'condition'" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
+                                            @elseif ($photosDone)
+                                                <button type="button" x-show="!retake" @click="tab = 'values'" class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2">{{ __('site.partner_portal.valuation_continue') }}</button>
+                                            @endif
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     @empty
                         <p class="text-sm text-gray-600">{{ $task->vehicle_details ?: '—' }}</p>
                     @endforelse

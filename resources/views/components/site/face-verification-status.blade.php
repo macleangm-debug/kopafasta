@@ -44,6 +44,8 @@
         prev() { if (this.photos.length) this.index = (this.index - 1 + this.photos.length) % this.photos.length; },
         current() { return this.photos[this.index] || null; },
     }"
+    @photo-carousel-open="openPreview($event.detail.url, $event.detail.label)"
+    @photo-carousel-retake="window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }))"
     @class([
         'rounded-3xl ring-1 ring-brand/15 bg-white' => ! $compact,
     ])
@@ -73,40 +75,23 @@
         </div>
     @endif
 
-    {{-- NIDA-style card thumbnails per angle --}}
-    <div @class(['grid sm:grid-cols-2 gap-3', 'p-5' => ! $compact])>
-        @foreach ($photoEntries as $entry)
-            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                <p class="text-xs text-gray-500">{{ $entry['label'] }}</p>
-                <div class="mt-2 flex flex-col sm:flex-row sm:items-start gap-3">
-                    @if ($entry['url'])
-                        <button type="button"
-                                @click="openPreview(@js($entry['url']), @js($entry['label']))"
-                                class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
-                                title="{{ __('borrower.profile.view_document') }}">
-                            <img src="{{ $entry['url'] }}"
-                                 alt="{{ $entry['label'] }}"
-                                 class="h-full w-full object-cover object-top"
-                                 loading="lazy">
-                        </button>
-                        <div class="min-w-0 flex-1 flex flex-col gap-2 pt-0.5">
-                            <p class="text-[11px] text-gray-500">{{ __('borrower.profile.tap_to_enlarge') }}</p>
-                            <button type="button"
-                                    @click="openPreview(@js($entry['url']), @js($entry['label']))"
-                                    class="inline-flex items-center justify-center self-start rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
-                                {{ __('borrower.nida.face_view_angle') }}
-                            </button>
-                        </div>
-                    @else
-                        <div class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-dashed ring-gray-300 bg-white flex flex-col items-center justify-center gap-1 text-center px-1">
-                            <span class="text-lg opacity-40" aria-hidden="true">◎</span>
-                            <span class="text-[10px] text-gray-400 leading-tight">{{ __('borrower.nida.face_not_captured') }}</span>
-                        </div>
-                        <p class="text-sm font-semibold text-amber-700 pt-2">{{ __('borrower.profile.missing') }}</p>
+    {{-- Horizontal carousel so the page stays short on phone and desktop --}}
+    <div @class(['p-5' => ! $compact])>
+        <p class="text-[11px] text-gray-500 mb-3">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+        <x-site.photo-carousel :retake="false" :photos="$captured->map(fn ($entry, $i) => [
+            'url' => $entry['url'],
+            'label' => $entry['label'],
+            'index' => $i,
+        ])->all()" />
+        @if ($photoEntries->contains(fn ($entry) => blank($entry['url'])))
+            <div class="mt-3 flex flex-wrap gap-2">
+                @foreach ($photoEntries as $entry)
+                    @if (! $entry['url'])
+                        <span class="rounded-full bg-amber-50 ring-1 ring-amber-200 px-3 py-1 text-xs font-semibold text-amber-800">{{ $entry['label'] }} · {{ __('borrower.nida.face_not_captured') }}</span>
                     @endif
-                </div>
+                @endforeach
             </div>
-        @endforeach
+        @endif
     </div>
 
     <div @class(['px-5 pb-5 flex flex-wrap gap-2', 'mt-3' => $compact, 'pt-1' => ! $compact])>

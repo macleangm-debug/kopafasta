@@ -11,7 +11,7 @@
 ])
 
 @php
-    $hostId = $inputHostId ?? ('single-image-'.md5($name));
+    $hostId = $inputHostId ?? ('single-image-'.md5($name.'|'.(string) $guide.'|'.$facingMode));
     $facingMode = in_array($facing, ['user', 'environment'], true) ? $facing : 'environment';
     $lockFront = $facingMode === 'user'; // facial/selfie captures stay front-camera only
     $cameraOnly = (bool) $cameraOnly;

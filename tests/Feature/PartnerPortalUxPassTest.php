@@ -39,6 +39,7 @@ class PartnerPortalUxPassTest extends TestCase
         $this->assertContains('vin', $required);
         $this->assertNotContains('damage', $required);
         $this->assertGreaterThan(count(CustomerAsset::photoAngleLabels('vehicle')), count($required));
+        $this->assertNotContains('dashboard', array_keys(CustomerAsset::photoAngleLabels('vehicle')));
         $this->assertSame('land', $evidence->family('land'));
         $this->assertContains('survey', $evidence->requiredAngles('land'));
     }

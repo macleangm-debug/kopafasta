@@ -3,7 +3,8 @@
 /**
  * Required valuation evidence by asset family.
  * Settings Hub may override via Setting group `valuation_evidence`.
- * Borrower profile photos stay on CustomerAsset::photoAngleLabels().
+ * Borrower profile photos stay on CustomerAsset::photoAngleLabels()
+ * (front/back/left/right/owner). Extra valuer angles are inspection evidence.
  */
 return [
     'vehicle' => [
