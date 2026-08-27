@@ -2223,6 +2223,7 @@ return [
         'uploading_documents' => 'Saving documents…',
         'collateral_value_staff_hint' => 'Staff set the value after review.',
         'collateral_awaiting_valuation' => 'Awaiting valuation by our team',
+        'valuation_in_progress' => 'Valuation in progress',
         'choose_asset_type_hint' => 'Next screens ask only for this type.',
         'continue_with_type' => 'Continue',
         'income_primary_hint' => 'Upload one of these — bank statement or mobile money statement is enough.',

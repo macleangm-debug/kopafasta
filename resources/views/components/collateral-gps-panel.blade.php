@@ -1,6 +1,6 @@
 @props([
     'items' => [],
-    'title' => 'Collateral & GPS',
+    'title' => 'Collateral',
     'compact' => false,
     'installerContact' => null,
     'showInstallerContact' => false,
@@ -23,51 +23,48 @@
         @endunless
 
         @if (! empty($items))
-            <ul class="space-y-3 text-sm">
+            <ul class="space-y-3">
                 @foreach ($items as $item)
-                    <li class="rounded-lg border border-gray-100 p-3">
-                        <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div>
-                                <p class="font-semibold text-gray-900">{{ $item['label'] }}</p>
-                                <p class="text-xs text-gray-500 mt-0.5">
-                                    {{ display_label($item['asset_type'] ?? '', 'asset_type') }}
-                                    @if (! empty($item['registration_number']))
-                                        · Plate {{ $item['registration_number'] }}
-                                    @endif
-                                </p>
+                    <li>
+                        <x-site.collateral-card :selected="$item['card'] ?? null">
+                            <div class="mt-2 space-y-2">
+                                <span @class([
+                                    'inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold',
+                                    'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80' => ($item['gps_status'] ?? '') === 'secured',
+                                    'bg-gray-50 text-gray-600 ring-1 ring-gray-200' => ($item['gps_status'] ?? '') === 'not_required',
+                                    'bg-amber-50 text-amber-900 ring-1 ring-amber-200/80' => ! in_array($item['gps_status'] ?? '', ['secured', 'not_required'], true),
+                                ])>
+                                    {{ $gpsStatusLabels[$item['gps_status'] ?? ''] ?? ($item['gps_status'] ?? '') }}
+                                </span>
+                                @if (! empty($item['gps_serial']) || ! empty($item['gps_provider']))
+                                    <p class="text-xs text-gray-600 font-mono">
+                                        @if (! empty($item['gps_provider']))
+                                            {{ $item['gps_provider'] }}
+                                        @endif
+                                        @if (! empty($item['gps_serial']))
+                                            · {{ $item['gps_serial'] }}
+                                        @endif
+                                        @if (! empty($item['gps_device_id']))
+                                            · ID {{ $item['gps_device_id'] }}
+                                        @endif
+                                    </p>
+                                @endif
+                                @if (! empty($item['can_view_asset']) && ! empty($item['tracking_url']))
+                                    <a href="{{ $item['tracking_url'] }}" target="_blank" rel="noopener"
+                                       class="inline-flex rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2 hover:bg-brand-light">
+                                        View Asset Location
+                                    </a>
+                                @elseif ($mapEnabled && empty($item['tracking_url']) && in_array($item['gps_status'] ?? '', ['secured', 'required', 'install_pending'], true))
+                                    <p class="text-[11px] text-gray-500">
+                                        No device tracking URL on this loan yet — the GPS installer must enter it at install.
+                                    </p>
+                                @elseif (! $mapEnabled && filled($item['tracking_url'] ?? null))
+                                    <p class="text-[11px] text-gray-500">
+                                        Map viewing is disabled in Recovery settings.
+                                    </p>
+                                @endif
                             </div>
-                            <span class="text-[11px] font-semibold px-2 py-1 rounded-full
-                                {{ ($item['gps_status'] ?? '') === 'secured' ? 'bg-emerald-50 text-emerald-700' : (($item['gps_status'] ?? '') === 'not_required' ? 'bg-gray-50 text-gray-600' : 'bg-amber-50 text-amber-800') }}">
-                                {{ $gpsStatusLabels[$item['gps_status'] ?? ''] ?? ($item['gps_status'] ?? '') }}
-                            </span>
-                        </div>
-                        @if (! empty($item['gps_serial']) || ! empty($item['gps_provider']))
-                            <p class="text-xs text-gray-600 mt-2 font-mono">
-                                @if (! empty($item['gps_provider']))
-                                    {{ $item['gps_provider'] }}
-                                @endif
-                                @if (! empty($item['gps_serial']))
-                                    · {{ $item['gps_serial'] }}
-                                @endif
-                                @if (! empty($item['gps_device_id']))
-                                    · ID {{ $item['gps_device_id'] }}
-                                @endif
-                            </p>
-                        @endif
-                        @if (! empty($item['can_view_asset']) && ! empty($item['tracking_url']))
-                            <a href="{{ $item['tracking_url'] }}" target="_blank" rel="noopener"
-                               class="inline-flex mt-3 rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2 hover:bg-brand-light">
-                                View Asset Location
-                            </a>
-                        @elseif ($mapEnabled && empty($item['tracking_url']) && in_array($item['gps_status'] ?? '', ['secured', 'required', 'install_pending'], true))
-                            <p class="text-[11px] text-gray-500 mt-2">
-                                No device tracking URL on this loan yet — the GPS installer must enter it at install.
-                            </p>
-                        @elseif (! $mapEnabled && filled($item['tracking_url'] ?? null))
-                            <p class="text-[11px] text-gray-500 mt-2">
-                                Map viewing is disabled in Recovery settings.
-                            </p>
-                        @endif
+                        </x-site.collateral-card>
                     </li>
                 @endforeach
             </ul>

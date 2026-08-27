@@ -414,8 +414,8 @@
             ></div>
         @endif
 
-        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 {{ $hideMobileNav ? '' : 'pb-28 lg:pb-8' }}" data-kf-busy-scope>
-            <div class="{{ $contentMax }} w-full">
+        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 {{ $hideMobileNav ? '' : 'pb-28 lg:pb-8' }} overflow-x-clip" data-kf-busy-scope>
+            <div class="{{ $contentMax }} w-full min-w-0">
                 @if ($portalMode !== 'guarantor')
 
                 @endif
@@ -430,7 +430,7 @@
 </div>
 
 @if (! $hideMobileNav)
-<nav class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-brand/15"
+<nav class="kf-mobile-bottom-nav lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-brand/15"
      style="padding-bottom: env(safe-area-inset-bottom, 0px)">
     <div class="grid {{ count($mobileNav) === 4 ? 'grid-cols-4' : 'grid-cols-5' }}">
         @foreach ($mobileNav as $item)

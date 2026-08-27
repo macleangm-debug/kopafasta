@@ -143,7 +143,7 @@ class ValuationInspectionService
      * One capture at a time — valuer photos only; owner uploads are never included.
      *
      * @param  \Illuminate\Support\Collection<int, CustomerAsset>  $assets
-     * @return list<array{asset_id: int, asset_label: string, angle: string, label: string, path: ?string, borrower_path: ?string, guidance: string, required: bool}>
+     * @return list<array{asset_id: int, asset_label: string, angle: string, label: string, path: ?string, path_url: ?string, borrower_path: ?string, borrower_path_url: ?string, guidance: string, required: bool}>
      */
     public function photoSteps(PartnerTask $task, $assets): array
     {
@@ -153,13 +153,17 @@ class ValuationInspectionService
         foreach ($assets as $asset) {
             foreach ($evidence->checklist($asset->asset_type) as $item) {
                 $borrowerAngles = $asset->photosByAngle();
+                $path = $captured[$asset->id][$item['angle']] ?? null;
+                $borrowerPath = $borrowerAngles[$item['angle']] ?? null;
                 $steps[] = [
                     'asset_id' => $asset->id,
                     'asset_label' => (string) $asset->label,
                     'angle' => $item['angle'],
                     'label' => $item['label'],
-                    'path' => $captured[$asset->id][$item['angle']] ?? null,
-                    'borrower_path' => $borrowerAngles[$item['angle']] ?? null,
+                    'path' => $path,
+                    'path_url' => filled($path) ? asset('storage/'.$path) : null,
+                    'borrower_path' => $borrowerPath,
+                    'borrower_path_url' => filled($borrowerPath) ? asset('storage/'.$borrowerPath) : null,
                     'guidance' => $item['guidance'],
                     'required' => $item['required'],
                 ];

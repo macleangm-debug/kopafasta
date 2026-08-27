@@ -1016,20 +1016,7 @@ class CollateralSecureService
     /** @return array<string, mixed> */
     private function assetCard(CustomerAsset $asset): array
     {
-        $typeOptions = CustomerAsset::typeOptions();
-
-        return [
-            'id' => $asset->id,
-            'label' => $asset->label,
-            'asset_type' => $asset->asset_type,
-            'type_label' => $typeOptions[$asset->asset_type] ?? $asset->asset_type,
-            'registration_number' => $asset->registration_number,
-            'thumbnail' => $asset->thumbnailPath() ? asset('storage/'.$asset->thumbnailPath()) : null,
-            'insurance_type' => $asset->insuranceType(),
-            'insurance_expires_at' => $asset->detail('insurance_expires_at'),
-            'insurance_policy_number' => $asset->detail('insurance_policy_number'),
-            'has_insurance_doc' => $asset->hasVehicleInsurance(),
-        ];
+        return $asset->toCollateralCard();
     }
 
     /** @return \Illuminate\Support\Collection<int, CustomerAsset> */

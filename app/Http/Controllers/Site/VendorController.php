@@ -449,6 +449,10 @@ class VendorController extends Controller
 
         $inspection->storePhoto($task, $vendor->id, $asset, (string) $data['angle'], $request->file('file'));
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
         $task->unsetRelation('documents');
         $task->load('documents');
         $assets = $inspection->assetsForTask($task);

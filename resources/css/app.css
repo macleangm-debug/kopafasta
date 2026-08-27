@@ -202,3 +202,11 @@
         break-inside: avoid;
     }
 }
+
+body.kf-camera-open {
+    overflow: hidden;
+}
+
+body.kf-camera-open .kf-mobile-bottom-nav {
+    display: none !important;
+}

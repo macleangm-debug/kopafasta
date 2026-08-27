@@ -394,68 +394,23 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     @foreach ($assets as $asset)
                         @php
-                            $thumb = $asset->thumbnailPath();
-                            $gallery = $asset->galleryPaths();
-                            $cardDetails = collect(\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type))
-                                ->map(function ($field) use ($asset) {
-                                    $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
-
-                                    return filled($val) ? [
-                                        'key' => $field['key'],
-                                        'label' => __('borrower.profile.collateral_fields.'.$field['key']),
-                                        'value' => $val,
-                                    ] : null;
-                                })
-                                ->filter()
-                                ->take(4)
-                                ->values();
+                            $availability = $assetAvailabilities[$asset->id] ?? ['code' => 'available'];
+                            $card = $asset->toCollateralCard([
+                                'status_label' => $asset->estimated_value
+                                    ? null
+                                    : __('borrower.profile.valuation_in_progress'),
+                            ]);
                         @endphp
                         <div class="h-full">
-                            <div class="glass-card overflow-hidden ring-1 ring-gray-200/80 h-full flex flex-col">
-                                <div class="relative h-40 bg-gradient-to-br from-brand-muted/60 to-white">
-                                    @if ($thumb)
-                                        <img src="{{ asset('storage/'.$thumb) }}" alt="" class="absolute inset-0 h-full w-full object-cover">
-                                    @else
-                                        <span class="absolute inset-0 grid place-items-center text-5xl" aria-hidden="true">{{ $typeIcons[$asset->asset_type] ?? '📦' }}</span>
-                                    @endif
-                                    <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] font-semibold bg-white/90 backdrop-blur px-2.5 py-1 rounded-full text-gray-800 ring-1 ring-black/5">
-                                        {{ $typeIcons[$asset->asset_type] ?? '📦' }} {{ __('borrower.profile.asset_types.'.$asset->asset_type) }}
-                                    </span>
-                                    @php $availability = $assetAvailabilities[$asset->id] ?? ['code' => 'available']; @endphp
-                                    <span class="absolute top-3 right-3">
-                                        @include('site.borrower.profile._asset_availability', ['availability' => $availability, 'showHint' => false])
-                                    </span>
-                                    @if (count($gallery) > 1)
-                                        <span class="absolute bottom-3 right-3 text-[11px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full">
-                                            {{ count($gallery) }} 📷
-                                        </span>
-                                    @endif
+                            <x-site.collateral-card :selected="$card" :type-icons="$typeIcons">
+                                <div class="mt-2">
+                                    @include('site.borrower.profile._asset_availability', ['availability' => $availability, 'showHint' => false])
                                 </div>
-                                <div class="p-4 flex-1 flex flex-col">
-                                    <h3 class="font-bold text-gray-900 truncate">{{ $asset->label }}</h3>
-                                    @if ($asset->estimated_value)
-                                        <p class="text-sm text-brand font-semibold mt-1 tabular-nums">{{ format_money($asset->estimated_value) }}</p>
-                                    @else
-                                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.collateral_awaiting_valuation') }}</p>
-                                    @endif
-                                    @if ($cardDetails->isNotEmpty())
-                                        <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
-                                            @foreach ($cardDetails as $detail)
-                                                <div class="min-w-0">
-                                                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold truncate">{{ $detail['label'] }}</dt>
-                                                    <dd class="text-xs font-semibold text-gray-900 truncate" title="{{ $detail['value'] }}">{{ $detail['value'] }}</dd>
-                                                </div>
-                                            @endforeach
-                                        </dl>
-                                    @elseif (filled($asset->description))
-                                        <p class="mt-2 text-xs text-gray-500 line-clamp-2">{{ $asset->description }}</p>
-                                    @endif
-                                    <button type="button" @click="openAsset = {{ $asset->id }}; editingAsset = null"
-                                            class="mt-4 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                                        {{ __('borrower.profile.view_asset') }}
-                                    </button>
-                                </div>
-                            </div>
+                                <button type="button" @click="openAsset = {{ $asset->id }}; editingAsset = null"
+                                        class="mt-3 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                    {{ __('borrower.profile.view_asset') }}
+                                </button>
+                            </x-site.collateral-card>
                         </div>
                     @endforeach
                 </div>

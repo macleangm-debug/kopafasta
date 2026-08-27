@@ -53,7 +53,14 @@ class PartnerPortalUxPassTest extends TestCase
 
         $this->get('/this-page-should-not-exist-kf?lang=sw')
             ->assertNotFound()
-            ->assertSee('Ukurasa huu haupo', false);
+            ->assertSee('Ukurasa haujapatikana', false)
+            ->assertSee('Rudi nyuma', false)
+            ->assertSee('Nenda nyumbani', false);
+
+        $this->withSession(['locale' => 'sw'])
+            ->get('/this-page-should-not-exist-kf-session')
+            ->assertNotFound()
+            ->assertSee('Ukurasa haujapatikana', false);
 
         $this->assertDatabaseHas('broken_pages', [
             'status' => 404,

@@ -54,10 +54,12 @@
 <html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta http-equiv="Permissions-Policy" content="notifications=(), push=()">
+    <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
     <title>{{ $pageTitle }}</title>
+    <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
+    <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
     @vite(['resources/css/app.css','resources/js/app.js'])
     @stack('styles')
     <style>[x-cloak]{display:none!important}</style>
@@ -255,8 +257,8 @@
             ></div>
         @endif
 
-        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-28 lg:pb-8" data-kf-busy-scope>
-            <div class="{{ $contentMax }} w-full mx-auto">
+        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-28 lg:pb-8 overflow-x-clip" data-kf-busy-scope>
+            <div class="{{ $contentMax }} w-full mx-auto min-w-0">
                 {{ $slot }}
             </div>
         </main>
@@ -267,7 +269,7 @@
     </div>
 </div>
 
-<nav class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-brand/15"
+<nav class="kf-mobile-bottom-nav lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-brand/15"
      style="padding-bottom: env(safe-area-inset-bottom, 0px)">
     <div class="grid grid-cols-5">
         @foreach ($mobileNav as $item)

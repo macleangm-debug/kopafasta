@@ -825,10 +825,76 @@ class Phase65RecoveryPhase2FeatureTest extends TestCase
         $this->assertSame('https://track.example.com/device/IMEI-55', $items[0]['tracking_url']);
         $this->assertTrue($items[0]['can_view_asset']);
         $this->assertSame('secured', $items[0]['gps_status']);
+        $this->assertSame('Bajaj Boxer', $items[0]['card']['label']);
+        $this->assertSame('T123ABC', $items[0]['card']['registration_number']);
 
         $contact = app(GpsDeviceService::class)->installerContactForLoan($fixture['loan']->fresh());
         $this->assertSame('GPS Install Co', $contact['name']);
         $this->assertSame('255712346130', $contact['phone']);
+    }
+
+    public function test_recovery_case_shows_the_shared_collateral_card(): void
+    {
+        $fixture = $this->loanFixture(true, 'CARD');
+        $asset = CustomerAsset::create([
+            'customer_id' => $fixture['customer']->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Toyota Rav4',
+            'registration_number' => 'T123ABC',
+            'is_active' => true,
+            'metadata' => [
+                'details' => [
+                    'make' => 'Toyota',
+                    'year' => 2025,
+                    'chassis_number' => '123456789',
+                ],
+            ],
+        ]);
+        LoanApplicationAsset::create([
+            'loan_application_id' => $fixture['application']->id,
+            'customer_asset_id' => $asset->id,
+            'asset_type' => 'vehicle',
+            'gps_required' => true,
+            'is_primary' => true,
+            'uw_status' => 'accepted',
+        ]);
+
+        $partner = Vendor::create([
+            'vendor_number' => 'PTR-P65-CARD',
+            'name' => 'Repo Partner',
+            'category' => 'debt_collector',
+            'status' => 'active',
+            'phone' => '255712346199',
+        ]);
+        $user = User::factory()->create(['role' => 'vendor']);
+        app(PinService::class)->setPin($user, '1234');
+        $partner->update(['user_id' => $user->id]);
+
+        $assignment = RecoveryAssignment::create([
+            'arrear_case_id' => $fixture['arrearCase']->id,
+            'vendor_id' => $partner->id,
+            'partner_type' => 'debt_collector',
+            'status' => RecoveryAssignment::STATUS_IN_PROGRESS,
+            'original_outstanding' => 400_000,
+            'commission_percent' => 5,
+            'commission_earned' => 20_000,
+            'sla_due_at' => now()->addDays(7),
+            'assigned_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.partner.recovery-case', $assignment))
+            ->assertOk()
+            ->assertSee('Toyota Rav4', false)
+            ->assertSee(__('borrower.profile.collateral_fields.registration_number'), false)
+            ->assertSee('T123ABC', false)
+            ->assertSee(__('borrower.profile.collateral_fields.make'), false)
+            ->assertSee('Toyota', false)
+            ->assertSee(__('borrower.profile.collateral_fields.year'), false)
+            ->assertSee('2025', false)
+            ->assertSee('•••6789', false)
+            ->assertSee('GPS required', false)
+            ->assertDontSee('Plate T123ABC', false);
     }
 
     public function test_auction_hold_keeps_same_partner_when_collector_also_auctions(): void

@@ -73,9 +73,37 @@ class ValuationInspectionFlowTest extends TestCase
         return $valuer->fresh();
     }
 
-    private function photoStepTotal(): int
+    private function requiredPhotoTotal(): int
     {
-        return count(app(\App\Services\ValuationEvidenceService::class)->checklist('vehicle'));
+        return count(app(\App\Services\ValuationEvidenceService::class)->requiredAngles('vehicle'));
+    }
+
+    public function test_valuer_task_uses_tabs_and_hides_loan_details(): void
+    {
+        [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer);
+        [, $assignment] = $this->assignJob($valuer);
+        $task = $assignment->vendorTask;
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.task', $task))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.tab_asset'), false)
+            ->assertSee(__('site.partner_portal.valuation_step_photos'), false)
+            ->assertSee(__('site.partner_portal.tab_inspect'), false)
+            ->assertSee(__('site.partner_portal.tab_values'), false)
+            ->assertSee(__('site.partner_portal.valuation_step_review'), false)
+            ->assertDontSee(__('site.partner_portal.tab_overview'), false)
+            ->assertSee(__('site.partner_portal.valuation_no_loan_hint'), false)
+            ->assertSee(__('site.partner_portal.valuation_start_work'), false)
+            ->assertDontSee('777,777', false)
+            ->assertDontSee('777777', false)
+            ->assertDontSee('APP-INSP-77', false)
+            ->assertDontSee('Related loan', false)
+            ->assertDontSee('assets/owner.jpg', false)
+            ->assertDontSee(__('site.partner_portal.valuation_owner_reference'), false)
+            ->assertDontSee(__('site.partner_portal.valuation_no_owner_photo'), false);
     }
 
     private function makeVehicleAsset(Customer $customer): CustomerAsset
@@ -179,31 +207,6 @@ class ValuationInspectionFlowTest extends TestCase
         return [$application, $assignment->fresh('vendorTask'), $asset];
     }
 
-    public function test_valuer_task_uses_tabs_and_hides_loan_details(): void
-    {
-        [$user, $valuer] = $this->makeValuerUser();
-        $this->completeValuerForJobs($valuer);
-        [, $assignment] = $this->assignJob($valuer);
-        $task = $assignment->vendorTask;
-
-        $this->actingAs($user)
-            ->withSession(['locale' => 'en'])
-            ->get(route('site.partner.task', $task))
-            ->assertOk()
-            ->assertSee(__('site.partner_portal.tab_overview'), false)
-            ->assertSee(__('site.partner_portal.tab_asset'), false)
-            ->assertSee(__('site.partner_portal.tab_inspect'), false)
-            ->assertSee(__('site.partner_portal.tab_values'), false)
-            ->assertSee(__('site.partner_portal.valuation_no_loan_hint'), false)
-            ->assertSee(__('site.partner_portal.valuation_start_work'), false)
-            ->assertDontSee('777,777', false)
-            ->assertDontSee('777777', false)
-            ->assertDontSee('APP-INSP-77', false)
-            ->assertDontSee('Related loan', false)
-            ->assertDontSee('assets/front.jpg', false)
-            ->assertDontSee('assets/owner.jpg', false);
-    }
-
     public function test_start_work_opens_inspection_and_blocks_complete_without_photos(): void
     {
         Storage::fake('public');
@@ -231,18 +234,20 @@ class ValuationInspectionFlowTest extends TestCase
             ->withSession(['locale' => 'en'])
             ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
             ->assertOk()
-            ->assertDontSee(__('site.partner_portal.valuation_photos_intro'), false)
-            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => $this->photoStepTotal()]), false)
-            ->assertSee(__('borrower.document_upload.camera'), false)
-            ->assertSee('capture="environment"', false)
-            ->assertSee('>Front</h3>', false)
-            ->assertDontSee('>Back</h3>', false)
-            ->assertSee(__('site.partner_portal.valuation_owner_reference'), false)
-            ->assertSee('assets/front.jpg', false)
-            ->assertSee('id="val-photo-'.$asset->id.'-front"', false)
-            ->assertSee('id="val-photo-'.$asset->id.'-back"', false)
+            ->assertSee(__('site.partner_portal.valuation_start_photos'), false)
+            ->assertSee(__('site.partner_portal.valuation_photos_done', [
+                'done' => 0,
+                'total' => $this->requiredPhotoTotal(),
+            ]), false)
+            ->assertDontSee(__('site.partner_portal.valuation_owner_reference'), false)
+            ->assertDontSee(__('site.partner_portal.valuation_no_owner_photo'), false)
+            ->assertDontSee('assets/owner.jpg', false)
+            ->assertDontSee('capture="environment"', false)
             ->assertDontSee('name="file"', false)
-            ->assertDontSee('grid grid-cols-2 sm:grid-cols-3 gap-2', false);
+            ->assertDontSee(__('site.partner_portal.valuation_photo_progress', [
+                'current' => 1,
+                'total' => $this->requiredPhotoTotal() + 1,
+            ]), false);
 
         $this->actingAs($user)
             ->from(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
@@ -269,18 +274,25 @@ class ValuationInspectionFlowTest extends TestCase
             ->withSession(['locale' => 'sw'])
             ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
             ->assertOk()
-            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 1, 'total' => $this->photoStepTotal()]), false)
-            ->assertSee('>Mbele</h3>', false)
+            ->assertSee(__('site.partner_portal.valuation_start_photos'), false)
+            ->assertSee(__('site.partner_portal.valuation_photos_done', [
+                'done' => 0,
+                'total' => $this->requiredPhotoTotal(),
+            ]), false)
+            ->assertSee('Mbele', false)
+            ->assertSee('Nyuma', false)
+            ->assertDontSee(__('site.partner_portal.valuation_owner_reference'), false)
             ->assertDontSee('>Back</h3>', false);
 
         $this->actingAs($user)
             ->withSession(['locale' => 'sw'])
-            ->post(route('site.partner.task.inspect.photo', $task), [
+            ->postJson(route('site.partner.task.inspect.photo', $task), [
                 'customer_asset_id' => $asset->id,
                 'angle' => 'front',
                 'file' => UploadedFile::fake()->image('front.jpg'),
             ])
-            ->assertRedirect(route('site.partner.task', ['task' => $task, 'tab' => 'inspect', 'photo' => 1]));
+            ->assertOk()
+            ->assertJson(['ok' => true]);
 
         $this->actingAs($user)
             ->withSession(['locale' => 'sw'])
@@ -289,15 +301,20 @@ class ValuationInspectionFlowTest extends TestCase
                 'angle' => 'back',
                 'file' => UploadedFile::fake()->image('back.jpg'),
             ])
-            ->assertRedirect(route('site.partner.task', ['task' => $task, 'tab' => 'inspect', 'photo' => 2]));
+            ->assertRedirect();
 
         $this->actingAs($user)
             ->withSession(['locale' => 'sw'])
-            ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect', 'photo' => 1]))
+            ->get(route('site.partner.task', ['task' => $task, 'tab' => 'inspect']))
             ->assertOk()
-            ->assertSee(__('site.partner_portal.valuation_photo_progress', ['current' => 2, 'total' => $this->photoStepTotal()]), false)
-            ->assertSee('>Nyuma</h3>', false)
-            ->assertDontSee('>Back</h3>', false);
+            ->assertSee(__('site.partner_portal.valuation_photos_done', [
+                'done' => 2,
+                'total' => $this->requiredPhotoTotal(),
+            ]), false)
+            ->assertDontSee(__('site.partner_portal.valuation_photo_progress', [
+                'current' => 3,
+                'total' => $this->requiredPhotoTotal() + 1,
+            ]), false);
     }
 
     public function test_formatted_values_complete_after_camera_photos_and_seeded_checks(): void

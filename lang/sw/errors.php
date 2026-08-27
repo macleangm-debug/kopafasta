@@ -1,14 +1,15 @@
 <?php
 
 return [
-    'home' => 'Rudi nyumbani',
+    'home' => 'Nenda nyumbani',
+    'back' => 'Rudi nyuma',
     'support' => 'Wasiliana na msaada',
     'locale_sw' => 'Kiswahili',
     'locale_en' => 'English',
     'logged' => 'Ukurasa huu umerekodiwa kwa timu ya msaada.',
     404 => [
-        'title' => 'Ukurasa huu haupo',
-        'lead' => 'Anwani inaweza kuwa imebadilika, au kiungo si sahihi tena.',
+        'title' => 'Ukurasa haujapatikana',
+        'lead' => 'Huenda ukurasa huu umehamishwa au haupatikani tena.',
     ],
     403 => [
         'title' => 'Huwezi kufungua ukurasa huu',

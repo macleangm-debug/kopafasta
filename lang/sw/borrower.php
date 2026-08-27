@@ -2348,6 +2348,7 @@ return [
     'uploading_documents' => 'Inahifadhi nyaraka…',
     'collateral_value_staff_hint' => 'Timu huweka thamani baada ya ukaguzi.',
     'collateral_awaiting_valuation' => 'Inasubiri uthamini wa timu yetu',
+    'valuation_in_progress' => 'Uthamini unaendelea',
     'choose_asset_type_hint' => 'Skrini zijazo zitauliza tu aina hii.',
     'continue_with_type' => 'Endelea',
     'income_primary_hint' => 'Pakia moja ya hizi — taarifa ya benki au pesa kwa simu inatosha.',

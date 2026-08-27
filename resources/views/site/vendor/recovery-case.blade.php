@@ -242,6 +242,7 @@
                     :items="$collateral_items ?? []"
                     :installer-contact="$gps_installer_contact ?? null"
                     :show-installer-contact="(bool) ($show_gps_installer_contact ?? false)"
+                    title="Collateral"
                     class="glass-card rounded-2xl ring-1 ring-brand/10 p-5"
                 />
             @endif

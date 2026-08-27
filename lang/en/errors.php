@@ -2,6 +2,7 @@
 
 return [
     'home' => 'Go home',
+    'back' => 'Go back',
     'support' => 'Contact support',
     'locale_sw' => 'Kiswahili',
     'locale_en' => 'English',

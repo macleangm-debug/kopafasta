@@ -155,9 +155,6 @@
                      style="scrollbar-width: thin;">
                     @foreach ($assets as $asset)
                         @php
-                            $thumb = $asset->thumbnailPath();
-                            $gallery = $asset->galleryPaths();
-                            $typeLabel = $typeOptions[$asset->asset_type] ?? $asset->asset_type;
                             $pledge = $pledgeByAssetId->get((int) $asset->id);
                             $pledgeStatus = (string) ($pledge->uw_status ?? '');
                             $isOnThisLoan = in_array((int) $asset->id, $onLoanIds, true);
@@ -166,81 +163,20 @@
                                 $isOnThisLoan => ['On this loan', $pledgeStatus === 'accepted' ? 'bg-emerald-500/90 text-white' : 'bg-brand/90 text-white'],
                                 default => ['Saved', 'bg-slate-600/90 text-white'],
                             };
-                            $cardDetails = collect(\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type))
-                                ->take(4)
-                                ->map(function ($field) use ($asset) {
-                                    $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
-                                    $display = filled($val) ? (string) $val : '—';
-
-                                    return [
-                                        'key' => $field['key'],
-                                        'label' => __('borrower.profile.collateral_fields.'.$field['key']),
-                                        'value' => $display,
-                                        'missing' => ! filled($val),
-                                    ];
-                                })
-                                ->values();
-                            $previewUrl = $thumb ? asset('storage/'.$thumb) : null;
                         @endphp
                         <div class="snap-start shrink-0 w-[80%] sm:w-72">
-                            <div class="overflow-hidden rounded-2xl ring-1 ring-gray-200/80 bg-white h-full flex flex-col">
-                                <div class="relative h-40 bg-gradient-to-br from-brand-muted/60 to-white shrink-0">
-                                    @if ($thumb)
-                                        <img src="{{ $previewUrl }}" alt="" class="absolute inset-0 h-full w-full object-cover">
-                                    @else
-                                        <span class="absolute inset-0 grid place-items-center text-5xl" aria-hidden="true">{{ $typeIcons[$asset->asset_type] ?? '📦' }}</span>
-                                    @endif
-                                    <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] font-semibold bg-white/90 backdrop-blur px-2.5 py-1 rounded-full text-gray-800 ring-1 ring-black/5">
-                                        {{ $typeIcons[$asset->asset_type] ?? '📦' }} {{ $typeLabel }}
-                                    </span>
-                                    <span class="absolute top-3 right-3 inline-flex items-center gap-1 text-[11px] font-semibold {{ $pledgeBadge[1] }} px-2.5 py-1 rounded-full">
-                                        {{ $pledgeBadge[0] }}
-                                    </span>
-                                    @if ($previewUrl)
-                                        <div class="absolute bottom-3 left-3 z-10">
-                                            <x-admin.document-preview :url="$previewUrl" :label="$asset->label.' photo'" variant="icon" />
-                                        </div>
-                                    @endif
-                                    @if (count($gallery) > 1)
-                                        <span class="absolute bottom-3 right-3 text-[11px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full">
-                                            {{ count($gallery) }} 📷
-                                        </span>
-                                    @endif
-                                </div>
-                                <div class="p-4 flex-1 flex flex-col">
-                                    <h3 class="font-bold text-gray-900 truncate">{{ $asset->label }}</h3>
-                                    <p class="mt-1 text-[11px] font-semibold text-slate-600">
-                                        Belongs to {{ $asset->customer?->full_name ?? '—' }} · {{ $ownerRoleFor($asset) }}
-                                    </p>
-                                    <p class="mt-1 min-h-[1.25rem] {{ $asset->estimated_value ? 'text-sm text-brand font-semibold tabular-nums' : 'text-xs text-gray-500' }}">
-                                        @if ($asset->estimated_value)
-                                            {{ format_money($asset->estimated_value) }}
-                                        @elseif (! $isGuarantor)
-                                            Awaiting valuation by our team
-                                        @else
-                                            &nbsp;
-                                        @endif
-                                    </p>
-                                    <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 min-h-[4.5rem]">
-                                        @foreach ($cardDetails as $detail)
-                                            <div class="min-w-0">
-                                                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold truncate">{{ $detail['label'] }}</dt>
-                                                <dd @class([
-                                                    'text-xs font-semibold truncate',
-                                                    'text-gray-900' => empty($detail['missing']),
-                                                    'text-gray-400' => ! empty($detail['missing']),
-                                                ]) title="{{ $detail['value'] }}">{{ $detail['value'] }}</dd>
-                                            </div>
-                                        @endforeach
-                                    </dl>
-                                    <div class="mt-auto pt-4 space-y-2">
-                                        <button type="button" @click="openAsset = {{ $asset->id }}"
-                                                class="inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                                            View
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                            <x-site.collateral-card
+                                :selected="$asset->toCollateralCard([
+                                    'belongs_to' => trim(($asset->customer?->full_name ?? '').' · '.$ownerRoleFor($asset), ' ·'),
+                                ])"
+                                :type-icons="$typeIcons"
+                            >
+                                <p class="mt-1 text-[11px] font-bold {{ str_contains($pledgeBadge[1], 'emerald') ? 'text-emerald-800' : (str_contains($pledgeBadge[1], 'rose') ? 'text-rose-700' : 'text-brand') }}">{{ $pledgeBadge[0] }}</p>
+                                <button type="button" @click="openAsset = {{ $asset->id }}"
+                                        class="mt-3 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                    {{ __('site.partner_portal.view') }}
+                                </button>
+                            </x-site.collateral-card>
                         </div>
                     @endforeach
                 </div>

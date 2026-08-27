@@ -5,7 +5,6 @@
     $assets = $collateralAssets->isNotEmpty()
         ? $collateralAssets
         : $inspection->assetsForTask($task);
-    $valuerPhotos = $inspection->valuerPhotosByAsset($task, $assets);
     $checks = $assignment ? $inspection->checksSummary($assignment) : ['engine' => null, 'test_drive' => null, 'body_condition' => '', 'tyres' => '', 'interior' => ''];
     $needsVehicle = $assets->contains(fn ($asset) => $asset->isVehicleLike());
     $missingPhotos = $inspection->missingValuerAngles($task, $assets);
@@ -14,35 +13,44 @@
         || (filled($checks['body_condition'] ?? null) && filled($checks['tyres'] ?? null) && filled($checks['interior'] ?? null));
     $engineDone = ! $needsVehicle || filled($checks['engine'] ?? null);
     $driveDone = ! $needsVehicle || filled($checks['test_drive'] ?? null);
-    $vehicleCheckDone = ! $needsVehicle || ($conditionDone && $engineDone);
+    $inspectionDone = ! $needsVehicle || ($conditionDone && $engineDone && $driveDone);
     $started = in_array($task->status, ['in_progress', 'completed'], true) || filled($task->started_at);
     $open = $task->isWritable();
     $reassigned = $task->status === 'cancelled';
-    $initialTab = request('tab', $started ? 'inspect' : 'overview');
-    $initialStep = ! $photosDone ? 'photos' : (! $vehicleCheckDone ? 'condition' : (! $driveDone ? 'drive' : 'values'));
-    if (in_array(request('step'), ['photos', 'condition', 'drive', 'values'], true)) {
-        $initialStep = (string) request('step');
-    }
+    $completed = $task->status === 'completed';
     $photoSteps = $inspection->photoSteps($task, $assets);
     $requiredSteps = collect($photoSteps)->where('required', true)->values();
     $requiredTotal = $requiredSteps->count();
     $requiredDoneCount = $requiredSteps->filter(fn ($step) => filled($step['path'] ?? null))->count();
-    $requestedPhoto = (int) request('photo', -1);
-    $firstOpenPhoto = collect($photoSteps)->search(fn ($step) => ($step['required'] ?? true) && blank($step['path'] ?? null));
-    if ($firstOpenPhoto === false) {
-        $firstOpenPhoto = collect($photoSteps)->search(fn ($step) => blank($step['path'] ?? null));
-    }
-    $initialPhoto = ($requestedPhoto >= 0 && isset($photoSteps[$requestedPhoto]))
-        ? $requestedPhoto
-        : ($firstOpenPhoto === false ? 0 : (int) $firstOpenPhoto);
+    $compareSteps = collect($photoSteps)->filter(fn ($step) => filled($step['borrower_path'] ?? null) && filled($step['path'] ?? null))->values();
     $jobBlock = app(\App\Services\PartnerProfileService::class)->jobBlockReason($vendor);
     $payRoute = $vendor->isAffiliate() ? 'site.affiliate.membership.pay' : 'site.partner.membership.pay';
     $title = $assets->pluck('label')->filter()->implode(' · ') ?: ($task->vehicle_details ?: __('site.partner_portal.valuation_job_eyebrow'));
+    $allowedSteps = ['asset', 'photos', 'condition', 'values', 'review'];
+    $initialStep = match (true) {
+        ! $started => 'asset',
+        ! $photosDone => 'photos',
+        ! $inspectionDone => 'condition',
+        $completed => 'review',
+        default => 'values',
+    };
+    $requestedStep = (string) request('step', request('tab', ''));
+    $requestedStep = match ($requestedStep) {
+        'overview', 'asset' => 'asset',
+        'inspect' => $photosDone ? 'condition' : 'photos',
+        'values' => 'values',
+        'review' => 'review',
+        default => $requestedStep,
+    };
+    if (in_array($requestedStep, $allowedSteps, true)) {
+        $initialStep = $requestedStep;
+    }
     $workflow = [
         ['key' => 'asset', 'label' => __('site.partner_portal.tab_asset'), 'done' => $started],
-        ['key' => 'inspect', 'label' => __('site.partner_portal.tab_inspect'), 'done' => $photosDone && $vehicleCheckDone && $driveDone],
-        ['key' => 'values', 'label' => __('site.partner_portal.tab_values'), 'done' => $task->status === 'completed'],
-        ['key' => 'submit', 'label' => __('site.partner_portal.valuation_submit_report'), 'done' => $task->status === 'completed'],
+        ['key' => 'photos', 'label' => __('site.partner_portal.valuation_step_photos'), 'done' => $photosDone],
+        ['key' => 'condition', 'label' => __('site.partner_portal.tab_inspect'), 'done' => $inspectionDone],
+        ['key' => 'values', 'label' => __('site.partner_portal.tab_values'), 'done' => $completed],
+        ['key' => 'review', 'label' => __('site.partner_portal.valuation_step_review'), 'done' => $completed],
     ];
     $currentWorkflow = 1;
     foreach ($workflow as $i => $row) {
@@ -58,23 +66,41 @@
         $task->status === 'assigned' && $jobBlock === 'payment' => __('site.partner_portal.cta_pay_membership'),
         $task->status === 'assigned' => __('site.partner_portal.accept_task'),
         $open && ! $started => __('site.partner_portal.valuation_start_work'),
-        $open && ! $photosDone => __('site.partner_portal.valuation_take_next_photo'),
-        $open && ! $vehicleCheckDone => __('site.partner_portal.valuation_step_vehicle'),
-        $open && ! $driveDone => __('site.partner_portal.valuation_step_drive'),
-        $open => __('site.partner_portal.valuation_step_values'),
+        $open && ! $photosDone => __('site.partner_portal.valuation_continue_photos'),
+        $open && ! $inspectionDone => __('site.partner_portal.valuation_step_vehicle'),
+        $open && ! $completed => __('site.partner_portal.valuation_review_valuation'),
         default => __('site.partner_portal.completed_at'),
     };
-    $sectionLabels = [
-        'overview' => __('site.partner_portal.tab_overview'),
-        'asset' => __('site.partner_portal.tab_asset'),
-        'inspect' => __('site.partner_portal.tab_inspect'),
-        'values' => __('site.partner_portal.tab_values'),
+    $nextStepKey = match (true) {
+        ! $started => 'asset',
+        ! $photosDone => 'photos',
+        ! $inspectionDone => 'condition',
+        default => 'values',
+    };
+    $afterPhotosUrl = route('site.partner.task', [
+        'task' => $task,
+        'step' => $needsVehicle ? 'condition' : 'values',
+    ]);
+    $cameraCfg = [
+        'csrf' => csrf_token(),
+        'uploadUrl' => route('site.partner.task.inspect.photo', $task),
+        'steps' => collect($photoSteps)->map(fn (array $step) => [
+            'asset_id' => $step['asset_id'],
+            'asset_label' => $step['asset_label'],
+            'angle' => $step['angle'],
+            'label' => $step['label'],
+            'path' => $step['path'],
+            'path_url' => $step['path_url'],
+            'guidance' => $step['guidance'],
+            'required' => $step['required'],
+        ])->values()->all(),
+        'dbName' => 'kf-valuation-'.$task->id,
+        'step' => $initialStep,
+        'afterPhotosUrl' => $afterPhotosUrl,
+        'cameraInsecure' => __('borrower.profile.camera_insecure'),
+        'cameraDenied' => __('borrower.profile.camera_denied'),
     ];
-    $photoAccents = [
-        ['wrap' => 'bg-brand-muted/30 ring-brand/15', 'eyebrow' => 'text-brand'],
-        ['wrap' => 'bg-[#fff8e8] ring-brand-gold/50', 'eyebrow' => 'text-amber-800'],
-        ['wrap' => 'bg-emerald-50 ring-emerald-200/80', 'eyebrow' => 'text-emerald-800'],
-    ];
+    $ownerName = $task->customer_name ?: ($assets->first()?->customer?->full_name);
 @endphp
 
 <div class="mb-4">
@@ -88,343 +114,229 @@
     </div>
 @endif
 
-<div class="rounded-2xl ring-1 ring-brand/15 overflow-hidden bg-brand-muted/25 p-4 sm:p-5 mb-5">
-    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.valuation_job_eyebrow') }}</p>
-    <h1 class="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight mt-1 leading-tight">{{ $title }}</h1>
-    <p class="text-sm font-bold text-gray-800 mt-2 leading-relaxed">{{ __('site.partner_portal.valuation_step_of', ['current' => $currentWorkflow, 'total' => 4, 'label' => $workflow[$currentWorkflow - 1]['label']]) }}</p>
-    <p class="text-sm font-semibold text-gray-700 mt-1.5 leading-relaxed">{{ __('site.partner_portal.valuation_no_loan_hint') }}</p>
-    <ol class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        @foreach ($workflow as $i => $row)
-            <li class="{{ $row['done'] ? 'text-emerald-700 font-semibold' : ($i + 1 === $currentWorkflow ? 'text-brand font-extrabold' : 'text-gray-400') }}">
-                {{ $row['done'] ? '✓' : ($i + 1 === $currentWorkflow ? '●' : '○') }} {{ $row['label'] }}
-            </li>
-        @endforeach
-    </ol>
-    <div class="mt-3 flex items-center gap-2">
-        <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $priorityBadge }}">{{ $priority['label'] }} {{ __('site.partner_portal.priority_suffix') }}</span>
-        <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $badge }}">{{ str_replace('_',' ', $task->status) }}</span>
-    </div>
-</div>
-
-<div class="grid lg:grid-cols-3 gap-6" x-data="{
-    tab: @js($initialTab),
-    step: @js($initialStep),
-    photo: {{ $initialPhoto }},
-    declineOpen: false,
-    sectionOpen: false,
-    sections: @js($sectionLabels),
-    goPhoto(i) {
-        this.photo = i;
-        this.tab = 'inspect';
-        this.step = 'photos';
-        const url = new URL(window.location.href);
-        url.searchParams.set('tab', 'inspect');
-        url.searchParams.set('photo', String(i));
-        url.searchParams.delete('step');
-        history.replaceState({}, '', url);
-    }
-}">
-    {{-- Next-step card first on mobile (Kopafasta branded), sticky on desktop --}}
-    <div class="lg:col-start-3 lg:row-start-1 space-y-4 lg:sticky lg:top-24 self-start">
-        <div class="rounded-2xl bg-brand text-white overflow-hidden ring-1 ring-brand/20 shadow-lg">
-            <div class="px-5 pt-4 pb-5">
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta</p>
-                <h3 class="text-xl font-extrabold mt-1 leading-tight">{{ __('site.partner_portal.next_step') }}</h3>
-                <p class="text-sm font-bold text-white mt-2 leading-relaxed">{{ $nextActionLabel }}</p>
-                @if ($started && $open)
-                    <p class="text-xs font-semibold text-white/80 mt-1">{{ __('site.partner_portal.valuation_photos_done', ['done' => $requiredDoneCount, 'total' => $requiredTotal]) }}</p>
-                @endif
-                <div class="mt-4 space-y-2">
-                    @if ($task->status === 'assigned' && $open)
-                        @if ($jobBlock === 'profile')
-                            <a href="{{ route('site.partner.profile') }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_complete_profile') }}</a>
-                        @elseif ($jobBlock === 'payment')
-                            <a href="{{ route($payRoute) }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_pay_membership') }}</a>
-                        @else
-                            <form method="POST" action="{{ route('site.partner.task.accept', $task) }}">
-                                @csrf
-                                <button class="w-full rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.accept_task') }}</button>
-                            </form>
-                            <button type="button" @click="declineOpen = true" class="w-full rounded-xl bg-white/10 ring-1 ring-white/25 text-sm font-semibold py-3">{{ __('site.partner_portal.decline_task') }}</button>
-                        @endif
-                    @endif
-                    @if ($open && ! $started && $task->status !== 'assigned')
-                        @if ($jobBlock === 'profile')
-                            <a href="{{ route('site.partner.profile') }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_complete_profile') }}</a>
-                        @elseif ($jobBlock === 'payment')
-                            <a href="{{ route($payRoute) }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_pay_membership') }}</a>
-                        @else
-                            <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
-                                @csrf
-                                <button class="w-full rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_start_work') }}</button>
-                            </form>
-                        @endif
-                    @elseif ($open && $started)
-                        <button type="button" @click="tab = 'inspect'; step = '{{ $initialStep }}'" class="w-full rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ $nextActionLabel }}</button>
-                    @endif
-                </div>
-                <div class="mt-4 pt-4 border-t border-white/15 text-xs space-y-1 text-white/70">
-                    @if ($task->accepted_at)<p>{{ __('site.partner_portal.accepted') }} {{ $task->accepted_at->format('d M H:i') }}</p>@endif
-                    @if ($task->started_at)<p>{{ __('site.partner_portal.started') }} {{ $task->started_at->format('d M H:i') }}</p>@endif
-                    @if ($task->completed_at)<p>{{ __('site.partner_portal.completed_at') }} {{ $task->completed_at->format('d M H:i') }}</p>@endif
-                </div>
-            </div>
+<div
+    class="space-y-4 min-w-0"
+    x-data="valuationCamera(@js($cameraCfg))"
+>
+    <div class="rounded-2xl ring-1 ring-brand/15 bg-white px-4 py-3">
+        <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.valuation_job_eyebrow') }}</p>
+        <h1 class="text-lg font-extrabold text-gray-900 tracking-tight mt-1 leading-tight">{{ $title }}</h1>
+        <ol class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
+            @foreach ($workflow as $i => $row)
+                <li class="{{ $row['done'] ? 'text-emerald-700 font-semibold' : ($i + 1 === $currentWorkflow ? 'text-brand font-extrabold' : 'text-gray-400') }}">
+                    {{ $row['done'] ? '✓' : ($i + 1 === $currentWorkflow ? '●' : '○') }} {{ $row['label'] }}
+                </li>
+            @endforeach
+        </ol>
+        <p class="text-xs font-semibold text-gray-500 mt-2">{{ __('site.partner_portal.valuation_no_loan_hint') }}</p>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $priorityBadge }}">{{ $priority['label'] }} {{ __('site.partner_portal.priority_suffix') }}</span>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $badge }}">{{ str_replace('_',' ', $task->status) }}</span>
         </div>
     </div>
 
-    <div class="lg:col-span-2 lg:col-start-1 lg:row-start-1 space-y-4">
-        <div>
-            <div class="relative hidden lg:block max-w-xs">
-                <button type="button" @click="sectionOpen = !sectionOpen"
-                        class="w-full text-left rounded-xl ring-1 ring-brand/15 bg-white px-4 py-3 text-sm font-bold flex items-center justify-between gap-3">
-                    <span x-text="sections[tab] || sections.inspect"></span>
-                    <span class="text-gray-400" aria-hidden="true">▾</span>
-                </button>
-                <div x-show="sectionOpen" x-cloak @click.outside="sectionOpen = false"
-                     class="absolute z-20 mt-1 w-full rounded-xl bg-white ring-1 ring-gray-200 shadow-lg overflow-hidden">
-                    @foreach ($sectionLabels as $key => $label)
-                        <button type="button" @click="tab = '{{ $key }}'; sectionOpen = false"
-                                class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-brand-muted/40"
-                                :class="tab === '{{ $key }}' ? 'bg-brand-muted text-brand' : 'text-gray-800'">
-                            {{ $label }}
-                        </button>
-                    @endforeach
-                </div>
+    @if ($open && $started && ! $completed)
+        <div class="rounded-xl bg-brand text-white px-4 py-3 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('site.partner_portal.next_step') }}</p>
+                @if (! $photosDone)
+                    <p class="text-sm font-bold mt-0.5 truncate">{{ __('site.partner_portal.valuation_asset_photos') }} · {{ __('site.partner_portal.valuation_photos_done', ['done' => $requiredDoneCount, 'total' => $requiredTotal]) }}</p>
+                @else
+                    <p class="text-sm font-bold mt-0.5 truncate">{{ $nextActionLabel }}</p>
+                @endif
             </div>
-            <button type="button" @click="sectionOpen = true"
-                    class="lg:hidden w-full text-left rounded-xl ring-1 ring-brand/15 bg-white px-4 py-3.5 text-sm font-extrabold flex items-center justify-between">
-                <span x-text="sections[tab] || sections.inspect"></span>
-                <span class="text-gray-400" aria-hidden="true">▾</span>
+            <button type="button" @click="go(@js($nextStepKey))" class="shrink-0 rounded-lg bg-brand-gold text-brand text-xs font-extrabold px-3 py-2">
+                {{ $nextActionLabel }}
             </button>
-            <template x-teleport="body">
-                <div x-show="sectionOpen" x-cloak class="lg:hidden fixed inset-0 z-[80]" role="dialog" aria-modal="true">
-                    <div class="absolute inset-0 bg-black/40" @click="sectionOpen = false"></div>
-                    <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-5 space-y-2"
-                         style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom))">
-                        <div class="flex justify-center pb-1"><div class="w-10 h-1 rounded-full bg-gray-300"></div></div>
-                        <p class="font-extrabold">{{ __('site.partner_portal.valuation_job_eyebrow') }}</p>
-                        @foreach ($sectionLabels as $key => $label)
-                            <button type="button" @click="tab = '{{ $key }}'; sectionOpen = false"
-                                    class="w-full text-left rounded-xl ring-1 ring-gray-200 px-4 py-3.5 text-sm font-semibold"
-                                    :class="tab === '{{ $key }}' ? 'ring-brand bg-brand-muted/40 text-brand' : ''">
-                                {{ $label }}
-                            </button>
-                        @endforeach
-                    </div>
+        </div>
+    @endif
+
+    <div x-show="step === 'asset'" class="space-y-4">
+        <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.tab_asset') }}</p>
+        @forelse ($assets as $asset)
+            <x-site.collateral-card :selected="$asset->toCollateralCard(['belongs_to' => $ownerName, 'status_label' => $open && $started ? __('site.partner_portal.valuation_inspect_asset') : null])">
+                <button type="button" @click="details = !details" class="mt-2 text-sm font-bold text-brand">
+                    <span x-show="!details">{{ __('site.partner_portal.valuation_view_details') }}</span>
+                    <span x-show="details" x-cloak>{{ __('site.partner_portal.valuation_hide_details') }}</span>
+                </button>
+            </x-site.collateral-card>
+        @empty
+            <div class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/25 p-5 text-sm font-semibold text-gray-700">{{ $task->vehicle_details ?: '—' }}</div>
+        @endforelse
+
+        <div x-show="details" x-cloak class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 grid grid-cols-2 gap-3 text-sm">
+            <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.customer') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->customer_name ?: '—' }}</dd></div>
+            <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.phone') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->customer_phone ?: '—' }}</dd></div>
+            <div class="col-span-2"><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.location') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->location ?: '—' }}</dd></div>
+            <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.due') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->due_at?->format('d M Y H:i') ?: '—' }}</dd></div>
+            <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.your_payout') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ format_money($task->fee_amount) }}</dd></div>
+        </div>
+
+        @if ($task->status === 'assigned' && $open)
+            @if ($jobBlock === 'profile')
+                <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.job_requires_profile') }}</p>
+                <a href="{{ route('site.partner.profile') }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_complete_profile') }}</a>
+            @elseif ($jobBlock === 'payment')
+                <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.job_requires_payment') }}</p>
+                <a href="{{ route($payRoute) }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_pay_membership') }}</a>
+            @else
+                <form method="POST" action="{{ route('site.partner.task.accept', $task) }}">
+                    @csrf
+                    <button class="w-full rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.accept_task') }}</button>
+                </form>
+                <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.valuation_start_hint') }}</p>
+                <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
+                    @csrf
+                    <button class="w-full rounded-xl bg-gray-900 text-white text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_start_work') }}</button>
+                </form>
+                <button type="button" @click="declineOpen = true" class="w-full rounded-xl ring-1 ring-gray-200 text-sm font-semibold py-3">{{ __('site.partner_portal.decline_task') }}</button>
+            @endif
+        @elseif ($open && ! $started)
+            @if ($jobBlock === 'profile')
+                <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.job_requires_profile') }}</p>
+                <a href="{{ route('site.partner.profile') }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_complete_profile') }}</a>
+            @elseif ($jobBlock === 'payment')
+                <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.job_requires_payment') }}</p>
+                <a href="{{ route($payRoute) }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_pay_membership') }}</a>
+            @else
+                <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.valuation_start_hint') }}</p>
+                <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
+                    @csrf
+                    <button class="w-full rounded-xl bg-gray-900 text-white text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_start_work') }}</button>
+                </form>
+            @endif
+        @elseif ($open && $started)
+            <button type="button" @click="go('photos')" class="w-full rounded-xl bg-brand text-white text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_inspect_asset') }}</button>
+        @endif
+    </div>
+
+    <div class="space-y-4">
+        <div x-show="step === 'photos' && {{ $started ? 'true' : 'false' }}" class="space-y-4">
+            <div class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 sm:p-5 space-y-3">
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.valuation_asset_photos') }}</p>
+                <p class="text-lg font-extrabold text-gray-900"
+                   x-text="@js(__('site.partner_portal.valuation_photos_done', ['done' => '__D__', 'total' => '__T__'])).replace('__D__', String(requiredDone())).replace('__T__', String(requiredTotal()))">
+                    {{ __('site.partner_portal.valuation_photos_done', ['done' => $requiredDoneCount, 'total' => $requiredTotal]) }}
+                </p>
+                <p class="text-sm font-semibold text-gray-700">{{ __('site.partner_portal.valuation_start_photos_hint') }}</p>
+                @if ($open && ! $photosDone)
+                    <button type="button" @click="start()" class="w-full rounded-xl bg-brand text-white text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_start_photos') }}</button>
+                @elseif ($open && $photosDone)
+                    <p class="text-sm font-bold text-emerald-800">{{ __('site.partner_portal.valuation_required_ok', ['done' => $requiredTotal, 'total' => $requiredTotal]) }}</p>
+                    <button type="button" @click="start(true)" class="text-sm font-bold text-brand">{{ __('site.partner_portal.valuation_add_another_photo') }}</button>
+                    <button type="button" @click="go('condition')" class="w-full rounded-xl bg-brand text-white text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_continue') }}</button>
+                @endif
+            </div>
+        </div>
+
+        <div x-show="review" x-cloak class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 space-y-4">
+            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.valuation_asset_photos') }}</p>
+            <div class="grid grid-cols-2 gap-2">
+                <template x-for="s in requiredSteps()" :key="key(s)">
+                    <button type="button" @click="preview = thumbFor(s); $nextTick(() => { if (! thumbFor(s) && {{ $open ? 'true' : 'false' }}) retake(s) })"
+                            class="rounded-xl ring-1 ring-gray-200 p-2 text-left">
+                        <div class="aspect-square rounded-lg overflow-hidden bg-gray-50 mb-1.5">
+                            <img x-show="thumbFor(s)" :src="thumbFor(s)" alt="" class="h-full w-full object-cover">
+                            <div x-show="!thumbFor(s)" class="h-full grid place-items-center text-xs text-gray-400">○</div>
+                        </div>
+                        <p class="text-xs font-bold truncate" x-text="(thumbFor(s) ? '✓ ' : '') + s.label"></p>
+                    </button>
+                </template>
+            </div>
+            <template x-if="optionalSteps().some((s) => thumbFor(s))">
+                <div class="grid grid-cols-2 gap-2">
+                    <template x-for="s in optionalSteps()" :key="key(s)">
+                        <button type="button" x-show="thumbFor(s)" @click="preview = thumbFor(s)" class="rounded-xl ring-1 ring-gray-200 p-2 text-left">
+                            <div class="aspect-square rounded-lg overflow-hidden bg-gray-50 mb-1.5">
+                                <img :src="thumbFor(s)" alt="" class="h-full w-full object-cover">
+                            </div>
+                            <p class="text-xs font-bold truncate" x-text="'✓ ' + s.label"></p>
+                        </button>
+                    </template>
                 </div>
             </template>
-        </div>
-
-        <div x-show="tab === 'overview'" x-cloak class="space-y-4 hidden lg:block">
-            <div class="rounded-2xl ring-1 ring-brand/15 overflow-hidden bg-brand-muted/25 p-4 sm:p-5">
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.tab_overview') }}</p>
-                <h2 class="text-lg font-extrabold text-gray-900 mt-1 leading-tight">{{ __('site.partner_portal.tab_overview') }}</h2>
-                <p class="text-sm font-bold text-gray-800 mt-2 leading-relaxed">{{ __('site.partner_portal.valuation_customer_meet') }}</p>
-                <dl class="grid grid-cols-2 gap-3 text-sm mt-4">
-                    <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.customer') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->customer_name ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.phone') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->customer_phone ?: '—' }}</dd></div>
-                    <div class="col-span-2"><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.location') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->location ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.due') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->due_at?->format('d M Y H:i') ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.your_payout') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ format_money($task->fee_amount) }}</dd></div>
-                </dl>
-            </div>
-        </div>
-
-        <div x-show="tab === 'asset'" x-cloak class="space-y-4 hidden lg:block">
-            @forelse ($assets as $asset)
-                <div class="rounded-2xl ring-1 ring-brand/15 overflow-hidden bg-brand-muted/25 p-4 sm:p-5 space-y-2">
-                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.tab_asset') }}</p>
-                    <h2 class="text-lg font-extrabold text-gray-900 leading-tight">{{ $asset->label }}</h2>
-                    <p class="text-sm font-semibold text-gray-700">{{ $asset->registration_number ?: \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) $asset->asset_type)) }}</p>
-                    <p class="text-sm font-bold text-gray-800 leading-relaxed">{{ __('site.partner_portal.valuation_angles_to_capture') }}</p>
-                </div>
-            @empty
-                <div class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/25 p-5 text-sm font-semibold text-gray-700">{{ $task->vehicle_details ?: '—' }}</div>
-            @endforelse
-        </div>
-
-        <div x-show="tab === 'inspect' || tab === 'overview' || tab === 'asset'" class="space-y-4" :class="(tab === 'overview' || tab === 'asset') ? 'lg:hidden' : ''">
-            @if (! $started && $open)
-                <div class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/25 p-6 text-center space-y-3">
-                    @if ($jobBlock === 'profile')
-                        <p class="text-sm font-bold text-gray-800 leading-relaxed">{{ __('site.partner_portal.job_requires_profile') }}</p>
-                        <a href="{{ route('site.partner.profile') }}" class="inline-flex w-full justify-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold px-5 py-3">{{ __('site.partner_portal.cta_complete_profile') }}</a>
-                    @elseif ($jobBlock === 'payment')
-                        <p class="text-sm font-bold text-gray-800 leading-relaxed">{{ __('site.partner_portal.job_requires_payment') }}</p>
-                        <a href="{{ route($payRoute) }}" class="inline-flex w-full justify-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold px-5 py-3">{{ __('site.partner_portal.cta_pay_membership') }}</a>
-                    @else
-                        <p class="text-sm font-bold text-gray-800 leading-relaxed">{{ __('site.partner_portal.valuation_start_hint') }}</p>
-                        <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
-                            @csrf
-                            <button class="w-full rounded-xl bg-gray-900 text-white text-sm font-extrabold px-5 py-3 hover:bg-black">{{ __('site.partner_portal.valuation_start_work') }}</button>
-                        </form>
-                    @endif
-                </div>
-            @else
-                <div x-show="step === 'photos'" class="space-y-4">
-                    @if ($photoSteps !== [])
-                        <div class="flex gap-2 overflow-x-auto pb-1" role="list" aria-label="{{ __('site.partner_portal.valuation_photos_gallery') }}">
-                            @foreach ($photoSteps as $i => $s)
-                                <button type="button" @click="goPhoto({{ $i }})"
-                                        role="listitem"
-                                        class="shrink-0 w-16 space-y-1">
-                                    <span class="block aspect-square rounded-xl overflow-hidden ring-2 bg-gray-100"
-                                          :class="photo === {{ $i }} ? 'ring-brand' : '{{ filled($s['path']) ? 'ring-emerald-400' : 'ring-gray-200' }}'">
-                                        @if (! empty($s['path']))
-                                            <img src="{{ asset('storage/'.$s['path']) }}" alt="{{ $s['label'] }}" class="h-full w-full object-contain bg-white">
-                                        @else
-                                            <span class="h-full w-full grid place-items-center text-[10px] font-bold text-gray-400">{{ $i + 1 }}</span>
-                                        @endif
-                                    </span>
-                                    <span class="block text-[10px] font-bold text-gray-600 truncate">{{ $s['label'] }}</span>
-                                </button>
-                            @endforeach
-                        </div>
-                    @endif
-                    @forelse ($photoSteps as $i => $s)
-                        @php $accent = $photoAccents[$i % count($photoAccents)]; @endphp
-                        <template x-if="photo === {{ $i }}">
-                            <div class="rounded-2xl ring-1 {{ $accent['wrap'] }} overflow-hidden p-4 sm:p-5 space-y-3"
-                                 x-data="{ retake: {{ empty($s['path']) ? 'true' : 'false' }}, sending: false, hasPreview: false }">
-                                <p class="text-[10px] uppercase tracking-[0.18em] font-bold {{ $accent['eyebrow'] }} leading-relaxed">{{ __('site.partner_portal.valuation_photo_progress', ['current' => $i + 1, 'total' => max(1, count($photoSteps))]) }}</p>
-                                <h3 class="text-2xl font-extrabold text-gray-900 leading-tight">{{ $s['label'] }}</h3>
-                                @if (filled($s['guidance'] ?? null))
-                                    <p class="text-sm font-bold text-gray-800 leading-relaxed">{{ $s['guidance'] }}</p>
-                                @endif
-                                <p class="text-sm font-semibold text-brand">{{ $s['asset_label'] }}</p>
-                                @if (! ($s['required'] ?? true))
-                                    <p class="text-xs font-semibold text-gray-500">{{ __('site.partner_portal.valuation_optional') }}</p>
-                                @endif
-
-                                @php
-                                    $stepAsset = $assets->firstWhere('id', $s['asset_id']);
-                                    $borrowerAngles = array_keys(\App\Models\CustomerAsset::photoAngleLabels($stepAsset?->asset_type));
-                                    $isOwnerAngle = in_array($s['angle'], $borrowerAngles, true);
-                                @endphp
-
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 p-2">
-                                        <p class="text-[10px] font-bold uppercase tracking-widest text-brand mb-1.5 leading-relaxed">{{ __('site.partner_portal.valuation_owner_reference') }}</p>
-                                        @if (! empty($s['borrower_path']))
-                                            <img src="{{ asset('storage/'.$s['borrower_path']) }}" alt="" class="aspect-square w-full object-contain bg-gray-50 rounded-lg">
-                                        @elseif ($isOwnerAngle)
-                                            <p class="aspect-square grid place-items-center text-[11px] font-semibold text-amber-800 bg-amber-50 rounded-lg px-2 text-center">{{ __('site.partner_portal.valuation_no_owner_photo') }}</p>
-                                        @else
-                                            <p class="aspect-square grid place-items-center text-[11px] font-semibold text-gray-600 bg-gray-50 rounded-lg px-2 text-center">{{ __('site.partner_portal.valuation_valuer_only_angle') }}</p>
-                                        @endif
-                                    </div>
-                                    <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 p-2">
-                                        <p class="text-[10px] font-bold uppercase tracking-widest text-brand mb-1.5 leading-relaxed">{{ __('site.partner_portal.valuation_your_photo') }}</p>
-                                        @if (! empty($s['path']))
-                                            <img x-show="!retake" src="{{ asset('storage/'.$s['path']) }}" alt="" class="aspect-square w-full object-contain bg-gray-50 rounded-lg ring-1 ring-gray-100">
-                                        @endif
-                                        <div x-show="retake && !hasPreview" class="aspect-square grid place-items-center text-[11px] font-semibold text-gray-400 bg-gray-50 rounded-lg">{{ __('site.partner_portal.valuation_take_next_photo') }}</div>
-                                    </div>
-                                </div>
-
-                                @if ($open)
-                                    <form x-show="retake" method="POST" action="{{ route('site.partner.task.inspect.photo', $task) }}" enctype="multipart/form-data" class="space-y-3"
-                                          @doc-preview="hasPreview = $event.detail.filled"
-                                          @submit="sending = true">
-                                        @csrf
-                                        <input type="hidden" name="customer_asset_id" value="{{ $s['asset_id'] }}">
-                                        <input type="hidden" name="angle" value="{{ $s['angle'] }}">
-                                        <x-site.single-image-document-upload
-                                            name="file"
-                                            :input-host-id="'val-photo-'.$s['asset_id'].'-'.$s['angle']"
-                                            facing="environment"
-                                            :required="empty($s['path'])"
-                                            :camera-only="false"
-                                            :auto-submit="false"
-                                            :large-preview="true"
-                                            :guide="$s['guidance'] ?? $s['label']"
-                                        />
-                                        <p x-show="sending" x-cloak class="text-sm font-semibold text-amber-800">{{ __('site.partner_portal.valuation_pending_upload') }}</p>
-                                        <div x-show="hasPreview" x-cloak class="flex flex-col sm:flex-row gap-2">
-                                            <button type="submit" class="flex-1 rounded-xl bg-brand text-white text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_use_photo') }}</button>
-                                            <button type="button" @click="hasPreview = false; $dispatch('clear-capture', { hostId: @js('val-photo-'.$s['asset_id'].'-'.$s['angle']) })" class="flex-1 rounded-xl ring-1 ring-gray-200 text-sm font-bold py-3">{{ __('site.partner_portal.valuation_retake') }}</button>
-                                        </div>
-                                    </form>
-                                @endif
-                                <div class="flex items-center justify-between gap-3 pt-1">
-                                    @if (! ($s['required'] ?? true) && empty($s['path']))
-                                        <button type="button" @click="goPhoto({{ min($i + 1, count($photoSteps) - 1) }})" class="text-sm font-semibold text-gray-600">{{ __('site.partner_portal.valuation_skip_optional') }}</button>
-                                    @else
-                                        <span></span>
-                                    @endif
-                                    <div class="flex items-center gap-3">
-                                        @if (! empty($s['path']))
-                                            @if ($open)
-                                                <button type="button" x-show="!retake" @click="retake = true; hasPreview = false" class="text-sm font-bold text-brand">{{ __('site.partner_portal.valuation_retake') }}</button>
-                                            @endif
-                                            @if ($i < count($photoSteps) - 1)
-                                                <button type="button" x-show="!retake" @click="goPhoto({{ $i + 1 }})" class="rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-2.5">{{ __('site.partner_portal.valuation_continue') }}</button>
-                                            @elseif ($photosDone && $needsVehicle)
-                                                <button type="button" x-show="!retake" @click="step = 'condition'" class="rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-2.5">{{ __('site.partner_portal.valuation_continue') }}</button>
-                                            @elseif ($photosDone)
-                                                <button type="button" x-show="!retake" @click="tab = 'values'" class="rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-2.5">{{ __('site.partner_portal.valuation_continue') }}</button>
-                                            @endif
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    @empty
-                        <p class="text-sm text-gray-600">{{ $task->vehicle_details ?: '—' }}</p>
-                    @endforelse
-                </div>
-
-                @if ($needsVehicle)
-                    <form method="POST" action="{{ route('site.partner.task.inspect.checks', $task) }}" x-show="step === 'condition'" x-cloak
-                          class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/25 p-4 sm:p-5 space-y-5">
-                        @csrf
-                        @if (filled($checks['test_drive'] ?? null))
-                            <input type="hidden" name="test_drive" value="{{ $checks['test_drive'] }}">
-                        @endif
-                        <div>
-                            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.valuation_step_vehicle') }}</p>
-                            <h3 class="text-xl font-extrabold text-gray-900 mt-1 leading-tight">{{ __('site.partner_portal.valuation_step_vehicle') }}</h3>
-                            <p class="text-sm font-bold text-gray-800 mt-2 leading-relaxed">{{ __('site.partner_portal.valuation_vehicle_check_intro') }}</p>
-                        </div>
-                        <x-site.sheet-select name="body_condition" :label="__('site.partner_portal.valuation_body_condition')" :options="$inspection->bodyConditionOptions()" :value="old('body_condition', $checks['body_condition'] ?? '')" />
-                        <x-site.sheet-select name="tyres" :label="__('site.partner_portal.valuation_tyres')" :options="$inspection->tyreOptions()" :value="old('tyres', $checks['tyres'] ?? '')" />
-                        <x-site.sheet-select name="interior" :label="__('site.partner_portal.valuation_interior')" :options="$inspection->interiorOptions()" :value="old('interior', $checks['interior'] ?? '')" />
-                        <x-site.sheet-select name="engine" :label="__('site.partner_portal.valuation_step_engine')" :options="$inspection->engineOptions()" :value="old('engine', $checks['engine'] ?? '')" />
-                        <button class="w-full rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-3">{{ __('site.partner_portal.valuation_continue') }}</button>
-                    </form>
-
-                    <form method="POST" action="{{ route('site.partner.task.inspect.checks', $task) }}" x-show="step === 'drive'" x-cloak
-                          class="rounded-2xl ring-1 ring-brand-gold/40 bg-[#fff8e8] p-4 sm:p-5 space-y-4">
-                        @csrf
-                        @if (filled($checks['engine'] ?? null))
-                            <input type="hidden" name="engine" value="{{ $checks['engine'] }}">
-                        @endif
-                        <div>
-                            <p class="text-[10px] uppercase tracking-[0.18em] text-amber-800 font-bold">{{ __('site.partner_portal.valuation_step_drive') }}</p>
-                            <h3 class="text-xl font-extrabold text-gray-900 mt-1 leading-tight">{{ __('site.partner_portal.valuation_step_drive') }}</h3>
-                            <p class="text-sm font-bold text-gray-800 mt-2 leading-relaxed">{{ __('site.partner_portal.valuation_drive_intro') }}</p>
-                        </div>
-                        <x-site.sheet-select name="test_drive" :label="__('site.partner_portal.valuation_step_drive')" :options="$inspection->driveOptions()" :value="old('test_drive', $checks['test_drive'] ?? '')" />
-                        <button class="w-full rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-3">{{ __('site.partner_portal.valuation_continue') }}</button>
-                    </form>
-                @endif
+            @if ($open)
+                <p x-show="failed.length" x-cloak class="text-sm font-semibold text-amber-800">{{ __('site.partner_portal.valuation_retry_failed') }}</p>
+                <button type="button" x-show="!uploading && failed.length === 0" @click="uploadAll()"
+                        class="w-full rounded-xl bg-brand text-white text-sm font-extrabold py-3"
+                        x-text="@js(__('site.partner_portal.valuation_upload_n', ['count' => '__N__'])).replace('__N__', String(steps.filter(s => !s.path && captures[key(s)]).length || requiredTotal()))">
+                    {{ __('site.partner_portal.valuation_upload_n', ['count' => $requiredTotal]) }}
+                </button>
+                <button type="button" x-show="failed.length" x-cloak @click="retryFailed()" class="w-full rounded-xl bg-brand text-white text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_retry_failed') }}</button>
+                <button type="button" @click="start(requiredDone() >= requiredTotal())" class="w-full text-sm font-bold text-brand py-2">{{ __('site.partner_portal.valuation_retake') }}</button>
             @endif
         </div>
 
-        <div x-show="tab === 'values'" x-cloak>
-            @if (! $photosDone || ($needsVehicle && (! $engineDone || ! $driveDone)))
-                <div class="rounded-2xl ring-1 ring-amber-200 bg-amber-50 p-5 text-sm font-bold text-amber-950 leading-relaxed">
-                    {{ __('site.partner_portal.valuation_photos_required', ['list' => implode(', ', $missingPhotos) ?: __('site.partner_portal.valuation_step_engine')]) }}
+        <template x-teleport="body">
+            <div x-show="uploading" x-cloak class="fixed inset-0 z-[96] bg-black/70 flex items-center justify-center p-6">
+                <div class="w-full max-w-sm rounded-2xl bg-white p-5 text-center space-y-3">
+                    <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.valuation_uploading_evidence') }}</p>
+                    <p class="text-2xl font-extrabold text-brand"><span x-text="uploadedCount"></span> of <span x-text="requiredTotal()"></span></p>
+                    <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+                        <div class="h-full bg-brand transition-all" :style="'width:' + (requiredTotal() ? Math.round(100 * uploadedCount / requiredTotal()) : 0) + '%'"></div>
+                    </div>
                 </div>
-            @elseif ($open)
-                <form method="POST" action="{{ route('site.partner.task.complete', $task) }}" class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/25 p-4 sm:p-5 space-y-4"
-                      @submit.prevent="window.confirmForm($el, {
-                          title: @js(__('site.partner_portal.confirm.valuation_title')),
-                          message: @js(__('site.partner_portal.confirm.valuation_message')),
-                          confirmLabel: @js(__('site.partner_portal.confirm.task_complete_button')),
-                          tone: 'warning',
-                      })">
-                    @csrf
+            </div>
+        </template>
+
+        <template x-teleport="body">
+            <div x-show="open" x-cloak class="fixed inset-0 z-[95] bg-black flex flex-col">
+                <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted class="absolute inset-0 z-[1] w-full h-full object-cover bg-gray-900"></video>
+                <div class="relative z-[4] pt-[max(1rem,env(safe-area-inset-top))] px-4 flex items-start justify-between gap-3 bg-gradient-to-b from-black/80 to-transparent pb-8">
+                    <div class="min-w-0 max-w-md rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
+                        <p class="text-[11px] uppercase tracking-widest text-brand-gold" x-text="current() && current().required ? (captureOrdinal() + ' of ' + requiredTotal() + ' — ' + current().label) : (current() ? current().label : '')"></p>
+                        <p class="text-sm font-semibold mt-1" x-text="current()?.guidance || ''"></p>
+                    </div>
+                    <button type="button" @click="closeCamera()" class="shrink-0 text-xs font-semibold text-white/90 bg-white/15 ring-1 ring-white/25 px-3 py-2 rounded-full">{{ __('site.partner_portal.valuation_camera_close') }}</button>
+                </div>
+                <div x-show="flash" x-cloak class="relative z-[5] mt-auto mb-auto px-6 text-center text-white">
+                    <p class="text-xl font-extrabold" x-text="flash ? ('✓ ' + flash.label) : ''"></p>
+                    <p class="text-sm font-semibold mt-1" x-show="flash?.next" x-text="flash ? @js(__('site.partner_portal.valuation_next_is', ['label' => '__L__'])).replace('__L__', flash.next) : ''"></p>
+                </div>
+                <p x-show="cameraNotice" x-cloak class="relative z-[4] mx-4 rounded-xl bg-amber-50 text-amber-950 text-sm font-semibold p-3" x-text="cameraNotice"></p>
+                <div class="relative z-[4] mt-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                    <button type="button" @click="capture()" class="w-full max-w-md mx-auto block size-16 rounded-full bg-brand-gold text-brand font-extrabold shadow-lg grid place-items-center mx-auto">●</button>
+                    <p class="text-center text-white text-sm font-bold mt-3">{{ __('site.partner_portal.valuation_camera_capture') }}</p>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    @if ($needsVehicle)
+        <form method="POST" action="{{ route('site.partner.task.inspect.checks', $task) }}" x-show="step === 'condition' && {{ $started && $photosDone ? 'true' : 'false' }}" x-cloak
+              class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 sm:p-5 space-y-5">
+            @csrf
+            <div>
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.tab_inspect') }}</p>
+                <h3 class="text-xl font-extrabold text-gray-900 mt-1 leading-tight">{{ __('site.partner_portal.valuation_step_vehicle') }}</h3>
+                <p class="text-sm font-bold text-gray-800 mt-2 leading-relaxed">{{ __('site.partner_portal.valuation_vehicle_check_intro') }}</p>
+            </div>
+            <x-site.sheet-select name="body_condition" :label="__('site.partner_portal.valuation_body_condition')" :options="$inspection->bodyConditionOptions()" :value="old('body_condition', $checks['body_condition'] ?? '')" />
+            <x-site.sheet-select name="tyres" :label="__('site.partner_portal.valuation_tyres')" :options="$inspection->tyreOptions()" :value="old('tyres', $checks['tyres'] ?? '')" />
+            <x-site.sheet-select name="interior" :label="__('site.partner_portal.valuation_interior')" :options="$inspection->interiorOptions()" :value="old('interior', $checks['interior'] ?? '')" />
+            <x-site.sheet-select name="engine" :label="__('site.partner_portal.valuation_step_engine')" :options="$inspection->engineOptions()" :value="old('engine', $checks['engine'] ?? '')" />
+            <x-site.sheet-select name="test_drive" :label="__('site.partner_portal.valuation_step_drive')" :options="$inspection->driveOptions()" :value="old('test_drive', $checks['test_drive'] ?? '')" />
+            @if ($open)
+                <button class="w-full rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-3">{{ __('site.partner_portal.valuation_continue') }}</button>
+            @endif
+        </form>
+    @endif
+
+    <div x-show="(step === 'values' || step === 'review') && {{ $photosDone && $inspectionDone ? 'true' : 'false' }}" x-cloak>
+        @if (! $photosDone || ! $inspectionDone)
+            <div class="rounded-2xl ring-1 ring-amber-200 bg-amber-50 p-5 text-sm font-bold text-amber-950 leading-relaxed">
+                {{ __('site.partner_portal.valuation_photos_required', ['list' => implode(', ', $missingPhotos) ?: __('site.partner_portal.valuation_step_engine')]) }}
+            </div>
+        @elseif ($open)
+            <form method="POST" action="{{ route('site.partner.task.complete', $task) }}" class="space-y-4"
+                  @submit.prevent="if (step !== 'review') { step = 'review'; return; } window.confirmForm($el, {
+                      title: @js(__('site.partner_portal.confirm.valuation_title')),
+                      message: @js(__('site.partner_portal.confirm.valuation_message')),
+                      confirmLabel: @js(__('site.partner_portal.confirm.task_complete_button')),
+                      tone: 'warning',
+                  })">
+                @csrf
+                <div x-show="step === 'values'" class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 sm:p-5 space-y-4">
                     <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.valuation_step_values') }}</p>
                     <p class="text-sm font-bold text-gray-800 leading-relaxed">{{ __('site.partner_portal.valuation_values_intro') }}</p>
                     @foreach ($assets as $valAsset)
@@ -438,18 +350,53 @@
                         <label class="block text-xs text-gray-500 mb-1">{{ __('site.partner_portal.notes_optional') }}</label>
                         <textarea name="notes" rows="3" class="w-full rounded-lg border-gray-300 text-sm">{{ old('notes') }}</textarea>
                     </div>
-                    <button class="w-full rounded-xl bg-emerald-600 text-white text-sm font-extrabold px-5 py-3 hover:bg-emerald-700">{{ __('site.partner_portal.valuation_submit_report') }}</button>
-                </form>
-            @else
-                <div class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/25 p-5 text-sm space-y-2">
-                    <p>{{ __('site.partner_portal.valuation_market_value') }}: <span class="font-semibold">{{ format_money($assignment?->market_value) }}</span></p>
-                    <p>{{ __('site.partner_portal.valuation_fsv') }}: <span class="font-semibold">{{ format_money($assignment?->forced_sale_value) }}</span></p>
+                    <button type="button" @click="step = 'review'" class="w-full rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-3">{{ __('site.partner_portal.valuation_review_valuation') }}</button>
                 </div>
-            @endif
-        </div>
+
+                <div x-show="step === 'review'" class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 sm:p-5 space-y-4">
+                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.valuation_review_before') }}</p>
+                    <ul class="text-sm font-semibold space-y-1">
+                        <li class="text-emerald-700">{{ __('site.partner_portal.tab_asset') }} ✓</li>
+                        <li class="text-emerald-700">{{ __('site.partner_portal.valuation_required_ok', ['done' => $requiredDoneCount, 'total' => $requiredTotal]) }}</li>
+                        <li class="text-emerald-700">{{ __('site.partner_portal.tab_inspect') }} ✓</li>
+                        <li class="text-emerald-700">{{ __('site.partner_portal.tab_values') }} ✓</li>
+                    </ul>
+                    @if ($compareSteps->isNotEmpty())
+                        <div class="space-y-3">
+                            <p class="text-sm font-extrabold">{{ __('site.partner_portal.valuation_compare_title') }}</p>
+                            @foreach ($compareSteps as $cmp)
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="rounded-xl ring-1 ring-gray-200 overflow-hidden">
+                                        <p class="text-[10px] font-bold uppercase tracking-widest text-brand px-2 pt-2">{{ __('site.partner_portal.valuation_owner_photo') }}</p>
+                                        <img src="{{ asset('storage/'.$cmp['borrower_path']) }}" alt="" class="aspect-square w-full object-contain bg-gray-50">
+                                    </div>
+                                    <div class="rounded-xl ring-1 ring-gray-200 overflow-hidden">
+                                        <p class="text-[10px] font-bold uppercase tracking-widest text-brand px-2 pt-2">{{ $cmp['label'] }}</p>
+                                        <img src="{{ $cmp['path_url'] }}" alt="" class="aspect-square w-full object-contain bg-gray-50">
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                    <button type="button" @click="step = 'values'" class="w-full rounded-xl ring-1 ring-gray-200 text-sm font-bold py-3">{{ __('site.partner_portal.valuation_photo_back') }}</button>
+                    <button class="w-full rounded-xl bg-emerald-600 text-white text-sm font-extrabold px-5 py-3 hover:bg-emerald-700">{{ __('site.partner_portal.valuation_submit_report') }}</button>
+                </div>
+            </form>
+        @else
+            <div class="rounded-2xl ring-1 ring-brand/15 bg-white p-5 text-sm space-y-2">
+                <p>{{ __('site.partner_portal.valuation_market_value') }}: <span class="font-semibold">{{ format_money($assignment?->market_value) }}</span></p>
+                <p>{{ __('site.partner_portal.valuation_fsv') }}: <span class="font-semibold">{{ format_money($assignment?->forced_sale_value) }}</span></p>
+            </div>
+        @endif
     </div>
 
-    <div x-show="declineOpen" x-cloak class="fixed inset-0 z-[80] lg:col-span-3">
+    <template x-teleport="body">
+        <div x-show="preview" x-cloak class="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4" @click="preview = null">
+            <img :src="preview" alt="" class="max-h-[80vh] max-w-full rounded-xl object-contain">
+        </div>
+    </template>
+
+    <div x-show="declineOpen" x-cloak class="fixed inset-0 z-[80]">
         <div class="absolute inset-0 bg-black/40" @click="declineOpen = false"></div>
         <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-5 space-y-3" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom))">
             <h3 class="font-bold">{{ __('site.partner_portal.decline_task') }}</h3>

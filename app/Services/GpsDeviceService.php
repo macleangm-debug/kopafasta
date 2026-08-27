@@ -185,7 +185,7 @@ class GpsDeviceService
      */
     public function forApplication(LoanApplication $application): array
     {
-        $application->loadMissing(['collateralAssets.customerAsset']);
+        $application->loadMissing(['collateralAssets.customerAsset.customer']);
 
         $gpsTasks = PartnerTask::query()
             ->where('loan_application_id', $application->id)
@@ -230,6 +230,28 @@ class GpsDeviceService
                 $gpsStatus = 'secured';
             }
 
+            $card = $asset
+                ? $asset->toCollateralCard([
+                    'belongs_to' => $asset->customer?->full_name,
+                ])
+                : [
+                    'label' => $row->description ?: display_label($row->asset_type, 'asset_type'),
+                    'asset_type' => $row->asset_type,
+                    'type_label' => \App\Models\CustomerAsset::typeOptions()[$row->asset_type]
+                        ?? display_label($row->asset_type, 'asset_type'),
+                    'registration_number' => $details['registration_number'] ?? null,
+                    'make' => $details['make'] ?? null,
+                    'year' => $details['year'] ?? $details['purchase_year'] ?? null,
+                    'chassis' => null,
+                    'belongs_to' => null,
+                    'status_label' => null,
+                    'thumbnail' => null,
+                    'insurance_type' => null,
+                    'insurance_expires_at' => null,
+                    'insurance_policy_number' => null,
+                    'has_insurance_doc' => false,
+                ];
+
             $items[] = [
                 'label' => $asset?->label
                     ?: ($row->description ?: display_label($row->asset_type, 'asset_type')),
@@ -244,6 +266,7 @@ class GpsDeviceService
                 'tracking_url' => filled($trackingUrl) ? (string) $trackingUrl : null,
                 'can_view_asset' => $mapEnabled && filled($trackingUrl),
                 'is_primary' => (bool) $row->is_primary,
+                'card' => $card,
             ];
         }
 

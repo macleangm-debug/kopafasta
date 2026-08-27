@@ -1,70 +1,134 @@
 @props([
-    'name',
-    'label',
+    'label' => '',
     'options' => [],
     'value' => '',
-    'required' => true,
+    'name' => null,
+    'model' => null,
+    'setter' => null,
+    'required' => false,
+    'placeholder' => '',
+    'selectClass' => 'w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand',
+    'onPick' => null,
+    'otherName' => null,
+    'otherLabel' => null,
+    'otherValue' => 'other',
 ])
 
 @php
-    $placeholder = __('site.partner_portal.valuation_choose');
+    $optionsList = is_array($options) ? $options : [];
+    $selected = old($name ?? '', $value);
+    $modelExpr = $model;
+    $setterExpr = $setter;
+    $optionEntries = collect($optionsList)
+        ->map(fn ($optionLabel, $key) => ['value' => (string) $key, 'label' => (string) $optionLabel])
+        ->values()
+        ->all();
+    $hasOther = array_key_exists((string) $otherValue, $optionsList);
+    $otherField = $otherName ?: 'category_other';
+    $otherFieldLabel = $otherLabel ?: __('plus.money.other_name');
 @endphp
 
-<div
-    x-data="{
-        open: false,
-        value: @js((string) $value),
-        labels: @js($options),
+<div x-data="{
+        pickerOpen: false,
+        optionEntries: @js($optionEntries),
         placeholder: @js($placeholder),
-        pick(code) { this.value = code; this.open = false; },
-        get shown() { return (this.value && this.labels[this.value]) ? this.labels[this.value] : this.placeholder; },
-    }"
-    class="space-y-1.5"
->
-    <p class="text-sm font-extrabold text-gray-900">{{ $label }}</p>
-    <input type="hidden" name="{{ $name }}" x-model="value" @if ($required) required @endif>
+        selected: @js((string) $selected),
+        otherValue: @js((string) $otherValue),
+        labelFor(val) {
+            if (!val) return this.placeholder;
+            const hit = this.optionEntries.find((o) => o.value === val);
+            return hit ? hit.label : val;
+        },
+        currentValue() {
+            return this.selected || '';
+        },
+        syncNative() {
+            const sel = this.$refs.native;
+            if (sel) sel.value = this.selected || '';
+        },
+        choose(val) {
+            this.selected = val == null ? '' : String(val);
+            this.pickerOpen = false;
+            this.$nextTick(() => this.syncNative());
+            @if ($setterExpr)
+                if (typeof {{ $setterExpr }} === 'function') { {{ $setterExpr }}(this.selected); }
+            @elseif ($modelExpr)
+                try { {{ $modelExpr }} = this.selected; } catch (e) {}
+            @endif
+            @if ($onPick)
+                {{ $onPick }};
+            @endif
+        }
+     }"
+     x-init="
+        $nextTick(() => syncNative());
+        @if ($modelExpr)
+            $watch('selected', (val) => { try { {{ $modelExpr }} = val; } catch (e) {} });
+        @endif
+     "
+     {{ $attributes->only('class') }}>
+    @if ($label)
+        <label class="block text-sm font-semibold text-gray-700 mb-2">
+            {{ $label }}
+            @if ($required)<span class="text-rose-500">*</span>@endif
+        </label>
+    @endif
 
-    <div class="relative hidden lg:block">
-        <button type="button" @click="open = !open"
-                class="w-full text-left rounded-xl ring-1 ring-brand/15 bg-white px-4 py-3 text-sm font-semibold flex items-center justify-between gap-3">
-            <span x-text="shown"></span>
-            <span class="text-gray-400 shrink-0" aria-hidden="true">▾</span>
+    <div class="lg:hidden">
+        <button type="button" @click="pickerOpen = true"
+                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+            <span class="flex-1 text-left truncate" x-text="labelFor(currentValue())"></span>
+            <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
         </button>
-        <div x-show="open" x-cloak @click.outside="open = false"
-             class="absolute z-30 mt-1 w-full rounded-xl bg-white ring-1 ring-gray-200 shadow-lg overflow-hidden max-h-72 overflow-y-auto">
-            @foreach ($options as $code => $text)
-                <button type="button" @click="pick(@js((string) $code))"
-                        class="w-full text-left px-4 py-3 text-sm hover:bg-brand-muted/40"
-                        :class="value === @js((string) $code) ? 'bg-brand-muted font-bold text-brand' : 'text-gray-800'">
-                    {{ $text }}
-                </button>
-            @endforeach
-        </div>
+
+        <x-site.bottom-sheet :title="$label ?: $placeholder" open="pickerOpen" layer="z-[10100]">
+            <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                @if (! $required)
+                    <button type="button" @click="choose('')"
+                            class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50"
+                            :class="!currentValue() ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
+                        {{ $placeholder }}
+                    </button>
+                @endif
+                <template x-for="opt in optionEntries" :key="opt.value">
+                    <button type="button" @click="choose(opt.value)"
+                            class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                            :class="currentValue() === opt.value ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
+                            x-text="opt.label"></button>
+                </template>
+            </div>
+        </x-site.bottom-sheet>
     </div>
 
-    <button type="button" @click="open = true"
-            class="lg:hidden w-full text-left rounded-xl ring-1 ring-brand/15 bg-white px-4 py-3.5 text-sm font-semibold flex items-center justify-between gap-3">
-        <span x-text="shown"></span>
-        <span class="text-gray-400 shrink-0" aria-hidden="true">▾</span>
-    </button>
+    <select
+        x-ref="native"
+        @if ($name) name="{{ $name }}" @endif
+        x-model="selected"
+        @change="choose($event.target.value)"
+        @if ($required) required @endif
+        {{ $attributes->except('class')->merge(['class' => $selectClass.' max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden']) }}
+    >
+        @if (! $required)
+            <option value="">{{ $placeholder }}</option>
+        @elseif ($placeholder)
+            <option value="" disabled hidden>{{ $placeholder }}</option>
+        @endif
+        @foreach ($optionEntries as $opt)
+            <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
+        @endforeach
+    </select>
 
-    <template x-teleport="body">
-        <div x-show="open" x-cloak class="lg:hidden fixed inset-0 z-[80]" role="dialog" aria-modal="true">
-            <div class="absolute inset-0 bg-black/40" @click="open = false"></div>
-            <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-5 space-y-2 shadow-[0_-8px_40px_rgba(0,0,0,0.18)]"
-                 style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom))">
-                <div class="flex justify-center pb-1">
-                    <div class="w-10 h-1 rounded-full bg-gray-300"></div>
-                </div>
-                <p class="font-extrabold text-gray-900">{{ $label }}</p>
-                @foreach ($options as $code => $text)
-                    <button type="button" @click="pick(@js((string) $code))"
-                            class="w-full text-left rounded-xl ring-1 ring-gray-200 px-4 py-3.5 text-sm font-semibold"
-                            :class="value === @js((string) $code) ? 'ring-brand bg-brand-muted/40 text-brand' : 'text-gray-800'">
-                        {{ $text }}
-                    </button>
-                @endforeach
-            </div>
+    @if ($hasOther)
+        <div class="mt-3" x-show="selected === otherValue" x-cloak>
+            <label class="block text-xs font-medium text-gray-600 mb-1">
+                {{ $otherFieldLabel }} <span class="text-red-500">*</span>
+            </label>
+            <input type="text"
+                   name="{{ $otherField }}"
+                   maxlength="80"
+                   class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand"
+                   :required="selected === otherValue"
+                   :disabled="selected !== otherValue">
         </div>
-    </template>
+    @endif
 </div>

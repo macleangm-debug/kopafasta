@@ -6,6 +6,8 @@ import { registerProfileSectionCard } from './profile-section-card';
 import { registerSavingOverlay } from './saving-overlay';
 import { registerPartnerCreateConfirm } from './partner-create-confirm';
 
+import { registerValuationCamera } from './valuation-camera';
+
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
 registerFormReadyAlpine(Alpine);
@@ -13,6 +15,7 @@ registerCollateralAddForm(Alpine);
 registerProfileSectionCard(Alpine);
 registerSavingOverlay(Alpine);
 registerPartnerCreateConfirm(Alpine);
+registerValuationCamera(Alpine);
 
 window.campaignWizard = function campaignWizard(cfg) {
     const initial = cfg.initial || {};

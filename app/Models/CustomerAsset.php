@@ -136,6 +136,39 @@ class CustomerAsset extends Model
         return filled($type) ? (string) $type : null;
     }
 
+    /**
+     * Shared presentation payload for borrower, screening, valuer, and recovery collateral cards.
+     *
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    public function toCollateralCard(array $extra = []): array
+    {
+        $typeOptions = self::typeOptions();
+        $chassis = (string) ($this->detail('chassis_number') ?? '');
+        $chassisMasked = $chassis === ''
+            ? null
+            : (mb_strlen($chassis) > 4 ? '•••'.mb_substr($chassis, -4) : $chassis);
+
+        return array_merge([
+            'id' => $this->id,
+            'label' => $this->label,
+            'asset_type' => $this->asset_type,
+            'type_label' => $typeOptions[$this->asset_type] ?? $this->asset_type,
+            'registration_number' => $this->registration_number,
+            'make' => $this->detail('make'),
+            'year' => $this->detail('year') ?: $this->detail('purchase_year'),
+            'chassis' => $chassisMasked,
+            'belongs_to' => null,
+            'status_label' => null,
+            'thumbnail' => $this->thumbnailPath() ? asset('storage/'.$this->thumbnailPath()) : null,
+            'insurance_type' => $this->insuranceType(),
+            'insurance_expires_at' => $this->detail('insurance_expires_at'),
+            'insurance_policy_number' => $this->detail('insurance_policy_number'),
+            'has_insurance_doc' => $this->hasVehicleInsurance(),
+        ], $extra);
+    }
+
     /** @return array<string, string> */
     public static function insuranceTypeOptions(): array
     {
