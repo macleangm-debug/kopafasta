@@ -208,7 +208,8 @@
         @elseif ($defaultTab === 'documents')
             <div class="space-y-5">
                 <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3 text-xs text-sky-950">
-                    Same Documents workspace as Review checklist for this person — Checklist, Requested, and Library.
+                    Document history for this person — Checklist, request history, and Library.
+                    Outstanding requests on the Review checklist stay empty once everything is accepted.
                     Packs you send here notify this person only.
                 </div>
                 @include('admin.loan-applications.review._documents', ['review' => $subjectReview])

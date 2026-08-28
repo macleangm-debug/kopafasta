@@ -42,33 +42,16 @@
         @forelse ($assets as $row)
             @php
                 $ca = $row->customerAsset;
-                $hasInsurance = $row->hasComprehensiveInsurance();
                 $isVehicle = in_array($row->asset_type, ['vehicle', 'motorcycle', 'saloon_car', 'suv', 'truck'], true);
                 $gallery = $ca?->galleryPaths() ?? [];
                 $ownershipDoc = $ca?->metadata['ownership_document_path'] ?? null;
                 $insuranceDoc = $ca?->metadata['insurance_document_path'] ?? null;
             @endphp
             <div class="rounded-xl ring-1 ring-gray-200 p-4 mb-4 {{ $row->uw_status === 'declined' ? 'opacity-70 bg-gray-50' : '' }}">
-                <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
-                    <div>
-                        <p class="font-semibold text-gray-900">
-                            {{ $ca?->label ?? ($row->description ?: 'Collateral #'.$row->id) }}
-                            @if ($row->is_primary)
-                                <span class="ml-1 text-[10px] uppercase tracking-widest text-brand font-semibold">Primary</span>
-                            @endif
-                        </p>
-                        <p class="text-xs text-gray-500 mt-1 capitalize">
-                            {{ str_replace('_', ' ', $row->asset_type) }}
-                            · UW: {{ ucfirst($row->uw_status ?? 'pending') }}
-                            · Valuation: {{ str_replace('_', ' ', $row->valuation_status ?? '—') }}
-                        </p>
-                    </div>
-                    @if ($isVehicle)
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold {{ $hasInsurance ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200' }}">
-                            {{ $hasInsurance ? 'Comprehensive insurance on file' : 'Missing comprehensive insurance' }}
-                        </span>
-                    @endif
-                </div>
+                <p class="text-sm font-semibold text-gray-900 mb-3">
+                    {{ $ca?->label ?? ($row->description ?: 'Collateral #'.$row->id) }}
+                    <span class="text-xs font-medium text-gray-500">· Underwriting {{ ucfirst($row->uw_status ?? 'pending') }}</span>
+                </p>
 
                 {{-- Photo gallery --}}
                 <div class="mb-4">
@@ -92,9 +75,6 @@
 
                 <dl class="grid sm:grid-cols-2 gap-3 text-sm mb-4">
                     @if ($row->description)<div class="sm:col-span-2"><dt class="text-xs text-gray-500">Description</dt><dd>{{ $row->description }}</dd></div>@endif
-                    @if ($row->market_value)<div><dt class="text-xs text-gray-500">Market value</dt><dd>{{ format_money($row->market_value) }}</dd></div>@endif
-                    @if ($row->forced_sale_value)<div><dt class="text-xs text-gray-500">Forced sale value</dt><dd>{{ format_money($row->forced_sale_value) }}</dd></div>@endif
-                    @if ($row->max_loan_amount)<div><dt class="text-xs text-gray-500">Max loan (LTV)</dt><dd class="font-semibold">{{ format_money($row->max_loan_amount) }} @ {{ $row->ltv_percent }}%</dd></div>@endif
                     @if ($ownershipDoc)
                         <div>
                             <dt class="text-xs text-gray-500">Ownership document</dt>
@@ -182,13 +162,7 @@
                     @endif
                 </div>
                 @if (($valuationReport['status'] ?? '') === 'completed')
-                    <dl class="grid sm:grid-cols-2 gap-3">
-                        <div><dt class="text-xs text-sky-800">Market value</dt><dd class="font-semibold">{{ format_money($valuationReport['market_value'] ?? 0) }}</dd></div>
-                        <div><dt class="text-xs text-sky-800">Forced sale value</dt><dd class="font-semibold">{{ format_money($valuationReport['forced_sale_value'] ?? 0) }}</dd></div>
-                        @if ($valuationReport['max_loan_amount'] ?? null)
-                            <div><dt class="text-xs text-sky-800">Max loan</dt><dd class="font-semibold">{{ format_money($valuationReport['max_loan_amount']) }} @ {{ $valuationReport['ltv_percent'] }}%</dd></div>
-                        @endif
-                    </dl>
+                    <p class="text-xs text-sky-900">Market, FSV and LTV are on the collateral card above. Valuer notes and inspection photos stay here.</p>
                     @if ($valuationReport['notes'] ?? null)
                         <p class="mt-3 text-xs text-sky-900 whitespace-pre-line">{{ $valuationReport['notes'] }}</p>
                     @endif

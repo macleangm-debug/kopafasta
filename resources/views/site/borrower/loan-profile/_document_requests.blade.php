@@ -5,8 +5,11 @@
         'completed' => collect(),
         'rejected' => collect(),
     ];
-    $actionDocs = collect($documentGroups['pending'] ?? [])->concat($documentGroups['rejected'] ?? [])->values();
-    $submittedDocs = collect($documentGroups['uploaded'] ?? [])->concat($documentGroups['completed'] ?? [])->values();
+    $actionDocs = collect($documentGroups['pending'] ?? [])
+        ->concat($documentGroups['rejected'] ?? [])
+        ->concat($documentGroups['uploaded'] ?? [])
+        ->values();
+    $submittedDocs = collect();
     $openDocCount = $actionDocs->count();
     $submittedCount = $submittedDocs->count();
     $customer = $profile['customer'] ?? $application->customer ?? auth()->user()?->customer;
@@ -51,8 +54,9 @@
     <div id="documents"
          class="mb-6"
          x-data="{ tab: @js($defaultTab) }">
-        {{-- Segmented control: action vs receipt --}}
+        {{-- History tab stays available when submitted items exist; outstanding workspace has no extra chrome. --}}
         @unless ($focusedOnly)
+        @if ($submittedCount > 0)
         <div class="mb-4 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-brand/10"
              role="tablist"
              aria-label="{{ __('borrower.loan_profile.documents_tabs_nav') }}">
@@ -91,6 +95,7 @@
                 </button>
             </div>
         </div>
+        @endif
         @endunless
 
         {{-- REQUESTED: do this now --}}
@@ -182,6 +187,12 @@
                                         </div>
                                         <p class="mt-1 text-xs font-semibold text-brand">
                                             {{ $docSvc->localizedSubjectRoleLabel($docReq) }}
+                                        </p>
+                                        <p class="mt-1 text-xs font-bold text-amber-950">
+                                            {{ $docSvc->waitingOnLabel($docReq) }}
+                                        </p>
+                                        <p class="mt-0.5 text-xs text-gray-600">
+                                            {{ $docSvc->outstandingTimingPhrase($docReq) }}
                                         </p>
                                     </div>
                                 </div>

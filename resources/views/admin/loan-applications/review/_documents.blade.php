@@ -278,8 +278,19 @@
     if (! in_array($defaultPanel, ['checklist', 'requests', 'library'], true)) {
         $defaultPanel = 'checklist';
     }
+    $documentsMode = $documentsMode ?? 'full';
 @endphp
 
+@if ($documentsMode === 'outstanding')
+    @include('admin.loan-applications.review._document-requests', [
+        'documentRequests' => $documentRequestsForPanel,
+        'person' => $isMemberSubject ? 'member' : ($isGuarantorSubject ? 'guarantor' : ($deskPerson ?? $panelPerson ?? request('review_person', request('person', 'borrower')))),
+        'lockRequestSubject' => true,
+        'requestMemberId' => $isMemberSubject ? $memberId : null,
+        'requestSubjectCustomerId' => $subjectCustomerId > 0 ? $subjectCustomerId : null,
+        'outstandingOnly' => true,
+    ])
+@else
 <div
     class="space-y-4"
     x-data="{
@@ -691,3 +702,4 @@
         </div>
     </div>
 </div>
+@endif

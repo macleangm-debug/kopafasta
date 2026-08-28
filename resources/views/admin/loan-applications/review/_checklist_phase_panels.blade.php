@@ -64,8 +64,11 @@
             </span>
         </div>
 
-        {{-- Same Application evidence shell for borrower/leader, guarantor, and group members. --}}
-        @include('admin.loan-applications.review._documents', ['review' => $panelSubjectReview])
+        {{-- Outstanding requests only — full Checklist / Library lives on Profiles → Documents. --}}
+        @include('admin.loan-applications.review._documents', [
+            'review' => $panelSubjectReview,
+            'documentsMode' => 'outstanding',
+        ])
     </div>
 @endif
 

@@ -96,10 +96,11 @@ class DocumentRequestSubjectScopeFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Updated Bank Statement', $askedHtml);
-        $this->assertStringContainsString('Waiting on', $askedHtml);
+        $this->assertStringContainsString('Outstanding requests', $askedHtml);
         $this->assertStringNotContainsString('No open requests for this person', $askedHtml);
-        $this->assertStringContainsString('No open requests for this person', $otherHtml);
-        $this->assertStringContainsString('No open requests for this person', $leaderHtml);
+        $this->assertStringNotContainsString('Outstanding requests', $otherHtml);
+        $this->assertStringNotContainsString('No open requests for this person', $otherHtml);
+        $this->assertStringNotContainsString('No open requests for this person', $leaderHtml);
     }
 
     public function test_borrower_income_request_does_not_hit_the_guarantor(): void
@@ -211,6 +212,54 @@ class DocumentRequestSubjectScopeFeatureTest extends TestCase
             $requests->pluck('loan_group_member_id')->map(fn ($id) => (int) $id)->all()
         );
         $this->assertFalse($requests->contains(fn ($request) => (int) $request->subject_customer_id === (int) $leader->id));
+    }
+
+    public function test_document_request_needs_review_then_creates(): void
+    {
+        [$admin, $application] = $this->groupFileWithStatements();
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'documents',
+                'person' => 'borrower',
+            ]))
+            ->post(route('admin.loan-applications.document-requests.store', $application), [
+                'type' => 'document',
+                'intent' => 'documents',
+                'presets' => ['Updated Bank Statement'],
+                'instructions' => 'Please send a full 6-month statement.',
+                'review_person' => 'borrower',
+                'return_workspace' => 'profiles',
+                'return_tab' => 'documents',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('confirmed');
+
+        $this->assertSame(0, $application->documentRequests()->count());
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $application), [
+                'type' => 'document',
+                'intent' => 'documents',
+                'confirmed' => '1',
+                'presets' => ['Updated Bank Statement'],
+                'instructions' => 'Please send a full 6-month statement.',
+                'review_person' => 'borrower',
+                'return_workspace' => 'profiles',
+                'return_tab' => 'documents',
+            ])
+            ->assertRedirect(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'documents',
+                'person' => 'borrower',
+                'review_person' => 'borrower',
+            ]).'#borrower-file');
+
+        $this->assertSame(1, $application->fresh()->documentRequests()->count());
+        $this->assertSame('Updated Bank Statement', $application->fresh()->documentRequests()->first()->label);
     }
 
     private function checklistItem(array $desk, string $key): array

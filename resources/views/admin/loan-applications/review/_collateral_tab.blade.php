@@ -139,7 +139,14 @@
             ];
         });
     $assetPreviewLimit = 8;
-    $assetCardRows = $assets->map(function ($asset) use ($pledgeByAssetId, $onLoanIds, $ownerRoleFor) {
+    $cardService = app(\App\Services\CollateralCardService::class);
+    $cardViewer = match (true) {
+        in_array((string) ($record->current_stage ?? ''), ['pre_approval'], true) => \App\Services\CollateralCardService::VIEWER_COMMITTEE,
+        $isCreditManagement => \App\Services\CollateralCardService::VIEWER_MANAGEMENT,
+        default => \App\Services\CollateralCardService::VIEWER_SCREENING,
+    };
+    $portfolio = $cardService->portfolio($record, $cardViewer);
+    $assetCardRows = $assets->map(function ($asset) use ($pledgeByAssetId, $onLoanIds, $ownerRoleFor, $cardService, $record, $cardViewer) {
         $pledge = $pledgeByAssetId->get((int) $asset->id);
         $pledgeStatus = (string) ($pledge->uw_status ?? '');
         $isOnThisLoan = in_array((int) $asset->id, $onLoanIds, true);
@@ -148,15 +155,10 @@
             $isOnThisLoan => 'On this loan',
             default => 'Saved',
         };
-        $card = $asset->toCollateralCard([
-            'belongs_to' => trim(($asset->customer?->full_name ?? '').' · '.$ownerRoleFor($asset), ' ·'),
+        $card = $cardService->forAsset($asset, $record, $cardViewer, [
+            'owner_role' => $ownerRoleFor($asset),
+            'source_label' => $sourceLabel,
         ]);
-        if ($asset->isVehicleLike()) {
-            $card['registration_number'] = $card['registration_number'] ?: '—';
-            $card['make'] = $card['make'] ?: '—';
-            $card['year'] = $card['year'] ?: '—';
-            $card['chassis'] = $card['chassis'] ?: '—';
-        }
 
         return [
             'id' => (int) $asset->id,
@@ -288,17 +290,23 @@
 
             <div>
                 <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
-                        {{ $assets->count() }} on this loan
-                        <span class="normal-case tracking-normal text-gray-400 font-medium" x-show="filteredAssets().length !== assetRows.length" x-cloak>
-                            · <span x-text="filteredAssets().length"></span> match
-                        </span>
+                    <p class="text-sm font-semibold text-gray-900">
+                        {{ $assets->count() }} collateral asset{{ $assets->count() === 1 ? '' : 's' }}
+                        @if (($portfolio['total_fsv'] ?? 0) > 0)
+                            · Total FSV {{ format_money($portfolio['total_fsv']) }}
+                        @endif
+                        @if (($portfolio['required_security'] ?? 0) > 0)
+                            · Required security {{ format_money($portfolio['required_security']) }}
+                        @endif
+                        @if (! empty($portfolio['coverage_ratio']))
+                            · Coverage {{ number_format($portfolio['coverage_ratio'], 1) }}×
+                        @endif
                     </p>
                     @if ($assets->count() > $assetPreviewLimit)
                         <button type="button"
                                 class="text-sm font-semibold text-brand hover:underline"
                                 @click="showAllAssets = ! showAllAssets; assetPage = 1">
-                            <span x-show="! showAllAssets">Show all collaterals ({{ $assets->count() }})</span>
+                            <span x-show="! showAllAssets">View all collateral ({{ $assets->count() }})</span>
                             <span x-show="showAllAssets" x-cloak>Show fewer</span>
                         </button>
                     @endif
@@ -332,11 +340,10 @@
                             <x-site.collateral-card
                                 :selected="$card"
                                 :type-icons="$typeIcons"
-                                :source-label="$sourceLabel"
                             >
                                 <button type="button" @click="openAsset = {{ (int) $row['id'] }}"
                                         class="mt-3 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                                    {{ __('site.partner_portal.view') }}
+                                    View collateral
                                 </button>
                             </x-site.collateral-card>
                         </div>
@@ -529,31 +536,41 @@
                             </div>
 
                             <div class="space-y-4">
-                                <div class="rounded-2xl ring-1 ring-gray-200 p-4">
-                                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">Ownership document</p>
-                                    @if ($ownershipDoc)
-                                        <x-admin.document-preview
-                                            :url="asset('storage/'.$ownershipDoc)"
-                                            label="Ownership document"
-                                            variant="thumbnail" />
-                                    @else
-                                        <p class="text-xs text-gray-500">No document on file.</p>
-                                    @endif
-                                </div>
+                                @include('admin.loan-applications.review._loan_collateral_documents', [
+                                    'documentRequests' => $documentRequests ?? [],
+                                    'viewer' => $cardViewer,
+                                ])
 
-                                @if ($asset->asset_type === 'vehicle')
-                                    <div class="rounded-2xl ring-1 ring-brand/20 bg-brand-muted/20 p-4">
-                                        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">Comprehensive insurance</p>
-                                        @if ($insuranceDoc)
-                                            <x-admin.document-preview
-                                                :url="asset('storage/'.$insuranceDoc)"
-                                                label="Insurance certificate"
-                                                variant="thumbnail" />
-                                        @else
-                                            <p class="text-xs text-amber-700">No insurance certificate on file.</p>
+                                <div class="rounded-2xl ring-1 ring-gray-200 p-4">
+                                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">On the asset record</p>
+                                    <p class="text-[11px] text-gray-500 mb-3">Permanent ownership and insurance files for this collateral — not a loan request.</p>
+                                    <div class="grid sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <p class="text-[11px] font-semibold text-gray-600 mb-1">Ownership document</p>
+                                            @if ($ownershipDoc)
+                                                <x-admin.document-preview
+                                                    :url="asset('storage/'.$ownershipDoc)"
+                                                    label="Ownership document"
+                                                    variant="thumbnail" />
+                                            @else
+                                                <p class="text-xs text-gray-500">No document on file.</p>
+                                            @endif
+                                        </div>
+                                        @if ($asset->asset_type === 'vehicle')
+                                            <div>
+                                                <p class="text-[11px] font-semibold text-gray-600 mb-1">Insurance certificate</p>
+                                                @if ($insuranceDoc)
+                                                    <x-admin.document-preview
+                                                        :url="asset('storage/'.$insuranceDoc)"
+                                                        label="Insurance certificate"
+                                                        variant="thumbnail" />
+                                                @else
+                                                    <p class="text-xs text-amber-700">No insurance certificate on file.</p>
+                                                @endif
+                                            </div>
                                         @endif
                                     </div>
-                                @endif
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -593,26 +610,14 @@
             <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 space-y-3">
                 <div>
                     <p class="text-[10px] font-semibold uppercase tracking-widest text-sky-900">Valuation</p>
-                    <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Forced sale value on file</h3>
+                    <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Valuation is on the collateral card</h3>
                     <p class="text-xs text-gray-600 mt-1">
-                        {{ $resultValuer }} completed the inspection. Match photos on the checklist — this card is the number, not a request.
+                        {{ $resultValuer }} completed the inspection. Match photos on the checklist — amounts stay on the card, not as a second copy here.
                     </p>
                 </div>
-                <div class="rounded-xl bg-white ring-1 ring-sky-100 px-4 py-3 text-sm space-y-2">
-                    <p class="font-semibold text-sky-950">{{ $resultValuer }}</p>
-                    <dl class="grid sm:grid-cols-2 gap-2 text-xs">
-                        <div><dt class="text-sky-800">Forced sale value</dt><dd class="font-semibold">{{ format_money($resultReport['forced_sale_value'] ?? $completedValuation?->forced_sale_value ?? 0) }}</dd></div>
-                        <div><dt class="text-sky-800">This asset can cover (FSV × LTV {{ (int) ($coverage['ltv_percent'] ?? $resultReport['ltv_percent'] ?? 0) }}%)</dt><dd class="font-semibold">{{ format_money($coverage['max_loan_amount'] ?? $resultReport['max_loan_amount'] ?? 0) }}</dd></div>
-                        <div><dt class="text-sky-800">Requested</dt><dd class="font-semibold">{{ format_money($coverage['requested_amount'] ?? $record->requested_amount) }}</dd></div>
-                    </dl>
-                    @if (! empty($coverage['sufficient']))
-                        @if (($coverage['next'] ?? '') === 'insurance_update')
-                            <p class="text-amber-900 text-xs">LTV covers the requested amount. Insurance on the pledged asset is not sufficient — the asset owner must update cover.</p>
-                        @else
-                            <p class="text-emerald-800 text-xs">LTV covers the requested amount and insurance is in order.</p>
-                        @endif
-                    @elseif ($coverage)
-                        <p class="text-rose-800 text-xs font-semibold">Collateral is not sufficient (shortfall {{ format_money($coverage['shortfall'] ?? 0) }}). Combined FSV × LTV across pledged assets must cover the requested amount.</p>
+                @if (! empty($coverage) && empty($coverage['sufficient']))
+                    <div class="rounded-xl bg-white ring-1 ring-rose-100 px-4 py-3 space-y-2">
+                        <p class="text-rose-800 text-xs font-semibold">Coverage shortfall {{ format_money($coverage['shortfall'] ?? 0) }}. Combined FSV × LTV across pledged assets must cover the requested amount.</p>
                         <ul class="text-xs text-gray-700 list-disc pl-4 space-y-1">
                             @foreach ($coverage['scenarios'] ?? [] as $scenario)
                                 <li>{{ $scenario['label'] }}</li>
@@ -625,8 +630,10 @@
                                 Request another asset from {{ $who }}
                             </button>
                         @endif
-                    @endif
-                </div>
+                    </div>
+                @elseif (($coverage['next'] ?? '') === 'insurance_update')
+                    <p class="text-amber-900 text-xs">LTV covers the requested amount. Insurance on the pledged asset is not sufficient — the asset owner must update cover.</p>
+                @endif
             </div>
         @elseif ($showValuationProgress)
             @php
@@ -808,13 +815,17 @@
                         $isDefaultNote = in_array($batchNote, array_values(\App\Services\ApplicationDocumentRequestService::presetInstructions()), true);
                     @endphp
                     <div class="rounded-xl bg-amber-50/80 ring-1 ring-amber-200 px-4 py-3 space-y-2" x-data="{ open: false, withdrawing: false }">
-                        <p class="text-sm font-semibold text-amber-950">
-                            Requested
-                            @if ($batch['at'])
-                                · {{ $batch['at']->timezone(config('app.timezone'))->format('d M Y') }}
+                        <p class="text-sm font-bold text-gray-900">
+                            {{ $batch['labels'][0] ?? 'Collateral request' }}
+                            @if (count($batch['labels']) > 1)
+                                <span class="font-semibold text-gray-600">+ {{ count($batch['labels']) - 1 }} more</span>
                             @endif
-                            · {{ $waitingOn }}
                         </p>
+                        <p class="text-xs font-semibold text-brand">{{ $requestFromName }} · {{ ucfirst($who) }}</p>
+                        <p class="text-xs font-bold text-amber-950">{{ $waitingOn }}</p>
+                        @if ($batch['at'])
+                            <p class="text-xs text-gray-600">Requested {{ $batch['at']->diffForHumans(['parts' => 2]) }}</p>
+                        @endif
                         <ul class="text-xs text-amber-900 list-disc pl-4 space-y-0.5">
                             @foreach ($batch['labels'] as $label)
                                 <li>{{ $label }}</li>

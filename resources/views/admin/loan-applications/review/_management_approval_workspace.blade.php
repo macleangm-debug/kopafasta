@@ -96,6 +96,10 @@
         </div>
     </div>
 
+    @include('admin.loan-applications.review._collateral_portfolio', [
+        'viewer' => \App\Services\CollateralCardService::VIEWER_MANAGEMENT,
+    ])
+
     <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-5 py-4">
         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">Management decision</p>
         @include('admin.loan-applications._workflow_actions')

@@ -353,6 +353,113 @@ class ApplicationDocumentRequestService
         };
     }
 
+    public function isOutstanding(LoanApplicationDocumentRequest $request): bool
+    {
+        return in_array($request->status, ['pending', 'uploaded', 'rejected'], true);
+    }
+
+    public function operationalStatusLabel(LoanApplicationDocumentRequest $request): string
+    {
+        $label = mb_strtolower((string) $request->label);
+
+        return match ($request->status) {
+            'satisfied' => 'Accepted',
+            'rejected' => 'Needs replacement',
+            'uploaded' => 'Under review',
+            'cancelled' => 'Cancelled',
+            default => str_contains($label, 'valuation')
+                ? 'Waiting for valuer'
+                : 'Requested',
+        };
+    }
+
+    public function waitingOnLabel(LoanApplicationDocumentRequest $request, ?array $groupReview = null): string
+    {
+        if ($request->status === 'uploaded') {
+            return 'Waiting for review';
+        }
+        if ($request->status === 'rejected') {
+            return 'Needs replacement';
+        }
+        if (str_contains(mb_strtolower((string) $request->label), 'valuation')) {
+            return 'Waiting for valuer';
+        }
+
+        $role = $request->subjectRoleLabel($groupReview);
+        if (str_contains($role, 'Leader')) {
+            return 'Waiting for group leader';
+        }
+        if (str_contains($role, 'Guarantor')) {
+            return 'Waiting for guarantor';
+        }
+        if (str_contains($role, 'Member')) {
+            return 'Waiting for member';
+        }
+
+        return 'Waiting for borrower';
+    }
+
+    public function outstandingTimingPhrase(LoanApplicationDocumentRequest $request): string
+    {
+        if ($request->exists) {
+            $request->loadMissing('uploads');
+        }
+        if ($request->status === 'uploaded') {
+            $at = $request->uploads->sortByDesc('id')->first()?->created_at ?? $request->updated_at;
+
+            return 'Submitted '.$this->relativePhrase($at).' · Awaiting review';
+        }
+        if ($request->status === 'rejected') {
+            return 'Replacement requested '.$this->relativePhrase($request->updated_at ?? $request->created_at);
+        }
+
+        return 'Requested '.$this->relativePhrase($request->created_at);
+    }
+
+    public function receivedAtLabel(LoanApplicationDocumentRequest $request): ?string
+    {
+        if ($request->exists) {
+            $request->loadMissing('uploads');
+        }
+        $at = $request->uploads->sortByDesc('id')->first()?->created_at
+            ?? ($request->status === 'satisfied' ? $request->satisfied_at : null);
+
+        return $at?->timezone(config('app.timezone'))->format('d M Y, H:i');
+    }
+
+    /**
+     * Loan-file collateral requirements for this application (not the asset master record).
+     *
+     * @param  \Illuminate\Support\Collection<int, LoanApplicationDocumentRequest>|iterable<LoanApplicationDocumentRequest>  $requests
+     * @return \Illuminate\Support\Collection<int, LoanApplicationDocumentRequest>
+     */
+    public function collateralRequestsForLoan($requests): Collection
+    {
+        return collect($requests)
+            ->filter(fn ($req) => $req instanceof LoanApplicationDocumentRequest
+                && $this->borrowerActionKind($req) === 'collateral'
+                && $req->status !== 'cancelled')
+            ->values();
+    }
+
+    private function relativePhrase(mixed $at): string
+    {
+        if (! $at instanceof \Carbon\CarbonInterface) {
+            return 'just now';
+        }
+        $local = $at->timezone(config('app.timezone'));
+        if ($local->isYesterday()) {
+            return 'yesterday';
+        }
+
+        $hours = $local->diffInHours(now()->timezone(config('app.timezone')));
+
+        return $local->diffForHumans([
+            'parts' => $hours < 72 ? 2 : 1,
+            'syntax' => \Carbon\CarbonInterface::DIFF_RELATIVE_TO_NOW,
+        ]);
+    }
+
     /**
      * Deep-link into the profile tab where this submitted request should be reviewed.
      *

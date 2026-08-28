@@ -336,6 +336,7 @@ class CollateralAssetPickerFeatureTest extends TestCase
 
         $this->assertStringContainsString('Toyota Rav4', $html);
         $this->assertStringContainsString('On this loan', $html);
+        $this->assertStringContainsString('View collateral', $html);
         $this->assertStringNotContainsString('>Vitz<', $html);
         $this->assertStringNotContainsString('>Saved<', $html);
         $this->assertStringContainsString('Request valuation', $html);
@@ -470,7 +471,8 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Forced sale value on file', $html);
+        $this->assertStringContainsString('Forced sale value', $html);
+        $this->assertStringContainsString('Valuation is on the collateral card', $html);
         $this->assertStringContainsString('Geofrey Mwaijjonga', $html);
         $this->assertStringNotContainsString('Next step for screening', $html);
         $this->assertStringNotContainsString('>Request valuation<', $html);
@@ -510,7 +512,7 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Show all collaterals (11)', $html);
+        $this->assertStringContainsString('View all collateral (11)', $html);
         $this->assertStringContainsString('Search type, registration, owner, status', $html);
     }
 
@@ -823,7 +825,7 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Toyota Rav4', false)
             ->assertDontSee('>Vitz<', false)
-            ->assertSee('1 on this loan', false)
+            ->assertSee('1 collateral asset', false)
             ->assertDontSee('Saved', false);
 
         $this->assertSame(1, LoanApplicationAsset::query()->where('loan_application_id', $application->id)->count());
@@ -864,7 +866,7 @@ class CollateralAssetPickerFeatureTest extends TestCase
                 'tab' => 'collateral',
             ]))
             ->assertOk()
-            ->assertSee('2 on this loan', false)
+            ->assertSee('2 collateral asset', false)
             ->assertDontSee('Use on this loan', false);
 
         $this->actingAs($admin, 'admin')
@@ -876,5 +878,86 @@ class CollateralAssetPickerFeatureTest extends TestCase
             'label' => 'Add collateral asset',
             'status' => 'pending',
         ]);
+    }
+
+    public function test_view_collateral_lists_only_loan_requested_documents(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $pledged = $this->completeAsset($customer, 'Toyota Rav4');
+        app(CustomerAssetService::class)->attachToApplication($pledged, $application, $customer);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        app(ApplicationDocumentRequestService::class)->create(
+            $application->fresh(),
+            $admin,
+            'Updated collateral insurance certificate',
+        );
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Documents requested for this loan', $html);
+        $this->assertStringContainsString('Updated collateral insurance certificate', $html);
+        $this->assertStringContainsString('On the asset record', $html);
+        $this->assertStringNotContainsString('No additional collateral documents have been requested for this loan.', $html);
+    }
+
+    public function test_checklist_hides_outstanding_documents_once_accepted(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $open = app(ApplicationDocumentRequestService::class)->create(
+            $application->fresh(),
+            $admin,
+            'Updated Bank Statement',
+        );
+
+        $asked = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Outstanding requests (1)', $asked);
+        $this->assertStringContainsString('Updated Bank Statement', $asked);
+        $this->assertStringContainsString('Requested ', $asked);
+
+        $open->update([
+            'status' => 'satisfied',
+            'satisfied_at' => now(),
+            'satisfied_by' => $admin->id,
+        ]);
+
+        $done = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringNotContainsString('Outstanding requests', $done);
+        $this->assertStringNotContainsString('Application evidence', $done);
+
+        $history = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'documents',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Updated Bank Statement', $history);
+        $this->assertStringContainsString('Application evidence', $history);
     }
 }

@@ -156,15 +156,6 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             loanGroupMemberId: $askedRow->id,
         );
 
-        $shellStrings = [
-            'Application evidence',
-            'Checklist',
-            'Requested',
-            'Library',
-            'Request documents',
-            'Send a pack to the person on this screen',
-        ];
-
         $leaderHtml = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', [
                 'loan_application' => $application,
@@ -193,21 +184,66 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        foreach ($shellStrings as $needle) {
-            $this->assertStringContainsString($needle, $leaderHtml);
-            $this->assertStringContainsString($needle, $askedHtml);
-            $this->assertStringContainsString($needle, $otherHtml);
+        $this->assertStringContainsString('Outstanding requests (1)', $askedHtml);
+        $this->assertStringContainsString('Updated Bank Statement', $askedHtml);
+        $this->assertStringContainsString('Waiting for member', $askedHtml);
+        $this->assertStringContainsString('Requested ', $askedHtml);
+        $this->assertStringContainsString('Request more documents', $askedHtml);
+        $this->assertStringNotContainsString('Application evidence', $askedHtml);
+        $this->assertStringNotContainsString('>Library<', $askedHtml);
+        $this->assertStringNotContainsString('No open requests for this person', $askedHtml);
+        $this->assertStringNotContainsString('Outstanding requests', $otherHtml);
+        $this->assertStringNotContainsString('No open requests for this person', $otherHtml);
+        $this->assertStringNotContainsString('No open requests for this person', $leaderHtml);
+        $this->assertStringNotContainsString('Application evidence', $leaderHtml);
+
+        $leaderDocs = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'documents',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $askedDocs = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'documents',
+                'person' => 'member',
+                'm' => $askedRow->id,
+            ]))
+            ->assertOk()
+            ->getContent();
+        $otherDocs = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'documents',
+                'person' => 'member',
+                'm' => $otherRow->id,
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        foreach (['Application evidence', 'Checklist', 'Requested', 'Library', 'Request documents', 'Send a pack to the person on this screen', 'Review request', 'Send request'] as $needle) {
+            $this->assertStringContainsString($needle, $leaderDocs);
+            $this->assertStringContainsString($needle, $askedDocs);
+            $this->assertStringContainsString($needle, $otherDocs);
+        }
+        foreach ([$leaderDocs, $askedDocs, $otherDocs] as $html) {
+            $this->assertStringContainsString('name="intent" value="documents"', $html);
+            $this->assertStringContainsString("requestStep = 'review'", $html);
+            $this->assertStringContainsString('x-show="requestOpen"', $html);
         }
 
-        $this->assertStringContainsString('Income verification', $leaderHtml);
-        $this->assertStringContainsString('Bank statement OR mobile money statement (6 months).', $leaderHtml);
-        $this->assertStringContainsString('Bank statement OR mobile money statement (6 months).', $askedHtml);
-        $this->assertStringNotContainsString('Bank statement OR mobile money statement (6 months).', $otherHtml);
-        $this->assertStringContainsString('No open requests for this person', $otherHtml);
-        $this->assertStringNotContainsString('No open requests for this person', $askedHtml);
-        $this->assertStringContainsString('Waiting on', $askedHtml);
+        $this->assertStringContainsString('Income verification', $leaderDocs);
+        $this->assertStringContainsString('Bank statement OR mobile money statement (6 months).', $leaderDocs);
+        $this->assertStringContainsString('Bank statement OR mobile money statement (6 months).', $askedDocs);
+        $this->assertStringNotContainsString('Bank statement OR mobile money statement (6 months).', $otherDocs);
 
-        foreach ([$leaderHtml, $askedHtml, $otherHtml] as $html) {
+        foreach ([$leaderHtml, $askedHtml, $otherHtml, $leaderDocs, $askedDocs, $otherDocs] as $html) {
             $this->assertStringNotContainsString('National ID (front)', $html);
             $this->assertStringNotContainsString('Clear photo of the front side of your ID.', $html);
             $this->assertStringNotContainsString('Recent passport-size photo, plain background.', $html);

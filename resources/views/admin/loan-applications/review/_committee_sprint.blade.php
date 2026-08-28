@@ -4,14 +4,7 @@
     $criticalFails = collect($readiness['critical_fails'] ?? [])->take(5)->values();
     $docRequestService = app(\App\Services\ApplicationDocumentRequestService::class);
     $openDocRequests = collect($documentRequests ?? [])
-        ->filter(function ($req) use ($docRequestService) {
-            if ($docRequestService->isProfileGuidedRequest($req)) {
-                return $req->needsBorrowerAction() || $req->status === 'uploaded';
-            }
-
-            return in_array($req->status, ['pending', 'uploaded', 'rejected'], true);
-        })
-        ->take(4)
+        ->filter(fn ($req) => $docRequestService->isOutstanding($req))
         ->values();
     $documentsHref = route('admin.loan-applications.show', array_filter([
         'loan_application' => $record,
@@ -104,21 +97,21 @@
             </p>
             @if ($openDocRequests->isNotEmpty())
                 <div class="rounded-xl bg-gradient-to-r from-brand-gold/20 to-white ring-1 ring-brand-gold/40 px-3.5 py-3">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold">Open document requests</p>
-                    <ul class="mt-1.5 space-y-1">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold">Outstanding requests ({{ $openDocRequests->count() }})</p>
+                    <ul class="mt-1.5 space-y-2">
                         @foreach ($openDocRequests as $req)
-                            <li class="text-xs text-gray-800">• {{ $req->label }}</li>
+                            <li class="text-xs text-gray-800">
+                                <span class="font-bold">{{ $req->label }}</span>
+                                <span class="block text-brand">{{ $req->subjectRoleLabel($groupReview ?? null) }}</span>
+                                <span class="block text-amber-950 font-semibold">{{ $docRequestService->waitingOnLabel($req, $groupReview ?? null) }}</span>
+                                <span class="block text-gray-500">{{ $docRequestService->outstandingTimingPhrase($req) }}</span>
+                            </li>
                         @endforeach
                     </ul>
                     <a href="{{ $documentsHref }}" class="inline-flex mt-2 text-xs font-bold text-brand hover:underline">
-                        Open Documents · Requests →
+                        Open outstanding requests →
                     </a>
                 </div>
-            @else
-                <a href="{{ $documentsHref }}"
-                   class="inline-flex text-xs font-bold text-brand hover:underline">
-                    Open Documents (grouped by category) →
-                </a>
             @endif
             <p class="text-[11px] text-gray-500">
                 Final step: validate screening, or differ with a committee rationale in the decision forms below.
@@ -126,3 +119,7 @@
         </div>
     </div>
 </section>
+
+@include('admin.loan-applications.review._collateral_portfolio', [
+    'viewer' => \App\Services\CollateralCardService::VIEWER_COMMITTEE,
+])

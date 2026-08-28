@@ -961,7 +961,7 @@ class CollateralSecureService
         if (! empty($state['customer_asset_id'])) {
             $asset = CustomerAsset::query()->find($state['customer_asset_id']);
             if ($asset) {
-                $selected = $this->assetCard($asset);
+                $selected = $this->assetCard($asset, $application);
             }
         }
 
@@ -996,7 +996,7 @@ class CollateralSecureService
                 'section' => 'assets',
                 'edit' => $state['customer_asset_id'] ?? null,
             ]),
-            'assets' => $this->selectableAssets($application, $state)->map(fn (CustomerAsset $a) => $this->assetCard($a))->values(),
+            'assets' => $this->selectableAssets($application, $state)->map(fn (CustomerAsset $a) => $this->assetCard($a, $application))->values(),
             'selected_asset' => $selected,
             'insurance' => $state['insurance'] ?? null,
             'insurance_purchase' => $state['insurance_purchase'] ?? null,
@@ -1014,9 +1014,9 @@ class CollateralSecureService
     }
 
     /** @return array<string, mixed> */
-    private function assetCard(CustomerAsset $asset): array
+    private function assetCard(CustomerAsset $asset, LoanApplication $application): array
     {
-        return $asset->toCollateralCard();
+        return app(CollateralCardService::class)->forAsset($asset, $application, CollateralCardService::VIEWER_BORROWER);
     }
 
     /** @return \Illuminate\Support\Collection<int, CustomerAsset> */

@@ -164,8 +164,15 @@
         @forelse ($assets as $asset)
             @php
                 $assetOwner = $asset->customer?->full_name ?: $task->customer_name;
+                $valuationApplication = $assignment?->application;
+                $valuerCard = app(\App\Services\CollateralCardService::class)->forAsset(
+                    $asset,
+                    $valuationApplication,
+                    \App\Services\CollateralCardService::VIEWER_VALUER,
+                    ['belongs_to' => $assetOwner]
+                );
             @endphp
-            <x-site.collateral-card :selected="$asset->toCollateralCard(['belongs_to' => $assetOwner, 'status_label' => $open && $started && ! $completed ? __('site.partner_portal.valuation_inspect_asset') : null])">
+            <x-site.collateral-card :selected="$valuerCard">
                 @if ($open && ! $completed)
                     <button type="button" @click="details = !details" class="mt-2 text-sm font-bold text-brand">
                         <span x-show="!details">{{ __('site.partner_portal.valuation_view_details') }}</span>

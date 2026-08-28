@@ -40,13 +40,13 @@ class LoanApplicationDocumentRequestController extends Controller
             'review_g' => ['nullable', 'integer'],
             'ask_members' => ['sometimes', 'boolean'],
             'confirmed' => ['sometimes', 'accepted'],
-            'intent' => ['nullable', 'in:collateral'],
+            'intent' => ['nullable', 'in:collateral,documents'],
             'return_workspace' => ['nullable', 'in:checklist,profiles'],
             'return_tab' => ['nullable', 'string', 'max:40'],
             'person' => ['nullable', 'in:borrower,member,guarantor'],
         ]);
 
-        if (($data['intent'] ?? '') === 'collateral' && ! $request->boolean('confirmed')) {
+        if (in_array($data['intent'] ?? '', ['collateral', 'documents'], true) && ! $request->boolean('confirmed')) {
             return back()->withErrors(['confirmed' => 'Review the request, then send it.'])->withInput();
         }
 
@@ -179,9 +179,11 @@ class LoanApplicationDocumentRequestController extends Controller
 
     private function returnFragment(Request $request): string
     {
-        return $request->input('return_workspace') === 'profiles'
-            ? 'collateral-requests'
-            : 'checklist-documents';
+        if ($request->input('return_workspace') === 'profiles') {
+            return $request->input('return_tab') === 'documents' ? 'borrower-file' : 'collateral-requests';
+        }
+
+        return 'checklist-documents';
     }
 
     /**

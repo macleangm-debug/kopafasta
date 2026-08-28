@@ -37,6 +37,10 @@
         )->values();
     }
     $canRequestDocs = auth()->user()?->hasPermission('applications.request_documents');
+    $outstandingOnly = (bool) ($outstandingOnly ?? false);
+    $outstandingRequests = $documentRequests
+        ->filter(fn ($req) => $docService->isOutstanding($req))
+        ->values();
 
     $isLoanFileRequest = fn ($req) => ! $docService->isProfileGuidedRequest($req);
 
@@ -48,12 +52,47 @@
     $loanAwaiting = $loanRequests->filter(fn ($r) => in_array($r->status, ['pending', 'rejected'], true))->values();
     $profileOpen = $profileRequests->filter(fn ($r) => in_array($r->status, ['pending', 'uploaded', 'rejected'], true))->values();
 
-    $openRequestCount = $loanReady->count()
-        + $loanAwaiting->count()
-        + $profileOpen->filter(fn ($r) => $r->needsBorrowerAction() || $r->status === 'uploaded')->count();
+    $openRequestCount = $outstandingOnly
+        ? $outstandingRequests->count()
+        : ($loanReady->count()
+            + $loanAwaiting->count()
+            + $profileOpen->filter(fn ($r) => $r->needsBorrowerAction() || $r->status === 'uploaded')->count());
+    $requestFromName = trim((string) (
+        data_get($review, 'customer.full_name')
+        ?: data_get($review, 'customer.first_name')
+        ?: match ($person) {
+            'guarantor' => 'the guarantor',
+            'member' => 'this member',
+            default => filled($record->loan_group_id) ? 'the group leader' : 'the borrower',
+        }
+    ));
 @endphp
 
-@if ($loanReady->isNotEmpty() || $loanCompleted->filter(fn ($r) => $r->uploads->isNotEmpty())->isNotEmpty() || $loanAwaiting->isNotEmpty() || $profileOpen->isNotEmpty())
+@if ($outstandingOnly)
+    @if ($outstandingRequests->isNotEmpty())
+        <section id="review-document-pipeline" class="scroll-mt-24 space-y-3">
+            <div class="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-900">Outstanding requests ({{ $outstandingRequests->count() }})</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">Only items still waiting on someone. Completed requests stay in document history.</p>
+                </div>
+            </div>
+            <div class="space-y-3">
+                @foreach ($outstandingRequests as $docReq)
+                    <div class="rounded-xl ring-1 ring-amber-200 bg-amber-50/70 px-4 py-3 space-y-1">
+                        <p class="text-sm font-bold text-gray-900">{{ $docReq->label }}</p>
+                        <p class="text-xs font-semibold text-brand">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>
+                        <p class="text-xs font-bold text-amber-950">{{ $docService->waitingOnLabel($docReq, $groupReview ?? null) }}</p>
+                        <p class="text-xs text-gray-600">{{ $docService->outstandingTimingPhrase($docReq) }}</p>
+                        @if ($docReq->status === 'rejected' && filled($docReq->admin_notes))
+                            <p class="text-xs text-rose-800">{{ $docReq->admin_notes }}</p>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+@elseif ($loanReady->isNotEmpty() || $loanCompleted->filter(fn ($r) => $r->uploads->isNotEmpty())->isNotEmpty() || $loanAwaiting->isNotEmpty() || $profileOpen->isNotEmpty())
     <section id="review-document-pipeline" class="scroll-mt-24 space-y-5">
         @if ($loanAwaiting->isNotEmpty() || $profileOpen->isNotEmpty())
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
@@ -267,118 +306,117 @@
 
 @if ($canRequestDocs)
     @php
-        $composerStartsOpen = $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject']);
-    @endphp
-    <section id="request-more-documents" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" x-data="{
-        open: {{ $composerStartsOpen ? 'true' : 'false' }},
-        applyPack(labels) {
-            this.open = true;
-            this.$nextTick(() => {
-                this.$root.querySelectorAll('input[type=checkbox][name^=presets]').forEach((el) => {
-                    el.checked = labels.includes(el.value);
-                });
-            });
+        $composerStartsOpen = $errors->hasAny(['presets', 'label', 'instructions', 'type', 'request_subject', 'confirmed']);
+        $groupMembersForRequest = collect($groupReview['members'] ?? [])->values();
+        $guarantorsForRequest = collect($review['guarantors'] ?? [])->values();
+        if ($guarantorsForRequest->isEmpty()) {
+            $record->loadMissing('customerGuarantors.guarantor');
+            $guarantorsForRequest = collect($record->customerGuarantors ?? [])->map(function ($link) {
+                return [
+                    'link_id' => $link->id,
+                    'customer_id' => $link->guarantor_id,
+                    'name' => $link->guarantor?->full_name ?? 'Guarantor',
+                ];
+            })->values();
         }
-    }" @kf-open-doc-composer.window="open = true; if ($event.detail?.labels) applyPack($event.detail.labels)">
-        <div class="px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-            <div x-show="open" x-cloak>
-                <h2 class="text-sm font-semibold text-gray-900">Request documents</h2>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    Send a pack to the person on this screen. They are notified.
-                    @if ($openRequestCount > 0)
-                        You can send more while other requests are still open.
-                    @endif
-                </p>
-            </div>
-            <div x-show="!open">
-                <p class="text-sm font-semibold text-gray-900 sr-only">Request documents</p>
-            </div>
-            <div class="flex flex-wrap gap-1.5 ml-auto">
-                <div x-show="open" x-cloak class="flex flex-wrap gap-1.5">
-                <button type="button" @click="applyPack(['Updated National ID', 'New National ID photo', 'New face verification photo', 'Image Not Clear'])"
-                        class="rounded-lg bg-sky-50 text-sky-900 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-sky-100">ID pack</button>
-                <button type="button" @click="applyPack(['Updated Bank Statement'])"
-                        class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Bank statement</button>
-                <button type="button" @click="applyPack(['Updated Mobile Money Statement'])"
-                        class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Mobile money</button>
-                <button type="button" @click="applyPack(['Guarantor residence letter'])"
-                        class="rounded-lg bg-emerald-50 text-emerald-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-emerald-100">Residence pack</button>
-                </div>
-                <button type="button"
-                        @click="open = !open"
-                        class="inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand-gold hover:brightness-95 px-2.5 py-1.5 rounded-lg">
-                    <span x-text="open ? 'Hide' : 'Request documents'"></span>
-                </button>
-            </div>
-        </div>
-        <div x-show="open" x-cloak class="border-t border-brand/10">
-            <form method="POST"
-                  action="{{ route('admin.loan-applications.document-requests.store', $record) }}"
-                  class="p-5 sm:p-6 space-y-5"
-                  @submit.prevent="window.confirmForm($el, {
-                      title: @js('Send document request?'),
-                      message: @js('The member will be notified and this moves to Requested on the shared file.'),
-                      confirmLabel: @js('Send request'),
-                      confirmClass: 'bg-brand-gold hover:brightness-95 text-brand',
-                      tone: 'confirm',
-                  })">
+
+        $panelPerson = $person
+            ?? request('review_person', request('person', 'borrower'));
+        if (! in_array($panelPerson, ['borrower', 'guarantor', 'member'], true)) {
+            $panelPerson = 'borrower';
+        }
+
+        $defaultRequestSubject = 'borrower';
+        $lockedMemberId = $requestMemberId;
+        $lockedSubjectCustomerId = $requestSubjectCustomerId;
+        $mId = 0;
+        $gLinkId = 0;
+
+        if ($panelPerson === 'member') {
+            $mId = $lockedMemberId
+                ?: (int) request('review_m', request('m', 0));
+            if ($mId < 1 && $lockedSubjectCustomerId > 0) {
+                $match = $groupMembersForRequest->firstWhere('customer_id', $lockedSubjectCustomerId);
+                $mId = (int) ($match['id'] ?? 0);
+            }
+            if ($mId > 0) {
+                $defaultRequestSubject = 'member:'.$mId;
+            }
+        } elseif ($panelPerson === 'guarantor') {
+            $gLinkId = (int) request('review_g', request('g', 0));
+            $gLink = $guarantorsForRequest->firstWhere('link_id', $gLinkId)
+                ?? ($lockedSubjectCustomerId > 0
+                    ? $guarantorsForRequest->firstWhere('customer_id', $lockedSubjectCustomerId)
+                    : null)
+                ?? $guarantorsForRequest->first();
+            if ($gLink) {
+                $gLinkId = (int) ($gLink['link_id'] ?? $gLinkId);
+                $lockedSubjectCustomerId = (int) ($gLink['customer_id'] ?? $lockedSubjectCustomerId);
+                $defaultRequestSubject = 'guarantor:'.$lockedSubjectCustomerId;
+            }
+        } elseif (old('request_subject')) {
+            $defaultRequestSubject = (string) old('request_subject');
+        }
+
+        $lockRequestSubject = (bool) ($lockRequestSubject ?? false);
+        $showSubjectPicker = ! $lockRequestSubject
+            && ($groupMembersForRequest->isNotEmpty() || $guarantorsForRequest->isNotEmpty());
+        $docRequestButton = $outstandingOnly ? 'Request more documents' : 'Request documents';
+    @endphp
+    <div id="request-more-documents"
+         class="scroll-mt-24 mt-4"
+         x-data="{
+            requestOpen: {{ $composerStartsOpen ? 'true' : 'false' }},
+            requestStep: 'pick',
+            presets: @js(array_values(array_filter((array) old('presets', [])))),
+            note: @js((string) old('instructions', '')),
+            customLabel: @js((string) old('label', '')),
+            openRequest(preselected = []) {
+                this.presets = [...preselected];
+                this.note = '';
+                this.customLabel = '';
+                this.requestStep = 'pick';
+                this.requestOpen = true;
+            },
+            applyPack(labels) {
+                this.presets = [...new Set([...this.presets, ...labels])];
+            },
+            togglePreset(label) {
+                if (this.presets.includes(label)) {
+                    this.presets = this.presets.filter((item) => item !== label);
+                } else {
+                    this.presets = [...this.presets, label];
+                }
+            },
+            canReview() {
+                return this.presets.length > 0 || this.customLabel.trim() !== '';
+            },
+            closeRequest() {
+                this.requestOpen = false;
+                this.requestStep = 'pick';
+            }
+         }"
+         x-effect="if (! requestOpen) { requestStep = 'pick' }"
+         @kf-open-doc-composer.window="openRequest($event.detail?.labels || [])"
+         @keydown.escape.window="if (requestOpen) closeRequest()">
+        <button type="button"
+                @click="openRequest([])"
+                class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+            {{ $docRequestButton }}
+        </button>
+
+        <x-site.action-panel title="Request documents" open="requestOpen">
+            <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="space-y-4" data-no-draft>
                 @csrf
-                @php
-                    $groupMembersForRequest = collect($groupReview['members'] ?? [])->values();
-                    $guarantorsForRequest = collect($review['guarantors'] ?? [])->values();
-                    if ($guarantorsForRequest->isEmpty()) {
-                        $record->loadMissing('customerGuarantors.guarantor');
-                        $guarantorsForRequest = collect($record->customerGuarantors ?? [])->map(function ($link) {
-                            return [
-                                'link_id' => $link->id,
-                                'customer_id' => $link->guarantor_id,
-                                'name' => $link->guarantor?->full_name ?? 'Guarantor',
-                            ];
-                        })->values();
-                    }
-
-                    $panelPerson = $person
-                        ?? request('review_person', request('person', 'borrower'));
-                    if (! in_array($panelPerson, ['borrower', 'guarantor', 'member'], true)) {
-                        $panelPerson = 'borrower';
-                    }
-
-                    $defaultRequestSubject = 'borrower';
-                    $lockedMemberId = $requestMemberId;
-                    $lockedSubjectCustomerId = $requestSubjectCustomerId;
-                    $mId = 0;
-                    $gLinkId = 0;
-
-                    if ($panelPerson === 'member') {
-                        $mId = $lockedMemberId
-                            ?: (int) request('review_m', request('m', 0));
-                        if ($mId < 1 && $lockedSubjectCustomerId > 0) {
-                            $match = $groupMembersForRequest->firstWhere('customer_id', $lockedSubjectCustomerId);
-                            $mId = (int) ($match['id'] ?? 0);
-                        }
-                        if ($mId > 0) {
-                            $defaultRequestSubject = 'member:'.$mId;
-                        }
-                    } elseif ($panelPerson === 'guarantor') {
-                        $gLinkId = (int) request('review_g', request('g', 0));
-                        $gLink = $guarantorsForRequest->firstWhere('link_id', $gLinkId)
-                            ?? ($lockedSubjectCustomerId > 0
-                                ? $guarantorsForRequest->firstWhere('customer_id', $lockedSubjectCustomerId)
-                                : null)
-                            ?? $guarantorsForRequest->first();
-                        if ($gLink) {
-                            $gLinkId = (int) ($gLink['link_id'] ?? $gLinkId);
-                            $lockedSubjectCustomerId = (int) ($gLink['customer_id'] ?? $lockedSubjectCustomerId);
-                            $defaultRequestSubject = 'guarantor:'.$lockedSubjectCustomerId;
-                        }
-                    } elseif (old('request_subject')) {
-                        $defaultRequestSubject = (string) old('request_subject');
-                    }
-
-                    $lockRequestSubject = (bool) ($lockRequestSubject ?? false);
-                    $showSubjectPicker = ! $lockRequestSubject
-                        && ($groupMembersForRequest->isNotEmpty() || $guarantorsForRequest->isNotEmpty());
-                @endphp
+                <input type="hidden" name="intent" value="documents">
+                <input type="hidden" name="return_workspace" value="{{ $outstandingOnly ? 'checklist' : 'profiles' }}">
+                @unless ($outstandingOnly)
+                    <input type="hidden" name="return_tab" value="documents">
+                @endunless
+                <input type="hidden" name="confirmed" value="1" x-bind:disabled="requestStep !== 'review'">
+                <template x-for="preset in presets" :key="preset">
+                    <input type="hidden" name="presets[]" :value="preset">
+                </template>
                 <input type="hidden" name="review_person" value="{{ $panelPerson }}">
                 @if ($panelPerson === 'member' && $mId > 0)
                     <input type="hidden" name="review_m" value="{{ $mId }}">
@@ -391,151 +429,195 @@
                         <input type="hidden" name="subject_customer_id" value="{{ $lockedSubjectCustomerId }}">
                     @endif
                 @endif
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Type</label>
-                        <select name="type" class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
-                            <option value="document">Document upload</option>
-                            <option value="clarification">Clarification</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Due date (optional)</label>
-                        <input type="date" name="due_at"
-                               min="{{ now()->toDateString() }}"
-                               value="{{ old('due_at') }}"
-                               class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
-                        <p class="mt-1 text-[11px] text-gray-500">Today or a future date only.</p>
-                        @error('due_at')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-                </div>
 
-                @if ($lockRequestSubject)
-                    <input type="hidden" name="request_subject" value="{{ $defaultRequestSubject }}">
-                    <p class="text-xs text-gray-600 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-2">
-                        Requesting for the person you are reviewing
-                        @if ($panelPerson === 'member')
-                            (group member).
-                        @elseif ($panelPerson === 'guarantor')
-                            (guarantor).
-                        @else
-                            (leader / borrower).
-                        @endif
-                        Switch Leader / Member / Guarantor above to request for someone else.
+                <div x-show="requestStep === 'pick'" class="space-y-4">
+                    <p class="text-xs text-gray-600">
+                        Send a pack to the person on this screen. Nothing is sent until you review and confirm.
                     </p>
-                @elseif ($showSubjectPicker)
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Request for <span class="text-red-500">*</span></label>
-                        <select name="request_subject" required class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
-                            @if ($groupMembersForRequest->isNotEmpty())
-                                @foreach ($groupMembersForRequest as $member)
-                                    @php
-                                        $isLeader = ($member['role'] ?? '') === 'leader';
-                                        $memberValue = $isLeader ? 'borrower' : ('member:'.($member['id'] ?? ''));
-                                        $memberLabel = ($isLeader ? 'Leader · ' : 'Member · ').($member['name'] ?? 'Member');
-                                        if (! empty($member['customer_number'])) {
-                                            $memberLabel .= ' · '.$member['customer_number'];
-                                        }
-                                    @endphp
-                                    <option value="{{ $memberValue }}" @selected($defaultRequestSubject === $memberValue)>
-                                        {{ $memberLabel }}
-                                    </option>
-                                @endforeach
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" @click="applyPack(['Updated National ID', 'New National ID photo', 'New face verification photo', 'Image Not Clear'])"
+                                class="rounded-lg bg-sky-50 text-sky-900 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-sky-100">ID pack</button>
+                        <button type="button" @click="applyPack(['Updated Bank Statement'])"
+                                class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Bank statement</button>
+                        <button type="button" @click="applyPack(['Updated Mobile Money Statement'])"
+                                class="rounded-lg bg-amber-50 text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-100">Mobile money</button>
+                        <button type="button" @click="applyPack(['Guarantor residence letter'])"
+                                class="rounded-lg bg-emerald-50 text-emerald-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-emerald-100">Residence pack</button>
+                    </div>
+                    <div class="grid gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Type</label>
+                            <select name="type" class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
+                                <option value="document">Document upload</option>
+                                <option value="clarification">Clarification</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Due date (optional)</label>
+                            <input type="date" name="due_at"
+                                   min="{{ now()->toDateString() }}"
+                                   value="{{ old('due_at') }}"
+                                   class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
+                            @error('due_at')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    @if ($lockRequestSubject)
+                        <input type="hidden" name="request_subject" value="{{ $defaultRequestSubject }}">
+                        <p class="text-xs text-gray-600 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-2">
+                            Requesting for {{ $requestFromName }}
+                            @if ($panelPerson === 'member')
+                                (group member).
+                            @elseif ($panelPerson === 'guarantor')
+                                (guarantor).
                             @else
-                                <option value="borrower" @selected($defaultRequestSubject === 'borrower')>Borrower</option>
-                                @foreach ($guarantorsForRequest as $g)
-                                    @php
-                                        $gValue = 'guarantor:'.(int) ($g['customer_id'] ?? 0);
-                                        $gLabel = 'Guarantor · '.($g['name'] ?? 'Guarantor');
-                                    @endphp
-                                    @if ((int) ($g['customer_id'] ?? 0) > 0)
-                                        <option value="{{ $gValue }}" @selected($defaultRequestSubject === $gValue)>
-                                            {{ $gLabel }}
-                                        </option>
-                                    @endif
-                                @endforeach
+                                (leader / borrower).
                             @endif
-                        </select>
-                        <p class="mt-1 text-[11px] text-gray-500">Income / profile requests clear and replace that person’s existing profile file.</p>
-                        @error('request_subject')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-                @endif
+                        </p>
+                    @elseif ($showSubjectPicker)
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Request for <span class="text-red-500">*</span></label>
+                            <select name="request_subject" class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
+                                @if ($groupMembersForRequest->isNotEmpty())
+                                    @foreach ($groupMembersForRequest as $member)
+                                        @php
+                                            $isLeader = ($member['role'] ?? '') === 'leader';
+                                            $memberValue = $isLeader ? 'borrower' : ('member:'.($member['id'] ?? ''));
+                                            $memberLabel = ($isLeader ? 'Leader · ' : 'Member · ').($member['name'] ?? 'Member');
+                                            if (! empty($member['customer_number'])) {
+                                                $memberLabel .= ' · '.$member['customer_number'];
+                                            }
+                                        @endphp
+                                        <option value="{{ $memberValue }}" @selected($defaultRequestSubject === $memberValue)>
+                                            {{ $memberLabel }}
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="borrower" @selected($defaultRequestSubject === 'borrower')>Borrower</option>
+                                    @foreach ($guarantorsForRequest as $g)
+                                        @php
+                                            $gValue = 'guarantor:'.(int) ($g['customer_id'] ?? 0);
+                                            $gLabel = 'Guarantor · '.($g['name'] ?? 'Guarantor');
+                                        @endphp
+                                        @if ((int) ($g['customer_id'] ?? 0) > 0)
+                                            <option value="{{ $gValue }}" @selected($defaultRequestSubject === $gValue)>
+                                                {{ $gLabel }}
+                                            </option>
+                                        @endif
+                                    @endforeach
+                                @endif
+                            </select>
+                            @error('request_subject')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endif
 
-                @if ($isAssetProduct)
+                    @if ($isAssetProduct)
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Asset / lending</p>
+                            <div class="grid gap-2">
+                                @foreach ($assetPresets as $preset)
+                                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-brand-muted/50 rounded-xl px-3 py-2 ring-1 ring-brand/10">
+                                        <input type="checkbox" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand"
+                                               :checked="presets.includes(@js($preset))"
+                                               @change="togglePreset(@js($preset))">
+                                        <span>{{ $preset }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Collateral</p>
+                            <div class="grid gap-2">
+                                @foreach ($collateralPresets as $preset)
+                                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-emerald-50/80 rounded-xl px-3 py-2 ring-1 ring-brand/10">
+                                        <input type="checkbox" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand"
+                                               :checked="presets.includes(@js($preset))"
+                                               @change="togglePreset(@js($preset))">
+                                        <span>{{ $preset }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Asset / lending</p>
-                        <div class="grid sm:grid-cols-2 gap-2">
-                            @foreach ($assetPresets as $preset)
-                                <label class="flex items-start gap-2 text-sm text-gray-700 bg-brand-muted/50 rounded-xl px-3 py-2 ring-1 ring-brand/10">
-                                    <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Identity / photos</p>
+                        <div class="grid gap-2">
+                            @foreach ($identityPresets as $preset)
+                                <label class="flex items-start gap-2 text-sm text-gray-700 bg-sky-50 rounded-xl px-3 py-2 ring-1 ring-sky-100">
+                                    <input type="checkbox" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand"
+                                           :checked="presets.includes(@js($preset))"
+                                           @change="togglePreset(@js($preset))">
                                     <span>{{ $preset }}</span>
                                 </label>
                             @endforeach
                         </div>
                     </div>
-                @else
+
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Collateral</p>
-                        <p class="text-xs text-gray-500 mb-2">Prefer the Collateral tab for collateral-only requests. Presets here also deep-link to My Collaterals.</p>
-                        <div class="grid sm:grid-cols-2 gap-2">
-                            @foreach ($collateralPresets as $preset)
-                                <label class="flex items-start gap-2 text-sm text-gray-700 bg-emerald-50/80 rounded-xl px-3 py-2 ring-1 ring-brand/10">
-                                    <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Income &amp; other</p>
+                        <div class="grid gap-2">
+                            @foreach ($generalPresets as $preset)
+                                <label class="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 ring-1 ring-gray-100">
+                                    <input type="checkbox" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand"
+                                           :checked="presets.includes(@js($preset))"
+                                           @change="togglePreset(@js($preset))">
                                     <span>{{ $preset }}</span>
                                 </label>
                             @endforeach
                         </div>
                     </div>
-                @endif
 
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Identity / photos <span class="font-normal normal-case text-gray-400">(profile — not a loan upload)</span></p>
-                    <div class="grid sm:grid-cols-2 gap-2">
-                        @foreach ($identityPresets as $preset)
-                            <label class="flex items-start gap-2 text-sm text-gray-700 bg-sky-50 rounded-xl px-3 py-2 ring-1 ring-sky-100">
-                                <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
-                                <span>{{ $preset }}</span>
-                            </label>
-                        @endforeach
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Custom document label</label>
+                        <input type="text" name="label" x-model="customLabel" maxlength="120" placeholder="e.g. Ownership certificate"
+                               class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Optional note shown to {{ $requestFromName }}</label>
+                        <textarea x-model="note" name="instructions" rows="2" maxlength="2000"
+                                  placeholder="e.g. Image not clear — please re-upload a sharper photo"
+                                  class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5"></textarea>
+                    </div>
+                    <div class="flex flex-wrap gap-2 pt-1">
+                        <button type="button" @click="closeRequest()" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 px-4 py-2.5 rounded-xl">Cancel</button>
+                        <button type="button" @click="requestStep = 'review'" :disabled="! canReview()"
+                                class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl disabled:opacity-40">
+                            Review request
+                        </button>
                     </div>
                 </div>
 
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Income &amp; other <span class="font-normal normal-case text-gray-400">(shown under Received when uploaded)</span></p>
-                    <div class="grid sm:grid-cols-2 gap-2">
-                        @foreach ($generalPresets as $preset)
-                            <label class="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 ring-1 ring-gray-100">
-                                <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
-                                <span>{{ $preset }}</span>
-                            </label>
-                        @endforeach
+                <div x-show="requestStep === 'review'" x-cloak class="space-y-3">
+                    <p class="text-sm font-semibold text-gray-900">
+                        You are requesting from {{ $requestFromName }}:
+                    </p>
+                    <ul class="text-sm text-gray-800 list-disc pl-4 space-y-0.5">
+                        <template x-for="preset in presets" :key="preset">
+                            <li x-text="preset"></li>
+                        </template>
+                        <li x-show="customLabel.trim()" x-cloak x-text="customLabel.trim()"></li>
+                    </ul>
+                    <p class="text-sm text-gray-700" x-show="note.trim()" x-cloak>
+                        <span class="font-semibold">Note:</span>
+                        “<span x-text="note.trim()"></span>”
+                    </p>
+                    <p class="text-xs text-gray-500">This notifies them on their loan profile. Send a pack to the person on this screen.</p>
+                    <div class="flex flex-wrap gap-2 pt-1">
+                        <button type="button" @click="requestStep = 'pick'" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 px-4 py-2.5 rounded-xl">Cancel</button>
+                        <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+                            Send request
+                        </button>
                     </div>
                 </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Custom document label</label>
-                    <input type="text" name="label" maxlength="120" placeholder="e.g. Ownership certificate"
-                           class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Reason (shown to member)</label>
-                    <textarea name="instructions" rows="2" maxlength="2000" placeholder="e.g. Image not clear — please re-upload a sharper photo"
-                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2"></textarea>
-                </div>
-
-                <button type="submit"
-                        data-loading-label="Sending request…"
-                        class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
-                    Send request
-                </button>
             </form>
-        </div>
-    </section>
+        </x-site.action-panel>
+    </div>
 @elseif ($documentRequests->isEmpty())
     <p class="text-sm text-gray-500">No application-specific document requests on this file.</p>
 @endif

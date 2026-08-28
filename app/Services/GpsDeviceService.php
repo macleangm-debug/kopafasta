@@ -231,7 +231,7 @@ class GpsDeviceService
             }
 
             $card = $asset
-                ? $asset->toCollateralCard([
+                ? app(CollateralCardService::class)->forAsset($asset, $application, CollateralCardService::VIEWER_RECOVERY, [
                     'belongs_to' => $asset->customer?->full_name,
                 ])
                 : [

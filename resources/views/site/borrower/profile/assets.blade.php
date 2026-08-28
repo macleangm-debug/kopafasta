@@ -462,11 +462,16 @@
                     @foreach ($assets as $asset)
                         @php
                             $availability = $assetAvailabilities[$asset->id] ?? ['code' => 'available'];
-                            $card = $asset->toCollateralCard([
-                                'status_label' => $asset->estimated_value
-                                    ? null
-                                    : __('borrower.profile.valuation_in_progress'),
-                            ]);
+                            $card = app(\App\Services\CollateralCardService::class)->forAsset(
+                                $asset,
+                                $currentApp,
+                                \App\Services\CollateralCardService::VIEWER_BORROWER,
+                                [
+                                    'status_label' => $asset->estimated_value
+                                        ? null
+                                        : __('borrower.profile.valuation_in_progress'),
+                                ]
+                            );
                         @endphp
                         <div class="h-full">
                             <x-site.collateral-card :selected="$card" :type-icons="$typeIcons">
