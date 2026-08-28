@@ -46,7 +46,9 @@ class PspPaymentGateFeatureTest extends TestCase
             ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
             ->assertSee(__('borrower.payments_page.create.bank_transfer'), false)
             ->assertSee('INS-GATE-TEST-001', false)
-            ->assertSee(__('borrower.membership.pay_now'), false);
+            ->assertSee(__('borrower.membership.pay_now'), false)
+            ->assertDontSee('window.confirmForm($el', false)
+            ->assertSee('data-payment-surface', false);
     }
 
     public function test_payment_gate_always_defaults_to_member_registered_phone(): void

@@ -51,12 +51,19 @@ class FeedbackController extends Controller
                 'channel' => 'website',
             ]);
         } else {
+            $priority = in_array($validated['category'], ['technical', 'complaint'], true) ? 'high' : 'normal';
+            if ($customerId) {
+                $customer = \App\Models\Customer::query()->find($customerId);
+                if ($customer && app(\App\Services\LoyaltyRedemptionService::class)->activePrioritySupport($customer)) {
+                    $priority = 'urgent';
+                }
+            }
             SupportTicket::create([
                 'ticket_number' => 'TKT-'.now()->format('ymd').'-'.Str::upper(Str::random(4)),
                 'customer_id' => $customerId,
                 'subject' => $validated['subject'],
                 'description' => $description,
-                'priority' => in_array($validated['category'], ['technical', 'complaint'], true) ? 'high' : 'normal',
+                'priority' => $priority,
                 'status' => 'open',
                 'category' => $validated['category'],
             ]);

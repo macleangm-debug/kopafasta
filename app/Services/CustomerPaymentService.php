@@ -35,6 +35,7 @@ class CustomerPaymentService
             'application_fee',
             'post_approval_fee',
             'valuation_fee',
+            'kopafasta_plus',
             'asset_reservation_fee',
         ];
     }
@@ -42,6 +43,85 @@ class CustomerPaymentService
     public static function supportsCodeDiscounts(string $paymentType): bool
     {
         return in_array($paymentType, self::discountablePaymentTypes(), true);
+    }
+
+    /**
+     * Amount to collect from the PSP. Obligation `amount` stays gross.
+     */
+    public static function collectableAmount(\App\Models\CustomerPayment $payment): float
+    {
+        $net = data_get($payment->provider_meta, 'pricing.net_payable');
+        if ($net !== null && is_numeric($net)) {
+            return max(0, round((float) $net, 2));
+        }
+
+        return round((float) $payment->amount, 2);
+    }
+
+    /**
+     * Record checkout benefit choice without changing the original obligation amount.
+     *
+     * @return array<string, mixed>
+     */
+    public function applyCheckoutBenefits(
+        \App\Models\CustomerPayment $payment,
+        bool $applyReward,
+        ?string $promoCode = null,
+    ): array {
+        $customer = $payment->customer;
+        if (! $customer || ! self::supportsCodeDiscounts($payment->payment_type)) {
+            return [];
+        }
+
+        $gross = (float) (data_get($payment->provider_meta, 'pricing.gross') ?? $payment->amount);
+        $quote = app(PaymentGateService::class)->quote(
+            $customer,
+            $gross,
+            $payment->payment_type,
+            false,
+            $promoCode,
+            null,
+            $applyReward,
+        );
+
+        $meta = (array) ($payment->provider_meta ?? []);
+        $meta['pricing'] = [
+            'gross'                 => round($gross, 2),
+            'affiliate_discount'    => (float) ($quote['affiliate_discount'] ?? 0),
+            'referral_discount'     => (float) ($quote['referral_discount'] ?? 0),
+            'promo_discount'        => (float) ($quote['promo_discount'] ?? 0),
+            'loyalty_discount'      => (float) ($quote['loyalty_discount'] ?? 0),
+            'discount_source'       => $this->discountSourceLabel($quote),
+            'discount_amount'       => (float) ($quote['total_discount'] ?? 0),
+            'loyalty_redemption_id' => $quote['loyalty_redemption_id'] ?? null,
+            'points_consumed'       => 0,
+            'net_payable'           => (float) ($quote['cash_due'] ?? $gross),
+            'promo_code'            => $quote['promo_code'] ?? null,
+            'apply_reward'          => $applyReward,
+            'rule_version'          => now()->toIso8601String(),
+        ];
+        $payment->update(['provider_meta' => $meta]);
+
+        return $quote;
+    }
+
+    /** @param  array<string, mixed>  $quote */
+    private function discountSourceLabel(array $quote): ?string
+    {
+        if (($quote['loyalty_discount'] ?? 0) > 0) {
+            return 'loyalty_reward';
+        }
+        if (($quote['promo_discount'] ?? 0) > 0) {
+            return 'promo_code';
+        }
+        if (($quote['affiliate_discount'] ?? 0) > 0) {
+            return 'affiliate';
+        }
+        if (($quote['referral_discount'] ?? 0) > 0) {
+            return 'referral';
+        }
+
+        return null;
     }
 
     /**
@@ -419,9 +499,9 @@ class CustomerPaymentService
         ]);
 
         try {
-            $collection = $payIn->collect(
+            $collection =             $payIn->collect(
                 $pspPhone,
-                (float) $payment->amount,
+                self::collectableAmount($payment),
                 $payInReference,
                 $this->payInDescription($payment->payment_type, (string) $payment->reference, is_string($description) ? $description : null),
                 $requestedOperator,
@@ -606,14 +686,94 @@ class CustomerPaymentService
         }
 
         if (in_array($remote, ['failed', 'cancelled', 'canceled', 'expired', 'rejected'], true)) {
-            try {
-                return $this->reject($payment, null, 'PayIn status poll: '.$remote);
-            } catch (\InvalidArgumentException) {
-                return $payment->fresh();
-            }
+            $message = self::localizeProviderMessage(
+                $result['message'] ?: __('borrower.payment_waiting.failed'),
+                $payment->mobile_number,
+            );
+            $payment = $this->returnToPaymentGate($payment);
+            $meta = (array) ($payment->provider_meta ?? []);
+            $meta['last_collect_error'] = $message;
+            $meta['last_collect_error_at'] = now()->toIso8601String();
+            $meta['last_poll_status'] = $remote;
+            $payment->update(['provider_meta' => $meta]);
+
+            return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
         }
 
         return $payment;
+    }
+
+    /**
+     * Canonical customer-facing payment surface payload.
+     * Frontend animation must follow this — never invent paid/failed locally.
+     *
+     * @return array<string, mixed>
+     */
+    public function surfaceState(CustomerPayment $payment): array
+    {
+        $payment = $payment->fresh(['customer']);
+        $error = data_get($payment->provider_meta, 'last_collect_error');
+        $phone = $payment->mobile_number
+            ?: data_get($payment->provider_meta, 'attempted_phone')
+            ?: data_get($payment->provider_meta, 'phone');
+        $masked = $this->maskPhoneForDisplay(is_string($phone) ? $phone : null);
+
+        $state = match (true) {
+            $payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true) => 'paid',
+            $payment->status === 'rejected' => 'failed',
+            $payment->status === 'processing' => 'waiting',
+            $payment->awaitsCollection() && filled($error) => 'failed',
+            $payment->awaitsCollection() => 'ready',
+            default => 'pending',
+        };
+
+        $celebration = $state === 'paid' ? $this->celebrationCopy($payment) : null;
+        $amountLabel = format_money(self::collectableAmount($payment));
+
+        $message = match ($state) {
+            'paid' => $celebration['message'] ?? __('borrower.payment_waiting.paid'),
+            'failed' => self::localizeProviderMessage(
+                is_string($error) && $error !== '' ? $error : __('borrower.payment_waiting.failed'),
+                $masked ?: (is_string($phone) ? $phone : null),
+            ),
+            'waiting' => $masked
+                ? __('borrower.payment_waiting.waiting_phone', ['phone' => $masked])
+                : __('borrower.payment_waiting.waiting'),
+            'ready' => __('borrower.payment_waiting.ready'),
+            default => __('borrower.payment_waiting.pending'),
+        };
+
+        return [
+            'ok' => true,
+            'state' => $state,
+            'status' => $payment->status,
+            'reference' => $payment->reference,
+            'title' => $celebration['title'] ?? null,
+            'message' => $message,
+            'amount_label' => $amountLabel,
+            'type_label' => $payment->typeLabel(),
+            'phone' => $phone,
+            'phone_masked' => $masked,
+            'attempt_active' => $payment->status === 'processing' && filled($payment->provider_ref),
+            'redirect_url' => $state === 'paid' ? $this->successRedirectUrl($payment) : null,
+            'poll_after_ms' => $state === 'waiting' ? 5000 : null,
+        ];
+    }
+
+    public function maskPhoneForDisplay(?string $phone): ?string
+    {
+        if (! filled($phone)) {
+            return null;
+        }
+
+        $local = PhoneNumber::split($phone)['local'] ?? '';
+        if (strlen($local) < 4) {
+            return PhoneNumber::format($phone);
+        }
+
+        $display = '0'.$local;
+
+        return substr($display, 0, 2).'•• ••• '.substr($display, -3);
     }
 
     /** Where the borrower should go after a successful live payment. */
@@ -987,6 +1147,10 @@ class CustomerPaymentService
 
         if ($payment->payment_type === 'application_fee') {
             $this->settleApplyFeeContext($payment);
+            $this->settleFromPricing($payment);
+            if ($payment->customer) {
+                app(GrowthPointsService::class)->awardFirstApplicationFee($payment->customer);
+            }
 
             if ($application) {
                 if (in_array($application->offer_status, ['asset_conversion_fee_due', 'pending_asset_conversion'], true)
@@ -1037,9 +1201,10 @@ class CustomerPaymentService
         }
 
         if ($payment->payment_type === 'kopafasta_plus' && $payment->customer) {
+            $this->settleFromPricing($payment);
             app(\App\Services\Plus\PlusService::class)->activate($payment->customer, [
                 'payment_reference' => $payment->reference,
-                'price_paid' => $payment->amount,
+                'price_paid' => self::collectableAmount($payment),
             ]);
         }
 
@@ -1076,6 +1241,35 @@ class CustomerPaymentService
         }
 
         $this->postLedger($payment);
+    }
+
+    /**
+     * Apply stored checkout pricing (reward / affiliate / promo) after collection confirms.
+     */
+    private function settleFromPricing(CustomerPayment $payment): void
+    {
+        $customer = $payment->customer;
+        $pricing = data_get($payment->provider_meta, 'pricing');
+        if (! $customer || ! is_array($pricing) || ! empty($pricing['settled'])) {
+            return;
+        }
+
+        $quote = [
+            'base' => (float) ($pricing['gross'] ?? $payment->amount),
+            'has_referrer' => (bool) app(ReferralService::class)->referrer($customer),
+            'loyalty_redemption_id' => $pricing['loyalty_redemption_id'] ?? null,
+            'loyalty_discount' => (float) ($pricing['loyalty_discount'] ?? 0),
+            'wallet_applied' => 0,
+        ];
+
+        app(PaymentGateService::class)->settle($customer, $quote, $payment->payment_type);
+
+        $meta = (array) ($payment->provider_meta ?? []);
+        $meta['pricing'] = array_merge($pricing, [
+            'settled' => true,
+            'amount_collected' => self::collectableAmount($payment),
+        ]);
+        $payment->update(['provider_meta' => $meta]);
     }
 
     /** Mark apply-wizard draft paid and settle promo/wallet only after PSP confirmation. */
@@ -1129,17 +1323,20 @@ class CustomerPaymentService
             $customer,
             $product ?? LoanProduct::query()->findOrFail($productId),
             $useWallet,
-            $ctx['promo_code'] ?? null,
+            $ctx['promo_code'] ?? data_get($payment->provider_meta, 'pricing.promo_code'),
             $memberCount,
             $ctx['affiliate_code'] ?? null,
         );
+        $quote['loyalty_redemption_id'] = data_get($payment->provider_meta, 'pricing.loyalty_redemption_id') ?? ($quote['loyalty_redemption_id'] ?? null);
+        $quote['loyalty_discount'] = (float) (data_get($payment->provider_meta, 'pricing.loyalty_discount') ?? ($quote['loyalty_discount'] ?? 0));
 
-        if ((float) ($quote['cash_due'] ?? 0) > 0 || (float) ($quote['wallet_applied'] ?? 0) > 0 || (float) ($quote['discount'] ?? 0) > 0) {
-            app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
-        }
+        app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
 
         $meta = $payment->provider_meta ?? [];
         $meta['apply_context'] = array_merge($ctx, ['settled' => true]);
+        if (isset($meta['pricing']) && is_array($meta['pricing'])) {
+            $meta['pricing']['settled'] = true;
+        }
         $payment->update(['provider_meta' => $meta]);
     }
 

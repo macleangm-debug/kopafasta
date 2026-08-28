@@ -1,4 +1,4 @@
-<div class="fixed bottom-6 right-6 z-40 print:hidden" x-data="{ open: false }">
+<div class="fixed bottom-6 right-6 z-40 print:hidden hidden lg:block" x-data="{ open: false }">
     <div x-show="open" @click.outside="open = false" x-cloak
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 translate-y-2"

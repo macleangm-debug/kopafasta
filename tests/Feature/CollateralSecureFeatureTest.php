@@ -317,7 +317,8 @@ class CollateralSecureFeatureTest extends TestCase
             ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
             ->assertSee(__('borrower.payments_page.create.bank_transfer'), false)
             ->assertSee(__('borrower.membership.pay_now'), false)
-            ->assertDontSee(__('borrower.payment_waiting.title'), false);
+            ->assertSee('data-payment-surface', false)
+            ->assertDontSee('window.confirmForm($el', false);
 
         // Step 2: Pay now → waiting / verification screen.
         $this->actingAs($user)
@@ -333,7 +334,8 @@ class CollateralSecureFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
-            ->assertSee(__('borrower.payment_waiting.title'), false);
+            ->assertSee(__('borrower.payment_waiting.waiting_confirmation'), false)
+            ->assertSee(__('borrower.payment_waiting.stay_hint'), false);
     }
 
     public function test_insure_it_resumes_pending_payment_gate(): void
@@ -403,7 +405,8 @@ class CollateralSecureFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
             ->assertSee(__('borrower.membership.pay_now'), false)
-            ->assertDontSee(__('borrower.payment_waiting.title'), false);
+            ->assertSee('data-payment-surface', false)
+            ->assertDontSee('window.confirmForm($el', false);
     }
 
     public function test_insure_it_uses_submitted_cover_amount_not_stale_premium(): void

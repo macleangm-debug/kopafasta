@@ -44,6 +44,18 @@ class PageController extends Controller
         ]);
     }
 
+    public function rewards(): View
+    {
+        return view('site.rewards', [
+            'catalog' => app(\App\Services\LoyaltyRedemptionService::class)->publicCatalog(),
+            'earn' => [
+                ['label' => __('site.rewards.earn_register'), 'points' => (int) config('referrals.register_points', 5)],
+                ['label' => __('site.rewards.earn_apply'), 'points' => (int) config('referrals.application_points', 25)],
+                ['label' => __('site.rewards.earn_profile'), 'points' => (int) (config('gamification.loyalty_points.actions.complete_profile.points', 10))],
+            ],
+        ]);
+    }
+
     public function products(): View
     {
         $products = LoanProduct::with('rateTiers')->whereIn('status', ['active', 'coming_soon'])->orderBy('id')->get();

@@ -87,6 +87,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
     Route::get('/',                 [\App\Http\Controllers\Site\PageController::class, 'home'])->name('home');
     Route::get('/plus', [\App\Http\Controllers\Site\PageController::class, 'plus'])->name('plus');
+    Route::get('/rewards', [\App\Http\Controllers\Site\PageController::class, 'rewards'])->name('rewards');
     Route::get('/loans',            [\App\Http\Controllers\Site\PageController::class, 'products'])->name('products');
     Route::get('/loans/product/{code}', [\App\Http\Controllers\Site\PageController::class, 'product'])->name('product');
     Route::get('/how-it-works',     [\App\Http\Controllers\Site\PageController::class, 'howItWorks'])->name('how-it-works');
@@ -826,6 +827,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::middleware('permission:marketing.view')->group(function () use ($registerResource): void {
             $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
             Route::get('growth', [\App\Http\Controllers\Admin\GrowthController::class, 'index'])->name('growth.index');
+            Route::get('growth/rewards', [\App\Http\Controllers\Admin\GrowthController::class, 'rewards'])->name('growth.rewards');
             Route::get('growth/affiliates', [\App\Http\Controllers\Admin\GrowthController::class, 'affiliates'])->name('growth.affiliates');
             Route::get('growth/performance', [\App\Http\Controllers\Admin\GrowthController::class, 'performance'])
                 ->middleware('permission:marketing.performance.view')

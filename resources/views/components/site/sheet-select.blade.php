@@ -34,6 +34,7 @@
         placeholder: @js($placeholder),
         selected: @js((string) $selected),
         otherValue: @js((string) $otherValue),
+        otherText: @js((string) old($otherField, '')),
         labelFor(val) {
             if (!val) return this.placeholder;
             const hit = this.optionEntries.find((o) => o.value === val);
@@ -48,7 +49,11 @@
         },
         choose(val) {
             this.selected = val == null ? '' : String(val);
-            this.pickerOpen = false;
+            if (this.selected === this.otherValue) {
+                this.pickerOpen = true;
+            } else {
+                this.pickerOpen = false;
+            }
             this.$nextTick(() => this.syncNative());
             @if ($setterExpr)
                 if (typeof {{ $setterExpr }} === 'function') { {{ $setterExpr }}(this.selected); }
@@ -96,6 +101,21 @@
                             :class="currentValue() === opt.value ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
                             x-text="opt.label"></button>
                 </template>
+                @if ($hasOther)
+                    <div class="pt-3 mt-2 border-t border-gray-100 space-y-3" x-show="selected === otherValue" x-cloak>
+                        <label class="block text-xs font-medium text-gray-600">
+                            {{ $otherFieldLabel }} <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text"
+                               x-model="otherText"
+                               maxlength="80"
+                               class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
+                        <button type="button" @click="pickerOpen = false"
+                                class="w-full rounded-xl bg-brand text-white text-sm font-semibold py-3">
+                            {{ __('borrower.apply.continue') }}
+                        </button>
+                    </div>
+                @endif
             </div>
         </x-site.bottom-sheet>
     </div>
@@ -119,16 +139,16 @@
     </select>
 
     @if ($hasOther)
-        <div class="mt-3" x-show="selected === otherValue" x-cloak>
+        <input type="hidden" name="{{ $otherField }}" x-model="otherText" :disabled="selected !== otherValue">
+        <div class="mt-3 hidden lg:block" x-show="selected === otherValue" x-cloak>
             <label class="block text-xs font-medium text-gray-600 mb-1">
                 {{ $otherFieldLabel }} <span class="text-red-500">*</span>
             </label>
             <input type="text"
-                   name="{{ $otherField }}"
+                   x-model="otherText"
                    maxlength="80"
                    class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand"
-                   :required="selected === otherValue"
-                   :disabled="selected !== otherValue">
+                   :required="selected === otherValue">
         </div>
     @endif
 </div>

@@ -127,19 +127,18 @@ class PaymentWaitingPollTest extends TestCase
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
             ->assertSee(__('borrower.payment_waiting.title'), false)
-            ->assertSee(__('borrower.payment_waiting.for'), false)
-            ->assertSee(__('borrower.payment_types.registration_fee'), false)
-            ->assertSee('255711111111')
+            ->assertSee(__('borrower.payment_waiting.sent_to'), false)
+            ->assertSee(__('borrower.payment_waiting.waiting_confirmation'), false)
+            ->assertSee(__('borrower.payment_waiting.stay_hint'), false)
+            ->assertSee(__('borrower.payment_waiting.slow_hint'), false)
+            ->assertSee(__('borrower.payment_waiting.change_phone'), false)
+            ->assertSee(__('borrower.payment_waiting.try_again'), false)
             ->assertDontSee(__('borrower.payment_waiting.prompt'), false)
             ->assertDontSee(__('borrower.payment_waiting.step_ussd'), false)
-            ->assertSee(__('borrower.payment_waiting.wait_estimate'), false)
-            ->assertSee(__('borrower.payment_waiting.no_prompt'), false)
-            ->assertSee(__('borrower.payment_waiting.help_title'), false)
-            ->assertSee(__('borrower.payment_waiting.try_again'), false)
-            ->assertSee(__('borrower.payment_waiting.change_phone'), false)
-            ->assertDontSee(__('borrower.payment_waiting.keep_waiting'), false)
+            ->assertDontSee('window.confirmForm($el', false)
             ->assertSee(route('site.borrower.payments.retry', $payment), false)
-            ->assertSee(route('site.borrower.payments.gate', $payment), false);
+            ->assertSee(route('site.borrower.payments.gate', $payment), false)
+            ->assertSee('data-payment-surface', false);
     }
 
     public function test_return_to_gate_resets_processing_payment_to_psp_gate(): void
@@ -198,5 +197,88 @@ class PaymentWaitingPollTest extends TestCase
             ->assertOk()
             ->assertSee('Ada ya Uanachama', false)
             ->assertDontSee('Membership Fee', false);
+    }
+
+    public function test_retry_while_processing_does_not_start_another_collection(): void
+    {
+        [$user, $customer] = $this->borrower();
+
+        $payment = CustomerPayment::create([
+            'reference' => 'PAY-WAIT-RETRY',
+            'customer_id' => $customer->id,
+            'payment_type' => 'registration_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 5000,
+            'currency' => 'TZS',
+            'status' => 'processing',
+            'provider' => 'payin',
+            'provider_ref' => 'PAYREF-ACTIVE',
+            'mobile_number' => '255711111111',
+        ]);
+
+        $payIn = Mockery::mock(PayInService::class);
+        $payIn->shouldReceive('status')->once()->with('PAYREF-ACTIVE')->andReturn([
+            'ok' => true,
+            'request_ref' => 'PAYREF-ACTIVE',
+            'status' => 'processing',
+            'message' => 'Still processing',
+            'raw' => [],
+        ]);
+        $payIn->shouldReceive('collect')->never();
+        $this->app->instance(PayInService::class, $payIn);
+
+        $this->actingAs($user)
+            ->postJson(route('site.borrower.payments.retry', $payment))
+            ->assertOk()
+            ->assertJson([
+                'ok' => true,
+                'state' => 'waiting',
+                'attempt_active' => true,
+            ]);
+
+        $this->assertSame('processing', $payment->fresh()->status);
+        $this->assertSame('PAYREF-ACTIVE', $payment->fresh()->provider_ref);
+    }
+
+    public function test_provider_failure_returns_to_gate_instead_of_rejecting_the_obligation(): void
+    {
+        [$user, $customer] = $this->borrower();
+
+        $payment = CustomerPayment::create([
+            'reference' => 'PAY-WAIT-FAIL',
+            'customer_id' => $customer->id,
+            'payment_type' => 'registration_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 5000,
+            'currency' => 'TZS',
+            'status' => 'processing',
+            'provider' => 'payin',
+            'provider_ref' => 'PAYREF-FAIL',
+            'mobile_number' => '255711111111',
+        ]);
+
+        $payIn = Mockery::mock(PayInService::class);
+        $payIn->shouldReceive('status')->once()->with('PAYREF-FAIL')->andReturn([
+            'ok' => true,
+            'request_ref' => 'PAYREF-FAIL',
+            'status' => 'failed',
+            'message' => 'Customer cancelled',
+            'raw' => [],
+        ]);
+        $this->app->instance(PayInService::class, $payIn);
+
+        $this->actingAs($user)
+            ->getJson(route('site.borrower.payments.status', $payment))
+            ->assertOk()
+            ->assertJson([
+                'ok' => true,
+                'state' => 'failed',
+                'status' => 'awaiting_payment',
+            ]);
+
+        $fresh = $payment->fresh();
+        $this->assertSame('awaiting_payment', $fresh->status);
+        $this->assertNull($fresh->provider_ref);
+        $this->assertNotEmpty(data_get($fresh->provider_meta, 'last_collect_error'));
     }
 }

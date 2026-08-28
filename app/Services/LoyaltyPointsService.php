@@ -52,6 +52,10 @@ class LoyaltyPointsService
         ?string $refType,
         ?int $refId,
     ): int {
+        if (app(GrowthPointsService::class)->isNonEarnable($customer)) {
+            return 0;
+        }
+
         if ($this->alreadyEarned($customer, $actionKey, $refType, $refId)) {
             return 0;
         }
@@ -111,6 +115,10 @@ class LoyaltyPointsService
 
     public function redeem(Customer $customer, int $points, string $description, ?string $refType = null, ?int $refId = null): bool
     {
+        if (app(GrowthPointsService::class)->isNonEarnable($customer)) {
+            return false;
+        }
+
         if ($points <= 0 || $this->balance($customer) < $points) {
             return false;
         }
@@ -129,6 +137,62 @@ class LoyaltyPointsService
         });
 
         return true;
+    }
+
+    /**
+     * Reverse a prior credit if those points are still available. Idempotent per action + reference.
+     */
+    public function reverseUnused(
+        Customer $customer,
+        string $actionKey,
+        string $refType,
+        int $refId,
+        string $reason = 'Reversed',
+    ): int {
+        $already = LoyaltyPointTransaction::query()
+            ->where('customer_id', $customer->id)
+            ->where('type', 'debit')
+            ->where('action_key', $actionKey.'_reverse')
+            ->where('reference_type', $refType)
+            ->where('reference_id', $refId)
+            ->exists();
+        if ($already) {
+            return 0;
+        }
+
+        $credit = LoyaltyPointTransaction::query()
+            ->where('customer_id', $customer->id)
+            ->where('type', 'credit')
+            ->where('action_key', $actionKey)
+            ->where('reference_type', $refType)
+            ->where('reference_id', $refId)
+            ->first();
+        if (! $credit) {
+            return 0;
+        }
+
+        $points = min((int) $credit->points, $this->balance($customer));
+        if ($points <= 0) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($customer, $actionKey, $points, $reason, $refType, $refId): int {
+            $customer->decrement('loyalty_points', $points);
+
+            LoyaltyPointTransaction::create([
+                'customer_id'    => $customer->id,
+                'type'           => 'debit',
+                'points'         => -$points,
+                'action_key'     => $actionKey.'_reverse',
+                'description'    => $reason,
+                'reference_type' => $refType,
+                'reference_id'   => $refId,
+            ]);
+
+            $customer->refresh();
+
+            return $points;
+        });
     }
 
     /**
@@ -258,7 +322,7 @@ class LoyaltyPointsService
 
     private function alreadyEarned(Customer $customer, string $actionKey, ?string $refType, ?int $refId): bool
     {
-        if ($refType === null && ! in_array($actionKey, ['complete_profile', 'refer_friend'], true)) {
+        if ($refType === null && ! in_array($actionKey, ['complete_profile', 'refer_friend', 'refer_register', 'refer_application'], true)) {
             return false;
         }
 

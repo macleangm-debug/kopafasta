@@ -47,6 +47,12 @@ class SupportTicketController extends ResourceController
         if (empty($data['ticket_number'])) {
             $data['ticket_number'] = 'TKT-'.now()->format('ymd').'-'.Str::upper(Str::random(4));
         }
+        if (! empty($data['customer_id'])) {
+            $customer = Customer::query()->find($data['customer_id']);
+            if ($customer && app(\App\Services\LoyaltyRedemptionService::class)->activePrioritySupport($customer)) {
+                $data['priority'] = 'urgent';
+            }
+        }
         return $data;
     }
 }

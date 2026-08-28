@@ -5,10 +5,13 @@
     $attemptedPhone = data_get($payment->provider_meta, 'attempted_phone')
         ?: data_get($payment->provider_meta, 'phone')
         ?: $payment->mobile_number;
-    $collectError = \App\Services\CustomerPaymentService::localizeProviderMessage(
-        session('collect_error') ?: data_get($payment->provider_meta, 'last_collect_error'),
-        $attemptedPhone
-    );
+    $rawCollectError = session('collect_error') ?: data_get($payment->provider_meta, 'last_collect_error');
+    $collectError = filled($rawCollectError)
+        ? \App\Services\CustomerPaymentService::localizeProviderMessage(
+            $rawCollectError,
+            app(\App\Services\CustomerPaymentService::class)->maskPhoneForDisplay(is_string($attemptedPhone) ? $attemptedPhone : null) ?: $attemptedPhone,
+        )
+        : null;
     $canSwitchToBank = $canSwitchToBank ?? false;
     $bankAccounts = $bankAccounts ?? [];
     $bankDetails = $bankDetails ?? null;
@@ -40,24 +43,24 @@
 @endif
 
 <div class="max-w-xl mx-auto space-y-5">
-@if ($isPayInWaiting || ($showCollectFailed && $isReadyToPay))
-    <x-site.payment-waiting
-        :payment="$payment"
-        :initial-state="$showCollectFailed ? 'failed' : 'waiting'"
-        :error-message="$collectError"
-        :status-url="$statusUrl"
-        :success-url="$successUrl"
-        :gate-url="$gateUrl"
-        :retry-url="$retryUrl"
-    />
-@elseif ($isReadyToPay)
-    <x-site.payment-gate-ready
+@if ($isPayInWaiting || $isReadyToPay || $showCollectFailed)
+    <x-site.psp-payment-flow
         :payment="$payment"
         :bank-accounts="$bankAccounts"
         :mobile-details="$mobileDetails"
         :show-promo="$showPromo && $supportsDiscounts"
+        :quote="$quote ?? null"
+        :promo-value="$promoValue ?? null"
+        :wallet-reward="$walletReward ?? null"
         :form-action="$payUrl"
         :default-phone="$defaultPhone"
+        :status-url="$statusUrl"
+        :success-url="$successUrl"
+        :gate-url="$gateUrl"
+        :retry-url="$retryUrl"
+        :initial-state="$showCollectFailed ? 'failed' : ($isPayInWaiting ? 'waiting' : 'details')"
+        :error-message="$showCollectFailed ? $collectError : null"
+        :overlay="empty($adminLivePreview ?? false)"
     />
 @else
     <section class="relative kf-premium-panel rounded-3xl">

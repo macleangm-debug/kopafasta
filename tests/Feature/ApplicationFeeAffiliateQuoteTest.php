@@ -138,9 +138,7 @@ class ApplicationFeeAffiliateQuoteTest extends TestCase
         $this->assertSame(2000.0, (float) $invalid['cash_due']);
 
         $ok = $gate->quote($customer->fresh(), 2000, 'registration_fee', false, 'AFFREG25');
-        $this->assertTrue($ok['promo_valid']);
-        $this->assertSame('affiliate', $ok['code_kind']);
-        $this->assertSame(500.0, (float) $ok['affiliate_discount']);
-        $this->assertSame(1500.0, (float) $ok['cash_due']);
+        $this->assertSame(0.0, (float) $ok['affiliate_discount']);
+        $this->assertSame(2000.0, (float) $ok['cash_due']);
     }
 }

@@ -176,6 +176,7 @@ class ConsoleNavService
                 'active_prefixes' => ['admin.growth.', 'admin.promotions.'],
                 'items' => [
                     ['Overview', 'admin.growth.index', 'marketing.view'],
+                    ['Rewards', 'admin.growth.rewards', 'marketing.view'],
                     ['Campaigns', 'admin.promotions.index', 'marketing.view'],
                     ['Audiences', 'admin.growth.audiences.index', 'marketing.audiences.manage'],
                     ['Offers', 'admin.growth.offers.index', 'marketing.offers.manage'],

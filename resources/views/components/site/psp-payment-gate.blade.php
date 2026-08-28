@@ -23,13 +23,13 @@
     'promoValue' => null,
     'promoAction' => null,
     'quote' => null,
+    'walletReward' => null,
     'showMobile' => true,
     'showBank' => true,
     'payLabel' => null,
     'payingLabel' => null,
     'hidden' => [],
-    'confirmTitle' => null,
-    'confirmMessage' => null,
+    'formAttributes' => null,
 ])
 
 @php
@@ -37,8 +37,6 @@
     $payingLabel = $payingLabel ?? __('borrower.membership.paying');
     $defaultMethod = $defaultMethod ?? old($methodField, $mobileValue);
     $promoAction = $promoAction ?? url()->current();
-    $confirmTitle = $confirmTitle ?? __('borrower.membership.pay_confirm_title');
-    $confirmMessage = $confirmMessage ?? __('borrower.membership.pay_confirm_message', ['label' => $label]);
 @endphp
 
 <div {{ $attributes->class('space-y-5') }}>
@@ -46,8 +44,25 @@
         <div class="px-6 py-7">
             <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ $label }}</p>
             <div class="mt-3 flex flex-wrap items-end gap-3">
-                <p class="text-4xl font-extrabold tabular-nums tracking-tight">{{ $currency }} {{ format_number((float) $amount) }}</p>
+                <p class="text-4xl font-extrabold tabular-nums tracking-tight">
+                    <span x-show="!applyReward">{{ $currency }} {{ format_number((float) $amount) }}</span>
+                    <span x-cloak x-show="applyReward">{{ $currency }} {{ format_number((float) (is_array($walletReward) ? max(0, $amount - ($walletReward['discount'] ?? 0)) : $amount)) }}</span>
+                </p>
             </div>
+            @if (is_array($walletReward) && ($walletReward['discount'] ?? 0) > 0)
+                <div class="mt-4 rounded-xl bg-white/10 ring-1 ring-white/15 px-4 py-3 text-sm space-y-2">
+                    <p class="text-[10px] uppercase tracking-widest text-brand-gold font-bold">{{ __('borrower.payments_page.show.you_have_reward') }}</p>
+                    <p class="font-semibold">{{ $walletReward['label'] }}</p>
+                    <template x-if="applyReward">
+                        <p class="text-white/80 text-xs">{{ $currency }} {{ format_number((float) $amount) }} · {{ __('borrower.payments_page.show.reward_minus') }} {{ format_money((float) $walletReward['discount']) }}</p>
+                    </template>
+                    <button type="button" @click="toggleReward()"
+                            class="mt-1 inline-flex rounded-lg bg-brand-gold text-brand text-xs font-bold px-3 py-1.5">
+                        <span x-show="!applyReward">{{ __('borrower.payments_page.show.apply_reward') }}</span>
+                        <span x-cloak x-show="applyReward">{{ __('borrower.payments_page.show.remove_reward') }}</span>
+                    </button>
+                </div>
+            @endif
             @if ($reference)
                 <p class="mt-4 text-xs text-white/70">{{ __('borrower.membership.payment_reference_label') }}</p>
                 <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1.5 rounded-lg">{{ $reference }}</p>
@@ -60,12 +75,15 @@
         @if (isset($promo))
             {{ $promo }}
         @elseif ($showPromo)
+            <div x-show="!applyReward">
             <x-site.promo-code-toggle
                 :name="$promoName"
                 :value="$promoValue ?? old($promoName)"
                 :action="$promoAction"
                 :quote="$quote"
             />
+            </div>
+            <p x-cloak x-show="applyReward" class="text-xs text-gray-500">{{ __('borrower.payments_page.show.reward_or_promo') }}</p>
             <div class="border-t border-gray-100"></div>
         @endif
 
@@ -75,20 +93,14 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ $formAction }}" class="space-y-5"
-              x-data="{ paying: false }"
-              @submit.prevent="window.confirmForm($el, {
-                  title: @js($confirmTitle),
-                  message: @js($confirmMessage),
-                  confirmLabel: @js($payLabel),
-                  tone: 'confirm'
-              })"
-              @sync-before-submit="paying = true"
+        <form method="POST" action="{{ $formAction }}" class="space-y-5" data-no-draft
+              @submit.prevent="typeof payNow === 'function' ? payNow($el) : $el.submit()"
               {{ $formAttributes ?? '' }}>
             @csrf
             @foreach ($hidden as $name => $value)
                 <input type="hidden" name="{{ $name }}" value="{{ $value }}">
             @endforeach
+            <input type="hidden" name="apply_reward" :value="applyReward ? 1 : 0">
 
             {{ $beforeMethods ?? '' }}
 
@@ -112,7 +124,7 @@
 
             {{ $afterMethods ?? '' }}
 
-            <button type="submit" :disabled="paying"
+            <button type="submit" :disabled="paying || busy"
                     class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3.5 rounded-xl text-sm shadow-sm disabled:opacity-70 inline-flex items-center justify-center gap-2">
                 <svg x-show="paying" x-cloak class="size-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

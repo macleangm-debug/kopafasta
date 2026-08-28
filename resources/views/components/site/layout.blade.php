@@ -78,6 +78,7 @@
 
                 <a href="{{ route('site.marketplace') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.marketplace') }}</a>
                 <a href="{{ route('site.plus') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.plus') }}</a>
+                <a href="{{ route('site.rewards') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.rewards') }}</a>
                 <a href="{{ route('site.card.verify') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.verify') }}</a>
                 <a href="{{ route('site.affiliate') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.affiliate') }}</a>
             </nav>
@@ -127,6 +128,7 @@
                             <a href="{{ route('site.products') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.all_products') }}</a>
                             <a href="{{ route('site.marketplace') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.marketplace') }}</a>
                             <a href="{{ route('site.plus') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.plus') }}</a>
+                            <a href="{{ route('site.rewards') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.rewards') }}</a>
                             <a href="{{ route('site.card.verify') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.verify') }}</a>
                             <a href="{{ route('site.affiliate') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.affiliate') }}</a>
                             <a href="{{ route('site.how-it-works') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.how_it_works.title') }}</a>
@@ -169,6 +171,7 @@
                         <li><a href="{{ route('site.products') }}" class="hover:text-brand-gold transition">{{ __('site.nav.all_products') }}</a></li>
                         <li><a href="{{ route('site.marketplace') }}" class="hover:text-brand-gold transition">{{ __('site.nav.marketplace') }}</a></li>
                         <li><a href="{{ route('site.plus') }}" class="hover:text-brand-gold transition">{{ __('site.nav.plus') }}</a></li>
+                        <li><a href="{{ route('site.rewards') }}" class="hover:text-brand-gold transition">{{ __('site.nav.rewards') }}</a></li>
                         @foreach ($navProducts->take(4) as $navProduct)
                             <li><a href="{{ route('site.product', $navProduct->code) }}" class="hover:text-brand-gold transition">{{ $navProduct->localizedName() }}</a></li>
                         @endforeach

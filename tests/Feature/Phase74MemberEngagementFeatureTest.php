@@ -24,7 +24,7 @@ class Phase74MemberEngagementFeatureTest extends TestCase
 
         return Customer::create(array_merge([
             'user_id'         => $user->id,
-            'customer_number' => 'C-ENG'.random_int(100, 999),
+            'customer_number' => 'C-ENG'.random_int(100000, 999999),
             'type'            => 'individual',
             'status'          => 'active',
             'first_name'      => 'Engage',
@@ -49,7 +49,7 @@ class Phase74MemberEngagementFeatureTest extends TestCase
         ], $overrides));
     }
 
-    public function test_successful_referral_requires_membership_payment(): void
+    public function test_successful_referral_counts_registered_invitees(): void
     {
         $referrer = $this->makeCustomer(['referral_code' => 'KPF-ENG001']);
         $this->makeCustomer(['referred_by_customer_id' => $referrer->id]);
@@ -60,7 +60,7 @@ class Phase74MemberEngagementFeatureTest extends TestCase
 
         $count = app(ReferralService::class)->successfulReferralCount($referrer);
 
-        $this->assertSame(1, $count);
+        $this->assertSame(2, $count);
     }
 
     public function test_loyalty_points_earn_and_balance(): void
@@ -71,8 +71,8 @@ class Phase74MemberEngagementFeatureTest extends TestCase
         $earned = $service->earn($customer, 'complete_profile');
         $customer->refresh();
 
-        $this->assertSame(100, $earned);
-        $this->assertSame(100, $service->balance($customer));
+        $this->assertSame(10, $earned);
+        $this->assertSame(10, $service->balance($customer));
         $this->assertSame(0, $service->earn($customer, 'complete_profile'));
     }
 
@@ -152,7 +152,7 @@ class Phase74MemberEngagementFeatureTest extends TestCase
 
         app(\App\Services\MemberEngagementRewardService::class)->afterProfileSectionSaved($customer, 'residence');
 
-        $this->assertSame(20, (int) $customer->fresh()->loyalty_points);
+        $this->assertSame(0, (int) $customer->fresh()->loyalty_points);
     }
 
     public function test_borrower_referrals_page_renders_rewards_card(): void
@@ -174,23 +174,34 @@ class Phase74MemberEngagementFeatureTest extends TestCase
         app(LoyaltyPointsService::class)->earn($customer, 'complete_profile');
         $customer->refresh();
 
-        $redemption = app(\App\Services\LoyaltyRedemptionService::class)->redeem($customer->fresh(), 'application_fee_15');
+        $redemption = app(\App\Services\LoyaltyRedemptionService::class)->redeem($customer->fresh(), 'application_fee_10');
 
         $this->assertSame('active', $redemption->status);
-        $this->assertSame(750, (int) $redemption->points_spent);
+        $this->assertSame(100, (int) $redemption->points_spent);
         $this->assertLessThan(1000, app(LoyaltyPointsService::class)->balance($customer->fresh()));
     }
 
-    public function test_loyalty_discount_applied_to_application_fee_quote(): void
+    public function test_loyalty_discount_is_not_auto_applied_to_quoted_fee(): void
     {
         $customer = $this->makeCustomer(['loyalty_points' => 2000]);
-        app(\App\Services\LoyaltyRedemptionService::class)->redeem($customer->fresh(), 'application_fee_15');
+        app(\App\Services\LoyaltyRedemptionService::class)->redeem($customer->fresh(), 'application_fee_10');
 
         $product = $this->makeProduct(['application_fee_amount' => 10_000]);
 
         $quoted = quoted_application_fee($customer->fresh(), $product);
+        $this->assertSame(10000, $quoted);
 
-        $this->assertSame(8500, $quoted);
+        $applied = app(\App\Services\PaymentGateService::class)->quote(
+            $customer->fresh(),
+            10000,
+            'application_fee',
+            false,
+            null,
+            null,
+            true,
+        );
+        $this->assertSame(1000.0, $applied['loyalty_discount']);
+        $this->assertSame(9000.0, $applied['cash_due']);
     }
 
     public function test_repayment_preview_includes_engagement_payload(): void
@@ -237,10 +248,10 @@ class Phase74MemberEngagementFeatureTest extends TestCase
         $loyalty = app(LoyaltyPointsService::class);
 
         $rewards->afterDocumentUploaded($customer, 'bank_statement');
-        $this->assertSame(50, $loyalty->balance($customer->fresh()));
+        $this->assertSame(0, $loyalty->balance($customer->fresh()));
 
         $rewards->afterDocumentUploaded($customer, 'bank_statement');
-        $this->assertSame(50, $loyalty->balance($customer->fresh()));
+        $this->assertSame(0, $loyalty->balance($customer->fresh()));
 
         $rewards->afterProfileSectionSaved($customer, 'activity');
         $first = $loyalty->balance($customer->fresh());

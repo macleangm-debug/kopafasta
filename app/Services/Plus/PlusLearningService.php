@@ -120,7 +120,17 @@ class PlusLearningService
     public function markCompleted(Customer $customer, PlusSubject $subject): void
     {
         $row = $this->markViewed($customer, $subject);
+        $already = $row->completed_at !== null;
         $row->update(['completed_at' => $row->completed_at ?? now(), 'last_position' => 100]);
+        if (! $already) {
+            app(\App\Services\GrowthPointsService::class)->awardOwnerAction(
+                $customer,
+                'plus_learn',
+                null,
+                PlusSubject::class,
+                (int) $subject->id,
+            );
+        }
     }
 
     public function toggleSaved(Customer $customer, PlusSubject $subject): PlusSubjectProgress

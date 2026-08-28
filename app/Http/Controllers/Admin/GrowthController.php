@@ -59,6 +59,13 @@ class GrowthController extends Controller
             ? round(($opened / $reached) * 100).'%'
             : '—';
 
+        $issued = (int) \App\Models\LoyaltyPointTransaction::query()->where('type', 'credit')->sum('points');
+        $redeemedPts = (int) \App\Models\LoyaltyPointTransaction::query()->where('type', 'debit')->sum('points');
+        $referralCustomers = \Illuminate\Support\Facades\Schema::hasColumn('customers', 'referred_by_customer_id')
+            ? \App\Models\Customer::query()->whereNotNull('referred_by_customer_id')->count()
+            : 0;
+        $rewardRedemptions = \App\Models\LoyaltyRedemption::query()->count();
+
         return view('admin.growth.index', [
             'stats' => [
                 'campaigns' => $activeCampaigns->count(),
@@ -68,6 +75,10 @@ class GrowthController extends Controller
                 'offers' => $activeOffers->count(),
                 'affiliates' => $affiliates,
                 'demos' => $liveDemos->count(),
+                'referral_customers' => $referralCustomers,
+                'points_issued' => $issued,
+                'points_redeemed' => $redeemedPts,
+                'reward_redemptions' => $rewardRedemptions,
             ],
             'attention' => [
                 ['label' => $endingSoon.' campaign'.($endingSoon === 1 ? '' : 's').' ending this week', 'show' => $endingSoon > 0, 'url' => route('admin.promotions.index')],
@@ -78,6 +89,24 @@ class GrowthController extends Controller
             'running' => $activeCampaigns->sortByDesc('id')->take(6)->values(),
             'runningOffers' => $activeOffers->sortByDesc('id')->take(4)->values(),
             'liveDemos' => $liveDemos->count(),
+        ]);
+    }
+
+    public function rewards(): View
+    {
+        $issued = (int) \App\Models\LoyaltyPointTransaction::query()->where('type', 'credit')->sum('points');
+        $redeemed = (int) \App\Models\LoyaltyPointTransaction::query()->where('type', 'debit')->sum('points');
+        $redemptions = \App\Models\LoyaltyRedemption::query()->latest('id')->limit(25)->get();
+        $active = \App\Models\LoyaltyRedemption::query()->where('status', 'active')->count();
+        $used = \App\Models\LoyaltyRedemption::query()->where('status', 'used')->count();
+
+        return view('admin.growth.rewards', [
+            'issued' => $issued,
+            'redeemed' => $redeemed,
+            'active' => $active,
+            'used' => $used,
+            'redemptions' => $redemptions,
+            'catalog' => app(\App\Services\LoyaltyRedemptionService::class)->catalog('en'),
         ]);
     }
 

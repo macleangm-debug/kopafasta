@@ -33,6 +33,7 @@ class PaymentGateService
         bool $useWallet = false,
         ?string $promoCode = null,
         ?string $affiliateCode = null,
+        bool $applyLoyalty = false,
     ): array {
         [$resolvedPromo, $resolvedAffiliate] = app(ApplicationFeePaymentService::class)
             ->resolvePromoOrAffiliate($promoCode, $affiliateCode);
@@ -103,12 +104,19 @@ class PaymentGateService
 
         $loyaltyDiscount = 0.0;
         $loyaltyRedemptionId = null;
-        if (! $useWallet) {
+        $loyaltyLabel = null;
+        $stack = app(GrowthPointsService::class)->allowRewardAndPromo();
+        $canApplyLoyalty = $applyLoyalty && ! $useWallet;
+        if ($canApplyLoyalty && ! $stack && $promoDiscount > 0) {
+            $canApplyLoyalty = false;
+        }
+        if ($canApplyLoyalty) {
             $loyalty = app(LoyaltyRedemptionService::class)->discountForFee($customer, $feeType, $afterPartner);
             if (($loyalty['discount'] ?? 0) > 0) {
                 $loyaltyDiscount = (float) $loyalty['discount'];
                 $afterPartner = max(0, round($afterPartner - $loyaltyDiscount, 2));
                 $loyaltyRedemptionId = $loyalty['redemption']?->id;
+                $loyaltyLabel = $loyalty['label'] ?? null;
             }
         }
 
@@ -121,6 +129,7 @@ class PaymentGateService
             'promo_discount'        => $promoDiscount,
             'loyalty_discount'      => $loyaltyDiscount,
             'loyalty_redemption_id' => $loyaltyRedemptionId,
+            'loyalty_label'         => $loyaltyLabel,
             'total_discount'        => round($referralDiscount + $affiliateDiscount + $promoDiscount + $loyaltyDiscount, 2),
             'after_discount'        => $afterPartner,
             'wallet_usable'         => (float) $walletQuote['wallet_usable'],
@@ -168,8 +177,19 @@ class PaymentGateService
         $base = (float) ($quote['base'] ?? 0);
         $referrals = app(ReferralService::class);
 
+        if ($feeType === 'application_fee') {
+            app(GrowthPointsService::class)->awardFirstApplicationFee($customer);
+        }
+
         if ($quote['has_referrer'] ?? false) {
             $referrals->settleFee($customer, $base, $useWallet, $feeType, $refType, $refId);
+
+            if (! empty($quote['loyalty_redemption_id'])) {
+                $redemption = \App\Models\LoyaltyRedemption::find($quote['loyalty_redemption_id']);
+                if ($redemption && $redemption->isActive()) {
+                    app(LoyaltyRedemptionService::class)->markUsed($redemption, $refType, $refId);
+                }
+            }
 
             return;
         }

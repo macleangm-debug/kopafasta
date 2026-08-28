@@ -62,7 +62,7 @@ class LoanHeroAndRewardsUxFeatureTest extends TestCase
 
         $earned = app(LoyaltyPointsService::class)->earn($customer, 'complete_profile');
 
-        $this->assertSame(100, $earned);
+        $this->assertSame(10, $earned);
         $this->assertContains('points_earned', Celebration::reasons());
         $this->assertDatabaseHas('notification_logs', [
             'customer_id' => $customer->id,
@@ -78,13 +78,13 @@ class LoanHeroAndRewardsUxFeatureTest extends TestCase
 
         $this->actingAs($customer->user)
             ->post(route('site.borrower.engagement.redeem'), [
-                'option_key' => 'application_fee_15',
+                'option_key' => 'application_fee_10',
             ])
             ->assertRedirect(route('site.borrower.loan-products'));
 
         $this->assertTrue(
             app(LoyaltyRedemptionService::class)->activeRewards($customer->fresh())
-                ->contains(fn ($r) => $r->option_key === 'application_fee_15')
+                ->contains(fn ($r) => $r->option_key === 'application_fee_10')
         );
     }
 }

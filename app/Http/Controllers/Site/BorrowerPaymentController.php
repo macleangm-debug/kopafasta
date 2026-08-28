@@ -11,6 +11,7 @@ use App\Models\Loan;
 use App\Services\CustomerPaymentService;
 use App\Services\PaymentAccountService;
 use App\Support\PhoneNumber;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -198,7 +199,7 @@ class BorrowerPaymentController extends Controller
         ]);
     }
 
-    public function pay(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    public function pay(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
@@ -209,6 +210,8 @@ class BorrowerPaymentController extends Controller
             'mobile_number' => ['nullable', 'string', 'max:20'],
             'mobile_number_local' => ['nullable', 'string', 'max:20'],
             'operator' => ['nullable', 'string', 'in:mpesa,airtel,tigopesa,halopesa'],
+            'apply_reward' => ['nullable', 'boolean'],
+            'promo_code' => ['nullable', 'string', 'max:40'],
         ]);
 
         // Retry from the waiting card omits the picker — stay on mobile money.
@@ -232,33 +235,40 @@ class BorrowerPaymentController extends Controller
             ?: ($data['mobile_number'] ?? null);
 
         if ($method === 'mobile_money' && ! filled($mobileNumber)) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => __('borrower.payments.mobile_number_required'),
+                    'errors' => ['mobile_number' => [__('borrower.payments.mobile_number_required')]],
+                ], 422);
+            }
+
             return redirect()
                 ->route('site.borrower.payments.show', $payment)
                 ->withErrors(['mobile_number' => __('borrower.payments.mobile_number_required')]);
         }
 
         try {
+            if (CustomerPaymentService::supportsCodeDiscounts($payment->payment_type)) {
+                $payments->applyCheckoutBenefits(
+                    $payment,
+                    $request->boolean('apply_reward'),
+                    $data['promo_code'] ?? null,
+                );
+                $payment = $payment->fresh(['customer']);
+            }
             $payment = $payments->initiateCollection($payment, $mobileNumber, $data['operator'] ?? null);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            $raw = collect($e->errors())->flatten()->first();
-            $attempted = $payment->fresh()->mobile_number
-                ?: data_get($payment->fresh()->provider_meta, 'attempted_phone');
-            $message = CustomerPaymentService::localizeProviderMessage($raw, $attempted);
-
-            return redirect()
-                ->route('site.borrower.payments.show', $payment)
-                ->with('collect_error', $message)
-                ->with('show_collect_failed', true)
-                ->withErrors(['mobile_number' => $message]);
+            return $this->paymentCollectFailed($request, $payment, $payments, $e);
         }
 
-        return redirect()->route('site.borrower.payments.show', $payment);
+        return $this->paymentSurfaceResponse($request, $payment, $payments);
     }
 
     /**
-     * Re-send the mobile-money prompt to the same number (clear stale provider_ref first).
+     * Retry the same number only when the current PSP attempt is no longer active.
      */
-    public function retry(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    public function retry(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
@@ -267,12 +277,18 @@ class BorrowerPaymentController extends Controller
             'operator' => ['nullable', 'string', 'in:mpesa,airtel,tigopesa,halopesa'],
         ]);
 
-        try {
-            $payment = $payments->returnToPaymentGate($payment);
-        } catch (\Throwable $e) {
-            return redirect()
-                ->route('site.borrower.payments.show', $payment)
-                ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'));
+        $payment = $payment->fresh();
+
+        if ($payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true)) {
+            return $this->paymentSurfaceResponse($request, $payment, $payments);
+        }
+
+        // Still at the PSP: refresh, then do not start a second collection.
+        if ($payment->status === 'processing' && filled($payment->provider_ref)) {
+            $payment = $payments->refreshFromProvider($payment);
+            if ($payment->isVerified() || $payment->status === 'processing') {
+                return $this->paymentSurfaceResponse($request, $payment, $payments);
+            }
         }
 
         $phone = $payment->mobile_number
@@ -281,6 +297,13 @@ class BorrowerPaymentController extends Controller
             ?: $customer->phone;
 
         if (! filled($phone)) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => __('borrower.payments.mobile_number_required'),
+                ], 422);
+            }
+
             return redirect()
                 ->route('site.borrower.payments.show', $payment)
                 ->with('error', __('borrower.payments.mobile_number_required'));
@@ -289,22 +312,13 @@ class BorrowerPaymentController extends Controller
         try {
             $payment = $payments->initiateCollection($payment, $phone, $data['operator'] ?? null);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            $raw = collect($e->errors())->flatten()->first();
-            $attempted = $payment->fresh()->mobile_number
-                ?: data_get($payment->fresh()->provider_meta, 'attempted_phone');
-            $message = CustomerPaymentService::localizeProviderMessage($raw, $attempted);
-
-            return redirect()
-                ->route('site.borrower.payments.show', $payment)
-                ->with('collect_error', $message)
-                ->with('show_collect_failed', true)
-                ->withErrors(['mobile_number' => $message]);
+            return $this->paymentCollectFailed($request, $payment, $payments, $e);
         }
 
-        return redirect()->route('site.borrower.payments.show', $payment);
+        return $this->paymentSurfaceResponse($request, $payment, $payments);
     }
 
-    public function returnToGate(CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    public function returnToGate(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
@@ -312,13 +326,19 @@ class BorrowerPaymentController extends Controller
         try {
             $payment = $payments->returnToPaymentGate($payment);
         } catch (\Throwable $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'),
+                ], 422);
+            }
+
             return redirect()
                 ->route('site.borrower.payments.show', $payment)
                 ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'));
         }
 
-        // Back to the shared PSP gate so they can change method / number and Pay now again.
-        return redirect()->route('site.borrower.payments.show', $payment);
+        return $this->paymentSurfaceResponse($request, $payment, $payments);
     }
 
     public function updatePhone(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
@@ -380,43 +400,50 @@ class BorrowerPaymentController extends Controller
             $payment = $payment->fresh();
         }
 
-        $state = match (true) {
-            $payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true) => 'paid',
-            $payment->status === 'rejected' => 'failed',
-            $payment->status === 'processing' => 'waiting',
-            $payment->awaitsCollection() => 'ready',
-            default => 'pending',
-        };
-
-        $redirect = null;
-        $celebration = null;
-        if ($state === 'paid') {
-            $redirect = $payments->successRedirectUrl($payment);
-            $celebration = $payments->celebrationCopy($payment);
-            if ($payment->payment_type === 'registration_fee') {
-                session()->flash('show_membership_card', true);
-                session()->flash(\App\Support\Celebration::SESSION_KEY, ['membership']);
-            }
+        $payload = $payments->surfaceState($payment);
+        if ($payload['state'] === 'paid' && $payment->payment_type === 'registration_fee') {
+            session()->flash('show_membership_card', true);
+            session()->flash(\App\Support\Celebration::SESSION_KEY, ['membership']);
         }
 
-        return response()->json([
-            'ok' => true,
-            'state' => $state,
-            'status' => $payment->status,
-            'reference' => $payment->reference,
-            'title' => $celebration['title'] ?? null,
-            'message' => match ($state) {
-                'paid' => $celebration['message'] ?? __('borrower.payment_waiting.paid'),
-                'failed' => __('borrower.payment_waiting.failed'),
-                'waiting' => $payment->mobile_number
-                    ? __('borrower.payment_waiting.waiting_phone', ['phone' => $payment->mobile_number])
-                    : __('borrower.payment_waiting.waiting'),
-                'ready' => __('borrower.payment_waiting.ready'),
-                default => __('borrower.payment_waiting.pending'),
-            },
-            'redirect_url' => $redirect,
-            'poll_after_ms' => $state === 'waiting' ? 5000 : null,
-        ]);
+        return response()->json($payload);
+    }
+
+    protected function paymentSurfaceResponse(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse|JsonResponse
+    {
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json($payments->surfaceState($payment));
+        }
+
+        return redirect()->route('site.borrower.payments.show', $payment);
+    }
+
+    protected function paymentCollectFailed(
+        Request $request,
+        CustomerPayment $payment,
+        CustomerPaymentService $payments,
+        \Illuminate\Validation\ValidationException $e,
+    ): RedirectResponse|JsonResponse {
+        $raw = collect($e->errors())->flatten()->first();
+        $fresh = $payment->fresh();
+        $attempted = $fresh->mobile_number
+            ?: data_get($fresh->provider_meta, 'attempted_phone');
+        $message = CustomerPaymentService::localizeProviderMessage($raw, $attempted);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            $payload = $payments->surfaceState($fresh);
+            $payload['ok'] = false;
+            $payload['message'] = $message;
+            $payload['state'] = 'failed';
+
+            return response()->json($payload, 422);
+        }
+
+        return redirect()
+            ->route('site.borrower.payments.show', $payment)
+            ->with('collect_error', $message)
+            ->with('show_collect_failed', true)
+            ->withErrors(['mobile_number' => $message]);
     }
 
     public function show(CustomerPayment $payment): View
@@ -476,12 +503,33 @@ class BorrowerPaymentController extends Controller
             $mobileDetails = [];
         }
 
+        $quote = null;
+        $walletReward = null;
+        $promoValue = old('promo_code', data_get($payment->provider_meta, 'pricing.promo_code'));
+        if ($payment->customer && CustomerPaymentService::supportsCodeDiscounts($payment->payment_type)) {
+            $gross = (float) (data_get($payment->provider_meta, 'pricing.gross') ?? $payment->amount);
+            $quote = app(\App\Services\PaymentGateService::class)->quote(
+                $payment->customer,
+                $gross,
+                $payment->payment_type,
+                false,
+                is_string($promoValue) ? $promoValue : null,
+                null,
+                false,
+            );
+            $walletReward = app(\App\Services\LoyaltyRedemptionService::class)
+                ->walletRewardForFee($payment->customer, $payment->payment_type, $gross);
+        }
+
         return view('site.borrower.payments.show', compact(
             'payment',
             'bankDetails',
             'mobileDetails',
             'bankAccounts',
             'canSwitchToBank',
+            'quote',
+            'walletReward',
+            'promoValue',
         ));
     }
 

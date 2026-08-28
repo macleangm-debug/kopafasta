@@ -7,6 +7,7 @@ import { registerSavingOverlay } from './saving-overlay';
 import { registerPartnerCreateConfirm } from './partner-create-confirm';
 
 import { registerValuationCamera } from './valuation-camera';
+import { registerPspPaymentFlow } from './psp-payment-flow';
 
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
@@ -16,6 +17,7 @@ registerProfileSectionCard(Alpine);
 registerSavingOverlay(Alpine);
 registerPartnerCreateConfirm(Alpine);
 registerValuationCamera(Alpine);
+registerPspPaymentFlow(Alpine);
 
 window.campaignWizard = function campaignWizard(cfg) {
     const initial = cfg.initial || {};

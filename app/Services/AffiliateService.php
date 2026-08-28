@@ -144,6 +144,15 @@ class AffiliateService
             ?? config('affiliates.default_application_discount_percent', 10));
     }
 
+    public function plusDiscountPercent(Vendor $affiliate): float
+    {
+        $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
+
+        return (float) ($meta['plus_discount_percent']
+            ?? app(AffiliateSettingsService::class)->forForm()['default_plus_discount_percent']
+            ?? config('affiliates.default_plus_discount_percent', 10));
+    }
+
     public function stats(Vendor $affiliate): array
     {
         $events = AffiliateEvent::query()->where('partner_id', $affiliate->id);
@@ -312,6 +321,7 @@ class AffiliateService
         $discountPct = match ($feeType) {
             'registration_fee' => $this->registrationDiscountPercent($affiliate),
             'application_fee', 'post_approval_fee' => $this->applicationDiscountPercent($affiliate),
+            'kopafasta_plus' => $this->plusDiscountPercent($affiliate),
             default => 0.0,
         };
 
@@ -346,6 +356,10 @@ class AffiliateService
         ?int $refId = null,
     ): ?AffiliateEvent {
         if (app(ReferralService::class)->referrer($customer)) {
+            return null;
+        }
+
+        if (app(GrowthPointsService::class)->isNonEarnable($customer)) {
             return null;
         }
 

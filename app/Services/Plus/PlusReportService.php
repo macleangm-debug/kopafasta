@@ -268,6 +268,7 @@ class PlusReportService
             'observations' => $observations,
             'noticed' => $noticed,
             'next' => $next,
+            'next_three' => $this->nextThree($goalCards, $business, $where),
             'sentence' => $this->oneSentence($left, $prevLeft, $business, $prevBusiness, $percent),
             'days_recorded' => $daysRecorded,
             'thin' => $thin,
@@ -396,6 +397,25 @@ class PlusReportService
             'cta' => __('plus.money.in_action'),
             'url' => route('site.borrower.plus.money'),
         ];
+    }
+
+    /** @return list<string> */
+    private function nextThree(array $goalCards, array $business, array $where): array
+    {
+        $items = [];
+        $lead = collect($goalCards)->sortByDesc(fn ($g) => (float) ($g['percent'] ?? 0))->first();
+        if ($lead && ($lead['percent'] ?? 0) < 100) {
+            $items[] = __('plus.reports.three_goal', ['goal' => $lead['title']]);
+        }
+        $topSpend = $where[0]['label'] ?? null;
+        if ($topSpend) {
+            $items[] = __('plus.reports.three_spend', ['category' => $topSpend]);
+        } elseif (($business['sold'] ?? 0) <= 0) {
+            $items[] = __('plus.reports.next_business');
+        }
+        $items[] = __('plus.reports.three_learn');
+
+        return array_slice($items, 0, 3);
     }
 
     private function oneSentence(float $left, float $prevLeft, array $business, array $prevBusiness, int $trust): string

@@ -97,9 +97,7 @@ if (! function_exists('quoted_application_fee')) {
         }
 
         if ($customer) {
-            $loyalty = app(\App\Services\LoyaltyRedemptionService::class)->discountForFee($customer, 'application_fee', $after);
-
-            return max(0, (int) round($after - (float) $loyalty['discount']));
+            return (int) round($after);
         }
 
         return (int) round($after);

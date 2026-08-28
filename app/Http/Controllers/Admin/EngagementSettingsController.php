@@ -198,6 +198,8 @@ class EngagementSettingsController extends Controller
             'redemption_options.*.benefit_value'=> ['nullable', 'numeric', 'min:0'],
             'redemption_options.*.fee_type'   => ['nullable', 'string', 'max:40'],
             'redemption_options.*.expires_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'redemption_options.*.audience'     => ['nullable', 'in:everyone,plus_only'],
+            'stack_with_promo'                => ['nullable', 'boolean'],
         ]);
 
         $existing = $this->gamification->group('loyalty_points');
@@ -215,6 +217,7 @@ class EngagementSettingsController extends Controller
             'actions'            => $data['actions'],
             'penalties'          => $penalties,
             'redemption_options' => array_values($data['redemption_options'] ?? ($existing['redemption_options'] ?? config('gamification.loyalty_points.redemption_options', []))),
+            'stack_with_promo'   => $request->boolean('stack_with_promo'),
         ]);
 
         return back()->with('status', 'Loyalty points settings saved.');

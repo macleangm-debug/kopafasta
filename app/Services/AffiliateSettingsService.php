@@ -83,6 +83,7 @@ class AffiliateSettingsService
             'code_prefix'                         => Setting::get('affiliates.code_prefix', config('affiliates.code_prefix')),
             'default_registration_discount_percent' => Setting::get('affiliates.default_registration_discount_percent', config('affiliates.default_registration_discount_percent')),
             'default_application_discount_percent'  => Setting::get('affiliates.default_application_discount_percent', config('affiliates.default_application_discount_percent')),
+            'default_plus_discount_percent'         => Setting::get('affiliates.default_plus_discount_percent', config('affiliates.default_plus_discount_percent', 10)),
             'default_commission_percent'          => Setting::get('affiliates.default_commission_percent', config('affiliates.default_commission_percent')),
             'commission_mode'                     => $this->commissionMode(),
             'fixed_commission_amounts'            => $this->fixedCommissionAmounts(),

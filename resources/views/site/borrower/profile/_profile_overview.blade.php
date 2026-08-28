@@ -102,17 +102,17 @@
 
 <section class="space-y-5">
     <div>
-        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_account') }}</p>
+        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_security') }}</p>
         <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
-            <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.profile.kyc') }}</a>
             <a href="{{ route('site.borrower.profile', ['section' => 'security']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.profile.security') }}</a>
             <a href="{{ route('site.borrower.settings') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.settings') }}</a>
         </div>
     </div>
     <div>
-        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_relationships') }}</p>
+        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_kopafasta') }}</p>
         <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
-            <a href="{{ route('site.borrower.engagement') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.engagement') }}</a>
+            <a href="{{ route('site.borrower.engagement', ['tab' => 'referrals']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.referrals') }}</a>
+            <a href="{{ route('site.borrower.engagement', ['tab' => 'rewards']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.rewards') }}</a>
             <a href="{{ route('site.borrower.guarantors') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.loans_page.tab_guarantor_requests') }}</a>
         </div>
     </div>
@@ -120,6 +120,7 @@
         <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_help') }}</p>
         <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
             <a href="{{ route('site.borrower.support') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.layout.help_center') }}</a>
+            <a href="{{ route('site.faq') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.layout.help') }}</a>
         </div>
     </div>
     <form method="POST" action="{{ route('site.logout') }}">

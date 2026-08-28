@@ -1259,8 +1259,9 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'code_prefix'            => ['required', 'string', 'max:10'],
-            'discount_percent'       => ['required', 'numeric', 'min:0', 'max:100'],
-            'referrer_points'        => ['required', 'integer', 'min:0', 'max:100000'],
+            'register_points'        => ['required', 'integer', 'min:0', 'max:100000'],
+            'application_points'     => ['required', 'integer', 'min:0', 'max:100000'],
+            'referrer_points'        => ['nullable', 'integer', 'min:0', 'max:100000'],
             'commission_percent'     => ['nullable', 'numeric', 'min:0', 'max:100'],
             'wallet_max_fee_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'attribution_days'       => ['required', 'integer', 'min:1', 'max:365'],
@@ -1273,6 +1274,8 @@ class SettingsController extends Controller
         if (! isset($data['commission_percent'])) {
             $data['commission_percent'] = Setting::get('referrals.commission_percent', config('referrals.commission_percent'));
         }
+        $data['referrer_points'] = $data['application_points'];
+        $data['discount_percent'] = 0;
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["referrals.$k" => $v])->all());
 
@@ -1292,6 +1295,7 @@ class SettingsController extends Controller
             'code_prefix'                         => ['required', 'string', 'max:10'],
             'default_registration_discount_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'default_application_discount_percent'  => ['required', 'numeric', 'min:0', 'max:100'],
+            'default_plus_discount_percent'         => ['nullable', 'numeric', 'min:0', 'max:100'],
             'default_commission_percent'          => ['required', 'numeric', 'min:0', 'max:100'],
             'commission_mode'                     => ['required', 'in:percentage,fixed,tiered,hybrid'],
             'hybrid_fixed_amount'                 => ['nullable', 'numeric', 'min:0'],
@@ -1348,7 +1352,7 @@ class SettingsController extends Controller
             'minimum_payout_amount'               => ['required', 'numeric', 'min:0'],
         ]);
 
-        $feeTypes = ['registration_fee', 'application_fee', 'post_approval_fee', 'interest', 'repayments'];
+        $feeTypes = ['application_fee', 'kopafasta_plus', 'registration_fee', 'valuation_fee', 'gps_fee', 'post_approval_fee', 'interest', 'repayments'];
         $appliesTo = collect($feeTypes)
             ->mapWithKeys(fn (string $type) => [$type => $request->boolean("applies_to.$type")])
             ->all();
@@ -1372,6 +1376,7 @@ class SettingsController extends Controller
             'affiliates.code_prefix'                         => $data['code_prefix'],
             'affiliates.default_registration_discount_percent' => $data['default_registration_discount_percent'],
             'affiliates.default_application_discount_percent'  => $data['default_application_discount_percent'],
+            'affiliates.default_plus_discount_percent'         => $data['default_plus_discount_percent'] ?? 10,
             'affiliates.default_commission_percent'          => $data['default_commission_percent'],
             'affiliates.commission_mode'                     => $data['commission_mode'],
             'affiliates.hybrid_fixed_amount'                 => (float) ($data['hybrid_fixed_amount'] ?? 0),

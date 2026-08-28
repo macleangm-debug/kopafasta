@@ -210,3 +210,64 @@ body.kf-camera-open {
 body.kf-camera-open .kf-mobile-bottom-nav {
     display: none !important;
 }
+
+/* payment.show — one interaction surface: sheet on mobile, dialog card on desktop */
+.kf-payment-surface {
+    position: relative;
+}
+
+@media (max-width: 1023px) {
+    .kf-payment-surface {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        background: rgba(0, 0, 0, 0.4);
+        padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    .kf-payment-surface-card {
+        max-height: min(92dvh, 720px);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        border-radius: 1.25rem 1.25rem 0 0;
+        background: #fff;
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+}
+
+@media (min-width: 1024px) {
+    .kf-payment-surface {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem 0;
+    }
+
+    .kf-payment-surface-card {
+        width: 100%;
+        max-width: 28rem;
+        border-radius: 1.5rem;
+        background: #fff;
+        border: 1px solid rgb(229 231 235);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        max-height: min(85vh, 720px);
+    }
+}
+
+.kf-payment-progress {
+    animation: kf-payment-indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes kf-payment-indeterminate {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(320%); }
+}

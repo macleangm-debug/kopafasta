@@ -119,6 +119,7 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('setter="setLoanPurpose"', $quote);
         $this->assertStringContainsString('choose(val)', $sheet);
         $this->assertStringContainsString('optionEntries', $sheet);
+        $this->assertStringContainsString('selected === this.otherValue', $sheet);
         $this->assertStringContainsString('change_purpose', $quote);
         $this->assertStringContainsString('purposeEditing', $quote);
         $this->assertStringContainsString('x-show="!(isGroupProduct(current) ? group.purpose : form.purpose) || purposeEditing || purposeNeedsDetail()"', $quote);

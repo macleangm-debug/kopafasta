@@ -5,6 +5,7 @@ return [
 
     'default_registration_discount_percent' => (float) env('AFFILIATE_REGISTRATION_DISCOUNT', 10),
     'default_application_discount_percent'  => (float) env('AFFILIATE_APPLICATION_DISCOUNT', 10),
+    'default_plus_discount_percent'         => (float) env('AFFILIATE_PLUS_DISCOUNT', 10),
     'default_commission_percent'          => (float) env('AFFILIATE_COMMISSION_PERCENT', 10),
 
     /** percentage | fixed | tiered | hybrid */
@@ -69,8 +70,11 @@ return [
 
     /** Fee types where affiliate promo codes apply (defaults). */
     'applies_to' => [
-        'registration_fee'  => true,
-        'application_fee' => true,
+        'application_fee'   => true,
+        'kopafasta_plus'    => true,
+        'registration_fee'  => false,
+        'valuation_fee'     => false,
+        'gps_fee'           => false,
         'post_approval_fee' => false,
         'interest'          => false,
         'repayments'        => false,

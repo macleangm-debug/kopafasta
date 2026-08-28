@@ -3,14 +3,22 @@
 return [
     'code_prefix' => env('REFERRAL_CODE_PREFIX', 'KPF'),
 
-    /** Invitee membership fee discount when they register via a member link (%). */
-    'discount_percent' => (float) env('REFERRAL_DISCOUNT_PERCENT', 10),
+    /**
+     * @deprecated Retired membership-referral cash discount. Always treated as 0 at checkout.
+     * Referrals earn points only. Key is kept so older Settings rows still load.
+     */
+    'discount_percent' => 0,
+
+    /** Points the referrer earns when the invitee successfully registers. */
+    'register_points' => (int) env('REFERRAL_REGISTER_POINTS', 5),
+
+    /** Extra points when the invitee submits a first valid application and pays the application fee. */
+    'application_points' => (int) env('REFERRAL_APPLICATION_POINTS', 25),
 
     /**
-     * Fixed referral points credited to the referrer when the invitee pays membership.
-     * Stored in the referral wallet using gamification.referral_wallet.points_per_tzs.
+     * @deprecated Use application_points. Kept so older Settings rows still load.
      */
-    'referrer_points' => (int) env('REFERRAL_REFERRER_POINTS', 50),
+    'referrer_points' => (int) env('REFERRAL_REFERRER_POINTS', 25),
 
     /**
      * @deprecated Prefer referrer_points. Kept for backward compatibility when referrer_points is unset.
@@ -35,25 +43,23 @@ return [
     /**
      * Days a referral link click stays tied to the referrer for registration.
      * If they click today and register within this window, the referrer is locked in.
-     * Membership payment can happen later — points still credit once paid.
+     * Application-fee payment can happen later — the +application_points credit fires then.
      */
     'attribution_days' => (int) env('REFERRAL_ATTRIBUTION_DAYS', 30),
 
-    /** Placeholders: {brand}, {referrer_name}, {referral_link}, {Referral Link}, {discount_percent}, {referrer_points} */
+    /** Placeholders: {brand}, {referrer_name}, {referral_link}, {Referral Link}, {register_points}, {application_points} */
     'messages' => [
-        'share_template' => 'Join {brand} with my link and get {discount_percent}% off membership: {referral_link}',
-        'invite_sms'     => 'Join {brand} via my invite link — {discount_percent}% off membership: {referral_link}',
+        'share_template' => 'Join me on {brand}. Use my invite link to create your account: {referral_link}',
+        'invite_sms'     => 'Join me on {brand}. Register here: {referral_link}',
         'share_en' => <<<'MSG'
 Join me on {brand}.
-Use my invite link to register and get {discount_percent}% off your membership fee.
-After you join and pay, I also earn rewards for inviting you.
+Use my invite link to create your account and discover {brand} services. When you join, I can earn reward points.
 Register here:
 {Referral Link}
 MSG,
         'share_sw' => <<<'MSG'
-Jiunge nami kwenye {brand}.
-Tumia kiungo changu cha mwaliko kujisajili na upate punguzo la {discount_percent}% kwenye ada ya uanachama.
-Baada ya kujiunga na kulipa, mimi pia ninapata zawadi kwa kukuwaalika.
+Jiunge nami {brand}.
+Tumia kiungo changu kufungua akaunti na kugundua huduma za {brand}. Ukijiunga, ninaweza kupata pointi za zawadi.
 Jisajili hapa:
 {Referral Link}
 MSG,

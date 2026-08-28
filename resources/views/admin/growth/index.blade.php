@@ -32,7 +32,7 @@
             <p class="mt-1 text-2xl font-bold tabular-nums text-brand">{{ \App\Support\MoneyFormat::compact($stats['conversions']) }}</p>
         </div>
     </div>
-    <div class="grid grid-cols-3 gap-3 mb-6">
+    <div class="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Active offers</p>
             <p class="mt-1 text-xl font-bold tabular-nums text-brand">{{ \App\Support\MoneyFormat::compact($stats['offers']) }}</p>
@@ -45,8 +45,23 @@
             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Active demos</p>
             <p class="mt-1 text-xl font-bold tabular-nums text-brand">{{ \App\Support\MoneyFormat::compact($stats['demos']) }}</p>
         </div>
+        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Referral customers</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-brand">{{ \App\Support\MoneyFormat::compact($stats['referral_customers'] ?? 0) }}</p>
+        </div>
+        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Points issued</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-brand">{{ \App\Support\MoneyFormat::compact($stats['points_issued'] ?? 0) }}</p>
+        </div>
+        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Points redeemed</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-brand">{{ \App\Support\MoneyFormat::compact($stats['points_redeemed'] ?? 0) }}</p>
+        </div>
+        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Reward redemptions</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-brand">{{ \App\Support\MoneyFormat::compact($stats['reward_redemptions'] ?? 0) }}</p>
+        </div>
     </div>
-
     <div class="grid lg:grid-cols-2 gap-5 mb-6">
         <section class="rounded-2xl bg-white ring-1 ring-brand/10 p-5">
             <h2 class="text-sm font-bold text-gray-900">Running now</h2>

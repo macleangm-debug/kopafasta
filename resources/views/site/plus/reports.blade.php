@@ -27,8 +27,9 @@
         @endif
 
         <div class="kf-print-sheet max-w-3xl mx-auto rounded-2xl bg-white ring-1 ring-brand/15 overflow-hidden">
-            <div class="bg-brand text-white px-5 sm:px-8 py-5">
-                <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus · {{ __('plus.reports.a4_kicker') }}</p>
+            <div class="bg-gradient-to-br from-brand via-brand-light to-emerald-800 text-white px-5 sm:px-8 py-6">
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
+                <p class="mt-1 text-sm text-white/80">{{ __('plus.reports.a4_kicker') }}</p>
                 <div class="mt-2 flex items-center justify-between gap-3">
                     @if ($older)
                         <a href="{{ route('site.borrower.plus.reports', ['month' => $older['value']]) }}"
@@ -63,9 +64,28 @@
             </div>
 
             <div class="p-5 sm:p-8 space-y-6">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="rounded-xl bg-brand/5 p-3">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.money.in') }}</p>
+                        <p class="mt-1 text-lg font-extrabold tabular-nums text-brand">{{ format_money_compact($money['in'] ?? 0) }}</p>
+                    </div>
+                    <div class="rounded-xl bg-brand/5 p-3">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.money.out') }}</p>
+                        <p class="mt-1 text-lg font-extrabold tabular-nums text-gray-900">{{ format_money_compact($money['out'] ?? 0) }}</p>
+                    </div>
+                    <div class="rounded-xl bg-brand/5 p-3">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_left') }}</p>
+                        <p class="mt-1 text-lg font-extrabold tabular-nums {{ $left < 0 ? 'text-red-700' : 'text-brand' }}">{{ format_money_compact($left) }}</p>
+                    </div>
+                    <div class="rounded-xl bg-brand/5 p-3">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_goals') }}</p>
+                        <p class="mt-1 text-lg font-extrabold tabular-nums">+{{ format_money_compact($report['goals_added'] ?? 0) }}</p>
+                    </div>
+                </div>
+
                 @if ($review !== [])
                     <section>
-                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold mb-3">{{ __('plus.reports.glance') }}</p>
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold mb-3">{{ __('plus.reports.your_review') }}</p>
                         <div class="space-y-3">
                             @foreach ($review as $obs)
                                 <div>
@@ -78,26 +98,6 @@
                 @endif
 
                 <p class="text-sm text-gray-700 italic">{{ $report['sentence'] ?? '' }}</p>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="rounded-xl bg-brand/5 p-3">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_left') }}</p>
-                        <p class="mt-1 text-lg font-extrabold tabular-nums {{ $left < 0 ? 'text-red-700' : 'text-brand' }}">{{ format_money_compact($left) }}</p>
-                    </div>
-                    <div class="rounded-xl bg-brand/5 p-3">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_biz') }}</p>
-                        <p class="mt-1 text-lg font-extrabold tabular-nums text-brand">{{ ($biz['difference'] >= 0 ? '+' : '').format_money_compact($biz['difference']) }}</p>
-                    </div>
-                    <div class="rounded-xl bg-brand/5 p-3">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_goals') }}</p>
-                        <p class="mt-1 text-lg font-extrabold tabular-nums">+{{ format_money_compact($report['goals_added'] ?? 0) }}</p>
-                    </div>
-                    <div class="rounded-xl bg-brand/5 p-3">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.trust') }}</p>
-                        <p class="mt-1 text-lg font-extrabold">{{ $report['trust_percent'] ?? 0 }}</p>
-                        <p class="text-xs text-gray-500">{{ $report['trust']['label'] ?? '' }}</p>
-                    </div>
-                </div>
 
                 <section>
                     <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold mb-3">{{ __('plus.reports.money') }}</p>
@@ -158,7 +158,16 @@
                     <p class="text-sm text-gray-600 mt-2 leading-snug">{{ __('plus.reports.trust_help') }}</p>
                 </section>
 
-                @if (! empty($report['next']))
+                @if (! empty($report['next_three']))
+                    <section class="rounded-xl bg-brand/5 p-4">
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.reports.three_things') }}</p>
+                        <ol class="mt-3 space-y-2 list-decimal list-inside text-sm text-gray-800">
+                            @foreach ($report['next_three'] as $item)
+                                <li>{{ $item }}</li>
+                            @endforeach
+                        </ol>
+                    </section>
+                @elseif (! empty($report['next']))
                     <section class="print:hidden rounded-xl bg-brand/5 p-4">
                         <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.reports.next') }}</p>
                         <p class="font-semibold mt-1">{{ $report['next']['title'] }}</p>

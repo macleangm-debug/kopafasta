@@ -28,6 +28,6 @@
         @endguest
     </div>
     <div class="animate-fade-up order-1 lg:order-2 pb-8 lg:pb-0">
-        <x-site.hero-illustration />
+        @include('site.home._product-showcase')
     </div>
 </div>

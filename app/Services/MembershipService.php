@@ -340,18 +340,7 @@ class MembershipService
             }
 
             if ($isRegistration) {
-                $issued = $this->issue($customer, null, $ref, $actorUserId, $fee, $channel, $paymentBreakdown);
-                if ($referrer = app(ReferralService::class)->referrer($issued)) {
-                    app(LoyaltyPointsService::class)->earn(
-                        $referrer,
-                        'refer_friend',
-                        'Successful referral membership',
-                        Customer::class,
-                        (int) $issued->id,
-                    );
-                }
-
-                return $issued;
+                return $this->issue($customer, null, $ref, $actorUserId, $fee, $channel, $paymentBreakdown);
             }
 
             return $this->renew($customer, $ref, $channel, $actorUserId);

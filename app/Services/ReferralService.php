@@ -20,8 +20,10 @@ class ReferralService
 
         return [
             'code_prefix'            => (string) ($group['code_prefix'] ?? config('referrals.code_prefix', 'KPF')),
-            'discount_percent'       => (float) ($group['discount_percent'] ?? config('referrals.discount_percent', 10)),
-            'referrer_points'        => (int) ($group['referrer_points'] ?? config('referrals.referrer_points', 50)),
+            'discount_percent'       => (float) ($group['discount_percent'] ?? config('referrals.discount_percent', 0)),
+            'register_points'        => (int) ($group['register_points'] ?? config('referrals.register_points', 5)),
+            'application_points'     => (int) ($group['application_points'] ?? config('referrals.application_points', 25)),
+            'referrer_points'        => (int) ($group['application_points'] ?? $group['referrer_points'] ?? config('referrals.application_points', 25)),
             'commission_percent'     => (float) ($group['commission_percent'] ?? config('referrals.commission_percent', 10)),
             'wallet_max_fee_percent' => (float) ($group['wallet_max_fee_percent'] ?? config('referrals.wallet_max_fee_percent', 50)),
             'attribution_days'       => (int) ($group['attribution_days'] ?? config('referrals.attribution_days', 30)),
@@ -45,7 +47,7 @@ class ReferralService
         if ($template === '') {
             $template = trim((string) config('referrals.messages.share_en'))
                 ?: trim((string) config('referrals.messages.share_template'))
-                ?: 'Join {brand} with my invite link and get {discount_percent}% off membership: {referral_link}';
+                ?: 'Join me on {brand}. Use my invite link to create your account: {referral_link}';
         }
 
         $replacements = [
@@ -55,7 +57,9 @@ class ReferralService
             '{referral_link}'     => $this->referralLink($customer),
             '{Referral Link}'     => $this->referralLink($customer),
             '{discount_percent}'  => rtrim(rtrim(format_number($settings['discount_percent'], 2), '0'), '.'),
-            '{referrer_points}'   => (string) (int) $settings['referrer_points'],
+            '{referrer_points}'   => (string) (int) $settings['application_points'],
+            '{register_points}'   => (string) (int) $settings['register_points'],
+            '{application_points}'=> (string) (int) $settings['application_points'],
         ];
 
         return str_replace(array_keys($replacements), array_values($replacements), $template);
@@ -65,7 +69,6 @@ class ReferralService
     {
         return Customer::query()
             ->where('referred_by_customer_id', $customer->id)
-            ->whereNotNull('membership_issued_at')
             ->count();
     }
 
@@ -269,13 +272,9 @@ class ReferralService
      */
     public function quoteFee(Customer $payer, float $baseAmount, bool $useWallet, string $feeType, bool $applyDiscount = true): array
     {
-        $settings = $this->settings();
         $referrer = $this->referrer($payer);
         $discount = 0.0;
-
-        if ($applyDiscount && $referrer && $baseAmount > 0) {
-            $discount = round($baseAmount * ($settings['discount_percent'] / 100), 2);
-        }
+        // $applyDiscount is retained for callers. Legacy referrals.discount_percent is never applied.
 
         $afterDiscount = max(0, round($baseAmount - $discount, 2));
         $promotion = app(PromotionService::class)->applyAfter($feeType, $afterDiscount);
@@ -286,15 +285,6 @@ class ReferralService
 
         $commission = 0.0;
         $referrerPoints = 0;
-        if ($applyDiscount && $referrer && $baseAmount > 0 && $feeType === 'registration_fee') {
-            $referrerPoints = max(0, (int) $settings['referrer_points']);
-            $commission = $referrerPoints > 0
-                ? referral_points_to_wallet_amount($referrerPoints)
-                : round($baseAmount * ($settings['commission_percent'] / 100), 2);
-            if ($referrerPoints <= 0 && $commission > 0) {
-                $referrerPoints = wallet_balance_as_points($commission);
-            }
-        }
 
         $walletApplied = 0.0;
         if ($useWallet && $this->canUseWalletFor($feeType) && $afterDiscount > 0) {
@@ -396,5 +386,6 @@ class ReferralService
         }
 
         $customer->update(['referred_by_customer_id' => $referrer->id]);
+        app(GrowthPointsService::class)->awardRegistration($customer->fresh());
     }
 }

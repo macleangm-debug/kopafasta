@@ -9,7 +9,7 @@
         ],
         'fields' => [
             'Min / max referrals' => 'Inclusive band for that tier. Leave max blank on Diamond for “51+”. Ranges should not overlap.',
-            'Progress milestones' => 'Targets shown as “next reward” chips on the referral page (e.g. 5 referrals → membership discount label). Separate from community milestones.',
+            'Progress milestones' => 'Targets shown as “next reward” chips on the referral page (e.g. 5 referrals → bonus reward points). Separate from community milestones.',
         ],
         'example' => 'Silver = 6–20 referrals. A member with 8 successful referrals is Silver. If Underwriting boosts set Silver limit ×1.05, their quote limit rises 5% vs Bronze.',
         'tips' => [

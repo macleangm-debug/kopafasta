@@ -8,10 +8,10 @@
 
     @include('admin.settings.engagement._guide', [
         'title' => 'How loyalty points work',
-        'summary' => 'Members earn points when they complete tracked actions (profile, documents, on-time repayments, referrals). Late repayments and late-fee accruals can deduct points (penalties below). They redeem from the catalog into time-limited discounts that apply at membership or application-fee checkout. Points are separate from underwriting boosts — boosts change limit/rate; redemptions change fees.',
+        'summary' => 'Members earn points when they complete tracked actions (profile, Plus learning, money check-in, referrals). Late repayments and late-fee accruals can deduct points (penalties below). They unlock from the catalog first, then apply an eligible reward at payment.show. Borrowing amount never earns points. Points are separate from underwriting boosts — boosts change limit/rate; redemptions change fees.',
         'borrowerSees' => [
-            'Rewards tab: balance, earn list, redeem cards, recent activity (credits in green, penalties in red), and confetti when points are credited.',
-            'Membership / application fee payment: “Use rewards” path after redeeming a matching fee_type option.',
+            'Rewards tab: balance, Ready for you / All rewards / Activity, and confetti when points are credited.',
+            'Eligible payment.show: apply an already-unlocked reward, or a promo code — not both unless stacking is enabled.',
             'In-app notification with CTA back to Rewards when points are earned or deducted.',
         ],
         'fields' => [
@@ -42,6 +42,11 @@
     >
         <x-admin.settings-panel id="earn">
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-4">
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="hidden" name="stack_with_promo" value="0">
+                    <input type="checkbox" name="stack_with_promo" value="1" @checked($values['stack_with_promo'] ?? false)>
+                    Allow reward + promo code on the same payment (default off)
+                </label>
                 <h3 class="text-sm font-semibold text-gray-700">Earn point values</h3>
                 @foreach ($actions as $key => $action)
                     <div class="grid md:grid-cols-2 gap-3">
@@ -83,6 +88,7 @@
                         <x-admin.input name="redemption_options[{{ $i }}][benefit_value]" label="Benefit value" type="number" step="0.001" :value="$option['benefit_value'] ?? 0" />
                         <x-admin.input name="redemption_options[{{ $i }}][fee_type]" label="Fee type (optional)" :value="$option['fee_type'] ?? ''" />
                         <x-admin.input name="redemption_options[{{ $i }}][expires_days]" label="Expires after (days)" type="number" :value="$option['expires_days'] ?? 90" />
+                        <x-admin.input name="redemption_options[{{ $i }}][audience]" label="Audience (everyone / plus_only)" :value="$option['audience'] ?? 'everyone'" />
                         <div class="md:col-span-3">
                             <x-admin.textarea name="redemption_options[{{ $i }}][description]" label="Description (EN)" rows="2" :value="$option['description'] ?? ''" />
                         </div>

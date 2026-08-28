@@ -62,6 +62,7 @@ return [
     'Growth' => [
         ['Membership', 'admin.settings.membership', 'membership'],
         ['Referrals', 'admin.settings.referrals', 'referrals'],
+        ['Rewards', 'admin.settings.engagement.loyalty-points', 'rewards'],
         ['Engagement', 'admin.settings.engagement', 'engagement'],
         ['Affiliates', 'admin.settings.affiliates', 'affiliates'],
     ],

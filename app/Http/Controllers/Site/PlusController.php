@@ -10,7 +10,6 @@ use App\Models\PlusLesson;
 use App\Models\PlusLessonProgress;
 use App\Models\PlusMoneyEntry;
 use App\Models\PlusOffer;
-use App\Models\PlusRewardLedger;
 use App\Models\PlusSubject;
 use App\Services\Grades\GradeBenefitService;
 use App\Services\MemberEngagementService;
@@ -70,6 +69,8 @@ class PlusController extends Controller
                 ->where('published_at', '<=', now())
                 ->latest('published_at')
                 ->first(),
+            'loyaltyBalance' => app(\App\Services\LoyaltyPointsService::class)->balance($customer),
+            'rewardsDash' => app(\App\Services\LoyaltyRedemptionService::class)->dashboard($customer),
         ]);
     }
 
@@ -205,6 +206,8 @@ class PlusController extends Controller
             'other_label' => $isOther ? trim((string) ($data['category_other'] ?? '')) : null,
         ]);
 
+        app(\App\Services\GrowthPointsService::class)->awardMonthlyMoneyCheckIn($customer);
+
         return back()->with('status', __('plus.money.saved_here'));
     }
 
@@ -330,10 +333,20 @@ class PlusController extends Controller
         $customer = $this->requireActivePlus($request, $plus);
         abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
         abort_unless($goal->remaining() <= 0, 403, __('plus.goals.complete_only_when_funded'));
+        $already = $goal->completed_at !== null;
         $goal->update([
             'status' => 'completed',
             'completed_at' => $goal->completed_at ?? now(),
         ]);
+        if (! $already) {
+            app(\App\Services\GrowthPointsService::class)->awardOwnerAction(
+                $customer,
+                'plus_goal',
+                null,
+                PlusGoal::class,
+                (int) $goal->id,
+            );
+        }
 
         return back()->with('status', __('plus.goals.completed'));
     }
@@ -397,37 +410,38 @@ class PlusController extends Controller
         return back()->with('status', __('plus.offers.claimed'));
     }
 
-    public function rewards(Request $request, PlusService $plus, PlusWorkspaceService $workspace)
+    public function rewards(Request $request, PlusService $plus)
     {
         $customer = $this->requireActivePlus($request, $plus);
+        $redemptions = app(\App\Services\LoyaltyRedemptionService::class);
+        $points = app(\App\Services\LoyaltyPointsService::class);
 
         return view('site.plus.rewards', [
             'customer' => $customer,
-            'balance' => $plus->rewardBalance($customer),
-            'catalog' => $plus->rewardCatalog(),
-            'ledger' => PlusRewardLedger::query()->where('customer_id', $customer->id)->latest('id')->limit(30)->get(),
-            'earned' => $workspace->recentRewardEarns($customer),
+            'catalog' => $redemptions->catalog(null, $customer),
+            'rewardsDashboard' => $redemptions->dashboard($customer),
+            'activeRewards' => $redemptions->activeRewards($customer),
+            'transactions' => $points->recentTransactions($customer, 15),
         ]);
     }
 
     public function redeem(Request $request, PlusService $plus)
     {
         $customer = $this->requireActivePlus($request, $plus);
-        $catalog = collect($plus->rewardCatalog());
         $data = $request->validate([
-            'code' => ['nullable', 'string', 'max:40'],
-            'points' => ['nullable', 'integer', 'min:1'],
-            'reason' => ['nullable', 'string', 'max:120'],
+            'option_key' => ['required', 'string', 'max:60'],
         ]);
-        if (filled($data['code'] ?? null)) {
-            $item = $catalog->firstWhere('code', $data['code']);
-            abort_unless($item, 422);
-            $plus->redeemReward($customer, (int) $item['points'], $item['title']);
-        } else {
-            $plus->redeemReward($customer, (int) $data['points'], (string) $data['reason']);
+
+        try {
+            app(\App\Services\LoyaltyRedemptionService::class)->redeem($customer, $data['option_key']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('status', __('plus.rewards.redeemed'));
+        \App\Support\Celebration::flashOne('reward_redeemed');
+
+        return redirect()->route('site.borrower.plus.rewards')
+            ->with('status', __('borrower.rewards.redeemed'));
     }
 
     public function lesson(Request $request, PlusService $plus, PlusLesson $lesson)
@@ -454,7 +468,17 @@ class PlusController extends Controller
             ['customer_id' => $customer->id, 'plus_lesson_id' => $lesson->id],
             ['started_at' => now()]
         );
+        $already = $progress->completed_at !== null;
         $progress->update(['completed_at' => $progress->completed_at ?? now()]);
+        if (! $already) {
+            app(\App\Services\GrowthPointsService::class)->awardOwnerAction(
+                $customer,
+                'plus_learn',
+                null,
+                PlusLesson::class,
+                (int) $lesson->id,
+            );
+        }
         if (! $request->wantsJson() && ! $request->ajax()) {
             $gate->notify($customer, 'plus_lesson_completed', [
                 'lesson' => $lesson->title_en,

@@ -6,7 +6,7 @@ return [
             'code' => 'monthly',
             'period_days' => 365,
             'prices' => [
-                'TZ' => ['amount' => 3000, 'currency' => 'TZS'],
+                'TZ' => ['amount' => 35000, 'currency' => 'TZS'],
                 'KE' => ['amount' => 200, 'currency' => 'KES'],
             ],
         ],

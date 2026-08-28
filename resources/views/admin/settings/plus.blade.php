@@ -24,7 +24,7 @@
                 name="tz_price"
                 label="Subscription price (TZS)"
                 :money="true"
-                :value="$config['plans']['monthly']['prices']['TZ']['amount'] ?? 3000"
+                :value="$config['plans']['monthly']['prices']['TZ']['amount'] ?? 35000"
                 help="Charged once for the period on the left. Same payment page as other customer payments."
                 required
             />

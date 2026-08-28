@@ -28,6 +28,8 @@
                                    :value="$values['default_registration_discount_percent'] ?? 10" required />
                     <x-admin.input name="default_application_discount_percent" label="Default application discount (%)" type="number" step="0.1" min="0" max="100"
                                    :value="$values['default_application_discount_percent'] ?? 10" required />
+                    <x-admin.input name="default_plus_discount_percent" label="Default Kopafasta Plus customer discount (%)" type="number" step="0.1" min="0" max="100"
+                                   :value="$values['default_plus_discount_percent'] ?? 10" />
                     <x-admin.input name="minimum_payout_amount" label="Minimum payout amount (TZS)" type="number" step="1000" min="0"
                                    :value="$values['minimum_payout_amount'] ?? 50000" required money />
                 </div>
@@ -169,9 +171,12 @@
                 </div>
                 @php
                     $feeLabels = [
-                        'registration_fee'  => 'Borrower membership fee',
-                        'application_fee'   => 'Application fee',
-                        'post_approval_fee' => 'Post approval fee',
+                        'application_fee'   => 'Application fee (launch)',
+                        'kopafasta_plus'    => 'Kopafasta Plus (launch)',
+                        'registration_fee'  => 'Borrower membership fee (off)',
+                        'valuation_fee'     => 'Valuation fee (off)',
+                        'gps_fee'           => 'GPS fee (off)',
+                        'post_approval_fee' => 'Other post-approval fees (off)',
                         'interest'          => 'Interest',
                         'repayments'        => 'Repayments',
                     ];

@@ -5,6 +5,7 @@
     'showPromo' => false,
     'quote' => null,
     'promoValue' => null,
+    'walletReward' => null,
     'formAction' => null,
     'defaultPhone' => null,
 ])
@@ -37,6 +38,7 @@
     :show-promo="$showPromo"
     :promo-value="$promoValue"
     :quote="$quote"
+    :wallet-reward="$walletReward"
     :show-bank="true"
     :show-mobile="true"
 >
