@@ -55,6 +55,10 @@
                     $itemKey = (string) ($item['key'] ?? '');
                     $compareRows = $item['evidence']['compare'] ?? [];
                     $mismatchCount = collect($compareRows)->where('status', 'mismatch')->count();
+                    $hasPhotoEvidence = collect($item['evidence']['photo_pairs'] ?? [])->contains(
+                        fn ($pair) => filled(data_get($pair, 'borrower.url')) || filled(data_get($pair, 'valuer.url'))
+                    ) || collect($item['evidence']['photos'] ?? [])->contains(fn ($photo) => filled($photo['url'] ?? null));
+                    $isAwaiting = ! empty($item['awaiting_data']) && ! $hasPhotoEvidence;
                 @endphp
                 <li class="p-4" data-checklist-item
                     x-data="{
@@ -104,7 +108,7 @@
                             @endif
                         </button>
                         <div class="flex flex-wrap gap-1.5 shrink-0">
-                            @if (! empty($item['awaiting_data']))
+                            @if ($isAwaiting)
                                 <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-amber-50 text-amber-900 ring-1 ring-amber-200">Awaiting data</span>
                             @elseif (! empty($item['read_only']) || ! empty($item['captures_statement']) || ! empty($item['catalog_system']))
                                 @if (($item['verdict'] ?? '') === 'pass')
@@ -138,7 +142,7 @@
                     </div>
 
                     <div x-show="openItem === @js($itemKey)" x-cloak class="mt-3 space-y-3">
-                        @if (! empty($item['awaiting_data']))
+                        @if ($isAwaiting)
                             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3.5 py-3">
                                 <p class="text-sm font-semibold text-amber-950">{{ $item['awaiting_message'] ?? 'There is no data for this checklist' }}</p>
                                 @if (! empty($item['awaiting_cta']['href']))
@@ -212,7 +216,7 @@
                                     <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">
                                         <div class="px-3 py-2 bg-brand-muted/40 border-b border-brand/10">
                                             <p class="text-[11px] font-bold text-brand uppercase tracking-widest">Asset photo · Valuer photo</p>
-                                            <p class="text-[11px] text-gray-600 mt-0.5">Same angle, side by side — including owner with asset.</p>
+                                            <p class="text-[11px] text-gray-600 mt-0.5">Same angle, side by side — including owner with asset and extra valuer shots (dashboard, engine, VIN).</p>
                                         </div>
                                         @if ($evidenceAssets->count() > 1)
                                             <div class="flex gap-1.5 overflow-x-auto px-3 py-2 border-b border-gray-100">
@@ -393,7 +397,7 @@
             </div>
                         @endif
 
-                        @if (empty($item['captures_statement']) && empty($item['read_only']) && empty($item['awaiting_data']) && empty($item['catalog_system']))
+                        @if (empty($item['captures_statement']) && empty($item['read_only']) && ! $isAwaiting && empty($item['catalog_system']))
                         <div x-show="verdict === 'fail'" x-cloak class="rounded-xl bg-rose-50/80 ring-1 ring-rose-100 p-3 space-y-2">
                             @if (($item['risk'] ?? '') === 'critical' || ($item['gate'] ?? null) === 'statements_vs_declared')
                                 <div class="rounded-lg bg-rose-100 ring-1 ring-rose-200 px-3 py-2">

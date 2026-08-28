@@ -8,8 +8,12 @@ use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\LoanProduct;
+use App\Models\PartnerTask;
 use App\Models\User;
+use App\Models\ValuationAssignment;
+use App\Models\Vendor;
 use App\Services\ApplicationDocumentRequestService;
+use App\Services\CollateralSecureService;
 use App\Services\CustomerAssetService;
 use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
@@ -412,6 +416,70 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('NIDA number', false)
             ->assertDontSee('NIDA status', false);
+    }
+
+    public function test_admin_collateral_tab_shows_valuation_result_instead_of_request_when_complete(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $pledged = $this->completeAsset($customer, 'Toyota Rav4');
+        $pledged->update(['asset_type' => 'vehicle']);
+        $this->completeAsset($customer, 'Vitz')->update(['asset_type' => 'vehicle']);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        LoanApplicationAsset::create([
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $pledged->id,
+            'asset_type' => 'vehicle',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+        ]);
+        app(CustomerAssetService::class)->persistOnLoanIds($application, [(int) $pledged->id]);
+
+        $valuer = Vendor::create([
+            'vendor_number' => 'V-DONE-'.random_int(100, 999),
+            'name' => 'Geofrey Mwaijjonga',
+            'category' => 'valuer',
+            'status' => 'active',
+        ]);
+        $task = PartnerTask::query()->create([
+            'partner_id' => $valuer->id,
+            'loan_application_id' => $application->id,
+            'task_type' => 'asset_valuation',
+            'status' => 'completed',
+        ]);
+        ValuationAssignment::query()->create([
+            'loan_application_id' => $application->id,
+            'vendor_id' => $valuer->id,
+            'vendor_task_id' => $task->id,
+            'status' => ValuationAssignment::STATUS_COMPLETED,
+            'market_value' => 20_000_000,
+            'forced_sale_value' => 15_000_000,
+            'completed_at' => now(),
+        ]);
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        $payload['collateral_secure'] = [
+            'status' => CollateralSecureService::STATUS_SECURED,
+            'customer_asset_id' => $pledged->id,
+            'valuation_fee_paid_at' => now()->toIso8601String(),
+        ];
+        $application->update(['screening_payload' => $payload]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Forced sale value on file', $html);
+        $this->assertStringContainsString('Geofrey Mwaijjonga', $html);
+        $this->assertStringNotContainsString('Next step for screening', $html);
+        $this->assertStringNotContainsString('>Request valuation<', $html);
+        $this->assertStringContainsString('On this loan', $html);
+        $this->assertStringContainsString('Saved', $html);
     }
 
     public function test_add_collateral_opens_type_as_wizard_step(): void

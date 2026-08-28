@@ -352,6 +352,65 @@ class ScreeningValuationGateFeatureTest extends TestCase
         $this->assertSame('photo_pairs', $photos['evidence']['layout'] ?? null);
         $this->assertNotEmpty($photos['evidence']['photo_pairs'] ?? []);
         $this->assertFalse($photos['catalog_system'] ?? false);
+        $this->assertFalse($photos['awaiting_data'] ?? true);
         $this->assertNotSame('pass', $photos['verdict'] ?? null);
+    }
+
+    public function test_photo_match_shows_valuer_extras_and_stays_human(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer);
+        $asset = $this->pledge($application, $customer);
+        app(\App\Services\CustomerAssetService::class)->persistOnLoanIds($application, [(int) $asset->id]);
+
+        $valuer = Vendor::create([
+            'vendor_number' => 'V-PHOTO-'.random_int(100, 999),
+            'name' => 'Geofrey Mwaijjonga',
+            'category' => 'valuer',
+            'status' => 'active',
+        ]);
+        $task = \App\Models\PartnerTask::query()->create([
+            'partner_id' => $valuer->id,
+            'loan_application_id' => $application->id,
+            'task_type' => 'asset_valuation',
+            'status' => 'completed',
+        ]);
+        ValuationAssignment::query()->create([
+            'loan_application_id' => $application->id,
+            'vendor_id' => $valuer->id,
+            'vendor_task_id' => $task->id,
+            'status' => ValuationAssignment::STATUS_COMPLETED,
+            'market_value' => 20_000_000,
+            'forced_sale_value' => 15_000_000,
+            'completed_at' => now(),
+        ]);
+        foreach (['front', 'dashboard', 'engine', 'vin'] as $angle) {
+            \App\Models\PartnerDocument::query()->create([
+                'vendor_id' => $valuer->id,
+                'vendor_task_id' => $task->id,
+                'doc_type' => 'valuer_photo_'.$angle.'_'.$asset->id,
+                'label' => ucfirst($angle).' #'.$asset->id,
+                'file_path' => 'valuer/'.$angle.'.jpg',
+            ]);
+        }
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $vm = app(\App\Services\ScreeningChecklistService::class)
+            ->viewModel($application->fresh(), $admin, 'borrower', null, null, ['customer' => $customer]);
+        $photos = collect(collect($vm['groups'] ?? [])->firstWhere('key', 'collateral')['items'] ?? [])
+            ->firstWhere('key', 'collateral.valuation_or_photos');
+
+        $this->assertFalse($photos['awaiting_data'] ?? true);
+        $this->assertNotSame('pass', $photos['verdict'] ?? null);
+        $angles = collect($photos['evidence']['photo_pairs'] ?? [])->pluck('angle');
+        $this->assertTrue($angles->contains('dashboard'));
+        $this->assertTrue($angles->contains('engine'));
+        $this->assertTrue($angles->contains('vin'));
+        $this->assertTrue(
+            collect($photos['evidence']['photo_pairs'] ?? [])->contains(fn ($pair) => ! empty($pair['extra']))
+        );
+        $dashboard = collect($photos['evidence']['photo_pairs'] ?? [])->firstWhere('angle', 'dashboard');
+        $this->assertNotEmpty($dashboard['valuer']['url'] ?? null);
+        $this->assertEmpty($dashboard['borrower']['url'] ?? null);
     }
 }

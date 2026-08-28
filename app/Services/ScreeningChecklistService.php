@@ -2122,7 +2122,7 @@ class ScreeningChecklistService
                 if ($itemKey === 'valuation_or_photos') {
                     $photoPairs = (array) ($asset['photo_pairs'] ?? []);
                     $layout = 'photo_pairs';
-                    $hint = 'Look at each pair. Same asset? Pass. Different car / angle / person? Fail. The system only checks that photos exist — it does not compare the pictures.';
+                    $hint = 'Look at each pair, including extra valuer shots (dashboard, engine, VIN). Same asset? Pass. Different car / angle / person? Fail. The system does not compare the pictures.';
                 } else {
                     foreach ($asset['photos'] ?? [] as $photo) {
                         $photos[] = $photo;
@@ -2446,50 +2446,53 @@ class ScreeningChecklistService
     }
 
     /**
-     * @return list<array{angle: string, label: string, borrower: ?array{url: string, label: string}, valuer: ?array{url: string, label: string}}>
+     * @return list<array{angle: string, label: string, extra?: bool, required?: bool, borrower: ?array{url: string, label: string}, valuer: ?array{url: string, label: string}}>
      */
     private function photoPairsForAsset(CustomerAsset $asset, LoanApplication $application): array
     {
         $borrower = $asset->photosByAngle();
-        $valuerByAngle = [];
-        $multi = count(app(CustomerAssetService::class)->onLoanAssetIds($application)) > 1;
-        foreach ($this->valuerPhotoRows($application) as $row) {
-            $angle = CustomerAsset::angleFromLabel($row['label'] ?? null, $row['doc_type'] ?? null);
-            if (! $angle) {
-                continue;
-            }
-            $rowAssetId = $this->valuerPhotoAssetId($row);
-            if ($rowAssetId && (int) $rowAssetId !== (int) $asset->id) {
-                continue;
-            }
-            if ($multi && ! $rowAssetId) {
-                continue;
-            }
-            if (! isset($valuerByAngle[$angle])) {
-                $valuerByAngle[$angle] = $row;
-            }
+        $valuerByAngle = $this->valuerAnglesForAsset($application, $asset);
+        $evidence = app(ValuationEvidenceService::class);
+        $ownerAngles = array_keys(CustomerAsset::photoAngleLabels($asset->asset_type));
+
+        $angles = [];
+        foreach ($evidence->checklist($asset->asset_type) as $item) {
+            $angles[$item['angle']] = $item;
+        }
+        foreach (array_keys($borrower) as $angle) {
+            $angles[$angle] ??= [
+                'angle' => $angle,
+                'label' => $evidence->labelFor((string) $angle),
+                'required' => false,
+            ];
+        }
+        foreach (array_keys($valuerByAngle) as $angle) {
+            $angles[$angle] ??= [
+                'angle' => $angle,
+                'label' => $evidence->labelFor((string) $angle),
+                'required' => false,
+            ];
         }
 
-        $angles = array_unique(array_merge(
-            array_keys(CustomerAsset::photoAngleLabels($asset->asset_type)),
-            array_keys($borrower),
-            array_keys($valuerByAngle),
-        ));
-
         $pairs = [];
-        foreach ($angles as $angle) {
-            $label = CustomerAsset::photoAngleLabels($asset->asset_type)[$angle] ?? ucfirst((string) $angle);
+        foreach ($angles as $angle => $meta) {
             $bPath = $borrower[$angle] ?? null;
-            $vRow = $valuerByAngle[$angle] ?? null;
+            $vPath = $valuerByAngle[$angle] ?? null;
+            if (! filled($bPath) && ! filled($vPath)) {
+                continue;
+            }
+            $label = (string) ($meta['label'] ?? $evidence->labelFor((string) $angle));
             $pairs[] = [
-                'angle' => $angle,
+                'angle' => (string) $angle,
                 'label' => $label,
-                'borrower' => $bPath ? [
+                'extra' => ! in_array($angle, $ownerAngles, true),
+                'required' => (bool) ($meta['required'] ?? false),
+                'borrower' => filled($bPath) ? [
                     'url' => asset('storage/'.$bPath),
                     'label' => 'Asset · '.$label,
                 ] : null,
-                'valuer' => $vRow ? [
-                    'url' => $vRow['url'],
+                'valuer' => filled($vPath) ? [
+                    'url' => asset('storage/'.$vPath),
                     'label' => 'Valuer · '.$label,
                 ] : null,
             ];
@@ -2499,30 +2502,34 @@ class ScreeningChecklistService
     }
 
     /**
-     * @return list<array{label: string, url: string, doc_type?: ?string}>
+     * @return array<string, string> angle => storage path
      */
-    private function valuerPhotoRows(LoanApplication $application): array
+    private function valuerAnglesForAsset(LoanApplication $application, CustomerAsset $asset): array
     {
-        $report = app(ValuationPartnerService::class)->reportForApplication($application);
-
-        return (array) ($report['photos'] ?? []);
-    }
-
-    /**
-     * @param  array{label?: string, doc_type?: ?string}  $row
-     */
-    private function valuerPhotoAssetId(array $row): ?int
-    {
-        $type = (string) ($row['doc_type'] ?? '');
-        if (preg_match('/^asset_photo_[a-z]+_(\d+)$/', $type, $m)) {
-            return (int) $m[1];
-        }
-        $label = (string) ($row['label'] ?? '');
-        if (preg_match('/#(\d+)\s*$/', $label, $m)) {
-            return (int) $m[1];
+        $application->loadMissing(['valuationAssignments.vendorTask.documents']);
+        $task = $application->valuationAssignments
+            ->sortByDesc('id')
+            ->map(fn ($row) => $row->vendorTask)
+            ->filter()
+            ->first();
+        if (! $task) {
+            return [];
         }
 
-        return null;
+        $angles = app(ValuationInspectionService::class)->valuerPhotosByAsset($task, collect([$asset]))[$asset->id] ?? [];
+        $assetId = (int) $asset->id;
+        foreach ($task->documents ?? [] as $doc) {
+            $type = (string) ($doc->doc_type ?? '');
+            $path = (string) ($doc->file_path ?? $doc->path ?? '');
+            if ($path === '') {
+                continue;
+            }
+            if (preg_match('/^(?:valuer_photo_|asset_photo_)([a-z0-9_]+)_'.$assetId.'$/', $type, $m)) {
+                $angles[$m[1]] ??= $path;
+            }
+        }
+
+        return $angles;
     }
 
     /** @return array<string, mixed> */

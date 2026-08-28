@@ -34,6 +34,8 @@
     $isAb = app(\App\Services\AssetBackedLoanService::class)->isAssetBackedApplication($record);
     $openValuation = collect($record->valuationAssignments ?? [])
         ->first(fn ($a) => in_array($a->status, ['assigned', 'in_progress'], true));
+    $completedValuation = collect($record->valuationAssignments ?? [])
+        ->first(fn ($a) => $a->status === \App\Models\ValuationAssignment::STATUS_COMPLETED);
     $pledgedForValuation = $pledgeRows->first(fn ($row) => ($row->uw_status ?? '') !== \App\Models\LoanApplicationAsset::UW_DECLINED);
     $showValuerCta = ! $isGuarantor && ! $isMember && $pledgedForValuation && ! $isAb;
     $csSvc = app(\App\Services\CollateralSecureService::class);
@@ -51,6 +53,12 @@
     ], true);
     $needsManualValuer = $pledgedForValuation && ! $openValuation && ! $valuationFeeDue
         && $csStatus === \App\Services\CollateralSecureService::STATUS_AWAITING_VALUER;
+    $valuationComplete = data_get($valuationReport ?? null, 'status') === 'completed'
+        || $csStatus === \App\Services\CollateralSecureService::STATUS_SECURED
+        || (bool) $completedValuation;
+    $showValuationResult = $showValuerCta && $valuationComplete;
+    $showValuationProgress = $showValuerCta && ! $valuationComplete && $openValuation;
+    $showRequestValuation = $showValuerCta && ! $valuationComplete && ! $openValuation;
     $assignableValuers = ($valuers ?? collect())->isNotEmpty()
         ? ($valuers ?? collect())
         : ($allValuers ?? collect());
@@ -151,27 +159,33 @@
                         · {{ $onLoanCount }} on this loan
                     @endif
                 </p>
-                <div class="-mx-1 px-1 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1"
-                     style="scrollbar-width: thin;">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     @foreach ($assets as $asset)
                         @php
                             $pledge = $pledgeByAssetId->get((int) $asset->id);
                             $pledgeStatus = (string) ($pledge->uw_status ?? '');
                             $isOnThisLoan = in_array((int) $asset->id, $onLoanIds, true);
-                            $pledgeBadge = match (true) {
-                                $pledgeStatus === 'declined' => ['Declined', 'bg-rose-500/90 text-white'],
-                                $isOnThisLoan => ['On this loan', $pledgeStatus === 'accepted' ? 'bg-emerald-500/90 text-white' : 'bg-brand/90 text-white'],
-                                default => ['Saved', 'bg-slate-600/90 text-white'],
+                            $sourceLabel = match (true) {
+                                $pledgeStatus === 'declined' => 'Declined',
+                                $isOnThisLoan => 'On this loan',
+                                default => 'Saved',
                             };
+                            $card = $asset->toCollateralCard([
+                                'belongs_to' => trim(($asset->customer?->full_name ?? '').' · '.$ownerRoleFor($asset), ' ·'),
+                            ]);
+                            if ($asset->isVehicleLike()) {
+                                $card['registration_number'] = $card['registration_number'] ?: '—';
+                                $card['make'] = $card['make'] ?: '—';
+                                $card['year'] = $card['year'] ?: '—';
+                                $card['chassis'] = $card['chassis'] ?: '—';
+                            }
                         @endphp
-                        <div class="snap-start shrink-0 w-[80%] sm:w-72">
+                        <div>
                             <x-site.collateral-card
-                                :selected="$asset->toCollateralCard([
-                                    'belongs_to' => trim(($asset->customer?->full_name ?? '').' · '.$ownerRoleFor($asset), ' ·'),
-                                ])"
+                                :selected="$card"
                                 :type-icons="$typeIcons"
+                                :source-label="$sourceLabel"
                             >
-                                <p class="mt-1 text-[11px] font-bold {{ str_contains($pledgeBadge[1], 'emerald') ? 'text-emerald-800' : (str_contains($pledgeBadge[1], 'rose') ? 'text-rose-700' : 'text-brand') }}">{{ $pledgeBadge[0] }}</p>
                                 <button type="button" @click="openAsset = {{ $asset->id }}"
                                         class="mt-3 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                                     {{ __('site.partner_portal.view') }}
@@ -414,7 +428,88 @@
             </div>
         @endif
 
-        @if ($showValuerCta)
+        @if ($showValuationResult)
+            @php
+                $resultReport = $valuationReport ?? [];
+                $resultValuer = $resultReport['valuer_name']
+                    ?? $completedValuation?->vendor?->name
+                    ?? 'Valuer';
+            @endphp
+            <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 space-y-3">
+                <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-widest text-sky-900">Valuation</p>
+                    <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Forced sale value on file</h3>
+                    <p class="text-xs text-gray-600 mt-1">
+                        {{ $resultValuer }} completed the inspection. Match photos on the checklist — this card is the number, not a request.
+                    </p>
+                </div>
+                <div class="rounded-xl bg-white ring-1 ring-sky-100 px-4 py-3 text-sm space-y-2">
+                    <p class="font-semibold text-sky-950">{{ $resultValuer }}</p>
+                    <dl class="grid sm:grid-cols-2 gap-2 text-xs">
+                        <div><dt class="text-sky-800">Forced sale value</dt><dd class="font-semibold">{{ format_money($resultReport['forced_sale_value'] ?? $completedValuation?->forced_sale_value ?? 0) }}</dd></div>
+                        <div><dt class="text-sky-800">This asset can cover (FSV × LTV {{ (int) ($coverage['ltv_percent'] ?? $resultReport['ltv_percent'] ?? 0) }}%)</dt><dd class="font-semibold">{{ format_money($coverage['max_loan_amount'] ?? $resultReport['max_loan_amount'] ?? 0) }}</dd></div>
+                        <div><dt class="text-sky-800">Requested</dt><dd class="font-semibold">{{ format_money($coverage['requested_amount'] ?? $record->requested_amount) }}</dd></div>
+                    </dl>
+                    @if (! empty($coverage['sufficient']))
+                        @if (($coverage['next'] ?? '') === 'insurance_update')
+                            <p class="text-amber-900 text-xs">LTV covers the requested amount. Insurance on the pledged asset is not sufficient — the asset owner must update cover.</p>
+                        @else
+                            <p class="text-emerald-800 text-xs">LTV covers the requested amount and insurance is in order.</p>
+                        @endif
+                    @elseif ($coverage)
+                        <p class="text-rose-800 text-xs font-semibold">Collateral is not sufficient (shortfall {{ format_money($coverage['shortfall'] ?? 0) }}). Combined FSV × LTV across pledged assets must cover the requested amount.</p>
+                        <ul class="text-xs text-gray-700 list-disc pl-4 space-y-1">
+                            @foreach ($coverage['scenarios'] ?? [] as $scenario)
+                                <li>{{ $scenario['label'] }}</li>
+                            @endforeach
+                        </ul>
+                        @if ($canRequestDocs)
+                            <form method="POST" action="{{ route('admin.loan-applications.collateral.request-additional', $record) }}" class="pt-1">
+                                @csrf
+                                <input type="hidden" name="review_person" value="borrower">
+                                <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
+                                    Request another asset from {{ $who }}
+                                </button>
+                            </form>
+                        @endif
+                    @endif
+                    @if ($csStatus === \App\Services\CollateralSecureService::STATUS_SECURED)
+                        <p class="text-xs text-emerald-800 font-semibold">Collateral secure status: secured</p>
+                    @endif
+                </div>
+            </div>
+        @elseif ($showValuationProgress)
+            @php
+                $valuerAuto = str_contains(strtolower((string) ($openValuation->notes ?? '')), 'auto-assigned');
+            @endphp
+            <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 space-y-3">
+                <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-widest text-sky-900">Valuation</p>
+                    <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Inspection in progress</h3>
+                    <p class="text-xs text-gray-600 mt-1">
+                        The valuer already has this job. Screening does not request valuation again.
+                    </p>
+                </div>
+                <div class="rounded-xl bg-white ring-1 ring-sky-100 px-4 py-3 text-sm space-y-1.5">
+                    <p class="text-sky-950 font-semibold">
+                        Valuation {{ str_replace('_', ' ', $openValuation->status) }}
+                        with {{ $openValuation->vendor?->name ?? 'assigned valuer' }}
+                        @if ($valuerAuto)
+                            <span class="text-[11px] font-semibold text-sky-800">· Auto-assigned</span>
+                        @endif
+                    </p>
+                    <p class="text-xs text-gray-600">
+                        Phone {{ $openValuation->vendor?->phone ?: '—' }}
+                        · Email {{ $openValuation->vendor?->email ?: '—' }}
+                    </p>
+                    @if ($valuerAuto)
+                        <p class="text-xs text-sky-900">
+                            Screening uses these details for communication only. The valuer already has the task (matched on customer region, then least open jobs unless settings change that).
+                        </p>
+                    @endif
+                </div>
+            </div>
+        @elseif ($showRequestValuation)
             <div class="rounded-xl bg-amber-50/80 ring-1 ring-amber-200 px-4 py-4 space-y-3">
                 <div>
                     <p class="text-[10px] font-semibold uppercase tracking-widest text-amber-900">Next step for screening</p>
@@ -423,61 +518,7 @@
                         This is not the AB product. Clicking below asks the group leader (or individual borrower) to pay the valuation fee on their loan profile — same payment card as membership / group application fee. A valuer is auto-assigned by region only after that payment clears. Do not expect a valuer to appear the moment you click.
                     </p>
                 </div>
-                @if (data_get($valuationReport ?? null, 'status') === 'completed')
-                    <div class="rounded-xl bg-white ring-1 ring-sky-100 px-4 py-3 text-sm space-y-2">
-                        <p class="font-semibold text-sky-950">{{ $valuationReport['valuer_name'] ?? 'Valuer' }} · Forced sale value in</p>
-                        <dl class="grid sm:grid-cols-2 gap-2 text-xs">
-                            <div><dt class="text-sky-800">Forced sale value</dt><dd class="font-semibold">{{ format_money($valuationReport['forced_sale_value'] ?? 0) }}</dd></div>
-                            <div><dt class="text-sky-800">This asset can cover (FSV × LTV {{ (int) ($coverage['ltv_percent'] ?? $valuationReport['ltv_percent'] ?? 0) }}%)</dt><dd class="font-semibold">{{ format_money($coverage['max_loan_amount'] ?? $valuationReport['max_loan_amount'] ?? 0) }}</dd></div>
-                            <div><dt class="text-sky-800">Requested</dt><dd class="font-semibold">{{ format_money($coverage['requested_amount'] ?? $record->requested_amount) }}</dd></div>
-                        </dl>
-                        @if (! empty($coverage['sufficient']))
-                            @if (($coverage['next'] ?? '') === 'insurance_update')
-                                <p class="text-amber-900 text-xs">LTV covers the requested amount. Insurance on the pledged asset is not sufficient — the asset owner must update cover.</p>
-                            @else
-                                <p class="text-emerald-800 text-xs">LTV covers the requested amount and insurance is in order.</p>
-                            @endif
-                        @elseif ($coverage)
-                            <p class="text-rose-800 text-xs font-semibold">Collateral is not sufficient (shortfall {{ format_money($coverage['shortfall'] ?? 0) }}). Combined FSV × LTV across pledged assets must cover the requested amount.</p>
-                            <ul class="text-xs text-gray-700 list-disc pl-4 space-y-1">
-                                @foreach ($coverage['scenarios'] ?? [] as $scenario)
-                                    <li>{{ $scenario['label'] }}</li>
-                                @endforeach
-                            </ul>
-                            @if ($canRequestDocs)
-                                <form method="POST" action="{{ route('admin.loan-applications.collateral.request-additional', $record) }}" class="pt-1">
-                                    @csrf
-                                    <input type="hidden" name="review_person" value="borrower">
-                                    <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
-                                        Request another asset from {{ $who }}
-                                    </button>
-                                </form>
-                            @endif
-                        @endif
-                    </div>
-                @elseif ($openValuation)
-                    @php
-                        $valuerAuto = str_contains(strtolower((string) ($openValuation->notes ?? '')), 'auto-assigned');
-                    @endphp
-                    <div class="rounded-xl bg-white ring-1 ring-amber-100 px-4 py-3 text-sm space-y-1.5">
-                        <p class="text-amber-950 font-semibold">
-                            Valuation {{ str_replace('_', ' ', $openValuation->status) }}
-                            with {{ $openValuation->vendor?->name ?? 'assigned valuer' }}
-                            @if ($valuerAuto)
-                                <span class="text-[11px] font-semibold text-amber-800">· Auto-assigned</span>
-                            @endif
-                        </p>
-                        <p class="text-xs text-gray-600">
-                            Phone {{ $openValuation->vendor?->phone ?: '—' }}
-                            · Email {{ $openValuation->vendor?->email ?: '—' }}
-                        </p>
-                        @if ($valuerAuto)
-                            <p class="text-xs text-amber-900">
-                                Screening uses these details for communication only. The valuer already has the task (matched on customer region, then least open jobs unless settings change that).
-                            </p>
-                        @endif
-                    </div>
-                @elseif ($valuationFeeDue)
+                @if ($valuationFeeDue)
                     <p class="text-sm text-amber-900">
                         Waiting for the borrower{{ is_group_loan_product($record->product ?? null) ? ' (group leader)' : '' }} to pay the valuation fee on their loan profile. Do not press Request valuation again — that already happened (or opened automatically when the asset was pledged).
                     </p>

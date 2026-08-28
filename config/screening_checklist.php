@@ -308,7 +308,7 @@ return [
                 ],
             ],
             'valuation_or_photos' => [
-                'label' => 'Match valuer photos to the pledged asset (front, back, left, right, owner with asset)',
+                'label' => 'Match valuer photos to the pledged asset (same angles, plus extra valuer shots)',
                 'evidence' => 'collateral_assets',
                 'fail_reasons' => [
                     'photos_poor' => 'Valuer photos do not cover the same angles as the asset profile',

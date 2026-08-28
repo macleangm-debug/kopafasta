@@ -479,7 +479,10 @@ class ScreeningChecklistAutoVerdictService
         if ($pairs === []) {
             $pairs = $this->photoPairsFromContext($ctx);
         }
-        if ($pairs === []) {
+        $hasSomethingToLookAt = collect($pairs)->contains(
+            fn ($row) => filled(data_get($row, 'borrower.url')) || filled(data_get($row, 'valuer.url'))
+        );
+        if (! $hasSomethingToLookAt) {
             return $this->awaitingData(
                 $application,
                 'There is no data for this checklist',
@@ -487,25 +490,7 @@ class ScreeningChecklistAutoVerdictService
             );
         }
 
-        $borrowerAngles = collect($pairs)->filter(fn ($row) => filled(data_get($row, 'borrower.url')));
-        $matched = $borrowerAngles->filter(fn ($row) => filled(data_get($row, 'valuer.url')));
-
-        if ($borrowerAngles->isEmpty()) {
-            return $this->awaitingData(
-                $application,
-                'There is no data for this checklist',
-                'Open collateral',
-            );
-        }
-        if ($matched->isEmpty()) {
-            return $this->awaitingData(
-                $application,
-                'Valuer photos are not on file yet — wait for the inspection, then compare the pairs yourself.',
-                'Open collateral',
-            );
-        }
-
-        // Files existing is not a match. Screening looks at the pairs and Pass / Fail.
+        // Files existing is not a match. Screening looks at the pairs (and extra valuer shots) and Pass / Fail.
         return ['verdict' => '', 'source' => 'system_skip'];
     }
 
