@@ -478,6 +478,7 @@
                         this.notice = null;
 
                         try {
+                            await this.flushLocalUploads();
                             const res = await fetch(this.submitUrl, {
                                 method: 'POST',
                                 headers: {
@@ -498,12 +499,36 @@
                         } catch (e) {
                             this.notice = e.message || 'Could not submit verification. Please try again.';
                             this.isSubmitting = false;
+                            if (typeof window.kfHideSaving === 'function') {
+                                window.kfHideSaving();
+                            }
+                        }
+                    },
+
+                    async flushLocalUploads() {
+                        const pending = this.steps.filter((s) => s.localBlob);
+                        if (! pending.length) {
+                            return;
+                        }
+                        const total = pending.length;
+                        if (typeof window.kfShowSaving === 'function') {
+                            window.kfShowSaving(@js(__('borrower.profile.uploading_documents')), { current: 0, total });
+                        }
+                        for (let i = 0; i < pending.length; i++) {
+                            await this.uploadBlob(pending[i].localBlob, pending[i], true);
+                            if (typeof window.kfUpdateSaving === 'function') {
+                                window.kfUpdateSaving({ current: i + 1, total });
+                            }
                         }
                     },
 
                     async retakeStep(index) {
                         if (this.isRemoving || this.isUploading || this.isSubmitting) return;
                         this.closePreview();
+                        const step = this.steps[index];
+                        if (step) {
+                            step.localBlob = null;
+                        }
                         this.stepIndex = index;
                         this.holdProgress = 0;
                         this.notice = null;
@@ -534,6 +559,20 @@
 
                     async removePhoto(angle) {
                         if (this.isRemoving || this.isUploading || this.isSubmitting) return;
+                        const step = this.steps.find(s => s.key === angle);
+                        if (step?.localBlob) {
+                            if (step.previewUrl && String(step.previewUrl).startsWith('blob:')) {
+                                URL.revokeObjectURL(step.previewUrl);
+                            }
+                            step.localBlob = null;
+                            step.done = false;
+                            step.previewUrl = null;
+                            this.steps = this.steps.map((s) => ({ ...s }));
+                            if (!this.steps.every(s => s.done)) {
+                                this.phase = 'intro';
+                            }
+                            return;
+                        }
                         const url = this.deleteUrls[angle];
                         if (!url) return;
 
@@ -901,18 +940,44 @@
 
                     async captureForPreview() {
                         if (this.isUploading || this.phase !== 'scanning') return;
-                        this.phase = 'preview';
                         const blob = await this.captureBlob();
                         if (!blob) {
-                            this.phase = 'scanning';
                             this.holdProgress = 0;
                             this.startLoop();
                             return;
                         }
-                        if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
-                        this.previewBlob = blob;
-                        this.previewUrl = URL.createObjectURL(blob);
+                        const step = this.currentStep;
+                        if (!step) {
+                            return;
+                        }
+                        if (step.previewUrl && String(step.previewUrl).startsWith('blob:')) {
+                            URL.revokeObjectURL(step.previewUrl);
+                        }
+                        step.done = true;
+                        step.localBlob = blob;
+                        step.previewUrl = URL.createObjectURL(blob);
+                        this.steps = this.steps.map((s) => ({ ...s }));
+                        this.holdProgress = 0;
+                        this.poseOk = false;
+                        this.previewBlob = null;
+                        this.previewUrl = null;
                         this.stopLoop();
+                        this.phase = 'saving';
+                        await new Promise((r) => setTimeout(r, 700));
+
+                        this.stepIndex++;
+                        while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
+                            this.stepIndex++;
+                        }
+                        if (this.stepIndex >= this.steps.length) {
+                            this.stopCamera();
+                            this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
+                            return;
+                        }
+                        this.phase = 'scanning';
+                        this.stepStartedAt = performance.now();
+                        await this.$nextTick();
+                        this.startLoop();
                     },
 
                     async retakePreview() {
@@ -945,7 +1010,30 @@
 
                     async confirmPreview() {
                         if (!this.previewBlob || this.isUploading) return;
-                        await this.uploadBlob(this.previewBlob);
+                        const step = this.currentStep;
+                        if (!step) return;
+                        step.done = true;
+                        step.localBlob = this.previewBlob;
+                        step.previewUrl = this.previewUrl;
+                        this.steps = this.steps.map((s) => ({ ...s }));
+                        this.holdProgress = 0;
+                        this.poseOk = false;
+                        this.previewBlob = null;
+                        this.previewUrl = null;
+
+                        this.stepIndex++;
+                        while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
+                            this.stepIndex++;
+                        }
+                        if (this.stepIndex >= this.steps.length) {
+                            this.stopCamera();
+                            this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
+                            return;
+                        }
+                        this.phase = 'scanning';
+                        this.stepStartedAt = performance.now();
+                        await this.$nextTick();
+                        this.startLoop();
                     },
 
                     captureBlob() {
@@ -970,15 +1058,19 @@
                         await this.captureForPreview();
                     },
 
-                    async uploadBlob(blob) {
-                        if (this.isUploading) return;
+                    async uploadBlob(blob, stepOverride = null, silent = false) {
+                        if (this.isUploading && ! silent) return;
                         this.isUploading = true;
-                        this.phase = 'saving';
+                        if (! silent) {
+                            this.phase = 'saving';
+                        }
 
-                        const step = this.currentStep;
+                        const step = stepOverride || this.currentStep;
                         if (!blob || !step) {
                             this.isUploading = false;
-                            this.phase = 'scanning';
+                            if (! silent) {
+                                this.phase = 'scanning';
+                            }
                             this.holdProgress = 0;
                             return;
                         }
@@ -1003,13 +1095,7 @@
                             }
 
                             step.done = true;
-                            // Keep the blob preview until the server URL paints, then swap.
-                            // Revoking the blob too early blanks images in Chrome.
-                            const blobPreview = this.previewUrl;
-                            if (blobPreview) {
-                                step.previewUrl = blobPreview;
-                            }
-
+                            step.localBlob = null;
                             if (data.previewUrl) {
                                 const serverReady = await this.waitForImage(data.previewUrl);
                                 if (serverReady) {
@@ -1017,23 +1103,21 @@
                                 } else if (! step.previewUrl) {
                                     step.previewUrl = data.previewUrl;
                                 }
-                            } else if (this.previewUrl && ! String(this.previewUrl).startsWith('blob:')) {
-                                step.previewUrl = this.previewUrl;
+                            }
+                            this.steps = this.steps.map((s) => ({ ...s }));
+                            this.holdProgress = 0;
+
+                            if (silent) {
+                                return;
                             }
 
-                            // Force Alpine to re-render the step grid with the final URL.
-                            this.steps = this.steps.map((s) => ({ ...s }));
-
-                            this.holdProgress = 0;
+                            const blobPreview = this.previewUrl;
                             this.poseOk = false;
                             this.stepStartedAt = performance.now();
-
                             await new Promise(r => setTimeout(r, 700));
-
-                            const finalPreview = this.steps.find(s => s.key === step.key)?.previewUrl;
                             this.previewUrl = null;
                             this.previewBlob = null;
-                            if (blobPreview && String(blobPreview).startsWith('blob:') && finalPreview !== blobPreview) {
+                            if (blobPreview && String(blobPreview).startsWith('blob:') && step.previewUrl !== blobPreview) {
                                 URL.revokeObjectURL(blobPreview);
                             }
 
@@ -1056,6 +1140,9 @@
                                 this.startLoop();
                             }
                         } catch (e) {
+                            if (silent) {
+                                throw e;
+                            }
                             this.notice = e.message || 'Upload failed. Please try again.';
                             this.phase = 'scanning';
                             this.holdProgress = 0;

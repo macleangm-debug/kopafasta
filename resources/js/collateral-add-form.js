@@ -31,19 +31,8 @@ export function registerCollateralAddForm(Alpine) {
             }
         },
         prev() {
-            if (this.step === this.photoStep && this.photoIndex > 0) {
-                this.photoIndex--;
-                return;
-            }
             if (this.step > 1) {
                 this.step--;
-            }
-        },
-        nextPhoto() {
-            if (this.photoIndex < this.photoCount - 1) {
-                this.photoIndex++;
-            } else {
-                this.next();
             }
         },
         formatThousands(el) {
@@ -57,15 +46,10 @@ export function registerCollateralAddForm(Alpine) {
             this.step2Ready = ! this.isVehicle || complete(form.querySelector('[data-collateral-step="insurance"]'));
             this.step3Ready = complete(form.querySelector('[data-collateral-step="proof"]'));
             this.step4Ready = ! this.isVehicle || complete(form.querySelector('[data-collateral-step="cert"]'));
-            this.currentPhotoReady = complete(form.querySelector('[data-photo-slot="'+this.photoIndex+'"]'));
-            let all = true;
-            for (let i = 0; i < this.photoCount; i++) {
-                if (! complete(form.querySelector('[data-photo-slot="'+i+'"]'))) {
-                    all = false;
-                    break;
-                }
-            }
-            this.allPhotosReady = all;
+            const photoRoot = form.querySelector('[data-collateral-step="photos"]');
+            const photoInputs = photoRoot ? [...photoRoot.querySelectorAll('input[type="file"][name^="photos"]')] : [];
+            this.allPhotosReady = photoInputs.length > 0 && photoInputs.every((input) => input.files && input.files.length > 0);
+            this.currentPhotoReady = this.allPhotosReady;
         },
         init() {
             this.refreshGates();

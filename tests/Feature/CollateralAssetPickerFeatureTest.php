@@ -434,6 +434,20 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertSee(__('borrower.profile.choose_asset_type'), false)
             ->assertSee(__('borrower.profile.asset_types.vehicle'), false)
             ->assertDontSee('name="label"', false);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', [
+                'section' => 'assets',
+                'add' => 1,
+                'type' => 'vehicle',
+            ]))
+            ->assertOk()
+            ->assertSee('valuationCamera', false)
+            ->assertSee('formMode', false)
+            ->assertSee('guided-photos-ready', false)
+            ->assertSee(__('site.partner_portal.valuation_start_photos'), false)
+            ->assertSee('photos[front]', false)
+            ->assertSee('photos[left]', false);
     }
 
     public function test_account_shells_opt_into_view_transitions(): void

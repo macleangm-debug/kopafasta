@@ -154,6 +154,9 @@ class FaceVerificationRemoveTest extends TestCase
             ->assertSee('removePhoto', false)
             ->assertSee('retakeStep', false)
             ->assertSee('submitVerification', false)
+            ->assertSee('flushLocalUploads', false)
+            ->assertSee('localBlob', false)
+            ->assertSee(__('borrower.profile.uploading_documents'), false)
             ->assertSee('from-brand', false)
             ->assertSee('faceVerificationWizard', false);
     }

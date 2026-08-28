@@ -105,7 +105,11 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertDontSee('assets/owner.jpg', false)
             ->assertDontSee(__('site.partner_portal.valuation_owner_reference'), false)
             ->assertDontSee(__('site.partner_portal.valuation_no_owner_photo'), false)
-            ->assertSee(__('site.partner_portal.valuation_camera_retry'), false);
+            ->assertSee(__('site.partner_portal.valuation_camera_retry'), false)
+            ->assertSee('T123ABC', false)
+            ->assertSee(__('site.partner_portal.valuation_belongs_to'), false)
+            ->assertSee(__('borrower.profile.uploading_documents'), false)
+            ->assertSee('isDeterminate', false);
     }
 
     private function makeVehicleAsset(Customer $customer): CustomerAsset
@@ -382,6 +386,15 @@ class ValuationInspectionFlowTest extends TestCase
         $this->assertSame('completed', $assignment->fresh()->status);
         $this->assertEquals(5_000_000.0, (float) $assignment->fresh()->market_value);
         $this->assertEquals(4_250_000.0, (float) $assignment->fresh()->forced_sale_value);
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.task', $task))
+            ->assertOk()
+            ->assertSee('Toyota Rav4', false)
+            ->assertSee('T123ABC', false)
+            ->assertSee(__('site.partner_portal.valuation_belongs_to'), false)
+            ->assertSee(__('borrower.profile.uploading_documents'), false);
     }
 
     public function test_borrower_cannot_save_asset_without_every_required_photo(): void

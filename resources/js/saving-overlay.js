@@ -5,15 +5,36 @@ export function registerSavingOverlay(Alpine) {
     Alpine.store('kfSaving', {
         uploading: false,
         message: '',
+        current: null,
+        total: null,
     });
 
-    window.kfShowSaving = function (message) {
+    window.kfShowSaving = function (message, progress) {
         Alpine.store('kfSaving').uploading = true;
         Alpine.store('kfSaving').message = message || '';
+        Alpine.store('kfSaving').current = progress?.current ?? null;
+        Alpine.store('kfSaving').total = progress?.total ?? null;
+    };
+
+    window.kfUpdateSaving = function (progress) {
+        if (! progress) {
+            return;
+        }
+        if (progress.message != null) {
+            Alpine.store('kfSaving').message = progress.message;
+        }
+        if (progress.current != null) {
+            Alpine.store('kfSaving').current = progress.current;
+        }
+        if (progress.total != null) {
+            Alpine.store('kfSaving').total = progress.total;
+        }
     };
 
     window.kfHideSaving = function () {
         Alpine.store('kfSaving').uploading = false;
+        Alpine.store('kfSaving').current = null;
+        Alpine.store('kfSaving').total = null;
     };
 
     window.kfFormNeedsSaving = function (form) {

@@ -103,6 +103,7 @@
         ])->values()->all(),
         'cameraInsecure' => __('borrower.profile.camera_insecure'),
         'cameraDenied' => __('borrower.profile.camera_denied'),
+        'savingMessage' => __('borrower.profile.uploading_documents'),
     ];
 @endphp
 
@@ -126,8 +127,12 @@
         <h1 class="text-lg font-extrabold text-gray-900 tracking-tight mt-1 leading-tight">{{ $title }}</h1>
         <ol class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
             @foreach ($workflow as $i => $row)
-                <li class="{{ $row['done'] ? 'text-emerald-700 font-semibold' : ($i + 1 === $currentWorkflow ? 'text-brand font-extrabold' : 'text-gray-400') }}">
-                    {{ $row['done'] ? '✓' : ($i + 1 === $currentWorkflow ? '●' : '○') }} {{ $row['label'] }}
+                <li>
+                    <button type="button"
+                            @click="go(@js($row['key']))"
+                            class="{{ $row['done'] ? 'text-emerald-700 font-semibold' : ($i + 1 === $currentWorkflow ? 'text-brand font-extrabold' : 'text-gray-400') }}">
+                        {{ $row['done'] ? '✓' : ($i + 1 === $currentWorkflow ? '●' : '○') }} {{ $row['label'] }}
+                    </button>
                 </li>
             @endforeach
         </ol>
@@ -154,22 +159,26 @@
         </div>
     @endif
 
-    <div x-show="step === 'asset'" class="space-y-4">
+    <div class="space-y-4">
         <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.tab_asset') }}</p>
         @forelse ($assets as $asset)
             @php
                 $assetOwner = $asset->customer?->full_name ?: $task->customer_name;
             @endphp
-            <x-site.collateral-card :selected="$asset->toCollateralCard(['belongs_to' => $assetOwner, 'status_label' => $open && $started ? __('site.partner_portal.valuation_inspect_asset') : null])">
-                <button type="button" @click="details = !details" class="mt-2 text-sm font-bold text-brand">
-                    <span x-show="!details">{{ __('site.partner_portal.valuation_view_details') }}</span>
-                    <span x-show="details" x-cloak>{{ __('site.partner_portal.valuation_hide_details') }}</span>
-                </button>
+            <x-site.collateral-card :selected="$asset->toCollateralCard(['belongs_to' => $assetOwner, 'status_label' => $open && $started && ! $completed ? __('site.partner_portal.valuation_inspect_asset') : null])">
+                @if ($open && ! $completed)
+                    <button type="button" @click="details = !details" class="mt-2 text-sm font-bold text-brand">
+                        <span x-show="!details">{{ __('site.partner_portal.valuation_view_details') }}</span>
+                        <span x-show="details" x-cloak>{{ __('site.partner_portal.valuation_hide_details') }}</span>
+                    </button>
+                @endif
             </x-site.collateral-card>
         @empty
             <div class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/25 p-5 text-sm font-semibold text-gray-700">{{ $task->vehicle_details ?: '—' }}</div>
         @endforelse
+    </div>
 
+    <div x-show="step === 'asset'" class="space-y-4">
         <div x-show="details" x-cloak class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 grid grid-cols-2 gap-3 text-sm">
             <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.customer') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->customer_name ?: '—' }}</dd></div>
             <div><dt class="text-gray-500 text-xs font-semibold">{{ __('site.partner_portal.phone') }}</dt><dd class="font-extrabold text-gray-900 mt-0.5">{{ $task->customer_phone ?: '—' }}</dd></div>
@@ -272,18 +281,6 @@
                 <button type="button" @click="start(requiredDone() >= requiredTotal())" class="w-full text-sm font-bold text-brand py-2">{{ __('site.partner_portal.valuation_retake') }}</button>
             @endif
         </div>
-
-        <template x-teleport="body">
-            <div x-show="uploading" x-cloak class="fixed inset-0 z-[96] bg-black/70 flex items-center justify-center p-6">
-                <div class="w-full max-w-sm rounded-2xl bg-white p-5 text-center space-y-3">
-                    <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.valuation_uploading_evidence') }}</p>
-                    <p class="text-2xl font-extrabold text-brand"><span x-text="uploadedCount"></span> of <span x-text="requiredTotal()"></span></p>
-                    <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
-                        <div class="h-full bg-brand transition-all" :style="'width:' + (requiredTotal() ? Math.round(100 * uploadedCount / requiredTotal()) : 0) + '%'"></div>
-                    </div>
-                </div>
-            </div>
-        </template>
 
         <template x-teleport="body">
             <div x-show="open" x-cloak class="fixed inset-0 z-[95] bg-black flex flex-col">

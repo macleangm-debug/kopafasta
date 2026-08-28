@@ -100,6 +100,7 @@
                       x-data="collateralAddForm({ isVehicle: @js($isVehicle), photoCount: {{ count($photoSlots) }} })"
                       x-on:input="refreshGates()"
                       x-on:change="refreshGates()"
+                      x-on:guided-photos-ready="refreshGates(); next()"
                       x-on:submit="saving = true; uploading = true">
                     @csrf
                     <input type="hidden" name="asset_type" value="{{ $selectedType }}">
@@ -237,24 +238,96 @@
                         </div>
                     @endif
 
-                    {{-- Guided photos one-by-one --}}
-                    <div x-show="step === photoStep" x-cloak class="space-y-4">
+                    {{-- One camera session for every required asset angle --}}
+                    @php
+                        $angleKeys = \App\Models\CustomerAsset::bodyPhotoAngleKeys($selectedType);
+                        $borrowerPhotoSteps = collect($photoSlots)->map(function ($slot) use ($angleKeys) {
+                            $angle = $angleKeys[$slot['key']] ?? (string) $slot['key'];
+
+                            return [
+                                'asset_id' => 0,
+                                'asset_label' => '',
+                                'angle' => $angle,
+                                'label' => $slot['label'],
+                                'path' => null,
+                                'path_url' => null,
+                                'guidance' => $slot['hint'],
+                                'required' => true,
+                                'inputName' => 'photos['.$angle.']',
+                            ];
+                        })->values()->all();
+                    @endphp
+                    <div x-show="step === photoStep" x-cloak class="space-y-4" data-collateral-step="photos">
+                        <div x-data="valuationCamera(@js([
+                            'formMode' => true,
+                            'dbName' => 'kf-collateral-add',
+                            'facingMode' => 'environment',
+                            'cameraInsecure' => __('borrower.profile.camera_insecure'),
+                            'cameraDenied' => __('borrower.profile.camera_denied'),
+                            'steps' => $borrowerPhotoSteps,
+                         ]))" class="space-y-4">
                         <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_photos') }}</p>
                         <p class="text-xs text-gray-500">{{ __('borrower.profile.collateral_step_photos_hint') }}</p>
-                        @foreach ($photoSlots as $slot)
-                            <div x-show="photoIndex === {{ $slot['key'] }}" x-cloak
-                                 data-photo-slot="{{ $slot['key'] }}"
-                                 class="rounded-2xl ring-1 ring-brand/15 bg-white p-5 space-y-3 ring-amber-200">
-                                <div>
-                                    <p class="text-base font-bold text-gray-900">
-                                        {{ $slot['label'] }} <span class="text-red-500">*</span>
-                                    </p>
-                                    <p class="text-sm text-gray-600 mt-1">{{ $slot['hint'] }}</p>
-                                    <p class="text-xs text-gray-400 mt-1">{{ __('borrower.profile.collateral_photo_progress', ['current' => $slot['key'] + 1, 'total' => count($photoSlots)]) }}</p>
-                                </div>
-                                <x-site.single-image-document-upload :name="'photos['.$slot['key'].']'" :required="true" facing="environment" />
-                            </div>
+                        @foreach ($borrowerPhotoSteps as $photoStep)
+                            <input type="file" name="{{ $photoStep['inputName'] }}" accept="image/jpeg,image/png,image/webp,image/jpg"
+                                   class="sr-only" data-guided-input="{{ $photoStep['inputName'] }}" data-photo-slot="{{ $loop->index }}">
                         @endforeach
+                        <div class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 sm:p-5 space-y-3">
+                            <p class="text-lg font-extrabold text-gray-900"
+                               x-text="@js(__('site.partner_portal.valuation_photos_done', ['done' => '__D__', 'total' => '__T__'])).replace('__D__', String(requiredDone())).replace('__T__', String(requiredTotal()))">
+                                {{ __('site.partner_portal.valuation_photos_done', ['done' => 0, 'total' => count($borrowerPhotoSteps)]) }}
+                            </p>
+                            <button type="button" x-show="pendingRequired().length" @click="start()"
+                                    class="w-full rounded-xl bg-brand text-white text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_start_photos') }}</button>
+                        </div>
+                        <div x-show="review || requiredDone() >= requiredTotal()" x-cloak class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 space-y-4">
+                            <div class="grid grid-cols-2 gap-2">
+                                <template x-for="s in requiredSteps()" :key="key(s)">
+                                    <button type="button" @click="preview = thumbFor(s); $nextTick(() => { if (! thumbFor(s)) retake(s) })"
+                                            class="rounded-xl ring-1 ring-gray-200 p-2 text-left">
+                                        <div class="aspect-square rounded-lg overflow-hidden bg-gray-50 mb-1.5">
+                                            <img x-show="thumbFor(s)" :src="thumbFor(s)" alt="" class="h-full w-full object-cover">
+                                            <div x-show="!thumbFor(s)" class="h-full grid place-items-center text-xs text-gray-400">○</div>
+                                        </div>
+                                        <p class="text-xs font-bold truncate" x-text="(thumbFor(s) ? '✓ ' : '') + s.label"></p>
+                                    </button>
+                                </template>
+                            </div>
+                            <button type="button" x-show="pendingRequired().length === 0 && Object.keys(captures).length"
+                                    @click="uploadAll()"
+                                    class="w-full rounded-xl bg-brand text-white text-sm font-extrabold py-3">
+                                {{ __('borrower.profile.continue') }}
+                            </button>
+                            <button type="button" @click="start()" class="w-full text-sm font-bold text-brand py-2">{{ __('site.partner_portal.valuation_retake') }}</button>
+                        </div>
+                        <template x-teleport="body">
+                            <div x-show="open" x-cloak class="fixed inset-0 z-[95] bg-black flex flex-col">
+                                <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted class="absolute inset-0 z-[1] w-full h-full object-cover bg-gray-900"></video>
+                                <div class="relative z-[4] pt-[max(1rem,env(safe-area-inset-top))] px-4 flex items-start justify-between gap-3 bg-gradient-to-b from-black/80 to-transparent pb-8">
+                                    <div class="min-w-0 max-w-md rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
+                                        <p class="text-[11px] uppercase tracking-widest text-brand-gold" x-text="current() && current().required ? (captureOrdinal() + ' of ' + requiredTotal() + ' — ' + current().label) : (current() ? current().label : '')"></p>
+                                        <p class="text-sm font-semibold mt-1" x-text="current()?.guidance || ''"></p>
+                                    </div>
+                                    <button type="button" @click="closeCamera()" class="shrink-0 text-xs font-semibold text-white/90 bg-white/15 ring-1 ring-white/25 px-3 py-2 rounded-full">{{ __('site.partner_portal.valuation_camera_close') }}</button>
+                                </div>
+                                <div x-show="flash" x-cloak class="relative z-[5] mt-auto mb-auto px-6 text-center text-white">
+                                    <p class="text-xl font-extrabold" x-text="flash ? ('✓ ' + flash.label) : ''"></p>
+                                    <p class="text-sm font-semibold mt-1" x-show="flash?.next" x-text="flash ? @js(__('site.partner_portal.valuation_next_is', ['label' => '__L__'])).replace('__L__', flash.next) : ''"></p>
+                                </div>
+                                <p x-show="cameraNotice" x-cloak class="relative z-[4] mx-4 rounded-xl bg-amber-50 text-amber-950 text-sm font-semibold p-3" x-text="cameraNotice"></p>
+                                <button type="button" x-show="cameraNotice" x-cloak @click="openCam()" class="relative z-[4] mx-4 mt-3 w-[calc(100%-2rem)] rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_camera_retry') }}</button>
+                                <div class="relative z-[4] mt-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                                    <button type="button" @click="capture()" class="mx-auto block size-16 rounded-full bg-brand-gold text-brand font-extrabold shadow-lg grid place-items-center">●</button>
+                                    <p class="text-center text-white text-sm font-bold mt-3">{{ __('site.partner_portal.valuation_camera_capture') }}</p>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-teleport="body">
+                            <div x-show="preview" x-cloak class="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4" @click="preview = null">
+                                <img :src="preview" alt="" class="max-h-[80vh] max-w-full rounded-xl object-contain">
+                            </div>
+                        </template>
+                    </div>
                     </div>
 
                     {{-- Person + ownership --}}
@@ -295,18 +368,12 @@
                            class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
                             {{ __('borrower.profile.back') }}
                         </a>
-                        <button type="button" x-show="step > 1 || photoIndex > 0" x-cloak @click="prev()"
+                        <button type="button" x-show="step > 1" x-cloak @click="prev()"
                                 class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
                             {{ __('borrower.profile.back') }}
                         </button>
                         <button type="button"
-                                x-show="step === photoStep && photoIndex < photoCount - 1 && currentPhotoReady" x-cloak
-                                @click="nextPhoto()"
-                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                            {{ __('borrower.profile.collateral_next_photo') }}
-                        </button>
-                        <button type="button"
-                                x-show="step === photoStep && photoIndex >= photoCount - 1 && allPhotosReady" x-cloak
+                                x-show="step === photoStep && allPhotosReady" x-cloak
                                 @click="next()"
                                 class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                             {{ __('borrower.profile.continue') }}

@@ -14,6 +14,9 @@ export function registerValuationCamera(Alpine) {
         afterPhotosUrl: cfg.afterPhotosUrl || '',
         assets: cfg.assets || [],
         valueLines: [],
+        formMode: !!cfg.formMode,
+        savingMessage: cfg.savingMessage || '',
+        facingMode: cfg.facingMode || 'environment',
         open: false,
         review: false,
         uploading: false,
@@ -24,7 +27,6 @@ export function registerValuationCamera(Alpine) {
         captures: {},
         cameraNotice: null,
         stream: null,
-        facingMode: 'environment',
         flash: null,
 
         key(step) {
@@ -229,13 +231,25 @@ export function registerValuationCamera(Alpine) {
             const pending = this.steps.filter((s) => ! s.path && this.captures[this.key(s)]);
             if (! pending.length) {
                 this.review = false;
+                this.$dispatch('guided-photos-ready');
                 this.$dispatch('valuation-photos-done');
+
+                return;
+            }
+            if (this.formMode) {
+                this.attachToForm();
+                this.review = false;
+                this.$dispatch('guided-photos-ready');
 
                 return;
             }
             this.uploading = true;
             this.uploadedCount = 0;
             this.failed = [];
+            const total = pending.length;
+            if (typeof window.kfShowSaving === 'function') {
+                window.kfShowSaving(this.savingMessage || '', { current: 0, total });
+            }
             for (const step of pending) {
                 const cap = this.captures[this.key(step)];
                 try {
@@ -259,12 +273,18 @@ export function registerValuationCamera(Alpine) {
                     step.path = 'uploaded';
                     step.path_url = cap.url;
                     this.uploadedCount++;
+                    if (typeof window.kfUpdateSaving === 'function') {
+                        window.kfUpdateSaving({ current: this.uploadedCount, total });
+                    }
                     await this.deleteDraft(this.key(step));
                 } catch (e) {
                     this.failed.push(this.key(step));
                 }
             }
             this.uploading = false;
+            if (typeof window.kfHideSaving === 'function') {
+                window.kfHideSaving();
+            }
             if (this.failed.length === 0 && this.pendingRequired().length === 0) {
                 this.review = false;
                 this.$dispatch('valuation-photos-done');
@@ -272,6 +292,32 @@ export function registerValuationCamera(Alpine) {
                     window.location = this.afterPhotosUrl;
                 }
             }
+        },
+        attachToForm() {
+            this.steps.forEach((step) => {
+                const cap = this.captures[this.key(step)];
+                if (! cap?.file || ! step.inputName) {
+                    return;
+                }
+                const root = this.$root || this.$el;
+                let input = root.querySelector(`input[data-guided-input="${step.inputName}"]`)
+                    || root.querySelector(`input[name="${step.inputName}"]`);
+                if (! input) {
+                    input = document.createElement('input');
+                    input.type = 'file';
+                    input.name = step.inputName;
+                    input.className = 'sr-only';
+                    input.setAttribute('data-guided-input', step.inputName);
+                    root.appendChild(input);
+                }
+                const dt = new DataTransfer();
+                dt.items.add(cap.file);
+                input.files = dt.files;
+                step.path = 'local';
+                step.path_url = cap.url;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
         },
         retryFailed() {
             this.failed.forEach((key) => {
