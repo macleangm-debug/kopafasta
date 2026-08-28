@@ -26,6 +26,7 @@
         $collateralAssets = collect();
         if (! empty($taskMeta['customer_asset_ids']) && is_array($taskMeta['customer_asset_ids'])) {
             $collateralAssets = \App\Models\CustomerAsset::query()
+                ->with('customer')
                 ->whereIn('id', $taskMeta['customer_asset_ids'])
                 ->get();
         }
@@ -39,7 +40,7 @@
             $ids = app(\App\Services\CustomerAssetService::class)->onLoanAssetIds($application);
             $collateralAssets = $ids === []
                 ? collect()
-                : \App\Models\CustomerAsset::query()->whereIn('id', $ids)->get();
+                : \App\Models\CustomerAsset::query()->with('customer')->whereIn('id', $ids)->get();
         }
         $collateralAsset = $collateralAssets->first();
         $assetProfile = $taskMeta['asset_profile'] ?? null;

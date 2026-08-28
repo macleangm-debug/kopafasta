@@ -97,10 +97,13 @@
         'dbName' => 'kf-valuation-'.$task->id,
         'step' => $initialStep,
         'afterPhotosUrl' => $afterPhotosUrl,
+        'assets' => $assets->map(fn ($asset) => [
+            'id' => (int) $asset->id,
+            'label' => (string) $asset->label,
+        ])->values()->all(),
         'cameraInsecure' => __('borrower.profile.camera_insecure'),
         'cameraDenied' => __('borrower.profile.camera_denied'),
     ];
-    $ownerName = $task->customer_name ?: ($assets->first()?->customer?->full_name);
 @endphp
 
 <div class="mb-4">
@@ -154,7 +157,10 @@
     <div x-show="step === 'asset'" class="space-y-4">
         <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('site.partner_portal.tab_asset') }}</p>
         @forelse ($assets as $asset)
-            <x-site.collateral-card :selected="$asset->toCollateralCard(['belongs_to' => $ownerName, 'status_label' => $open && $started ? __('site.partner_portal.valuation_inspect_asset') : null])">
+            @php
+                $assetOwner = $asset->customer?->full_name ?: $task->customer_name;
+            @endphp
+            <x-site.collateral-card :selected="$asset->toCollateralCard(['belongs_to' => $assetOwner, 'status_label' => $open && $started ? __('site.partner_portal.valuation_inspect_asset') : null])">
                 <button type="button" @click="details = !details" class="mt-2 text-sm font-bold text-brand">
                     <span x-show="!details">{{ __('site.partner_portal.valuation_view_details') }}</span>
                     <span x-show="details" x-cloak>{{ __('site.partner_portal.valuation_hide_details') }}</span>
@@ -294,6 +300,7 @@
                     <p class="text-sm font-semibold mt-1" x-show="flash?.next" x-text="flash ? @js(__('site.partner_portal.valuation_next_is', ['label' => '__L__'])).replace('__L__', flash.next) : ''"></p>
                 </div>
                 <p x-show="cameraNotice" x-cloak class="relative z-[4] mx-4 rounded-xl bg-amber-50 text-amber-950 text-sm font-semibold p-3" x-text="cameraNotice"></p>
+                <button type="button" x-show="cameraNotice" x-cloak @click="openCam()" class="relative z-[4] mx-4 mt-3 w-[calc(100%-2rem)] rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.valuation_camera_retry') }}</button>
                 <div class="relative z-[4] mt-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                     <button type="button" @click="capture()" class="w-full max-w-md mx-auto block size-16 rounded-full bg-brand-gold text-brand font-extrabold shadow-lg grid place-items-center mx-auto">●</button>
                     <p class="text-center text-white text-sm font-bold mt-3">{{ __('site.partner_portal.valuation_camera_capture') }}</p>
@@ -350,7 +357,7 @@
                         <label class="block text-xs text-gray-500 mb-1">{{ __('site.partner_portal.notes_optional') }}</label>
                         <textarea name="notes" rows="3" class="w-full rounded-lg border-gray-300 text-sm">{{ old('notes') }}</textarea>
                     </div>
-                    <button type="button" @click="step = 'review'" class="w-full rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-3">{{ __('site.partner_portal.valuation_review_valuation') }}</button>
+                    <button type="button" @click="go('review')" class="w-full rounded-xl bg-brand text-white text-sm font-extrabold px-5 py-3">{{ __('site.partner_portal.valuation_review_valuation') }}</button>
                 </div>
 
                 <div x-show="step === 'review'" class="rounded-2xl ring-1 ring-brand/15 bg-white p-4 sm:p-5 space-y-4">
@@ -359,8 +366,17 @@
                         <li class="text-emerald-700">{{ __('site.partner_portal.tab_asset') }} ✓</li>
                         <li class="text-emerald-700">{{ __('site.partner_portal.valuation_required_ok', ['done' => $requiredDoneCount, 'total' => $requiredTotal]) }}</li>
                         <li class="text-emerald-700">{{ __('site.partner_portal.tab_inspect') }} ✓</li>
-                        <li class="text-emerald-700">{{ __('site.partner_portal.tab_values') }} ✓</li>
                     </ul>
+                    <div class="rounded-xl ring-1 ring-gray-200 p-3 space-y-2">
+                        <p class="text-xs uppercase tracking-widest font-bold text-brand">{{ __('site.partner_portal.tab_values') }}</p>
+                        <template x-for="line in valueLines" :key="line.label">
+                            <div class="text-sm">
+                                <p class="font-extrabold text-gray-900" x-text="line.label"></p>
+                                <p class="text-gray-700">{{ __('site.partner_portal.valuation_market_value') }}: <span class="font-semibold" x-text="line.market"></span></p>
+                                <p class="text-gray-700">{{ __('site.partner_portal.valuation_fsv') }}: <span class="font-semibold" x-text="line.fsv"></span></p>
+                            </div>
+                        </template>
+                    </div>
                     @if ($compareSteps->isNotEmpty())
                         <div class="space-y-3">
                             <p class="text-sm font-extrabold">{{ __('site.partner_portal.valuation_compare_title') }}</p>

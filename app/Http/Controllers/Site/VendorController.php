@@ -492,14 +492,10 @@ class VendorController extends Controller
         abort_unless($assignment, 404);
 
         $assignment = $inspection->saveChecks($assignment, $data);
-        $checks = $inspection->checksSummary($assignment);
         $assets = $inspection->assetsForTask($task);
         $needsVehicle = $assets->contains(fn ($asset) => $asset->isVehicleLike());
-        $driveDone = ! $needsVehicle || filled($checks['test_drive'] ?? null);
-        $params = ['task' => $task, 'tab' => $driveDone ? 'values' : 'inspect'];
-        if (! $driveDone) {
-            $params['step'] = 'drive';
-        }
+        $done = $inspection->inspectionComplete($assignment, $needsVehicle);
+        $params = ['task' => $task, 'step' => $done ? 'values' : 'condition'];
 
         return redirect()
             ->route('site.partner.task', $params)

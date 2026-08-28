@@ -186,6 +186,35 @@ class PartnerPortalUxPassTest extends TestCase
         );
     }
 
+    public function test_sla_sends_a_due_soon_reminder_without_creating_a_fee(): void
+    {
+        [, $valuer] = $this->makeValuer('V-SLA-REM', 'Reminder Valuer');
+        $this->completePartnerForJobs($valuer);
+        [, $assignment] = $this->assignValuation($valuer);
+        $task = $assignment->vendorTask;
+        $task->update([
+            'status' => 'in_progress',
+            'due_at' => now()->addHours(3),
+        ]);
+
+        $this->assertSame(0, CustomerPayment::query()->where('payment_type', 'valuation_fee')->count());
+
+        $result = app(ServicePartnerReassignmentService::class)->processSla();
+
+        $this->assertGreaterThanOrEqual(1, $result['reminded']);
+        $this->assertSame(0, $result['reassigned']);
+        $this->assertSame($valuer->id, $task->fresh()->partner_id);
+        $this->assertNotEmpty($task->fresh()->notesMeta()['sla_reminders'] ?? []);
+        $this->assertTrue(
+            NotificationLog::query()->get()->contains(
+                fn (NotificationLog $log) => str_contains((string) $log->message, 'hours remaining')
+                    || str_contains((string) $log->message, 'Urgent: complete this task')
+            ),
+            'valuer should receive an SLA reminder',
+        );
+        $this->assertSame(0, CustomerPayment::query()->where('payment_type', 'valuation_fee')->count());
+    }
+
     /** @return array{0: User, 1: Vendor} */
     private function makeValuer(string $number, string $name): array
     {

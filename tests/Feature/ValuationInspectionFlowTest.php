@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\CustomerAsset;
+use App\Models\CustomerPayment;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\LoanProduct;
@@ -103,7 +104,8 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertDontSee('Related loan', false)
             ->assertDontSee('assets/owner.jpg', false)
             ->assertDontSee(__('site.partner_portal.valuation_owner_reference'), false)
-            ->assertDontSee(__('site.partner_portal.valuation_no_owner_photo'), false);
+            ->assertDontSee(__('site.partner_portal.valuation_no_owner_photo'), false)
+            ->assertSee(__('site.partner_portal.valuation_camera_retry'), false);
     }
 
     private function makeVehicleAsset(Customer $customer): CustomerAsset
@@ -338,17 +340,33 @@ class ValuationInspectionFlowTest extends TestCase
         }
 
         $this->actingAs($user)
-            ->post(route('site.partner.task.inspect.checks', $task), [
-                'engine' => 'starts_smooth',
+            ->post(route('site.partner.task.complete', $task), [
+                'values' => [
+                    $asset->id => [
+                        'market_value' => '5,000,000',
+                        'forced_sale_value' => '4,250,000',
+                    ],
+                ],
             ])
-            ->assertRedirect();
+            ->assertSessionHasErrors();
 
         $this->actingAs($user)
             ->post(route('site.partner.task.inspect.checks', $task), [
+                'body_condition' => 'good',
+                'tyres' => 'good',
+                'interior' => 'good',
                 'engine' => 'starts_smooth',
                 'test_drive' => 'drives_normal',
             ])
-            ->assertRedirect(route('site.partner.task', ['task' => $task, 'tab' => 'values']));
+            ->assertRedirect(route('site.partner.task', ['task' => $task, 'step' => 'values']));
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.task', ['task' => $task, 'step' => 'values']))
+            ->assertOk()
+            ->assertSee(__('site.partner_portal.valuation_market_value'), false)
+            ->assertSee(__('site.partner_portal.valuation_review_before'), false)
+            ->assertSee(__('site.partner_portal.valuation_fsv'), false);
 
         $this->actingAs($user)
             ->post(route('site.partner.task.complete', $task), [
@@ -610,5 +628,102 @@ class ValuationInspectionFlowTest extends TestCase
             $count,
             \App\Models\NotificationLog::query()->where('template', 'partner_welcome')->count()
         );
+    }
+
+    public function test_group_member_collateral_loads_on_the_shared_card(): void
+    {
+        [$user, $valuer] = $this->makeValuerUser();
+        $this->completeValuerForJobs($valuer);
+
+        $leader = Customer::create([
+            'customer_number' => 'CU-GL-LEAD',
+            'type' => 'group',
+            'status' => 'active',
+            'first_name' => 'Leader',
+            'last_name' => 'Kopa',
+            'phone' => '255900000010',
+            'region' => 'Dar es Salaam',
+        ]);
+        $member = Customer::create([
+            'customer_number' => 'CU-GL-MEM',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Rogate',
+            'last_name' => 'Nyela',
+            'phone' => '255900000011',
+            'region' => 'Dar es Salaam',
+        ]);
+        $product = LoanProduct::query()->firstOrCreate(
+            ['code' => 'GL'],
+            [
+                'name' => 'Group Loan',
+                'category' => 'group',
+                'is_active' => true,
+                'interest_rate' => 0.15,
+                'min_amount' => 100_000,
+                'max_amount' => 10_000_000,
+                'tenure_min_months' => 3,
+                'tenure_max_months' => 12,
+            ],
+        );
+        $application = LoanApplication::create([
+            'customer_id' => $leader->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-GL-VAL-1',
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 1_500_000,
+            'requested_tenure_months' => 6,
+        ]);
+        $asset = $this->makeVehicleAsset($member);
+        $asset->update(['label' => 'Member Prado']);
+        LoanApplicationAsset::create([
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $asset->id,
+            'asset_type' => 'vehicle',
+            'uw_status' => LoanApplicationAsset::UW_PENDING,
+            'is_primary' => true,
+            'valuation_status' => 'awaiting_valuation',
+            'valuation_fee_paid_at' => now(),
+        ]);
+        app(CustomerAssetService::class)->persistOnLoanIds($application, [$asset->id]);
+
+        CustomerPayment::create([
+            'reference' => 'VAL-GL-EXISTING',
+            'customer_id' => $leader->id,
+            'payment_type' => 'valuation_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 50_000,
+            'currency' => 'TZS',
+            'status' => 'verified',
+            'paid_at' => now(),
+            'source_type' => $application->getMorphClass(),
+            'source_id' => $application->id,
+        ]);
+
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        $assignment = app(ValuationPartnerService::class)->assign($application, $valuer, $admin, 'Group valuation');
+        $task = $assignment->vendorTask;
+
+        $this->assertSame(1, CustomerPayment::query()->where('payment_type', 'valuation_fee')->count());
+        $this->assertSame('VAL-GL-EXISTING', CustomerPayment::query()->value('reference'));
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.partner.task', $task))
+            ->assertOk()
+            ->assertSee('Member Prado', false)
+            ->assertSee('Rogate Nyela', false)
+            ->assertSee(__('site.partner_portal.valuation_belongs_to'), false)
+            ->assertSee(__('site.partner_portal.valuation_camera_retry'), false)
+            ->assertDontSee('1,500,000', false)
+            ->assertDontSee('1500000', false);
+
+        $this->actingAs($user)->post(route('site.partner.task.start', $task));
+        $this->actingAs($user)
+            ->post(route('site.partner.task.inspect.checks', $task), [
+                'engine' => 'starts_smooth',
+            ])
+            ->assertRedirect(route('site.partner.task', ['task' => $task, 'step' => 'condition']));
     }
 }

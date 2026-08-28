@@ -1091,6 +1091,8 @@ return [
         'valuation_photos_required' => 'Photograph every owner angle before entering values: :list',
         'valuation_engine_required' => 'Select an engine / systems result. Typed comments are not allowed.',
         'valuation_drive_required' => 'Select a test-drive result. Typed comments are not allowed.',
+        'valuation_vehicle_check_required' => 'Complete the vehicle check: body, tyres, interior, engine, and test drive.',
+        'valuation_camera_retry' => 'Try camera again',
         'valuation_values_required' => 'Enter market value and forced sale value for :asset.',
         'valuation_fsv_exceeds_market' => 'Forced sale value cannot exceed market value for :asset.',
         'valuation_step_photos' => 'Photos',

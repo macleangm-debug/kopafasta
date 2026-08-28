@@ -1065,6 +1065,8 @@ return [
         'valuation_photos_required' => 'Piga pembe zote za mmiliki kabla ya kuweka thamani: :list',
         'valuation_engine_required' => 'Chagua matokeo ya injini / mifumo. Maandishi huru hayaruhusiwi.',
         'valuation_drive_required' => 'Chagua matokeo ya jaribio la kuendesha. Maandishi huru hayaruhusiwi.',
+        'valuation_vehicle_check_required' => 'Kamilisha ukaguzi wa gari: mwili, matairi, ndani, injini, na jaribio la kuendesha.',
+        'valuation_camera_retry' => 'Jaribu kamera tena',
         'valuation_values_required' => 'Weka thamani ya soko na ya kuuza kwa lazima kwa :asset.',
         'valuation_fsv_exceeds_market' => 'Thamani ya kuuza kwa lazima haiwezi kuzidi thamani ya soko kwa :asset.',
         'valuation_step_photos' => 'Picha',

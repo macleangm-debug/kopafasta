@@ -43,7 +43,7 @@ class ValuationInspectionService
             return collect();
         }
 
-        return CustomerAsset::query()->whereIn('id', $ids)->get();
+        return CustomerAsset::query()->with('customer')->whereIn('id', $ids)->get();
     }
 
     /**
@@ -262,21 +262,29 @@ class ValuationInspectionService
         }
 
         $needsVehicleChecks = $assets->contains(fn (CustomerAsset $asset) => $asset->isVehicleLike());
-        $payload = $this->payload($assignment);
-        if ($needsVehicleChecks) {
-            $engine = (string) ($payload['engine'] ?? '');
-            $drive = (string) ($payload['test_drive'] ?? '');
-            if ($engine === '' || ! array_key_exists($engine, $this->engineOptions())) {
-                throw ValidationException::withMessages([
-                    'engine' => [__('site.partner_portal.valuation_engine_required')],
-                ]);
-            }
-            if ($drive === '' || ! array_key_exists($drive, $this->driveOptions())) {
-                throw ValidationException::withMessages([
-                    'test_drive' => [__('site.partner_portal.valuation_drive_required')],
-                ]);
-            }
+        if ($needsVehicleChecks && ! $this->inspectionComplete($assignment, true)) {
+            throw ValidationException::withMessages([
+                'engine' => [__('site.partner_portal.valuation_vehicle_check_required')],
+            ]);
         }
+    }
+
+    public function inspectionComplete(?ValuationAssignment $assignment, bool $needsVehicle): bool
+    {
+        if (! $needsVehicle) {
+            return true;
+        }
+        if (! $assignment) {
+            return false;
+        }
+
+        $checks = $this->checksSummary($assignment);
+
+        return filled($checks['body_condition'] ?? null)
+            && filled($checks['tyres'] ?? null)
+            && filled($checks['interior'] ?? null)
+            && filled($checks['engine'] ?? null)
+            && filled($checks['test_drive'] ?? null);
     }
 
     /**

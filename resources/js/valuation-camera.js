@@ -12,6 +12,8 @@ export function registerValuationCamera(Alpine) {
         declineOpen: false,
         preview: null,
         afterPhotosUrl: cfg.afterPhotosUrl || '',
+        assets: cfg.assets || [],
+        valueLines: [],
         open: false,
         review: false,
         uploading: false,
@@ -89,6 +91,23 @@ export function registerValuationCamera(Alpine) {
 
         go(s) {
             this.step = s;
+            if (s === 'review') {
+                this.readValues();
+            }
+        },
+        readValues() {
+            this.valueLines = (this.assets || []).map((row) => {
+                const market = this.$root?.querySelector?.(`[name="values[${row.id}][market_value]"]`)
+                    || document.querySelector(`[name="values[${row.id}][market_value]"]`);
+                const fsv = this.$root?.querySelector?.(`[name="values[${row.id}][forced_sale_value]"]`)
+                    || document.querySelector(`[name="values[${row.id}][forced_sale_value]"]`);
+
+                return {
+                    label: row.label,
+                    market: (market && market.value) ? market.value : '—',
+                    fsv: (fsv && fsv.value) ? fsv.value : '—',
+                };
+            });
         },
         async init() {
             await this.restoreDrafts();
