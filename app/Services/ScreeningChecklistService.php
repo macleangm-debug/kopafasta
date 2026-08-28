@@ -360,6 +360,8 @@ class ScreeningChecklistService
             ];
         }
 
+        $this->applyReadyAttestation($groups, $decided, $passed);
+
         $actor = $actor ?? auth()->user();
 
         return [
@@ -863,6 +865,68 @@ class ScreeningChecklistService
         [$group, $item] = array_pad(explode('.', $fullKey, 2), 2, '');
 
         return (bool) data_get(config('screening_checklist'), $group.'.items.'.$item.'.system');
+    }
+
+    /**
+     * Tick “ready for committee” when the rest of this person is decided and no high-risk Fail remains.
+     *
+     * @param  list<array<string, mixed>>  $groups
+     */
+    private function applyReadyAttestation(array &$groups, int &$decided, int &$passed): void
+    {
+        $readyKeys = [
+            'credit_file.recommendation_ready',
+            'guarantor_wrap.file_ready',
+            'member_wrap.file_ready',
+        ];
+        $allItems = collect($groups)->flatMap(fn ($group) => $group['items'] ?? []);
+        $others = $allItems->reject(fn ($item) => in_array((string) ($item['key'] ?? ''), $readyKeys, true));
+        $undecided = $others->whereNull('verdict')->count();
+        $criticalFail = $others
+            ->filter(fn ($item) => ($item['verdict'] ?? '') === 'fail' && ($item['risk'] ?? '') === 'critical')
+            ->isNotEmpty();
+
+        if ($undecided > 0 || $criticalFail) {
+            return;
+        }
+
+        foreach ($groups as &$group) {
+            foreach ($group['items'] as &$item) {
+                if (! in_array((string) ($item['key'] ?? ''), $readyKeys, true)) {
+                    continue;
+                }
+                if (($item['verdict'] ?? null) !== null || ! empty($item['awaiting_data'])) {
+                    continue;
+                }
+                $item['verdict'] = 'pass';
+                $item['checked'] = true;
+                $item['system_checked'] = true;
+                $item['by_name'] = 'System';
+                $decided++;
+                $passed++;
+                $group['decided'] = collect($group['items'])->whereNotNull('verdict')->count();
+                $group['complete'] = $group['decided'] === count($group['items']) && count($group['items']) > 0;
+            }
+            unset($item);
+        }
+        unset($group);
+    }
+
+    /**
+     * @param  array<string, mixed>  $query
+     */
+    private function checklistHref(LoanApplication $application, array $query = [], string $hash = 'review-desk'): string
+    {
+        $params = array_filter([
+            'loan_application' => $application,
+            'workspace' => 'checklist',
+            'review_person' => request('review_person', request('person')),
+            'review_g' => request('review_g', request('g')),
+            'review_m' => request('review_m', request('m')),
+            ...$query,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        return route('admin.loan-applications.show', $params).($hash !== '' ? '#'.$hash : '');
     }
 
     /** @param  array<string, mixed>  $row */
@@ -1771,15 +1835,35 @@ class ScreeningChecklistService
                     ['label' => 'Affordability verdict', 'value' => $affVerdict !== '' ? strtoupper($affVerdict) : '—'],
                     ['label' => 'Delinquencies', 'value' => (string) ($crb['delinquencies'] ?? '—')],
                     ['label' => 'CRB recommendation', 'value' => strtoupper((string) ($crb['recommendation'] ?? '—'))],
-                    ['label' => 'Bank / M-Pesa statements', 'value' => 'Capacity → Documents (filter Missing / To verify) · also Personal → Activity income check'],
                 ];
+                $application = $ctx['application'] ?? null;
+                if ($application instanceof LoanApplication) {
+                    $rows[] = [
+                        'label' => 'CRB report',
+                        'value' => 'Open this person’s CRB tab — look at other-institution loans, then Pass or Fail here.',
+                        'href' => $this->checklistHref($application, ['capacity_tab' => 'crb', 'desk_phase' => 'capacity'], 'checklist-crb'),
+                        'href_label' => 'Open CRB',
+                    ];
+                    $rows[] = [
+                        'label' => 'Bank / M-Pesa (Gate 2)',
+                        'value' => 'Statements are the Activity & income check, not this CRB question.',
+                        'href' => $this->checklistHref($application, [
+                            'desk_phase' => 'capacity',
+                            'capacity_tab' => 'documents',
+                            'docs_filter' => 'action',
+                            'open_group' => 'activity_income',
+                            'open_item' => 'activity_income.income_evidence',
+                        ], 'review-desk'),
+                        'href_label' => 'Open statements',
+                    ];
+                }
                 foreach ($history as $loan) {
                     $rows[] = [
                         'label' => (string) ($loan['institution'] ?? $loan['lender'] ?? 'Loan'),
                         'value' => trim(($loan['status'] ?? '').' · '.($loan['balance'] ?? $loan['amount'] ?? '')),
                     ];
                 }
-                $hint = 'High risk if capacity cannot carry this loan on top of other-institution debt. Affordability already folds in declared obligations — confirm CRB exposure matches, then Pass/Fail.';
+                $hint = 'Open CRB, confirm other-institution loans, then Pass or Fail this question. The system only auto-Fails bureau Reject or delinquencies — it does not auto-Pass a clean score. Bank statements are Gate 2.';
                 break;
 
             case 'anomalies':
@@ -1806,9 +1890,24 @@ class ScreeningChecklistService
                 $rows = [
                     ['label' => 'What this means', 'value' => 'Your attestation that this subject is ready for Decision / committee'],
                     ['label' => 'Does not auto-submit', 'value' => 'Pass here does not record the recommendation — open Decision to submit Approve / Reject / Counter'],
-                    ['label' => 'When to Pass', 'value' => 'Other checklist items on this subject are decided and high-risk fails are handled'],
+                    ['label' => 'When it auto-Passes', 'value' => 'Other checklist items on this person are decided and there is no high-risk Fail left open'],
                 ];
-                $hint = 'This is a final “ready” checkbox for the screener — not the committee decision itself.';
+                $application = $ctx['application'] ?? null;
+                if ($application instanceof LoanApplication) {
+                    $rows[] = [
+                        'label' => 'Record recommendation',
+                        'value' => 'After Save, open Decision',
+                        'href' => route('admin.loan-applications.show', array_filter([
+                            'loan_application' => $application,
+                            'workspace' => 'decision',
+                            'review_person' => request('review_person', request('person')),
+                            'review_g' => request('review_g', request('g')),
+                            'review_m' => request('review_m', request('m')),
+                        ], fn ($v) => $v !== null && $v !== '')),
+                        'href_label' => 'Open Decision',
+                    ];
+                }
+                $hint = 'This ticks itself once the rest of this person’s checklist is decided. You still open Decision to send the file to committee.';
                 break;
 
             case 'residence':
@@ -2023,7 +2122,7 @@ class ScreeningChecklistService
                 if ($itemKey === 'valuation_or_photos') {
                     $photoPairs = (array) ($asset['photo_pairs'] ?? []);
                     $layout = 'photo_pairs';
-                    $hint = 'Borrower profile photos on the left. Valuer inspection photos on the right, matched by angle (front, back, left, right, owner with asset). Switch tabs when more than one asset is pledged.';
+                    $hint = 'Look at each pair. Same asset? Pass. Different car / angle / person? Fail. The system only checks that photos exist — it does not compare the pictures.';
                 } else {
                     foreach ($asset['photos'] ?? [] as $photo) {
                         $photos[] = $photo;

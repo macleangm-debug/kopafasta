@@ -351,5 +351,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
         $photos = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_or_photos');
         $this->assertSame('photo_pairs', $photos['evidence']['layout'] ?? null);
         $this->assertNotEmpty($photos['evidence']['photo_pairs'] ?? []);
+        $this->assertFalse($photos['catalog_system'] ?? false);
+        $this->assertNotSame('pass', $photos['verdict'] ?? null);
     }
 }

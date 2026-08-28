@@ -711,4 +711,91 @@ class ScreeningChecklistFeatureTest extends TestCase
         ));
         $this->assertSame('satisfied', $request->fresh()->status);
     }
+
+    public function test_crb_wrap_does_not_auto_pass_a_clean_score_and_links_to_the_real_tabs(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $vm = app(ScreeningChecklistService::class)->viewModel($app, $admin, 'borrower', null, null, [
+            'customer' => $app->customer,
+            'crb' => [
+                'recommendation' => 'approve',
+                'score' => 701,
+                'existing_loans' => 0,
+                'outstanding_balance' => 0,
+                'delinquencies' => 0,
+            ],
+        ]);
+        $item = collect($vm['groups'] ?? [])
+            ->flatMap(fn ($group) => $group['items'] ?? [])
+            ->firstWhere('key', 'credit_file.crb_reviewed');
+
+        $this->assertNotNull($item);
+        $this->assertNull($item['verdict'] ?? null);
+        $encoded = json_encode($item['evidence']['rows'] ?? []);
+        $this->assertStringContainsString('Open CRB', $encoded);
+        $this->assertStringContainsString('capacity_tab=crb', $encoded);
+        $this->assertStringContainsString('activity_income.income_evidence', $encoded);
+        $this->assertStringContainsString('docs_filter=action', $encoded);
+        $this->assertStringNotContainsString('filter Missing / To verify', $encoded);
+    }
+
+    public function test_crb_wrap_auto_fails_on_bureau_delinquencies(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $vm = app(ScreeningChecklistService::class)->viewModel($app, $admin, 'borrower', null, null, [
+            'customer' => $app->customer,
+            'crb' => [
+                'recommendation' => 'refer',
+                'score' => 400,
+                'existing_loans' => 2,
+                'outstanding_balance' => 1_500_000,
+                'delinquencies' => 2,
+            ],
+        ]);
+        $item = collect($vm['groups'] ?? [])
+            ->flatMap(fn ($group) => $group['items'] ?? [])
+            ->firstWhere('key', 'credit_file.crb_reviewed');
+
+        $this->assertSame('fail', $item['verdict'] ?? null);
+        $this->assertSame('delinquencies', $item['fail_reason_code'] ?? null);
+    }
+
+    public function test_recommendation_ready_auto_passes_when_the_rest_of_the_desk_is_decided(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $items = [];
+        foreach (app(ScreeningChecklistService::class)->catalog('borrower') as $groupKey => $group) {
+            foreach (array_keys($group['items'] ?? []) as $itemKey) {
+                $full = $groupKey.'.'.$itemKey;
+                if ($full === 'credit_file.recommendation_ready') {
+                    continue;
+                }
+                $items[$full] = ['verdict' => 'pass', 'source' => 'staff', 'by' => $admin->id];
+            }
+        }
+        $app->update([
+            'screening_payload' => [
+                'screening_checklist' => [
+                    'by_subject' => [
+                        'borrower' => ['items' => $items],
+                    ],
+                ],
+            ],
+        ]);
+
+        $vm = app(ScreeningChecklistService::class)->viewModel($app->fresh(), $admin, 'borrower', null, null, [
+            'customer' => $app->customer,
+        ]);
+        $ready = collect($vm['groups'] ?? [])
+            ->flatMap(fn ($group) => $group['items'] ?? [])
+            ->firstWhere('key', 'credit_file.recommendation_ready');
+
+        $this->assertSame('pass', $ready['verdict'] ?? null);
+        $this->assertTrue($ready['system_checked'] ?? false);
+    }
 }

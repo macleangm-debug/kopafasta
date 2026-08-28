@@ -344,7 +344,16 @@
                                 @foreach ($item['evidence']['rows'] as $row)
                                     <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
                                         <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ $row['label'] }}</dt>
-                                        <dd class="text-sm font-semibold text-gray-900 mt-0.5 break-words">{{ $row['value'] }}</dd>
+                                        <dd class="text-sm font-semibold text-gray-900 mt-0.5 break-words">
+                                            @if (! empty($row['href']))
+                                                <a href="{{ $row['href'] }}" class="text-brand underline underline-offset-2 hover:text-brand-light">{{ $row['href_label'] ?? $row['value'] }}</a>
+                                                @if (! empty($row['value']) && ($row['href_label'] ?? '') !== '' && ($row['href_label'] ?? '') !== ($row['value'] ?? ''))
+                                                    <span class="block text-[11px] font-medium text-gray-500 mt-0.5">{{ $row['value'] }}</span>
+                                                @endif
+                                            @else
+                                                {{ $row['value'] }}
+                                            @endif
+                                        </dd>
                                     </div>
                                 @endforeach
                             </dl>

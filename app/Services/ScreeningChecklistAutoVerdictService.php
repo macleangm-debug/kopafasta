@@ -85,8 +85,8 @@ class ScreeningChecklistAutoVerdictService
         $out['activity_income.income_evidence'] = $this->statementsVsDeclaredIncome($context);
         $out['activity_income.bank_or_mobile_money'] = $this->statementsPresent($context);
 
-        // Credit wrap-up CRB (borrower / guarantor / member variants) — includes capacity vs external debt
-        $crbWrap = $this->crbWrap($crb, $afford);
+        // Credit wrap-up CRB — auto-Fail delinquencies / bureau Reject; Pass is always human.
+        $crbWrap = $this->crbWrap($crb);
         $out['credit_file.crb_reviewed'] = $crbWrap;
         $out['guarantor_wrap.crb_reviewed'] = $crbWrap;
         $out['member_wrap.crb_reviewed'] = $crbWrap;
@@ -335,16 +335,11 @@ class ScreeningChecklistAutoVerdictService
 
     /**
      * @param  array<string, mixed>  $crb
-     * @param  array<string, mixed>  $afford
      */
-    private function crbWrap(array $crb, array $afford = []): array
+    private function crbWrap(array $crb): array
     {
         $rec = strtolower((string) ($crb['recommendation'] ?? ''));
         $delinq = (int) ($crb['delinquencies'] ?? 0);
-        $affVerdict = strtolower((string) ($afford['verdict'] ?? ''));
-        if ($affVerdict === '' && array_key_exists('pass', $afford)) {
-            $affVerdict = ($afford['pass'] ?? false) ? 'pass' : 'fail';
-        }
         $externalLoans = (int) ($crb['existing_loans'] ?? 0);
         $crbOut = (float) ($crb['outstanding_balance'] ?? 0);
 
@@ -357,22 +352,8 @@ class ScreeningChecklistAutoVerdictService
         if ($rec === 'reject') {
             return ['verdict' => 'fail', 'fail_reason_code' => 'high_exposure', 'source' => 'system'];
         }
-        // Cannot carry this loan given capacity — especially dangerous with other-institution debt.
-        if ($affVerdict === 'fail' && ($externalLoans > 0 || $crbOut > 0 || $rec === 'refer')) {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'cannot_repay_with_external', 'source' => 'system'];
-        }
-        if ($affVerdict === 'fail') {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'cannot_repay_with_external', 'source' => 'system'];
-        }
-        if (in_array($rec, ['approve', 'refer'], true) || ($crb['score'] ?? null) !== null) {
-            // Refer or external debt still needs human eyes — do not auto-pass.
-            if ($rec === 'refer' || $externalLoans > 0 || $crbOut > 0) {
-                return ['verdict' => '', 'source' => 'system_skip'];
-            }
 
-            return ['verdict' => 'pass', 'source' => 'system'];
-        }
-
+        // A clean bureau score is not a visual check — screening must open the CRB report and Pass/Fail.
         return ['verdict' => '', 'source' => 'system_skip'];
     }
 
@@ -508,8 +489,6 @@ class ScreeningChecklistAutoVerdictService
 
         $borrowerAngles = collect($pairs)->filter(fn ($row) => filled(data_get($row, 'borrower.url')));
         $matched = $borrowerAngles->filter(fn ($row) => filled(data_get($row, 'valuer.url')));
-        $valuer = (array) ($ctx['valuer'] ?? []);
-        $completed = filled($valuer['fsv'] ?? null) && ($valuer['fsv'] ?? '—') !== '—';
 
         if ($borrowerAngles->isEmpty()) {
             return $this->awaitingData(
@@ -518,18 +497,16 @@ class ScreeningChecklistAutoVerdictService
                 'Open collateral',
             );
         }
-        if ($matched->count() === $borrowerAngles->count()) {
-            return ['verdict' => 'pass', 'source' => 'system'];
-        }
-        if ($completed) {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'photos_poor', 'source' => 'system'];
+        if ($matched->isEmpty()) {
+            return $this->awaitingData(
+                $application,
+                'Valuer photos are not on file yet — wait for the inspection, then compare the pairs yourself.',
+                'Open collateral',
+            );
         }
 
-        return $this->awaitingData(
-            $application,
-            'There is no data for this checklist',
-            'Open collateral',
-        );
+        // Files existing is not a match. Screening looks at the pairs and Pass / Fail.
+        return ['verdict' => '', 'source' => 'system_skip'];
     }
 
     /** @param  array<string, mixed>  $ctx */

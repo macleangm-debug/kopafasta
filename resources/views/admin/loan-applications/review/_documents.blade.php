@@ -238,6 +238,7 @@
         ? (int) round(($satisfiedDocsCount / $requiredDocsCount) * 100)
         : (int) ($review['document_progress'] ?? 0);
     $defaultFilter = match (true) {
+        in_array((string) request('docs_filter'), ['missing', 'action', 'uploaded', 'verified', 'all'], true) => (string) request('docs_filter'),
         $counts['missing'] > 0 => 'missing',
         $counts['uploaded'] > 0 || $counts['rejected'] > 0 => 'action',
         default => 'all',
