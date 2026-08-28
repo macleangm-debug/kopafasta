@@ -21,10 +21,12 @@
     $onLoanIds = $assetService->onLoanAssetIds($record);
     $onLoanCount = count($onLoanIds);
     $onLoanAssetId = $onLoanIds[0] ?? null;
-    $assets = $profileAssets
-        ->concat($pledgeRows->map(fn ($row) => $row->customerAsset)->filter())
+    $assets = collect($isGuarantor || $isMember
+            ? $profileAssets
+            : $pledgeRows->map(fn ($row) => $row->customerAsset)->filter()
+        )
         ->unique(fn ($asset) => (int) $asset->id)
-        ->sortBy(fn ($asset) => $pledgeByAssetId->has((int) $asset->id) ? 0 : 1)
+        ->filter(fn ($asset) => in_array((int) $asset->id, $onLoanIds, true))
         ->values()
         ->each(fn ($asset) => $asset->loadMissing('customer'));
     $canRequestDocs = auth()->user()?->hasPermission('applications.request_documents');
@@ -96,12 +98,144 @@
     ]).'#borrower-file';
     $subjectOnLoan = $profileAssets->filter(fn ($asset) => in_array((int) $asset->id, $onLoanIds, true));
     $referToLeader = ($isGuarantor || $isMember) && $subjectOnLoan->isEmpty();
+    $docService = app(\App\Services\ApplicationDocumentRequestService::class);
+    $subjectCustomerId = (int) (data_get($review, 'customer.id') ?? $record->customer_id ?? 0);
+    $requestFromName = trim((string) (data_get($review, 'customer.first_name')
+        ?: data_get($review, 'customer.full_name')
+        ?: ($isGroupFile ? 'the group leader' : 'the borrower')));
+    $waitingOn = match ($person) {
+        'guarantor' => 'Waiting for guarantor',
+        'member' => 'Waiting for member',
+        default => $isGroupFile ? 'Waiting for group leader' : 'Waiting for borrower',
+    };
+    $memberReviewId = $person === 'member'
+        ? (int) request('review_m', data_get($review, 'member_row.id'))
+        : null;
+    $openCollateralBatches = collect($documentRequests ?? [])
+        ->filter(fn ($req) => $req->needsBorrowerAction() && $docService->borrowerActionKind($req) === 'collateral')
+        ->filter(fn ($req) => $docService->targetsReviewSubject(
+            $req,
+            $person,
+            $subjectCustomerId,
+            $memberReviewId,
+            (int) ($record->customer_id ?? 0),
+        ))
+        ->groupBy(fn ($req) => implode('|', [
+            $req->created_at?->format('Y-m-d H:i'),
+            (string) ($req->subject_kind ?? ''),
+            (string) ($req->subject_customer_id ?? ''),
+            (string) ($req->requested_by ?? ''),
+        ]))
+        ->values()
+        ->map(function ($rows) {
+            $first = $rows->first();
+
+            return [
+                'ids' => $rows->pluck('id')->all(),
+                'labels' => $rows->pluck('label')->unique()->values()->all(),
+                'note' => (string) ($first->instructions ?? ''),
+                'at' => $first->created_at,
+                'can_cancel' => $rows->every(fn ($r) => $r->status === 'pending'),
+            ];
+        });
+    $assetPreviewLimit = 8;
+    $assetCardRows = $assets->map(function ($asset) use ($pledgeByAssetId, $onLoanIds, $ownerRoleFor) {
+        $pledge = $pledgeByAssetId->get((int) $asset->id);
+        $pledgeStatus = (string) ($pledge->uw_status ?? '');
+        $isOnThisLoan = in_array((int) $asset->id, $onLoanIds, true);
+        $sourceLabel = match (true) {
+            $pledgeStatus === 'declined' => 'Declined',
+            $isOnThisLoan => 'On this loan',
+            default => 'Saved',
+        };
+        $card = $asset->toCollateralCard([
+            'belongs_to' => trim(($asset->customer?->full_name ?? '').' · '.$ownerRoleFor($asset), ' ·'),
+        ]);
+        if ($asset->isVehicleLike()) {
+            $card['registration_number'] = $card['registration_number'] ?: '—';
+            $card['make'] = $card['make'] ?: '—';
+            $card['year'] = $card['year'] ?: '—';
+            $card['chassis'] = $card['chassis'] ?: '—';
+        }
+
+        return [
+            'id' => (int) $asset->id,
+            'label' => (string) $asset->label,
+            'asset_type' => (string) $asset->asset_type,
+            'type_label' => (string) ($card['type_label'] ?? $asset->asset_type),
+            'registration' => (string) ($asset->registration_number ?: ''),
+            'owner' => (string) ($asset->customer?->full_name ?? ''),
+            'status' => $sourceLabel,
+            'card' => $card,
+            'source_label' => $sourceLabel,
+        ];
+    })->values();
+    $assetStatusFilters = $assetCardRows->pluck('status')->unique()->values()->all();
 @endphp
 
 <section
+    id="collateral-desk"
     class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden"
-    x-data="{ openAsset: null, lightbox: null, openSecure: false }"
-    @keydown.escape.window="if (lightbox) { lightbox = null } else { openAsset = null }"
+    x-data="{
+        openAsset: null,
+        lightbox: null,
+        openSecure: false,
+        requestOpen: false,
+        requestStep: 'pick',
+        presets: [],
+        note: '',
+        askMembers: false,
+        showAllAssets: false,
+        assetQuery: '',
+        assetType: '',
+        assetStatus: '',
+        assetPage: 1,
+        previewLimit: {{ (int) $assetPreviewLimit }},
+        pageSize: 6,
+        assetRows: {{ \Illuminate\Support\Js::from($assetCardRows) }},
+        filteredAssets() {
+            const q = this.assetQuery.trim().toLowerCase();
+            return this.assetRows.filter((row) => {
+                if (this.assetType && row.asset_type !== this.assetType) return false;
+                if (this.assetStatus && row.status !== this.assetStatus) return false;
+                if (! q) return true;
+                return (row.label + ' ' + row.registration + ' ' + row.owner + ' ' + row.type_label + ' ' + row.status).toLowerCase().includes(q);
+            });
+        },
+        visibleAssets() {
+            const rows = this.filteredAssets();
+            if (rows.length <= this.previewLimit && ! this.showAllAssets) return rows;
+            if (! this.showAllAssets) return rows.slice(0, this.previewLimit);
+            const start = (this.assetPage - 1) * this.pageSize;
+            return rows.slice(start, start + this.pageSize);
+        },
+        assetVisible(id) {
+            return this.visibleAssets().some((row) => Number(row.id) === Number(id));
+        },
+        assetPageCount() {
+            return Math.max(1, Math.ceil(this.filteredAssets().length / this.pageSize));
+        },
+        openRequest(preselected = []) {
+            this.presets = [...preselected];
+            this.note = '';
+            this.askMembers = false;
+            this.requestStep = 'pick';
+            this.requestOpen = true;
+        },
+        togglePreset(label) {
+            if (this.presets.includes(label)) {
+                this.presets = this.presets.filter((item) => item !== label);
+            } else {
+                this.presets = [...this.presets, label];
+            }
+        },
+        closeRequest() {
+            this.requestOpen = false;
+            this.requestStep = 'pick';
+        }
+    }"
+    x-effect="if (! requestOpen) { requestStep = 'pick' }"
+    @keydown.escape.window="if (lightbox) { lightbox = null } else if (openAsset) { openAsset = null } else if (requestOpen) { closeRequest() }"
 >
     <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white">
         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Collateral</p>
@@ -114,7 +248,7 @@
             @elseif ($isMember)
                 This member’s own profile assets. Loan collateral for the group file is on the leader’s desk.
             @else
-                Assets pledged on this loan, marked with who they belong to. Request starts with the {{ $who }}.
+                Assets pledged on this loan. Profile assets that are not tied to this file stay on the {{ $who }}’s profile.
             @endif
         </p>
     </div>
@@ -139,9 +273,9 @@
             </div>
         @elseif ($assets->isEmpty())
             <div class="rounded-xl bg-amber-50/60 ring-1 ring-amber-100 px-4 py-4">
-                <p class="text-sm font-semibold text-amber-950">No collateral on file</p>
+                <p class="text-sm font-semibold text-amber-950">No collateral on this loan</p>
                 <p class="text-xs text-amber-900/80 mt-1">
-                    This {{ $who }} has not uploaded collateral assets yet.
+                    Only assets marked On this loan appear here. Request collateral if the {{ $who }} still needs to pledge one.
                 </p>
             </div>
         @else
@@ -153,46 +287,67 @@
             @endif
 
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
-                    {{ $assets->count() }} saved
-                    @if (! $isGuarantor && $onLoanCount > 0)
-                        · {{ $onLoanCount }} on this loan
+                <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+                        {{ $assets->count() }} on this loan
+                        <span class="normal-case tracking-normal text-gray-400 font-medium" x-show="filteredAssets().length !== assetRows.length" x-cloak>
+                            · <span x-text="filteredAssets().length"></span> match
+                        </span>
+                    </p>
+                    @if ($assets->count() > $assetPreviewLimit)
+                        <button type="button"
+                                class="text-sm font-semibold text-brand hover:underline"
+                                @click="showAllAssets = ! showAllAssets; assetPage = 1">
+                            <span x-show="! showAllAssets">Show all collaterals ({{ $assets->count() }})</span>
+                            <span x-show="showAllAssets" x-cloak>Show fewer</span>
+                        </button>
                     @endif
-                </p>
+                </div>
+                @if ($assets->count() > $assetPreviewLimit)
+                    <div class="grid sm:grid-cols-4 gap-2 mb-3" x-show="showAllAssets || assetRows.length > previewLimit">
+                        <input type="search" x-model="assetQuery" @input="assetPage = 1"
+                               placeholder="Search type, registration, owner, status"
+                               class="sm:col-span-2 w-full rounded-lg border-gray-300 text-sm">
+                        <select x-model="assetType" @change="assetPage = 1" class="w-full rounded-lg border-gray-300 text-sm">
+                            <option value="">All types</option>
+                            @foreach ($assetCardRows->unique('asset_type') as $row)
+                                <option value="{{ $row['asset_type'] }}">{{ $row['type_label'] }}</option>
+                            @endforeach
+                        </select>
+                        <select x-model="assetStatus" @change="assetPage = 1" class="w-full rounded-lg border-gray-300 text-sm">
+                            <option value="">All statuses</option>
+                            @foreach ($assetStatusFilters as $status)
+                                <option value="{{ $status }}">{{ $status }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    @foreach ($assets as $asset)
+                    @foreach ($assetCardRows as $row)
                         @php
-                            $pledge = $pledgeByAssetId->get((int) $asset->id);
-                            $pledgeStatus = (string) ($pledge->uw_status ?? '');
-                            $isOnThisLoan = in_array((int) $asset->id, $onLoanIds, true);
-                            $sourceLabel = match (true) {
-                                $pledgeStatus === 'declined' => 'Declined',
-                                $isOnThisLoan => 'On this loan',
-                                default => 'Saved',
-                            };
-                            $card = $asset->toCollateralCard([
-                                'belongs_to' => trim(($asset->customer?->full_name ?? '').' · '.$ownerRoleFor($asset), ' ·'),
-                            ]);
-                            if ($asset->isVehicleLike()) {
-                                $card['registration_number'] = $card['registration_number'] ?: '—';
-                                $card['make'] = $card['make'] ?: '—';
-                                $card['year'] = $card['year'] ?: '—';
-                                $card['chassis'] = $card['chassis'] ?: '—';
-                            }
+                            $card = $row['card'];
+                            $sourceLabel = $row['source_label'];
                         @endphp
-                        <div>
+                        <div @if ($assets->count() > $assetPreviewLimit) x-show="assetVisible({{ (int) $row['id'] }})" x-cloak @endif>
                             <x-site.collateral-card
                                 :selected="$card"
                                 :type-icons="$typeIcons"
                                 :source-label="$sourceLabel"
                             >
-                                <button type="button" @click="openAsset = {{ $asset->id }}"
+                                <button type="button" @click="openAsset = {{ (int) $row['id'] }}"
                                         class="mt-3 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                                     {{ __('site.partner_portal.view') }}
                                 </button>
                             </x-site.collateral-card>
                         </div>
                     @endforeach
+                </div>
+                <div class="flex items-center justify-between gap-3 mt-3" x-show="showAllAssets && filteredAssets().length > pageSize" x-cloak>
+                    <button type="button" class="text-sm font-semibold text-brand disabled:text-gray-400"
+                            :disabled="assetPage <= 1" @click="assetPage = Math.max(1, assetPage - 1)">Previous</button>
+                    <p class="text-xs text-gray-500">Page <span x-text="assetPage"></span> of <span x-text="assetPageCount()"></span></p>
+                    <button type="button" class="text-sm font-semibold text-brand disabled:text-gray-400"
+                            :disabled="assetPage >= assetPageCount()" @click="assetPage = Math.min(assetPageCount(), assetPage + 1)">Next</button>
                 </div>
             </div>
 
@@ -464,17 +619,12 @@
                             @endforeach
                         </ul>
                         @if ($canRequestDocs)
-                            <form method="POST" action="{{ route('admin.loan-applications.collateral.request-additional', $record) }}" class="pt-1">
-                                @csrf
-                                <input type="hidden" name="review_person" value="borrower">
-                                <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
-                                    Request another asset from {{ $who }}
-                                </button>
-                            </form>
+                            <button type="button"
+                                    @click="openRequest(['Add collateral asset'])"
+                                    class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
+                                Request another asset from {{ $who }}
+                            </button>
                         @endif
-                    @endif
-                    @if ($csStatus === \App\Services\CollateralSecureService::STATUS_SECURED)
-                        <p class="text-xs text-emerald-800 font-semibold">Collateral secure status: secured</p>
                     @endif
                 </div>
             </div>
@@ -647,94 +797,159 @@
                         </button>
                     </form>
                 </div>
-            @else
-                @php
-                    $selectedId = data_get($csState, 'customer_asset_id');
-                    $selectedAsset = $selectedId ? \App\Models\CustomerAsset::query()->find($selectedId) : null;
-                @endphp
-                <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm text-slate-700 space-y-2">
-                    <p>
-                        Collateral secure status:
-                        <span class="font-semibold">{{ str_replace('_', ' ', $csState['status'] ?? '—') }}</span>
-                    </p>
-                    @if ($selectedAsset)
-                        <div class="flex gap-3 items-center pt-1">
-                            @if ($selectedAsset->thumbnailPath())
-                                <img src="{{ asset('storage/'.$selectedAsset->thumbnailPath()) }}" alt="" class="size-12 rounded-lg object-cover ring-1 ring-gray-200">
-                            @endif
-                            <div>
-                                <p class="font-semibold text-gray-900">{{ $selectedAsset->label }}</p>
-                                <p class="text-xs text-gray-500">
-                                    {{ \App\Models\CustomerAsset::typeOptions()[$selectedAsset->asset_type] ?? $selectedAsset->asset_type }}
-                                    @if ($selectedAsset->detail('insurance_expires_at'))
-                                        · Insurance expires {{ $selectedAsset->detail('insurance_expires_at') }}
-                                    @endif
-                                    @if (data_get($csState, 'source') === 'guarantor')
-                                        · Guarantor collateral
-                                    @endif
-                                </p>
-                            </div>
-                        </div>
-                    @endif
-                </div>
             @endunless
         @endif
 
         @if ($canRequestDocs)
-            @if (! $isGuarantor && ! $isMember)
-                <form id="kf-request-additional-asset" method="POST" action="{{ route('admin.loan-applications.collateral.request-additional', $record) }}" class="hidden">
-                    @csrf
-                    <input type="hidden" name="review_person" value="borrower">
-                </form>
-            @endif
-            <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="space-y-3 {{ $assets->isNotEmpty() || $referToLeader ? 'pt-2 border-t border-brand/10' : '' }}">
-                @csrf
-                <input type="hidden" name="type" value="document">
-                <input type="hidden" name="review_person" value="{{ $person }}">
-                @if ($isMember)
-                    <input type="hidden" name="review_m" value="{{ request('review_m', data_get($review, 'member_row.id')) }}">
-                    <input type="hidden" name="subject_customer_id" value="{{ data_get($review, 'customer.id') }}">
-                    <input type="hidden" name="loan_group_member_id" value="{{ request('review_m', data_get($review, 'member_row.id')) }}">
-                @endif
-                @if ($isGuarantor)
-                    <input type="hidden" name="review_g" value="{{ request('review_g') }}">
-                    <input type="hidden" name="subject_customer_id" value="{{ data_get($review, 'customer.id') }}">
-                @endif
-                <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                    Request collateral from {{ $who }}
-                </p>
-                <div class="grid sm:grid-cols-2 gap-2">
-                    @foreach ($collateralPresets as $preset)
-                        <label class="flex items-start gap-2 text-sm text-gray-700 bg-emerald-50/80 rounded-xl px-3 py-2 ring-1 ring-brand/10">
-                            <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
-                            <span>{{ $preset }}</span>
-                        </label>
-                    @endforeach
-                </div>
-                <textarea name="instructions" rows="2" maxlength="2000"
-                          placeholder="Optional note shown to the {{ $who }}"
-                          class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5"></textarea>
-                <div class="flex flex-wrap gap-2">
-                    <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
-                        Request collateral
-                    </button>
-                    @if (! $isGuarantor && ! $isMember)
-                        <button type="submit" form="kf-request-additional-asset"
-                                class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2.5 rounded-xl">
-                            Request another asset
-                        </button>
-                    @endif
-                    @if ($isGroupFile && ! $isGuarantor && ! $isMember && $activeMemberCount > 0)
-                        <button type="submit" name="ask_members" value="1"
-                                class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2.5 rounded-xl">
-                            Ask members
-                        </button>
-                    @endif
-                </div>
-                @if ($isGroupFile && ! $isGuarantor && ! $isMember && $activeMemberCount > 0)
-                    <p class="text-xs text-gray-500">Start with the group leader. If they do not have collateral, ask members.</p>
-                @endif
-            </form>
+            <div id="collateral-requests" class="space-y-3 {{ $assets->isNotEmpty() || $referToLeader ? 'pt-2 border-t border-brand/10' : '' }}">
+                @foreach ($openCollateralBatches as $batch)
+                    @php
+                        $batchNote = $batch['note'];
+                        $isDefaultNote = in_array($batchNote, array_values(\App\Services\ApplicationDocumentRequestService::presetInstructions()), true);
+                    @endphp
+                    <div class="rounded-xl bg-amber-50/80 ring-1 ring-amber-200 px-4 py-3 space-y-2" x-data="{ open: false, withdrawing: false }">
+                        <p class="text-sm font-semibold text-amber-950">
+                            Requested
+                            @if ($batch['at'])
+                                · {{ $batch['at']->timezone(config('app.timezone'))->format('d M Y') }}
+                            @endif
+                            · {{ $waitingOn }}
+                        </p>
+                        <ul class="text-xs text-amber-900 list-disc pl-4 space-y-0.5">
+                            @foreach ($batch['labels'] as $label)
+                                <li>{{ $label }}</li>
+                            @endforeach
+                        </ul>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" @click="open = ! open" class="inline-flex text-sm font-semibold text-brand hover:underline">
+                                View request
+                            </button>
+                            @if ($batch['can_cancel'])
+                                <button type="button" @click="withdrawing = true; open = true" class="inline-flex text-sm font-semibold text-slate-700 hover:underline">
+                                    Cancel request
+                                </button>
+                            @endif
+                        </div>
+                        <div x-show="open" x-cloak class="rounded-lg bg-white ring-1 ring-amber-100 px-3 py-3 space-y-2">
+                            <p class="text-xs text-gray-600">
+                                Sent to {{ $requestFromName }} ({{ $who }}).
+                                @if (filled($batchNote) && ! $isDefaultNote)
+                                    Note: “{{ $batchNote }}”
+                                @elseif (filled($batchNote))
+                                    {{ $batchNote }}
+                                @endif
+                            </p>
+                            <div x-show="withdrawing" x-cloak class="space-y-2">
+                                <p class="text-sm font-semibold text-gray-900">Withdraw this request from {{ $requestFromName }}?</p>
+                                <p class="text-xs text-gray-600">They will no longer see it. Nothing else on this file changes.</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" @click="withdrawing = false" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 px-3 py-1.5 rounded-lg">Keep request</button>
+                                    <form method="POST" action="{{ route('admin.loan-applications.document-requests.cancel', $record) }}">
+                                        @csrf
+                                        <input type="hidden" name="confirmed" value="1">
+                                        <input type="hidden" name="return_workspace" value="profiles">
+                                        <input type="hidden" name="return_tab" value="collateral">
+                                        <input type="hidden" name="review_person" value="{{ $person }}">
+                                        @foreach ($batch['ids'] as $id)
+                                            <input type="hidden" name="ids[]" value="{{ $id }}">
+                                        @endforeach
+                                        @if ($isMember)
+                                            <input type="hidden" name="review_m" value="{{ request('review_m', data_get($review, 'member_row.id')) }}">
+                                        @endif
+                                        @if ($isGuarantor)
+                                            <input type="hidden" name="review_g" value="{{ request('review_g') }}">
+                                        @endif
+                                        <button type="submit" class="inline-flex text-sm font-semibold text-white bg-rose-700 px-3 py-1.5 rounded-lg">Withdraw request</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+
+                <button type="button"
+                        @click="openRequest([])"
+                        class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+                    Request collateral
+                </button>
+
+                <x-site.action-panel title="Request collateral" open="requestOpen">
+                    <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="space-y-4" data-no-draft>
+                        @csrf
+                        <input type="hidden" name="type" value="document">
+                        <input type="hidden" name="intent" value="collateral">
+                        <input type="hidden" name="return_workspace" value="profiles">
+                        <input type="hidden" name="return_tab" value="collateral">
+                        <input type="hidden" name="review_person" value="{{ $person }}">
+                        <input type="hidden" name="confirmed" value="1" x-bind:disabled="requestStep !== 'review'">
+                        <template x-for="preset in presets" :key="preset">
+                            <input type="hidden" name="presets[]" :value="preset">
+                        </template>
+                        @if ($isMember)
+                            <input type="hidden" name="review_m" value="{{ request('review_m', data_get($review, 'member_row.id')) }}">
+                            <input type="hidden" name="subject_customer_id" value="{{ data_get($review, 'customer.id') }}">
+                            <input type="hidden" name="loan_group_member_id" value="{{ request('review_m', data_get($review, 'member_row.id')) }}">
+                        @endif
+                        @if ($isGuarantor)
+                            <input type="hidden" name="review_g" value="{{ request('review_g') }}">
+                            <input type="hidden" name="subject_customer_id" value="{{ data_get($review, 'customer.id') }}">
+                        @endif
+
+                        <div x-show="requestStep === 'pick'" class="space-y-3">
+                            <p class="text-xs text-gray-600">Select what {{ $requestFromName }} should send. Nothing is sent until you review and confirm.</p>
+                            <div class="grid gap-2">
+                                @foreach ($collateralPresets as $preset)
+                                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-emerald-50/80 rounded-xl px-3 py-2 ring-1 ring-brand/10">
+                                        <input type="checkbox" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand"
+                                               :checked="presets.includes(@js($preset))"
+                                               @change="togglePreset(@js($preset))">
+                                        <span>{{ $preset }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            <textarea x-model="note" name="instructions" rows="2" maxlength="2000"
+                                      placeholder="Optional note shown to {{ $requestFromName }}"
+                                      class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5"></textarea>
+                            @if ($isGroupFile && ! $isGuarantor && ! $isMember && $activeMemberCount > 0)
+                                <label class="flex items-start gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="ask_members" value="1" x-model="askMembers" class="mt-0.5 rounded border-gray-300 text-brand">
+                                    <span>Send to group members instead of the leader</span>
+                                </label>
+                            @endif
+                            <div class="flex flex-wrap gap-2 pt-1">
+                                <button type="button" @click="closeRequest()" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 px-4 py-2.5 rounded-xl">Cancel</button>
+                                <button type="button" @click="requestStep = 'review'" :disabled="presets.length === 0"
+                                        class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl disabled:opacity-40">
+                                    Review request
+                                </button>
+                            </div>
+                        </div>
+
+                        <div x-show="requestStep === 'review'" x-cloak class="space-y-3">
+                            <p class="text-sm font-semibold text-gray-900">
+                                You are requesting from
+                                <span x-text="askMembers ? {{ \Illuminate\Support\Js::from($activeMemberCount.' group members') }} : {{ \Illuminate\Support\Js::from($requestFromName) }}"></span>:
+                            </p>
+                            <ul class="text-sm text-gray-800 list-disc pl-4 space-y-0.5">
+                                <template x-for="preset in presets" :key="preset">
+                                    <li x-text="preset"></li>
+                                </template>
+                            </ul>
+                            <p class="text-sm text-gray-700" x-show="note.trim()" x-cloak>
+                                <span class="font-semibold">Note:</span>
+                                “<span x-text="note.trim()"></span>”
+                            </p>
+                            <p class="text-xs text-gray-500">This notifies them on their loan profile. It does not pledge an asset for you.</p>
+                            <div class="flex flex-wrap gap-2 pt-1">
+                                <button type="button" @click="requestStep = 'pick'" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 px-4 py-2.5 rounded-xl">Cancel</button>
+                                <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+                                    Send request
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </x-site.action-panel>
+            </div>
         @endif
     </div>
 

@@ -689,6 +689,27 @@ class ApplicationDocumentRequestService
             $loanGroupMemberId,
         );
 
+        $existing = LoanApplicationDocumentRequest::query()
+            ->where('loan_application_id', $application->id)
+            ->where('subject_kind', $subjectKind)
+            ->where('label', $label)
+            ->whereIn('status', ['pending', 'rejected'])
+            ->when(
+                $subjectCustomerId,
+                fn ($q) => $q->where('subject_customer_id', $subjectCustomerId),
+                fn ($q) => $q->whereNull('subject_customer_id'),
+            )
+            ->when(
+                $loanGroupMemberId,
+                fn ($q) => $q->where('loan_group_member_id', $loanGroupMemberId),
+                fn ($q) => $q->whereNull('loan_group_member_id'),
+            )
+            ->latest('id')
+            ->first();
+        if ($existing) {
+            return $existing;
+        }
+
         $request = LoanApplicationDocumentRequest::create([
             'loan_application_id' => $application->id,
             'subject_kind' => $subjectKind,
@@ -739,8 +760,17 @@ class ApplicationDocumentRequestService
         );
 
         $created = collect();
+        $alreadyOpen = $this->openLabelsForSubject(
+            $application,
+            $subjectKind,
+            $subjectCustomerId,
+            $loanGroupMemberId,
+        );
 
         foreach ($labels as $label) {
+            if (in_array($label, $alreadyOpen, true)) {
+                continue;
+            }
             $request = LoanApplicationDocumentRequest::create([
                 'loan_application_id' => $application->id,
                 'subject_kind' => $subjectKind,
@@ -769,6 +799,54 @@ class ApplicationDocumentRequestService
         }
 
         return $created;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function openLabelsForSubject(
+        LoanApplication $application,
+        string $subjectKind,
+        ?int $subjectCustomerId,
+        ?int $loanGroupMemberId,
+    ): array {
+        return LoanApplicationDocumentRequest::query()
+            ->where('loan_application_id', $application->id)
+            ->where('subject_kind', $subjectKind)
+            ->whereIn('status', ['pending', 'rejected'])
+            ->when(
+                $subjectCustomerId,
+                fn ($q) => $q->where('subject_customer_id', $subjectCustomerId),
+                fn ($q) => $q->where(function ($inner) {
+                    $inner->whereNull('subject_customer_id')
+                        ->orWhere('subject_customer_id', 0);
+                }),
+            )
+            ->when(
+                $loanGroupMemberId,
+                fn ($q) => $q->where('loan_group_member_id', $loanGroupMemberId),
+            )
+            ->pluck('label')
+            ->map(fn ($label) => trim((string) $label))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function cancelPending(LoanApplicationDocumentRequest $request, User $actor): LoanApplicationDocumentRequest
+    {
+        if ($request->status !== 'pending') {
+            throw new \InvalidArgumentException('Only a waiting request can be withdrawn.');
+        }
+
+        $request->update(['status' => 'cancelled']);
+        $application = $request->application;
+        if ($application) {
+            $this->syncApplicationStatus($application);
+        }
+
+        return $request->fresh();
     }
 
     /**

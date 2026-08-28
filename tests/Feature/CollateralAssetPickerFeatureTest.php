@@ -309,7 +309,7 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->assertDontSee('On this loan', false);
     }
 
-    public function test_admin_collateral_tab_lists_all_assets_with_pledged_first(): void
+    public function test_admin_collateral_tab_lists_only_assets_on_this_loan(): void
     {
         $customer = $this->completeBorrower();
         $application = $this->applicationFor($customer);
@@ -335,16 +335,12 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('Toyota Rav4', $html);
-        $this->assertStringContainsString('>Vitz<', $html);
         $this->assertStringContainsString('On this loan', $html);
-        $this->assertStringContainsString('Saved', $html);
-        $this->assertTrue(
-            strpos($html, 'Toyota Rav4') < strpos($html, '>Vitz<'),
-            'Pledged asset should appear before other profile assets'
-        );
+        $this->assertStringNotContainsString('>Vitz<', $html);
+        $this->assertStringNotContainsString('>Saved<', $html);
         $this->assertStringContainsString('Request valuation', $html);
         $this->assertStringContainsString('Waiting for the borrower', $html);
-        $this->assertGreaterThanOrEqual(2, substr_count($html, 'x-site.collateral-card') + substr_count($html, 'ring-brand/15'));
+        $this->assertGreaterThanOrEqual(1, substr_count($html, 'ring-brand/15'));
     }
 
     public function test_admin_collateral_cards_use_the_same_detail_grid_for_vehicles(): void
@@ -395,13 +391,13 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('Toyota Rav4', $html);
-        $this->assertStringContainsString('Vitz', $html);
-        $this->assertGreaterThanOrEqual(2, substr_count($html, 'Registration number'));
+        $this->assertStringNotContainsString('>Vitz<', $html);
+        $this->assertStringContainsString('Registration number', $html);
         $this->assertStringContainsString('Year of manufacture', $html);
         $this->assertStringContainsString('Make', $html);
         $this->assertStringContainsString('Chassis number', $html);
         $this->assertStringContainsString('T123ABC', $html);
-        $this->assertStringContainsString('1234', $html);
+        $this->assertStringNotContainsString('>1234<', $html);
         $this->assertStringContainsString('•••6789', $html);
         $this->assertStringContainsString('Request valuation', $html);
         $this->assertStringContainsString('Waiting for the borrower', $html);
@@ -479,7 +475,123 @@ class CollateralAssetPickerFeatureTest extends TestCase
         $this->assertStringNotContainsString('Next step for screening', $html);
         $this->assertStringNotContainsString('>Request valuation<', $html);
         $this->assertStringContainsString('On this loan', $html);
-        $this->assertStringContainsString('Saved', $html);
+        $this->assertStringNotContainsString('>Vitz<', $html);
+        $this->assertStringNotContainsString('Collateral secure status:', $html);
+        $this->assertStringNotContainsString('Request collateral from', $html);
+        $this->assertStringContainsString('Request collateral', $html);
+        $this->assertStringContainsString('Review request', $html);
+    }
+
+    public function test_admin_collateral_tab_caps_cards_and_offers_show_all(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $ids = [];
+        for ($i = 1; $i <= 11; $i++) {
+            $asset = $this->completeAsset($customer, 'Plot '.$i);
+            LoanApplicationAsset::create([
+                'loan_application_id' => $application->id,
+                'customer_asset_id' => $asset->id,
+                'asset_type' => 'land',
+                'uw_status' => LoanApplicationAsset::UW_PENDING,
+            ]);
+            $ids[] = (int) $asset->id;
+        }
+        app(CustomerAssetService::class)->persistOnLoanIds($application, $ids);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Show all collaterals (11)', $html);
+        $this->assertStringContainsString('Search type, registration, owner, status', $html);
+    }
+
+    public function test_collateral_request_needs_review_then_shows_waiting_state(): void
+    {
+        $customer = $this->completeBorrower();
+        $application = $this->applicationFor($customer);
+        $this->completeAsset($customer, 'Plot A');
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+                'person' => 'borrower',
+            ]))
+            ->post(route('admin.loan-applications.document-requests.store', $application), [
+                'type' => 'document',
+                'intent' => 'collateral',
+                'presets' => ['New collateral photo', 'Updated collateral insurance certificate'],
+                'instructions' => 'Please upload the updated insurance document before we continue.',
+                'review_person' => 'borrower',
+                'return_workspace' => 'profiles',
+                'return_tab' => 'collateral',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('confirmed');
+
+        $this->assertSame(0, $application->documentRequests()->count());
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $application), [
+                'type' => 'document',
+                'intent' => 'collateral',
+                'confirmed' => '1',
+                'presets' => ['New collateral photo', 'Updated collateral insurance certificate'],
+                'instructions' => 'Please upload the updated insurance document before we continue.',
+                'review_person' => 'borrower',
+                'return_workspace' => 'profiles',
+                'return_tab' => 'collateral',
+            ])
+            ->assertRedirect(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+                'person' => 'borrower',
+                'review_person' => 'borrower',
+            ]).'#collateral-requests');
+
+        $this->assertSame(2, $application->fresh()->documentRequests()->count());
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'profiles',
+                'tab' => 'collateral',
+                'person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Requested', $html);
+        $this->assertStringContainsString('Waiting for borrower', $html);
+        $this->assertStringContainsString('New collateral photo', $html);
+        $this->assertStringContainsString('View request', $html);
+        $this->assertStringContainsString('Cancel request', $html);
+        $this->assertStringContainsString('Please upload the updated insurance document before we continue.', $html);
+
+        $ids = $application->fresh()->documentRequests()->pluck('id')->all();
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.cancel', $application), [
+                'ids' => $ids,
+                'confirmed' => '1',
+                'return_workspace' => 'profiles',
+                'return_tab' => 'collateral',
+                'review_person' => 'borrower',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(['cancelled', 'cancelled'], $application->fresh()->documentRequests()->pluck('status')->all());
     }
 
     public function test_add_collateral_opens_type_as_wizard_step(): void
@@ -613,9 +725,9 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Toyota Rav4', false)
-            ->assertSee('>Vitz<', false)
+            ->assertDontSee('>Vitz<', false)
             ->assertSee('On this loan', false)
-            ->assertSee('Saved', false);
+            ->assertDontSee('Saved', false);
 
         $this->assertSame(1, LoanApplicationAsset::query()->where('loan_application_id', $application->id)->count());
     }
@@ -710,9 +822,9 @@ class CollateralAssetPickerFeatureTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Toyota Rav4', false)
-            ->assertSee('>Vitz<', false)
+            ->assertDontSee('>Vitz<', false)
             ->assertSee('1 on this loan', false)
-            ->assertSee('Saved', false);
+            ->assertDontSee('Saved', false);
 
         $this->assertSame(1, LoanApplicationAsset::query()->where('loan_application_id', $application->id)->count());
         $this->assertSame(

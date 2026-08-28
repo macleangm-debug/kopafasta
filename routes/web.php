@@ -645,6 +645,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-agreements.download');
         Route::post('loan-applications/{loan_application}/document-requests', [LoanApplicationDocumentRequestController::class, 'store'])
             ->name('loan-applications.document-requests.store');
+        Route::post('loan-applications/{loan_application}/document-requests/cancel', [LoanApplicationDocumentRequestController::class, 'cancelMany'])
+            ->name('loan-applications.document-requests.cancel');
         Route::post('loan-applications/{loan_application}/request-guarantor-supplement', [LoanApplicationController::class, 'requestGuarantorSupplement'])
             ->name('loan-applications.request-guarantor-supplement');
         Route::post('loan-applications/{loan_application}/request-collateral-secure', [LoanApplicationController::class, 'requestCollateralSecure'])
