@@ -131,9 +131,15 @@ class GuarantorCreditReviewFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Borrower CRB', $html);
-        $this->assertStringContainsString('Open guarantor file', $html);
+        $this->assertStringContainsString('Gate 3 — Credit bureau', $html);
         $this->assertStringContainsString('person=guarantor', $html);
+
+        $decision = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'decision']))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Borrower CRB', $decision);
+        $this->assertStringContainsString('Open guarantor file', $decision);
 
         $tab = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', [

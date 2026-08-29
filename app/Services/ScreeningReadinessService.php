@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LoanApplication;
+use App\Models\LoanProductRequirement;
 use App\Models\User;
 
 /**
@@ -87,10 +88,17 @@ class ScreeningReadinessService
                     $isIncomeGate = $gate === 'statements_vs_declared'
                         || ($item['key'] ?? '') === 'activity_income.income_evidence';
                     $subjectLabel = trim(($subject['label'] ?? 'Subject').' · '.($subject['sublabel'] ?? ''));
-                    $phase = (string) ($group['phase'] ?? 'person');
-                    $href = $this->checklistHref($application, $subject, $phase, (string) ($group['key'] ?? ''), (string) ($item['key'] ?? ''));
-                    $source = (string) ($item['source'] ?? '');
-                    $autoSource = in_array($source, ['system', 'auto_na', 'documents'], true);
+                    $dest = $item['destination'] ?? app(ScreeningChecklistGateService::class)->destination(
+                        $application,
+                        (string) ($item['key'] ?? ''),
+                        $subject,
+                    );
+                    $href = (string) ($dest['href'] ?? '');
+                    $cta = (string) ($dest['cta'] ?? 'Open check');
+                    $autoSource = ! empty($item['system_checked'])
+                        || ! empty($item['catalog_system'])
+                        || ! empty($item['documents_checked'])
+                        || in_array((string) ($item['by_name'] ?? ''), ['System', 'Documents'], true);
 
                     if (in_array($verdict, ['pass', 'na'], true) && $autoSource) {
                         $autoCompleted[] = [
@@ -99,21 +107,27 @@ class ScreeningReadinessService
                         ];
                     }
 
+                    if ($verdict === null && $autoSource && empty($item['captures_statement'])) {
+                        continue;
+                    }
+
                     if ($verdict === null) {
                         $hasEvidence = ! empty($item['evidence']['photos'])
                             || ! empty($item['evidence']['rows'])
                             || ! empty($item['evidence']['compare']);
                         $nextSteps[] = [
                             'label' => $isIncomeGate
-                                ? 'Gate 2 · Key statement totals and match revenue'
-                                : (($hasEvidence ? 'Confirm Pass/Fail · ' : 'Still open · ').($item['label'] ?? 'Checklist item')),
+                                ? 'Gate 2 · Statement totals'
+                                : (($hasEvidence ? 'Needs review · ' : 'Still open · ').($item['label'] ?? 'Checklist item')),
                             'detail' => $isIncomeGate
-                                ? $subjectLabel.' · Capacity — add total deposits from the statement, then Pass only if that average supports the profile. Required before other checklist work.'
+                                ? $subjectLabel.' · Enter statement totals and Save. Then record whether activity supports the stated income.'
                                 : ($subjectLabel.' · '.($group['phase_label'] ?? $group['label'] ?? 'Checklist')
-                                    .($hasEvidence ? ' — evidence is ready; you still must record Pass, Fail, or N/A and Save' : '')),
+                                    .($hasEvidence ? ' — evidence is ready; record Pass or Concern and Save' : '')),
                             'href' => $href,
+                            'cta' => $cta,
                             'tone' => $isIncomeGate ? 'gate' : ($risk === 'critical' ? 'critical' : 'open'),
-                            'gate' => $isIncomeGate ? 'statements_vs_declared' : null,
+                            'gate' => $isIncomeGate ? 'statements_vs_declared' : ($dest['gate'] ?? null),
+                            'dedupe_key' => (string) ($item['key'] ?? $item['label'] ?? ''),
                         ];
                     } elseif ($verdict === 'fail') {
                         if ($risk === 'critical') {
@@ -121,11 +135,13 @@ class ScreeningReadinessService
                             $criticalFails[] = ($item['label'] ?? 'Check').' ('.$subjectLabel.')';
                         }
                         $nextSteps[] = [
-                            'label' => ($isIncomeGate ? 'Gate 2 Fail · ' : 'Fail · ').($item['label'] ?? 'Checklist item'),
-                            'detail' => $subjectLabel.(! empty($item['fail_reason_label']) ? ' — '.$item['fail_reason_label'] : ' — override or keep Fail, then Save'),
+                            'label' => ($isIncomeGate ? 'Gate 2 concern · ' : 'Concern · ').($item['label'] ?? 'Checklist item'),
+                            'detail' => $subjectLabel.(! empty($item['fail_reason_label']) ? ' — '.$item['fail_reason_label'] : ' — add a reason, then Save'),
                             'href' => $href,
+                            'cta' => $cta,
                             'tone' => $isIncomeGate ? 'gate' : ($risk === 'critical' ? 'critical' : 'fail'),
-                            'gate' => $isIncomeGate ? 'statements_vs_declared' : null,
+                            'gate' => $isIncomeGate ? 'statements_vs_declared' : ($dest['gate'] ?? null),
+                            'dedupe_key' => (string) ($item['key'] ?? $item['label'] ?? ''),
                         ];
                     }
                 }
@@ -204,22 +220,6 @@ class ScreeningReadinessService
             $signals[] = $warningFlags.' warning flag'.($warningFlags === 1 ? '' : 's');
         }
 
-        $ready = $incomplete === [] && $checklistTotal > 0;
-        $suggestion = $this->suggest(
-            $ready,
-            $checklistFailed,
-            $criticalFailCount,
-            $affordVerdict,
-            $crbSignal['recommendation'],
-            $criticalFlags,
-        );
-        $labels = [
-            'hold' => 'Hold — finish checklist',
-            'approve' => 'Lean Approve',
-            'reject' => 'Lean Reject',
-            'counter' => 'Lean Counter-offer / Refer',
-        ];
-
         // Prefer Gate 2 (statements vs declared revenue), then critical / open actions.
         usort($nextSteps, function ($a, $b) {
             $rank = ['gate' => 0, 'critical' => 1, 'fail' => 2, 'open' => 3];
@@ -240,7 +240,8 @@ class ScreeningReadinessService
         }
 
         $borrower = collect($subjects)->firstWhere('person', 'borrower') ?? ($subjects[0] ?? []);
-        $docsHref = $this->checklistHref($application, $borrower, 'capacity', null, null, 'documents', null, 'review-documents');
+        $docService = app(ApplicationDocumentRequestService::class);
+        $gateService = app(ScreeningChecklistGateService::class);
         $blockingItems = [];
         $application->loadMissing(['documentRequests.subjectCustomer', 'documentRequests.groupMember.customer']);
         $seenBlockers = [];
@@ -251,70 +252,138 @@ class ScreeningReadinessService
             $label = trim((string) ($request->label ?? 'Requested document'));
             $who = $request->subjectRoleLabel();
             $full = $who ? $label.' ('.$who.')' : $label;
-            $seenBlockers[$full] = true;
+            $seenBlockers[mb_strtolower($full)] = true;
+            $kind = $docService->borrowerActionKind($request);
+            $href = $docService->screeningReviewUrl($request, $application, collect($review['guarantors'] ?? [])->all());
+            $cta = match ($kind) {
+                'income' => 'Review statements',
+                'collateral' => 'Open collateral',
+                'identity', 'face' => 'Open identity',
+                default => 'Open request',
+            };
+            $wait = $docService->outstandingTimingPhrase($request);
             $blockingItems[] = [
                 'label' => $full,
-                'detail' => 'Outstanding — this blocks Committee.',
-                'href' => $this->checklistHref(
-                    $application,
-                    $borrower,
-                    'capacity',
-                    null,
-                    null,
-                    'documents',
-                    null,
-                    'doc-request-'.$request->id,
-                ),
-                'cta' => 'Open missing document',
+                'detail' => trim($docService->waitingOnLabel($request).($wait ? ' · '.$wait : '')).' — this blocks Committee.',
+                'href' => $href,
+                'cta' => $cta,
+                'dedupe_key' => 'request-'.$request->id,
             ];
         }
         foreach (app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application) as $blocker) {
-            if (isset($seenBlockers[$blocker])) {
+            $key = mb_strtolower($blocker);
+            if (isset($seenBlockers[$key]) || LoanProductRequirement::nameIsIncomeEvidenceRequirement($blocker)) {
                 continue;
             }
-            $seenBlockers[$blocker] = true;
+            $seenBlockers[$key] = true;
+            $dest = $gateService->destination($application, 'documents.required_docs_complete', $borrower);
             $blockingItems[] = [
                 'label' => $blocker,
                 'detail' => 'Outstanding — this blocks Committee.',
-                'href' => $docsHref,
-                'cta' => 'Open missing document',
+                'href' => $dest['href'],
+                'cta' => 'Open request',
+                'dedupe_key' => 'doc-'.$key,
             ];
         }
         $needsAttention = [];
-        $blockLabels = array_column($blockingItems, 'label');
-        foreach (array_slice($nextSteps, 0, 8) as $step) {
+        $seenAttention = collect($blockingItems)->pluck('dedupe_key')->filter()->all();
+        foreach (array_slice($nextSteps, 0, 10) as $step) {
+            $dedupe = (string) ($step['dedupe_key'] ?? $step['label'] ?? '');
+            if ($dedupe !== '' && in_array($dedupe, $seenAttention, true)) {
+                continue;
+            }
             $stepLabel = (string) ($step['label'] ?? '');
-            if (in_array($stepLabel, $blockLabels, true)) {
+            if (str_contains(mb_strtolower($stepLabel), 'required document') && $blockingItems !== []) {
                 continue;
             }
-            if (str_contains($stepLabel, 'required document') && $blockingItems !== []) {
-                continue;
-            }
+            $seenAttention[] = $dedupe;
             $needsAttention[] = [
                 'label' => $stepLabel,
                 'detail' => $step['detail'] ?? '',
-                'href' => $step['href'] ?? $docsHref,
-                'cta' => match ($step['tone'] ?? '') {
-                    'gate' => 'Open statements',
-                    'critical', 'fail' => 'Review & decide',
+                'href' => $step['href'] ?? '',
+                'cta' => $step['cta'] ?? match ($step['tone'] ?? '') {
+                    'gate' => 'Review statements',
+                    'critical', 'fail' => 'Open check',
                     default => 'Open check',
                 },
             ];
         }
+        foreach ($anomalies as $anomaly) {
+            $title = trim((string) ($anomaly['title'] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+            $dup = collect($needsAttention)->contains(fn ($row) => str_contains(mb_strtolower($row['label'] ?? ''), mb_strtolower($title)))
+                || collect($blockingItems)->contains(fn ($row) => str_contains(mb_strtolower($row['label'] ?? ''), mb_strtolower($title)));
+            if ($dup) {
+                continue;
+            }
+            $needsAttention[] = [
+                'label' => $title,
+                'detail' => (string) ($anomaly['detail'] ?? ''),
+                'href' => (string) ($anomaly['href'] ?? $gateService->destination($application, 'credit_file.crb_reviewed', $borrower)['href']),
+                'cta' => (string) ($anomaly['cta'] ?? 'Open check'),
+            ];
+        }
+
+        $docBlockers = app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application);
+        $ready = $incomplete === [] && $checklistTotal > 0 && $docBlockers === [];
+        $decisionRecorded = filled($application->recommended_at) || filled($application->recommendation_type);
+        $status = match (true) {
+            $decisionRecorded && $ready => 'decision_recorded',
+            $blockingItems !== [] || $docBlockers !== [] => 'needs_attention',
+            ! $ready => 'review_in_progress',
+            default => 'ready_for_decision',
+        };
+        $statusLabel = match ($status) {
+            'decision_recorded' => 'Decision recorded',
+            'needs_attention' => 'Needs attention',
+            'ready_for_decision' => 'Ready for decision',
+            default => 'Review in progress',
+        };
+        $suggestion = $this->suggest(
+            $ready,
+            $checklistFailed,
+            $criticalFailCount,
+            $affordVerdict,
+            $crbSignal['recommendation'],
+            $criticalFlags,
+        );
+        $labels = [
+            'hold' => 'Hold — finish checklist',
+            'approve' => 'Lean Approve',
+            'reject' => 'Lean Reject',
+            'counter' => 'Lean Counter-offer / Refer',
+        ];
+
+        $firstBlock = $blockingItems[0] ?? $needsAttention[0] ?? null;
+        $decisionUrl = route('admin.loan-applications.show', [
+            'loan_application' => $application,
+            'workspace' => 'decision',
+        ]).'#review-recommendation';
+        $primaryHref = $ready ? $decisionUrl : (string) ($firstBlock['href'] ?? '');
+        $primaryCta = match (true) {
+            $ready => 'Continue to decision',
+            $blockingItems !== [] => (count($blockingItems) === 1 ? '1 item before decision' : count($blockingItems).' items before decision'),
+            default => 'Open missing item',
+        };
+
         $percent = $checklistTotal > 0 ? (int) round(($checklistDone / $checklistTotal) * 100) : 0;
         $autoCompleted = array_values(array_slice($autoCompleted, 0, 12));
         $autoCompleteCount = count($autoCompleted);
+        $humanOpen = max(0, $checklistTotal - $checklistDone - $autoCompleteCount);
 
         return [
             'ready' => $ready,
+            'status' => $status,
+            'status_label' => $statusLabel,
             'suggestion' => $suggestion,
             'suggestion_label' => $labels[$suggestion] ?? strtoupper($suggestion),
-            'headline' => $this->headline($ready, $suggestion),
+            'headline' => $statusLabel,
             'detail' => $this->detail($ready, $suggestion, $checklistDone, $checklistTotal, $criticalFailCount),
-            'tone' => match ($suggestion) {
-                'approve' => 'good',
-                'reject' => 'bad',
-                'counter' => 'warn',
+            'tone' => match ($status) {
+                'ready_for_decision', 'decision_recorded' => $suggestion === 'reject' ? 'bad' : 'good',
+                'needs_attention' => 'warn',
                 default => 'neutral',
             },
             'blockers' => array_values($blockers),
@@ -333,6 +402,10 @@ class ScreeningReadinessService
             'subjects_total' => count($subjects),
             'income_gate_open' => $incomeGateOpen,
             'income_gate_href' => $incomeGateOpen ? (string) ($incomeGateStep['href'] ?? '') : null,
+            'primary_href' => $primaryHref,
+            'primary_cta' => $primaryCta,
+            'primary_block_cta' => $firstBlock['cta'] ?? 'Open missing item',
+            'human_open' => $humanOpen,
             'na_note' => 'N/A counts as reviewed and does not Fail the file — use it when the check truly does not apply (for example collateral on a clean group loan). It still moves the checklist forward.',
         ];
     }

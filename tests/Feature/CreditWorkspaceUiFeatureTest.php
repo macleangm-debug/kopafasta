@@ -88,10 +88,14 @@ class CreditWorkspaceUiFeatureTest extends TestCase
                 ->assertOk()
                 ->getContent();
 
-            $this->assertStringContainsString('Facility summary', $html);
-            $this->assertStringContainsString('Risk score', $html);
-            $this->assertStringContainsString('Borrower CRB', $html);
-            $this->assertStringContainsString('Open guarantor file', $html);
+            $decision = $this->actingAs($admin, 'admin')
+                ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'decision']))
+                ->assertOk()
+                ->getContent();
+
+            $this->assertStringContainsString('Facility summary', $decision);
+            $this->assertStringContainsString('Risk score', $decision);
+            $this->assertStringContainsString('Borrower CRB', $decision);
             $this->assertStringContainsString('Review checklist', $html);
             $this->assertStringContainsString('workspace=profiles', $html);
             $this->assertStringContainsString('workspace=decision', $html);
@@ -108,7 +112,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             $this->assertStringNotContainsString('>Group</a>', $profiles);
             $this->assertStringContainsString('tab=personal', $profiles);
             $this->assertStringNotContainsString('tab=affordability', $profiles);
-            $this->assertStringNotContainsString('tab=crb', $profiles);
+            $this->assertDoesNotMatchRegularExpression('/[?&]tab=crb/', $profiles);
             $this->assertStringNotContainsString('Edit application', $html);
         }
 
@@ -168,9 +172,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('Personal in place', $documents);
-        $this->assertStringContainsString('Capacity and evidence', $documents);
-        $this->assertStringContainsString('Security and close', $documents);
+        $this->assertStringContainsString('Gate 1 — Identity', $documents);
+        $this->assertStringContainsString('Gate 2 — Income', $documents);
+        $this->assertStringContainsString('Gate 4 — Collateral', $documents);
         $this->assertStringContainsString('Request more documents', $documents);
         $this->assertStringContainsString('Review request', $documents);
         $this->assertStringContainsString('name="intent" value="documents"', $documents);
@@ -178,11 +182,10 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringNotContainsString('Document library', $documents);
         $this->assertStringContainsString('Affordability', $documents);
         $this->assertStringContainsString('Credit file wrap-up', $documents);
-        $this->assertStringContainsString('Hold — finish checklist', $documents);
-        $this->assertStringContainsString('checks complete', $documents);
+        $this->assertStringContainsString('Review in progress', $documents);
+        $this->assertStringContainsString('complete', $documents);
         $this->assertStringContainsString('View calculation', $documents);
         $this->assertStringContainsString('Gate 2', $documents);
-        $this->assertStringContainsString('Match statements to profile revenue', $documents);
         $this->assertStringContainsString('Statement totals', $documents);
         $this->assertStringContainsString('Period is always 6 months', $documents);
         $this->assertStringNotContainsString('Max repayment (1/3)', $documents);
@@ -264,11 +267,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('Approve unavailable', $decision);
-        $this->assertStringContainsString('Open missing document', $decision);
+        $this->assertStringContainsString('Open request', $decision);
         $this->assertStringContainsString('Reject stays available', $decision);
         $this->assertStringContainsString('National ID (front)', $decision);
-        $this->assertStringContainsString('docs_panel=requests', $decision);
-        $this->assertStringContainsString('capacity_tab=documents', $decision);
         $this->assertStringNotContainsString('Who you are reviewing', $decision);
 
         $app->forceFill([

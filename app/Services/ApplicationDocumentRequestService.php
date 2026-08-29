@@ -342,7 +342,7 @@ class ApplicationDocumentRequestService
     public function screeningKindLabel(LoanApplicationDocumentRequest $request): string
     {
         return match ($this->borrowerActionKind($request)) {
-            'income' => 'Income verification',
+            'income' => 'Income / statements',
             'collateral' => 'Collateral',
             'face' => 'Face photos',
             'identity' => 'National ID',
@@ -489,6 +489,7 @@ class ApplicationDocumentRequestService
                 'loan_application' => $application,
                 'workspace' => 'checklist',
                 'desk_phase' => 'security',
+                'gate' => 'collateral',
                 'security_tab' => 'checks',
                 'open_group' => 'collateral',
                 'person' => $person,
@@ -499,11 +500,30 @@ class ApplicationDocumentRequestService
                 'review_g' => $g,
             ], fn ($v) => $v !== null && $v !== '');
 
-            return route('admin.loan-applications.show', $params).'#review-desk';
+            return route('admin.loan-applications.show', $params).'#doc-request-'.$request->id;
+        }
+
+        if ($kind === 'income') {
+            $params = array_filter([
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+                'desk_phase' => 'capacity',
+                'gate' => 'income',
+                'capacity_tab' => 'checks',
+                'open_group' => 'activity_income',
+                'open_item' => 'activity_income.income_evidence',
+                'person' => $person,
+                'm' => $m,
+                'g' => $g,
+                'review_person' => $person,
+                'review_m' => $m,
+                'review_g' => $g,
+            ], fn ($v) => $v !== null && $v !== '');
+
+            return route('admin.loan-applications.show', $params).'#item-activity_income.income_evidence';
         }
 
         $tab = match ($kind) {
-            'income' => 'documents',
             'face' => 'face',
             'identity' => 'personal',
             default => 'documents',
@@ -511,8 +531,11 @@ class ApplicationDocumentRequestService
 
         $params = array_filter([
             'loan_application' => $application,
-            'workspace' => 'profiles',
-            'tab' => $tab,
+            'workspace' => $kind === 'face' || $kind === 'identity' ? 'profiles' : 'checklist',
+            'tab' => $kind === 'face' || $kind === 'identity' ? $tab : null,
+            'desk_phase' => $kind === 'face' || $kind === 'identity' ? null : 'capacity',
+            'gate' => $kind === 'face' || $kind === 'identity' ? 'identity' : 'final',
+            'capacity_tab' => $kind === 'face' || $kind === 'identity' ? null : 'documents',
             'person' => $person,
             'm' => $m,
             'g' => $g,
@@ -521,7 +544,12 @@ class ApplicationDocumentRequestService
             'review_g' => $g,
         ], fn ($v) => $v !== null && $v !== '');
 
-        return route('admin.loan-applications.show', $params).($kind === 'income' ? '#review-documents' : '#borrower-file');
+        $hash = match ($kind) {
+            'face', 'identity' => 'borrower-file',
+            default => 'doc-request-'.$request->id,
+        };
+
+        return route('admin.loan-applications.show', $params).'#'.$hash;
     }
 
     /**

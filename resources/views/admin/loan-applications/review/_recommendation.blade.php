@@ -21,13 +21,16 @@
     $docBlockers = $isCreditStage
         ? app(\App\Services\LoanApplicationWorkflowService::class)->screeningDocumentBlockers($record)
         : [];
-    $docsUrl = route('admin.loan-applications.show', [
+    $blockItem = ($screeningReadiness['blocking_items'][0] ?? null);
+    $docsUrl = $blockItem['href'] ?? route('admin.loan-applications.show', [
         'loan_application' => $record,
         'workspace' => 'checklist',
         'desk_phase' => 'capacity',
+        'gate' => 'final',
         'capacity_tab' => 'documents',
         'docs_panel' => 'requests',
     ]).'#review-documents';
+    $docsCta = $blockItem['cta'] ?? 'Open request';
 @endphp
 
 <div id="review-recommendation" class="scroll-mt-24 mb-2 space-y-4">
@@ -127,7 +130,7 @@
                         @endforeach
                     </ul>
                     <a href="{{ $docsUrl }}" class="mt-2 inline-flex text-xs font-bold text-brand underline underline-offset-2">
-                        Open missing document
+                        {{ $docsCta }}
                     </a>
                 </div>
             @endif

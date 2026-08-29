@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\LoanApplication;
+use App\Support\NationalIdDob;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -125,15 +126,14 @@ class ScreeningChecklistAutoVerdictService
     /** @return array{verdict: string, fail_reason_code?: string|null, source: string} */
     private function nidaVsDob(?Customer $customer): array
     {
-        $nida = preg_replace('/\D+/', '', (string) ($customer?->national_id ?? '')) ?: '';
-        $dob = $customer?->date_of_birth;
-        if (strlen($nida) < 8 || ! $dob instanceof Carbon) {
+        $cmp = NationalIdDob::matchesBorrower($customer?->national_id, $customer?->date_of_birth);
+        if (! ($cmp['derived']['ok'] ?? false)) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'nida_unverifiable', 'source' => 'system'];
+        }
+        if (! ($cmp['borrower'] instanceof Carbon)) {
             return ['verdict' => 'fail', 'fail_reason_code' => 'nida_incomplete', 'source' => 'system'];
         }
-
-        $fromNida = substr($nida, 0, 8);
-        $fromDob = $dob->format('Ymd');
-        if ($fromNida === $fromDob) {
+        if ($cmp['match'] ?? false) {
             return ['verdict' => 'pass', 'source' => 'system'];
         }
 

@@ -108,9 +108,11 @@
                                 'loan_application' => $record,
                                 'workspace' => 'checklist',
                                 'desk_phase' => 'capacity',
+                                'gate' => 'final',
                                 'capacity_tab' => 'documents',
                                 'docs_panel' => $docBlockers === [] ? null : 'requests',
                             ])).'#review-documents';
+                            $docsCta = 'Open request';
                         @endphp
                         <button type="button"
                                 data-open-dialog="recommend-{{ $record->id }}"
@@ -176,7 +178,7 @@
                                             </ul>
                                             <a href="{{ $docsUrl }}"
                                                class="mt-2 inline-flex text-[11px] font-bold text-brand underline underline-offset-2">
-                                                Open missing document
+                                                {{ $docsCta ?? 'Open request' }}
                                             </a>
                                         </div>
                                     @endif

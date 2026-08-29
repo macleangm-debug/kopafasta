@@ -49,7 +49,7 @@
         $hay = strtolower(trim(($req->name ?? '').' '.($req->description ?? '')));
         $rules = [
             ['key' => 'identity', 'label' => 'Identity & KYC', 'order' => 1, 'needles' => ['national id', 'passport', 'face', 'identity', 'nida', 'photo of id']],
-            ['key' => 'income', 'label' => 'Income verification', 'order' => 2, 'needles' => ['income', 'income verification', 'bank statement', 'mobile money', 'mobile statement', 'payslip', 'salary', 'statement', 'revenue', 'source of income']],
+            ['key' => 'income', 'label' => 'Income / business', 'order' => 2, 'needles' => ['income', 'bank statement', 'mobile money', 'mobile statement', 'payslip', 'salary', 'statement', 'revenue', 'source of income']],
             ['key' => 'business', 'label' => 'Business & activity', 'order' => 3, 'needles' => ['business', 'licence', 'license', 'shop', 'farm', 'workshop', 'invoice', 'supplier', 'buyer', 'off-taker', 'fundi', 'employer']],
             ['key' => 'collateral', 'label' => 'Collateral & assets', 'order' => 4, 'needles' => ['collateral', 'vehicle', 'logbook', 'insurance', 'valuation', 'ownership', 'title deed', 'asset']],
             ['key' => 'group', 'label' => 'Group', 'order' => 5, 'needles' => ['group constitution', 'member roster', 'group member']],
@@ -249,9 +249,35 @@
         ->sortBy(fn ($group) => $group->first()['category']['order'] ?? 99);
 
     $libraryTitle = 'Document library';
+    $libraryGroupFor = function ($doc) {
+        $code = strtolower((string) ($doc->documentType?->code ?? ''));
+        $cat = strtolower((string) ($doc->documentType?->category ?? ''));
+        $name = strtolower((string) ($doc->documentType?->name ?? $doc->original_name ?? ''));
+        $hay = $code.' '.$cat.' '.$name;
+        if (str_contains($hay, 'nida') || str_contains($hay, 'national') || str_contains($hay, 'face') || str_contains($hay, 'passport') || str_contains($hay, 'id_') || str_contains($hay, 'identity') || str_contains($hay, 'address') || $cat === 'kyc' || $cat === 'identity') {
+            if (str_contains($hay, 'statement') || str_contains($hay, 'income') || str_contains($hay, 'salary') || str_contains($hay, 'business')) {
+                return 'Income / business';
+            }
+
+            return 'Identity';
+        }
+        if (str_contains($hay, 'statement') || str_contains($hay, 'income') || str_contains($hay, 'salary') || str_contains($hay, 'business') || str_contains($hay, 'licence') || str_contains($hay, 'tin')) {
+            return 'Income / business';
+        }
+        if (str_contains($hay, 'collateral') || str_contains($hay, 'logbook') || str_contains($hay, 'insurance') || str_contains($hay, 'valuation') || str_contains($hay, 'ownership') || str_contains($hay, 'asset')) {
+            return 'Collateral';
+        }
+
+        return 'Loan-specific documents';
+    };
     $libraryByCategory = $profileDocs
-        ->groupBy(fn ($doc) => strtolower((string) ($doc->documentType?->category ?: 'kyc')))
-        ->sortKeys();
+        ->groupBy($libraryGroupFor)
+        ->sortBy(fn ($docs, $label) => match ($label) {
+            'Identity' => 1,
+            'Income / business' => 2,
+            'Collateral' => 3,
+            default => 4,
+        });
 
     $isLoanFileRequest = fn ($req) => ! $docRequestService->isProfileGuidedRequest($req);
     $loanRequestsForPanel = $documentRequestsForPanel->filter($isLoanFileRequest)->values();

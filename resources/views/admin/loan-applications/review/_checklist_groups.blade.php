@@ -59,8 +59,11 @@
                         fn ($pair) => filled(data_get($pair, 'borrower.url')) || filled(data_get($pair, 'valuer.url'))
                     ) || collect($item['evidence']['photos'] ?? [])->contains(fn ($photo) => filled($photo['url'] ?? null));
                     $isAwaiting = ! empty($item['awaiting_data']) && ! $hasPhotoEvidence;
+                    $isQuietAuto = (($item['system_checked'] ?? false) || ($item['catalog_system'] ?? false) || ($item['documents_checked'] ?? false))
+                        && in_array($item['verdict'] ?? null, ['pass', 'na'], true)
+                        && empty($item['captures_statement']);
                 @endphp
-                <li class="p-4" data-checklist-item
+                <li id="item-{{ $itemKey }}" class="p-4" data-checklist-item
                     x-data="{
                         verdict: @js($item['verdict'] ?? ''),
                         reason: @js($item['fail_reason_code'] ?? ''),
@@ -68,6 +71,12 @@
                         systemLocked: {{ ! empty($item['read_only']) ? 'true' : 'false' }}
                     }">
                     <div class="flex flex-wrap items-start justify-between gap-3">
+                        @if ($isQuietAuto)
+                            <p class="text-sm font-medium text-emerald-900">
+                                ✓ {{ $item['label'] }}
+                                <span class="text-[11px] font-semibold text-emerald-800"> — System checked</span>
+                            </p>
+                        @else
                         <button type="button" class="text-left min-w-0 flex-1" @click="toggleItem(@js($itemKey))">
                                             <p class="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
                                                 <span>{{ $item['label'] }}</span>
@@ -90,17 +99,22 @@
                                 <p class="text-[11px] text-gray-500 mt-0.5">{{ $item['evidence']['hint'] }}</p>
                             @endif
                             @if (! empty($item['document_link']['label']))
-                                <p class="text-[11px] mt-0.5 {{ ($item['document_link']['status'] ?? '') === 'rejected' ? 'text-rose-700 font-semibold' : (($item['document_link']['status'] ?? '') === 'verified' ? 'text-violet-800 font-medium' : 'text-violet-700') }}">
-                                    {{ $item['document_link']['label'] }}
-                                    <a href="{{ route('admin.loan-applications.show', array_filter([
+                                @php
+                                    $docCtaHref = $item['destination']['href'] ?? route('admin.loan-applications.show', array_filter([
                                             'loan_application' => $record ?? request()->route('loan_application'),
                                             'workspace' => 'checklist',
                                             'capacity_tab' => 'documents',
+                                            'gate' => 'final',
                                             'review_person' => request('review_person'),
                                             'review_g' => request('review_g'),
                                             'review_m' => request('review_m'),
-                                        ])) }}#review-documents"
-                                       class="underline underline-offset-2 hover:text-brand">Open Documents</a>
+                                        ])).'#review-documents';
+                                    $docCtaLabel = $item['destination']['cta'] ?? 'Open Documents';
+                                @endphp
+                                <p class="text-[11px] mt-0.5 {{ ($item['document_link']['status'] ?? '') === 'rejected' ? 'text-rose-700 font-semibold' : (($item['document_link']['status'] ?? '') === 'verified' ? 'text-violet-800 font-medium' : 'text-violet-700') }}">
+                                    {{ $item['document_link']['label'] }}
+                                    <a href="{{ $docCtaHref }}"
+                                       class="underline underline-offset-2 hover:text-brand">{{ $docCtaLabel }}</a>
                                 </p>
                             @endif
                             @if ($mismatchCount > 0)
@@ -114,7 +128,7 @@
                                 @if (($item['verdict'] ?? '') === 'pass')
                                     <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200">Pass ✓</span>
                                 @elseif (($item['verdict'] ?? '') === 'fail')
-                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-rose-50 text-rose-900 ring-1 ring-rose-200">Fail ✗</span>
+                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-amber-50 text-amber-950 ring-1 ring-amber-200">Concern</span>
                                 @elseif (($item['verdict'] ?? '') === 'na')
                                     <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-sky-100 text-sky-900 ring-1 ring-sky-300">N/A</span>
                                 @endif
@@ -126,10 +140,10 @@
                                     Pass ✓
                                 </label>
                                 <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
-                                       :class="verdict === 'fail' ? 'bg-rose-50 text-rose-900 ring-rose-200' : 'bg-white text-gray-600 ring-gray-200'">
+                                       :class="verdict === 'fail' ? 'bg-amber-50 text-amber-950 ring-amber-200' : 'bg-white text-gray-600 ring-gray-200'">
                                     <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="fail"
                                            x-model="verdict" @change="openItem = @js($itemKey)">
-                                    Fail ✗
+                                    Concern
                                 </label>
                                 <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
                                        :class="verdict === 'na' ? 'bg-sky-100 text-sky-900 ring-sky-300 shadow-sm' : 'bg-white text-gray-600 ring-gray-200'">
@@ -139,8 +153,10 @@
                                 </label>
                             @endif
                         </div>
+                        @endif
                     </div>
 
+                    @unless ($isQuietAuto)
                     <div x-show="openItem === @js($itemKey)" x-cloak class="mt-3 space-y-3">
                         @if ($isAwaiting)
                             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3.5 py-3">
@@ -321,8 +337,8 @@
                             <div class="rounded-xl ring-1 ring-brand/15 overflow-hidden">
                                 <div class="grid grid-cols-[1.1fr_1fr_1fr] gap-0 bg-brand-muted/40 px-3 py-2 text-[10px] uppercase tracking-widest font-semibold text-brand">
                                     <span>Field</span>
-                                    <span>Profile</span>
-                                    <span>CRB</span>
+                                    <span>{{ $item['evidence']['compare'][0]['profile_source'] ?? 'Borrower-provided' }}</span>
+                                    <span>{{ $item['evidence']['compare'][0]['crb_source'] ?? 'CRB' }}</span>
                                 </div>
                                 <ul class="divide-y divide-gray-100 bg-white">
                                     @foreach ($item['evidence']['compare'] as $row)
@@ -347,7 +363,12 @@
                             <dl class="grid sm:grid-cols-2 gap-2">
                                 @foreach ($item['evidence']['rows'] as $row)
                                     <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
-                                        <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ $row['label'] }}</dt>
+                                        <dt class="text-[10px] uppercase tracking-widest text-gray-500">
+                                            {{ $row['label'] }}
+                                            @if (! empty($row['source']))
+                                                <span class="normal-case tracking-normal font-medium text-gray-400"> · {{ $row['source'] }}</span>
+                                            @endif
+                                        </dt>
                                         <dd class="text-sm font-semibold text-gray-900 mt-0.5 break-words">
                                             @if (! empty($row['href']))
                                                 <a href="{{ $row['href'] }}" class="text-brand underline underline-offset-2 hover:text-brand-light">{{ $row['href_label'] ?? $row['value'] }}</a>
@@ -368,7 +389,7 @@
                 <div>
                     <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">Statement totals</p>
                     <p class="text-[11px] text-gray-600 mt-0.5">
-                        Confirm the statement covers at least 6 months, then enter total deposits and Save. The system decides pass or fail. Period is always 6 months.
+                    Confirm the statement covers at least 6 months, then enter total deposits and Save. Period is always 6 months.
                     </p>
                 </div>
                 <input type="hidden" name="{{ $fieldBase }}[statement_months]" value="6">
@@ -409,7 +430,7 @@
                                 </div>
                             @endif
                             <label class="block text-[10px] uppercase tracking-widest text-rose-800 font-semibold">
-                                {{ ($item['item_key'] ?? '') === 'bank_or_mobile_money' ? 'Concerning pattern (required)' : 'Fail reason (required)' }}
+                                {{ ($item['item_key'] ?? '') === 'bank_or_mobile_money' ? 'Concerning pattern (required)' : 'Explain what you found (required)' }}
                             </label>
                             <select name="{{ $fieldBase }}[fail_reason_code]" x-model="reason"
                                     class="w-full rounded-lg border-rose-200 text-sm focus:border-rose-400 focus:ring-rose-200">
@@ -420,7 +441,7 @@
                             </select>
                             <textarea name="{{ $fieldBase }}[fail_reason_custom]" rows="2" x-show="reason === 'custom'" x-cloak
                                       class="w-full rounded-lg border-rose-200 text-sm"
-                                      placeholder="Explain the fail reason…">{{ $item['fail_reason_custom'] ?? '' }}</textarea>
+                                      placeholder="Explain what you found…">{{ $item['fail_reason_custom'] ?? '' }}</textarea>
                         </div>
                         @endif
 
@@ -436,6 +457,7 @@
                             </p>
                         @endif
                     </div>
+                    @endunless
                 </li>
             @endforeach
         </ul>

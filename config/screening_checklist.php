@@ -18,8 +18,9 @@ return [
                 'evidence' => 'nida_dob',
                 'risk' => 'critical',
                 'fail_reasons' => [
-                    'nida_dob_mismatch' => 'NIDA does not match date of birth',
-                    'nida_incomplete' => 'NIDA or date of birth missing / incomplete',
+                    'nida_dob_mismatch' => 'Borrower date of birth does not match National ID',
+                    'nida_incomplete' => 'Borrower date of birth missing',
+                    'nida_unverifiable' => 'Unable to verify from National ID',
                     'custom' => 'Other (write reason)',
                 ],
             ],
@@ -179,7 +180,7 @@ return [
         'items' => [
             // Gate 2 (after capacity auto-reject): screening keys deposits + months; the system decides pass/fail.
             'income_evidence' => [
-                'label' => 'Match statements to profile revenue — key total deposits',
+                'label' => 'Statement totals — key total deposits',
                 'evidence' => 'income_statements',
                 'document_bundle' => 'income_statements',
                 'risk' => 'critical',
@@ -192,7 +193,7 @@ return [
                 ],
             ],
             'activity_plausible' => [
-                'label' => 'Does the stated job / business look plausible?',
+                'label' => 'Does activity support the stated income / business?',
                 'evidence' => 'activity',
                 'document_bundle' => 'activity_proof',
                 'fail_reasons' => [

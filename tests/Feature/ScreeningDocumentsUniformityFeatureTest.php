@@ -238,10 +238,7 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             $this->assertStringContainsString('x-show="requestOpen"', $html);
         }
 
-        $this->assertStringContainsString('Income verification', $leaderDocs);
-        $this->assertStringContainsString('Bank statement OR mobile money statement (6 months).', $leaderDocs);
-        $this->assertStringContainsString('Bank statement OR mobile money statement (6 months).', $askedDocs);
-        $this->assertStringNotContainsString('Bank statement OR mobile money statement (6 months).', $otherDocs);
+        $this->assertStringNotContainsString('Income verification', $leaderDocs);
 
         foreach ([$leaderHtml, $askedHtml, $otherHtml, $leaderDocs, $askedDocs, $otherDocs] as $html) {
             $this->assertStringNotContainsString('National ID (front)', $html);
@@ -325,11 +322,11 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $missing = app(LoanApplicationReviewService::class)->dossier($application)['missing_documents'] ?? [];
         $blockers = app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application);
 
-        $this->assertContains('Income verification', $missing);
+        $this->assertNotContains('Income verification', $missing);
         $this->assertNotContains('National ID (front)', $missing);
         $this->assertNotContains('Group constitution', $missing);
         $this->assertNotContains('Group member roster', $missing);
-        $this->assertContains('Income verification', $blockers);
+        $this->assertNotContains('Income verification', $blockers);
         $this->assertNotContains('National ID (front)', $blockers);
         $this->assertFalse(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'Group constitution')));
         $this->assertFalse(collect($blockers)->contains(fn ($line) => str_contains((string) $line, 'Group member roster')));
@@ -445,7 +442,7 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
 
         $this->assertSame('collateral', $docService->borrowerActionKind($collateral->fresh()));
         $this->assertSame('income', $docService->borrowerActionKind($statement->fresh()));
-        $this->assertSame('Income verification', $docService->screeningKindLabel($statement->fresh()));
+        $this->assertSame('Income / statements', $docService->screeningKindLabel($statement->fresh()));
 
         $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $application))
@@ -454,7 +451,7 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
             ->assertSee('Add collateral asset', false)
             ->assertSee('Updated Mobile Money Statement', false)
             ->assertSee('Asked Member · Member', false)
-            ->assertSee('Income verification', false)
+            ->assertSee('Income / statements', false)
             ->assertSee('Collateral', false)
             ->getContent();
 
@@ -462,10 +459,11 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $this->assertStringContainsString('open_group=collateral', $html);
         $this->assertStringContainsString('desk_phase=security', $html);
         $this->assertStringContainsString('#review-desk', $html);
-        $this->assertStringContainsString('tab=documents', $html);
-        $this->assertStringContainsString('#review-documents', $html);
+        $this->assertStringContainsString('gate=income', $html);
+        $this->assertStringContainsString('open_group=activity_income', $html);
         $this->assertStringContainsString('person=member', $html);
         $this->assertStringNotContainsString('tab=activity', $html);
+        $this->assertStringNotContainsString('open_group=collateral#', $html);
         $this->assertStringNotContainsString(
             route('admin.loan-application-document-requests.satisfy', $collateral, false),
             $html,

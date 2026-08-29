@@ -30,7 +30,7 @@ class ScreeningReadinessFeatureTest extends TestCase
 
         $this->assertFalse($readiness['ready']);
         $this->assertSame('hold', $readiness['suggestion']);
-        $this->assertStringContainsString('Not ready', $readiness['headline']);
+        $this->assertStringContainsString('Review in progress', $readiness['headline']);
         $this->assertNotEmpty($readiness['next_steps']);
         $this->assertArrayHasKey('href', $readiness['next_steps'][0]);
         $this->assertTrue($readiness['income_gate_open']);
@@ -85,6 +85,41 @@ class ScreeningReadinessFeatureTest extends TestCase
 
         $this->assertTrue($readiness['ready']);
         $this->assertSame('reject', $readiness['suggestion']);
+        $this->assertSame('Ready for decision', $readiness['headline']);
+    }
+
+    public function test_income_attention_cta_never_routes_to_collateral(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $request = \App\Models\LoanApplicationDocumentRequest::create([
+            'loan_application_id' => $app->id,
+            'requested_by' => $admin->id,
+            'label' => 'Updated Mobile Money Statement',
+            'type' => 'document',
+            'status' => 'pending',
+        ]);
+
+        $readiness = app(ScreeningReadinessService::class)->forApplication(
+            $app->fresh(),
+            ['customer' => $app->customer, 'affordability' => ['verdict' => 'pass'], 'crb' => ['score' => 700, 'recommendation' => 'approve']],
+            null,
+            [],
+            $admin,
+        );
+
+        $this->assertFalse($readiness['ready']);
+        $this->assertSame('Needs attention', $readiness['headline']);
+        $income = collect($readiness['blocking_items'])->first(
+            fn ($row) => str_contains((string) ($row['label'] ?? ''), 'Mobile Money')
+        );
+        $this->assertNotNull($income);
+        $this->assertSame('Review statements', $income['cta']);
+        $this->assertStringContainsString('gate=income', $income['href']);
+        $this->assertStringContainsString('activity_income', $income['href']);
+        $this->assertStringNotContainsString('open_group=collateral', $income['href']);
+        $this->assertStringNotContainsString('desk_phase=security', $income['href']);
     }
 
     private function staff(): User

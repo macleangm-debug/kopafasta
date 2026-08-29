@@ -89,11 +89,11 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('Review checklist', $html);
         $this->assertStringContainsString('Compare NIDA number to date of birth', $html);
         $this->assertStringContainsString('Pass ✓', $html);
-        $this->assertStringContainsString('Fail ✗', $html);
+        $this->assertStringContainsString('Concern', $html);
         $this->assertStringContainsString('data-money-input', $html);
         $this->assertStringContainsString('items[activity_income][income_evidence][statement_deposits_total]', $html);
         $this->assertStringNotContainsString('items[activity_income][income_evidence][verdict]', $html);
-        $this->assertStringContainsString('The system decides pass or fail', $html);
+        $this->assertStringContainsString('Period is always 6 months', $html);
         $this->assertStringNotContainsString('tab=checklist', $html);
     }
 
@@ -161,8 +161,45 @@ class ScreeningChecklistFeatureTest extends TestCase
         $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($app);
         $this->assertTrue($suggestion['prompt_reject']);
         $this->assertContains('insufficient_income', $suggestion['codes']);
-        $this->assertStringContainsString('Match statements', $suggestion['summary']);
+        $this->assertStringContainsString('Statement totals', $suggestion['summary']);
         $this->assertSame('insufficient_income', $app->screening_rejection_reason_code);
+    }
+
+    public function test_nida_dob_is_derived_from_the_first_eight_digits(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $customer = $app->customer;
+        $customer->forceFill([
+            'national_id' => '19900924xxxxxxxxxxxx',
+            'date_of_birth' => '1990-09-24',
+        ])->save();
+        $customer = $customer->fresh();
+
+        $suggestions = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+            $app->fresh(),
+            'borrower',
+            ['customer' => $customer],
+        );
+
+        $this->assertSame('pass', $suggestions['identity.nida_vs_dob']['verdict'] ?? null);
+
+        $customer->forceFill(['date_of_birth' => '1988-03-12'])->save();
+        $mismatch = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+            $app->fresh(),
+            'borrower',
+            ['customer' => $customer->fresh()],
+        );
+        $this->assertSame('fail', $mismatch['identity.nida_vs_dob']['verdict'] ?? null);
+        $this->assertSame('nida_dob_mismatch', $mismatch['identity.nida_vs_dob']['fail_reason_code'] ?? null);
+
+        $customer->forceFill(['national_id' => '12'])->save();
+        $short = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+            $app->fresh(),
+            'borrower',
+            ['customer' => $customer->fresh()],
+        );
+        $this->assertSame('nida_unverifiable', $short['identity.nida_vs_dob']['fail_reason_code'] ?? null);
     }
 
     public function test_fail_without_reason_is_rejected(): void

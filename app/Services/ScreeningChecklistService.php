@@ -328,6 +328,12 @@ class ScreeningChecklistService
                     'statement_monthly' => $autoNa ? null : ($row['statement_monthly'] ?? null),
                     'statement_weekly' => $autoNa ? null : ($row['statement_weekly'] ?? null),
                 ];
+                $item['destination'] = app(ScreeningChecklistGateService::class)->destination(
+                    $application,
+                    $fullKey,
+                    ['person' => $person, 'g' => $guarantorLinkId, 'm' => $memberId],
+                );
+                $item['ux_gate'] = $item['destination']['gate'] ?? app(ScreeningChecklistGateService::class)->gateFor((string) $groupKey, $fullKey);
                 if (! $autoNa && ($meta['gate'] ?? null) === 'statements_vs_declared' && (float) ($row['statement_monthly'] ?? 0) > 0) {
                     $item['evidence']['rows'][] = [
                         'label' => 'Statement deposits',
@@ -1666,11 +1672,42 @@ class ScreeningChecklistService
 
         switch ($type) {
             case 'nida_dob':
+                $cmp = \App\Support\NationalIdDob::matchesBorrower(
+                    $customer?->national_id,
+                    $customer?->date_of_birth,
+                );
+                $derived = $cmp['derived'] ?? [];
+                $result = match (true) {
+                    ! ($derived['ok'] ?? false) => 'Unable to verify from National ID',
+                    ($cmp['borrower'] ?? null) === null => 'Borrower date of birth missing',
+                    ($cmp['match'] ?? false) => 'Match',
+                    default => 'Mismatch',
+                };
                 $rows = [
-                    ['label' => 'NIDA / National ID', 'value' => (string) ($customer?->national_id ?: '—')],
-                    ['label' => 'Date of birth', 'value' => optional($customer?->date_of_birth)->format('d M Y') ?: '—'],
+                    [
+                        'label' => 'Borrower DOB',
+                        'value' => $cmp['borrower_formatted'] ?? '—',
+                        'source' => 'Borrower-provided',
+                    ],
+                    [
+                        'label' => 'DOB derived from National ID',
+                        'value' => ($derived['ok'] ?? false)
+                            ? ($derived['formatted'] ?? '—')
+                            : 'Unable to verify from National ID',
+                        'source' => 'Verified identity / NIDA',
+                    ],
+                    [
+                        'label' => 'Result',
+                        'value' => $result,
+                        'source' => 'System-calculated',
+                    ],
+                    [
+                        'label' => 'National ID number',
+                        'value' => (string) ($customer?->national_id ?: '—'),
+                        'source' => 'Borrower-provided',
+                    ],
                 ];
-                $hint = 'Do the ID digits and year of birth line up?';
+                $hint = 'First 8 digits of a Tanzanian National ID are YYYYMMDD. This is not CRB.';
                 break;
 
             case 'name_crb':
@@ -1678,7 +1715,7 @@ class ScreeningChecklistService
                 $crbName = (string) ($personal['full_name'] ?? data_get($crb, 'identity.full_name') ?: '—');
                 $profileName = (string) ($customer?->full_name ?: '—');
                 $compare = [
-                    $this->compareRow('Full name', $profileName, $crbName),
+                    $this->compareRow('Full name', $profileName, $crbName, 'Borrower-provided', 'CRB'),
                 ];
                 $rows = [
                     ['label' => 'CRB recommendation', 'value' => strtoupper((string) ($crb['recommendation'] ?? '—'))],
@@ -1712,9 +1749,9 @@ class ScreeningChecklistService
                     : '—';
 
                 $compare = [
-                    $this->compareRow('Marital status', $profileMarital, $crbMarital !== '' ? $crbMarital : '—'),
-                    $this->compareRow('Spouse name', $spouseProfile !== '' ? $spouseProfile : '—', $spouseCrb !== '' ? $spouseCrb : '—'),
-                    $this->compareRow('Number of children', $childrenProfile, $childrenCrb),
+                    $this->compareRow('Marital status', $profileMarital, $crbMarital !== '' ? $crbMarital : '—', 'Borrower-provided', 'CRB'),
+                    $this->compareRow('Spouse name', $spouseProfile !== '' ? $spouseProfile : '—', $spouseCrb !== '' ? $spouseCrb : '—', 'Borrower-provided', 'CRB'),
+                    $this->compareRow('Number of children', $childrenProfile, $childrenCrb, 'Borrower-provided', 'CRB'),
                 ];
                 $rows = [];
                 $hint = 'Expand to compare what the borrower entered with CRB personal data.';
@@ -2331,7 +2368,13 @@ class ScreeningChecklistService
     /**
      * @return array{label: string, profile: string, crb: string, status: string}
      */
-    private function compareRow(string $label, string $profile, string $crb): array
+    private function compareRow(
+        string $label,
+        string $profile,
+        string $crb,
+        string $profileSource = 'Borrower-provided',
+        string $crbSource = 'CRB',
+    ): array
     {
         $profileNorm = strtolower(trim(preg_replace('/\s+/', ' ', $profile) ?? ''));
         $crbNorm = strtolower(trim(preg_replace('/\s+/', ' ', $crb) ?? ''));
@@ -2345,6 +2388,8 @@ class ScreeningChecklistService
             'label' => $label,
             'profile' => $profile !== '' ? $profile : '—',
             'crb' => $crb !== '' ? $crb : '—',
+            'profile_source' => $profileSource,
+            'crb_source' => $crbSource,
             'status' => $status,
         ];
     }

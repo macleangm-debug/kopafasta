@@ -69,7 +69,11 @@ class LoanProductRequirement extends Model
         $name = strtolower(trim((string) $name));
         $hay = $name.' '.strtolower(trim((string) $description));
 
-        if (self::nameLooksLikeIdentityDocument($name, $description)) {
+        if (LoanProductRequirement::nameLooksLikeIdentityDocument($name, $description)) {
+            return true;
+        }
+
+        if (self::nameIsIncomeEvidenceRequirement($name, $description)) {
             return true;
         }
 
@@ -85,6 +89,22 @@ class LoanProductRequirement extends Model
 
         return $name === '3 months bank statement'
             || (str_contains($name, '3 month') && str_contains($name, 'bank statement'));
+    }
+
+    /**
+     * Statements are reviewed on Gate 2, not as a generic Application Evidence row.
+     */
+    public static function nameIsIncomeEvidenceRequirement(?string $name, ?string $description = null): bool
+    {
+        $name = strtolower(trim((string) $name));
+        $hay = $name.' '.strtolower(trim((string) $description));
+
+        if ($name === '') {
+            return false;
+        }
+
+        return $name === 'income verification'
+            || ($name !== '' && str_contains($hay, 'income verification'));
     }
 
     /** Digital group members are the roster — this paper upload must never block screening. */
