@@ -173,17 +173,6 @@ class ScreeningChecklistGateService
                 ],
                 'hash' => 'item-'.$fullKey,
             ],
-            str_starts_with($fullKey, 'identity.') || str_starts_with($fullKey, 'residence.') => [
-                'cta' => 'Open identity',
-                'gate' => 'identity',
-                'query' => [
-                    'desk_phase' => 'person',
-                    'gate' => 'identity',
-                    'open_group' => explode('.', $fullKey)[0],
-                    'open_item' => $fullKey,
-                ],
-                'hash' => 'item-'.$fullKey,
-            ],
             str_contains($fullKey, 'crb') || $fullKey === 'identity.name_vs_crb' || $fullKey === 'identity.marital_vs_crb' => [
                 'cta' => match ($code) {
                     'crb_never_checked' => 'Run CRB check',
@@ -197,6 +186,17 @@ class ScreeningChecklistGateService
                     'desk_phase' => 'capacity',
                     'gate' => 'crb',
                     'capacity_tab' => 'crb',
+                    'open_group' => explode('.', $fullKey)[0],
+                    'open_item' => $fullKey,
+                ],
+                'hash' => 'item-'.$fullKey,
+            ],
+            str_starts_with($fullKey, 'identity.') || str_starts_with($fullKey, 'residence.') => [
+                'cta' => 'Open identity',
+                'gate' => 'identity',
+                'query' => [
+                    'desk_phase' => 'person',
+                    'gate' => 'identity',
                     'open_group' => explode('.', $fullKey)[0],
                     'open_item' => $fullKey,
                 ],

@@ -17,6 +17,7 @@ return [
                 'label' => 'Compare NIDA number to date of birth',
                 'evidence' => 'nida_dob',
                 'risk' => 'critical',
+                'system' => true,
                 'fail_reasons' => [
                     'nida_dob_mismatch' => 'Profile date of birth does not match National ID (YYYYMMDD)',
                     'nida_incomplete' => 'Profile date of birth is missing, so National ID DOB cannot be compared',
@@ -31,6 +32,7 @@ return [
                 'label' => 'Map name to CRB report',
                 'evidence' => 'name_crb',
                 'risk' => 'critical',
+                'system' => true,
                 'fail_reasons' => [
                     'name_mismatch' => 'Member name does not match the CRB record',
                     'profile_name_missing' => 'Member name is missing from the Kopafasta profile',
