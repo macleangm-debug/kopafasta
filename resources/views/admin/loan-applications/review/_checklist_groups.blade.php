@@ -8,7 +8,7 @@
             <button type="button" class="text-left min-w-0 flex-1" @click="toggleGroup(@js($groupKey))">
                 <h4 class="text-base font-extrabold tracking-tight inline-flex items-center gap-2">
                     <svg class="size-4 text-brand-gold transition" :class="openGroup === @js($groupKey) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                    <span>{{ is_scalar($group['label'] ?? null) ? $group['label'] : ($groupKey ?: 'Checks') }}</span>
+                    <span>{{ ! empty($guidedIncome) ? 'Income & activity' : (is_scalar($group['label'] ?? null) ? $group['label'] : ($groupKey ?: 'Checks')) }}</span>
                 </h4>
                 <p class="text-[11px] text-white/80 mt-0.5 tabular-nums">
                     {{ $group['decided'] ?? 0 }}/{{ $group['total'] ?? count($group['items'] ?? []) }} reviewed
@@ -62,6 +62,25 @@
                     $isQuietAuto = (($item['system_checked'] ?? false) || ($item['catalog_system'] ?? false) || ($item['documents_checked'] ?? false))
                         && in_array($item['verdict'] ?? null, ['pass', 'na'], true)
                         && empty($item['captures_statement']);
+                    if ($isQuietAuto) {
+                        continue;
+                    }
+                    $displayLabel = match ($itemKey) {
+                        'activity_income.income_evidence' => '2.1 Statement totals',
+                        'activity_income.activity_plausible' => '2.2 Does the activity support the stated income?',
+                        'activity_income.bank_or_mobile_money' => '2.3 Are there concerning statement patterns?',
+                        default => (string) ($item['label'] ?? 'Check'),
+                    };
+                    $passLabel = ($item['item_key'] ?? '') === 'bank_or_mobile_money' ? 'No concerns' : 'Pass ✓';
+                    $failLabel = ($item['item_key'] ?? '') === 'bank_or_mobile_money' ? 'Concern found' : 'Concern';
+                    $collapsedStatus = $isAwaiting
+                        ? 'Needs review'
+                        : match ($item['verdict'] ?? '') {
+                            'pass' => 'Pass',
+                            'fail' => 'Concern',
+                            'na' => 'N/A',
+                            default => 'Needs review',
+                        };
                 @endphp
                 <li id="item-{{ $itemKey }}" class="p-4" data-checklist-item
                     x-data="{
@@ -79,25 +98,13 @@
                         @else
                         <button type="button" class="text-left min-w-0 flex-1" @click="toggleItem(@js($itemKey))">
                                             <p class="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
-                                                <span>{{ $item['label'] }}</span>
+                                                <span>{{ $displayLabel }}</span>
+                                                <span class="text-[11px] font-semibold {{ ($item['verdict'] ?? '') === 'fail' ? 'text-amber-800' : (($item['verdict'] ?? '') === 'pass' ? 'text-emerald-800' : 'text-gray-500') }}">· {{ $collapsedStatus }}</span>
                                                 @if (($item['risk'] ?? 'normal') === 'critical')
                                                     <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-rose-100 text-rose-900 ring-1 ring-rose-200">High risk</span>
-                                                @elseif (($item['risk'] ?? '') === 'elevated')
-                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-amber-100 text-amber-900 ring-1 ring-amber-200">Elevated</span>
-                                                @endif
-                                                @if ($item['system_checked'] ?? false)
-                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-sky-100 text-sky-900 ring-1 ring-sky-200">System</span>
-                                                @endif
-                                                @if ($item['documents_checked'] ?? false)
-                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-violet-100 text-violet-900 ring-1 ring-violet-200">Documents</span>
-                                                @elseif (! empty($item['document_link']))
-                                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md px-1.5 py-0.5 bg-violet-50 text-violet-800 ring-1 ring-violet-100">Docs linked</span>
                                                 @endif
                                                 <svg class="size-3.5 text-gray-400 transition" :class="openItem === @js($itemKey) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                             </p>
-                            @if ($item['evidence']['hint'] ?? null)
-                                <p class="text-[11px] text-gray-500 mt-0.5">{{ $item['evidence']['hint'] }}</p>
-                            @endif
                             @if (! empty($item['document_link']['label']))
                                 @php
                                     $docCtaHref = $item['destination']['href'] ?? route('admin.loan-applications.show', array_filter([
@@ -124,7 +131,7 @@
                         <div class="flex flex-wrap gap-1.5 shrink-0">
                             @if ($isAwaiting)
                                 <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-amber-50 text-amber-900 ring-1 ring-amber-200">Awaiting data</span>
-                            @elseif (! empty($item['read_only']) || ! empty($item['captures_statement']) || ! empty($item['catalog_system']))
+                            @elseif (! empty($item['read_only']) || ! empty($item['captures_statement']))
                                 @if (($item['verdict'] ?? '') === 'pass')
                                     <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200">Pass ✓</span>
                                 @elseif (($item['verdict'] ?? '') === 'fail')
@@ -137,13 +144,13 @@
                                        :class="verdict === 'pass' ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-white text-gray-600 ring-gray-200'">
                                     <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="pass"
                                            x-model="verdict" @change="openItem = @js($itemKey)">
-                                    Pass ✓
+                                    {{ $passLabel }}
                                 </label>
                                 <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
                                        :class="verdict === 'fail' ? 'bg-amber-50 text-amber-950 ring-amber-200' : 'bg-white text-gray-600 ring-gray-200'">
                                     <input type="radio" class="sr-only" name="{{ $fieldBase }}[verdict]" value="fail"
                                            x-model="verdict" @change="openItem = @js($itemKey)">
-                                    Concern
+                                    {{ $failLabel }}
                                 </label>
                                 <label class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ring-1 cursor-pointer"
                                        :class="verdict === 'na' ? 'bg-sky-100 text-sky-900 ring-sky-300 shadow-sm' : 'bg-white text-gray-600 ring-gray-200'">
@@ -158,6 +165,9 @@
 
                     @unless ($isQuietAuto)
                     <div x-show="openItem === @js($itemKey)" x-cloak class="mt-3 space-y-3">
+                        @if (! empty($item['evidence']['hint']))
+                            <p class="text-[12px] text-gray-600 rounded-lg bg-slate-50 ring-1 ring-slate-100 px-3 py-2">{{ $item['evidence']['hint'] }}</p>
+                        @endif
                         @if ($isAwaiting)
                             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3.5 py-3">
                                 <p class="text-sm font-semibold text-amber-950">{{ $item['awaiting_message'] ?? 'There is no data for this checklist' }}</p>
@@ -224,15 +234,34 @@
                             @endphp
                             <div x-data="{
                                      lightbox: null,
+                                     pair: null,
                                      assetTab: {{ (int) ($evidenceAssets->first()['id'] ?? 0) }},
-                                     open(url, label) { this.lightbox = { url, label } },
-                                     close() { this.lightbox = null }
+                                     open(url, label) { this.pair = null; this.lightbox = { url, label } },
+                                     openPair(left, right, label) { this.lightbox = null; this.pair = { left, right, label } },
+                                     close() { this.lightbox = null; this.pair = null }
                                  }">
                                 @if ($photoLayout === 'photo_pairs' && ! empty($item['evidence']['photo_pairs']))
-                                    <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">
-                                        <div class="px-3 py-2 bg-brand-muted/40 border-b border-brand/10">
-                                            <p class="text-[11px] font-bold text-brand uppercase tracking-widest">Asset photo · Valuer photo</p>
-                                            <p class="text-[11px] text-gray-600 mt-0.5">Same angle, side by side — including owner with asset and extra valuer shots (dashboard, engine, VIN).</p>
+                                    @php
+                                        $allPairs = collect($item['evidence']['photo_pairs'] ?? []);
+                                        $matchedPairs = $allPairs->reject(fn ($pair) => ! empty($pair['extra']))->values();
+                                        $extraPairs = $allPairs->filter(fn ($pair) => ! empty($pair['extra']))->values();
+                                    @endphp
+                                    <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white"
+                                         x-data="{ photoTab: 'matched' }">
+                                        <div class="flex gap-1 px-2 pt-2 border-b border-brand/10 bg-brand-muted/30">
+                                            <button type="button" @click="photoTab = 'matched'"
+                                                    class="rounded-t-lg px-3 py-2 text-[11px] font-bold"
+                                                    :class="photoTab === 'matched' ? 'bg-white text-brand' : 'text-slate-600'">
+                                                Matched photos
+                                            </button>
+                                            <button type="button" @click="photoTab = 'extra'"
+                                                    class="rounded-t-lg px-3 py-2 text-[11px] font-bold"
+                                                    :class="photoTab === 'extra' ? 'bg-white text-brand' : 'text-slate-600'">
+                                                Additional photos
+                                                @if ($extraPairs->isNotEmpty())
+                                                    · {{ $extraPairs->count() }}
+                                                @endif
+                                            </button>
                                         </div>
                                         @if ($evidenceAssets->count() > 1)
                                             <div class="flex gap-1.5 overflow-x-auto px-3 py-2 border-b border-gray-100">
@@ -244,20 +273,21 @@
                                                     </button>
                                                 @endforeach
                                             </div>
-                                            @foreach ($evidenceAssets as $evAsset)
-                                                <div x-show="assetTab === {{ (int) $evAsset['id'] }}" x-cloak class="divide-y divide-gray-100">
-                                                    @foreach ($evAsset['photo_pairs'] ?? [] as $pair)
-                                                        @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair])
-                                                    @endforeach
-                                                </div>
-                                            @endforeach
-                                        @else
-                                            <div class="divide-y divide-gray-100">
-                                                @foreach ($item['evidence']['photo_pairs'] as $pair)
-                                                    @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair])
-                                                @endforeach
-                                            </div>
                                         @endif
+                                        <div x-show="photoTab === 'matched'" x-cloak class="divide-y divide-gray-100">
+                                            @forelse ($matchedPairs as $pair)
+                                                @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair, 'compare' => true])
+                                            @empty
+                                                <p class="px-3 py-4 text-sm text-slate-600">No matching borrower/valuer angles yet.</p>
+                                            @endforelse
+                                        </div>
+                                        <div x-show="photoTab === 'extra'" x-cloak class="divide-y divide-gray-100">
+                                            @forelse ($extraPairs as $pair)
+                                                @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair, 'compare' => false])
+                                            @empty
+                                                <p class="px-3 py-4 text-sm text-slate-600">No extra valuer photos (engine, chassis, damage) on this file.</p>
+                                            @endforelse
+                                        </div>
                                     </div>
                                 @elseif ($photoLayout === 'face_id_compare' && ($facePhoto || $idPhoto))
                                     <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">
@@ -272,10 +302,10 @@
                                                     @endif>
                                                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">1. Face capture</p>
                                                 @if (! empty($facePhoto['url']))
-                                                    <img src="{{ $facePhoto['url'] }}" alt="{{ $facePhoto['label'] }}" class="w-full max-h-56 object-cover rounded-lg ring-1 ring-gray-200">
+                                                    <img src="{{ $facePhoto['url'] }}" alt="{{ $facePhoto['label'] }}" class="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-lg ring-1 ring-gray-200">
                                                     <span class="text-[11px] font-semibold text-brand mt-1.5 inline-block">Enlarge</span>
                                                 @else
-                                                    <div class="h-40 grid place-items-center rounded-lg bg-rose-50 text-sm text-rose-700 ring-1 ring-rose-100">Face not uploaded</div>
+                                                    <div class="h-24 grid place-items-center rounded-lg bg-rose-50 text-sm text-rose-700 ring-1 ring-rose-100">Face not uploaded</div>
                                                 @endif
                                             </button>
                                             <button type="button" class="p-3 text-left hover:bg-gray-50/80 transition"
@@ -284,7 +314,7 @@
                                                     @endif>
                                                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">2. Uploaded ID</p>
                                                 @if (! empty($idPhoto['url']))
-                                                    <img src="{{ $idPhoto['url'] }}" alt="{{ $idPhoto['label'] }}" class="w-full max-h-56 object-cover rounded-lg ring-1 ring-gray-200">
+                                                    <img src="{{ $idPhoto['url'] }}" alt="{{ $idPhoto['label'] }}" class="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-lg ring-1 ring-gray-200">
                                                     <span class="text-[11px] font-semibold text-brand mt-1.5 inline-block">{{ $idPhoto['label'] }} · Enlarge</span>
                                                 @else
                                                     <div class="h-40 grid place-items-center rounded-lg bg-rose-50 text-sm text-rose-700 ring-1 ring-rose-100">ID card not on file</div>
@@ -316,19 +346,37 @@
                                         @endforeach
                                     </div>
                                 @endif
-                                <div x-show="lightbox" x-cloak
+                                <div x-show="lightbox || pair" x-cloak
                                      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
                                      @keydown.escape.window="close()"
                                      @click.self="close()">
-                                    <div class="relative max-w-4xl w-full max-h-[90vh] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/20">
+                                    <div class="relative max-w-5xl w-full max-h-[90vh] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/20">
                                         <button type="button" @click="close()"
                                                 class="absolute top-3 right-3 z-10 rounded-full bg-black/60 text-white text-sm font-bold px-3 py-1.5 hover:bg-black/80">
                                             Close
                                         </button>
-                                        <img :src="lightbox?.url" :alt="lightbox?.label || 'Photo'"
-                                             class="w-full max-h-[90vh] object-contain bg-black">
-                                        <p class="absolute bottom-0 inset-x-0 px-4 py-2 text-xs text-white/90 bg-gradient-to-t from-black/80 to-transparent"
-                                           x-text="lightbox?.label"></p>
+                                        <template x-if="pair">
+                                            <div class="grid md:grid-cols-2 gap-px bg-white/10">
+                                                <div class="bg-black">
+                                                    <p class="px-3 py-1.5 text-[11px] text-white/80">Borrower</p>
+                                                    <img x-show="pair?.left" :src="pair?.left" alt="Borrower" class="w-full max-h-[80vh] object-contain bg-black">
+                                                    <p x-show="!pair?.left" class="p-8 text-sm text-white/70">No borrower photo</p>
+                                                </div>
+                                                <div class="bg-black">
+                                                    <p class="px-3 py-1.5 text-[11px] text-white/80">Valuer</p>
+                                                    <img x-show="pair?.right" :src="pair?.right" alt="Valuer" class="w-full max-h-[80vh] object-contain bg-black">
+                                                    <p x-show="!pair?.right" class="p-8 text-sm text-white/70">No valuer photo</p>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <template x-if="lightbox">
+                                            <div>
+                                                <img :src="lightbox?.url" :alt="lightbox?.label || 'Photo'"
+                                                     class="w-full max-h-[90vh] object-contain bg-black">
+                                                <p class="absolute bottom-0 inset-x-0 px-4 py-2 text-xs text-white/90 bg-gradient-to-t from-black/80 to-transparent"
+                                                   x-text="lightbox?.label"></p>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
@@ -409,6 +457,10 @@
                     If this statement covers less than 6 months, do not enter deposits. Request a new 6-month statement instead.
                 </p>
                 @if ($canEdit)
+                    <button type="submit"
+                            class="inline-flex items-center rounded-lg bg-brand text-white text-[11px] font-bold px-3 py-1.5 hover:bg-brand-light">
+                        Save statement totals
+                    </button>
                     <button type="button"
                             @click="window.dispatchEvent(new CustomEvent('kf-open-doc-composer', { detail: { labels: ['Updated Bank Statement'] } })); $nextTick(() => document.getElementById('request-more-documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))"
                             class="inline-flex items-center rounded-lg bg-white text-brand text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-brand/20 hover:bg-brand-muted/40">
@@ -418,7 +470,7 @@
             </div>
                         @endif
 
-                        @if (empty($item['captures_statement']) && empty($item['read_only']) && ! $isAwaiting && empty($item['catalog_system']))
+                        @if (empty($item['captures_statement']) && empty($item['read_only']) && ! $isAwaiting)
                         <div x-show="verdict === 'fail'" x-cloak class="rounded-xl bg-rose-50/80 ring-1 ring-rose-100 p-3 space-y-2">
                             @if (($item['risk'] ?? '') === 'critical' || ($item['gate'] ?? null) === 'statements_vs_declared')
                                 <div class="rounded-lg bg-rose-100 ring-1 ring-rose-200 px-3 py-2">

@@ -165,7 +165,32 @@ class StatementCapacityService
 
     /**
      * Declared profile income (range midpoint as fallback).
+     *
+     * @return array{
+     *   net_income: float,
+     *   income_basis: 'declared',
+     *   declared_monthly_income: float,
+     *   statement_deposits_total: null,
+     *   statement_months: null,
+     *   statement_monthly: null,
+     *   statement_weekly: null
+     * }
      */
+    public function declaredBundle(Customer $customer): array
+    {
+        $declared = $this->declaredMonthly($customer);
+
+        return [
+            'net_income' => $declared,
+            'income_basis' => 'declared',
+            'declared_monthly_income' => $declared,
+            'statement_deposits_total' => null,
+            'statement_months' => null,
+            'statement_monthly' => null,
+            'statement_weekly' => null,
+        ];
+    }
+
     public function declaredMonthly(Customer $customer): float
     {
         $income = (float) ($customer->monthly_income ?? 0);

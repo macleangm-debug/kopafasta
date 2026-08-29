@@ -41,14 +41,22 @@
     $workspace = request('workspace');
     $allowedWorkspaces = $isServicingFile
         ? ['facility', 'checklist', 'profiles']
-        : ['checklist', 'profiles', 'decision'];
+        : ['overview', 'checklist', 'profiles', 'decision'];
+    $checklistDeepLink = request()->filled('gate')
+        || request()->filled('desk_phase')
+        || request()->filled('open_item')
+        || request()->filled('open_group')
+        || request()->filled('capacity_tab')
+        || request()->filled('security_tab');
     if (! in_array($workspace, $allowedWorkspaces, true)) {
         if ($isServicingFile) {
             $workspace = 'facility';
         } elseif (request()->has('tab') || (request('person') === 'guarantor' && request()->filled('g'))) {
             $workspace = 'profiles';
-        } else {
+        } elseif ($checklistDeepLink) {
             $workspace = 'checklist';
+        } else {
+            $workspace = $isScreeningStage || $isCommitteeStage || $isManagementApprovalStage ? 'overview' : 'checklist';
         }
     }
 
@@ -175,14 +183,14 @@
         @endif
     </div>
 
-    @if (is_array($screeningReadiness ?? null) && ! $fileIsClosed)
+    @if (is_array($screeningReadiness ?? null) && ! $fileIsClosed && $workspace === 'checklist')
         @include('admin.loan-applications.review._screening_readiness', [
             'screeningReadiness' => $screeningReadiness,
         ])
     @endif
 
-    {{-- Facility + risk + borrower/leader CRB + guarantor/roster — hidden on Review Checklist so the tasks are the workspace. --}}
-    @unless ($workspace === 'checklist')
+    {{-- Four overview cards: Overview + Decision. Hidden on Review Checklist. --}}
+    @if (in_array($workspace, ['overview', 'decision'], true))
     @php
         $gSug = $review['guarantor_suggestion'] ?? [];
         $gRec = strtolower((string) ($gSug['recommendation'] ?? ''));
@@ -628,10 +636,10 @@
             </div>
         @endif
     </div>
-    @endunless
+    @endif
 
     {{-- Person switcher is for Checklist / Profiles only. --}}
-    @if (! in_array($workspace, ['decision', 'facility'], true))
+    @if (! in_array($workspace, ['decision', 'facility', 'overview'], true))
         @include('admin.loan-applications.review._workspace_person_switcher')
     @endif
 
@@ -640,7 +648,7 @@
         <nav class="flex gap-1 overflow-x-auto px-2 pt-2 border-b border-gray-100" aria-label="{{ $isServicingFile ? 'Credit management workspace' : 'Screening workspace' }}">
             @foreach (($isServicingFile
                 ? ['facility' => 'Facility', 'checklist' => 'Review checklist', 'profiles' => 'Profiles']
-                : ['checklist' => 'Review checklist', 'profiles' => 'Profiles', 'decision' => 'Decision']
+                : ['overview' => 'Overview', 'checklist' => 'Review checklist', 'profiles' => 'Profiles', 'decision' => 'Decision']
             ) as $key => $label)
                 <a href="{{ $workspaceUrl($key) }}"
                    @class([
@@ -662,6 +670,28 @@
         <div class="p-4 sm:p-5 space-y-4">
             @if ($workspace === 'facility')
                 @include('admin.loan-applications.review._facility_tab')
+            @elseif ($workspace === 'overview')
+                <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900">
+                            @if (is_array($screeningReadiness ?? null) && ($screeningReadiness['ready'] ?? false))
+                                All required screening checks complete
+                            @elseif (is_array($screeningReadiness ?? null))
+                                Screening review · {{ (int) ($screeningReadiness['checklist_percent'] ?? 0) }}%
+                                @if (($screeningReadiness['attention_count'] ?? 0) > 0)
+                                    · {{ (int) $screeningReadiness['attention_count'] }} {{ (int) $screeningReadiness['attention_count'] === 1 ? 'thing needs you' : 'things need you' }}
+                                @endif
+                            @else
+                                Open the review checklist when you are ready to work the file.
+                            @endif
+                        </p>
+                        <p class="text-xs text-gray-500 mt-0.5">The four cards stay here. Checklist is for answering the remaining questions.</p>
+                    </div>
+                    <a href="{{ $workspaceUrl('checklist') }}"
+                       class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                        Open review checklist
+                    </a>
+                </div>
             @elseif ($workspace === 'checklist')
                 @include('admin.loan-applications.review._review_desk')
             @elseif ($workspace === 'profiles')

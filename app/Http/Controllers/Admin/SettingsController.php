@@ -1073,6 +1073,12 @@ class SettingsController extends Controller
             'enable_automatic_rejection'             => ['nullable', 'boolean'],
             'enable_capacity_auto_reject'            => ['nullable', 'boolean'],
             'capacity_auto_reject_delay_hours'       => ['required', 'integer', 'min:1', 'max:168'],
+            'verified_capacity_auto_reject_delay_hours' => ['required', 'integer', 'min:1', 'max:168'],
+            'group_member_hard_fail_action'          => ['required', 'in:replace_member,reject_group'],
+            'guarantor_hard_fail_action'             => ['required', 'in:replace,reject_application'],
+            'guarantor_replacement_hours'            => ['required', 'integer', 'min:1', 'max:168'],
+            'guarantor_gate_1_required'              => ['nullable', 'boolean'],
+            'guarantor_gate_2_required'              => ['nullable', 'boolean'],
             'collateral_secure_decision_days'        => ['required', 'integer', 'min:1', 'max:30'],
             'insurance_expiry_buffer_months'         => ['required', 'integer', 'min:0', 'max:24'],
             'insurance_renewal_decision_days'        => ['required', 'integer', 'min:1', 'max:30'],
@@ -1093,6 +1099,8 @@ class SettingsController extends Controller
             'enable_automatic_rejection',
             'enable_capacity_auto_reject',
             'enable_disbursement_fast_track',
+            'guarantor_gate_1_required',
+            'guarantor_gate_2_required',
         ] as $key) {
             $data[$key] = (bool) ($data[$key] ?? false);
         }

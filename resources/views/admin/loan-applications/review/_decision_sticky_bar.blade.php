@@ -21,9 +21,9 @@
             ]).'#review-desk'));
     $continueLabel = $ready
         ? 'Continue to decision'
-        : ((is_array($readiness) ? ($readiness['primary_block_cta'] ?? null) : null) ?: ($incomeGateOpen
+        : ((is_array($readiness) ? ($readiness['primary_block_cta'] ?? $readiness['primary_cta'] ?? null) : null) ?: ($incomeGateOpen
             ? 'Review statements'
-            : 'Open missing item'));
+            : 'Open check'));
 
     $decisionPanelUrl = route('admin.loan-applications.show', [
         'loan_application' => $record,
@@ -33,7 +33,7 @@
     // Show sticky on checklist when guiding next step; on decision when recording.
     $showScreeningSticky = ! ($fileIsClosed ?? $record->isClosed())
         && $isScreeningSticky && $canReview && empty($recType)
-        && in_array($workspace, ['checklist', 'decision'], true);
+        && in_array($workspace, ['overview', 'checklist', 'decision'], true);
     $showCommitteeSticky = ! ($fileIsClosed ?? $record->isClosed())
         && $isCommitteeSticky && collect($availableActions ?? [])->isNotEmpty() && $workspace === 'decision';
     $showManagementSticky = ! ($fileIsClosed ?? $record->isClosed())

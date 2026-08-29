@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\LoanApplication;
 use App\Models\Setting;
 
 class UnderwritingSettingsService
@@ -107,6 +108,77 @@ class UnderwritingSettingsService
     public function capacityAutoRejectDelayHours(): int
     {
         return max(1, min(168, (int) $this->get('capacity_auto_reject_delay_hours', 12)));
+    }
+
+    public function verifiedCapacityAutoRejectDelayHours(): int
+    {
+        return max(1, min(168, (int) $this->get('verified_capacity_auto_reject_delay_hours', 6)));
+    }
+
+    public function groupMemberHardFailAction(): string
+    {
+        $value = (string) $this->get('group_member_hard_fail_action', CreditEligibilityPolicyService::GROUP_FAIL_REPLACE);
+
+        return in_array($value, [
+            CreditEligibilityPolicyService::GROUP_FAIL_REPLACE,
+            CreditEligibilityPolicyService::GROUP_FAIL_REJECT,
+        ], true) ? $value : CreditEligibilityPolicyService::GROUP_FAIL_REPLACE;
+    }
+
+    public function guarantorHardFailAction(): string
+    {
+        $value = (string) $this->get('guarantor_hard_fail_action', CreditEligibilityPolicyService::GUARANTOR_FAIL_REPLACE);
+
+        return in_array($value, [
+            CreditEligibilityPolicyService::GUARANTOR_FAIL_REPLACE,
+            CreditEligibilityPolicyService::GUARANTOR_FAIL_REJECT,
+        ], true) ? $value : CreditEligibilityPolicyService::GUARANTOR_FAIL_REPLACE;
+    }
+
+    public function guarantorReplacementHours(): int
+    {
+        return max(1, min(168, (int) $this->get('guarantor_replacement_hours', 48)));
+    }
+
+    public function guarantorGateRequired(int $gate): bool
+    {
+        $key = $gate === 2 ? 'guarantor_gate_2_required' : 'guarantor_gate_1_required';
+
+        return (bool) $this->get($key, false);
+    }
+
+    public function guarantorRequiredForProduct(LoanApplication $application): bool
+    {
+        $product = $application->product;
+        if ($product && isset($product->requires_guarantor)) {
+            return (bool) $product->requires_guarantor;
+        }
+
+        return (bool) $this->get('guarantor_required', false);
+    }
+
+    public function minimumAcceptableGuarantors(LoanApplication $application): int
+    {
+        $product = $application->product;
+        $fromProduct = (int) ($product->min_guarantors ?? $product->guarantors_required ?? 0);
+        if ($fromProduct > 0) {
+            return $fromProduct;
+        }
+
+        return max(0, (int) $this->get('minimum_acceptable_guarantors', $this->guarantorRequiredForProduct($application) ? 1 : 0));
+    }
+
+    /** Frozen copy of the screening-gate settings at decision time. */
+    public function policySnapshot(): array
+    {
+        return [
+            'capacity_auto_reject_delay_hours' => $this->capacityAutoRejectDelayHours(),
+            'verified_capacity_auto_reject_delay_hours' => $this->verifiedCapacityAutoRejectDelayHours(),
+            'group_member_hard_fail_action' => $this->groupMemberHardFailAction(),
+            'guarantor_hard_fail_action' => $this->guarantorHardFailAction(),
+            'guarantor_replacement_hours' => $this->guarantorReplacementHours(),
+            'captured_at' => now()->toIso8601String(),
+        ];
     }
 
     public function collateralSecureDecisionDays(): int

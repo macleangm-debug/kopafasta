@@ -60,6 +60,7 @@ class ScreeningChecklistFeatureTest extends TestCase
             'branch_id' => $actor->branch_id,
             'national_id' => '19900101123456789012',
             'date_of_birth' => now()->subYears(30)->toDateString(),
+            'monthly_income' => 2_000_000,
         ]);
 
         return LoanApplication::create([
@@ -81,13 +82,14 @@ class ScreeningChecklistFeatureTest extends TestCase
         $app = $this->application($admin);
 
         $html = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $app))
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))
             ->assertOk()
             ->getContent();
 
         $this->assertStringContainsString('id="review-desk"', $html);
         $this->assertStringContainsString('Review checklist', $html);
-        $this->assertStringContainsString('Compare NIDA number to date of birth', $html);
+        $this->assertStringContainsString('Next action', $html);
+        $this->assertStringContainsString('2.1 Statement totals', $html);
         $this->assertStringContainsString('Pass ✓', $html);
         $this->assertStringContainsString('Concern', $html);
         $this->assertStringContainsString('data-money-input', $html);
@@ -95,6 +97,37 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringNotContainsString('items[activity_income][income_evidence][verdict]', $html);
         $this->assertStringContainsString('Period is always 6 months', $html);
         $this->assertStringNotContainsString('tab=checklist', $html);
+        $this->assertStringNotContainsString('>Expand</span>', $html);
+        $this->assertStringContainsString('2.4 Affordability', $html);
+        $this->assertStringContainsString('System checked', $html);
+        $this->assertStringContainsString('Needs attention', $html);
+        $this->assertStringContainsString('3 Identity · Locked', $html);
+        $this->assertStringContainsString('Income &amp; Statement Review to continue screening.', $html);
+    }
+
+    public function test_overview_shows_four_cards_and_checklist_hides_them(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $overview = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Facility summary', $overview);
+        $this->assertStringContainsString('Borrower CRB', $overview);
+        $this->assertStringContainsString('Open review checklist', $overview);
+        $this->assertStringNotContainsString('id="review-desk"', $overview);
+        $this->assertStringNotContainsString('>Expand</span>', $overview);
+
+        $checklist = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('id="review-desk"', $checklist);
+        $this->assertStringContainsString('id="screening-readiness"', $checklist);
+        $this->assertStringContainsString('2.1 Statement totals', $checklist);
+        $this->assertStringContainsString('Borrower submissions', $checklist);
     }
 
     public function test_pass_and_fail_with_reason_are_saved(): void
@@ -199,7 +232,23 @@ class ScreeningChecklistFeatureTest extends TestCase
             'borrower',
             ['customer' => $customer->fresh()],
         );
-        $this->assertSame('nida_unverifiable', $short['identity.nida_vs_dob']['fail_reason_code'] ?? null);
+        $this->assertSame('nida_malformed', $short['identity.nida_vs_dob']['fail_reason_code'] ?? null);
+
+        $customer->forceFill(['national_id' => '123456789102984678399477484'])->save();
+        $impossible = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+            $app->fresh(),
+            'borrower',
+            ['customer' => $customer->fresh()],
+        );
+        $this->assertSame('nida_impossible', $impossible['identity.nida_vs_dob']['fail_reason_code'] ?? null);
+
+        $named = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+            $app->fresh(),
+            'borrower',
+            ['customer' => $customer->fresh(), 'crb' => []],
+        );
+        $this->assertSame('crb_never_checked', $named['identity.name_vs_crb']['fail_reason_code'] ?? null);
+        $this->assertSame('photos_missing', $named['identity.face_vs_nida']['fail_reason_code'] ?? null);
     }
 
     public function test_fail_without_reason_is_rejected(): void
@@ -833,6 +882,45 @@ class ScreeningChecklistFeatureTest extends TestCase
 
         $this->assertSame('pass', $ready['verdict'] ?? null);
         $this->assertTrue($ready['system_checked'] ?? false);
+    }
+
+    public function test_stale_missing_document_fails_clear_when_nothing_is_outstanding(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $app->update([
+            'screening_payload' => [
+                'screening_checklist' => [
+                    'by_subject' => [
+                        'borrower' => [
+                            'items' => [
+                                'documents.required_docs_complete' => [
+                                    'verdict' => 'fail',
+                                    'fail_reason_code' => 'docs_missing',
+                                    'source' => null,
+                                ],
+                                'documents.requested_docs_reviewed' => [
+                                    'verdict' => 'fail',
+                                    'fail_reason_code' => 'still_open',
+                                    'source' => null,
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $vm = app(ScreeningChecklistService::class)->viewModel($app->fresh(), $admin, 'borrower', null, null, [
+            'customer' => $app->customer,
+            'documents' => ['required' => 0, 'satisfied' => 0],
+        ]);
+        $items = collect($vm['groups'] ?? [])->flatMap(fn ($group) => $group['items'] ?? []);
+        $required = $items->firstWhere('key', 'documents.required_docs_complete');
+        $requested = $items->firstWhere('key', 'documents.requested_docs_reviewed');
+
+        $this->assertSame('pass', $required['verdict'] ?? null);
+        $this->assertSame('pass', $requested['verdict'] ?? null);
     }
 
     public function test_discrepancy_waiver_is_stored_without_changing_crb(): void

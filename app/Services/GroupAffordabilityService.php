@@ -34,12 +34,12 @@ class GroupAffordabilityService
      *   evaluated_at: string
      * }
      */
-    public function evaluate(LoanApplication $application): array
+    public function evaluate(LoanApplication $application, bool $declaredOnly = false): array
     {
         $application->loadMissing(['customer', 'product', 'loanGroup.members.customer']);
 
         if (! $this->groupLending->isGroupProduct($application->product)) {
-            $single = $this->affordability->evaluate($application);
+            $single = $this->affordability->evaluate($application, $declaredOnly);
 
             return [
                 'is_group' => false,
@@ -92,11 +92,13 @@ class GroupAffordabilityService
             }
             $installment = $this->affordability->estimateInstallment($share, $monthlyRate, $tenure);
             $resolved = $customer
-                ? $this->statements->resolveIncome(
-                    $application,
-                    $customer,
-                    $this->statements->subjectForGroupMember($application, $member),
-                )
+                ? ($declaredOnly
+                    ? $this->statements->declaredBundle($customer)
+                    : $this->statements->resolveIncome(
+                        $application,
+                        $customer,
+                        $this->statements->subjectForGroupMember($application, $member),
+                    ))
                 : [
                     'net_income' => 0.0,
                     'income_basis' => 'declared',

@@ -310,7 +310,9 @@ class ScreeningChecklistService
                         : null,
                     'awaiting_cta' => $isAwaiting ? ($row['awaiting_cta'] ?? null) : null,
                     'catalog_system' => $catalogSystem,
-                    'read_only' => $catalogSystem || $isAwaiting || (($meta['gate'] ?? null) === 'statements_vs_declared'),
+                    'read_only' => $isAwaiting
+                        || (($meta['gate'] ?? null) === 'statements_vs_declared')
+                        || ($catalogSystem && in_array($verdict, ['pass', 'na'], true)),
                     'documents_checked' => $isDocuments || (($documentLink['auto'] ?? false) && $verdict !== null && $rowSource === 'documents'),
                     'document_link' => $documentLink,
                     'checked' => $verdict === 'pass' || $verdict === 'na',
@@ -331,9 +333,20 @@ class ScreeningChecklistService
                 $item['destination'] = app(ScreeningChecklistGateService::class)->destination(
                     $application,
                     $fullKey,
-                    ['person' => $person, 'g' => $guarantorLinkId, 'm' => $memberId],
+                    [
+                        'person' => $person,
+                        'g' => $guarantorLinkId,
+                        'm' => $memberId,
+                        'customer_id' => $context['customer'] instanceof \App\Models\Customer
+                            ? $context['customer']->id
+                            : null,
+                    ],
+                    null,
+                    $item,
                 );
                 $item['ux_gate'] = $item['destination']['gate'] ?? app(ScreeningChecklistGateService::class)->gateFor((string) $groupKey, $fullKey);
+                $item['quiet_auto'] = app(ScreeningChecklistGateService::class)->isQuietAuto($item);
+                $item['human_work'] = app(ScreeningChecklistGateService::class)->isHumanWork($item);
                 if (! $autoNa && ($meta['gate'] ?? null) === 'statements_vs_declared' && (float) ($row['statement_monthly'] ?? 0) > 0) {
                     $item['evidence']['rows'][] = [
                         'label' => 'Statement deposits',
@@ -562,6 +575,7 @@ class ScreeningChecklistService
             $application->update(['screening_payload' => $payload]);
 
             $fresh = $application->fresh();
+            $this->maybeParkVerifiedFail($fresh, $subject);
 
             $subjectCustomer = $this->resolveSubjectCustomer($fresh, $person, $guarantorLinkId, $memberId);
             app(ChecklistDocumentBridge::class)->syncDocumentsAfterChecklistPass(
@@ -657,9 +671,8 @@ class ScreeningChecklistService
                         ?? ($letterMap[$full] ?? null)
                         ?? 'internal_credit_policy_declined';
                     $risk = (string) ($meta['risk'] ?? 'normal');
-                    $isGate = ($meta['gate'] ?? null) === 'statements_vs_declared'
-                        || $full === 'activity_income.income_evidence'
-                        || $full === 'activity_income.bank_or_mobile_money';
+                    $isGate = $full === StatementCapacityService::CHECKLIST_KEY
+                        && ($entry['source'] ?? '') === 'system';
                     if ($risk === 'critical' || $isGate) {
                         $prompt = true;
                     }
@@ -826,10 +839,10 @@ class ScreeningChecklistService
             ];
         }
 
-        // system_skip = human must decide. If a prior system/documents auto-verdict is stale
-        // (e.g. photos arrived after a photos_missing Fail), clear it so the item reopens.
+        // system_skip = human must decide. Clear stale auto/awaiting rows so the item reopens
+        // (e.g. valuer photos arrived after awaiting_data, or docs_missing after files landed).
         if ($source === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
-            if ($existing !== null && in_array($existingSource, $autoSources, true)) {
+            if ($existing === null || in_array($existingSource, $autoSources, true)) {
                 return [
                     'verdict' => null,
                     'checked' => false,
@@ -844,8 +857,12 @@ class ScreeningChecklistService
             return $row;
         }
 
+        $dataDerived = in_array($fullKey, [
+            'documents.required_docs_complete',
+            'documents.requested_docs_reviewed',
+        ], true);
         $humanLocked = $existing !== null && ! in_array($existingSource, $autoSources, true);
-        if ($humanLocked && ! $catalogSystem) {
+        if ($humanLocked && ! $catalogSystem && ! $dataDerived) {
             return $row;
         }
 
@@ -1378,6 +1395,25 @@ class ScreeningChecklistService
         }
 
         return $flat;
+    }
+
+    private function maybeParkVerifiedFail(LoanApplication $application, string $subject): void
+    {
+        $item = data_get(
+            $application->screening_payload,
+            'screening_checklist.by_subject.'.$subject.'.items.'.StatementCapacityService::CHECKLIST_KEY
+        );
+        if (! is_array($item)) {
+            return;
+        }
+        if (($item['verdict'] ?? '') !== 'fail' || ($item['source'] ?? '') !== 'system') {
+            return;
+        }
+        if (! in_array((string) ($item['fail_reason_code'] ?? ''), ['income_insufficient', 'revenue_mismatch'], true)) {
+            return;
+        }
+
+        app(CapacityAutoRejectService::class)->evaluateVerifiedAndPark($application);
     }
 
     private function resolveSubjectCustomer(

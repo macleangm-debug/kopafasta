@@ -18,10 +18,7 @@
     $canPushRecommendation = $isCreditStage && $canReview;
     $hasScreeningActions = $screeningActions->isNotEmpty() || $canPushRecommendation;
     $draftRec = $isCreditStage && ! empty($rec['type']);
-    $docBlockers = $isCreditStage
-        ? app(\App\Services\LoanApplicationWorkflowService::class)->screeningDocumentBlockers($record)
-        : [];
-    $blockItem = ($screeningReadiness['blocking_items'][0] ?? null);
+    $blockItem = collect($screeningReadiness['unresolved'] ?? $screeningReadiness['blocking_items'] ?? [])->first();
     $docsUrl = $blockItem['href'] ?? route('admin.loan-applications.show', [
         'loan_application' => $record,
         'workspace' => 'checklist',
@@ -31,6 +28,9 @@
         'docs_panel' => 'requests',
     ]).'#review-documents';
     $docsCta = $blockItem['cta'] ?? 'Open request';
+    $docBlockers = $isCreditStage
+        ? collect($screeningReadiness['blocking_items'] ?? [])->pluck('label')->filter()->values()->all()
+        : [];
 @endphp
 
 <div id="review-recommendation" class="scroll-mt-24 mb-2 space-y-4">

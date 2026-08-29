@@ -74,7 +74,7 @@
                             onclick="window.kfOpenDocumentPreview(@js($photo['url']), @js($photo['label']), 'image')"
                             class="block group text-left">
                         <img src="{{ $photo['url'] }}" alt="{{ $photo['label'] }}"
-                             class="w-full h-28 rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                             class="w-full h-20 rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
                         <span class="text-[11px] font-semibold text-gray-600 mt-1 inline-block">{{ $photo['label'] }}</span>
                     </button>
                 @endforeach

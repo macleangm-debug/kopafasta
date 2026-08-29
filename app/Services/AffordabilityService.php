@@ -44,13 +44,15 @@ class AffordabilityService
      *   repayment_cadence: string
      * }
      */
-    public function evaluate(LoanApplication $application): array
+    public function evaluate(LoanApplication $application, bool $declaredOnly = false): array
     {
         $customer = $application->customer;
         $product  = $application->product;
 
         $resolved = $customer
-            ? $this->statements->resolveIncome($application, $customer, 'borrower')
+            ? ($declaredOnly
+                ? $this->statements->declaredBundle($customer)
+                : $this->statements->resolveIncome($application, $customer, 'borrower'))
             : [
                 'net_income' => 0.0,
                 'income_basis' => 'declared',

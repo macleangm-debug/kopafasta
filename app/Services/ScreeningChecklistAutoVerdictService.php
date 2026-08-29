@@ -127,8 +127,16 @@ class ScreeningChecklistAutoVerdictService
     private function nidaVsDob(?Customer $customer): array
     {
         $cmp = NationalIdDob::matchesBorrower($customer?->national_id, $customer?->date_of_birth);
-        if (! ($cmp['derived']['ok'] ?? false)) {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'nida_unverifiable', 'source' => 'system'];
+        $derived = $cmp['derived'] ?? [];
+        if (! ($derived['ok'] ?? false)) {
+            $code = match ((string) ($derived['reason'] ?? 'unverifiable')) {
+                'missing' => 'nida_missing',
+                'malformed' => 'nida_malformed',
+                'impossible' => 'nida_impossible',
+                default => 'nida_unverifiable',
+            };
+
+            return ['verdict' => 'fail', 'fail_reason_code' => $code, 'source' => 'system'];
         }
         if (! ($cmp['borrower'] instanceof Carbon)) {
             return ['verdict' => 'fail', 'fail_reason_code' => 'nida_incomplete', 'source' => 'system'];
@@ -143,25 +151,67 @@ class ScreeningChecklistAutoVerdictService
     /** @param  array<string, mixed>  $crb */
     private function nameVsCrb(?Customer $customer, array $crb): array
     {
-        $personal = (array) ($crb['personal'] ?? []);
-        $crbName = trim((string) ($personal['full_name'] ?? data_get($crb, 'identity.full_name') ?: ''));
-        if ($crbName === '' && empty($crb['score']) && empty($crb['recommendation'])) {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_missing', 'source' => 'system'];
-        }
-        if ($crbName === '') {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_missing', 'source' => 'system'];
+        $profile = $this->norm((string) ($customer?->full_name ?? ''));
+        if ($profile === '') {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'profile_name_missing', 'source' => 'system'];
         }
 
-        $profile = $this->norm((string) ($customer?->full_name ?? ''));
+        $personal = (array) ($crb['personal'] ?? []);
+        $crbName = trim((string) ($personal['full_name'] ?? data_get($crb, 'identity.full_name') ?: ''));
+        $performed = $this->crbWasPerformed($crb);
+
+        if (! $performed) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_never_checked', 'source' => 'system'];
+        }
+        if ($crbName === '' && $this->crbLooksLikeNoRecord($crb)) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_no_record', 'source' => 'system'];
+        }
+        if ($crbName === '') {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_name_unusable', 'source' => 'system'];
+        }
+
         $bureau = $this->norm($crbName);
-        if ($profile === '' || $bureau === '') {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'name_mismatch', 'source' => 'system'];
+        if ($bureau === '') {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_name_unusable', 'source' => 'system'];
         }
         if ($profile === $bureau || str_contains($bureau, $profile) || str_contains($profile, $bureau)) {
             return ['verdict' => 'pass', 'source' => 'system'];
         }
 
         return ['verdict' => 'fail', 'fail_reason_code' => 'name_mismatch', 'source' => 'system'];
+    }
+
+    /** @param  array<string, mixed>  $crb */
+    private function crbWasPerformed(array $crb): bool
+    {
+        if (isset($crb['score']) && is_numeric($crb['score'])) {
+            return true;
+        }
+        if (filled(data_get($crb, 'personal.full_name')) || filled(data_get($crb, 'identity.full_name'))) {
+            return true;
+        }
+        if (is_array($crb['loan_history'] ?? null) && $crb['loan_history'] !== []) {
+            return true;
+        }
+        $rec = strtolower(trim((string) ($crb['recommendation'] ?? $crb['status'] ?? '')));
+        if (in_array($rec, ['approve', 'refer', 'reject', 'checked'], true)) {
+            return true;
+        }
+        if (in_array($rec, ['', 'not checked', 'pending', 'skipped'], true)) {
+            return false;
+        }
+
+        return filled($rec) && ! str_contains($rec, 'not check');
+    }
+
+    /** @param  array<string, mixed>  $crb */
+    private function crbLooksLikeNoRecord(array $crb): bool
+    {
+        $error = strtolower((string) ($crb['error'] ?? $crb['status'] ?? ''));
+
+        return str_contains($error, 'no record')
+            || str_contains($error, 'not found')
+            || str_contains($error, 'no hit');
     }
 
     /** @param  array<string, mixed>  $crb */
@@ -238,8 +288,14 @@ class ScreeningChecklistAutoVerdictService
             }
         }
 
-        if ($count < 1 || ! $hasNida) {
+        if ($count < 1 && ! $hasNida) {
             return ['verdict' => 'fail', 'fail_reason_code' => 'photos_missing', 'source' => 'system'];
+        }
+        if ($count < 1) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'face_photo_missing', 'source' => 'system'];
+        }
+        if (! $hasNida) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'id_photo_missing', 'source' => 'system'];
         }
 
         // Photos present — likeness comparison stays for screening (no auto pass).

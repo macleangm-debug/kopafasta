@@ -78,15 +78,99 @@ class CapacityAutoRejectService
             return null;
         }
 
-        $groupEval = app(GroupAffordabilityService::class)->evaluate($application);
-        $isGroup = (bool) ($groupEval['is_group'] ?? false);
-        $verdict = $groupEval['verdict'] ?? 'pass';
+        return $this->parkFromPolicy($application, verified: false);
+    }
 
-        if ($verdict !== 'fail') {
+    /**
+     * Park after Gate 2 (verified / statement) policy FAIL. Qualitative Concern does not call this.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function evaluateVerifiedAndPark(LoanApplication $application): ?array
+    {
+        if (! $this->settings->capacityAutoRejectEnabled()) {
             return null;
         }
 
-        $hours = $this->settings->capacityAutoRejectDelayHours();
+        $application->loadMissing(['customer', 'product', 'loanGroup.members.customer']);
+
+        if (in_array($application->status, ['rejected', 'expired', 'withdrawn', 'cancelled', 'approved', 'disbursed', 'awaiting_guarantor'], true)) {
+            return null;
+        }
+
+        if (! in_array((string) $application->current_stage, ['submitted', 'screening', 'credit_appraisal'], true)) {
+            return null;
+        }
+
+        $existing = $this->state($application);
+        if (($existing['status'] ?? null) === self::STATUS_PENDING) {
+            return $existing;
+        }
+        if (($existing['status'] ?? null) === self::STATUS_FIRED) {
+            return null;
+        }
+
+        return $this->parkFromPolicy($application, verified: true);
+    }
+
+    public function remainingLabel(LoanApplication $application): ?string
+    {
+        $state = $this->state($application);
+        if (($state['status'] ?? null) !== self::STATUS_PENDING || empty($state['auto_reject_at'])) {
+            return null;
+        }
+
+        $seconds = now()->diffInSeconds(\Illuminate\Support\Carbon::parse($state['auto_reject_at']), false);
+        if ($seconds <= 0) {
+            return '0m';
+        }
+
+        $hours = intdiv($seconds, 3600);
+        $minutes = intdiv($seconds % 3600, 60);
+
+        return $hours > 0 ? $hours.'h '.$minutes.'m' : $minutes.'m';
+    }
+
+    /**
+     * @param  array<string, mixed>  $policy
+     */
+    public function storeEligibility(LoanApplication $application, array $policy): void
+    {
+        $payload = $application->screening_payload ?? [];
+        $payload['credit_eligibility'] = [
+            'application_action' => $policy['application_action'] ?? null,
+            'reason' => $policy['reason'] ?? null,
+            'failing_gate' => $policy['failing_gate'] ?? null,
+            'resolution' => $policy['resolution'] ?? null,
+            'participants' => $policy['participants'] ?? [],
+            'settings_version' => $policy['settings_version'] ?? null,
+            'evaluated_at' => $policy['evaluated_at'] ?? now()->toIso8601String(),
+        ];
+        $application->screening_payload = $payload;
+        if ($application->exists) {
+            $application->update(['screening_payload' => $payload]);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function parkFromPolicy(LoanApplication $application, bool $verified): ?array
+    {
+        $policy = app(CreditEligibilityPolicyService::class)->evaluate($application, $verified);
+        $this->storeEligibility($application, $policy);
+
+        if (($policy['application_action'] ?? '') !== CreditEligibilityPolicyService::ACTION_PENDING_REJECTION) {
+            return null;
+        }
+
+        $groupEval = $policy['affordability'] ?? app(GroupAffordabilityService::class)->evaluate($application, declaredOnly: ! $verified);
+        $isGroup = (bool) ($groupEval['is_group'] ?? false);
+        $hours = $verified
+            ? $this->settings->verifiedCapacityAutoRejectDelayHours()
+            : $this->settings->capacityAutoRejectDelayHours();
+        $snapshot = $this->settings->policySnapshot();
+
         $requested = (float) ($groupEval['total_requested'] ?? $application->requested_amount ?? 0);
         $installment = (float) ($groupEval['total_installment'] ?? 0);
         $capacity = (float) ($groupEval['total_capacity'] ?? 0);
@@ -94,11 +178,16 @@ class CapacityAutoRejectService
 
         $state = [
             'status' => self::STATUS_PENDING,
+            'gate' => $verified ? 'verified' : 'declared',
             'reason_code' => self::REASON_CODE,
             'advice_code' => self::ADVICE_CODE,
             'parked_at' => now()->toIso8601String(),
             'auto_reject_at' => now()->addHours($hours)->toIso8601String(),
             'delay_hours' => $hours,
+            'settings_key' => $verified
+                ? 'underwriting.verified_capacity_auto_reject_delay_hours'
+                : 'underwriting.capacity_auto_reject_delay_hours',
+            'settings_version' => $snapshot,
             'is_group' => $isGroup,
             'requested_amount' => $requested,
             'proposed_installment' => $installment,
@@ -106,11 +195,11 @@ class CapacityAutoRejectService
             'repayment_ratio_pct' => (float) ($groupEval['repayment_ratio_pct'] ?? 33.33),
             'failed_members' => $failedMembers,
             'group_members' => $groupEval['members'] ?? [],
-            'affordability_reason' => $groupEval['reason'] ?? null,
+            'affordability_reason' => $policy['reason'] ?? ($groupEval['reason'] ?? null),
         ];
 
         if (! $isGroup) {
-            $single = $groupEval['affordability'] ?? app(AffordabilityService::class)->evaluate($application);
+            $single = $groupEval['affordability'] ?? app(AffordabilityService::class)->evaluate($application, $verified ? false : true);
             $state['net_income'] = (float) ($single['net_income'] ?? 0);
             $state['proposed_installment'] = (float) ($single['proposed_installment'] ?? $installment);
             $state['available_capacity'] = (float) ($single['available_capacity'] ?? $capacity);
@@ -122,7 +211,7 @@ class CapacityAutoRejectService
 
         $appraisal = $application->credit_appraisal_payload ?? [];
         $appraisal['affordability'] = $isGroup
-            ? ['verdict' => 'fail', 'reason' => $groupEval['reason'], 'group' => $groupEval]
+            ? ['verdict' => 'fail', 'reason' => $groupEval['reason'] ?? $policy['reason'], 'group' => $groupEval]
             : ($groupEval['affordability'] ?? []);
         $appraisal['group_affordability'] = $isGroup ? $groupEval : null;
 
@@ -270,11 +359,14 @@ class CapacityAutoRejectService
 
             // Re-evaluate in case income was updated while parked
             if (($state['status'] ?? null) === self::STATUS_PENDING || $state === []) {
-                $groupEval = app(GroupAffordabilityService::class)->evaluate($application);
-                if (($groupEval['verdict'] ?? '') !== 'fail') {
+                $verified = ($state['gate'] ?? '') === 'verified';
+                $policy = app(CreditEligibilityPolicyService::class)->evaluate($application, $verified);
+                $this->storeEligibility($application, $policy);
+                if (($policy['application_action'] ?? '') !== CreditEligibilityPolicyService::ACTION_PENDING_REJECTION) {
                     return $this->cancel($application, $actor, 'Affordability no longer fails');
                 }
-                $state['is_group'] = (bool) ($groupEval['is_group'] ?? false);
+                $groupEval = $policy['affordability'] ?? app(GroupAffordabilityService::class)->evaluate($application, declaredOnly: ! $verified);
+                $state['is_group'] = (bool) ($groupEval['is_group'] ?? $state['is_group'] ?? false);
                 $state['requested_amount'] = (float) ($groupEval['total_requested'] ?? $application->requested_amount ?? 0);
                 $state['proposed_installment'] = (float) ($groupEval['total_installment'] ?? 0);
                 $state['available_capacity'] = (float) ($groupEval['total_capacity'] ?? 0);

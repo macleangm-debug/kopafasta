@@ -43,7 +43,8 @@
         ])).'#review-desk';
     };
 
-    $gates = app(\App\Services\ScreeningChecklistGateService::class)->regroup($desk['groups'] ?? []);
+    $sequence = app(\App\Services\ScreeningSequenceService::class)->snapshot($record);
+    $gates = app(\App\Services\ScreeningChecklistGateService::class)->regroup($desk['groups'] ?? [], $record);
     $gateKeys = array_keys($gates);
 
     $incomeGateOpen = collect($desk['groups'] ?? [])
@@ -63,8 +64,10 @@
             return false;
         });
 
-    $firstOpenGate = $incomeGateOpen ? 'income' : collect($gates)->first(fn ($g) => ! ($g['complete'] ?? false));
-    $defaultGate = is_array($firstOpenGate) ? ($firstOpenGate['key'] ?? 'identity') : ($firstOpenGate ?: ($gateKeys[0] ?? 'identity'));
+    $firstOpenGate = $incomeGateOpen || ! ($sequence['later_unlocked'] ?? false)
+        ? 'income'
+        : collect($gates)->first(fn ($g) => empty($g['locked']) && ! ($g['complete'] ?? false));
+    $defaultGate = is_array($firstOpenGate) ? ($firstOpenGate['key'] ?? 'income') : ($firstOpenGate ?: ($gateKeys[0] ?? 'income'));
 
     $requestGate = (string) request('gate', '');
     $requestPhase = (string) request('desk_phase', '');
@@ -145,10 +148,12 @@
                  });
              }
          }">
+    @include('admin.loan-applications.review._early_eligibility', ['sequence' => $sequence, 'record' => $record])
+
     <div class="px-5 py-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-3 min-w-0">
             <h3 class="text-base font-bold text-gray-900">Review checklist</h3>
-            <span class="text-sm font-bold text-brand tabular-nums">{{ $desk['decided'] ?? 0 }}/{{ $desk['total'] ?? 0 }}</span>
+            <span class="text-sm font-bold text-brand tabular-nums">{{ collect($gates)->sum('decided') }}/{{ collect($gates)->sum('total') }}</span>
             @if (($desk['failed'] ?? 0) > 0)
                 <span class="text-[11px] font-bold text-amber-800">{{ $desk['failed'] }} concern</span>
             @endif
@@ -168,19 +173,22 @@
                 $gLabel = $gate['label'];
             @endphp
             <button type="button"
-                    @click="setGate(@js($gKey))"
+                    @click="{{ ! empty($gate['locked']) ? '' : 'setGate('.e(json_encode($gKey)).')' }}"
+                    @if (! empty($gate['locked'])) disabled @endif
                     :class="gate === @js($gKey)
                         ? 'bg-brand text-white ring-brand shadow-sm'
                         : 'bg-white text-gray-800 ring-gray-200 hover:bg-brand-muted/40'"
-                    class="shrink-0 rounded-xl px-3.5 py-2.5 text-left ring-1 transition min-w-[9rem]">
-                <span class="block text-xs font-bold">{{ $gLabel }}</span>
+                    class="shrink-0 rounded-xl px-3.5 py-2.5 text-left ring-1 transition min-w-[9rem] disabled:opacity-60 disabled:cursor-not-allowed">
+                <span class="sr-only">{{ $gLabel }}</span>
+                <span class="block text-xs font-bold">{{ $gate['chip'] ?? $gLabel }}</span>
                 <span class="block text-[11px] mt-0.5 tabular-nums"
                       :class="gate === @js($gKey) ? 'text-white/80' : 'text-gray-500'">
-                    {{ $gate['decided'] }}/{{ $gate['total'] }}
-                    @if ($gate['failed'] > 0)
-                        · {{ $gate['failed'] }} concern
-                    @elseif ($gate['complete'])
-                        · Done
+                    @if (($gate['status_label'] ?? '') === 'Complete')
+                        Complete
+                    @elseif (($gate['failed'] ?? 0) > 0)
+                        Attention
+                    @else
+                        {{ $gate['decided'] }}/{{ $gate['total'] }}
                     @endif
                 </span>
             </button>
@@ -201,11 +209,21 @@
 
                 @foreach ($gates as $gate)
                     <div x-show="gate === @js($gate['key'])" x-cloak class="space-y-3">
-                        @include('admin.loan-applications.review._checklist_groups', [
-                            'groups' => $gate['groups'],
-                            'canEdit' => true,
-                            'guidedIncome' => $gate['key'] === 'income',
-                        ])
+                        @if (! empty($gate['locked']))
+                            <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-4">
+                                <p class="text-sm font-bold text-slate-900">{{ $gate['chip'] ?? $gate['label'] }}</p>
+                                <p class="text-sm text-slate-600 mt-1">{{ $gate['lock_detail'] ?? 'Complete Income & Statement Review to continue screening.' }}</p>
+                            </div>
+                        @else
+                            @include('admin.loan-applications.review._checklist_groups', [
+                                'groups' => $gate['groups'],
+                                'canEdit' => true,
+                                'guidedIncome' => $gate['key'] === 'income',
+                            ])
+                            @if ($gate['key'] === 'income')
+                                @include('admin.loan-applications.review._subject_affordability_gate')
+                            @endif
+                        @endif
                     </div>
                 @endforeach
             </form>
@@ -217,15 +235,6 @@
             @endforeach
         @endif
 
-        <div x-show="gate === 'income'" x-cloak>
-            @include('admin.loan-applications.review._checklist_phase_panels', [
-                'phase' => 'capacity',
-                'section' => 'affordability',
-                'deskPerson' => $deskPerson,
-                'deskG' => $deskG,
-                'deskM' => $deskM,
-            ])
-        </div>
         <div x-show="gate === 'crb'" x-cloak>
             @include('admin.loan-applications.review._checklist_phase_panels', [
                 'phase' => 'capacity',

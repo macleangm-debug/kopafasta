@@ -195,6 +195,28 @@ class LoanApplicationWorkflowService
 
         if ($actionKey === 'complete_screening' || $actionKey === 'submit_recommendation') {
             $this->assertScreeningDocumentsReady($application);
+            $sequence = app(ScreeningSequenceService::class)->snapshot($application);
+            if ($sequence['pending_rejection'] ?? false) {
+                throw ValidationException::withMessages([
+                    'action' => 'This application is pending automatic rejection. Screening cannot send it to committee.',
+                ]);
+            }
+            if (! ($sequence['later_unlocked'] ?? false)) {
+                throw ValidationException::withMessages([
+                    'action' => (string) ($sequence['next_action']['label'] ?? 'Complete initial affordability and income review before recording a decision.'),
+                ]);
+            }
+            $policyAction = $sequence['policy']['application_action'] ?? null;
+            if (in_array($policyAction, [
+                CreditEligibilityPolicyService::ACTION_PENDING_REJECTION,
+                CreditEligibilityPolicyService::ACTION_REPLACE_MEMBER,
+                CreditEligibilityPolicyService::ACTION_REPLACE_GUARANTOR,
+                CreditEligibilityPolicyService::ACTION_RESOLVE_MEMBERS,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'action' => (string) ($sequence['policy']['reason'] ?? 'Early eligibility is unresolved. Hard affordability failures cannot be overridden.'),
+                ]);
+            }
         }
 
         if ($actionKey === 'disburse') {

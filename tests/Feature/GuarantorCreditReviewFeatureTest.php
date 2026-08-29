@@ -127,7 +127,10 @@ class GuarantorCreditReviewFeatureTest extends TestCase
         [$app] = $this->applicationWithGuarantor($admin, profileComplete: false);
 
         $html = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $app))
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'checklist',
+            ]))
             ->assertOk()
             ->getContent();
 

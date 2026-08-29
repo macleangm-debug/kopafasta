@@ -8,6 +8,7 @@
             'documents' => 'Documents',
             'interest' => 'Interest',
             'offer' => 'Offer',
+            'screening' => 'Screening',
             'collateral' => 'Collateral',
             'disbursement' => 'Disbursement',
         ]"
@@ -109,8 +110,68 @@
                     <x-admin.input name="capacity_auto_reject_delay_hours" label="Capacity auto-reject delay (hours)" type="number"
                                    :value="$values['capacity_auto_reject_delay_hours'] ?? 12" required />
                     <p class="text-xs text-gray-500 md:col-span-2 -mt-2">
-                        After submit, capacity-fail applications are marked “system sorted.” Credit committee can send the rejection early or keep the file in screening during this delay. Credit management does not work this queue. Default 12 hours.
+                        After submit, capacity-fail applications are marked “system sorted.” Credit committee can send the rejection early or keep the file in screening during this delay. Credit management does not work this queue. Default 12 hours. This is Gate 1 (declared income / initial affordability).
                     </p>
+                </div>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="screening">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 mb-1">Screening gates</h3>
+                    <p class="text-xs text-gray-500 mb-4">
+                        Gate 1 uses the delay above. Gate 2 starts only after Gate 1 passes. A qualitative Concern does not start the timer — only a configured affordability FAIL does. Deadlines are frozen when the failure is recorded.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <x-admin.input name="verified_capacity_auto_reject_delay_hours" label="Gate 2 auto-rejection delay (hours)" type="number"
+                                       :value="$values['verified_capacity_auto_reject_delay_hours'] ?? 6" required />
+                        <p class="text-xs text-gray-500 md:col-span-2 -mt-2">
+                            Default 6 hours. Changing this later does not move applications already pending rejection.
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 mb-1">Group lending</h3>
+                    <p class="text-xs text-gray-500 mb-4">
+                        Each member is assessed individually. A failed member cannot remain a borrower because others are stronger. Group size still uses Loan rules (minimum / maximum members).
+                    </p>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">When a member fails a hard affordability gate</label>
+                    <select name="group_member_hard_fail_action" class="w-full rounded-lg border-gray-300 text-sm">
+                        <option value="replace_member" @selected(($values['group_member_hard_fail_action'] ?? 'replace_member') === 'replace_member')>Remove / replace failed member</option>
+                        <option value="reject_group" @selected(($values['group_member_hard_fail_action'] ?? '') === 'reject_group')>Reject entire group</option>
+                    </select>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 mb-1">Guarantors</h3>
+                    <p class="text-xs text-gray-500 mb-4">
+                        A guarantor cannot rescue a borrower who failed affordability. If the borrower passes and a required guarantor fails, replacement is the default.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">If required guarantor fails</label>
+                            <select name="guarantor_hard_fail_action" class="w-full rounded-lg border-gray-300 text-sm">
+                                <option value="replace" @selected(($values['guarantor_hard_fail_action'] ?? 'replace') === 'replace')>Replace guarantor</option>
+                                <option value="reject_application" @selected(($values['guarantor_hard_fail_action'] ?? '') === 'reject_application')>Reject application</option>
+                            </select>
+                        </div>
+                        <x-admin.input name="guarantor_replacement_hours" label="Guarantor replacement window (hours)" type="number"
+                                       :value="$values['guarantor_replacement_hours'] ?? 48" required />
+                        <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
+                            <input type="hidden" name="guarantor_gate_1_required" value="0">
+                            <input type="checkbox" name="guarantor_gate_1_required" value="1"
+                                   @checked(! empty($values['guarantor_gate_1_required']))
+                                   class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                            <span class="text-gray-800">Require Gate 1 (declared affordability) for guarantors</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
+                            <input type="hidden" name="guarantor_gate_2_required" value="0">
+                            <input type="checkbox" name="guarantor_gate_2_required" value="1"
+                                   @checked(! empty($values['guarantor_gate_2_required']))
+                                   class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                            <span class="text-gray-800">Require Gate 2 (verified affordability) for guarantors</span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </x-admin.settings-panel>

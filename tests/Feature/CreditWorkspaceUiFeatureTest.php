@@ -62,6 +62,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             'last_name' => 'Borrower',
             'phone' => '25571'.random_int(1000000, 9999999),
             'branch_id' => $actor->branch_id,
+            'monthly_income' => 2_000_000,
         ]);
 
         return LoanApplication::create([
@@ -97,6 +98,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             $this->assertStringContainsString('Risk score', $decision);
             $this->assertStringContainsString('Borrower CRB', $decision);
             $this->assertStringContainsString('Review checklist', $html);
+            $this->assertStringContainsString('workspace=overview', $html);
+            $this->assertStringContainsString('person=guarantor', $html);
             $this->assertStringContainsString('workspace=profiles', $html);
             $this->assertStringContainsString('workspace=decision', $html);
 
@@ -106,7 +109,6 @@ class CreditWorkspaceUiFeatureTest extends TestCase
                 ->getContent();
             $this->assertStringContainsString('Profile sections', $profiles);
             $this->assertStringContainsString('tab=face', $profiles);
-            $this->assertStringContainsString('person=guarantor', $profiles);
             $this->assertStringNotContainsString('Partners available', $profiles);
             $this->assertStringNotContainsString('Partners unavailable', $profiles);
             $this->assertStringNotContainsString('>Group</a>', $profiles);
@@ -172,9 +174,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('Gate 1 — Identity', $documents);
-        $this->assertStringContainsString('Gate 2 — Income', $documents);
-        $this->assertStringContainsString('Gate 4 — Collateral', $documents);
+        $this->assertStringContainsString('Gate 3 — Identity', $documents);
+        $this->assertStringContainsString('3 Identity', $documents);
+        $this->assertStringContainsString('2 Income', $documents);
         $this->assertStringContainsString('Request more documents', $documents);
         $this->assertStringContainsString('Review request', $documents);
         $this->assertStringContainsString('name="intent" value="documents"', $documents);

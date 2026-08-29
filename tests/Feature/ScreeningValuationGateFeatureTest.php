@@ -43,6 +43,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
             'last_name' => 'Pay',
             'phone' => '25571234'.random_int(1000, 9999),
             'region' => 'Dar es Salaam',
+            'monthly_income' => 8_000_000,
             'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
@@ -412,5 +413,18 @@ class ScreeningValuationGateFeatureTest extends TestCase
         $dashboard = collect($photos['evidence']['photo_pairs'] ?? [])->firstWhere('angle', 'dashboard');
         $this->assertNotEmpty($dashboard['valuer']['url'] ?? null);
         $this->assertEmpty($dashboard['borrower']['url'] ?? null);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+                'gate' => 'collateral',
+                'open_item' => 'collateral.valuation_or_photos',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Matched photos', $html);
+        $this->assertStringContainsString('Additional photos', $html);
+        $this->assertStringContainsString('Matches', $html);
     }
 }

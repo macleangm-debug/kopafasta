@@ -445,7 +445,10 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $this->assertSame('Income / statements', $docService->screeningKindLabel($statement->fresh()));
 
         $html = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $application))
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+            ]))
             ->assertOk()
             ->assertSee('id="submissions-inbox"', false)
             ->assertSee('Add collateral asset', false)
@@ -601,7 +604,10 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $statement->update(['status' => 'uploaded']);
 
         $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $application))
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+            ]))
             ->assertOk()
             ->assertSee('Updated Mobile Money Statement', false)
             ->assertSee('id="submissions-inbox"', false);
@@ -612,7 +618,10 @@ class ScreeningDocumentsUniformityFeatureTest extends TestCase
         $this->assertSame('satisfied', $statement->fresh()->status);
 
         $html = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $application))
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+            ]))
             ->assertOk()
             ->getContent();
 
