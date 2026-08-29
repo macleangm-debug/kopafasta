@@ -20,6 +20,10 @@ class PartnerWalletService
             return RecoveryCommissionWalletService::SOURCE_TYPE;
         }
 
+        if ($vendor->isValuer()) {
+            return 'valuation_fee';
+        }
+
         return 'vendor_task';
     }
 
@@ -36,6 +40,10 @@ class PartnerWalletService
     public function summary(Vendor $vendor, ?string $sourceType = null): array
     {
         $sourceType ??= $this->sourceTypeFor($vendor);
+
+        if ($sourceType === 'valuation_fee') {
+            app(PartnerSettlementService::class)->promotePendingValuationFees($vendor);
+        }
 
         $base = PartnerPayment::query()
             ->where('partner_id', $vendor->id)

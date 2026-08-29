@@ -657,6 +657,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.collateral.request-additional');
         Route::post('loan-applications/{loan_application}/screening-checklist', [LoanApplicationController::class, 'saveScreeningChecklist'])
             ->name('loan-applications.screening-checklist');
+        Route::post('loan-applications/{loan_application}/discrepancy-waiver', [LoanApplicationController::class, 'waiveDiscrepancy'])
+            ->name('loan-applications.discrepancy-waiver');
         Route::post('loan-applications/{loan_application}/guarantors/{customerGuarantor}/change', [LoanApplicationController::class, 'requestGuarantorChange'])
             ->name('loan-applications.guarantor-change');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])

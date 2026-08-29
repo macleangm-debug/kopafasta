@@ -71,6 +71,12 @@
                 'text-amber-700'   => $crb['recommendation'] === 'refer',
                 'text-red-700'     => $crb['recommendation'] === 'reject',
             ])>{{ ucfirst($crb['recommendation']) }}</p>
+            @if (! empty($crb['checked_at']))
+                <p class="text-[11px] text-gray-500 mt-1">
+                    From latest CRB report dated {{ $crb['checked_at'] instanceof \Carbon\CarbonInterface ? $crb['checked_at']->format('d M Y') : $crb['checked_at'] }}.
+                </p>
+            @endif
+            <a href="#review-crb" class="mt-1 inline-flex text-[11px] font-bold text-brand underline underline-offset-2">Open CRB</a>
             <p class="text-xs text-gray-600 mt-2">{{ $crbExplain['summary'] }}</p>
             @if (! empty($crbExplain['reasons']))
                 <ul class="mt-2 space-y-1 text-xs text-gray-600">

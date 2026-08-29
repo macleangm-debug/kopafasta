@@ -79,13 +79,36 @@
             </div>
             <div class="space-y-3">
                 @foreach ($outstandingRequests as $docReq)
-                    <div class="rounded-xl ring-1 ring-amber-200 bg-amber-50/70 px-4 py-3 space-y-1">
+                    <div id="doc-request-{{ $docReq->id }}" class="rounded-xl ring-1 ring-amber-200 bg-amber-50/70 px-4 py-3 space-y-1 scroll-mt-24">
                         <p class="text-sm font-bold text-gray-900">{{ $docReq->label }}</p>
                         <p class="text-xs font-semibold text-brand">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>
                         <p class="text-xs font-bold text-amber-950">{{ $docService->waitingOnLabel($docReq, $groupReview ?? null) }}</p>
                         <p class="text-xs text-gray-600">{{ $docService->outstandingTimingPhrase($docReq) }}</p>
-                        @if ($docReq->status === 'rejected' && filled($docReq->admin_notes))
-                            <p class="text-xs text-rose-800">{{ $docReq->admin_notes }}</p>
+                        @if ($docReq->status === 'pending' && $canRequestDocs)
+                            <form method="POST" action="{{ route('admin.loan-applications.document-requests.cancel', $record) }}"
+                                  class="pt-1"
+                                  x-data="{ retracting: false }">
+                                @csrf
+                                <input type="hidden" name="confirmed" value="1">
+                                <input type="hidden" name="ids[]" value="{{ $docReq->id }}">
+                                <input type="hidden" name="return_workspace" value="{{ $outstandingOnly ? 'checklist' : 'profiles' }}">
+                                @unless ($outstandingOnly)
+                                    <input type="hidden" name="return_tab" value="documents">
+                                @endunless
+                                <button type="button" @click="retracting = true" x-show="! retracting"
+                                        class="inline-flex text-xs font-semibold text-slate-700 hover:underline">
+                                    Retract request
+                                </button>
+                                <div x-show="retracting" x-cloak class="space-y-2">
+                                    <p class="text-sm font-semibold text-gray-900">Retract the request for “{{ $docReq->label }}”? The borrower will no longer be asked to provide it.</p>
+                                    <input type="text" name="reason" maxlength="200" placeholder="Optional reason"
+                                           class="w-full rounded-lg border-gray-300 text-xs ring-1 ring-gray-200 px-3 py-2">
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" @click="retracting = false" class="inline-flex text-xs font-semibold text-slate-800 bg-white ring-1 ring-slate-200 px-3 py-1.5 rounded-lg">Keep request</button>
+                                        <button type="submit" class="inline-flex text-xs font-semibold text-white bg-rose-700 px-3 py-1.5 rounded-lg">Retract request</button>
+                                    </div>
+                                </div>
+                            </form>
                         @endif
                     </div>
                 @endforeach
@@ -134,7 +157,7 @@
                             <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Loan file uploads · {{ $loanAwaiting->count() }}</p>
                             <div class="grid md:grid-cols-2 gap-3">
                                 @foreach ($loanAwaiting as $docReq)
-                                    <div class="rounded-xl ring-1 ring-gray-200 bg-white px-4 py-3 flex items-start justify-between gap-2">
+                                    <div id="doc-request-{{ $docReq->id }}" class="rounded-xl ring-1 ring-gray-200 bg-white px-4 py-3 flex items-start justify-between gap-2 scroll-mt-24">
                                         <div class="min-w-0">
                                             <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
                                             <p class="text-xs text-brand mt-0.5">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>
@@ -159,7 +182,7 @@
                             <div class="grid md:grid-cols-2 gap-3">
                                 @foreach ($profileOpen as $docReq)
                                     @php $kind = $docService->borrowerActionKind($docReq); @endphp
-                                    <div class="rounded-xl ring-1 ring-sky-100 bg-sky-50/40 px-4 py-3 flex items-start justify-between gap-2">
+                                    <div id="doc-request-{{ $docReq->id }}" class="rounded-xl ring-1 ring-sky-100 bg-sky-50/40 px-4 py-3 flex items-start justify-between gap-2 scroll-mt-24">
                                         <div class="min-w-0">
                                             <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
                                             <p class="text-xs text-brand mt-0.5">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>

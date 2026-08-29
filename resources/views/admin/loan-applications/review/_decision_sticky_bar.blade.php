@@ -64,7 +64,7 @@
                         @elseif ($workspace !== 'decision')
                             <a href="{{ $decisionPanelUrl }}"
                                class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
-                                Go to Decision
+                                Open decision
                             </a>
                         @else
                             <button type="button"

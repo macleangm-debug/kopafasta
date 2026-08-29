@@ -206,10 +206,13 @@ class LoanApplicationWorkflowService
             }
         }
 
-        if (in_array($actionKey, ['approve', 'approve_with_conditions'], true) && ! app(ApplicationOfferService::class)->canFinalApprove($application)) {
-            throw ValidationException::withMessages([
-                'action' => 'Counter-offers must be accepted by the borrower before final approval.',
-            ]);
+        if (in_array($actionKey, ['approve', 'approve_with_conditions'], true)) {
+            $approveBlockers = app(ApplicationOfferService::class)->finalApproveBlockers($application);
+            if ($approveBlockers !== []) {
+                throw ValidationException::withMessages([
+                    'action' => $approveBlockers[0]['label'],
+                ]);
+            }
         }
 
         if ($actionKey === 'refer_back' && blank(trim((string) $remarks))) {

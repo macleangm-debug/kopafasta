@@ -526,28 +526,67 @@ class LoanApplicationController extends ResourceController
         }
 
         $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($loan_application->fresh());
+        $returnParams = array_filter([
+            'loan_application' => $loan_application,
+            'workspace' => 'checklist',
+            'review_person' => $person,
+            'review_g' => $guarantorLinkId ?: null,
+            'review_m' => $memberId ?: null,
+            'desk_phase' => $request->input('desk_phase'),
+            'capacity_tab' => $request->input('capacity_tab'),
+            'security_tab' => $request->input('security_tab'),
+        ]);
         if ($suggestion['prompt_reject']) {
             return redirect()
-                ->route('admin.loan-applications.show', [
-                    'loan_application' => $loan_application,
-                    'workspace' => 'decision',
-                    'open_reject' => 1,
-                ])
-                ->with('status', 'Critical checklist Fail recorded — confirm rejection. Letter reasons are pre-filled from the checklist.')
+                ->route('admin.loan-applications.show', $returnParams)
+                ->with('status', 'Critical checklist Fail recorded. Open decision to reject — letter reasons are pre-filled.')
                 ->with('checklist_reject_codes', $suggestion['codes'])
                 ->with('checklist_reject_notes', $suggestion['summary'])
-                ->withFragment('review-action-zone');
+                ->withFragment('review-desk');
         }
 
         return redirect()
-            ->route('admin.loan-applications.show', array_filter([
-                'loan_application' => $loan_application,
-                'review_person' => $person,
-                'review_g' => $guarantorLinkId ?: null,
-                'review_m' => $memberId ?: null,
-            ]))
+            ->route('admin.loan-applications.show', $returnParams)
             ->with('status', 'Review checklist saved.')
             ->withFragment('review-desk');
+    }
+
+    public function waiveDiscrepancy(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
+
+        $waivable = [
+            'spouse_missing_on_crb',
+            'spouse_mismatch',
+            'marital_mismatch',
+            'children_mismatch',
+            'employment_soft_mismatch',
+        ];
+        $data = $request->validate([
+            'code' => ['required', 'string', 'in:'.implode(',', $waivable)],
+            'reason' => ['required', 'string', 'min:12', 'max:500'],
+            'detail' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $payload = is_array($loan_application->screening_payload) ? $loan_application->screening_payload : [];
+        $waivers = is_array($payload['discrepancy_waivers'] ?? null) ? $payload['discrepancy_waivers'] : [];
+        $waivers[$data['code']] = [
+            'by' => $request->user()->id,
+            'by_name' => $request->user()->name,
+            'at' => now()->toIso8601String(),
+            'reason' => $data['reason'],
+            'detail' => $data['detail'] ?? null,
+        ];
+        $payload['discrepancy_waivers'] = $waivers;
+        $loan_application->forceFill(['screening_payload' => $payload])->save();
+
+        $this->auditAdmin('admin.loan_applications.discrepancy_waived', $loan_application, [
+            'code' => $data['code'],
+            'reason' => $data['reason'],
+        ]);
+
+        return back()->with('status', 'Discrepancy accepted. The CRB report is unchanged.');
     }
 
     public function requestGuarantorChange(

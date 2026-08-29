@@ -941,13 +941,25 @@ class ApplicationDocumentRequestService
             ->all();
     }
 
-    public function cancelPending(LoanApplicationDocumentRequest $request, User $actor): LoanApplicationDocumentRequest
+    public function cancelPending(
+        LoanApplicationDocumentRequest $request,
+        User $actor,
+        ?string $reason = null,
+    ): LoanApplicationDocumentRequest
     {
         if ($request->status !== 'pending') {
             throw new \InvalidArgumentException('Only a waiting request can be withdrawn.');
         }
 
-        $request->update(['status' => 'cancelled']);
+        $note = 'Retracted by '.$actor->name.' on '.now()->timezone(config('app.timezone'))->format('d M Y, H:i');
+        if (filled($reason)) {
+            $note .= '. Reason: '.trim($reason);
+        }
+
+        $request->update([
+            'status' => 'cancelled',
+            'admin_notes' => trim(($request->admin_notes ? $request->admin_notes."\n" : '').$note),
+        ]);
         $application = $request->application;
         if ($application) {
             $this->syncApplicationStatus($application);

@@ -102,16 +102,24 @@
                     ])>
                         {{ $affordPass ? 'Pass' : (($affordability['status_label'] ?? null) ?: ($affordFail ? 'Fail' : 'Review')) }}
                     </dd>
+                    <a href="{{ route('admin.loan-applications.show', array_filter([
+                            'loan_application' => $record,
+                            'workspace' => 'checklist',
+                            'desk_phase' => 'capacity',
+                            'capacity_tab' => 'checks',
+                            'open_group' => 'activity_income',
+                            'open_item' => 'activity_income.income_evidence',
+                        ])).'#review-desk' }}"
+                       class="mt-1 inline-flex text-[11px] font-bold text-brand underline underline-offset-2">View income &amp; commitments</a>
                 </div>
             </dl>
 
             @if ($docBlockers !== [])
                 <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm mb-3">
-                    <p class="font-semibold text-amber-950">Cannot push to committee yet</p>
+                    <p class="font-semibold text-amber-950">Approve unavailable</p>
                     <p class="text-xs text-amber-900 mt-1">
                         {{ count($docBlockers) }} document{{ count($docBlockers) === 1 ? '' : 's' }} still missing or waiting on the borrower.
-                        Screening sees them under <span class="font-semibold">Review checklist → Docs</span>
-                        (Requested for follow-ups, Checklist for product files). Not on Profiles.
+                        Reject stays available.
                     </p>
                     <ul class="mt-2 space-y-0.5 text-xs text-amber-950">
                         @foreach (array_slice($docBlockers, 0, 6) as $blocker)
@@ -119,7 +127,7 @@
                         @endforeach
                     </ul>
                     <a href="{{ $docsUrl }}" class="mt-2 inline-flex text-xs font-bold text-brand underline underline-offset-2">
-                        Open Docs
+                        Open missing document
                     </a>
                 </div>
             @endif

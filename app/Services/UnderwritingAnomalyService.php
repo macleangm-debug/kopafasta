@@ -99,8 +99,19 @@ class UnderwritingAnomalyService
             }
         }
 
-        if ((bool) data_get($application->screening_payload, 'recommendation_meta.differs_from_crb')) {
-            $anomalies[] = $this->item('rec_differs_crb', 'info', 'Screening differs from CRB', 'Analyst recommendation does not match the bureau suggestion — read screening notes.');
+        $analystRec = strtolower((string) ($application->recommendation_type ?? data_get($application->screening_payload, 'recommendation_meta.type') ?? ''));
+        $analystLabel = $analystRec !== '' ? str_replace('_', ' ', $analystRec) : 'not recorded';
+        $referIndex = collect($anomalies)->search(fn ($row) => ($row['code'] ?? '') === 'crb_refer');
+        if ($referIndex !== false) {
+            $anomalies[$referIndex]['title'] = 'CRB recommendation differs from screening';
+            $anomalies[$referIndex]['detail'] = 'CRB: Refer · Analyst: '.$analystLabel.'. Open CRB, then record rationale on Decision.';
+        } elseif ((bool) data_get($application->screening_payload, 'recommendation_meta.differs_from_crb')) {
+            $anomalies[] = $this->item(
+                'rec_differs_crb',
+                'info',
+                'CRB recommendation differs from screening',
+                'CRB: '.strtoupper($crbRec !== '' ? $crbRec : '—').' · Analyst: '.$analystLabel.'.',
+            );
         }
 
         $crossCheck = data_get($application->credit_appraisal_payload, 'crb_cross_check');

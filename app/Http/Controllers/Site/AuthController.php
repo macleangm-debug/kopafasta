@@ -787,12 +787,15 @@ class AuthController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
-        Auth::logout();
+        $user = Auth::guard('web')->user();
+        $isPartner = $user && in_array((string) $user->role, ['vendor', 'affiliate'], true);
+
+        Auth::guard('web')->logout();
         app(WebTwoFactorAuthService::class)->clearSessionVerification($request);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('site.home')
+        return redirect()->route($isPartner ? 'site.partners' : 'site.home')
             ->withCookie(app(TrustedDeviceService::class)->forgetCookie());
     }
 

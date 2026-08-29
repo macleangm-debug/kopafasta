@@ -53,6 +53,17 @@
             <span class="inline-flex text-xs font-bold rounded-full px-3 py-1 bg-brand-muted text-brand ring-1 ring-brand/15 uppercase">
                 {{ $rec !== '' ? $rec : '—' }}
             </span>
+            @php
+                $crbCheckedAt = $crb['checked_at'] ?? null;
+                if (is_string($crbCheckedAt) && $crbCheckedAt !== '') {
+                    try { $crbCheckedAt = \Illuminate\Support\Carbon::parse($crbCheckedAt); } catch (\Throwable) { $crbCheckedAt = null; }
+                }
+            @endphp
+            @if ($crbCheckedAt instanceof \DateTimeInterface)
+                <span class="text-[11px] text-gray-500">
+                    From latest CRB report dated {{ \Illuminate\Support\Carbon::parse($crbCheckedAt)->format('d M Y') }}
+                </span>
+            @endif
             <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1 bg-gray-100 text-gray-700">
                 Score {{ $crb['score'] ?? '—' }}
             </span>
@@ -123,6 +134,8 @@
         @php
             $identityFlags = collect(is_array($crossCheck) ? ($crossCheck['identity_flags'] ?? []) : []);
             $creditFlags = collect(is_array($crossCheck) ? ($crossCheck['credit_flags'] ?? []) : []);
+            $waivers = collect(data_get($record->screening_payload, 'discrepancy_waivers', []));
+            $waivable = ['spouse_missing_on_crb', 'spouse_mismatch', 'marital_mismatch', 'children_mismatch', 'employment_soft_mismatch'];
             $allFlags = $identityFlags->merge($creditFlags);
             $matches = collect(is_array($crossCheck) ? ($crossCheck['matches'] ?? []) : []);
         @endphp
@@ -139,7 +152,6 @@
                         <span class="rounded-full px-2.5 py-1 bg-amber-100 text-amber-900 font-semibold">{{ (int) ($crossCheck['warning_count'] ?? $allFlags->where('severity', 'warning')->count()) }} warning</span>
                     </div>
                 </div>
-                <p class="text-xs text-red-900/80">{{ $crossCheck['photo_note'] ?? 'No portrait is returned from CRB — use borrower face / ID uploads.' }}</p>
                 @if ($allFlags->isNotEmpty())
                     <ul class="space-y-2">
                         @foreach ($allFlags as $flag)
@@ -153,6 +165,30 @@
                             <li class="rounded-lg ring-1 px-3 py-2 {{ $tone }}">
                                 <p class="text-xs font-bold uppercase tracking-wide">{{ $flag['severity'] ?? 'info' }} · {{ $flag['title'] ?? 'Flag' }}</p>
                                 <p class="text-sm mt-0.5">{{ $flag['detail'] ?? '' }}</p>
+                                @php $flagCode = (string) ($flag['code'] ?? ''); @endphp
+                                @if ($waivers->has($flagCode))
+                                    @php $waiver = $waivers->get($flagCode); @endphp
+                                    <p class="text-[11px] text-emerald-800 mt-1.5">
+                                        Accepted {{ $waiver['at'] ?? '' }}
+                                        @if (! empty($waiver['by_name']))
+                                            · {{ $waiver['by_name'] }}
+                                        @endif
+                                        — {{ $waiver['reason'] ?? '' }}
+                                    </p>
+                                @elseif (in_array($flagCode, $waivable, true) && auth()->user()?->hasPermission('applications.review'))
+                                    <form method="POST" action="{{ route('admin.loan-applications.discrepancy-waiver', $record) }}" class="mt-2 space-y-1.5" data-no-draft>
+                                        @csrf
+                                        <input type="hidden" name="code" value="{{ $flagCode }}">
+                                        <input type="hidden" name="detail" value="{{ $flag['detail'] ?? '' }}">
+                                        <label class="block text-[11px] font-semibold text-gray-700">Accept / waive (required reason)</label>
+                                        <textarea name="reason" required minlength="12" rows="2" maxlength="500"
+                                                  placeholder="e.g. CRB data does not contain spouse information; verified from borrower profile."
+                                                  class="w-full rounded-lg border-gray-300 text-xs ring-1 ring-gray-200 px-3 py-2"></textarea>
+                                        <button type="submit" class="inline-flex text-xs font-semibold text-brand bg-white ring-1 ring-brand/20 px-3 py-1.5 rounded-lg">
+                                            Accept discrepancy
+                                        </button>
+                                    </form>
+                                @endif
                             </li>
                         @endforeach
                     </ul>

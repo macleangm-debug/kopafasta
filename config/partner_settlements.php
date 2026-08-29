@@ -6,5 +6,6 @@ return [
     'auto_approve_source_types' => [
         'supplier_deposit',
         'managed_loan_repayment',
+        'valuation_fee',
     ],
 ];

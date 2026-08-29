@@ -332,6 +332,13 @@
                 <p class="text-xs mt-2 opacity-90">
                     System: <span class="font-bold uppercase">{{ $risk['recommendation'] ?? '—' }}</span>
                 </p>
+                <a href="{{ route('admin.loan-applications.show', [
+                        'loan_application' => $record,
+                        'workspace' => 'checklist',
+                        'desk_phase' => 'capacity',
+                        'capacity_tab' => 'crb',
+                    ]).'#review-desk' }}"
+                   class="mt-1 inline-flex text-[11px] font-bold underline underline-offset-2">Open CRB</a>
                 @if (! empty($risk['explanation']))
                     <p class="mt-3 text-[11px] leading-relaxed opacity-95 border-t border-current/15 pt-2">
                         {{ $risk['explanation'] }}

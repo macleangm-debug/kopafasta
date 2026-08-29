@@ -342,6 +342,7 @@ class LoanApplicationDocumentRequestController extends Controller
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer'],
             'confirmed' => ['accepted'],
+            'reason' => ['nullable', 'string', 'max:200'],
             'return_workspace' => ['nullable', 'in:checklist,profiles'],
             'return_tab' => ['nullable', 'string', 'max:40'],
             'review_person' => ['nullable', 'in:borrower,member,guarantor'],
@@ -359,11 +360,12 @@ class LoanApplicationDocumentRequestController extends Controller
             if ($row->status !== 'pending') {
                 continue;
             }
-            $service->cancelPending($row, $request->user());
+            $service->cancelPending($row, $request->user(), $data['reason'] ?? null);
             $cancelled++;
             $this->auditAdmin('admin.loan_applications.document_request_cancelled', $loanApplication, [
                 'request_id' => $row->id,
                 'label' => $row->label,
+                'reason' => $data['reason'] ?? null,
             ]);
         }
 

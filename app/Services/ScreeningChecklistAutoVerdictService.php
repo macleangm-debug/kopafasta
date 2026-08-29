@@ -177,8 +177,9 @@ class ScreeningChecklistAutoVerdictService
 
         $profileMarital = strtolower((string) ($customer?->marital_status ?? ''));
         $crbMarital = strtolower(trim((string) ($personal['marital_status'] ?? '')));
+        $familyGap = false;
         if ($profileMarital !== '' && $crbMarital !== '' && ! str_contains($crbMarital, $profileMarital) && ! str_contains($profileMarital, $crbMarital)) {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'marital_mismatch', 'source' => 'system'];
+            $familyGap = true;
         }
 
         $spouseProfile = $this->norm(trim(implode(' ', array_filter([
@@ -187,14 +188,21 @@ class ScreeningChecklistAutoVerdictService
             $customer?->spouse_last_name,
         ]))));
         $spouseCrb = $this->norm(collect($personal['spouses'] ?? [])->pluck('name')->filter()->implode(' '));
-        if ($spouseProfile !== '' && $spouseCrb !== '' && $spouseProfile !== $spouseCrb && ! str_contains($spouseCrb, $spouseProfile)) {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'spouse_mismatch', 'source' => 'system'];
+        if ($spouseProfile !== '' && $spouseCrb === '') {
+            $familyGap = true;
+        } elseif ($spouseProfile !== '' && $spouseCrb !== '' && $spouseProfile !== $spouseCrb && ! str_contains($spouseCrb, $spouseProfile)) {
+            $familyGap = true;
         }
 
         if ($customer?->number_of_children !== null && array_key_exists('number_of_children', $personal) && $personal['number_of_children'] !== null) {
             if ((int) $customer->number_of_children !== (int) $personal['number_of_children']) {
-                return ['verdict' => 'fail', 'fail_reason_code' => 'children_mismatch', 'source' => 'system'];
+                $familyGap = true;
             }
+        }
+
+        // Family fields on CIR are often stale. Do not auto-Fail — analyst reviews or waives.
+        if ($familyGap) {
+            return ['verdict' => '', 'source' => 'system_skip'];
         }
 
         return ['verdict' => 'pass', 'source' => 'system'];

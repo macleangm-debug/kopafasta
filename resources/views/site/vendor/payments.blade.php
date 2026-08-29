@@ -13,16 +13,16 @@
             <p class="text-2xl font-extrabold text-brand mt-1">{{ $fmt($totals['available'] ?? 0) }}</p>
         </div>
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_pending') }}</p>
+            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.wallet_pending_earnings') }}</p>
             <p class="text-2xl font-extrabold text-amber-700 mt-1">{{ $fmt($totals['pending']) }}</p>
         </div>
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_earned') }}</p>
-            <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ $fmt($totals['paid']) }}</p>
+            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.wallet_payouts_in_progress') }}</p>
+            <p class="text-2xl font-extrabold text-orange-700 mt-1">{{ $fmt($totals['payouts_in_progress'] ?? 0) }}</p>
         </div>
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.payments_count') }}</p>
-            <p class="text-2xl font-extrabold mt-1">{{ $totals['count'] }}</p>
+            <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.wallet_payouts_paid') }}</p>
+            <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ $fmt($totals['payouts_paid'] ?? $totals['paid'] ?? 0) }}</p>
         </div>
     </div>
 
@@ -56,6 +56,24 @@
         </form>
     @endif
 
+    @php
+        $payoutsInProgress = $payoutsInProgress ?? collect();
+        $payoutsPaid = $payoutsPaid ?? collect();
+    @endphp
+    @if ($payoutsInProgress->isNotEmpty())
+        <div class="mb-6 glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
+            <p class="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-500">{{ __('site.partner_portal.wallet_payouts_in_progress') }}</p>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($payoutsInProgress as $payout)
+                    <li class="px-4 py-3 flex items-center justify-between gap-3 text-sm">
+                        <span class="font-semibold">{{ $fmt($payout->amount) }}</span>
+                        <span class="text-xs font-semibold uppercase text-amber-800">{{ $payout->status }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @if ($payments->isEmpty())
         <x-site.empty-state
             icon="💳"
@@ -64,6 +82,7 @@
         />
     @else
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
+            <p class="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-500">{{ __('site.partner_portal.wallet_history') }}</p>
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>

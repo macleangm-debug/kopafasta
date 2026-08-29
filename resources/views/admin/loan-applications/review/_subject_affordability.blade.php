@@ -50,6 +50,15 @@
                         Fail
                     @endif
                 </span>
+                <a href="{{ route('admin.loan-applications.show', array_filter([
+                        'loan_application' => $record,
+                        'workspace' => 'checklist',
+                        'desk_phase' => 'capacity',
+                        'capacity_tab' => 'checks',
+                        'open_group' => 'activity_income',
+                        'open_item' => 'activity_income.income_evidence',
+                    ])).'#review-desk' }}"
+                   class="text-[11px] font-bold text-brand underline underline-offset-2">View income &amp; commitments</a>
             </div>
         @endif
     </div>
@@ -91,6 +100,18 @@
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-2.5">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Available capacity</p>
                     <p class="font-bold text-gray-900 mt-0.5">{{ format_money($afford['available_capacity'] ?? 0) }}</p>
+                    <p class="text-[11px] text-gray-500 mt-1 leading-snug">
+                        Based on {{ ($afford['income_basis'] ?? '') === 'statement' ? 'verified monthly income' : 'declared income' }}, existing commitments and the configured affordability ratio.
+                    </p>
+                    <a href="{{ route('admin.loan-applications.show', array_filter([
+                            'loan_application' => $record,
+                            'workspace' => 'checklist',
+                            'desk_phase' => 'capacity',
+                            'capacity_tab' => 'checks',
+                            'open_group' => 'activity_income',
+                            'open_item' => 'activity_income.income_evidence',
+                        ])).'#review-desk' }}"
+                       class="mt-1 inline-flex text-[11px] font-bold text-brand underline underline-offset-2">View calculation</a>
                 </div>
                 <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-2.5">
                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Proposed instalment</p>

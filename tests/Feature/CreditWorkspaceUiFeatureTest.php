@@ -138,7 +138,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Record decision', $screening);
         $this->assertStringContainsString('Record your decision', $screening);
         $this->assertStringContainsString('Why are you approving?', $screening);
-        $this->assertStringContainsString('Push to Committee', $screening);
+        $this->assertStringContainsString('Approve & send to Committee', $screening);
         $this->assertStringContainsString('Review checklist → Docs', $screening);
         $this->assertStringNotContainsString('Need files? Request them on the Documents tab.', $screening);
         $this->assertStringNotContainsString('Who you are reviewing', $screening);
@@ -179,6 +179,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Affordability', $documents);
         $this->assertStringContainsString('Credit file wrap-up', $documents);
         $this->assertStringContainsString('Hold — finish checklist', $documents);
+        $this->assertStringContainsString('checks complete', $documents);
+        $this->assertStringContainsString('View calculation', $documents);
         $this->assertStringContainsString('Gate 2', $documents);
         $this->assertStringContainsString('Match statements to profile revenue', $documents);
         $this->assertStringContainsString('Statement totals', $documents);
@@ -261,9 +263,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Cannot push to committee yet', $decision);
-        $this->assertStringContainsString('Review checklist → Docs', $decision);
-        $this->assertStringContainsString('Cannot approve until these documents are in', $decision);
+        $this->assertStringContainsString('Approve unavailable', $decision);
+        $this->assertStringContainsString('Open missing document', $decision);
+        $this->assertStringContainsString('Reject stays available', $decision);
         $this->assertStringContainsString('National ID (front)', $decision);
         $this->assertStringContainsString('docs_panel=requests', $decision);
         $this->assertStringContainsString('capacity_tab=documents', $decision);

@@ -53,6 +53,14 @@
             if ((float) ($stats['payments_pend'] ?? 0) > 0) {
                 $activeStatCards[] = [__('site.partner_portal.stat_pending_pay'), $fmt($stats['payments_pend']), 'text-orange-700', 'bg-orange-50 ring-orange-100'];
             }
+            if (is_array($wallet ?? null) && array_key_exists('available', $wallet)) {
+                array_unshift($activeStatCards, [
+                    __('site.partner_portal.wallet_available'),
+                    $fmt($wallet['available']),
+                    'text-brand',
+                    'bg-brand-muted/50 ring-brand/10',
+                ]);
+            }
             if ((float) ($stats['earnings'] ?? 0) > 0) {
                 $activeStatCards[] = [__('site.partner_portal.stat_earnings'), $fmt($stats['earnings']), 'text-sky-700', 'bg-sky-50 ring-sky-100'];
             }
@@ -225,10 +233,18 @@
     @elseif (count($activeStatCards) > 0)
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
             @foreach ($activeStatCards as [$label, $value, $color, $tile])
-                <div class="rounded-2xl ring-1 {{ $tile }} p-4">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
-                    <p class="text-xl font-extrabold {{ $color }} mt-1 tabular-nums">{{ $value }}</p>
-                </div>
+                @if ($label === __('site.partner_portal.wallet_available'))
+                    <a href="{{ route('site.partner.payments') }}" class="rounded-2xl ring-1 {{ $tile }} p-4 hover:brightness-95">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
+                        <p class="text-xl font-extrabold {{ $color }} mt-1 tabular-nums">{{ $value }}</p>
+                        <p class="text-[11px] text-gray-500 mt-1 font-semibold">{{ __('site.partner_portal.wallet_withdraw_hint') }} →</p>
+                    </a>
+                @else
+                    <div class="rounded-2xl ring-1 {{ $tile }} p-4">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
+                        <p class="text-xl font-extrabold {{ $color }} mt-1 tabular-nums">{{ $value }}</p>
+                    </div>
+                @endif
             @endforeach
         </div>
     @endif

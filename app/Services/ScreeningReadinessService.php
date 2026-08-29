@@ -56,6 +56,7 @@ class ScreeningReadinessService
         $nextSteps = [];
         $criticalFails = [];
         $criticalFailCount = 0;
+        $autoCompleted = [];
 
         foreach ($subjects as $subject) {
             $checklistDone += (int) ($subject['done'] ?? 0);
@@ -88,6 +89,15 @@ class ScreeningReadinessService
                     $subjectLabel = trim(($subject['label'] ?? 'Subject').' · '.($subject['sublabel'] ?? ''));
                     $phase = (string) ($group['phase'] ?? 'person');
                     $href = $this->checklistHref($application, $subject, $phase, (string) ($group['key'] ?? ''), (string) ($item['key'] ?? ''));
+                    $source = (string) ($item['source'] ?? '');
+                    $autoSource = in_array($source, ['system', 'auto_na', 'documents'], true);
+
+                    if (in_array($verdict, ['pass', 'na'], true) && $autoSource) {
+                        $autoCompleted[] = [
+                            'label' => ($item['label'] ?? 'Check').($verdict === 'na' ? ' (N/A)' : ''),
+                            'detail' => $subjectLabel,
+                        ];
+                    }
 
                     if ($verdict === null) {
                         $hasEvidence = ! empty($item['evidence']['photos'])
@@ -229,6 +239,72 @@ class ScreeningReadinessService
             array_unshift($nextSteps, $incomeGateStep);
         }
 
+        $borrower = collect($subjects)->firstWhere('person', 'borrower') ?? ($subjects[0] ?? []);
+        $docsHref = $this->checklistHref($application, $borrower, 'capacity', null, null, 'documents', null, 'review-documents');
+        $blockingItems = [];
+        $application->loadMissing(['documentRequests.subjectCustomer', 'documentRequests.groupMember.customer']);
+        $seenBlockers = [];
+        foreach ($application->documentRequests as $request) {
+            if (! $request->needsBorrowerAction()) {
+                continue;
+            }
+            $label = trim((string) ($request->label ?? 'Requested document'));
+            $who = $request->subjectRoleLabel();
+            $full = $who ? $label.' ('.$who.')' : $label;
+            $seenBlockers[$full] = true;
+            $blockingItems[] = [
+                'label' => $full,
+                'detail' => 'Outstanding — this blocks Committee.',
+                'href' => $this->checklistHref(
+                    $application,
+                    $borrower,
+                    'capacity',
+                    null,
+                    null,
+                    'documents',
+                    null,
+                    'doc-request-'.$request->id,
+                ),
+                'cta' => 'Open missing document',
+            ];
+        }
+        foreach (app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application) as $blocker) {
+            if (isset($seenBlockers[$blocker])) {
+                continue;
+            }
+            $seenBlockers[$blocker] = true;
+            $blockingItems[] = [
+                'label' => $blocker,
+                'detail' => 'Outstanding — this blocks Committee.',
+                'href' => $docsHref,
+                'cta' => 'Open missing document',
+            ];
+        }
+        $needsAttention = [];
+        $blockLabels = array_column($blockingItems, 'label');
+        foreach (array_slice($nextSteps, 0, 8) as $step) {
+            $stepLabel = (string) ($step['label'] ?? '');
+            if (in_array($stepLabel, $blockLabels, true)) {
+                continue;
+            }
+            if (str_contains($stepLabel, 'required document') && $blockingItems !== []) {
+                continue;
+            }
+            $needsAttention[] = [
+                'label' => $stepLabel,
+                'detail' => $step['detail'] ?? '',
+                'href' => $step['href'] ?? $docsHref,
+                'cta' => match ($step['tone'] ?? '') {
+                    'gate' => 'Open statements',
+                    'critical', 'fail' => 'Review & decide',
+                    default => 'Open check',
+                },
+            ];
+        }
+        $percent = $checklistTotal > 0 ? (int) round(($checklistDone / $checklistTotal) * 100) : 0;
+        $autoCompleted = array_values(array_slice($autoCompleted, 0, 12));
+        $autoCompleteCount = count($autoCompleted);
+
         return [
             'ready' => $ready,
             'suggestion' => $suggestion,
@@ -248,6 +324,11 @@ class ScreeningReadinessService
             'checklist_done' => $checklistDone,
             'checklist_total' => $checklistTotal,
             'checklist_failed' => $checklistFailed,
+            'checklist_percent' => $percent,
+            'auto_complete_count' => $autoCompleteCount,
+            'auto_completed' => $autoCompleted,
+            'needs_attention' => $needsAttention,
+            'blocking_items' => $blockingItems,
             'subjects_incomplete' => count($incomplete),
             'subjects_total' => count($subjects),
             'income_gate_open' => $incomeGateOpen,
@@ -267,6 +348,7 @@ class ScreeningReadinessService
         ?string $openItem = null,
         ?string $capacityTab = null,
         ?string $securityTab = null,
+        string $fragment = 'review-desk',
     ): string {
         $query = array_filter([
             'loan_application' => $application,
@@ -281,7 +363,7 @@ class ScreeningReadinessService
             'security_tab' => $securityTab ?: ($phase === 'security' && ! $openGroup ? 'wrapup' : null),
         ], fn ($v) => $v !== null && $v !== '');
 
-        return route('admin.loan-applications.show', $query).'#review-desk';
+        return route('admin.loan-applications.show', $query).'#'.$fragment;
     }
 
     /**

@@ -98,6 +98,7 @@ class VendorController extends Controller
             $recoveryWallet = app(RecoveryCommissionWalletService::class)->summary($vendor);
         } else {
             $wallet = app(PartnerWalletService::class)->summary($vendor);
+            $stats['payments_pend'] = (int) round($wallet['pending'] ?? 0);
         }
 
         if ($vendor->category === 'affiliate') {
@@ -796,17 +797,38 @@ class VendorController extends Controller
         $wallet = $walletService->summary($vendor);
 
         $payments = VendorPayment::where('partner_id', $vendor->id)
+            ->where('source_type', $wallet['source_type'])
             ->with('task')->latest()->paginate(15);
 
+        $payoutsInProgress = \App\Models\PartnerPayoutRequest::query()
+            ->where('partner_id', $vendor->id)
+            ->where('source_type', $wallet['source_type'])
+            ->whereIn('status', ['pending', 'approved'])
+            ->latest()
+            ->get();
+        $payoutsPaid = \App\Models\PartnerPayoutRequest::query()
+            ->where('partner_id', $vendor->id)
+            ->where('source_type', $wallet['source_type'])
+            ->where('status', 'paid')
+            ->latest()
+            ->limit(8)
+            ->get();
+
         $totals = [
-            'paid' => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'paid')->sum('amount'),
-            'pending' => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
+            'paid' => (int) round($wallet['paid']),
+            'pending' => (int) round($wallet['pending']),
             'approved' => (int) round($wallet['approved']),
             'available' => (int) round($wallet['available']),
-            'count' => VendorPayment::where('partner_id', $vendor->id)->count(),
+            'payouts_in_progress' => (int) round($payoutsInProgress->sum('amount')),
+            'payouts_paid' => (int) round($payoutsPaid->sum('amount')),
+            'count' => VendorPayment::where('partner_id', $vendor->id)
+                ->where('source_type', $wallet['source_type'])
+                ->count(),
         ];
 
-        return view('site.vendor.payments', compact('vendor', 'payments', 'totals', 'wallet'));
+        return view('site.vendor.payments', compact(
+            'vendor', 'payments', 'totals', 'wallet', 'payoutsInProgress', 'payoutsPaid',
+        ));
     }
 
     public function requestPayout(Request $request)

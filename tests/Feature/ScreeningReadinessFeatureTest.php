@@ -36,6 +36,9 @@ class ScreeningReadinessFeatureTest extends TestCase
         $this->assertTrue($readiness['income_gate_open']);
         $this->assertSame('gate', $readiness['next_steps'][0]['tone'] ?? null);
         $this->assertStringContainsString('Gate 2', $readiness['next_steps'][0]['label'] ?? '');
+        $this->assertIsArray($readiness['auto_completed'] ?? null);
+        $this->assertIsArray($readiness['blocking_items'] ?? null);
+        $this->assertIsArray($readiness['needs_attention'] ?? null);
         $this->assertStringContainsString('N/A counts as reviewed', $readiness['na_note']);
     }
 

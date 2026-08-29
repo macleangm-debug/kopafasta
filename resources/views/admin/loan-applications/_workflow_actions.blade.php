@@ -121,6 +121,7 @@
                                 class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-md p-0 backdrop:bg-brand/40 open:flex open:flex-col"
                                 x-data="{
                                     decision: '{{ $oldDecision }}',
+                                    step: 'pick',
                                     advice: '{{ old('rejection_advice_code', '') }}',
                                     counterEnabled: {{ $counterEnabled ? 'true' : 'false' }},
                                     affordPass: {{ $affordPass ? 'true' : 'false' }},
@@ -160,10 +161,14 @@
                                     </div>
                                 </div>
 
-                                <div class="p-4 space-y-3">
+                                <div class="p-4 space-y-3" x-show="step === 'pick'">
                                     @if ($docBlockers !== [])
                                         <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5">
-                                            <p class="text-xs font-semibold text-amber-950">Cannot approve until these documents are in</p>
+                                            <p class="text-xs font-semibold text-amber-950">Approve unavailable</p>
+                                            <p class="text-[11px] text-amber-900 mt-0.5">
+                                                {{ count($docBlockers) }} required document{{ count($docBlockers) === 1 ? '' : 's' }} outstanding.
+                                                Reject stays available.
+                                            </p>
                                             <ul class="mt-1.5 space-y-0.5 text-[11px] text-amber-900">
                                                 @foreach (array_slice($docBlockers, 0, 6) as $blocker)
                                                     <li>{{ $blocker }}</li>
@@ -171,7 +176,7 @@
                                             </ul>
                                             <a href="{{ $docsUrl }}"
                                                class="mt-2 inline-flex text-[11px] font-bold text-brand underline underline-offset-2">
-                                                Open Review checklist → Docs
+                                                Open missing document
                                             </a>
                                         </div>
                                     @endif
@@ -300,15 +305,42 @@
                                     </div>
                                 </div>
 
+                                @php
+                                    $decideName = trim((string) (data_get($review, 'customer.first_name')
+                                        ?: data_get($review, 'customer.full_name')
+                                        ?: 'this applicant'));
+                                @endphp
+                                <div x-show="step === 'review'" x-cloak class="p-4 space-y-3">
+                                    <p class="text-sm font-semibold text-gray-900" x-show="decision === 'approve'">
+                                        Approve {{ $decideName }}'s screening and send this application to Credit Committee?
+                                    </p>
+                                    <p class="text-sm font-semibold text-gray-900" x-show="decision === 'counter'">
+                                        Send {{ $decideName }}'s counter-offer to Credit Committee?
+                                    </p>
+                                    <p class="text-sm font-semibold text-gray-900" x-show="decision === 'reject'">
+                                        Reject {{ $decideName }}'s application and close this file?
+                                    </p>
+                                    <p class="text-xs text-gray-600">Reject is allowed while documents are still outstanding. Approve is not.</p>
+                                </div>
+
                                 <div class="px-4 py-3 border-t border-gray-100 bg-gray-50/80 flex flex-wrap items-center justify-end gap-2">
-                                    <button type="button" data-close-dialog="recommend-{{ $record->id }}"
+                                    <button type="button" x-show="step === 'pick'" data-close-dialog="recommend-{{ $record->id }}"
                                             class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg">
                                         Cancel
                                     </button>
-                                    <button type="submit"
+                                    <button type="button" x-show="step === 'review'" x-cloak @click="step = 'pick'"
+                                            class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg">
+                                        Go back
+                                    </button>
+                                    <button type="button" x-show="step === 'pick'"
                                             :disabled="!canSubmit || !decision"
+                                            @click="step = 'review'"
                                             class="inline-flex items-center justify-center min-w-[10rem] bg-brand-gold hover:brightness-95 disabled:opacity-40 text-brand font-bold text-sm px-4 py-2 rounded-lg shadow-sm">
-                                        <span x-text="decision === 'reject' ? 'Confirm reject' : 'Push to Committee'"></span>
+                                        Review decision
+                                    </button>
+                                    <button type="submit" x-show="step === 'review'" x-cloak
+                                            class="inline-flex items-center justify-center min-w-[10rem] bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-4 py-2 rounded-lg shadow-sm">
+                                        <span x-text="decision === 'reject' ? 'Reject application' : (decision === 'counter' ? 'Send counter to Committee' : 'Approve & send to Committee')"></span>
                                     </button>
                                 </div>
                             </form>
@@ -669,3 +701,28 @@
                     @endif
                 @endforeach
             </div>
+            @php
+                $actionKeys = collect($availableActions ?? [])->pluck('key');
+                $committeeApproveHidden = ($record->current_stage ?? '') === 'pre_approval'
+                    && $actionKeys->contains('reject')
+                    && ! $actionKeys->contains('approve')
+                    && ! $actionKeys->contains('approve_with_conditions');
+                $committeeApproveBlockers = $committeeApproveHidden
+                    ? app(\App\Services\ApplicationOfferService::class)->finalApproveBlockers($record)
+                    : [];
+            @endphp
+            @if ($committeeApproveHidden)
+                <div class="basis-full rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                    <p class="text-xs font-semibold text-amber-950">Approve unavailable</p>
+                    @if ($committeeApproveBlockers !== [])
+                        <ul class="mt-1.5 space-y-0.5 text-[11px] text-amber-900">
+                            @foreach ($committeeApproveBlockers as $blocker)
+                                <li>{{ $blocker['label'] }}</li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p class="text-[11px] text-amber-900 mt-0.5">Reject stays available. Approve is hidden for this desk or file state.</p>
+                    @endif
+                    <p class="text-[11px] text-amber-800 mt-1.5">Reject is allowed while these conditions remain. That is existing committee policy — not a missing button.</p>
+                </div>
+            @endif

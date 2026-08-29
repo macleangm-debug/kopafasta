@@ -1849,8 +1849,7 @@ class ScreeningChecklistService
                         'value' => 'Statements are the Activity & income check, not this CRB question.',
                         'href' => $this->checklistHref($application, [
                             'desk_phase' => 'capacity',
-                            'capacity_tab' => 'documents',
-                            'docs_filter' => 'action',
+                            'capacity_tab' => 'checks',
                             'open_group' => 'activity_income',
                             'open_item' => 'activity_income.income_evidence',
                         ], 'review-desk'),

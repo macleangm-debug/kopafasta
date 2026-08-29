@@ -116,8 +116,7 @@ class ScreeningChecklistFeatureTest extends TestCase
                 ],
             ]);
         $response->assertRedirect();
-        $this->assertStringContainsString('open_reject=1', $response->headers->get('Location'));
-        $this->assertStringContainsString('workspace=decision', $response->headers->get('Location'));
+        $this->assertStringContainsString('workspace=checklist', $response->headers->get('Location'));
 
         $app->refresh();
         $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
@@ -149,7 +148,7 @@ class ScreeningChecklistFeatureTest extends TestCase
                 ],
             ]);
         $response->assertRedirect();
-        $this->assertStringContainsString('open_reject=1', $response->headers->get('Location'));
+        $this->assertStringContainsString('workspace=checklist', $response->headers->get('Location'));
         $response->assertSessionHas('checklist_reject_codes');
 
         $app->refresh();
@@ -306,7 +305,7 @@ class ScreeningChecklistFeatureTest extends TestCase
                 ],
             ]);
         $response->assertRedirect();
-        $this->assertStringContainsString('open_reject=1', $response->headers->get('Location'));
+        $this->assertStringContainsString('workspace=checklist', $response->headers->get('Location'));
 
         $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($app->fresh());
         $this->assertTrue($suggestion['prompt_reject']);
@@ -442,7 +441,7 @@ class ScreeningChecklistFeatureTest extends TestCase
                 ],
             ]);
         $response->assertRedirect();
-        $this->assertStringContainsString('open_reject=1', $response->headers->get('Location'));
+        $this->assertStringContainsString('workspace=checklist', $response->headers->get('Location'));
 
         $items = data_get($app->fresh()->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
         $item = $items['activity_income.income_evidence'] ?? [];
@@ -737,7 +736,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('Open CRB', $encoded);
         $this->assertStringContainsString('capacity_tab=crb', $encoded);
         $this->assertStringContainsString('activity_income.income_evidence', $encoded);
-        $this->assertStringContainsString('docs_filter=action', $encoded);
+        $this->assertStringContainsString('capacity_tab=checks', $encoded);
         $this->assertStringNotContainsString('filter Missing / To verify', $encoded);
     }
 
@@ -797,5 +796,61 @@ class ScreeningChecklistFeatureTest extends TestCase
 
         $this->assertSame('pass', $ready['verdict'] ?? null);
         $this->assertTrue($ready['system_checked'] ?? false);
+    }
+
+    public function test_discrepancy_waiver_is_stored_without_changing_crb(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $crbBefore = $app->credit_appraisal_payload;
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.discrepancy-waiver', $app), [
+                'code' => 'spouse_missing_on_crb',
+                'reason' => 'CRB data does not contain spouse information; verified from borrower profile and supporting documentation.',
+            ])
+            ->assertRedirect();
+
+        $app->refresh();
+        $waiver = data_get($app->screening_payload, 'discrepancy_waivers.spouse_missing_on_crb');
+        $this->assertIsArray($waiver);
+        $this->assertSame($admin->id, $waiver['by'] ?? null);
+        $this->assertStringContainsString('CRB data does not contain spouse', (string) ($waiver['reason'] ?? ''));
+        $this->assertEquals($crbBefore, $app->credit_appraisal_payload);
+    }
+
+    public function test_retracting_a_document_request_stops_blocking_committee(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $app), [
+                'type' => 'document',
+                'presets' => ['Updated Bank Statement'],
+                'request_subject' => 'borrower',
+                'confirmed' => '1',
+            ])
+            ->assertRedirect();
+
+        $request = $app->fresh()->documentRequests()->first();
+        $this->assertNotNull($request);
+        $this->assertNotEmpty(app(\App\Services\LoanApplicationWorkflowService::class)->screeningDocumentBlockers($app->fresh()));
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.cancel', $app), [
+                'ids' => [$request->id],
+                'confirmed' => '1',
+                'reason' => 'No longer required for this file',
+                'return_workspace' => 'checklist',
+            ])
+            ->assertRedirect();
+
+        $request->refresh();
+        $this->assertSame('cancelled', $request->status);
+        $this->assertStringContainsString('Retracted by', (string) $request->admin_notes);
+        $this->assertStringContainsString('No longer required', (string) $request->admin_notes);
+        $blockers = app(\App\Services\LoanApplicationWorkflowService::class)->screeningDocumentBlockers($app->fresh());
+        $this->assertFalse(collect($blockers)->contains(fn ($label) => str_contains((string) $label, 'Updated Bank Statement')));
     }
 }

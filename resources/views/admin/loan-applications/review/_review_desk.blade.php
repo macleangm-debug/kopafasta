@@ -175,8 +175,9 @@
         </div>
         @if ($canEdit)
             <button type="submit" form="screening-checklist-form"
+                    x-show="phase === 'person' || (phase === 'capacity' && capacityTab === 'checks') || (phase === 'security' && securityTab === 'checks')"
                     class="shrink-0 inline-flex rounded-xl bg-brand text-white text-xs font-bold px-3.5 py-2 hover:bg-brand-light">
-                Save →
+                Save
             </button>
         @endif
     </div>
@@ -283,13 +284,6 @@
                         ])
                     </div>
                 @endforeach
-
-                <div class="flex justify-end">
-                    <button type="submit"
-                            class="inline-flex items-center rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-light">
-                        Save
-                    </button>
-                </div>
             </form>
         @else
             @foreach ($phases as $phase)

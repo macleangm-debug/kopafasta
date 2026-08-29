@@ -382,23 +382,39 @@ class ApplicationOfferService
 
     public function canFinalApprove(LoanApplication $application): bool
     {
+        return $this->finalApproveBlockers($application) === [];
+    }
+
+    /**
+     * Why committee Approve is unavailable. Reject may still be allowed.
+     *
+     * @return list<array{label: string, href?: string, cta?: string}>
+     */
+    public function finalApproveBlockers(LoanApplication $application): array
+    {
+        $blockers = [];
+
+        if (($application->current_stage ?? '') !== 'pre_approval') {
+            $blockers[] = ['label' => 'This file is not at Credit Committee yet.'];
+        }
+
         if ($application->offer_status === 'pending_borrower') {
-            return false;
+            $blockers[] = ['label' => 'Waiting on the borrower to accept or decline the counter-offer.'];
         }
 
         if ($this->pendingAssetConversion($application) || $application->offer_status === 'asset_conversion_fee_due') {
-            return false;
+            $blockers[] = ['label' => 'Asset conversion fee is still due before cash approval.'];
         }
 
         if ($application->recommendation_type === self::RECOMMEND_COUNTER && $application->offer_status !== 'accepted') {
-            return false;
+            $blockers[] = ['label' => 'The counter-offer has not been accepted by the borrower yet.'];
         }
 
         if ($application->recommendation_type === self::RECOMMEND_ASSET) {
-            return false;
+            $blockers[] = ['label' => 'Screening recommended an asset-backed alternative — not a cash approval.'];
         }
 
-        return ($application->current_stage ?? '') === 'pre_approval';
+        return $blockers;
     }
 
     /**

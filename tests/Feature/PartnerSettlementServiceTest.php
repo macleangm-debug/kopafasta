@@ -96,6 +96,47 @@ class PartnerSettlementServiceTest extends TestCase
             ->exists());
     }
 
+    public function test_valuation_fee_posts_to_wallet_once_when_completed(): void
+    {
+        User::factory()->create(['role' => 'admin']);
+        $vendor = $this->makeVendor(['category' => 'valuer']);
+        $service = app(PartnerSettlementService::class);
+
+        $payment = $service->accrue($vendor, 40_000, 'valuation_fee', 11, 'Asset valuation APP-VAL');
+
+        $this->assertSame('approved', $payment->fresh()->status);
+
+        $wallet = app(\App\Services\PartnerWalletService::class)->summary($vendor);
+        $this->assertSame(40_000.0, $wallet['available']);
+        $this->assertSame(0.0, $wallet['pending']);
+        $this->assertSame('valuation_fee', $wallet['source_type']);
+        $this->assertSame(1, VendorPayment::query()
+            ->where('partner_id', $vendor->id)
+            ->where('source_type', 'valuation_fee')
+            ->count());
+    }
+
+    public function test_stale_pending_valuation_fee_is_promoted_on_wallet_read(): void
+    {
+        User::factory()->create(['role' => 'admin']);
+        $vendor = $this->makeVendor(['category' => 'valuer']);
+
+        $stuck = VendorPayment::create([
+            'vendor_id' => $vendor->id,
+            'invoice_number' => 'INV-STUCK1',
+            'amount' => 12_000,
+            'status' => 'pending',
+            'source_type' => 'valuation_fee',
+            'description' => 'Completed valuation still pending',
+        ]);
+
+        $wallet = app(\App\Services\PartnerWalletService::class)->summary($vendor);
+
+        $this->assertSame('approved', $stuck->fresh()->status);
+        $this->assertSame(12_000.0, $wallet['available']);
+        $this->assertSame(0.0, $wallet['pending']);
+    }
+
     public function test_admin_payout_details_page_opens(): void
     {
         $vendor = $this->makeVendor();

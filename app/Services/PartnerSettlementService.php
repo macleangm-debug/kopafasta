@@ -43,16 +43,50 @@ class PartnerSettlementService
         return $payment;
     }
 
+    /**
+     * Completed valuation jobs must not sit at pending forever.
+     * Heals rows accrued before auto-approve was wired to the completed event.
+     */
+    public function promotePendingValuationFees(Vendor $vendor): int
+    {
+        if (! $vendor->isValuer()) {
+            return 0;
+        }
+
+        $promoted = 0;
+        $pending = VendorPayment::query()
+            ->where('partner_id', $vendor->id)
+            ->where('source_type', 'valuation_fee')
+            ->where('status', 'pending')
+            ->get();
+
+        foreach ($pending as $payment) {
+            try {
+                $this->approvePayment($payment, $this->systemUser());
+                $promoted++;
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
+        }
+
+        return $promoted;
+    }
+
     private function shouldAutoApprove(Vendor $vendor, string $sourceType, int $amount): bool
     {
-        if ($vendor->status !== 'active') {
+        if ($vendor->status !== 'active' || $amount <= 0) {
             return false;
+        }
+
+        // Completed valuation jobs are accepted work — post to the wallet once, immediately.
+        if ($sourceType === 'valuation_fee') {
+            return true;
         }
 
         $max = (int) config('partner_settlements.auto_approve_max_amount', 500_000);
         $types = config('partner_settlements.auto_approve_source_types', ['supplier_deposit']);
 
-        return in_array($sourceType, $types, true) && $amount > 0 && $amount <= $max;
+        return in_array($sourceType, $types, true) && $amount <= $max;
     }
 
     private function systemUser(): User
