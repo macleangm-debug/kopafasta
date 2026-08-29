@@ -59,6 +59,7 @@ class ScreeningReadinessService
         $criticalFailCount = 0;
         $autoCompleted = [];
         $gateAgg = [];
+        $memberSummaries = [];
         $gateService = app(ScreeningChecklistGateService::class);
 
         foreach ($subjects as $subject) {
@@ -74,6 +75,7 @@ class ScreeningReadinessService
 
             $subjectHumanOpen = 0;
             $subjectHumanFail = 0;
+            $subjectIssues = [];
 
             foreach ($desk['groups'] ?? [] as $group) {
                 foreach ($group['items'] ?? [] as $item) {
@@ -92,6 +94,7 @@ class ScreeningReadinessService
                     $cta = (string) ($dest['cta'] ?? 'Open check');
                     $uxGate = (string) ($item['ux_gate'] ?? $dest['gate'] ?? $gateService->gateFor((string) ($group['key'] ?? ''), (string) ($item['key'] ?? '')));
                     $quiet = $gateService->isQuietAuto($item);
+                    $systemDetermined = $gateService->isSystemDetermined($item);
                     $detailFromRows = collect($item['evidence']['compare'] ?? [])
                         ->filter(fn ($row) => ($row['status'] ?? '') === 'mismatch')
                         ->map(fn ($row) => trim(($row['label'] ?? '').': '.($row['profile'] ?? '—').' vs '.($row['crb'] ?? '—')))
@@ -103,6 +106,39 @@ class ScreeningReadinessService
                             'label' => ($item['label'] ?? 'Check').($verdict === 'na' ? ' (N/A)' : ''),
                             'detail' => $this->autoCheckDetail($item, $subjectLabel),
                         ];
+                        continue;
+                    }
+
+                    if ($systemDetermined) {
+                        $reason = (string) ($item['fail_reason_label'] ?? $item['awaiting_message'] ?? '');
+                        if ($verdict === 'fail' || $verdict === null) {
+                            if ($verdict === 'fail') {
+                                $subjectHumanFail++;
+                                if ($risk === 'critical') {
+                                    $criticalFailCount++;
+                                    $criticalFails[] = ($item['label'] ?? 'Check').' ('.$subjectLabel.')';
+                                }
+                            }
+                            $gateAgg[$uxGate] ??= ['decided' => 0, 'total' => 0, 'failed' => 0];
+                            $gateAgg[$uxGate]['total']++;
+                            if ($verdict !== null) {
+                                $gateAgg[$uxGate]['decided']++;
+                            }
+                            if ($verdict === 'fail') {
+                                $gateAgg[$uxGate]['failed']++;
+                            }
+                            $nextSteps[] = [
+                                'label' => $item['label'] ?? 'Checklist item',
+                                'detail' => trim($subjectLabel.($reason !== '' ? ' — '.$reason : '').($detailFromRows !== '' ? ' — '.$detailFromRows : '')),
+                                'href' => $href,
+                                'cta' => $cta,
+                                'tone' => $verdict === 'fail' ? ($risk === 'critical' ? 'critical' : 'fail') : 'open',
+                                'gate' => $dest['gate'] ?? $uxGate,
+                                'dedupe_key' => (string) ($item['key'] ?? $item['label'] ?? ''),
+                                'subject_key' => (string) ($subject['key'] ?? ''),
+                            ];
+                            $subjectIssues[] = $nextSteps[array_key_last($nextSteps)];
+                        }
                         continue;
                     }
 
@@ -139,6 +175,7 @@ class ScreeningReadinessService
                             'gate' => $isIncomeGate ? 'statements_vs_declared' : ($dest['gate'] ?? $uxGate),
                             'dedupe_key' => (string) ($item['key'] ?? $item['label'] ?? ''),
                         ];
+                        $subjectIssues[] = $nextSteps[array_key_last($nextSteps)];
                     } elseif ($verdict === 'fail') {
                         if ($risk === 'critical') {
                             $criticalFailCount++;
@@ -154,6 +191,7 @@ class ScreeningReadinessService
                             'gate' => $isIncomeGate ? 'statements_vs_declared' : ($dest['gate'] ?? $uxGate),
                             'dedupe_key' => (string) ($item['key'] ?? $item['label'] ?? ''),
                         ];
+                        $subjectIssues[] = $nextSteps[array_key_last($nextSteps)];
                     }
                 }
             }
@@ -165,6 +203,15 @@ class ScreeningReadinessService
             if ($subjectHumanFail > 0) {
                 $failedSubjects[] = trim(($subject['label'] ?? 'Subject').' · '.($subject['sublabel'] ?? ''));
             }
+
+            $memberSummaries[] = $this->memberSummaryCard(
+                $application,
+                $subject,
+                $groupReview,
+                $subjectHumanOpen,
+                $subjectHumanFail,
+                $subjectIssues,
+            );
         }
 
         $checklistDone = $humanDone;
@@ -234,6 +281,7 @@ class ScreeningReadinessService
             $nextSteps = array_values(array_filter(
                 $nextSteps,
                 fn ($step) => in_array((string) ($step['gate'] ?? ''), $allowed, true)
+                    || in_array((string) ($step['tone'] ?? ''), ['critical', 'fail'], true)
             ));
         }
 
@@ -436,6 +484,15 @@ class ScreeningReadinessService
             'attention_count' => count($unresolved),
             'sequence' => $sequence,
             'next_action' => $seqNext,
+            'member_summaries' => $memberSummaries,
+            'decision_status' => $this->decisionStatus(
+                $sequence,
+                $ready,
+                $criticalFailCount,
+                $criticalFails,
+                $laterUnlocked,
+                $checklistFailed,
+            ),
             'na_note' => 'N/A counts as reviewed and does not Fail the file — use it when the check truly does not apply (for example collateral on a clean group loan). It still moves the checklist forward.',
         ];
     }
@@ -597,6 +654,130 @@ class ScreeningReadinessService
 
     /**
      * @param  array<string, mixed>  $subject
+     * @param  array<string, mixed>|null  $groupReview
+     * @param  list<array<string, mixed>>  $issues
+     * @return array<string, mixed>
+     */
+    private function memberSummaryCard(
+        LoanApplication $application,
+        array $subject,
+        ?array $groupReview,
+        int $open,
+        int $failed,
+        array $issues,
+    ): array {
+        $person = (string) ($subject['person'] ?? 'borrower');
+        $name = trim((string) ($subject['sublabel'] ?? $subject['label'] ?? 'Member'));
+        $first = explode(' ', $name)[0] ?: $name;
+        $cid = (int) ($subject['customer_id'] ?? 0);
+        $memberRow = collect($groupReview['members'] ?? [])->first(function ($row) use ($person, $subject, $cid) {
+            if ($person === 'member' && (int) ($row['id'] ?? 0) === (int) ($subject['m'] ?? 0)) {
+                return true;
+            }
+            if ($person === 'borrower' && ($row['role'] ?? '') === 'leader') {
+                return true;
+            }
+
+            return $cid > 0 && (int) ($row['customer_id'] ?? 0) === $cid;
+        });
+        $gate1 = strtolower((string) ($memberRow['gate_1'] ?? ''));
+        $gate2 = strtolower((string) ($memberRow['gate_2'] ?? ''));
+        $crb = strtolower((string) ($memberRow['crb_recommendation'] ?? ''));
+        $issue = $issues[0] ?? null;
+        $needsAttention = $open > 0 || $failed > 0;
+        $href = (string) ($issue['href'] ?? route('admin.loan-applications.show', array_filter([
+            'loan_application' => $application,
+            'workspace' => 'checklist',
+            'review_person' => $person,
+            'review_g' => $subject['g'] ?? null,
+            'review_m' => $subject['m'] ?? null,
+            'gate' => $issue['gate'] ?? 'identity',
+        ])).'#review-desk');
+
+        $chips = [];
+        if ($gate1 !== '') {
+            $chips[] = 'Gate 1 '.($gate1 === 'pass' ? '✓' : ($gate1 === 'fail' ? '✗' : $gate1));
+        }
+        if ($gate2 !== '') {
+            $chips[] = 'Gate 2 '.($gate2 === 'pass' ? '✓' : ($gate2 === 'fail' ? '✗' : $gate2));
+        }
+        if ($crb !== '') {
+            $chips[] = 'CRB '.ucfirst($crb);
+        }
+
+        return [
+            'key' => (string) ($subject['key'] ?? $person),
+            'person' => $person,
+            'name' => $first,
+            'full_name' => $name,
+            'role' => (string) ($subject['label'] ?? 'Member'),
+            'status' => $needsAttention ? 'Needs attention' : 'Eligible',
+            'needs_attention' => $needsAttention,
+            'chips' => $chips,
+            'issue' => $issue['label'] ?? null,
+            'issue_detail' => $issue['detail'] ?? null,
+            'href' => $href,
+            'cta' => $issue['cta'] ?? 'Open member',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $sequence
+     * @param  list<string>  $criticalFails
+     * @return array{state: string, headline: string, detail: string, countdown: ?string}
+     */
+    private function decisionStatus(
+        array $sequence,
+        bool $ready,
+        int $criticalFailCount,
+        array $criticalFails,
+        bool $laterUnlocked,
+        int $checklistFailed,
+    ): array {
+        $pending = (bool) ($sequence['pending_rejection'] ?? false);
+        $countdown = $sequence['remaining_label'] ?? null;
+        $parkGate = (string) ($sequence['park_gate'] ?? '');
+        $failLabel = $parkGate === 'verified'
+            ? 'Gate 2 — Verified affordability failed'
+            : 'Gate 1 — Initial affordability failed';
+
+        if ($pending) {
+            return [
+                'state' => 'pending_rejection',
+                'headline' => '1 hard failure',
+                'detail' => $failLabel,
+                'countdown' => $countdown ? 'Pending automatic rejection · '.$countdown : 'Pending automatic rejection',
+            ];
+        }
+
+        if ($criticalFailCount > 0) {
+            return [
+                'state' => 'hard_failure',
+                'headline' => $criticalFailCount === 1 ? '1 hard failure' : $criticalFailCount.' hard failures',
+                'detail' => (string) ($criticalFails[0] ?? 'Critical checklist Fail'),
+                'countdown' => $checklistFailed > 0 ? 'Recorded on Screening summary — confirm rejection from Decision' : null,
+            ];
+        }
+
+        if ($ready && $laterUnlocked) {
+            return [
+                'state' => 'ready',
+                'headline' => 'Ready for decision',
+                'detail' => 'No decision blockers',
+                'countdown' => null,
+            ];
+        }
+
+        return [
+            'state' => 'clear',
+            'headline' => 'No decision blockers',
+            'detail' => 'Keep working the remaining screening questions.',
+            'countdown' => null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $subject
      */
     private function checklistHref(
         LoanApplication $application,
@@ -634,19 +815,17 @@ class ScreeningReadinessService
         $members = collect($groupReview['members'] ?? []);
         if ($members->isNotEmpty()) {
             $worst = 'approve';
-            $labels = [];
             foreach ($members as $member) {
                 $score = isset($member['crb_score']) && is_numeric($member['crb_score'])
                     ? (int) $member['crb_score']
                     : null;
                 $band = $this->crb->scoreBandFeedback($score);
-                $labels[] = ($member['name'] ?? 'Member').': '.$band['label'];
                 $worst = $this->worseCrb($worst, $band['recommendation']);
             }
 
             return [
                 'recommendation' => $worst,
-                'label' => $labels !== [] ? 'group ('.implode('; ', array_slice($labels, 0, 3)).')' : 'group',
+                'label' => $members->count().' members',
             ];
         }
 

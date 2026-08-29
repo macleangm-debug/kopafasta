@@ -47,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(\App\Services\Marketing\DemoContext::class);
         $this->app->singleton(\App\Services\Marketing\DemoGuard::class);
+        $this->app->singleton(\App\Services\ScreeningChecklistService::class);
         $this->app->bind(
             \App\Contracts\CrbClientInterface::class,
             \App\Services\Crb\DnbLiveCrbClient::class,

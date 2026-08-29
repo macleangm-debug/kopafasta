@@ -154,6 +154,8 @@ class ScreeningReadinessFeatureTest extends TestCase
         $this->assertNotEmpty($readiness['overview_snapshot'] ?? []);
         $this->assertNotEmpty($readiness['gate_chips'] ?? []);
         $this->assertSame($readiness['unresolved'][0]['label'] ?? null, $named['label']);
+        $this->assertIsArray($readiness['decision_status'] ?? null);
+        $this->assertArrayHasKey('headline', $readiness['decision_status']);
     }
 
     private function staff(): User

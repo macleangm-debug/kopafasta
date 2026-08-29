@@ -11,6 +11,21 @@ use Illuminate\Support\Facades\DB;
 
 class ScreeningChecklistService
 {
+    /** @var array<string, array<string, mixed>> */
+    private array $viewModelMemo = [];
+
+    /** @var array<string, list<array<string, mixed>>> */
+    private array $deskSubjectsMemo = [];
+
+    /** @var array<int, true> */
+    private array $healedPledgeIds = [];
+
+    public function forgetRequestMemo(): void
+    {
+        $this->viewModelMemo = [];
+        $this->deskSubjectsMemo = [];
+    }
+
     /** @return array<string, array{label: string, items: array<string, mixed>, subjects?: list<string>}> */
     public function catalog(?string $subjectKind = null): array
     {
@@ -67,6 +82,15 @@ class ScreeningChecklistService
      */
     public function deskSubjects(LoanApplication $application, array $review, ?array $groupReview = null, ?User $actor = null): array
     {
+        $memoKey = $application->id.':'.spl_object_id($this).':'.md5(json_encode([
+            $actor?->id,
+            count($groupReview['members'] ?? []),
+            (int) ($review['customer']->id ?? 0),
+        ]));
+        if (isset($this->deskSubjectsMemo[$memoKey])) {
+            return $this->deskSubjectsMemo[$memoKey];
+        }
+
         $subjects = [];
         $isGroup = is_array($groupReview) && ! empty($groupReview['members']);
 
@@ -82,6 +106,7 @@ class ScreeningChecklistService
                 'person' => 'borrower',
                 'g' => null,
                 'm' => null,
+                'customer_id' => (int) ($leader['customer_id'] ?? ($review['customer']->id ?? 0)) ?: null,
                 'label' => 'Leader',
                 'sublabel' => $leader['name'] ?? ($review['customer']->full_name ?? null),
                 'avatar_url' => $leader['avatar_url'] ?? (($review['customer'] ?? null) instanceof Customer
@@ -111,6 +136,7 @@ class ScreeningChecklistService
                     'person' => 'member',
                     'g' => null,
                     'm' => $mId,
+                    'customer_id' => (int) ($member['customer_id'] ?? 0) ?: null,
                     'label' => 'Member',
                     'sublabel' => $member['name'] ?? null,
                     'avatar_url' => $member['avatar_url'] ?? null,
@@ -128,6 +154,7 @@ class ScreeningChecklistService
                 'person' => 'borrower',
                 'g' => null,
                 'm' => null,
+                'customer_id' => (int) ($review['customer']->id ?? 0) ?: null,
                 'label' => 'Borrower',
                 'sublabel' => $review['customer']->full_name ?? null,
                 'avatar_url' => ($review['customer'] ?? null) instanceof Customer
@@ -155,6 +182,7 @@ class ScreeningChecklistService
                 'person' => 'guarantor',
                 'g' => $gId,
                 'm' => null,
+                'customer_id' => (int) ($row['customer_id'] ?? $row['guarantor_customer_id'] ?? 0) ?: null,
                 'label' => 'Guarantor',
                 'sublabel' => $row['name'] ?? null,
                 'avatar_url' => $row['avatar_url'] ?? null,
@@ -166,7 +194,7 @@ class ScreeningChecklistService
             ];
         }
 
-        return $subjects;
+        return $this->deskSubjectsMemo[$memoKey] = $subjects;
     }
 
     /**
@@ -223,9 +251,23 @@ class ScreeningChecklistService
         ?array $review = null,
         ?array $groupReview = null,
     ): array {
+        $memoKey = implode(':', [
+            $application->id,
+            $person,
+            (int) $guarantorLinkId,
+            (int) $memberId,
+            (int) ($actor?->id ?? 0),
+        ]);
+        if (isset($this->viewModelMemo[$memoKey])) {
+            return $this->viewModelMemo[$memoKey];
+        }
+
         $subject = $this->subjectKey($person, $guarantorLinkId, $memberId);
         $state = $this->state($application, $subject);
-        app(CustomerAssetService::class)->healExtraPledges($application);
+        if (! isset($this->healedPledgeIds[$application->id])) {
+            app(CustomerAssetService::class)->healExtraPledges($application);
+            $this->healedPledgeIds[$application->id] = true;
+        }
         $checkedMap = (array) ($state['items'] ?? []);
         $userIds = collect($checkedMap)
             ->pluck('by')
@@ -346,6 +388,7 @@ class ScreeningChecklistService
                 );
                 $item['ux_gate'] = $item['destination']['gate'] ?? app(ScreeningChecklistGateService::class)->gateFor((string) $groupKey, $fullKey);
                 $item['quiet_auto'] = app(ScreeningChecklistGateService::class)->isQuietAuto($item);
+                $item['system_determined'] = app(ScreeningChecklistGateService::class)->isSystemDetermined($item);
                 $item['human_work'] = app(ScreeningChecklistGateService::class)->isHumanWork($item);
                 if (! $autoNa && ($meta['gate'] ?? null) === 'statements_vs_declared' && (float) ($row['statement_monthly'] ?? 0) > 0) {
                     $item['evidence']['rows'][] = [
@@ -383,7 +426,7 @@ class ScreeningChecklistService
 
         $actor = $actor ?? auth()->user();
 
-        return [
+        return $this->viewModelMemo[$memoKey] = [
             'subject' => $subject,
             'groups' => $groups,
             'decided' => $decided,
@@ -619,6 +662,8 @@ class ScreeningChecklistService
                     'screening_rejection_reason_code' => $suggestion['codes'][0],
                 ]);
             }
+
+            $this->forgetRequestMemo();
 
             return $this->viewModel($fresh->fresh(), $actor, $person, $guarantorLinkId, $memberId);
         });

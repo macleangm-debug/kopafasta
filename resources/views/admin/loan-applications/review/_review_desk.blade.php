@@ -153,9 +153,9 @@
     <div class="px-5 py-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-3 min-w-0">
             <h3 class="text-base font-bold text-gray-900">Review checklist</h3>
-            <span class="text-sm font-bold text-brand tabular-nums">{{ collect($gates)->sum('decided') }}/{{ collect($gates)->sum('total') }}</span>
+            <span id="screening-desk-counts" class="text-sm font-bold text-brand tabular-nums">{{ collect($gates)->sum('decided') }}/{{ collect($gates)->sum('total') }}</span>
             @if (($desk['failed'] ?? 0) > 0)
-                <span class="text-[11px] font-bold text-amber-800">{{ $desk['failed'] }} concern</span>
+                <span id="screening-desk-failed" class="text-[11px] font-bold text-amber-800">{{ $desk['failed'] }} concern</span>
             @endif
         </div>
         @if ($canEdit)
@@ -173,6 +173,7 @@
                 $gLabel = $gate['label'];
             @endphp
             <button type="button"
+                    data-gate-key="{{ $gKey }}"
                     @click="{{ ! empty($gate['locked']) ? '' : 'setGate('.e(json_encode($gKey)).')' }}"
                     @if (! empty($gate['locked'])) disabled @endif
                     :class="gate === @js($gKey)
@@ -180,8 +181,8 @@
                         : 'bg-white text-gray-800 ring-gray-200 hover:bg-brand-muted/40'"
                     class="shrink-0 rounded-xl px-3.5 py-2.5 text-left ring-1 transition min-w-[9rem] disabled:opacity-60 disabled:cursor-not-allowed">
                 <span class="sr-only">{{ $gLabel }}</span>
-                <span class="block text-xs font-bold">{{ $gate['chip'] ?? $gLabel }}</span>
-                <span class="block text-[11px] mt-0.5 tabular-nums"
+                <span class="block text-xs font-bold" data-gate-chip>{{ $gate['chip'] ?? $gLabel }}</span>
+                <span class="block text-[11px] mt-0.5 tabular-nums" data-gate-status
                       :class="gate === @js($gKey) ? 'text-white/80' : 'text-gray-500'">
                     @if (($gate['status_label'] ?? '') === 'Complete')
                         Complete
@@ -197,9 +198,12 @@
 
     <div class="p-5 space-y-4">
         @if ($canEdit)
-            <form id="screening-checklist-form" method="POST" action="{{ route('admin.loan-applications.screening-checklist', $record) }}" class="space-y-4">
+            <form id="screening-checklist-form" method="POST" action="{{ route('admin.loan-applications.screening-checklist', $record) }}" class="space-y-4" data-skip-loading="1" data-no-draft>
                 @csrf
                 <input type="hidden" name="person" value="{{ $deskPerson }}">
+                <input type="hidden" name="gate" :value="gate">
+                <input type="hidden" name="open_group" :value="openGroup || ''">
+                <input type="hidden" name="open_item" :value="openItem || ''">
                 @if ($deskG)
                     <input type="hidden" name="g" value="{{ $deskG }}">
                 @endif

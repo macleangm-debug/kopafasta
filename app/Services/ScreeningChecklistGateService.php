@@ -45,11 +45,39 @@ class ScreeningChecklistGateService
     }
 
     /**
+     * System already has a result (pass, fail, N/A, or awaiting data).
+     * These must not appear as Pass / Concern questions.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    public function isSystemDetermined(array $item): bool
+    {
+        if (! empty($item['auto_na'])) {
+            return true;
+        }
+        if (! empty($item['captures_statement'])) {
+            return false;
+        }
+        $auto = ! empty($item['system_checked'])
+            || ! empty($item['catalog_system'])
+            || ! empty($item['documents_checked'])
+            || $this->isSystemFail($item);
+        if (! $auto) {
+            return false;
+        }
+        if (! empty($item['awaiting_data'])) {
+            return true;
+        }
+
+        return in_array($item['verdict'] ?? null, ['pass', 'na', 'fail'], true);
+    }
+
+    /**
      * @param  array<string, mixed>  $item
      */
     public function isHumanWork(array $item): bool
     {
-        return ! $this->isQuietAuto($item);
+        return ! $this->isSystemDetermined($item);
     }
 
     /**

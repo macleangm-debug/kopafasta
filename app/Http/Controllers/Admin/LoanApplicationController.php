@@ -36,8 +36,10 @@ use App\Services\LoanApplicationWorkflowService;
 use App\Services\LoanOriginationService;
 use App\Services\LoanRejectionReasonService;
 use App\Services\ReferenceNumberService;
+use App\Services\ScreeningChecklistGateService;
 use App\Services\ScreeningChecklistService;
 use App\Services\ScreeningPartnerAvailabilityService;
+use App\Services\ScreeningReadinessService;
 use App\Services\SmartLoanApplicationWizardService;
 use App\Services\UnderwritingAnomalyService;
 use App\Services\ValuationPartnerService;
@@ -493,7 +495,7 @@ class LoanApplicationController extends ResourceController
         return back()->with('status', 'Asked the '.$who.' to add another asset. They must pick it themselves — screening cannot attach it.');
     }
 
-    public function saveScreeningChecklist(Request $request, LoanApplication $loan_application): RedirectResponse
+    public function saveScreeningChecklist(Request $request, LoanApplication $loan_application): RedirectResponse|JsonResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
         $this->assertApplicationMutable($loan_application);
@@ -505,11 +507,20 @@ class LoanApplicationController extends ResourceController
         };
         $guarantorLinkId = $person === 'guarantor' ? (int) $request->input('g') : null;
         $memberId = $person === 'member' ? (int) $request->input('m') : null;
+        $json = $this->wantsChecklistJson($request);
         if ($person === 'guarantor' && $guarantorLinkId < 1) {
-            return back()->with('error', 'Select a guarantor before saving their review checklist.');
+            $message = 'Select a guarantor before saving their review checklist.';
+
+            return $json
+                ? response()->json(['ok' => false, 'error' => $message], 422)
+                : back()->with('error', $message);
         }
         if ($person === 'member' && $memberId < 1) {
-            return back()->with('error', 'Select a group member before saving their review checklist.');
+            $message = 'Select a group member before saving their review checklist.';
+
+            return $json
+                ? response()->json(['ok' => false, 'error' => $message], 422)
+                : back()->with('error', $message);
         }
 
         try {
@@ -522,10 +533,16 @@ class LoanApplicationController extends ResourceController
                 $memberId ?: null,
             );
         } catch (\InvalidArgumentException $e) {
-            return back()->with('error', $e->getMessage())->withInput();
+            return $json
+                ? response()->json(['ok' => false, 'error' => $e->getMessage()], 422)
+                : back()->with('error', $e->getMessage())->withInput();
         }
 
-        $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($loan_application->fresh());
+        $loan_application = $loan_application->fresh();
+        $suggestion = app(ScreeningChecklistService::class)->suggestedRejection($loan_application);
+        $gate = (string) $request->input('gate', '');
+        $openGroup = (string) $request->input('open_group', '');
+        $openItem = (string) $request->input('open_item', '');
         $returnParams = array_filter([
             'loan_application' => $loan_application,
             'workspace' => 'checklist',
@@ -535,20 +552,111 @@ class LoanApplicationController extends ResourceController
             'desk_phase' => $request->input('desk_phase'),
             'capacity_tab' => $request->input('capacity_tab'),
             'security_tab' => $request->input('security_tab'),
+            'gate' => $gate !== '' ? $gate : null,
+            'open_group' => $openGroup !== '' ? $openGroup : null,
+            'open_item' => $openItem !== '' ? $openItem : null,
         ]);
-        if ($suggestion['prompt_reject']) {
-            return redirect()
-                ->route('admin.loan-applications.show', $returnParams)
-                ->with('status', 'Critical checklist Fail recorded. Open decision to reject — letter reasons are pre-filled.')
-                ->with('checklist_reject_codes', $suggestion['codes'])
-                ->with('checklist_reject_notes', $suggestion['summary'])
-                ->withFragment('review-desk');
+
+        if ($json) {
+            return response()->json($this->screeningChecklistSavePayload(
+                $loan_application,
+                $person,
+                $guarantorLinkId ?: null,
+                $memberId ?: null,
+                $suggestion,
+            ));
         }
 
-        return redirect()
+        $redirect = redirect()
             ->route('admin.loan-applications.show', $returnParams)
-            ->with('status', 'Review checklist saved.')
-            ->withFragment('review-desk');
+            ->withFragment($openItem !== '' ? 'item-'.$openItem : 'review-desk');
+
+        if ($suggestion['prompt_reject']) {
+            $redirect->with('checklist_reject_codes', $suggestion['codes'])
+                ->with('checklist_reject_notes', $suggestion['summary']);
+        }
+
+        return $redirect;
+    }
+
+    private function wantsChecklistJson(Request $request): bool
+    {
+        return $request->expectsJson()
+            || $request->wantsJson()
+            || $request->ajax()
+            || $request->header('X-Requested-With') === 'XMLHttpRequest';
+    }
+
+    /**
+     * @param  array{prompt_reject: bool, codes: list<string>, summary: string}  $suggestion
+     * @return array<string, mixed>
+     */
+    private function screeningChecklistSavePayload(
+        LoanApplication $application,
+        string $person,
+        ?int $guarantorLinkId,
+        ?int $memberId,
+        array $suggestion,
+    ): array {
+        $review = app(LoanApplicationReviewService::class)->dossier($application);
+        try {
+            $groupReview = app(GroupLoanReviewService::class)->dossier($application) ?? [];
+        } catch (\Throwable $e) {
+            report($e);
+            $groupReview = [];
+        }
+        if (! is_array($groupReview)) {
+            $groupReview = [];
+        }
+        $anomalies = app(UnderwritingAnomalyService::class)->forApplication($application, $review);
+        $readiness = app(ScreeningReadinessService::class)->forApplication(
+            $application,
+            $review,
+            $groupReview,
+            is_array($anomalies) ? $anomalies : $anomalies->all(),
+            auth()->user(),
+        );
+        $desk = app(ScreeningChecklistService::class)->deskViewModel(
+            $application,
+            $review,
+            $groupReview,
+            auth()->user(),
+            $person,
+            $guarantorLinkId,
+            $memberId,
+        );
+        $gates = app(ScreeningChecklistGateService::class)->regroup($desk['groups'] ?? [], $application);
+        $gateUi = [];
+        foreach ($gates as $key => $gate) {
+            $gateUi[$key] = [
+                'chip' => $gate['chip'] ?? $gate['label'] ?? $key,
+                'status_label' => $gate['status_label'] ?? '',
+                'decided' => (int) ($gate['decided'] ?? 0),
+                'total' => (int) ($gate['total'] ?? 0),
+                'failed' => (int) ($gate['failed'] ?? 0),
+                'locked' => (bool) ($gate['locked'] ?? false),
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'saved' => true,
+            'reload' => false,
+            'prompt_reject' => (bool) ($suggestion['prompt_reject'] ?? false),
+            'readiness_html' => view('admin.loan-applications.review._screening_readiness', [
+                'record' => $application,
+                'review' => $review,
+                'groupReview' => $groupReview,
+                'screeningReadiness' => $readiness,
+            ])->render(),
+            'gates' => $gateUi,
+            'desk' => [
+                'decided' => collect($gates)->sum('decided'),
+                'total' => collect($gates)->sum('total'),
+                'failed' => (int) ($desk['failed'] ?? 0),
+            ],
+            'decision_status' => $readiness['decision_status'] ?? null,
+        ];
     }
 
     public function waiveDiscrepancy(Request $request, LoanApplication $loan_application): RedirectResponse

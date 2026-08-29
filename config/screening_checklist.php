@@ -247,6 +247,7 @@ return [
                 'label' => 'Confirm required documents are complete',
                 'evidence' => 'documents',
                 'risk' => 'critical',
+                'system' => true,
                 'fail_reasons' => [
                     'docs_missing' => 'Required documents missing',
                     'docs_rejected' => 'Documents rejected / not verified',
@@ -266,6 +267,7 @@ return [
             'requested_docs_reviewed' => [
                 'label' => 'Review any requested follow-up documents',
                 'evidence' => 'doc_requests',
+                'system' => true,
                 'fail_reasons' => [
                     'still_open' => 'Document requests still open',
                     'unsatisfactory' => 'Uploaded follow-up docs unsatisfactory',

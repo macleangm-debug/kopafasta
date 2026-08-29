@@ -43,6 +43,9 @@
         ? 'Open decision'
         : ($ready ? 'Continue to decision' : ($readiness['primary_cta'] ?? 'Continue'));
     $defaultTab = $attentionCount > 0 ? 'attention' : ($submissions !== [] ? 'submissions' : 'system');
+    $memberSummaries = $readiness['member_summaries'] ?? [];
+    $decisionStatus = $readiness['decision_status'] ?? null;
+    $showMembersTab = count($memberSummaries) > 1;
 @endphp
 
 <details id="screening-readiness"
@@ -75,6 +78,17 @@
                     {{ collect($gateChips)->pluck('chip')->implode(' · ') }}
                 </p>
             @endif
+            @if (is_array($decisionStatus) && ($decisionStatus['state'] ?? '') === 'pending_rejection')
+                <p class="mt-1.5 text-[11px] font-semibold text-brand-gold">
+                    {{ $decisionStatus['headline'] }}
+                    @if (! empty($decisionStatus['detail']))
+                        · {{ $decisionStatus['detail'] }}
+                    @endif
+                    @if (! empty($decisionStatus['countdown']))
+                        · {{ $decisionStatus['countdown'] }}
+                    @endif
+                </p>
+            @endif
         </div>
         <div class="flex items-center gap-2 shrink-0">
             @if ($primaryHref !== '')
@@ -100,12 +114,31 @@
             </dl>
         @endif
 
+        @if (is_array($decisionStatus))
+            <div class="rounded-lg px-3 py-2 {{ in_array($decisionStatus['state'] ?? '', ['pending_rejection', 'hard_failure'], true) ? 'bg-rose-950/40 ring-1 ring-rose-300/30' : 'bg-white/10' }}">
+                <p class="text-[10px] uppercase tracking-widest text-white/60 font-semibold">Decision status</p>
+                <p class="text-sm font-bold text-white mt-0.5">{{ $decisionStatus['headline'] ?? 'No decision blockers' }}</p>
+                @if (! empty($decisionStatus['detail']))
+                    <p class="text-[11px] text-white/80 mt-0.5">{{ $decisionStatus['detail'] }}</p>
+                @endif
+                @if (! empty($decisionStatus['countdown']))
+                    <p class="text-[11px] font-semibold text-brand-gold mt-0.5">{{ $decisionStatus['countdown'] }}</p>
+                @endif
+            </div>
+        @endif
+
         <div class="flex flex-wrap gap-1 rounded-lg bg-black/20 p-1">
-            @foreach ([
-                'system' => 'System checked',
-                'submissions' => 'Borrower submissions',
-                'attention' => 'Needs attention',
-            ] as $tabKey => $tabLabel)
+            @php
+                $summaryTabs = [
+                    'system' => 'System checked',
+                    'submissions' => 'Borrower submissions',
+                    'attention' => 'Needs attention',
+                ];
+                if ($showMembersTab) {
+                    $summaryTabs['members'] = 'Members';
+                }
+            @endphp
+            @foreach ($summaryTabs as $tabKey => $tabLabel)
                 <button type="button"
                         @click="tab = @js($tabKey)"
                         class="rounded-md px-3 py-1.5 text-[11px] font-bold transition"
@@ -117,6 +150,8 @@
                         · {{ count($submissions) }}
                     @elseif ($tabKey === 'system' && count($autoCompleted) > 0)
                         · {{ count($autoCompleted) }}
+                    @elseif ($tabKey === 'members' && $showMembersTab)
+                        · {{ count($memberSummaries) }}
                     @endif
                 </button>
             @endforeach
@@ -191,5 +226,28 @@
                 </ul>
             @endif
         </div>
+
+        @if ($showMembersTab)
+            <div x-show="tab === 'members'" x-cloak>
+                <ul class="grid sm:grid-cols-2 gap-2">
+                    @foreach ($memberSummaries as $member)
+                        <li>
+                            <a href="{{ $member['href'] }}"
+                               class="block rounded-lg bg-white/95 ring-1 ring-white/40 px-3 py-2.5 hover:bg-white">
+                                <p class="text-xs font-bold text-slate-900">
+                                    {{ $member['name'] }} — {{ $member['status'] }}
+                                </p>
+                                @if (! empty($member['chips']))
+                                    <p class="text-[11px] text-slate-600 mt-0.5">{{ implode(' · ', $member['chips']) }}</p>
+                                @endif
+                                @if (! empty($member['issue']))
+                                    <p class="text-[11px] text-amber-800 mt-0.5">{{ $member['issue'] }}</p>
+                                @endif
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
     </div>
 </details>

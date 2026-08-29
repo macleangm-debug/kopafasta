@@ -88,9 +88,14 @@ class GroupLoanReviewService
         $perMember = (float) ($members->avg('requested_amount') ?: 0);
         $total = (float) $members->sum('requested_amount');
         $groupAfford = app(GroupAffordabilityService::class)->evaluate($application);
+        $declaredAfford = app(GroupAffordabilityService::class)->evaluate($application, declaredOnly: true);
         $affordByCustomer = collect($groupAfford['members'] ?? [])->keyBy('customer_id');
-        $members = $members->map(function (array $row) use ($affordByCustomer) {
-            $row['affordability'] = $affordByCustomer->get($row['customer_id'] ?? 0);
+        $declaredByCustomer = collect($declaredAfford['members'] ?? [])->keyBy('customer_id');
+        $members = $members->map(function (array $row) use ($affordByCustomer, $declaredByCustomer) {
+            $cid = (int) ($row['customer_id'] ?? 0);
+            $row['affordability'] = $affordByCustomer->get($cid);
+            $row['gate_1'] = strtolower((string) (data_get($declaredByCustomer->get($cid), 'verdict') ?? ''));
+            $row['gate_2'] = strtolower((string) (data_get($affordByCustomer->get($cid), 'verdict') ?? ''));
 
             return $row;
         });

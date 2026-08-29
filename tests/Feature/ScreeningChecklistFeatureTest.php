@@ -59,7 +59,7 @@ class ScreeningChecklistFeatureTest extends TestCase
             'phone' => '25571'.random_int(1000000, 9999999),
             'branch_id' => $actor->branch_id,
             'national_id' => '19900101123456789012',
-            'date_of_birth' => now()->subYears(30)->toDateString(),
+            'date_of_birth' => '1990-01-01',
             'monthly_income' => 2_000_000,
         ]);
 
@@ -128,6 +128,9 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('id="screening-readiness"', $checklist);
         $this->assertStringContainsString('2.1 Statement totals', $checklist);
         $this->assertStringContainsString('Borrower submissions', $checklist);
+        $this->assertStringContainsString('Decision status', $checklist);
+        $this->assertStringNotContainsString('Facility summary', $checklist);
+        $this->assertStringNotContainsString('items[identity][nida_vs_dob][verdict]', $checklist);
     }
 
     public function test_pass_and_fail_with_reason_are_saved(): void
@@ -182,7 +185,11 @@ class ScreeningChecklistFeatureTest extends TestCase
             ]);
         $response->assertRedirect();
         $this->assertStringContainsString('workspace=checklist', $response->headers->get('Location'));
-        $response->assertSessionHas('checklist_reject_codes');
+        $response->assertSessionMissing('status');
+        $this->assertStringNotContainsString(
+            'Critical checklist Fail',
+            (string) session('status'),
+        );
 
         $app->refresh();
         $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
@@ -262,7 +269,7 @@ class ScreeningChecklistFeatureTest extends TestCase
                 'person' => 'borrower',
                 'items' => [
                     'identity' => [
-                        'nida_vs_dob' => ['verdict' => 'fail'],
+                        'face_vs_nida' => ['verdict' => 'fail'],
                     ],
                 ],
             ])
@@ -291,7 +298,6 @@ class ScreeningChecklistFeatureTest extends TestCase
 
         $svc->save($app, $admin, [
             'identity' => [
-                'nida_vs_dob' => ['verdict' => 'pass'],
                 'face_vs_nida' => [
                     'verdict' => 'fail',
                     'fail_reason_code' => 'face_mismatch',
@@ -301,15 +307,15 @@ class ScreeningChecklistFeatureTest extends TestCase
 
         $svc->save($app->fresh(), $admin, [
             'identity' => [
-                'nida_vs_dob' => ['verdict' => 'pass'],
+                'face_vs_nida' => ['verdict' => 'pass'],
             ],
         ], 'member', null, 10);
 
         $svc->save($app->fresh(), $admin, [
             'identity' => [
-                'nida_vs_dob' => [
+                'face_vs_nida' => [
                     'verdict' => 'fail',
-                    'fail_reason_code' => 'nida_dob_mismatch',
+                    'fail_reason_code' => 'photos_missing',
                 ],
             ],
         ], 'member', null, 11);
@@ -319,8 +325,8 @@ class ScreeningChecklistFeatureTest extends TestCase
         $member11 = (array) data_get($app->screening_payload, 'screening_checklist.by_subject.member:11.items', []);
         $borrower = (array) data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
 
-        $this->assertSame('pass', $member10['identity.nida_vs_dob']['verdict'] ?? null);
-        $this->assertSame('fail', $member11['identity.nida_vs_dob']['verdict'] ?? null);
+        $this->assertSame('pass', $member10['identity.face_vs_nida']['verdict'] ?? null);
+        $this->assertSame('fail', $member11['identity.face_vs_nida']['verdict'] ?? null);
         $this->assertSame('fail', $borrower['identity.face_vs_nida']['verdict'] ?? null);
 
         $groupReview = [
@@ -875,6 +881,17 @@ class ScreeningChecklistFeatureTest extends TestCase
 
         $vm = app(ScreeningChecklistService::class)->viewModel($app->fresh(), $admin, 'borrower', null, null, [
             'customer' => $app->customer,
+            'crb' => [
+                'recommendation' => 'approve',
+                'score' => 720,
+                'personal' => ['full_name' => $app->customer->full_name],
+                'existing_loans' => 0,
+                'outstanding_balance' => 0,
+                'delinquencies' => 0,
+            ],
+            'face_photos' => [['file_path' => 'face.jpg']],
+            'nida_photo_path' => 'nida.jpg',
+            'documents' => ['required' => 0, 'satisfied' => 0],
         ]);
         $ready = collect($vm['groups'] ?? [])
             ->flatMap(fn ($group) => $group['items'] ?? [])
@@ -977,5 +994,162 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('No longer required', (string) $request->admin_notes);
         $blockers = app(\App\Services\LoanApplicationWorkflowService::class)->screeningDocumentBlockers($app->fresh());
         $this->assertFalse(collect($blockers)->contains(fn ($label) => str_contains((string) $label, 'Updated Bank Statement')));
+    }
+
+    public function test_checklist_save_returns_json_without_full_reload_or_fail_popup(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'gate' => 'income',
+                'items' => [
+                    'activity_income' => [
+                        'activity_plausible' => ['verdict' => 'pass'],
+                    ],
+                ],
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('reload', false);
+        $this->assertStringContainsString('Decision status', (string) $response->json('readiness_html'));
+        $items = data_get($app->fresh()->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $this->assertSame('pass', $items['activity_income.activity_plausible']['verdict'] ?? null);
+    }
+
+    public function test_nida_match_is_quiet_auto_and_mismatch_is_needs_attention_not_a_question(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $svc = app(ScreeningChecklistService::class);
+
+        $match = collect($svc->viewModel($app, $admin)['groups'] ?? [])
+            ->flatMap(fn ($g) => $g['items'] ?? [])
+            ->firstWhere('key', 'identity.nida_vs_dob');
+        $this->assertNotNull($match);
+        $this->assertSame('pass', $match['verdict'] ?? null);
+        $this->assertTrue($match['quiet_auto'] ?? false);
+        $this->assertTrue($match['system_determined'] ?? false);
+        $this->assertFalse($match['human_work'] ?? true);
+
+        $app->customer->forceFill([
+            'national_id' => '123456789102984678399477484',
+            'date_of_birth' => '1981-07-13',
+        ])->save();
+        $svc->forgetRequestMemo();
+
+        $mismatch = collect($svc->viewModel($app->fresh(['customer']), $admin)['groups'] ?? [])
+            ->flatMap(fn ($g) => $g['items'] ?? [])
+            ->firstWhere('key', 'identity.nida_vs_dob');
+        $this->assertSame('fail', $mismatch['verdict'] ?? null);
+        $this->assertSame('nida_impossible', $mismatch['fail_reason_code'] ?? null);
+        $this->assertTrue($mismatch['system_determined'] ?? false);
+        $this->assertFalse($mismatch['human_work'] ?? true);
+        $this->assertFalse($mismatch['quiet_auto'] ?? true);
+
+        $readiness = app(\App\Services\ScreeningReadinessService::class)->forApplication(
+            $app->fresh(),
+            ['customer' => $app->customer->fresh(), 'affordability' => ['verdict' => 'pass'], 'crb' => []],
+            null,
+            [],
+            $admin,
+        );
+        $nidaAttention = collect($readiness['needs_attention'])->first(
+            fn ($row) => str_contains((string) ($row['label'] ?? ''), 'NIDA')
+                || str_contains((string) ($row['detail'] ?? ''), 'National ID')
+                || str_contains((string) ($row['label'] ?? ''), 'date of birth')
+        );
+        $this->assertNotNull($nidaAttention);
+    }
+
+    public function test_group_overview_restores_member_carousel_and_summary_members_tab(): void
+    {
+        $admin = $this->staff();
+        $leaderApp = $this->application($admin);
+        $product = LoanProduct::create([
+            'code' => 'GL-QA-'.random_int(100, 999),
+            'name' => 'Group Loan QA',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $member = Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-SC-GM2-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Rogathe',
+            'last_name' => 'Nyelle',
+            'phone' => '25571'.random_int(1000000, 9999999),
+            'branch_id' => $admin->branch_id,
+            'national_id' => '19850715123456789012',
+            'date_of_birth' => '1985-07-15',
+            'monthly_income' => 400_000,
+        ]);
+        $app = LoanApplication::create([
+            'customer_id' => $leaderApp->customer_id,
+            'loan_product_id' => $product->id,
+            'branch_id' => $admin->branch_id,
+            'application_number' => 'APP-GL-QA-'.random_int(1000, 9999),
+            'requested_amount' => 800_000,
+            'requested_tenure_months' => 3,
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'submitted_at' => now(),
+        ]);
+        $group = LoanGroup::create([
+            'group_number' => 'GRP-QA-'.random_int(100, 999),
+            'name' => 'QA Group',
+            'leader_customer_id' => $leaderApp->customer_id,
+            'primary_application_id' => $app->id,
+            'status' => 'active',
+            'target_member_count' => 2,
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $leaderApp->customer_id,
+            'loan_application_id' => $app->id,
+            'role' => 'leader',
+            'requested_amount' => 400_000,
+            'sort_order' => 1,
+            'member_status' => 'active',
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id' => $group->id,
+            'customer_id' => $member->id,
+            'loan_application_id' => $app->id,
+            'role' => 'member',
+            'requested_amount' => 400_000,
+            'sort_order' => 2,
+            'member_status' => 'active',
+        ]);
+        $app->update(['loan_group_id' => $group->id]);
+
+        $overview = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Facility summary', $overview);
+        $this->assertStringContainsString('Member risk', $overview);
+        $this->assertStringContainsString('Member CRB', $overview);
+        $this->assertStringContainsString('Group roster', $overview);
+        $this->assertStringContainsString('Next →', $overview);
+
+        $checklist = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Members', $checklist);
+        $this->assertStringContainsString('Decision status', $checklist);
+        $this->assertStringContainsString('Rogathe', $checklist);
+        $this->assertStringNotContainsString('Facility summary', $checklist);
     }
 }

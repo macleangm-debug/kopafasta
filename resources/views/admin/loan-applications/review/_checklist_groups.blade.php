@@ -62,7 +62,29 @@
                     $isQuietAuto = (($item['system_checked'] ?? false) || ($item['catalog_system'] ?? false) || ($item['documents_checked'] ?? false))
                         && in_array($item['verdict'] ?? null, ['pass', 'na'], true)
                         && empty($item['captures_statement']);
+                    $isSystemOutcome = ! empty($item['system_determined'])
+                        && empty($item['captures_statement'])
+                        && ! $isQuietAuto;
                     if ($isQuietAuto) {
+                        continue;
+                    }
+                    if ($isSystemOutcome) {
+                        $sysReason = $item['fail_reason_label'] ?? $item['awaiting_message'] ?? 'Needs attention';
+                        $sysHref = $item['destination']['href'] ?? '';
+                        $sysCta = $item['destination']['cta'] ?? 'Open';
+                        @endphp
+                        <li id="item-{{ $item['key'] ?? '' }}" class="px-4 py-3 bg-amber-50/70">
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-slate-900">{{ $item['label'] ?? 'Check' }}</p>
+                                    <p class="text-[11px] text-amber-900 mt-0.5">{{ $sysReason }}</p>
+                                </div>
+                                @if ($sysHref !== '')
+                                    <a href="{{ $sysHref }}" class="shrink-0 text-[11px] font-bold text-brand underline underline-offset-2">{{ $sysCta }}</a>
+                                @endif
+                            </div>
+                        </li>
+                        @php
                         continue;
                     }
                     $displayLabel = match ($itemKey) {

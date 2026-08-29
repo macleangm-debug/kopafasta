@@ -5,6 +5,7 @@ import { bindSubmitLoading } from './submit-loading';
 import { bindDigitsOnlyGlobally } from './digits-only';
 import { bindPageTransitions } from './page-transitions';
 import { bindFormDrafts } from './form-draft';
+import { bindScreeningChecklistSave } from './screening-checklist-save';
 
 bindMoneyFormatGlobally();
 bindNidaFormatGlobally();
@@ -13,6 +14,7 @@ bindSubmitLoading();
 bindDigitsOnlyGlobally();
 bindPageTransitions();
 bindFormDrafts();
+bindScreeningChecklistSave();
 
 // Never prompt for browser Notification / Push permission (mobile web stays app-clean).
 try {

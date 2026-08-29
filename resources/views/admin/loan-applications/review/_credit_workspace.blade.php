@@ -279,6 +279,9 @@
                             'status' => (string) ($m['status_label'] ?? ''),
                             'crb' => (string) ($m['crb_status'] ?? ''),
                             'amount' => (float) ($m['requested_amount'] ?? 0),
+                            'afford' => strtolower((string) data_get($m, 'affordability.verdict', '')),
+                            'gate1' => strtolower((string) ($m['gate_1'] ?? '')),
+                            'gate2' => strtolower((string) ($m['gate_2'] ?? '')),
                             'band_label' => $band['label'],
                             'band_detail' => $band['detail'],
                             'band_rec' => strtoupper($band['recommendation']),
@@ -310,6 +313,9 @@
                             <p class="text-xs mt-1 opacity-90 truncate" x-text="slides[i].status || slides[i].crb || '—'"></p>
                             <p class="text-[11px] mt-2 opacity-80" x-show="slides[i].amount > 0"
                                x-text="'Ask ' + new Intl.NumberFormat().format(slides[i].amount)"></p>
+                            <p class="text-[11px] mt-1 opacity-80"
+                               x-show="slides[i].afford || slides[i].gate1 || slides[i].gate2"
+                               x-text="[slides[i].gate1 ? ('Gate 1 ' + (slides[i].gate1 === 'pass' ? '✓' : slides[i].gate1)) : null, slides[i].gate2 ? ('Gate 2 ' + (slides[i].gate2 === 'pass' ? '✓' : slides[i].gate2)) : null, slides[i].afford ? ('Affordability ' + slides[i].afford) : null].filter(Boolean).join(' · ')"></p>
                         </div>
                     </template>
                     <div class="flex items-center justify-between gap-2 pt-1">
@@ -389,6 +395,11 @@
                             'outstanding' => (float) ($m['crb_outstanding'] ?? 0),
                             'delinq' => (int) ($m['crb_delinquencies'] ?? 0),
                             'status' => (string) ($m['crb_status'] ?? ''),
+                            'amount' => (float) ($m['requested_amount'] ?? 0),
+                            'ready' => (bool) ($m['kyc_complete'] ?? false),
+                            'afford' => strtolower((string) data_get($m, 'affordability.verdict', '')),
+                            'gate1' => strtolower((string) ($m['gate_1'] ?? '')),
+                            'gate2' => strtolower((string) ($m['gate_2'] ?? '')),
                             'tone' => $tone,
                         ];
                     })->all();
@@ -423,6 +434,8 @@
                                       x-text="'Score ' + (slide.score ?? '—')"></span>
                             </div>
                             <p class="text-sm text-white/85 mt-3 leading-relaxed" x-text="slide.summary"></p>
+                            <p class="text-[11px] text-white/80 mt-2"
+                               x-text="[slide.amount > 0 ? ('Ask ' + new Intl.NumberFormat().format(slide.amount)) : null, slide.ready ? 'Profile ready' : 'Profile incomplete', slide.afford ? ('Affordability ' + slide.afford) : null, slide.gate1 ? ('Gate 1 ' + (slide.gate1 === 'pass' ? '✓' : slide.gate1)) : null, slide.gate2 ? ('Gate 2 ' + (slide.gate2 === 'pass' ? '✓' : slide.gate2)) : null].filter(Boolean).join(' · ')"></p>
                             <div class="mt-4 grid grid-cols-2 gap-2">
                                 <div class="rounded-xl bg-white/10 px-3 py-2.5">
                                     <p class="text-[10px] uppercase tracking-wider text-white/60">Other institutions</p>
