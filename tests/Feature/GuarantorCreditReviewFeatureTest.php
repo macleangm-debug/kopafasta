@@ -134,7 +134,7 @@ class GuarantorCreditReviewFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Gate 3 — Credit bureau', $html);
+        $this->assertStringContainsString('Gate 3 — CRB', $html);
         $this->assertStringContainsString('person=guarantor', $html);
 
         $decision = $this->actingAs($admin, 'admin')

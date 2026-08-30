@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\ApplicationDocumentRequestService;
 use App\Services\LoanApplicationWorkflowService;
 use App\Services\ScreeningChecklistAutoVerdictService;
+use App\Services\ScreeningChecklistGateService;
 use App\Services\ScreeningChecklistService;
 use App\Services\ScreeningReadinessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,6 +65,15 @@ class ScreeningChecklistFeatureTest extends TestCase
             'national_id' => '19900101123456789012',
             'date_of_birth' => '1990-01-01',
             'monthly_income' => 2_000_000,
+            'nok_first_name' => 'Jane',
+            'nok_last_name' => 'Kin',
+            'nok_name' => 'Jane Kin',
+            'nok_relationship' => 'Sister',
+            'nok_phone' => '255712000999',
+            'nok_region' => 'Dar es Salaam',
+            'nok_district' => 'Ilala',
+            'nok_street' => 'Kariakoo',
+            'marital_status' => 'single',
         ]);
 
         return LoanApplication::create([
@@ -109,8 +119,10 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('2.4 Affordability', $html);
         $this->assertStringContainsString('System checked', $html);
         $this->assertStringContainsString('Needs attention', $html);
-        $this->assertStringContainsString('3 Identity · Locked', $html);
-        $this->assertStringContainsString('Income &amp; Statement Review to continue screening.', $html);
+        $this->assertStringContainsString('4 Identity · Locked', $html);
+        $this->assertStringContainsString('3 CRB · Locked', $html);
+        $this->assertStringContainsString('complete verified income first', $html);
+        $this->assertStringNotContainsString('Continue to Identity', $html);
     }
 
     public function test_overview_shows_four_cards_and_checklist_hides_them(): void
@@ -1180,5 +1192,95 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('Decision status', $checklist);
         $this->assertStringContainsString('Rogathe', $checklist);
         $this->assertStringNotContainsString('Facility summary', $checklist);
+    }
+
+    public function test_contacts_and_guarantor_capacity_leave_final_review_on_a_group_file(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $app->customer->update([
+            'nok_first_name' => 'John',
+            'nok_last_name' => 'Shiliba',
+            'nok_name' => 'John Shiliba',
+            'nok_relationship' => 'Brother',
+            'nok_phone' => '255712000111',
+            'marital_status' => 'married',
+            'spouse_first_name' => 'Anna',
+            'spouse_last_name' => 'Shiliba',
+        ]);
+        $product = LoanProduct::create([
+            'code' => 'GL-WRAP',
+            'name' => 'Group Loan',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+        $app->update(['loan_product_id' => $product->id]);
+
+        $svc = app(ScreeningChecklistService::class);
+        $vm = $svc->viewModel($app->fresh(), $admin, 'borrower', null, null, ['customer' => $app->fresh()->customer]);
+        $gates = app(ScreeningChecklistGateService::class)->regroup($vm['groups'] ?? [], $app);
+
+        $this->assertSame('identity', app(ScreeningChecklistGateService::class)->gateFor('contacts', 'contacts.call_next_of_kin'));
+        $this->assertSame('income', app(ScreeningChecklistGateService::class)->gateFor('contacts', 'contacts.guarantor_capacity'));
+        $this->assertSame('final', app(ScreeningChecklistGateService::class)->gateFor('credit_file', 'credit_file.risk_flags_addressed'));
+
+        $identityKeys = collect($gates['identity']['groups'] ?? [])->flatMap(fn ($g) => $g['items'] ?? [])->pluck('key');
+        $this->assertTrue($identityKeys->contains('contacts.call_next_of_kin'));
+        $finalKeys = collect($gates['final']['groups'] ?? [])->flatMap(fn ($g) => $g['items'] ?? [])->pluck('key');
+        $this->assertFalse($finalKeys->contains('contacts.call_guarantor'));
+        $this->assertFalse($finalKeys->contains('contacts.guarantor_capacity'));
+        $this->assertFalse($finalKeys->contains('contacts.call_next_of_kin'));
+
+        $contacts = collect($vm['groups'] ?? [])->firstWhere('key', 'contacts');
+        $guarantor = collect($contacts['items'] ?? [])->firstWhere('key', 'contacts.call_guarantor');
+        $capacity = collect($contacts['items'] ?? [])->firstWhere('key', 'contacts.guarantor_capacity');
+        $refs = collect($contacts['items'] ?? [])->firstWhere('key', 'contacts.call_references');
+        $nok = collect($contacts['items'] ?? [])->firstWhere('key', 'contacts.call_next_of_kin');
+        $this->assertSame('na', $guarantor['verdict'] ?? null);
+        $this->assertTrue($guarantor['quiet_auto'] ?? $guarantor['auto_na'] ?? false);
+        $this->assertSame('na', $capacity['verdict'] ?? null);
+        $this->assertSame('na', $refs['verdict'] ?? null);
+        $this->assertNull($nok['verdict'] ?? null);
+        $this->assertSame('John Shiliba', collect($nok['evidence']['rows'] ?? [])->firstWhere('label', 'Name')['value'] ?? null);
+        $this->assertSame('255712000111', collect($nok['evidence']['rows'] ?? [])->firstWhere('label', 'Phone')['value'] ?? null);
+
+        $card = $svc->identityPeopleCard($vm, $app->fresh()->customer);
+        $this->assertSame('John Shiliba', $card['nok']['name'] ?? null);
+        $this->assertFalse($card['nok']['missing'] ?? true);
+        $this->assertTrue($card['spouse']['applicable'] ?? false);
+        $this->assertSame('Anna Shiliba', $card['spouse']['name'] ?? null);
+        $this->assertNull($card['spouse']['phone']);
+
+        $gateKeys = array_keys($gates);
+        $this->assertTrue(array_search('crb', $gateKeys, true) < array_search('identity', $gateKeys, true));
+    }
+
+    public function test_open_request_for_uploaded_collateral_lands_on_gate_5_anchor(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $docService = app(ApplicationDocumentRequestService::class);
+        $request = $docService->create($app->fresh(), $admin, 'Add collateral asset');
+        $request->update(['status' => 'uploaded']);
+
+        $href = $docService->screeningReviewUrl($request->fresh(), $app->fresh());
+        $this->assertStringContainsString('gate=collateral', $href);
+        $this->assertStringContainsString('#doc-request-'.$request->id, $href);
+
+        $readiness = app(ScreeningReadinessService::class)->forApplication(
+            $app->fresh(),
+            ['customer' => $app->customer],
+            null,
+            [],
+            $admin,
+        );
+        $labels = collect($readiness['blocking_items'] ?? [])->pluck('label')->implode(' ');
+        $this->assertStringContainsString('Add collateral asset', $labels);
+        $this->assertStringContainsString('Waiting for your review', $labels);
     }
 }

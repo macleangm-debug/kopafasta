@@ -106,6 +106,7 @@ class ScreeningReadinessService
                             'label' => ($item['label'] ?? 'Check').($verdict === 'na' ? ' (N/A)' : ''),
                             'detail' => $this->autoCheckDetail($item, $subjectLabel),
                         ];
+
                         continue;
                     }
 
@@ -139,6 +140,7 @@ class ScreeningReadinessService
                             ];
                             $subjectIssues[] = $nextSteps[array_key_last($nextSteps)];
                         }
+
                         continue;
                     }
 
@@ -275,13 +277,23 @@ class ScreeningReadinessService
         }
 
         $sequence = app(ScreeningSequenceService::class)->snapshot($application);
-        $laterUnlocked = (bool) ($sequence['later_unlocked'] ?? true);
-        if (! $laterUnlocked) {
-            $allowed = ['income', 'statements_vs_declared', 'declared'];
+        $laterUnlocked = (bool) ($sequence['later_unlocked'] ?? false);
+        $unlocked = is_array($sequence['unlocked'] ?? null) ? $sequence['unlocked'] : [];
+        if ($unlocked !== []) {
             $nextSteps = array_values(array_filter(
                 $nextSteps,
-                fn ($step) => in_array((string) ($step['gate'] ?? ''), $allowed, true)
-                    || in_array((string) ($step['tone'] ?? ''), ['critical', 'fail'], true)
+                function ($step) use ($unlocked) {
+                    $gate = (string) ($step['gate'] ?? '');
+                    $desk = match ($gate) {
+                        'statements_vs_declared', 'declared', 'income' => 'income',
+                        default => $gate,
+                    };
+                    if ($desk === '' || ($unlocked[$desk] ?? true)) {
+                        return true;
+                    }
+
+                    return in_array((string) ($step['tone'] ?? ''), ['critical', 'fail'], true);
+                }
             ));
         }
 
@@ -310,7 +322,7 @@ class ScreeningReadinessService
         $application->loadMissing(['documentRequests.subjectCustomer', 'documentRequests.groupMember.customer']);
         $seenBlockers = [];
         foreach ($application->documentRequests as $request) {
-            if (! $request->needsBorrowerAction()) {
+            if (! $docService->isOutstanding($request)) {
                 continue;
             }
             $label = trim((string) ($request->label ?? 'Requested document'));
@@ -319,14 +331,20 @@ class ScreeningReadinessService
             $seenBlockers[mb_strtolower($full)] = true;
             $kind = $docService->borrowerActionKind($request);
             $href = $docService->screeningReviewUrl($request, $application, collect($review['guarantors'] ?? [])->all());
-            $cta = match ($kind) {
-                'income' => 'Review statements',
-                'collateral' => 'Open collateral',
-                'identity', 'face' => 'Open identity',
+            $cta = match (true) {
+                $request->status === 'uploaded' => 'Review submission',
+                $kind === 'income' => 'Review statements',
+                $kind === 'collateral' => 'Open collateral',
+                in_array($kind, ['identity', 'face'], true) => 'Open identity',
                 default => 'Open request',
             };
+            $state = match ($request->status) {
+                'uploaded' => ' · Waiting for your review',
+                'rejected' => ' · Replacement requested',
+                default => ' · Waiting for borrower',
+            };
             $blockingItems[] = [
-                'label' => $full.($request->status === 'pending' ? ' · Missing' : ''),
+                'label' => $full.$state,
                 'detail' => $docService->outstandingTimingPhrase($request),
                 'href' => $href,
                 'cta' => $cta,

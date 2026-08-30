@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\LoanApplication;
+use App\Support\KinName;
 use App\Support\NationalIdDob;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -94,6 +95,12 @@ class ScreeningChecklistAutoVerdictService
 
         $out['credit_file.risk_flags_addressed'] = $this->riskFlagsAddressed($context);
         $out['credit_file.recommendation_ready'] = ['verdict' => '', 'source' => 'system_skip'];
+
+        $out['contacts.call_guarantor'] = $this->guarantorContactCheck($application, $subjectKind);
+        $out['contacts.guarantor_capacity'] = $this->guarantorCapacityCheck($application, $subjectKind, $context);
+        $out['contacts.call_references'] = $this->referencesCheck();
+        $out['contacts.call_spouse'] = $this->spouseContactCheck($customer);
+        $out['contacts.call_next_of_kin'] = $this->nextOfKinCheck($customer, $application);
 
         // Collateral — handled elsewhere as auto_na when not applicable
         if (! $collateralApplies) {
@@ -649,6 +656,112 @@ class ScreeningChecklistAutoVerdictService
                 'href' => $href,
             ],
         ];
+    }
+
+    private function applicationHasGuarantor(LoanApplication $application): bool
+    {
+        $application->loadMissing('customerGuarantors');
+
+        return $application->customerGuarantors->isNotEmpty();
+    }
+
+    /** @return array{verdict: string, source: string, fail_reason_code?: string} */
+    private function guarantorContactCheck(LoanApplication $application, string $subjectKind): array
+    {
+        if ($subjectKind !== 'guarantor' && ! $this->applicationHasGuarantor($application)) {
+            return ['verdict' => 'na', 'source' => 'auto_na'];
+        }
+
+        return ['verdict' => '', 'source' => 'system_skip'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $ctx
+     * @return array{verdict: string, source: string, fail_reason_code?: string}
+     */
+    private function guarantorCapacityCheck(LoanApplication $application, string $subjectKind, array $ctx): array
+    {
+        if ($subjectKind !== 'guarantor' && ! $this->applicationHasGuarantor($application)) {
+            return ['verdict' => 'na', 'source' => 'auto_na'];
+        }
+        if ($subjectKind !== 'guarantor') {
+            return ['verdict' => 'na', 'source' => 'auto_na'];
+        }
+
+        $afford = (array) ($ctx['affordability'] ?? []);
+        $verdict = (string) ($afford['verdict'] ?? '');
+        if ($verdict === 'fail' || (($afford['pass'] ?? true) === false && $verdict !== 'warn' && $verdict !== '')) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'insufficient_capacity', 'source' => 'system'];
+        }
+
+        return ['verdict' => '', 'source' => 'system_skip'];
+    }
+
+    /** @return array{verdict: string, source: string} */
+    private function referencesCheck(): array
+    {
+        return ['verdict' => 'na', 'source' => 'auto_na'];
+    }
+
+    /** @return array{verdict: string, source: string, message?: string, cta?: array<string, string>} */
+    private function spouseContactCheck(?Customer $customer): array
+    {
+        $status = strtolower((string) ($customer?->marital_status ?? ''));
+        if (! in_array($status, ['married', 'spouse'], true)) {
+            return ['verdict' => 'na', 'source' => 'auto_na'];
+        }
+        $name = trim(implode(' ', array_filter([
+            $customer?->spouse_first_name,
+            $customer?->spouse_middle_name,
+            $customer?->spouse_last_name,
+        ])));
+        if ($name === '') {
+            return [
+                'verdict' => '',
+                'source' => 'awaiting_data',
+                'message' => 'Spouse name is not on this profile',
+                'cta' => [
+                    'label' => 'Open family details',
+                    'href' => $customer
+                        ? route('admin.customers.show', $customer)
+                        : '#',
+                ],
+            ];
+        }
+
+        return ['verdict' => '', 'source' => 'system_skip'];
+    }
+
+    /** @return array{verdict: string, source: string, message?: string, cta?: array<string, string>} */
+    private function nextOfKinCheck(?Customer $customer, LoanApplication $application): array
+    {
+        $name = trim((string) ($customer?->nok_name ?: KinName::full(
+            $customer?->nok_first_name,
+            $customer?->nok_middle_name,
+            $customer?->nok_last_name,
+        )));
+        $phone = trim((string) ($customer?->nok_phone ?? ''));
+        if ($name === '' || $phone === '') {
+            $href = $customer
+                ? route('admin.customers.show', $customer)
+                : route('admin.loan-applications.show', [
+                    'loan_application' => $application,
+                    'workspace' => 'profiles',
+                    'tab' => 'personal',
+                ]);
+
+            return [
+                'verdict' => '',
+                'source' => 'awaiting_data',
+                'message' => 'Next-of-kin contact missing',
+                'cta' => [
+                    'label' => 'Open next of kin',
+                    'href' => $href.'#next-of-kin',
+                ],
+            ];
+        }
+
+        return ['verdict' => '', 'source' => 'system_skip'];
     }
 
     private function gpsInstallIsPostApproval(LoanApplication $application): bool

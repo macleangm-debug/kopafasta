@@ -45,28 +45,15 @@
 
     $sequence = app(\App\Services\ScreeningSequenceService::class)->snapshot($record);
     $gates = app(\App\Services\ScreeningChecklistGateService::class)->regroup($desk['groups'] ?? [], $record);
+    $sequence = app(\App\Services\ScreeningSequenceService::class)->snapshot($record, $gates);
     $gateKeys = array_keys($gates);
 
-    $incomeGateOpen = collect($desk['groups'] ?? [])
-        ->contains(function ($g) {
-            if (($g['key'] ?? '') !== 'activity_income') {
-                return false;
-            }
-            foreach ($g['items'] ?? [] as $item) {
-                if (($item['key'] ?? '') === 'activity_income.income_evidence' && ($item['verdict'] ?? null) === null) {
-                    return true;
-                }
-                if (($item['gate'] ?? null) === 'statements_vs_declared' && ($item['verdict'] ?? null) === null) {
-                    return true;
-                }
-            }
+    $identityCard = app(\App\Services\ScreeningChecklistService::class)->identityPeopleCard(
+        $desk,
+        $review['customer'] ?? $record->customer,
+    );
 
-            return false;
-        });
-
-    $firstOpenGate = $incomeGateOpen || ! ($sequence['later_unlocked'] ?? false)
-        ? 'income'
-        : collect($gates)->first(fn ($g) => empty($g['locked']) && ! ($g['complete'] ?? false));
+    $firstOpenGate = collect($gates)->first(fn ($g) => empty($g['locked']) && ! ($g['complete'] ?? false));
     $defaultGate = is_array($firstOpenGate) ? ($firstOpenGate['key'] ?? 'income') : ($firstOpenGate ?: ($gateKeys[0] ?? 'income'));
 
     $requestGate = (string) request('gate', '');
@@ -105,6 +92,13 @@
         $defaultGate = $gateKeys[0] ?? 'identity';
     }
 
+    $firstOpenByGate = [];
+    foreach ($gates as $gKey => $gateRow) {
+        $open = collect($gateRow['groups'] ?? [])->first(fn ($g) => ! ($g['complete'] ?? false))
+            ?? collect($gateRow['groups'] ?? [])->first();
+        $firstOpenByGate[$gKey] = $open['key'] ?? null;
+    }
+
     $firstOpenGroup = collect($gates[$defaultGate]['groups'] ?? [])->first(fn ($g) => ! ($g['complete'] ?? false))
         ?? collect($gates[$defaultGate]['groups'] ?? [])->first();
     $defaultOpenGroup = (string) ($firstOpenGroup['key'] ?? '');
@@ -125,9 +119,11 @@
              gate: @js($defaultGate),
              openGroup: @js($defaultOpenGroup !== '' ? $defaultOpenGroup : null),
              openItem: @js($requestOpenItem !== '' ? $requestOpenItem : null),
+             firstOpenByGate: @js($firstOpenByGate),
              setGate(key) {
                  this.gate = key;
                  this.openItem = null;
+                 this.openGroup = this.firstOpenByGate[key] || null;
              },
              toggleGroup(key) {
                  this.openGroup = this.openGroup === key ? null : key;
@@ -222,6 +218,29 @@
                                 <p class="text-sm text-slate-600 mt-1">{{ $gate['lock_detail'] ?? 'Complete Income & Statement Review to continue screening.' }}</p>
                             </div>
                         @else
+                            @if ($gate['key'] === 'identity')
+                                @if (count($desk['subjects'] ?? []) > 1)
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach ($desk['subjects'] as $subject)
+                                            @php
+                                                $identityHref = route('admin.loan-applications.show', array_filter([
+                                                    'loan_application' => $record,
+                                                    'workspace' => 'checklist',
+                                                    'review_person' => $subject['person'],
+                                                    'review_g' => $subject['g'],
+                                                    'review_m' => $subject['m'],
+                                                    'gate' => 'identity',
+                                                ])).'#review-desk';
+                                            @endphp
+                                            <a href="{{ $identityHref }}"
+                                               class="inline-flex rounded-xl px-3 py-1.5 text-[11px] font-bold ring-1 {{ ($subject['person'] === $deskPerson && (int) ($subject['m'] ?? 0) === (int) $deskM && (int) ($subject['g'] ?? 0) === (int) $deskG) ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-800 ring-slate-200' }}">
+                                                {{ $subject['label'] }}
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                @include('admin.loan-applications.review._identity_people_card', ['identityCard' => $identityCard, 'record' => $record])
+                            @endif
                             @include('admin.loan-applications.review._checklist_groups', [
                                 'groups' => $gate['groups'],
                                 'canEdit' => true,
@@ -229,6 +248,27 @@
                             ])
                             @if ($gate['key'] === 'income')
                                 @include('admin.loan-applications.review._subject_affordability_gate')
+                            @endif
+                            @if ($gate['key'] === 'final')
+                                @php
+                                    $finalUnresolved = (int) ($gate['human_open'] ?? 0) + (int) ($gate['failed'] ?? 0);
+                                    $outcomeTicks = [
+                                        'income' => 'Verified income',
+                                        'crb' => 'CRB',
+                                        'identity' => 'Identity, people & contacts',
+                                        'collateral' => 'Collateral & security',
+                                    ];
+                                @endphp
+                                <div class="rounded-2xl ring-1 ring-brand/15 bg-white px-4 py-3.5 space-y-2">
+                                    <p class="text-sm font-bold text-slate-900">Screening outcome</p>
+                                    <p class="text-[12px] font-semibold text-emerald-800">✓ Initial affordability</p>
+                                    @foreach ($outcomeTicks as $ok => $label)
+                                        @php $og = $gates[$ok] ?? []; @endphp
+                                        <p class="text-[12px] font-semibold {{ ! empty($og['complete']) && empty($og['failed']) ? 'text-emerald-800' : 'text-amber-800' }}">
+                                            {{ ! empty($og['complete']) && empty($og['failed']) ? '✓' : '○' }} {{ $label }}
+                                        </p>
+                                    @endforeach
+                                </div>
                             @endif
                         @endif
                     </div>
@@ -259,36 +299,86 @@
                 'deskG' => $deskG,
                 'deskM' => $deskM,
             ])
-            @if ($isGroupFile && $deskPerson === 'borrower')
-                @include('admin.loan-applications.review._checklist_phase_panels', [
-                    'phase' => 'security',
-                    'section' => 'group',
-                    'deskPerson' => $deskPerson,
-                    'deskG' => $deskG,
-                    'deskM' => $deskM,
-                ])
-            @endif
-            @include('admin.loan-applications.review._checklist_phase_panels', [
-                'phase' => 'security',
-                'section' => 'wrapup',
-                'deskPerson' => $deskPerson,
-                'deskG' => $deskG,
-                'deskM' => $deskM,
-            ])
             @php
                 $finalReady = is_array($readiness) && ($readiness['ready'] ?? false);
-                $finalBlock = is_array($readiness) ? (($readiness['blocking_items'][0] ?? null)) : null;
+                $finalBlocks = is_array($readiness) ? ($readiness['blocking_items'] ?? []) : [];
+                $finalBlock = $finalBlocks[0] ?? null;
+                $groupMembers = collect($groupReview['members'] ?? []);
             @endphp
+            @if ($isGroupFile)
+                <div class="rounded-2xl ring-1 ring-brand/15 bg-white px-4 py-3 space-y-1.5">
+                    <p class="text-sm font-bold text-gray-900">Group summary</p>
+                    <p class="text-[12px] text-slate-700">{{ $groupMembers->count() }}/{{ collect($groupReview['members'] ?? [])->count() }} eligible</p>
+                    @foreach (['identity' => 'Identity', 'crb' => 'CRB', 'income' => 'Income'] as $gk => $gl)
+                        @php $gg = $gates[$gk] ?? []; @endphp
+                        <p class="text-[12px] text-slate-700">{{ $gl }}: {{ (int) ($gg['decided'] ?? 0) }}/{{ (int) ($gg['total'] ?? 0) }} complete</p>
+                    @endforeach
+                </div>
+            @endif
+            @if ($finalBlocks !== [])
+                <div class="rounded-2xl ring-1 ring-amber-200 bg-amber-50 px-4 py-3 space-y-1">
+                    <p class="text-sm font-bold text-amber-950">Needs resolution · {{ count($finalBlocks) }}</p>
+                    @foreach ($finalBlocks as $block)
+                        <p class="text-[12px] text-amber-900">{{ $block['label'] ?? '' }}</p>
+                    @endforeach
+                </div>
+            @endif
+            @if ($isGroupFile)
+                @php
+                    $finalMembers = collect($groupReview['members'] ?? []);
+                    $sigProgress = $groupReview['membership_signatures'] ?? $groupReview['contract_signatures'] ?? [];
+                    $sigReceived = (int) ($sigProgress['signed_count'] ?? $sigProgress['signed'] ?? $sigProgress['received'] ?? 0);
+                    $sigExpected = (int) ($sigProgress['total'] ?? $finalMembers->count());
+                @endphp
+                <div class="rounded-2xl ring-1 ring-brand/15 bg-white px-4 py-3 space-y-2">
+                    <p class="text-sm font-bold text-gray-900">Members · {{ $finalMembers->count() }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($finalMembers as $fm)
+                            @php
+                                $g1 = (string) ($fm['gate_1'] ?? '');
+                                $g2 = (string) ($fm['gate_2'] ?? '');
+                                $memberReady = in_array($g1, ['pass', 'ok'], true) && in_array($g2, ['pass', 'ok'], true);
+                            @endphp
+                            <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ring-1 {{ $memberReady ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-amber-50 text-amber-950 ring-amber-200' }}">
+                                {{ $fm['name'] ?? 'Member' }}
+                                {{ $memberReady ? '✓ Ready' : 'Needs attention' }}
+                            </span>
+                        @endforeach
+                    </div>
+                    <p class="text-[11px] text-slate-600">
+                        Signatures · {{ $sigExpected }} members
+                        @if ($sigExpected > 0)
+                            · {{ $sigReceived }}/{{ $sigExpected }} received
+                        @endif
+                    </p>
+                </div>
+                <div x-data="{ groupSummaryOpen: false }" class="rounded-2xl ring-1 ring-brand/15 bg-white overflow-hidden">
+                    <button type="button" class="w-full text-left px-4 py-3 flex items-center justify-between gap-2"
+                            @click="groupSummaryOpen = ! groupSummaryOpen">
+                        <span class="text-sm font-bold text-gray-900">Group review summary</span>
+                        <span class="text-[11px] font-semibold text-slate-500" x-text="groupSummaryOpen ? 'Hide' : 'View group review'"></span>
+                    </button>
+                    <div x-show="groupSummaryOpen" x-cloak class="px-4 pb-4 border-t border-gray-100 pt-3">
+                        @include('admin.loan-applications.review._checklist_phase_panels', [
+                            'phase' => 'security',
+                            'section' => 'group',
+                            'deskPerson' => $deskPerson,
+                            'deskG' => $deskG,
+                            'deskM' => $deskM,
+                        ])
+                    </div>
+                </div>
+            @endif
             <div class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/30 px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
                 @if ($finalReady)
-                    <p class="text-sm font-semibold text-gray-900">All required screening checks complete</p>
+                    <p class="text-sm font-semibold text-gray-900">All required Screening checks complete</p>
                     <a href="{{ $continueDecisionUrl }}"
                        class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5 hover:brightness-95">
-                        Continue to decision
+                        Continue to Decision
                     </a>
                 @elseif ($finalBlock)
                     <p class="text-sm font-semibold text-gray-900">
-                        {{ count($readiness['blocking_items'] ?? []) === 1 ? '1 item before decision' : count($readiness['blocking_items']).' items before decision' }}
+                        {{ count($finalBlocks) === 1 ? '1 issue must be resolved before Decision' : count($finalBlocks).' issues must be resolved before Decision' }}
                     </p>
                     <a href="{{ $finalBlock['href'] }}"
                        class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
@@ -299,5 +389,20 @@
                 @endif
             </div>
         </div>
+        @if ($deskPerson === 'guarantor')
+            @php
+                $deskGuarantor = collect($review['guarantors'] ?? [])->first(
+                    fn ($row) => (int) ($row['link_id'] ?? 0) === (int) $deskG
+                );
+            @endphp
+            @if ($deskGuarantor)
+                <div class="px-5 pb-4">
+                    @include('admin.loan-applications.review._guarantor_overview', [
+                        'guarantor' => $deskGuarantor,
+                        'single' => true,
+                    ])
+                </div>
+            @endif
+        @endif
     </div>
 </section>

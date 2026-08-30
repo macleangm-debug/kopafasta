@@ -141,16 +141,19 @@ return [
     ],
     'contacts' => [
         'label' => 'Contacts & references',
-        'phase' => 'capacity',
-        'phase_label' => '2 · Capacity and evidence',
-        'subjects' => ['borrower'],
+        'phase' => 'person',
+        'phase_label' => '1 · Personal in place',
+        'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
             'call_guarantor' => [
                 'label' => 'Check with guarantor',
                 'evidence' => 'guarantor_contact',
                 'fail_reasons' => [
+                    'could_not_reach' => 'Could not reach',
                     'unreachable' => 'Guarantor unreachable',
+                    'information_differs' => 'Reached — information differs',
                     'does_not_confirm' => 'Guarantor does not confirm the loan',
+                    'invalid_contact' => 'Invalid contact',
                     'custom' => 'Other (write reason)',
                 ],
             ],
@@ -158,17 +161,33 @@ return [
                 'label' => 'Check with next of kin',
                 'evidence' => 'nok_contact',
                 'fail_reasons' => [
+                    'could_not_reach' => 'Could not reach',
                     'unreachable' => 'Next of kin unreachable',
+                    'information_differs' => 'Reached — information differs',
                     'does_not_confirm' => 'Next of kin does not confirm details',
+                    'invalid_contact' => 'Invalid contact',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
+            'call_spouse' => [
+                'label' => 'Check with spouse',
+                'evidence' => 'spouse_contact',
+                'fail_reasons' => [
+                    'could_not_reach' => 'Could not reach',
+                    'information_differs' => 'Reached — information differs',
+                    'invalid_contact' => 'Invalid contact',
                     'custom' => 'Other (write reason)',
                 ],
             ],
             'call_references' => [
                 'label' => 'Call listed references / contacts',
-                'evidence' => 'generic',
+                'evidence' => 'references_contact',
                 'fail_reasons' => [
+                    'could_not_reach' => 'Could not reach',
                     'unreachable' => 'References unreachable',
+                    'information_differs' => 'Reached — information differs',
                     'negative_feedback' => 'Negative feedback from references',
+                    'invalid_contact' => 'Invalid contact',
                     'custom' => 'Other (write reason)',
                 ],
             ],
@@ -387,11 +406,11 @@ return [
                 ],
             ],
             'risk_flags_addressed' => [
-                'label' => 'Risk flags / anomalies addressed in notes',
+                'label' => 'Resolve outstanding risk flags and anomalies',
                 'evidence' => 'anomalies',
                 'risk' => 'critical',
                 'fail_reasons' => [
-                    'flags_unaddressed' => 'Critical flags not addressed',
+                    'flags_unaddressed' => 'Outstanding flags not resolved',
                     'custom' => 'Other (write reason)',
                 ],
             ],

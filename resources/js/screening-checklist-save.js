@@ -122,6 +122,24 @@ async function saveChecklist(form, submitter) {
 }
 
 function applyChecklistSave(payload) {
+    if (payload.sequence_html) {
+        const current = document.getElementById('screening-next-action');
+        if (current) {
+            current.outerHTML = payload.sequence_html;
+            const next = document.getElementById('screening-next-action');
+            if (next && window.Alpine?.initTree) {
+                window.Alpine.initTree(next);
+            }
+        }
+    }
+    if (payload.first_open_by_gate && typeof Alpine !== 'undefined') {
+        const desk = document.getElementById('review-desk');
+        const data = desk ? Alpine.$data(desk) : null;
+        if (data) {
+            data.firstOpenByGate = payload.first_open_by_gate;
+        }
+    }
+
     if (payload.readiness_html) {
         const current = document.getElementById('screening-readiness');
         if (current) {

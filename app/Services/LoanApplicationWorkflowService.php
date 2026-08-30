@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\ApplicationStageHistory;
-use App\Models\AuditLog;
+use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
 use App\Models\LoanProductRequirement;
 use App\Models\User;
@@ -15,83 +15,83 @@ class LoanApplicationWorkflowService
     /** @var array<string, array{label: string, to_stage: string, permission: string, icon?: string}> */
     public const ACTIONS = [
         'acknowledge' => [
-            'label'      => 'Acknowledge receipt',
-            'to_stage'   => 'screening',
+            'label' => 'Acknowledge receipt',
+            'to_stage' => 'screening',
             'permission' => 'applications.acknowledge',
-            'from'       => ['submitted'],
+            'from' => ['submitted'],
         ],
         'complete_screening' => [
             // Kept for backwards compatibility — hidden from the desk UI.
-            'label'      => 'Complete screening',
-            'to_stage'   => 'credit_appraisal',
+            'label' => 'Complete screening',
+            'to_stage' => 'credit_appraisal',
             'permission' => 'applications.review',
-            'from'       => ['screening'],
+            'from' => ['screening'],
         ],
         'submit_recommendation' => [
-            'label'      => 'Record screening decision',
-            'to_stage'   => 'pre_approval',
+            'label' => 'Record screening decision',
+            'to_stage' => 'pre_approval',
             'permission' => 'applications.review',
-            'from'       => ['submitted', 'screening', 'credit_appraisal'],
+            'from' => ['submitted', 'screening', 'credit_appraisal'],
         ],
         'validate_screening' => [
-            'label'      => 'Validate screening decision',
-            'to_stage'   => 'pre_approval',
+            'label' => 'Validate screening decision',
+            'to_stage' => 'pre_approval',
             'permission' => 'applications.pre_approve',
-            'from'       => ['pre_approval'],
+            'from' => ['pre_approval'],
         ],
         'suggest_asset_alternative' => [
-            'label'      => 'Suggest asset-backed alternative',
-            'to_stage'   => 'credit_appraisal',
+            'label' => 'Suggest asset-backed alternative',
+            'to_stage' => 'credit_appraisal',
             'permission' => 'applications.review',
-            'from'       => ['credit_appraisal'],
+            'from' => ['credit_appraisal'],
         ],
         'issue_offer' => [
-            'label'      => 'Issue offer to borrower',
-            'to_stage'   => 'pre_approval',
+            'label' => 'Issue offer to borrower',
+            'to_stage' => 'pre_approval',
             'permission' => 'applications.pre_approve',
-            'from'       => ['pre_approval'],
+            'from' => ['pre_approval'],
         ],
         'approve' => [
-            'label'      => 'Approve',
-            'to_stage'   => 'approval',
+            'label' => 'Approve',
+            'to_stage' => 'approval',
             'permission' => 'applications.approve',
-            'from'       => ['pre_approval'],
+            'from' => ['pre_approval'],
         ],
         'approve_with_conditions' => [
-            'label'      => 'Approve with conditions',
-            'to_stage'   => 'approval',
+            'label' => 'Approve with conditions',
+            'to_stage' => 'approval',
             'permission' => 'applications.approve',
-            'from'       => ['pre_approval'],
+            'from' => ['pre_approval'],
         ],
         'refer_back' => [
-            'label'      => 'Refer back',
-            'to_stage'   => 'screening',
+            'label' => 'Refer back',
+            'to_stage' => 'screening',
             'permission' => 'applications.approve',
-            'from'       => ['pre_approval', 'awaiting_management'],
+            'from' => ['pre_approval', 'awaiting_management'],
         ],
         'management_approve' => [
-            'label'      => 'Management approve',
-            'to_stage'   => 'approval',
+            'label' => 'Management approve',
+            'to_stage' => 'approval',
             'permission' => 'applications.approve',
-            'from'       => ['awaiting_management'],
+            'from' => ['awaiting_management'],
         ],
         'disburse' => [
-            'label'      => 'Mark ready for disbursement',
-            'to_stage'   => 'disbursement',
+            'label' => 'Mark ready for disbursement',
+            'to_stage' => 'disbursement',
             'permission' => 'applications.disburse',
-            'from'       => ['approval'],
+            'from' => ['approval'],
         ],
         'reject' => [
-            'label'      => 'Reject application',
-            'to_stage'   => 'rejected',
+            'label' => 'Reject application',
+            'to_stage' => 'rejected',
             'permission' => 'applications.reject',
-            'from'       => ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'awaiting_management', 'approval'],
+            'from' => ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'awaiting_management', 'approval'],
         ],
         'return_for_documents' => [
-            'label'      => 'Return for documents',
-            'to_stage'   => 'screening',
+            'label' => 'Return for documents',
+            'to_stage' => 'screening',
             'permission' => 'applications.review',
-            'from'       => ['screening', 'credit_appraisal', 'pre_approval'],
+            'from' => ['screening', 'credit_appraisal', 'pre_approval'],
         ],
     ];
 
@@ -134,9 +134,9 @@ class LoanApplicationWorkflowService
             ->filter(fn (array $action, string $key) => ! ($key === 'validate_screening' && ! app(ApplicationOfferService::class)->canValidateScreening($application, $user)))
             ->filter(fn (array $action) => $this->sameBranch($user, $application))
             ->map(fn (array $action, string $key) => [
-                'key'        => $key,
-                'label'      => $action['label'],
-                'to_stage'   => $action['to_stage'],
+                'key' => $key,
+                'label' => $action['label'],
+                'to_stage' => $action['to_stage'],
                 'permission' => $action['permission'],
             ])
             ->values();
@@ -384,22 +384,22 @@ class LoanApplicationWorkflowService
         }
 
         $application->update([
-            'current_stage'             => $to,
-            'status'                    => $actionKey === 'return_for_documents'
+            'current_stage' => $to,
+            'status' => $actionKey === 'return_for_documents'
                 ? 'pending_documents'
                 : $this->statusForStage($to, $oldStatus),
-            'pre_approved_at'           => $to === 'pre_approval' ? now() : $application->pre_approved_at,
-            'approved_at'               => $to === 'approval' ? now() : $application->approved_at,
-            'rejection_reason_code'     => $to === 'rejected' ? $rejectionReasonCode : $application->rejection_reason_code,
-            'rejection_reason_codes'    => $to === 'rejected' ? $normalizedRejectionCodes : $application->rejection_reason_codes,
-            'rejection_reason'          => $to === 'rejected' ? ($rejectionLabel ?: $application->rejection_reason) : $application->rejection_reason,
-            'rejection_internal_notes'  => $to === 'rejected' ? $rejectionInternalNotes : $application->rejection_internal_notes,
-            'rejection_advice_code'     => $to === 'rejected' ? ($rejectionAdviceCode ?: null) : $application->rejection_advice_code,
-            'rejection_advice'          => $to === 'rejected' ? $storedAdvice : $application->rejection_advice,
+            'pre_approved_at' => $to === 'pre_approval' ? now() : $application->pre_approved_at,
+            'approved_at' => $to === 'approval' ? now() : $application->approved_at,
+            'rejection_reason_code' => $to === 'rejected' ? $rejectionReasonCode : $application->rejection_reason_code,
+            'rejection_reason_codes' => $to === 'rejected' ? $normalizedRejectionCodes : $application->rejection_reason_codes,
+            'rejection_reason' => $to === 'rejected' ? ($rejectionLabel ?: $application->rejection_reason) : $application->rejection_reason,
+            'rejection_internal_notes' => $to === 'rejected' ? $rejectionInternalNotes : $application->rejection_internal_notes,
+            'rejection_advice_code' => $to === 'rejected' ? ($rejectionAdviceCode ?: null) : $application->rejection_advice_code,
+            'rejection_advice' => $to === 'rejected' ? $storedAdvice : $application->rejection_advice,
             'screening_rejection_reason_code' => $to === 'rejected' && in_array($fromStage, ['submitted', 'screening', 'credit_appraisal'], true)
                 ? $rejectionReasonCode
                 : $application->screening_rejection_reason_code,
-            'credit_appraisal_payload'  => $appraisal,
+            'credit_appraisal_payload' => $appraisal,
         ]);
 
         if ($actionKey === 'return_for_documents') {
@@ -438,22 +438,22 @@ class LoanApplicationWorkflowService
 
         ApplicationStageHistory::create([
             'loan_application_id' => $application->id,
-            'from_stage'          => $from,
-            'to_stage'            => $to,
-            'changed_by'          => $user->id,
-            'remarks'             => $to === 'rejected'
+            'from_stage' => $from,
+            'to_stage' => $to,
+            'changed_by' => $user->id,
+            'remarks' => $to === 'rejected'
                 ? ($rejectionInternalNotes ?: $remarks)
                 : $remarks,
         ]);
 
         $this->audit->log($user, 'application.stage_changed', $application, [
             'current_stage' => $from,
-            'status'        => $oldStatus,
+            'status' => $oldStatus,
         ], [
             'current_stage' => $to,
-            'status'        => $application->status,
-            'action'        => $actionKey,
-            'remarks'       => $remarks,
+            'status' => $application->status,
+            'action' => $actionKey,
+            'remarks' => $remarks,
         ]);
 
         if ($application->loan_group_id) {
@@ -476,14 +476,14 @@ class LoanApplicationWorkflowService
         }
 
         $permission = match ($toStage) {
-            'screening'        => 'applications.acknowledge',
+            'screening' => 'applications.acknowledge',
             'credit_appraisal' => 'applications.review',
-            'pre_approval'     => 'applications.pre_approve',
+            'pre_approval' => 'applications.pre_approve',
             'awaiting_management' => 'applications.approve',
-            'approval'         => 'applications.approve',
-            'disbursement'     => 'applications.disburse',
-            'rejected'         => 'applications.reject',
-            default            => 'applications.view',
+            'approval' => 'applications.approve',
+            'disbursement' => 'applications.disburse',
+            'rejected' => 'applications.reject',
+            default => 'applications.view',
         };
 
         if (! $this->permissions->has($user, $permission)) {
@@ -523,11 +523,11 @@ class LoanApplicationWorkflowService
         $oldStatus = $application->status;
 
         $application->update([
-            'current_stage'            => $toStage,
-            'status'                   => $this->statusForStage($toStage, $oldStatus),
-            'pre_approved_at'          => $toStage === 'pre_approval' ? now() : $application->pre_approved_at,
-            'approved_at'              => $toStage === 'approval' ? now() : $application->approved_at,
-            'rejection_reason'         => $toStage === 'rejected' ? ($remarks ?: $application->rejection_reason) : $application->rejection_reason,
+            'current_stage' => $toStage,
+            'status' => $this->statusForStage($toStage, $oldStatus),
+            'pre_approved_at' => $toStage === 'pre_approval' ? now() : $application->pre_approved_at,
+            'approved_at' => $toStage === 'approval' ? now() : $application->approved_at,
+            'rejection_reason' => $toStage === 'rejected' ? ($remarks ?: $application->rejection_reason) : $application->rejection_reason,
             'credit_appraisal_payload' => $appraisal,
         ]);
 
@@ -544,19 +544,19 @@ class LoanApplicationWorkflowService
 
         ApplicationStageHistory::create([
             'loan_application_id' => $application->id,
-            'from_stage'          => $from,
-            'to_stage'            => $toStage,
-            'changed_by'          => $user->id,
-            'remarks'             => $remarks,
+            'from_stage' => $from,
+            'to_stage' => $toStage,
+            'changed_by' => $user->id,
+            'remarks' => $remarks,
         ]);
 
         $this->audit->log($user, 'application.stage_changed', $application, [
             'current_stage' => $from,
-            'status'        => $oldStatus,
+            'status' => $oldStatus,
         ], [
             'current_stage' => $toStage,
-            'status'        => $application->status,
-            'remarks'       => $remarks,
+            'status' => $application->status,
+            'remarks' => $remarks,
         ]);
 
         return $application->fresh(['stageHistory', 'customer', 'product']);
@@ -588,7 +588,7 @@ class LoanApplicationWorkflowService
 
         $application->loadMissing(['documentRequests.subjectCustomer', 'documentRequests.groupMember.customer']);
         foreach ($application->documentRequests as $request) {
-            if (! $request->needsBorrowerAction()) {
+            if (! app(ApplicationDocumentRequestService::class)->isOutstanding($request)) {
                 continue;
             }
             $label = trim((string) ($request->label ?? 'Requested document'));
@@ -617,18 +617,18 @@ class LoanApplicationWorkflowService
     public function stageLabel(string $stage): string
     {
         return match ($stage) {
-            'submitted'           => 'Submitted',
-            'screening'           => 'Screening',
-            'credit_appraisal'    => 'Credit appraisal',
-            'pre_approval'        => 'Pre-approval',
-            'approval'            => 'Committee approval',
-            'disbursement'        => 'Disbursement',
-            'awaiting_guarantor'  => 'Awaiting guarantor',
+            'submitted' => 'Submitted',
+            'screening' => 'Screening',
+            'credit_appraisal' => 'Credit appraisal',
+            'pre_approval' => 'Pre-approval',
+            'approval' => 'Committee approval',
+            'disbursement' => 'Disbursement',
+            'awaiting_guarantor' => 'Awaiting guarantor',
             'awaiting_disbursement_details' => 'Awaiting disbursement details',
-            'post_approval_fees'  => 'Post-approval fees',
+            'post_approval_fees' => 'Post-approval fees',
             'contract_generation' => 'Contract generation',
-            'rejected'            => 'Rejected',
-            default               => ucfirst(str_replace('_', ' ', $stage)),
+            'rejected' => 'Rejected',
+            default => ucfirst(str_replace('_', ' ', $stage)),
         };
     }
 
@@ -707,18 +707,18 @@ class LoanApplicationWorkflowService
         $name = $customer->full_name ?? $customer->first_name ?? 'Customer';
 
         $vars = [
-            'name'               => $name,
+            'name' => $name,
             'application_number' => $application->application_number,
-            'reason'             => $reason,
-            'advice'             => $advice ? ' Advice: '.$advice : '',
-            '_fallback_body'     => 'Hi '.$name.', your loan application '.$application->application_number.' was not approved. Reason: '.$reason.'.'
+            'reason' => $reason,
+            'advice' => $advice ? ' Advice: '.$advice : '',
+            '_fallback_body' => 'Hi '.$name.', your loan application '.$application->application_number.' was not approved. Reason: '.$reason.'.'
                 .($advice ? ' Advice: '.$advice : '')
                 .' — Kopa Fasta',
-            '_fallback_subject'  => 'Loan application update',
+            '_fallback_subject' => 'Loan application update',
         ];
 
         $letterUrl = route('site.borrower.application', $application->id);
-        $rejectionLetter = \App\Models\LoanAgreement::query()
+        $rejectionLetter = LoanAgreement::query()
             ->where('loan_application_id', $application->id)
             ->where('document_type', 'rejection_letter')
             ->latest('id')
@@ -732,7 +732,7 @@ class LoanApplicationWorkflowService
             $customer,
             __('borrower.notifications.application_rejected', [
                 'reference' => $application->application_number,
-                'reason'    => $reason,
+                'reason' => $reason,
             ]),
             'application',
             'application_rejected',
@@ -747,14 +747,14 @@ class LoanApplicationWorkflowService
     private function statusForStage(string $toStage, ?string $previous): string
     {
         return match ($toStage) {
-            'rejected'     => 'rejected',
+            'rejected' => 'rejected',
             'disbursement' => 'approved',
             'pre_approval' => 'pre_approved',
             'awaiting_management' => 'pre_approved',
-            'approval'     => 'approved',
+            'approval' => 'approved',
             'credit_appraisal' => 'under_review',
-            'screening'    => 'submitted',
-            default        => in_array($previous, ['draft', 'awaiting_guarantor'], true) ? ($previous ?? 'in_progress') : 'in_progress',
+            'screening' => 'submitted',
+            default => in_array($previous, ['draft', 'awaiting_guarantor'], true) ? ($previous ?? 'in_progress') : 'in_progress',
         };
     }
 

@@ -84,6 +84,12 @@
                         <p class="text-xs font-semibold text-brand">{{ $docReq->subjectRoleLabel($groupReview ?? null) }}</p>
                         <p class="text-xs font-bold text-amber-950">{{ $docService->waitingOnLabel($docReq, $groupReview ?? null) }}</p>
                         <p class="text-xs text-gray-600">{{ $docService->outstandingTimingPhrase($docReq) }}</p>
+                        @if ($docReq->status === 'uploaded')
+                            <a href="{{ $docService->screeningReviewUrl($docReq, $record, collect($review['guarantors'] ?? [])->all()) }}"
+                               class="inline-flex mt-2 rounded-lg bg-brand text-white text-[11px] font-bold px-2.5 py-1.5">
+                                Review submission
+                            </a>
+                        @endif
                         @if ($docReq->status === 'pending' && $canRequestDocs)
                             <form method="POST" action="{{ route('admin.loan-applications.document-requests.cancel', $record) }}"
                                   class="pt-1"

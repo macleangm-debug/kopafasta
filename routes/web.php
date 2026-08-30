@@ -683,6 +683,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.group-contract-progress');
         Route::post('loan-applications/{loan_application}/group-members/{loan_group_member}/request-replacement', [LoanApplicationController::class, 'requestGroupMemberReplacement'])
             ->name('loan-applications.request-group-member-replacement');
+        Route::post('loan-applications/{loan_application}/continue-with-eligible-members', [LoanApplicationController::class, 'continueWithEligibleMembers'])
+            ->name('loan-applications.continue-with-eligible-members');
+        Route::post('loan-applications/{loan_application}/guarantors/{customer_guarantor}/replace', [LoanApplicationController::class, 'replaceGuarantor'])
+            ->name('loan-applications.replace-guarantor');
         Route::post('loan-applications/{loan_application}/create-loan', [LoanApplicationController::class, 'createLoan'])
             ->name('loan-applications.create-loan');
         Route::post('loan-application-document-requests/{documentRequest}/satisfy', [LoanApplicationDocumentRequestController::class, 'satisfy'])

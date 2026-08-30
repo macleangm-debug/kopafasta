@@ -58,6 +58,53 @@
                     ])
                 </div>
             @endif
+            @php
+                $docSvc = app(\App\Services\ApplicationDocumentRequestService::class);
+                $collateralRequests = collect($documentRequests ?? [])
+                    ->filter(fn ($req) => $docSvc->borrowerActionKind($req) === 'collateral'
+                        && $docSvc->isOutstanding($req))
+                    ->values();
+            @endphp
+            @if ($collateralRequests->isNotEmpty())
+                <div x-show="openGroup === @js($groupKey)" x-cloak class="px-4 py-3 bg-sky-50 border-b border-sky-100 space-y-2">
+                    @foreach ($collateralRequests as $docReq)
+                        <div id="doc-request-{{ $docReq->id }}" class="scroll-mt-24">
+                            <p class="text-sm font-semibold text-slate-900">{{ $docReq->label }}</p>
+                            <p class="text-[12px] text-slate-700 mt-0.5">
+                                @if ($docReq->status === 'uploaded')
+                                    ✓ Submitted {{ $docSvc->outstandingTimingPhrase($docReq) }}
+                                @else
+                                    {{ $docSvc->waitingOnLabel($docReq, $groupReview ?? null) }}
+                                    · {{ $docSvc->outstandingTimingPhrase($docReq) }}
+                                @endif
+                            </p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @if ($docReq->status === 'uploaded')
+                                    <p class="text-[12px] font-semibold text-sky-950">Waiting for your collateral review below. This request clears when Gate 5 is complete.</p>
+                                @endif
+                                @if ($docReq->status === 'pending' && auth()->user()?->hasPermission('applications.request_documents'))
+                                    <form method="POST" action="{{ route('admin.loan-applications.document-requests.cancel', $record) }}"
+                                          class="inline"
+                                          x-data="{ retracting: false }">
+                                        @csrf
+                                        <input type="hidden" name="confirmed" value="1">
+                                        <input type="hidden" name="ids[]" value="{{ $docReq->id }}">
+                                        <input type="hidden" name="return_workspace" value="checklist">
+                                        <button type="button" @click="retracting = true" x-show="! retracting"
+                                                class="text-[11px] font-semibold text-slate-700 underline">Retract request</button>
+                                        <span x-show="retracting" x-cloak class="inline-flex items-center gap-2">
+                                            <input type="text" name="reason" maxlength="200" placeholder="Reason"
+                                                   class="rounded-lg border-gray-300 text-xs px-2 py-1 ring-1 ring-gray-200">
+                                            <button type="button" @click="retracting = false" class="text-[11px] font-semibold">Go back</button>
+                                            <button type="submit" class="text-[11px] font-bold text-rose-800">Confirm retraction</button>
+                                        </span>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         @endif
         <ul x-show="openGroup === @js($groupKey)" x-cloak x-ref="items_{{ $groupKey }}" class="divide-y divide-gray-50 bg-white">
             @foreach ($group['items'] as $item)
@@ -73,7 +120,9 @@
                     $isAwaiting = ! empty($item['awaiting_data']) && ! $hasPhotoEvidence;
                     $isQuietAuto = (($item['system_checked'] ?? false) || ($item['catalog_system'] ?? false) || ($item['documents_checked'] ?? false))
                         && in_array($item['verdict'] ?? null, ['pass', 'na'], true)
-                        && empty($item['captures_statement']);
+                        && empty($item['captures_statement'])
+                        && empty($item['keep_visible'])
+                        && ($item['key'] ?? '') !== 'credit_file.risk_flags_addressed';
                     $isSystemOutcome = ! empty($item['system_determined'])
                         && empty($item['captures_statement'])
                         && ! $isQuietAuto;
@@ -81,17 +130,22 @@
                         continue;
                     }
                     if ($isSystemOutcome) {
-                        $sysReason = $item['fail_reason_label'] ?? $item['awaiting_message'] ?? 'Needs attention';
+                        $sysPass = in_array($item['verdict'] ?? null, ['pass', 'na'], true) && empty($item['awaiting_data']);
+                        $sysReason = $sysPass
+                            ? (($item['key'] ?? '') === 'credit_file.risk_flags_addressed'
+                                ? 'No unresolved risk flags — System checked ✓'
+                                : 'System checked ✓')
+                            : ($item['fail_reason_label'] ?? $item['awaiting_message'] ?? 'Needs attention');
                         $sysHref = $item['destination']['href'] ?? '';
                         $sysCta = $item['destination']['cta'] ?? 'Open';
                         @endphp
-                        <li id="item-{{ $item['key'] ?? '' }}" class="px-4 py-3 bg-amber-50/70">
+                        <li id="item-{{ $item['key'] ?? '' }}" class="px-4 py-3 {{ $sysPass ? 'bg-emerald-50/70' : 'bg-amber-50/70' }}">
                             <div class="flex flex-wrap items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <p class="text-sm font-semibold text-slate-900">{{ $item['label'] ?? 'Check' }}</p>
-                                    <p class="text-[11px] text-amber-900 mt-0.5">{{ $sysReason }}</p>
+                                    <p class="text-[11px] {{ $sysPass ? 'text-emerald-900' : 'text-amber-900' }} mt-0.5">{{ $sysReason }}</p>
                                 </div>
-                                @if ($sysHref !== '')
+                                @if (! $sysPass && $sysHref !== '')
                                     <a href="{{ $sysHref }}" class="shrink-0 text-[11px] font-bold text-brand underline underline-offset-2">{{ $sysCta }}</a>
                                 @endif
                             </div>
@@ -105,8 +159,19 @@
                         'activity_income.bank_or_mobile_money' => '2.3 Are there concerning statement patterns?',
                         default => (string) ($item['label'] ?? 'Check'),
                     };
-                    $passLabel = ($item['item_key'] ?? '') === 'bank_or_mobile_money' ? 'No concerns' : 'Pass ✓';
-                    $failLabel = ($item['item_key'] ?? '') === 'bank_or_mobile_money' ? 'Concern found' : 'Concern';
+                    $isContactCheck = in_array((string) ($item['item_key'] ?? ''), [
+                        'call_guarantor', 'call_next_of_kin', 'call_spouse', 'call_references', 'local_government',
+                    ], true);
+                    $passLabel = match (true) {
+                        ($item['item_key'] ?? '') === 'bank_or_mobile_money' => 'No concerns',
+                        $isContactCheck => 'Reached — confirmed',
+                        default => 'Pass ✓',
+                    };
+                    $failLabel = match (true) {
+                        ($item['item_key'] ?? '') === 'bank_or_mobile_money' => 'Concern found',
+                        $isContactCheck => 'Concern',
+                        default => 'Concern',
+                    };
                     $collapsedStatus = $isAwaiting
                         ? 'Needs review'
                         : match ($item['verdict'] ?? '') {

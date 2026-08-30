@@ -81,6 +81,28 @@
         <x-admin.step title="Requirements">
             <x-admin.select name="requires_collateral" label="Requires collateral" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_collateral ?? '0')" />
             <x-admin.select name="requires_guarantor"  label="Requires guarantor"  :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" />
+            @if ($r?->requires_guarantor)
+                <label class="flex items-start gap-3 text-sm text-gray-800 md:col-span-2">
+                    <input type="hidden" name="guarantor_gate_1_required" value="0">
+                    <input type="checkbox" name="guarantor_gate_1_required" value="1"
+                           @checked((bool) old('guarantor_gate_1_required', $r?->guarantor_gate_1_required))
+                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/30">
+                    <span>
+                        <span class="font-semibold">Require Gate 1 affordability for the guarantor</span>
+                        <span class="block text-xs text-gray-500 mt-0.5">Declared-income check on the guarantor. Off by default — only enable when this product genuinely needs guarantor financial assessment.</span>
+                    </span>
+                </label>
+                <label class="flex items-start gap-3 text-sm text-gray-800 md:col-span-2">
+                    <input type="hidden" name="guarantor_gate_2_required" value="0">
+                    <input type="checkbox" name="guarantor_gate_2_required" value="1"
+                           @checked((bool) old('guarantor_gate_2_required', $r?->guarantor_gate_2_required))
+                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/30">
+                    <span>
+                        <span class="font-semibold">Require Gate 2 verified capacity for the guarantor</span>
+                        <span class="block text-xs text-gray-500 mt-0.5">Statement-backed guarantor capacity. Off by default.</span>
+                    </span>
+                </label>
+            @endif
             <div class="md:col-span-2">
                 <p class="text-sm font-medium text-gray-700 mb-2">Eligible grades</p>
                 <p class="text-xs text-gray-500 mb-2">Leave all unchecked to keep the product open to every grade.</p>

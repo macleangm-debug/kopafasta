@@ -8,6 +8,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\User;
 use App\Models\ValuationAssignment;
+use App\Support\KinName;
 use App\Support\NationalIdDob;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -122,6 +123,7 @@ class ScreeningChecklistService
                 'failed' => $leaderVm['failed'],
             ];
 
+            $memberOrdinal = 2;
             foreach ($members as $member) {
                 $mId = (int) ($member['id'] ?? 0);
                 if ($mId < 1) {
@@ -140,7 +142,7 @@ class ScreeningChecklistService
                     'g' => null,
                     'm' => $mId,
                     'customer_id' => (int) ($member['customer_id'] ?? 0) ?: null,
-                    'label' => 'Member',
+                    'label' => 'Member '.$memberOrdinal,
                     'sublabel' => $member['name'] ?? null,
                     'avatar_url' => $member['avatar_url'] ?? null,
                     'percent' => $vm['percent'],
@@ -149,6 +151,7 @@ class ScreeningChecklistService
                     'complete' => $vm['percent'] >= 100,
                     'failed' => $vm['failed'],
                 ];
+                $memberOrdinal++;
             }
         } else {
             $borrowerVm = $this->viewModel($application, $actor, 'borrower', null, null, $review, $groupReview);
@@ -237,7 +240,80 @@ class ScreeningChecklistService
         $vm['g'] = $guarantorLinkId;
         $vm['m'] = $memberId;
 
+        if ($actor) {
+            $this->healUploadedCollateralRequests($application, $actor, $vm, $person, $guarantorLinkId, $memberId);
+        }
+
         return $vm;
+    }
+
+    /**
+     * Compact Gate 4 card: identity ticks + NOK / LGO / spouse from the live profile.
+     *
+     * @param  array<string, mixed>  $vm
+     * @return array<string, mixed>
+     */
+    public function identityPeopleCard(array $vm, ?Customer $customer): array
+    {
+        $items = collect($vm['groups'] ?? [])->flatMap(fn ($group) => $group['items'] ?? []);
+        $tick = function (string $key) use ($items): array {
+            $item = $items->firstWhere('key', $key);
+            $verdict = $item['verdict'] ?? null;
+            $state = match (true) {
+                ! empty($item['awaiting_data']) => 'warn',
+                $verdict === 'pass' || $verdict === 'na' => 'ok',
+                $verdict === 'fail' => 'fail',
+                default => 'open',
+            };
+
+            return [
+                'key' => $key,
+                'label' => (string) ($item['label'] ?? $key),
+                'state' => $state,
+                'verdict' => $verdict,
+                'message' => $item['awaiting_message'] ?? $item['fail_reason_label'] ?? null,
+            ];
+        };
+
+        $nokName = trim((string) ($customer?->nok_name ?: KinName::full(
+            $customer?->nok_first_name,
+            $customer?->nok_middle_name,
+            $customer?->nok_last_name,
+        )));
+        $nokPhone = trim((string) ($customer?->nok_phone ?? ''));
+        $spouseName = trim(implode(' ', array_filter([
+            $customer?->spouse_first_name,
+            $customer?->spouse_middle_name,
+            $customer?->spouse_last_name,
+        ])));
+        $married = in_array(strtolower((string) ($customer?->marital_status ?? '')), ['married', 'spouse'], true);
+
+        return [
+            'name' => $customer?->full_name ?: 'Person',
+            'ticks' => [
+                $tick('identity.nida_vs_dob') + ['short' => 'National ID / DOB'],
+                $tick('identity.face_vs_nida') + ['short' => 'Face verification'],
+                $tick('identity.phone_ownership') + ['short' => 'Phone'],
+                $tick('identity.id_document_quality') + ['short' => 'ID quality'],
+            ],
+            'nok' => [
+                'name' => $nokName !== '' ? $nokName : null,
+                'relationship' => $customer?->nok_relationship,
+                'phone' => $nokPhone !== '' ? $nokPhone : null,
+                'missing' => $nokName === '' || $nokPhone === '',
+            ],
+            'lgo' => [
+                'name' => $customer?->lga_officer_name,
+                'position' => $customer?->lga_officer_position,
+                'phone' => $customer?->lga_officer_phone,
+                'missing' => ! filled($customer?->lga_officer_name) || ! filled($customer?->lga_officer_phone),
+            ],
+            'spouse' => [
+                'applicable' => $married,
+                'name' => $spouseName !== '' ? $spouseName : null,
+                'phone' => null,
+            ],
+        ];
     }
 
     /**
@@ -370,6 +446,7 @@ class ScreeningChecklistService
                         ? 'Documents'
                         : ($isSystem ? 'System' : ($autoNa ? null : ($by ? ($names[$by] ?? null) : null))),
                     'captures_statement' => ($meta['gate'] ?? null) === 'statements_vs_declared',
+                    'keep_visible' => $fullKey === 'credit_file.risk_flags_addressed',
                     'statement_deposits_total' => $autoNa ? null : ($row['statement_deposits_total'] ?? null),
                     'statement_months' => $autoNa ? null : ($row['statement_months'] ?? StatementCapacityService::DEFAULT_MONTHS),
                     'statement_monthly' => $autoNa ? null : ($row['statement_monthly'] ?? null),
@@ -872,6 +949,7 @@ class ScreeningChecklistService
         $existingSource = (string) ($row['source'] ?? '');
         $autoSources = ['system', 'auto_na', 'documents', 'awaiting_data'];
         $catalogSystem = $fullKey !== '' && $this->isCatalogSystem($fullKey);
+        $forceAutoNa = $source === 'auto_na' && $this->isForcedAutoNaKey($fullKey);
 
         if ($source === 'awaiting_data') {
             return [
@@ -910,7 +988,7 @@ class ScreeningChecklistService
             'documents.requested_docs_reviewed',
         ], true);
         $humanLocked = $existing !== null && ! in_array($existingSource, $autoSources, true);
-        if ($humanLocked && ! $catalogSystem && ! $dataDerived) {
+        if ($humanLocked && ! $catalogSystem && ! $dataDerived && ! $forceAutoNa) {
             return $row;
         }
 
@@ -929,6 +1007,16 @@ class ScreeningChecklistService
             'at' => $row['at'] ?? now()->toIso8601String(),
             'by' => $row['by'] ?? null,
         ];
+    }
+
+    private function isForcedAutoNaKey(string $fullKey): bool
+    {
+        return in_array($fullKey, [
+            'contacts.call_guarantor',
+            'contacts.guarantor_capacity',
+            'contacts.call_references',
+            'contacts.call_spouse',
+        ], true);
     }
 
     private function isCatalogSystem(string $fullKey): bool
@@ -1085,6 +1173,44 @@ class ScreeningChecklistService
     }
 
     /**
+     * Clear uploaded collateral requests once Gate 5 is actually complete, including
+     * system N/A items that never required a human Save.
+     *
+     * @param  array<string, mixed>  $vm
+     */
+    private function healUploadedCollateralRequests(
+        LoanApplication $application,
+        User $actor,
+        array $vm,
+        string $person,
+        ?int $guarantorLinkId,
+        ?int $memberId,
+    ): void {
+        $stored = [];
+        foreach ($vm['groups'] ?? [] as $group) {
+            foreach ($group['items'] ?? [] as $item) {
+                $key = (string) ($item['key'] ?? '');
+                if ($key === '') {
+                    continue;
+                }
+                $stored[$key] = ['verdict' => $item['verdict'] ?? null];
+            }
+        }
+        if (! $this->collateralChecksComplete($stored, $this->subjectKey($person, $guarantorLinkId, $memberId))) {
+            return;
+        }
+
+        $customer = $this->resolveSubjectCustomer($application, $person, $guarantorLinkId, $memberId);
+        app(ApplicationDocumentRequestService::class)->satisfyUploadedCollateralRequests(
+            $application,
+            $actor,
+            $person,
+            $customer?->id,
+            $memberId,
+        );
+    }
+
+    /**
      * True when every collateral checklist item for this desk has a pass / fail / N/A verdict.
      *
      * @param  array<string, mixed>  $items
@@ -1206,7 +1332,9 @@ class ScreeningChecklistService
                 continue;
             }
 
-            if ($existing !== null && ! in_array($existingSource, $autoSources, true) && ! $this->isCatalogSystem($key)) {
+            if ($existing !== null && ! in_array($existingSource, $autoSources, true) && ! $this->isCatalogSystem($key) && ! (
+                $suggestionSource === 'auto_na' && $this->isForcedAutoNaKey($key)
+            )) {
                 continue;
             }
             $resolvedSource = match ($suggestionSource) {
@@ -2002,8 +2130,8 @@ class ScreeningChecklistService
                     ];
                 }
                 $hint = $critical + $warning > 0
-                    ? 'Read each flag above (and the Review flags strip). Pass only after you addressed them in notes / decision rationale — or Fail if they kill the file.'
-                    : 'No critical/warning flags right now. Pass if you are comfortable; re-check if new CRB/docs arrive.';
+                    ? 'Each flag lists its source above. Record your resolution here (Pass with rationale, or Fail). The system does not read free-text notes.'
+                    : 'No unresolved risk flags — System checked.';
                 break;
 
             case 'recommendation_gate':
@@ -2190,15 +2318,48 @@ class ScreeningChecklistService
                     ['label' => 'Signal', 'value' => strtoupper((string) ($g['recommendation'] ?? '—'))],
                     ['label' => 'Summary', 'value' => (string) ($g['summary'] ?? '—')],
                 ];
-                $hint = 'You confirm by calling the guarantor — system only shows contact / CRB signals.';
+                $hint = ! empty($g['name'])
+                    ? 'Call the guarantor and record Reached — confirmed, Reached — information differs, Could not reach, or Invalid contact.'
+                    : 'This product / file has no guarantor. The check is N/A.';
                 break;
 
             case 'nok_contact':
+                $nokName = trim((string) ($customer?->nok_name ?: KinName::full(
+                    $customer?->nok_first_name,
+                    $customer?->nok_middle_name,
+                    $customer?->nok_last_name,
+                )));
                 $rows = [
-                    ['label' => 'Next of kin', 'value' => (string) ($customer?->next_of_kin_name ?? $customer?->kin_name ?? '—')],
-                    ['label' => 'Phone', 'value' => (string) ($customer?->next_of_kin_phone ?? $customer?->kin_phone ?? '—')],
+                    ['label' => 'Name', 'value' => $nokName !== '' ? $nokName : '—'],
+                    ['label' => 'Relationship', 'value' => (string) ($customer?->nok_relationship ?: '—')],
+                    ['label' => 'Phone', 'value' => (string) ($customer?->nok_phone ?: '—')],
                 ];
-                $hint = 'You confirm by calling next of kin — system cannot place the call.';
+                $hint = $nokName !== '' && filled($customer?->nok_phone)
+                    ? 'Record the call result: Reached — confirmed, Reached — information differs, Could not reach, or Invalid contact.'
+                    : 'Next-of-kin contact missing.';
+                break;
+
+            case 'spouse_contact':
+                $spouseName = trim(implode(' ', array_filter([
+                    $customer?->spouse_first_name,
+                    $customer?->spouse_middle_name,
+                    $customer?->spouse_last_name,
+                ])));
+                $rows = [
+                    ['label' => 'Name', 'value' => $spouseName !== '' ? $spouseName : '—'],
+                    ['label' => 'Marital status', 'value' => (string) ($customer?->marital_status ?: '—')],
+                    ['label' => 'Phone', 'value' => 'Not stored on this profile'],
+                ];
+                $hint = $spouseName !== ''
+                    ? 'Spouse phone is not a profile field. Confirm using the name on file, then record the call result.'
+                    : 'No spouse on this profile (or the person is not married).';
+                break;
+
+            case 'references_contact':
+                $rows = [
+                    ['label' => 'Listed references', 'value' => 'None on profile'],
+                ];
+                $hint = 'Kopafasta does not currently store named references as profile fields. This check is N/A until that data exists.';
                 break;
 
             case 'insurance':

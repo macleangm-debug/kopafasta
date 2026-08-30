@@ -140,9 +140,18 @@ class UnderwritingSettingsService
         return max(1, min(168, (int) $this->get('guarantor_replacement_hours', 48)));
     }
 
-    public function guarantorGateRequired(int $gate): bool
+    public function guarantorGateRequired(int $gate, ?LoanApplication $application = null): bool
     {
         $key = $gate === 2 ? 'guarantor_gate_2_required' : 'guarantor_gate_1_required';
+        if ($application) {
+            $product = $application->product;
+            if ($product && ! $this->guarantorRequiredForProduct($application)) {
+                return false;
+            }
+            if ($product && $product->getAttribute($key) !== null) {
+                return (bool) $product->getAttribute($key);
+            }
+        }
 
         return (bool) $this->get($key, false);
     }

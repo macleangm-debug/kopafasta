@@ -29,6 +29,7 @@ use App\Services\CreditDeskAssignmentService;
 use App\Services\GpsPartnerService;
 use App\Services\GroupLoanMemberReviewService;
 use App\Services\GroupLoanReviewService;
+use App\Services\GuarantorReplacementService;
 use App\Services\GuarantorSupplementService;
 use App\Services\LoanAgreementService;
 use App\Services\LoanApplicationReviewService;
@@ -40,6 +41,7 @@ use App\Services\ScreeningChecklistGateService;
 use App\Services\ScreeningChecklistService;
 use App\Services\ScreeningPartnerAvailabilityService;
 use App\Services\ScreeningReadinessService;
+use App\Services\ScreeningSequenceService;
 use App\Services\SmartLoanApplicationWizardService;
 use App\Services\UnderwritingAnomalyService;
 use App\Services\ValuationPartnerService;
@@ -626,6 +628,13 @@ class LoanApplicationController extends ResourceController
             $memberId,
         );
         $gates = app(ScreeningChecklistGateService::class)->regroup($desk['groups'] ?? [], $application);
+        $sequence = app(ScreeningSequenceService::class)->snapshot($application, $gates);
+        $firstOpenByGate = [];
+        foreach ($gates as $key => $gate) {
+            $open = collect($gate['groups'] ?? [])->first(fn ($g) => ! ($g['complete'] ?? false))
+                ?? collect($gate['groups'] ?? [])->first();
+            $firstOpenByGate[$key] = $open['key'] ?? null;
+        }
         $gateUi = [];
         foreach ($gates as $key => $gate) {
             $gateUi[$key] = [
@@ -649,6 +658,13 @@ class LoanApplicationController extends ResourceController
                 'groupReview' => $groupReview,
                 'screeningReadiness' => $readiness,
             ])->render(),
+            'sequence_html' => view('admin.loan-applications.review._early_eligibility', [
+                'record' => $application,
+                'sequence' => $sequence,
+                'gates' => $gates,
+            ])->render(),
+            'next_action' => $sequence['next_action'] ?? null,
+            'first_open_by_gate' => $firstOpenByGate,
             'gates' => $gateUi,
             'desk' => [
                 'decided' => collect($gates)->sum('decided'),
@@ -1109,6 +1125,93 @@ class LoanApplicationController extends ResourceController
         );
 
         return back()->with('status', 'Replacement requested. The group leader has been notified.')->withFragment('review-group');
+    }
+
+    public function continueWithEligibleMembers(
+        Request $request,
+        LoanApplication $loan_application,
+        GroupLoanMemberReviewService $review,
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:8', 'max:2000'],
+        ]);
+
+        try {
+            $review->continueWithEligibleMembers($loan_application, auth()->user(), $data['reason']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage())->withFragment('review-desk');
+        }
+
+        return back()->with(
+            'status',
+            'Failed members marked ineligible. The group continues with the remaining eligible members. Paid fees and historical screening records are kept.',
+        )->withFragment('review-desk');
+    }
+
+    public function replaceGuarantor(
+        Request $request,
+        LoanApplication $loan_application,
+        CustomerGuarantor $customer_guarantor,
+        GuarantorReplacementService $replacement,
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:8', 'max:2000'],
+            'mode' => ['required', 'in:internal,external'],
+            'membership_id' => ['required_if:mode,internal', 'nullable', 'string', 'max:40'],
+            'phone' => ['required', 'string', 'max:32'],
+            'name' => ['required_if:mode,internal', 'nullable', 'string', 'max:120'],
+            'first_name' => ['required_if:mode,external', 'nullable', 'string', 'max:80'],
+            'middle_name' => ['nullable', 'string', 'max:80'],
+            'last_name' => ['required_if:mode,external', 'nullable', 'string', 'max:80'],
+            'email' => ['nullable', 'email', 'max:120'],
+            'relationship' => ['required_if:mode,external', 'nullable', 'string', 'max:80'],
+            'region' => ['required_if:mode,external', 'nullable', 'string', 'max:80'],
+            'district' => ['required_if:mode,external', 'nullable', 'string', 'max:80'],
+            'channel' => ['nullable', 'in:sms,whatsapp,email'],
+        ]);
+
+        try {
+            if ($data['mode'] === 'internal') {
+                $replacement->replaceInternal(
+                    $loan_application,
+                    $customer_guarantor,
+                    auth()->user(),
+                    $data['reason'],
+                    (string) $data['membership_id'],
+                    $data['phone'],
+                    (string) ($data['name'] ?? ''),
+                );
+            } else {
+                $replacement->replaceExternal(
+                    $loan_application,
+                    $customer_guarantor,
+                    auth()->user(),
+                    $data['reason'],
+                    (string) $data['first_name'],
+                    $data['middle_name'] ?? null,
+                    (string) $data['last_name'],
+                    $data['phone'],
+                    $data['email'] ?? null,
+                    (string) ($data['relationship'] ?? 'Guarantor'),
+                    (string) ($data['region'] ?? ''),
+                    (string) ($data['district'] ?? ''),
+                    $data['channel'] ?? 'sms',
+                );
+            }
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage())->withFragment('review-desk');
+        }
+
+        return back()->with(
+            'status',
+            'Guarantor marked replaced. The replacement has a new independent screening state. This application was not restarted.',
+        )->withFragment('review-desk');
     }
 
     public function verifyDocument(Request $request, LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse

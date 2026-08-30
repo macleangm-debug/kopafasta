@@ -6,10 +6,10 @@ use App\Models\LoanApplication;
 use App\Models\ValuationAssignment;
 
 /**
- * Sequential Screening orchestration: Gate 1 (declared) then Gate 2 (verified)
- * must complete before Identity / CRB / Collateral / Final are opened.
+ * Sequential Screening orchestration. Does not change affordability math —
+ * it only sequences existing Gate 1–6 results.
  *
- * Does not change affordability math — it only sequences existing results.
+ * Canonical order: Affordability → Verified income → CRB → Identity → Collateral → Final → Decision.
  */
 class ScreeningSequenceService
 {
@@ -17,9 +17,9 @@ class ScreeningSequenceService
 
     public const GATE_INCOME = 'income';
 
-    public const GATE_IDENTITY = 'identity';
-
     public const GATE_CRB = 'crb';
+
+    public const GATE_IDENTITY = 'identity';
 
     public const GATE_COLLATERAL = 'collateral';
 
@@ -27,25 +27,34 @@ class ScreeningSequenceService
 
     public const SEQUENCE = [
         self::GATE_DECLARED => '1 · Initial affordability',
-        self::GATE_INCOME => '2 · Income & statement review',
-        self::GATE_IDENTITY => '3 · Identity & KYC',
-        self::GATE_CRB => '4 · CRB',
-        self::GATE_COLLATERAL => '5 · Collateral & valuation',
+        self::GATE_INCOME => '2 · Verified income & statements',
+        self::GATE_CRB => '3 · CRB / Credit history',
+        self::GATE_IDENTITY => '4 · Identity, people & contacts',
+        self::GATE_COLLATERAL => '5 · Collateral & security',
         self::GATE_FINAL => '6 · Final review',
     ];
 
     public const SHORT = [
         self::GATE_DECLARED => '1 Affordability',
         self::GATE_INCOME => '2 Income',
-        self::GATE_IDENTITY => '3 Identity',
-        self::GATE_CRB => '4 CRB',
+        self::GATE_CRB => '3 CRB',
+        self::GATE_IDENTITY => '4 Identity',
         self::GATE_COLLATERAL => '5 Collateral',
         self::GATE_FINAL => '6 Final review',
     ];
 
+    public const LOCK_REASONS = [
+        self::GATE_INCOME => 'Locked — complete initial affordability first',
+        self::GATE_CRB => 'Locked — complete verified income first',
+        self::GATE_IDENTITY => 'Locked — complete CRB first',
+        self::GATE_COLLATERAL => 'Locked — complete identity, people & contacts first',
+        self::GATE_FINAL => 'Locked — complete collateral first',
+    ];
+
+    /** @deprecated Use sequential unlocked[] — kept as G1+G2 passed for workflow compatibility. */
     public const LATER_GATES = [
-        self::GATE_IDENTITY,
         self::GATE_CRB,
+        self::GATE_IDENTITY,
         self::GATE_COLLATERAL,
         self::GATE_FINAL,
     ];
@@ -58,9 +67,10 @@ class ScreeningSequenceService
     ) {}
 
     /**
+     * @param  array<string, array<string, mixed>>|null  $gateMeta  Optional regroup() output to refine later-gate completeness.
      * @return array<string, mixed>
      */
-    public function snapshot(LoanApplication $application): array
+    public function snapshot(LoanApplication $application, ?array $gateMeta = null): array
     {
         $park = $this->autoReject->state($application);
         $parkPending = ($park['status'] ?? null) === CapacityAutoRejectService::STATUS_PENDING;
@@ -71,18 +81,27 @@ class ScreeningSequenceService
         $declared = $this->declaredStatus($application, $park, $parkPending, $parkGate, $policy, $grandfathered);
         $verified = $this->verifiedStatus($application, $park, $parkPending, $parkGate, $policy, $declared, $grandfathered);
 
-        $laterUnlocked = $grandfathered
-            || (($declared['pass'] ?? false) && ($verified['pass'] ?? false) && ! $parkPending);
+        $earlyPassed = ($declared['pass'] ?? false) && ($verified['pass'] ?? false) && ! $parkPending;
+        $progress = $this->mergeProgress($this->payloadProgress($application), $gateMeta);
+        $unlocked = $this->sequentialUnlocks($declared, $verified, $parkPending, $grandfathered, $progress);
 
-        if ($parkPending) {
-            $laterUnlocked = false;
-        }
-
-        $next = $this->nextAction($application, $declared, $verified, $policy, $park, $parkPending, $laterUnlocked, $grandfathered);
+        $next = $this->nextAction(
+            $application,
+            $declared,
+            $verified,
+            $policy,
+            $park,
+            $parkPending,
+            $unlocked,
+            $progress,
+            $grandfathered,
+        );
 
         return [
             'grandfathered' => $grandfathered,
-            'later_unlocked' => $laterUnlocked,
+            'later_unlocked' => $earlyPassed,
+            'unlocked' => $unlocked,
+            'progress' => $progress,
             'pending_rejection' => $parkPending,
             'park' => $park,
             'park_gate' => $parkGate,
@@ -93,9 +112,11 @@ class ScreeningSequenceService
             'verified' => $verified,
             'policy' => $policy,
             'next_action' => $next,
-            'sequence' => $this->sequenceRows($declared, $verified, $laterUnlocked, $parkPending, $parkGate),
+            'sequence' => $this->sequenceRows($declared, $verified, $unlocked, $progress, $parkPending, $parkGate),
             'headline' => $next['label'] ?? 'Continue screening',
-            'summary_kicker' => $this->summaryKicker($declared, $verified, $laterUnlocked, $parkPending),
+            'summary_kicker' => $this->summaryKicker($declared, $verified, $unlocked, $parkPending),
+            'decision_unlocked' => (bool) ($unlocked[self::GATE_FINAL] ?? false)
+                && ($progress[self::GATE_FINAL]['complete'] ?? false),
         ];
     }
 
@@ -107,18 +128,16 @@ class ScreeningSequenceService
     public function gateUnlocked(LoanApplication $application, string $gate): bool
     {
         $snap = $this->snapshot($application);
-        if (in_array($gate, self::LATER_GATES, true)) {
-            return (bool) $snap['later_unlocked'];
-        }
-        if ($gate === self::GATE_INCOME) {
-            return (bool) ($snap['declared']['pass'] ?? false) && ! ($snap['pending_rejection'] ?? false);
+        if ($gate === self::GATE_DECLARED) {
+            return true;
         }
 
-        return true;
+        return (bool) ($snap['unlocked'][$gate] ?? false);
     }
 
     /**
-     * Files already past early screening must not be locked behind the new sequence.
+     * Files already past early screening must not be locked behind the new sequence
+     * for gates they already started. Completed answers stay completed.
      */
     public function isGrandfathered(LoanApplication $application): bool
     {
@@ -250,8 +269,8 @@ class ScreeningSequenceService
                 'pass' => false,
                 'fail' => false,
                 'status' => 'locked',
-                'label' => 'Income & statement review',
-                'detail' => 'Locked — complete initial affordability first',
+                'label' => 'Verified income & statements',
+                'detail' => self::LOCK_REASONS[self::GATE_INCOME],
             ];
         }
 
@@ -292,7 +311,7 @@ class ScreeningSequenceService
                 'fail' => false,
                 'status' => 'passed',
                 'label' => 'Verified income & affordability passed',
-                'detail' => 'Continue screening',
+                'detail' => 'Continue to CRB review',
             ];
         }
 
@@ -300,7 +319,7 @@ class ScreeningSequenceService
             'pass' => false,
             'fail' => false,
             'status' => 'in_progress',
-            'label' => 'Income & statement review',
+            'label' => 'Verified income & statements',
             'detail' => 'Enter statement totals, then the system evaluates verified affordability.',
         ];
     }
@@ -308,8 +327,190 @@ class ScreeningSequenceService
     /**
      * @param  array<string, mixed>  $declared
      * @param  array<string, mixed>  $verified
+     * @param  array<string, mixed>  $progress
+     * @return array<string, bool>
+     */
+    private function sequentialUnlocks(
+        array $declared,
+        array $verified,
+        bool $parkPending,
+        bool $grandfathered,
+        array $progress,
+    ): array {
+        $g1 = (bool) ($declared['pass'] ?? false);
+        $g2 = (bool) ($verified['pass'] ?? false) && ! $parkPending;
+
+        $unlocked = [
+            self::GATE_DECLARED => true,
+            self::GATE_INCOME => $g1 && ! ($parkPending && ($verified['status'] ?? '') !== 'pending_rejection'),
+            self::GATE_CRB => false,
+            self::GATE_IDENTITY => false,
+            self::GATE_COLLATERAL => false,
+            self::GATE_FINAL => false,
+        ];
+
+        if ($parkPending && (($declared['status'] ?? '') === 'pending_rejection')) {
+            $unlocked[self::GATE_INCOME] = false;
+        } elseif ($g1) {
+            $unlocked[self::GATE_INCOME] = true;
+        }
+
+        if ($g2) {
+            $unlocked[self::GATE_CRB] = true;
+        }
+        if ($unlocked[self::GATE_CRB] && $this->gateResolved($progress, self::GATE_CRB)) {
+            $unlocked[self::GATE_IDENTITY] = true;
+        }
+        if ($unlocked[self::GATE_IDENTITY] && $this->gateResolved($progress, self::GATE_IDENTITY)) {
+            $unlocked[self::GATE_COLLATERAL] = true;
+        }
+        if ($unlocked[self::GATE_COLLATERAL] && $this->gateResolved($progress, self::GATE_COLLATERAL)) {
+            $unlocked[self::GATE_FINAL] = true;
+        }
+
+        if ($grandfathered) {
+            foreach ([self::GATE_CRB, self::GATE_IDENTITY, self::GATE_COLLATERAL, self::GATE_FINAL] as $gate) {
+                if ($this->gateHasWork($progress, $gate) || ($progress[$gate]['complete'] ?? false)) {
+                    $unlocked[$gate] = true;
+                }
+            }
+            if ($unlocked[self::GATE_FINAL]) {
+                $unlocked[self::GATE_COLLATERAL] = true;
+                $unlocked[self::GATE_IDENTITY] = true;
+                $unlocked[self::GATE_CRB] = true;
+            } elseif ($unlocked[self::GATE_COLLATERAL]) {
+                $unlocked[self::GATE_IDENTITY] = true;
+                $unlocked[self::GATE_CRB] = true;
+            } elseif ($unlocked[self::GATE_IDENTITY]) {
+                $unlocked[self::GATE_CRB] = true;
+            }
+            if ($g1) {
+                $unlocked[self::GATE_INCOME] = true;
+            }
+        }
+
+        return $unlocked;
+    }
+
+    /**
+     * @param  array<string, mixed>  $progress
+     */
+    private function gateResolved(array $progress, string $gate): bool
+    {
+        $row = $progress[$gate] ?? [];
+        if (! empty($row['complete'])) {
+            return true;
+        }
+        $total = (int) ($row['total'] ?? 0);
+        $decided = (int) ($row['decided'] ?? 0);
+        $open = (int) ($row['human_open'] ?? max(0, $total - $decided));
+
+        return $total > 0 && $open === 0 && $decided >= $total;
+    }
+
+    /**
+     * @param  array<string, mixed>  $progress
+     */
+    private function gateHasWork(array $progress, string $gate): bool
+    {
+        return (int) ($progress[$gate]['decided'] ?? 0) > 0
+            || (int) ($progress[$gate]['failed'] ?? 0) > 0;
+    }
+
+    /**
+     * @return array<string, array{total: int, decided: int, failed: int, complete: bool, human_open: int}>
+     */
+    private function payloadProgress(LoanApplication $application): array
+    {
+        $empty = [
+            'total' => 0,
+            'decided' => 0,
+            'failed' => 0,
+            'complete' => false,
+            'human_open' => 0,
+        ];
+        $progress = [
+            self::GATE_INCOME => $empty,
+            self::GATE_CRB => $empty,
+            self::GATE_IDENTITY => $empty,
+            self::GATE_COLLATERAL => $empty,
+            self::GATE_FINAL => $empty,
+        ];
+
+        $gateSvc = app(ScreeningChecklistGateService::class);
+        $bySubject = (array) data_get($application->screening_payload, 'screening_checklist.by_subject', []);
+        foreach ($bySubject as $subject) {
+            foreach ((array) ($subject['items'] ?? []) as $key => $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $fullKey = (string) $key;
+                $groupKey = (string) (explode('.', $fullKey, 2)[0] ?? '');
+                $gate = $gateSvc->gateFor($groupKey, $fullKey);
+                if (! isset($progress[$gate])) {
+                    continue;
+                }
+                $progress[$gate]['total']++;
+                $verdict = $row['verdict'] ?? null;
+                if ($verdict !== null && $verdict !== '') {
+                    $progress[$gate]['decided']++;
+                    if ($verdict === 'fail') {
+                        $progress[$gate]['failed']++;
+                    }
+                } else {
+                    $progress[$gate]['human_open']++;
+                }
+            }
+        }
+
+        foreach ($progress as $key => $row) {
+            $progress[$key]['complete'] = $row['total'] > 0
+                && $row['decided'] === $row['total']
+                && $row['human_open'] === 0;
+        }
+
+        return $progress;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $payload
+     * @param  array<string, array<string, mixed>>|null  $gateMeta
+     * @return array<string, array<string, mixed>>
+     */
+    private function mergeProgress(array $payload, ?array $gateMeta): array
+    {
+        if (! is_array($gateMeta) || $gateMeta === []) {
+            return $payload;
+        }
+
+        foreach ($payload as $gate => $row) {
+            $meta = $gateMeta[$gate] ?? null;
+            if (! is_array($meta)) {
+                continue;
+            }
+            $total = (int) ($meta['total'] ?? $row['total']);
+            $decided = (int) ($meta['decided'] ?? $row['decided']);
+            $failed = (int) ($meta['failed'] ?? $row['failed']);
+            $open = (int) ($meta['human_open'] ?? max(0, $total - $decided));
+            $payload[$gate] = [
+                'total' => $total,
+                'decided' => $decided,
+                'failed' => $failed,
+                'human_open' => $open,
+                'complete' => (bool) ($meta['complete'] ?? ($total > 0 && $decided === $total && $open === 0)),
+            ];
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $declared
+     * @param  array<string, mixed>  $verified
      * @param  array<string, mixed>  $policy
      * @param  array<string, mixed>|null  $park
+     * @param  array<string, bool>  $unlocked
+     * @param  array<string, mixed>  $progress
      * @return array{label: string, detail: string, cta: string, href: ?string, resolution: ?string}
      */
     private function nextAction(
@@ -319,7 +520,8 @@ class ScreeningSequenceService
         array $policy,
         ?array $park,
         bool $parkPending,
-        bool $laterUnlocked,
+        array $unlocked,
+        array $progress,
         bool $grandfathered,
     ): array {
         $resolution = $policy['resolution'] ?? null;
@@ -340,25 +542,17 @@ class ScreeningSequenceService
                 'label' => $gate.' failed',
                 'detail' => 'Pending automatic rejection · '.($this->autoReject->remainingLabel($application) ?? 'waiting'),
                 'cta' => 'View status',
-                'href' => route('admin.loan-applications.show', [
-                    'loan_application' => $application,
-                    'workspace' => 'checklist',
-                    'gate' => 'income',
-                ]).'#review-desk',
+                'href' => $this->deskHref($application, 'income'),
                 'resolution' => null,
             ];
         }
 
         if (! ($declared['pass'] ?? false)) {
             return [
-                'label' => 'Initial affordability must pass first',
+                'label' => 'Next action: Complete initial affordability',
                 'detail' => (string) ($declared['detail'] ?? ''),
                 'cta' => 'View affordability',
-                'href' => route('admin.loan-applications.show', [
-                    'loan_application' => $application,
-                    'workspace' => 'checklist',
-                    'gate' => 'income',
-                ]).'#review-desk',
+                'href' => $this->deskHref($application, 'income'),
                 'resolution' => null,
             ];
         }
@@ -378,43 +572,83 @@ class ScreeningSequenceService
             ];
         }
 
-        if ($laterUnlocked) {
-            return [
-                'label' => $grandfathered
-                    ? 'Early screening passed — continue review'
-                    : 'Early screening passed — Continue to Identity',
-                'detail' => 'Identity, CRB, collateral and final review are open.',
-                'cta' => 'Continue screening',
-                'href' => route('admin.loan-applications.show', [
-                    'loan_application' => $application,
-                    'workspace' => 'checklist',
-                    'gate' => 'identity',
-                ]).'#review-desk',
-                'resolution' => null,
-            ];
+        $later = [
+            self::GATE_CRB => [
+                'label' => 'Next action: Complete CRB review',
+                'detail' => 'Review bureau history for the borrower'.($grandfathered ? ' and each group member' : '').' before Identity.',
+                'cta' => 'Open CRB',
+            ],
+            self::GATE_IDENTITY => [
+                'label' => 'Next action: Complete identity, people & contacts',
+                'detail' => 'National ID, face, phone, next of kin, LGO and related people checks.',
+                'cta' => 'Open identity',
+            ],
+            self::GATE_COLLATERAL => [
+                'label' => 'Next action: Complete collateral & security',
+                'detail' => 'Asset identity, valuation, insurance and coverage.',
+                'cta' => 'Open collateral',
+            ],
+            self::GATE_FINAL => [
+                'label' => 'Next action: Complete final review',
+                'detail' => 'Resolve remaining exceptions, then continue to Decision.',
+                'cta' => 'Open final review',
+            ],
+        ];
+
+        foreach ($later as $gate => $copy) {
+            if (! ($unlocked[$gate] ?? false)) {
+                return [
+                    'label' => $copy['label'],
+                    'detail' => self::LOCK_REASONS[$gate] ?? $copy['detail'],
+                    'cta' => $copy['cta'],
+                    'href' => $this->deskHref($application, $gate === self::GATE_CRB ? 'crb' : ($gate === self::GATE_IDENTITY ? 'identity' : $gate)),
+                    'resolution' => null,
+                ];
+            }
+            if (! $this->gateResolved($progress, $gate) || (int) ($progress[$gate]['failed'] ?? 0) > 0) {
+                return [
+                    'label' => $copy['label'],
+                    'detail' => $copy['detail'],
+                    'cta' => $copy['cta'],
+                    'href' => $this->deskHref($application, $gate),
+                    'resolution' => null,
+                ];
+            }
         }
 
         return [
-            'label' => 'Continue screening',
-            'detail' => '',
-            'cta' => 'Open checklist',
+            'label' => 'Next action: Continue to Decision',
+            'detail' => 'All required Screening checks complete.',
+            'cta' => 'Continue to Decision',
             'href' => route('admin.loan-applications.show', [
                 'loan_application' => $application,
-                'workspace' => 'checklist',
-            ]).'#review-desk',
+                'workspace' => 'decision',
+            ]).'#review-recommendation',
             'resolution' => null,
         ];
+    }
+
+    private function deskHref(LoanApplication $application, string $gate): string
+    {
+        return route('admin.loan-applications.show', [
+            'loan_application' => $application,
+            'workspace' => 'checklist',
+            'gate' => $gate,
+        ]).'#review-desk';
     }
 
     /**
      * @param  array<string, mixed>  $declared
      * @param  array<string, mixed>  $verified
+     * @param  array<string, bool>  $unlocked
+     * @param  array<string, mixed>  $progress
      * @return list<array<string, mixed>>
      */
     private function sequenceRows(
         array $declared,
         array $verified,
-        bool $laterUnlocked,
+        array $unlocked,
+        array $progress,
         bool $parkPending,
         string $parkGate,
     ): array {
@@ -422,7 +656,7 @@ class ScreeningSequenceService
         foreach (self::SEQUENCE as $key => $label) {
             $status = 'locked';
             $chip = 'Locked';
-            $detail = 'Complete Income & Statement Review to continue screening.';
+            $detail = self::LOCK_REASONS[$key] ?? 'Locked';
 
             if ($key === self::GATE_DECLARED) {
                 $status = $declared['status'] ?? 'waiting';
@@ -441,18 +675,33 @@ class ScreeningSequenceService
                     default => 'Locked',
                 };
                 $detail = (string) ($verified['detail'] ?? '');
-            } elseif ($laterUnlocked) {
-                $status = 'open';
-                $chip = 'Open';
-                $detail = 'Continue screening';
-            } else {
+            } elseif (! ($unlocked[$key] ?? false)) {
                 $status = 'locked';
-                $chip = 'Locked';
+                $chip = self::LOCK_REASONS[$key] ?? 'Locked';
                 $detail = $parkPending
                     ? (($parkGate === 'verified')
                         ? 'Verified affordability failed — later gates stay locked'
-                        : 'Locked — complete initial affordability first')
-                    : 'Locked — complete income & statement review first';
+                        : self::LOCK_REASONS[self::GATE_INCOME])
+                    : (self::LOCK_REASONS[$key] ?? 'Locked');
+            } else {
+                $row = $progress[$key] ?? [];
+                if ($this->gateResolved($progress, $key) && (int) ($row['failed'] ?? 0) === 0) {
+                    $status = 'passed';
+                    $chip = 'Passed';
+                    $detail = 'Complete';
+                } elseif ((int) ($row['failed'] ?? 0) > 0) {
+                    $status = 'attention';
+                    $chip = 'Attention';
+                    $detail = 'Needs resolution';
+                } elseif ((int) ($row['decided'] ?? 0) > 0) {
+                    $status = 'in_progress';
+                    $chip = ((int) $row['decided']).'/'.((int) $row['total']);
+                    $detail = 'In progress';
+                } else {
+                    $status = 'open';
+                    $chip = 'In progress';
+                    $detail = 'Continue screening';
+                }
             }
 
             $rows[] = [
@@ -473,8 +722,9 @@ class ScreeningSequenceService
     /**
      * @param  array<string, mixed>  $declared
      * @param  array<string, mixed>  $verified
+     * @param  array<string, bool>  $unlocked
      */
-    private function summaryKicker(array $declared, array $verified, bool $laterUnlocked, bool $parkPending): string
+    private function summaryKicker(array $declared, array $verified, array $unlocked, bool $parkPending): string
     {
         if ($parkPending) {
             return 'Screening · pending automatic rejection';
@@ -483,12 +733,18 @@ class ScreeningSequenceService
             return 'Screening · Gate 1 of 6 · Initial affordability';
         }
         if (! ($verified['pass'] ?? false)) {
-            return 'Screening · Gate 2 of 6 · Income review';
+            return 'Screening · Gate 2 of 6 · Verified income';
         }
-        if ($laterUnlocked) {
-            return 'Screening · 2 of 6 gates passed · Continue with Identity';
+        if (! ($unlocked[self::GATE_IDENTITY] ?? false)) {
+            return 'Screening · Gate 3 of 6 · CRB';
+        }
+        if (! ($unlocked[self::GATE_COLLATERAL] ?? false)) {
+            return 'Screening · Gate 4 of 6 · Identity, people & contacts';
+        }
+        if (! ($unlocked[self::GATE_FINAL] ?? false)) {
+            return 'Screening · Gate 5 of 6 · Collateral';
         }
 
-        return 'Screening';
+        return 'Screening · Gate 6 of 6 · Final review';
     }
 }

@@ -68,7 +68,31 @@ class ScreeningSequenceFeatureTest extends TestCase
         $this->assertFalse($snap['verified']['pass']);
         $this->assertFalse($snap['later_unlocked']);
         $this->assertTrue(app(ScreeningSequenceService::class)->gateUnlocked($application->fresh(), 'income'));
+        $this->assertFalse(app(ScreeningSequenceService::class)->gateUnlocked($application->fresh(), 'crb'));
         $this->assertFalse(app(ScreeningSequenceService::class)->gateUnlocked($application->fresh(), 'identity'));
+    }
+
+    public function test_gate_2_pass_unlocks_crb_and_locks_identity(): void
+    {
+        $application = $this->individual(5_000_000, 200_000);
+        $payload = $application->screening_payload ?? [];
+        $payload['screening_checklist']['by_subject']['borrower']['items']['activity_income.income_evidence'] = [
+            'verdict' => 'pass',
+            'source' => 'system',
+            'statement_deposits_total' => 30_000_000,
+            'statement_months' => 6,
+            'statement_monthly' => 5_000_000,
+        ];
+        $application->update(['screening_payload' => $payload]);
+
+        $snap = app(ScreeningSequenceService::class)->snapshot($application->fresh(['customer', 'product']));
+        $this->assertTrue($snap['declared']['pass']);
+        $this->assertTrue($snap['verified']['pass']);
+        $this->assertTrue($snap['later_unlocked']);
+        $this->assertTrue($snap['unlocked']['crb'] ?? false);
+        $this->assertFalse($snap['unlocked']['identity'] ?? true);
+        $this->assertStringContainsString('Complete CRB', (string) ($snap['next_action']['label'] ?? ''));
+        $this->assertStringNotContainsString('Continue to Identity', (string) ($snap['next_action']['label'] ?? ''));
     }
 
     public function test_gate_2_system_fail_uses_settings_delay_and_freezes_deadline(): void
@@ -189,6 +213,67 @@ class ScreeningSequenceFeatureTest extends TestCase
         $this->assertSame(CreditEligibilityPolicyService::ACTION_RESOLVE_MEMBERS, $policy['application_action']);
         $this->assertSame('replace_group_member', $policy['resolution']['resolution'] ?? null);
         $this->assertTrue($policy['resolution']['blocking'] ?? false);
+    }
+
+    public function test_continue_with_eligible_members_marks_failed_member_ineligible(): void
+    {
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
+        $product = LoanProduct::create([
+            'code' => 'GL-CONT',
+            'name' => 'Group Loan Continue',
+            'category' => 'group',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 200_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+        ]);
+
+        $leader = $this->person('Leader', 'C', '255710000011', 5_000_000);
+        $ok = $this->person('Ok', 'One', '255710000012', 5_000_000);
+        $ok2 = $this->person('Ok', 'Two', '255710000013', 5_000_000);
+        $weak = $this->person('Weak', 'Drop', '255710000014', 1_000);
+
+        $application = LoanApplication::create([
+            'customer_id' => $leader->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-SEQ-CONT',
+            'requested_amount' => 1_200_000,
+            'requested_tenure_months' => 6,
+            'status' => 'submitted',
+            'current_stage' => 'screening',
+            'submitted_at' => now(),
+        ]);
+
+        app(GroupLendingService::class)->createForApplication(
+            $application,
+            [
+                ['customer_id' => $leader->id, 'requested_amount' => 300_000, 'role' => 'leader'],
+                ['customer_id' => $ok->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $ok2->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $weak->id, 'requested_amount' => 300_000, 'role' => 'member'],
+            ],
+            'Cont Group',
+            'Business',
+        );
+
+        $policy = app(CreditEligibilityPolicyService::class)->evaluate($application->fresh(['customer', 'product', 'loanGroup.members.customer']));
+        $this->assertTrue($policy['resolution']['allow_continue_without_failed'] ?? false);
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        app(\App\Services\GroupLoanMemberReviewService::class)->continueWithEligibleMembers(
+            $application->fresh(['loanGroup.members.customer']),
+            $admin,
+            'Member failed Gate 1 and remaining size still meets the minimum.',
+        );
+
+        $weakMember = $application->fresh()->loanGroup->members->firstWhere('customer_id', $weak->id);
+        $this->assertSame('ineligible', $weakMember->member_status);
+        $this->assertSame('submitted', $application->fresh()->status);
+
+        $after = app(CreditEligibilityPolicyService::class)->evaluate($application->fresh(['customer', 'product', 'loanGroup.members.customer']));
+        $this->assertSame(CreditEligibilityPolicyService::ACTION_CONTINUE, $after['application_action']);
     }
 
     public function test_borrower_fail_is_not_rescued_by_a_strong_guarantor(): void

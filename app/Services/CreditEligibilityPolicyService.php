@@ -362,7 +362,7 @@ class CreditEligibilityPolicyService
      */
     private function guarantorParticipants(LoanApplication $application, bool $verified): array
     {
-        if (! $this->settings->guarantorGateRequired($verified ? 2 : 1)) {
+        if (! $this->settings->guarantorGateRequired($verified ? 2 : 1, $application)) {
             return [];
         }
 

@@ -8,7 +8,7 @@
     $verified = $seq['verified'] ?? [];
     $deskGates = $gates ?? [];
 @endphp
-<div class="px-5 pt-4 pb-3 border-b border-gray-100 space-y-3 bg-slate-50/80">
+<div class="px-5 pt-4 pb-3 border-b border-gray-100 space-y-3 bg-slate-50/80" id="screening-next-action">
     <div>
         <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Next action</p>
         <p class="text-sm font-bold text-slate-900 mt-0.5">{{ $next['label'] ?? 'Continue screening' }}</p>
@@ -95,10 +95,65 @@
             <p class="text-sm text-amber-900">{{ $resolution['detail'] ?? '' }}</p>
             <div class="flex flex-wrap gap-2">
                 @if (($resolution['code'] ?? '') === \App\Services\CreditEligibilityPolicyService::ACTION_REPLACE_GUARANTOR)
-                    <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'profiles']).'#guarantor-overview' }}"
-                       class="inline-flex rounded-xl bg-brand text-white text-xs font-bold px-3 py-2">
-                        {{ $resolution['cta'] ?? 'Replace guarantor' }}
-                    </a>
+                    @php
+                        $failedG = collect($resolution['failed_guarantors'] ?? [])->first();
+                        $replaceLink = $record->customerGuarantors
+                            ?->first(function ($link) use ($failedG) {
+                                if (! is_array($failedG)) {
+                                    return ($link->status ?? '') !== 'replaced';
+                                }
+                                $cid = (int) ($failedG['customer_id'] ?? 0);
+                                $inviteCid = (int) ($link->invitation?->guarantor_customer_id ?? 0);
+
+                                return $cid > 0 && $inviteCid === $cid;
+                            })
+                            ?? $record->customerGuarantors?->first(fn ($link) => ! in_array((string) ($link->status ?? ''), ['replaced', 'declined', 'cancelled'], true));
+                    @endphp
+                    @if ($replaceLink)
+                        <div class="space-y-2" x-data="{ step: 'cta', mode: 'internal' }">
+                            <button type="button" x-show="step === 'cta'" @click="step = 'reason'"
+                                    class="inline-flex rounded-xl bg-brand text-white text-xs font-bold px-3 py-2">
+                                {{ $resolution['cta'] ?? 'Replace guarantor' }}
+                            </button>
+                            <form x-show="step !== 'cta'" x-cloak method="POST"
+                                  action="{{ route('admin.loan-applications.replace-guarantor', [$record, $replaceLink]) }}"
+                                  class="rounded-xl bg-white ring-1 ring-amber-200 p-3 space-y-2">
+                                @csrf
+                                <p class="text-xs font-bold text-slate-900">Replace guarantor</p>
+                                <p class="text-[11px] text-slate-600">Current: {{ $failedG['participant'] ?? $failedG['name'] ?? $replaceLink->displayName() }}. They stay on the file as Replaced. This application is not restarted.</p>
+                                <label class="block text-[11px] font-semibold text-slate-700">Reason
+                                    <textarea name="reason" required minlength="8" rows="2"
+                                              class="mt-1 w-full rounded-lg border-gray-300 text-sm">{{ old('reason') }}</textarea>
+                                </label>
+                                <div class="flex flex-wrap gap-2 text-[11px] font-semibold">
+                                    <label class="inline-flex items-center gap-1"><input type="radio" name="mode" value="internal" x-model="mode" checked> Search member</label>
+                                    <label class="inline-flex items-center gap-1"><input type="radio" name="mode" value="external" x-model="mode"> Invite replacement</label>
+                                </div>
+                                <div x-show="mode === 'internal'" class="grid sm:grid-cols-3 gap-2">
+                                    <input name="membership_id" placeholder="Member number" class="rounded-lg border-gray-300 text-sm">
+                                    <input name="name" placeholder="Name" class="rounded-lg border-gray-300 text-sm">
+                                    <input name="phone" placeholder="Phone" class="rounded-lg border-gray-300 text-sm">
+                                </div>
+                                <div x-show="mode === 'external'" x-cloak class="grid sm:grid-cols-2 gap-2">
+                                    <input name="first_name" placeholder="First name" class="rounded-lg border-gray-300 text-sm">
+                                    <input name="last_name" placeholder="Last name" class="rounded-lg border-gray-300 text-sm">
+                                    <input name="phone" placeholder="Phone" class="rounded-lg border-gray-300 text-sm">
+                                    <input name="relationship" placeholder="Relationship" class="rounded-lg border-gray-300 text-sm">
+                                    <input name="region" placeholder="Region" class="rounded-lg border-gray-300 text-sm">
+                                    <input name="district" placeholder="District" class="rounded-lg border-gray-300 text-sm">
+                                </div>
+                                <div x-show="step === 'reason'" class="flex flex-wrap gap-2">
+                                    <button type="button" @click="step = 'confirm'" class="rounded-xl bg-brand text-white text-xs font-bold px-3 py-2">Review replacement</button>
+                                    <button type="button" @click="step = 'cta'" class="text-xs font-semibold text-slate-600">Go back</button>
+                                </div>
+                                <div x-show="step === 'confirm'" x-cloak class="space-y-2">
+                                    <p class="text-[11px] text-slate-800">Confirm: the current guarantor is marked Replaced with their screening evidence kept. The new guarantor starts a new screening state. Screening stays on this application.</p>
+                                    <button type="submit" class="rounded-xl bg-brand text-white text-xs font-bold px-3 py-2">Confirm replace guarantor</button>
+                                    <button type="button" @click="step = 'reason'" class="text-xs font-semibold text-slate-600">Go back</button>
+                                </div>
+                            </form>
+                        </div>
+                    @endif
                 @elseif (in_array($resolution['code'] ?? '', [
                     \App\Services\CreditEligibilityPolicyService::ACTION_REPLACE_MEMBER,
                     \App\Services\CreditEligibilityPolicyService::ACTION_RESOLVE_MEMBERS,
@@ -109,9 +164,30 @@
                         {{ $resolution['cta'] ?? 'Replace member' }}
                     </a>
                     @if (! empty($resolution['allow_continue_without_failed']))
-                        <span class="inline-flex rounded-xl bg-white ring-1 ring-amber-300 text-amber-950 text-xs font-bold px-3 py-2">
-                            {{ $resolution['continue_cta'] ?? 'Continue with eligible members' }}
-                        </span>
+                        <div class="inline-flex" x-data="{ continueOpen: false }">
+                            <button type="button" x-show="! continueOpen" @click="continueOpen = true"
+                                    class="inline-flex rounded-xl bg-white ring-1 ring-amber-300 text-amber-950 text-xs font-bold px-3 py-2">
+                                {{ $resolution['continue_cta'] ?? 'Continue with eligible members' }}
+                            </button>
+                            <form x-show="continueOpen" x-cloak method="POST"
+                                  action="{{ route('admin.loan-applications.continue-with-eligible-members', $record) }}"
+                                  class="rounded-xl bg-white ring-1 ring-amber-200 p-3 space-y-2">
+                                @csrf
+                                <p class="text-[11px] text-slate-800">
+                                    Failed members are marked ineligible and stay on the file historically.
+                                    The group continues with {{ $resolution['current_eligible_members'] ?? '' }} eligible members.
+                                    Paid fees are kept. This application is not restarted.
+                                </p>
+                                <label class="block text-[11px] font-semibold text-slate-700">Reason
+                                    <textarea name="reason" required minlength="8" rows="2"
+                                              class="mt-1 w-full rounded-lg border-gray-300 text-sm">{{ old('reason') }}</textarea>
+                                </label>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="submit" class="rounded-xl bg-brand text-white text-xs font-bold px-3 py-2">Confirm continue with eligible members</button>
+                                    <button type="button" @click="continueOpen = false" class="text-xs font-semibold text-slate-600">Go back</button>
+                                </div>
+                            </form>
+                        </div>
                     @endif
                 @endif
             </div>

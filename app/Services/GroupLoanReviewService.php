@@ -75,6 +75,7 @@ class GroupLoanReviewService
                         : 0,
                     'eligible' => (bool) ($requirements['can_apply'] ?? false),
                     'underwriting_status' => $member->underwriting_status ?? 'pending',
+                    'member_status' => $member->member_status ?? 'active',
                     'underwriting_notes' => $member->underwriting_notes,
                     'leader_feedback' => $member->leader_feedback,
                     'contract_signature_status' => $member->contract_signature_status ?? 'pending',

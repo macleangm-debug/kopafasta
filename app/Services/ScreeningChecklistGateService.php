@@ -10,19 +10,27 @@ use App\Models\LoanApplication;
 class ScreeningChecklistGateService
 {
     public const GATES = [
-        'income' => 'Gate 2 — Income & activity',
-        'identity' => 'Gate 3 — Identity',
-        'crb' => 'Gate 4 — CRB',
-        'collateral' => 'Gate 5 — Collateral',
+        'income' => 'Gate 2 — Verified income & statements',
+        'crb' => 'Gate 3 — CRB / Credit history',
+        'identity' => 'Gate 4 — Identity, people & contacts',
+        'collateral' => 'Gate 5 — Collateral & security',
         'final' => 'Gate 6 — Final review',
     ];
 
     public const SHORT = [
         'income' => '2 Income',
-        'identity' => '3 Identity',
-        'crb' => '4 CRB',
+        'crb' => '3 CRB',
+        'identity' => '4 Identity',
         'collateral' => '5 Collateral',
         'final' => '6 Final review',
+    ];
+
+    public const LOCK_REASONS = [
+        'income' => 'Locked — complete initial affordability first',
+        'crb' => 'Locked — complete verified income first',
+        'identity' => 'Locked — complete CRB first',
+        'collateral' => 'Locked — complete identity, people & contacts first',
+        'final' => 'Locked — complete collateral first',
     ];
 
     /**
@@ -30,6 +38,13 @@ class ScreeningChecklistGateService
      */
     public function isQuietAuto(array $item): bool
     {
+        if (! empty($item['keep_visible'])) {
+            return false;
+        }
+        $key = (string) ($item['key'] ?? '');
+        if ($key === 'credit_file.risk_flags_addressed') {
+            return false;
+        }
         if (! empty($item['auto_na'])) {
             return true;
         }
@@ -103,10 +118,22 @@ class ScreeningChecklistGateService
             'credit_file.crb_reviewed',
             'guarantor_wrap.crb_reviewed',
             'member_wrap.crb_reviewed' => 'crb',
+            'contacts.guarantor_capacity',
+            'guarantor_wrap.capacity_confirmed' => 'income',
+            'documents.required_docs_complete',
+            'documents.doc_authenticity',
+            'member_wrap.docs_ok' => 'identity',
+            'credit_file.risk_flags_addressed',
+            'credit_file.recommendation_ready',
+            'guarantor_wrap.file_ready',
+            'member_wrap.file_ready' => 'final',
             default => match ($groupKey) {
-                'identity', 'residence' => 'identity',
+                'identity', 'residence', 'contacts' => 'identity',
                 'activity_income' => 'income',
                 'collateral' => 'collateral',
+                'credit_file', 'guarantor_wrap', 'member_wrap' => str_contains($fullKey, 'crb')
+                    ? 'crb'
+                    : (str_contains($fullKey, 'capacity') ? 'income' : 'final'),
                 default => 'final',
             },
         };
@@ -260,8 +287,19 @@ class ScreeningChecklistGateService
                 'query' => ['workspace' => 'decision'],
                 'hash' => 'review-recommendation',
             ],
-            str_starts_with($fullKey, 'documents.') => [
-                'cta' => 'Open request',
+            str_starts_with($fullKey, 'contacts.') => [
+                'cta' => 'Record contact result',
+                'gate' => $this->gateFor('contacts', $fullKey),
+                'query' => [
+                    'desk_phase' => 'person',
+                    'gate' => $this->gateFor('contacts', $fullKey),
+                    'open_group' => 'contacts',
+                    'open_item' => $fullKey,
+                ],
+                'hash' => 'item-'.$fullKey,
+            ],
+            $fullKey === 'documents.requested_docs_reviewed' || $fullKey === 'documents.falsified_docs' => [
+                'cta' => 'Review submission',
                 'gate' => 'final',
                 'query' => [
                     'desk_phase' => 'capacity',
@@ -270,7 +308,18 @@ class ScreeningChecklistGateService
                     'open_group' => 'documents',
                     'open_item' => $fullKey,
                 ],
-                'hash' => $documentRequestId ? 'doc-request-'.$documentRequestId : 'review-documents',
+                'hash' => $documentRequestId ? 'doc-request-'.$documentRequestId : 'review-document-pipeline',
+            ],
+            str_starts_with($fullKey, 'documents.') => [
+                'cta' => 'Open documents',
+                'gate' => 'identity',
+                'query' => [
+                    'desk_phase' => 'person',
+                    'gate' => 'identity',
+                    'open_group' => 'documents',
+                    'open_item' => $fullKey,
+                ],
+                'hash' => 'item-'.$fullKey,
             ],
             default => [
                 'cta' => 'Open check',
@@ -314,14 +363,6 @@ class ScreeningChecklistGateService
      */
     public function regroup(array $groups, ?LoanApplication $application = null): array
     {
-        $sequence = $application
-            ? app(ScreeningSequenceService::class)->snapshot($application)
-            : null;
-        $laterUnlocked = $sequence['later_unlocked'] ?? true;
-        $incomeUnlocked = $sequence
-            ? (bool) ($sequence['declared']['pass'] ?? false) && ! ($sequence['pending_rejection'] ?? false)
-            : true;
-
         $gates = [];
         foreach (self::GATES as $key => $label) {
             $gates[$key] = [
@@ -370,6 +411,17 @@ class ScreeningChecklistGateService
         }
 
         foreach ($gates as $key => $gate) {
+            if ((int) $gate['total'] === 0) {
+                $gates[$key]['complete'] = false;
+            }
+        }
+
+        $sequence = $application
+            ? app(ScreeningSequenceService::class)->snapshot($application, $gates)
+            : null;
+        $unlocked = is_array($sequence['unlocked'] ?? null) ? $sequence['unlocked'] : [];
+
+        foreach ($gates as $key => $gate) {
             $remaining = max(0, (int) $gate['total'] - (int) $gate['decided']);
             $status = match (true) {
                 (int) $gate['total'] < 1 => 'Waiting',
@@ -379,20 +431,16 @@ class ScreeningChecklistGateService
                 default => 'Waiting',
             };
             $short = (string) ($gate['short'] ?? self::SHORT[$key] ?? $gate['label']);
-            $locked = match ($key) {
-                'income' => ! $incomeUnlocked,
-                'identity', 'crb', 'collateral', 'final' => ! $laterUnlocked,
-                default => false,
-            };
+            $isUnlocked = $sequence === null
+                ? true
+                : (bool) ($unlocked[$key] ?? ($key === 'income'));
+            $locked = ! $isUnlocked;
+            $lockDetail = $locked ? (self::LOCK_REASONS[$key] ?? 'Locked') : null;
             $gates[$key]['locked'] = $locked;
-            $gates[$key]['lock_detail'] = $locked
-                ? ($key === 'income'
-                    ? 'Locked — complete initial affordability first'
-                    : 'Complete Income & Statement Review to continue screening.')
-                : null;
+            $gates[$key]['lock_detail'] = $lockDetail;
             $gates[$key]['status_label'] = $locked ? 'Locked' : $status;
             $gates[$key]['chip'] = $locked
-                ? $short.' · Locked'
+                ? $short.' · '.$lockDetail
                 : match ($status) {
                     'Complete' => $short.' ✓',
                     'Attention' => $short.' · Attention',
@@ -401,6 +449,9 @@ class ScreeningChecklistGateService
                 };
         }
 
-        return array_filter($gates, fn ($gate) => ($gate['total'] ?? 0) > 0);
+        return array_filter(
+            $gates,
+            fn ($gate) => ($gate['total'] ?? 0) > 0 || ! empty($gate['locked']),
+        );
     }
 }

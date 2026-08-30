@@ -197,6 +197,15 @@ class ScreeningReadinessFeatureTest extends TestCase
             'phone' => '25571'.random_int(1000000, 9999999),
             'branch_id' => $actor->branch_id,
             'monthly_income' => 2_000_000,
+            'nok_first_name' => 'Jane',
+            'nok_last_name' => 'Kin',
+            'nok_name' => 'Jane Kin',
+            'nok_relationship' => 'Sister',
+            'nok_phone' => '255712000888',
+            'nok_region' => 'Dar es Salaam',
+            'nok_district' => 'Ilala',
+            'nok_street' => 'Kariakoo',
+            'marital_status' => 'single',
         ]);
 
         return LoanApplication::create([

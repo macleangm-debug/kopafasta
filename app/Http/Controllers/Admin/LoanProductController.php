@@ -81,6 +81,8 @@ class LoanProductController extends ResourceController
             'penalty_basis' => ['required', 'in:per_day,per_month,one_time'],
             'requires_collateral' => ['nullable', 'boolean'],
             'requires_guarantor'  => ['nullable', 'boolean'],
+            'guarantor_gate_1_required' => ['nullable', 'boolean'],
+            'guarantor_gate_2_required' => ['nullable', 'boolean'],
             'require_group_constitution' => ['nullable', 'boolean'],
             'require_group_member_roster' => ['nullable', 'boolean'],
             'uses_capital_partner' => ['nullable', 'in:0,1'],
@@ -115,6 +117,8 @@ class LoanProductController extends ResourceController
     {
         $data['requires_collateral'] = (bool) ($data['requires_collateral'] ?? false);
         $data['requires_guarantor']  = (bool) ($data['requires_guarantor'] ?? false);
+        $data['guarantor_gate_1_required'] = $data['requires_guarantor'] && (bool) ($data['guarantor_gate_1_required'] ?? false);
+        $data['guarantor_gate_2_required'] = $data['requires_guarantor'] && (bool) ($data['guarantor_gate_2_required'] ?? false);
         $data['uses_capital_partner'] = in_array((string) ($data['uses_capital_partner'] ?? '1'), ['1', 'true'], true);
         $category = strtolower((string) ($data['category'] ?? ''));
         if (in_array($category, ['asset_finance', 'asset_lending'], true)) {
@@ -321,7 +325,8 @@ class LoanProductController extends ResourceController
             'guarantor_agreement_template_id', 'asset_lending_agreement_template_id',
             'tenure_min_months', 'tenure_max_months', 'repayment_cadence',
             'min_amount', 'max_amount', 'default_grace_days', 'penalty_rate_percent',
-            'penalty_basis', 'requires_collateral', 'requires_guarantor', 'uses_capital_partner',
+            'penalty_basis', 'requires_collateral', 'requires_guarantor',
+            'guarantor_gate_1_required', 'guarantor_gate_2_required', 'uses_capital_partner',
             'hides_interest',
         ] as $key) {
             if (! array_key_exists($key, $validated) || blank($validated[$key])) {
