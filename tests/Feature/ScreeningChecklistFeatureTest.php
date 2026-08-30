@@ -658,7 +658,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $ltv = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.ltv_covers');
         $this->assertNotNull($ltv);
         $this->assertTrue($ltv['awaiting_data'] ?? false);
-        $this->assertSame('There is no data for this checklist', $ltv['awaiting_message'] ?? null);
+        $this->assertSame('Required evidence is not on this file yet', $ltv['awaiting_message'] ?? null);
         $this->assertTrue($ltv['catalog_system'] ?? false);
         $this->assertTrue($ltv['read_only'] ?? false);
         $fee = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_fee');

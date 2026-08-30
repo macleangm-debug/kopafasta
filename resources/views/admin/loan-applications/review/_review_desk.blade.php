@@ -161,8 +161,8 @@
         @if ($canEdit)
             <div class="flex items-center gap-2 shrink-0">
                 <span id="screening-checklist-save-status" class="text-[11px] font-semibold" hidden></span>
-                <button type="submit" form="screening-checklist-form" data-screening-save
-                        class="inline-flex rounded-xl bg-brand text-white text-xs font-bold px-3.5 py-2 hover:bg-brand-light">
+                <button type="submit" form="screening-checklist-form" data-screening-save data-loading-label="Saving…"
+                        class="inline-flex items-center justify-center rounded-xl bg-brand text-white text-xs font-bold px-3.5 py-2 hover:bg-brand-light">
                     Save
                 </button>
             </div>

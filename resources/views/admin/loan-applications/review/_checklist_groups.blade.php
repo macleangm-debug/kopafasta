@@ -19,7 +19,19 @@
                     @endif
                 </p>
             </button>
-            @if ($canEdit && ! ($group['complete'] ?? false))
+            @php
+                $passableRemaining = collect($group['items'] ?? [])->contains(function ($item) {
+                    if (! empty($item['awaiting_data']) || ! empty($item['read_only']) || ! empty($item['captures_statement'])) {
+                        return false;
+                    }
+                    if (! empty($item['system_determined']) || ! empty($item['quiet_auto']) || ! empty($item['catalog_system'])) {
+                        return false;
+                    }
+
+                    return ($item['verdict'] ?? null) === null;
+                });
+            @endphp
+            @if ($canEdit && ! ($group['complete'] ?? false) && $passableRemaining)
                 <button type="button"
                         @click.stop="passRemaining(@js($groupKey))"
                         class="shrink-0 text-[11px] font-bold text-brand bg-brand-gold hover:brightness-95 px-2.5 py-1.5 rounded-lg">
@@ -192,7 +204,7 @@
                         @endif
                         @if ($isAwaiting)
                             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3.5 py-3">
-                                <p class="text-sm font-semibold text-amber-950">{{ $item['awaiting_message'] ?? 'There is no data for this checklist' }}</p>
+                                <p class="text-sm font-semibold text-amber-950">{{ $item['awaiting_message'] ?? 'Required evidence is not on this file yet' }}</p>
                                 @if (! empty($item['awaiting_cta']['href']))
                                     <a href="{{ $item['awaiting_cta']['href'] }}"
                                        class="inline-flex mt-2 rounded-lg bg-white text-amber-950 text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-amber-200 hover:bg-amber-100">

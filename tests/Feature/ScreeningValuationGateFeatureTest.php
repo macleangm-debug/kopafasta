@@ -354,7 +354,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
 
         $report = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_report');
         $this->assertTrue($report['awaiting_data'] ?? false);
-        $this->assertSame('There is no data for this checklist', $report['awaiting_message'] ?? null);
+        $this->assertSame('Required evidence is not on this file yet', $report['awaiting_message'] ?? null);
 
         $photos = collect($collateral['items'] ?? [])->firstWhere('key', 'collateral.valuation_or_photos');
         $this->assertSame('photo_pairs', $photos['evidence']['layout'] ?? null);
@@ -508,5 +508,40 @@ class ScreeningValuationGateFeatureTest extends TestCase
                 'file_path' => 'valuer/'.$angle.'.jpg',
             ]);
         }
+    }
+
+    public function test_gps_is_system_na_during_screening_even_when_the_asset_will_need_install(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer);
+        $asset = $this->pledge($application, $customer);
+        LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->where('customer_asset_id', $asset->id)
+            ->update(['gps_required' => true]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $vm = app(ScreeningChecklistService::class)
+            ->viewModel($application->fresh(), $admin, 'borrower', null, null, ['customer' => $customer]);
+        $gps = collect(collect($vm['groups'] ?? [])->firstWhere('key', 'collateral')['items'] ?? [])
+            ->firstWhere('key', 'collateral.gps_or_location');
+
+        $this->assertNotNull($gps);
+        $this->assertSame('na', $gps['verdict'] ?? null);
+        $this->assertTrue($gps['quiet_auto'] ?? $gps['catalog_system'] ?? false);
+        $this->assertFalse($gps['awaiting_data'] ?? true);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+                'gate' => 'collateral',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringNotContainsString('There is no data for this checklist', $html);
+        $this->assertStringNotContainsString('GPS/location evidence required but not captured', $html);
+        $this->assertStringContainsString('data-screening-save', $html);
+        $this->assertStringContainsString('data-loading-label="Saving…"', $html);
     }
 }

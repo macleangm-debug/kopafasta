@@ -445,7 +445,7 @@ class ScreeningChecklistAutoVerdictService
         if ($pledged->isEmpty()) {
             return $this->awaitingData(
                 $application,
-                'There is no data for this checklist',
+                'Required evidence is not on this file yet',
                 'Open collateral',
             );
         }
@@ -476,7 +476,7 @@ class ScreeningChecklistAutoVerdictService
         if ($vehicles->isEmpty() || $missing) {
             return $this->awaitingData(
                 $application,
-                'There is no data for this checklist',
+                'Required evidence is not on this file yet',
                 'Open collateral',
             );
         }
@@ -495,7 +495,7 @@ class ScreeningChecklistAutoVerdictService
         if ($vehicles->isEmpty()) {
             return $this->awaitingData(
                 $application,
-                'There is no data for this checklist',
+                'Required evidence is not on this file yet',
                 'Open collateral',
             );
         }
@@ -507,7 +507,7 @@ class ScreeningChecklistAutoVerdictService
             if ((! filled($type) || $type === '—') && ! $hasDoc && (! filled($expiry) || $expiry === '—')) {
                 return $this->awaitingData(
                     $application,
-                    'There is no data for this checklist',
+                    'Required evidence is not on this file yet',
                     'Open collateral',
                 );
             }
@@ -519,7 +519,7 @@ class ScreeningChecklistAutoVerdictService
                 } catch (\Throwable) {
                     return $this->awaitingData(
                         $application,
-                        'There is no data for this checklist',
+                        'Required evidence is not on this file yet',
                         'Open collateral',
                     );
                 }
@@ -527,7 +527,7 @@ class ScreeningChecklistAutoVerdictService
             if (! $hasDoc && (! filled($type) || $type === '—')) {
                 return $this->awaitingData(
                     $application,
-                    'There is no data for this checklist',
+                    'Required evidence is not on this file yet',
                     'Open collateral',
                 );
             }
@@ -549,7 +549,7 @@ class ScreeningChecklistAutoVerdictService
         if (! $hasSomethingToLookAt) {
             return $this->awaitingData(
                 $application,
-                'There is no data for this checklist',
+                'Required evidence is not on this file yet',
                 'Open collateral',
             );
         }
@@ -573,7 +573,7 @@ class ScreeningChecklistAutoVerdictService
 
         return $this->awaitingData(
             $application,
-            'There is no data for this checklist',
+            'Required evidence is not on this file yet',
             'Request valuation',
             'checklist',
         );
@@ -590,7 +590,7 @@ class ScreeningChecklistAutoVerdictService
 
         return $this->awaitingData(
             $application,
-            'There is no data for this checklist',
+            'Required evidence is not on this file yet',
             'Open collateral',
         );
     }
@@ -604,7 +604,7 @@ class ScreeningChecklistAutoVerdictService
         if (! is_array($coverage) || $coverage === [] || ! filled($fsv) || $fsv === '—') {
             return $this->awaitingData(
                 $application,
-                'There is no data for this checklist',
+                'Required evidence is not on this file yet',
                 'Open collateral',
             );
         }
@@ -629,11 +629,35 @@ class ScreeningChecklistAutoVerdictService
             return ['verdict' => 'pass', 'source' => 'system'];
         }
 
-        return $this->awaitingData(
-            $application,
-            'There is no data for this checklist',
-            'Open collateral',
-        );
+        // Install happens after approval. Screening must not block on a serial that cannot exist yet.
+        if ($this->gpsInstallIsPostApproval($application)) {
+            return ['verdict' => 'na', 'source' => 'system'];
+        }
+
+        $href = route('admin.loan-applications.show', [
+            'loan_application' => $application,
+            'workspace' => 'profiles',
+            'tab' => 'collateral',
+        ]).'#borrower-file';
+
+        return [
+            'verdict' => '',
+            'source' => 'awaiting_data',
+            'message' => 'GPS/location evidence required but not captured',
+            'cta' => [
+                'label' => 'Open collateral GPS',
+                'href' => $href,
+            ],
+        ];
+    }
+
+    private function gpsInstallIsPostApproval(LoanApplication $application): bool
+    {
+        $stage = (string) $application->current_stage;
+        $status = (string) $application->status;
+
+        return in_array($stage, ['screening', 'submitted', 'under_review', 'pre_approval', ''], true)
+            || in_array($status, ['submitted', 'under_review'], true);
     }
 
     /**
@@ -667,7 +691,7 @@ class ScreeningChecklistAutoVerdictService
      */
     private function awaitingData(
         LoanApplication $application,
-        string $message = 'There is no data for this checklist',
+        string $message = 'Required evidence is not on this file yet',
         string $ctaLabel = 'Open collateral',
         string $workspace = 'profiles',
     ): array {

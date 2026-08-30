@@ -351,7 +351,7 @@ class ScreeningChecklistService
                     'system_checked' => $isSystem,
                     'awaiting_data' => $isAwaiting,
                     'awaiting_message' => $isAwaiting
-                        ? (string) ($row['awaiting_message'] ?? 'There is no data for this checklist')
+                        ? (string) ($row['awaiting_message'] ?? 'Required evidence is not on this file yet')
                         : null,
                     'awaiting_cta' => $isAwaiting ? ($row['awaiting_cta'] ?? null) : null,
                     'catalog_system' => $catalogSystem,
@@ -882,7 +882,7 @@ class ScreeningChecklistService
                 'fail_reason_custom' => null,
                 'at' => null,
                 'by' => null,
-                'awaiting_message' => (string) ($suggestion['message'] ?? 'There is no data for this checklist'),
+                'awaiting_message' => (string) ($suggestion['message'] ?? 'Required evidence is not on this file yet'),
                 'awaiting_cta' => $suggestion['cta'] ?? null,
             ];
         }
@@ -1190,7 +1190,7 @@ class ScreeningChecklistService
                     'fail_reason_custom' => null,
                     'at' => null,
                     'by' => null,
-                    'awaiting_message' => (string) ($suggestion['message'] ?? 'There is no data for this checklist'),
+                    'awaiting_message' => (string) ($suggestion['message'] ?? 'Required evidence is not on this file yet'),
                     'awaiting_cta' => $suggestion['cta'] ?? null,
                 ];
 
@@ -2294,7 +2294,9 @@ class ScreeningChecklistService
                     ['label' => 'Serial', 'value' => (string) ($gps['serial'] ?? '—')],
                 ];
                 $hint = ! empty($gps['required'])
-                    ? 'The system marks this Pass when a GPS serial or tracking URL is on the pledged asset.'
+                    ? (! empty($gps['secured'])
+                        ? 'GPS serial or tracking URL is on the pledged asset.'
+                        : 'GPS is required for this asset after approval. Screening records N/A until install.')
                     : 'GPS is not required for this pledged asset.';
                 break;
 

@@ -1,3 +1,5 @@
+import { kfClearBusy, kfMarkBusy } from './submit-loading';
+
 /**
  * Inline Screening checklist save — update summary/gates without a full desk reload.
  */
@@ -69,18 +71,20 @@ async function saveChecklist(form, submitter) {
         return;
     }
 
-    const buttons = [
-        submitter,
-        ...form.querySelectorAll('[type="submit"]'),
-        document.querySelector('[data-screening-save]'),
-        document.querySelector('button[form="screening-checklist-form"]'),
-    ].filter((el, i, all) => el instanceof HTMLElement && all.indexOf(el) === i);
+    const saveButton = document.querySelector('[data-screening-save]')
+        || document.querySelector('button[form="screening-checklist-form"]');
+    const extraSubmitters = [...form.querySelectorAll('[type="submit"]')];
+    const busyTargets = [submitter, saveButton, ...extraSubmitters]
+        .filter((el, i, all) => el instanceof HTMLElement && all.indexOf(el) === i);
 
-    buttons.forEach((btn) => {
-        btn.disabled = true;
-        btn.dataset.kfSaving = '1';
+    busyTargets.forEach((btn) => {
+        if (typeof kfMarkBusy === 'function') {
+            kfMarkBusy(btn, btn.dataset.loadingLabel || 'Saving…');
+        } else {
+            btn.disabled = true;
+        }
     });
-    setSaveStatus('Saving…', 'saving');
+    setSaveStatus('', 'info');
 
     try {
         const response = await fetch(form.action, {
@@ -100,14 +104,18 @@ async function saveChecklist(form, submitter) {
         } catch {
             // Save already succeeded — do not surface a paint error as a failed save.
         }
-        setSaveStatus('Saved', 'success');
+        setSaveStatus('', 'success');
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Could not save the checklist.';
         setSaveStatus(message, 'error');
         notify('error', message);
     } finally {
-        buttons.forEach((btn) => {
-            btn.disabled = false;
+        busyTargets.forEach((btn) => {
+            if (typeof kfClearBusy === 'function') {
+                kfClearBusy(btn);
+            } else {
+                btn.disabled = false;
+            }
             delete btn.dataset.kfSaving;
         });
     }
