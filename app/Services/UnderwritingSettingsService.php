@@ -242,4 +242,20 @@ class UnderwritingSettingsService
     {
         return max(0, round((float) $this->get('disbursement_fast_track_fee_amount', 25000), 2));
     }
+
+    /**
+     * Saved post-approval condition overlays. Catalog defaults live on
+     * PostApprovalNextActionService — this is the Settings Hub overlay only.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function postApprovalConditionRows(): array
+    {
+        $raw = $this->get('post_approval_conditions', []);
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        return array_values(array_filter($raw, fn ($row) => is_array($row) && filled($row['key'] ?? null)));
+    }
 }

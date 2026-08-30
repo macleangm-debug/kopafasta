@@ -178,6 +178,15 @@ class LoanAgreementService
             return $existing;
         }
 
+        if (! $existing || ! $existing->isSigned()) {
+            $readiness = app(PostApprovalNextActionService::class)->contractReadiness($application);
+            if (! $readiness['ready']) {
+                throw ValidationException::withMessages([
+                    'contract' => $readiness['headline'].'. '.$readiness['detail'],
+                ]);
+            }
+        }
+
         $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
         $snapshot = $this->snapshotFromApplication($application);
 
@@ -726,6 +735,10 @@ class LoanAgreementService
         $existing = LoanAgreement::where('loan_application_id', $application->id)
             ->where('document_type', 'loan_contract')
             ->first();
+
+        if (! app(PostApprovalNextActionService::class)->contractReadiness($application)['ready']) {
+            return $existing;
+        }
 
         $contract = $this->generateLoanContract($application);
 

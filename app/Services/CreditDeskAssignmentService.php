@@ -134,8 +134,8 @@ class CreditDeskAssignmentService
     }
 
     /**
-     * Management is an authorization layer for committee-approved loans, not a screening queue.
-     * They never receive files still in screening, still with committee, referred back, incomplete, or rejected.
+     * Management runs post-approval ops after Offer acceptance, not a second credit review.
+     * Leftover awaiting_management files remain visible so they are not stuck.
      */
     public function canViewApplication(?User $user, LoanApplication $application): bool
     {

@@ -75,7 +75,12 @@
                 </td>
                 <td class="px-5 py-3 text-gray-500">{{ $r->created_at?->format('Y-m-d') }}</td>
                 <td class="px-5 py-3 text-right">
-                    <a href="{{ route('admin.loan-applications.show', $r) }}" class="text-xs font-medium text-brand hover:text-brand-light">View →</a>
+                    @if ($pipeline === 'under_review')
+                        @php $guidedCta = app(\App\Services\ScreeningNextActionService::class)->forApplication($r, auth()->user()); @endphp
+                        <a href="{{ $guidedCta['href'] }}" class="text-xs font-medium text-brand hover:text-brand-light">{{ $guidedCta['cta'] }} →</a>
+                    @else
+                        <a href="{{ route('admin.loan-applications.show', $r) }}" class="text-xs font-medium text-brand hover:text-brand-light">View →</a>
+                    @endif
                 </td>
             </tr>
         @empty

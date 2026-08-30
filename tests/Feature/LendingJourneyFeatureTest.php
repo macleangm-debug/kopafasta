@@ -127,7 +127,7 @@ class LendingJourneyFeatureTest extends TestCase
         $this->assertSame('post_approval', app(LendingJourneyService::class)->forApplication($application)['state']);
     }
 
-    public function test_committee_approve_with_dual_control_waits_for_management_without_creating_a_loan(): void
+    public function test_committee_approve_with_dual_control_issues_offer_without_a_second_underwrite(): void
     {
         ApprovalLimit::create([
             'role_code' => 'credit_committee',
@@ -159,12 +159,13 @@ class LendingJourneyFeatureTest extends TestCase
         );
 
         $application->refresh();
-        $this->assertSame('awaiting_management', $application->current_stage);
-        $this->assertSame('pre_approved', $application->status);
-        $this->assertNull($application->loan);
+        $this->assertSame('approval', $application->current_stage);
+        $this->assertSame('approved', $application->status);
+        $this->assertNotNull($application->loan);
+        $this->assertSame('pending', $application->loan->status);
+        $this->assertNotSame('awaiting_management', $application->current_stage);
         $journey = app(LendingJourneyService::class)->forApplication($application);
-        $this->assertSame('waiting_management', $journey['state']);
-        $this->assertSame('management', $journey['waiting_on']);
+        $this->assertSame('post_approval', $journey['state']);
     }
 
     public function test_grade_and_trust_do_not_skip_management_when_matrix_requires_it(): void

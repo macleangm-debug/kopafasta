@@ -1,67 +1,64 @@
+@php
+    $guided = app(\App\Services\GuidedApprovalService::class);
+    $open = \App\Models\LoanApplication::query()
+        ->with(['customer', 'product', 'loan'])
+        ->whereIn('current_stage', ['awaiting_management', 'approval', 'disbursement'])
+        ->whereNotIn('status', ['rejected', 'withdrawn', 'cancelled', 'expired'])
+        ->orderByDesc('updated_at')
+        ->limit(80)
+        ->get();
+    $queue = $guided->managementQueue($open);
+    $tab = request('bucket', 'do_now');
+    if (! in_array($tab, ['do_now', 'waiting', 'ready', 'completed'], true)) {
+        $tab = 'do_now';
+    }
+@endphp
 <x-admin.layout title="Credit management" heading="" subheading="">
 
-    <section class="mb-8">
+    <section class="mb-6">
         <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-7 text-white">
                 <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Credit desk</p>
-                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Management home</h1>
+                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Post-approval</h1>
                 <p class="text-sm text-white/75 mt-2 max-w-2xl">
-                    Own the facility after committee approval — offer, fees, destination, contract, then release and payout.
+                    After Committee approval, complete offer, fees, conditions, contract, then disbursement. Do not re-screen the file.
                 </p>
             </div>
-            <div class="bg-white px-6 py-5 grid sm:grid-cols-4 gap-4">
-                <div class="rounded-xl bg-brand-gold/20 ring-1 ring-brand-gold/40 px-4 py-4">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Management approval</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['awaiting_management'] ?? 0 }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Committee done · matrix requires you</p>
-                </div>
-                <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-4 py-4">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Management queue</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['approved'] }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Offer / fees / destination / contract</p>
-                </div>
-                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4">
-                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Release queue</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['disbursement_stage'] }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Ready for release pipeline</p>
-                </div>
-                <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4">
-                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Payout queue</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['pending_loans'] }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Loan records awaiting payout</p>
-                </div>
+            <div class="bg-white px-4 sm:px-6 py-4 flex flex-wrap gap-2">
+                @foreach ([
+                    'do_now' => 'Do now · '.count($queue['do_now']),
+                    'waiting' => 'Waiting · '.count($queue['waiting']),
+                    'ready' => 'Ready to disburse · '.count($queue['ready']),
+                    'completed' => 'Completed · '.count($queue['completed']),
+                ] as $key => $label)
+                    <a href="{{ route('admin.teams.management', ['bucket' => $key]) }}"
+                       @class([
+                           'inline-flex rounded-xl px-4 py-2 text-sm font-bold ring-1',
+                           'bg-brand text-white ring-brand' => $tab === $key,
+                           'bg-white text-slate-800 ring-slate-200' => $tab !== $key,
+                       ])>{{ $label }}</a>
+                @endforeach
             </div>
         </div>
     </section>
 
-    <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 sm:p-6">
-        <p class="text-xs font-semibold uppercase tracking-widest text-brand mb-3">Queues</p>
-        <div class="flex flex-wrap gap-3">
-            <a href="{{ route('admin.loan-applications.pipeline.management-approval') }}"
-               class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm ring-1 ring-brand/15">
-                Management approval
+    <div class="space-y-3">
+        @forelse ($queue[$tab] as $row)
+            @php $next = $row['next']; $app = $row['application']; @endphp
+            <a href="{{ $next['href'] }}"
+               class="block rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-4 hover:ring-brand/30">
+                <p class="text-sm font-bold text-slate-900">{{ $app->application_number }}</p>
+                <p class="text-xs text-slate-600 mt-0.5">{{ $app->partyLabel() }} · {{ format_money((float) $app->requested_amount) }}</p>
+                <p class="text-sm text-slate-800 mt-2">{{ $next['what_happens_next'] }}</p>
+                <p class="text-xs font-bold text-brand mt-2">{{ $next['cta'] }}</p>
             </a>
-            <a href="{{ route('admin.loan-applications.pipeline.approved') }}"
-               class="inline-flex items-center gap-2 bg-white hover:bg-brand-muted/40 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl ring-1 ring-brand/20">
-                Management queue
-            </a>
-            <a href="{{ route('admin.loan-applications.pipeline.disbursement') }}"
-               class="inline-flex items-center gap-2 bg-white hover:bg-brand-muted/40 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl ring-1 ring-brand/20">
-                Release queue
-            </a>
-            <a href="{{ route('admin.loans.disbursement') }}"
-               class="inline-flex items-center gap-2 bg-white hover:bg-brand-muted/40 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl ring-1 ring-brand/20">
-                Payout queue
-            </a>
-            <a href="{{ route('admin.credit-team.index') }}"
-               class="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900 px-4 py-2.5">
-                Credit teams →
-            </a>
-        </div>
-        <p class="text-xs text-gray-500 mt-4">
-            Spine: <span class="font-semibold text-gray-700">Offer → Fees → Destination → Contract → Release → Payout → Active loan</span>.
-            Screening and committee stay on their desks. Rejected files do not come here.
-        </p>
+        @empty
+            <p class="text-sm text-slate-600">Nothing in this list.</p>
+        @endforelse
     </div>
+
+    <p class="mt-6">
+        <a href="{{ route('admin.loan-applications.pipeline.approved') }}" class="text-xs font-semibold text-slate-600 underline">Classic management queue</a>
+    </p>
 
 </x-admin.layout>

@@ -10,6 +10,7 @@
             'offer' => 'Offer',
             'screening' => 'Screening',
             'collateral' => 'Collateral',
+            'post-approval' => 'Post-approval',
             'disbursement' => 'Disbursement',
         ]"
     >
@@ -201,6 +202,93 @@
                     Primary place to manage insurance / GPS / valuer defaults (with Add partner links) is
                     <a href="{{ route('admin.settings.recovery') }}" class="font-semibold text-brand underline">Recovery policy → Service partner default rates</a>.
                 </p>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="post-approval">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-1">Post-approval conditions</h3>
+                <p class="text-xs text-gray-500 mb-4">
+                    After the customer accepts the Offer, Credit management completes these conditions one at a time.
+                    Timing is in ordinary language: before the loan agreement, or before disbursement. Product policy here is the source of truth — do not hard-code a universal order.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-xs uppercase tracking-wide text-gray-500">
+                                <th class="py-2 pr-3">Condition</th>
+                                <th class="py-2 pr-3">Required</th>
+                                <th class="py-2 pr-3">Applies to</th>
+                                <th class="py-2 pr-3">Responsible</th>
+                                <th class="py-2 pr-3">When</th>
+                                <th class="py-2 pr-3">Deadline (days)</th>
+                                <th class="py-2 pr-3">Blocking</th>
+                                <th class="py-2">Remind customer</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ($postApprovalConditions ?? [] as $i => $row)
+                                <tr>
+                                    <td class="py-3 pr-3 font-semibold text-gray-900">
+                                        {{ $row['label'] }}
+                                        <input type="hidden" name="post_approval_conditions[{{ $i }}][key]" value="{{ $row['key'] }}">
+                                    </td>
+                                    <td class="py-3 pr-3">
+                                        <input type="hidden" name="post_approval_conditions[{{ $i }}][required]" value="0">
+                                        <input type="checkbox" name="post_approval_conditions[{{ $i }}][required]" value="1"
+                                               @checked(! empty($row['required']))
+                                               @disabled(! empty($row['locked']))
+                                               class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                                        @if (! empty($row['locked']))
+                                            <input type="hidden" name="post_approval_conditions[{{ $i }}][required]" value="1">
+                                        @endif
+                                    </td>
+                                    <td class="py-3 pr-3">
+                                        <select name="post_approval_conditions[{{ $i }}][applies_to]" class="rounded-lg border-gray-300 text-sm">
+                                            @foreach ($postApprovalAppliesLabels ?? [] as $value => $label)
+                                                <option value="{{ $value }}" @selected(($row['applies_to'] ?? '') === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="py-3 pr-3">
+                                        <select name="post_approval_conditions[{{ $i }}][responsible_party]" class="rounded-lg border-gray-300 text-sm">
+                                            @foreach ($postApprovalPartyLabels ?? [] as $value => $label)
+                                                <option value="{{ $value }}" @selected(($row['responsible_party'] ?? '') === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="py-3 pr-3">
+                                        <select name="post_approval_conditions[{{ $i }}][timing]" class="rounded-lg border-gray-300 text-sm max-w-[16rem]">
+                                            @foreach ($postApprovalTimingLabels ?? [] as $value => $label)
+                                                <option value="{{ $value }}" @selected(($row['timing'] ?? '') === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="py-3 pr-3">
+                                        <input type="number" min="0" max="365" name="post_approval_conditions[{{ $i }}][deadline_days]"
+                                               value="{{ $row['deadline_days'] }}" class="w-24 rounded-lg border-gray-300 text-sm">
+                                    </td>
+                                    <td class="py-3 pr-3">
+                                        <input type="hidden" name="post_approval_conditions[{{ $i }}][blocking]" value="0">
+                                        <input type="checkbox" name="post_approval_conditions[{{ $i }}][blocking]" value="1"
+                                               @checked(! empty($row['blocking']))
+                                               @disabled(! empty($row['locked']))
+                                               class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                                        @if (! empty($row['locked']))
+                                            <input type="hidden" name="post_approval_conditions[{{ $i }}][blocking]" value="1">
+                                        @endif
+                                    </td>
+                                    <td class="py-3">
+                                        <input type="hidden" name="post_approval_conditions[{{ $i }}][customer_reminders]" value="0">
+                                        <input type="checkbox" name="post_approval_conditions[{{ $i }}][customer_reminders]" value="1"
+                                               @checked(! empty($row['customer_reminders']))
+                                               class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </x-admin.settings-panel>
 

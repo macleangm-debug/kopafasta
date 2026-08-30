@@ -1054,6 +1054,10 @@ class SettingsController extends Controller
 
         return view('admin.settings.underwriting', [
             'values' => $values,
+            'postApprovalConditions' => app(\App\Services\PostApprovalNextActionService::class)->catalog(),
+            'postApprovalTimingLabels' => \App\Services\PostApprovalNextActionService::timingLabels(),
+            'postApprovalAppliesLabels' => \App\Services\PostApprovalNextActionService::appliesLabels(),
+            'postApprovalPartyLabels' => \App\Services\PostApprovalNextActionService::partyLabels(),
         ]);
     }
 
@@ -1089,6 +1093,15 @@ class SettingsController extends Controller
             'enable_disbursement_fast_track'         => ['nullable', 'boolean'],
             'disbursement_fast_track_business_hours' => ['required', 'integer', 'min:1', 'max:72'],
             'disbursement_fast_track_fee_amount'     => ['required', 'numeric', 'min:0', 'max:10000000'],
+            'post_approval_conditions'               => ['nullable', 'array'],
+            'post_approval_conditions.*.key'         => ['required', 'string', 'max:80'],
+            'post_approval_conditions.*.required'    => ['nullable', 'boolean'],
+            'post_approval_conditions.*.applies_to'  => ['required', 'in:all,cash,asset,secured,gps,insurance,group'],
+            'post_approval_conditions.*.responsible_party' => ['required', 'in:customer,management,gps_partner,insurance_partner'],
+            'post_approval_conditions.*.timing'      => ['required', 'in:before_contract,before_disbursement'],
+            'post_approval_conditions.*.deadline_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'post_approval_conditions.*.blocking'    => ['nullable', 'boolean'],
+            'post_approval_conditions.*.customer_reminders' => ['nullable', 'boolean'],
         ]);
 
         foreach ([
@@ -1104,6 +1117,26 @@ class SettingsController extends Controller
         ] as $key) {
             $data[$key] = (bool) ($data[$key] ?? false);
         }
+
+        $catalog = collect(app(\App\Services\PostApprovalNextActionService::class)->catalog())->keyBy('key');
+        $incoming = collect($data['post_approval_conditions'] ?? []);
+        $data['post_approval_conditions'] = $catalog->map(function (array $row) use ($incoming) {
+            $overlay = $incoming->firstWhere('key', $row['key']) ?? [];
+            $locked = ! empty($row['locked']);
+
+            return [
+                'key' => $row['key'],
+                'required' => $locked ? true : (bool) ($overlay['required'] ?? false),
+                'applies_to' => $overlay['applies_to'] ?? $row['applies_to'],
+                'responsible_party' => $overlay['responsible_party'] ?? $row['responsible_party'],
+                'timing' => $overlay['timing'] ?? $row['timing'],
+                'deadline_days' => isset($overlay['deadline_days']) && $overlay['deadline_days'] !== '' && $overlay['deadline_days'] !== null
+                    ? (int) $overlay['deadline_days']
+                    : null,
+                'blocking' => $locked ? true : (bool) ($overlay['blocking'] ?? false),
+                'customer_reminders' => (bool) ($overlay['customer_reminders'] ?? false),
+            ];
+        })->values()->all();
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["underwriting.$k" => $v])->all());
 

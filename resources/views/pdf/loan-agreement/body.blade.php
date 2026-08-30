@@ -266,7 +266,7 @@
 @if ($isSw)
     <p>Mkopaji hatauza, kuhamisha, kuficha, kubadilisha kwa kiasi kikubwa au kuondoa dhamana bila ridhaa halali inapohitajika. Pale haki halali ya kurejesha mali inapotokea, Kopafasta inaweza kuchukua hatua zinazoruhusiwa na sheria. Mapato ya mauzo yanatumika kulipa wajibu uliobaki; ziada au upungufu unashughulikiwa kwa mujibu wa sheria. Mkopaji anaendelea kuwajibika kwa upungufu wowote halali.</p>
 @else
-    <p>The Borrower shall not sell, transfer, conceal, materially alter or dispose of secured collateral without lawful consent where required. Where a lawful right of repossession arises, Kopafasta may take steps permitted by law. Sale proceeds are applied to outstanding obligations; surplus or shortfall is dealt with according to law. The Borrower remains liable for any lawful shortfall.</p>
+    <p>Where a lawful right of repossession arises after the applicable reminder, cure and recovery process has not resolved an Event of Default, Kopafasta may take steps permitted by law to realize the pledged collateral toward settlement of outstanding obligations. Collateral is security for repayment — not the business objective of the loan. Immediate repossession is not automatic upon a single missed payment. Sale proceeds are applied to outstanding obligations; surplus or shortfall is dealt with according to law. The Borrower remains liable for any lawful shortfall.</p>
 @endif
 @if (filled($clauses['asset_recovery_clause'] ?? null))
     <p>{{ $clauses['asset_recovery_clause'] }}</p>

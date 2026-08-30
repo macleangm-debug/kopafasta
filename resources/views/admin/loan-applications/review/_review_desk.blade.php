@@ -48,9 +48,21 @@
     $sequence = app(\App\Services\ScreeningSequenceService::class)->snapshot($record, $gates);
     $gateKeys = array_keys($gates);
 
+    $identitySubjectCustomer = $review['customer'] ?? $record->customer;
+    if ($deskPerson === 'member' && $deskM) {
+        $memberRow = collect($groupReview['members'] ?? [])
+            ->first(fn ($row) => (int) ($row['id'] ?? 0) === (int) $deskM);
+        $memberCustomerId = is_array($memberRow) ? (int) ($memberRow['customer_id'] ?? 0) : 0;
+        $identitySubjectCustomer = $memberCustomerId > 0
+            ? (\App\Models\Customer::query()->find($memberCustomerId) ?? $identitySubjectCustomer)
+            : $identitySubjectCustomer;
+        $identitySubjectCustomer = $identitySubjectCustomer instanceof \App\Models\Customer
+            ? $identitySubjectCustomer
+            : ($review['customer'] ?? $record->customer);
+    }
     $identityCard = app(\App\Services\ScreeningChecklistService::class)->identityPeopleCard(
         $desk,
-        $review['customer'] ?? $record->customer,
+        $identitySubjectCustomer instanceof \App\Models\Customer ? $identitySubjectCustomer : ($review['customer'] ?? $record->customer),
     );
 
     $firstOpenGate = collect($gates)->first(fn ($g) => empty($g['locked']) && ! ($g['complete'] ?? false));

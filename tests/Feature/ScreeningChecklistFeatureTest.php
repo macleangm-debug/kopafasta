@@ -136,7 +136,8 @@ class ScreeningChecklistFeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('Facility summary', $overview);
         $this->assertStringContainsString('Borrower CRB', $overview);
-        $this->assertStringContainsString('Open review checklist', $overview);
+        $this->assertStringContainsString('Start Screening', $overview);
+        $this->assertStringContainsString('View full checklist', $overview);
         $this->assertStringNotContainsString('id="review-desk"', $overview);
         $this->assertStringNotContainsString('>Expand</span>', $overview);
 

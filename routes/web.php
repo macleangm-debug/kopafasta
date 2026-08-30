@@ -657,6 +657,18 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.collateral.request-additional');
         Route::post('loan-applications/{loan_application}/screening-checklist', [LoanApplicationController::class, 'saveScreeningChecklist'])
             ->name('loan-applications.screening-checklist');
+        Route::get('loan-applications/{loan_application}/guided-screening', [LoanApplicationController::class, 'guidedScreening'])
+            ->name('loan-applications.guided-screening');
+        Route::post('loan-applications/{loan_application}/guided-screening', [LoanApplicationController::class, 'saveGuidedScreening'])
+            ->name('loan-applications.guided-screening.save');
+        Route::post('loan-applications/{loan_application}/guided-screening/return-to-committee', [LoanApplicationController::class, 'returnClarificationToCommittee'])
+            ->name('loan-applications.guided-screening.return-to-committee');
+        Route::post('loan-applications/{loan_application}/guided-member-replacements', [LoanApplicationController::class, 'requestGuidedMemberReplacements'])
+            ->name('loan-applications.guided-member-replacements');
+        Route::get('loan-applications/{loan_application}/guided-committee', [LoanApplicationController::class, 'guidedCommittee'])
+            ->name('loan-applications.guided-committee');
+        Route::get('loan-applications/{loan_application}/guided-post-approval', [LoanApplicationController::class, 'guidedPostApproval'])
+            ->name('loan-applications.guided-post-approval');
         Route::post('loan-applications/{loan_application}/discrepancy-waiver', [LoanApplicationController::class, 'waiveDiscrepancy'])
             ->name('loan-applications.discrepancy-waiver');
         Route::post('loan-applications/{loan_application}/guarantors/{customerGuarantor}/change', [LoanApplicationController::class, 'requestGuarantorChange'])

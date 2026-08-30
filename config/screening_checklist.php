@@ -15,6 +15,7 @@ return [
         'items' => [
             'nida_vs_dob' => [
                 'label' => 'Compare NIDA number to date of birth',
+                'why' => 'National ID is the identity the rest of Screening relies on.',
                 'evidence' => 'nida_dob',
                 'risk' => 'critical',
                 'system' => true,
@@ -57,6 +58,7 @@ return [
             ],
             'face_vs_nida' => [
                 'label' => 'Compare face capture to uploaded ID',
+                'why' => 'Face matching reduces impersonation risk before credit is granted.',
                 'evidence' => 'face_nida',
                 'risk' => 'critical',
                 'document_bundle' => 'id_quality',
@@ -111,6 +113,7 @@ return [
             ],
             'local_government' => [
                 'label' => 'Check with Local Government Officer',
+                'why' => 'This helps confirm that the applicant\'s residence information is genuine.',
                 'evidence' => 'residence',
                 'fail_reasons' => [
                     'lgo_not_confirmed' => 'LGO could not confirm residence',
@@ -160,6 +163,7 @@ return [
             'call_next_of_kin' => [
                 'label' => 'Check with next of kin',
                 'evidence' => 'nok_contact',
+                'why' => 'This helps confirm that the people around the applicant are real and reachable.',
                 'fail_reasons' => [
                     'could_not_reach' => 'Could not reach',
                     'unreachable' => 'Next of kin unreachable',
@@ -224,6 +228,7 @@ return [
             ],
             'activity_plausible' => [
                 'label' => 'Does activity support the stated income / business?',
+                'why' => 'Statement activity should be consistent with the income used for affordability.',
                 'evidence' => 'activity',
                 'document_bundle' => 'activity_proof',
                 'fail_reasons' => [
@@ -236,6 +241,7 @@ return [
             ],
             'bank_or_mobile_money' => [
                 'label' => 'Any concerning patterns on the statements?',
+                'why' => 'Unusual statement patterns can indicate income that is not genuine or sustainable.',
                 'evidence' => 'income_statements',
                 'document_bundle' => 'income_statements',
                 'risk' => 'critical',

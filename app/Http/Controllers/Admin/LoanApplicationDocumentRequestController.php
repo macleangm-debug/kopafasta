@@ -41,7 +41,7 @@ class LoanApplicationDocumentRequestController extends Controller
             'ask_members' => ['sometimes', 'boolean'],
             'confirmed' => ['sometimes', 'accepted'],
             'intent' => ['nullable', 'in:collateral,documents'],
-            'return_workspace' => ['nullable', 'in:checklist,profiles'],
+            'return_workspace' => ['nullable', 'in:checklist,profiles,guided'],
             'return_tab' => ['nullable', 'string', 'max:40'],
             'person' => ['nullable', 'in:borrower,member,guarantor'],
         ]);
@@ -125,6 +125,12 @@ class LoanApplicationDocumentRequestController extends Controller
                     'type' => $data['type'],
                     'subject_kind' => $subjectKind,
                 ]);
+
+                if ($request->input('return_workspace') === 'guided') {
+                    return redirect()
+                        ->route('admin.loan-applications.guided-screening', $loanApplication)
+                        ->with('status', 'Request sent. Screening is paused until it is received.');
+                }
 
                 return redirect()
                     ->route('admin.loan-applications.show', $this->reviewReturnParams(
@@ -343,7 +349,7 @@ class LoanApplicationDocumentRequestController extends Controller
             'ids.*' => ['integer'],
             'confirmed' => ['accepted'],
             'reason' => ['nullable', 'string', 'max:200'],
-            'return_workspace' => ['nullable', 'in:checklist,profiles'],
+            'return_workspace' => ['nullable', 'in:checklist,profiles,guided'],
             'return_tab' => ['nullable', 'string', 'max:40'],
             'review_person' => ['nullable', 'in:borrower,member,guarantor'],
             'review_m' => ['nullable', 'integer'],

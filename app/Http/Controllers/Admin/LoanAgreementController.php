@@ -31,11 +31,17 @@ class LoanAgreementController extends Controller
 
     public function generateContract(LoanApplication $loan_application)
     {
-        $agreement = $this->service->generateLoanContract($loan_application, regenerate: true);
+        try {
+            $agreement = $this->service->generateLoanContract($loan_application, regenerate: true);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()
+                ->route('admin.loan-applications.guided-post-approval', $loan_application)
+                ->with('error', collect($e->errors())->flatten()->first() ?: 'Agreement not ready.');
+        }
 
         return redirect()
-            ->route('admin.loan-applications.show', $loan_application)
-            ->with('status', "Loan contract regenerated ({$agreement->reference}).");
+            ->route('admin.loan-applications.guided-post-approval', $loan_application)
+            ->with('status', "Loan contract generated ({$agreement->reference}).");
     }
 
     public function resendOffer(LoanApplication $loan_application): RedirectResponse

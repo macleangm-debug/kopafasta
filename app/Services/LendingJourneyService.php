@@ -229,7 +229,6 @@ class LendingJourneyService
             return 'ready_for_disbursement';
         }
         if ((string) $application->current_stage === 'pre_approval'
-            && ! app(CreditAuthorityService::class)->managementApprovalRequired($application)
             && app(ApplicationOfferService::class)->canFinalApprove($application)) {
             return 'committee_to_offer';
         }

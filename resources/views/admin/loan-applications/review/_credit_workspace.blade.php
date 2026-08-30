@@ -7,6 +7,7 @@
     $stage = $record->current_stage ?? 'submitted';
     $isCommitteeStage = $stage === 'pre_approval';
     $isManagementApprovalStage = $stage === 'awaiting_management';
+    $isPostApprovalStage = in_array($stage, ['approval', 'post_approval_fees', 'awaiting_disbursement_details', 'contract_generation', 'disbursement'], true);
     $isScreeningStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
     $afford = $affordability ?? ($review['affordability'] ?? []);
     $affordPass = (bool) ($afford['pass'] ?? false);
@@ -56,7 +57,7 @@
         } elseif ($checklistDeepLink) {
             $workspace = 'checklist';
         } else {
-            $workspace = $isScreeningStage || $isCommitteeStage || $isManagementApprovalStage ? 'overview' : 'checklist';
+            $workspace = $isScreeningStage || $isCommitteeStage || $isManagementApprovalStage || $isPostApprovalStage ? 'overview' : 'checklist';
         }
     }
 
@@ -684,27 +685,94 @@
             @if ($workspace === 'facility')
                 @include('admin.loan-applications.review._facility_tab')
             @elseif ($workspace === 'overview')
-                <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-900">
-                            @if (is_array($screeningReadiness ?? null) && ($screeningReadiness['ready'] ?? false))
-                                All required screening checks complete
-                            @elseif (is_array($screeningReadiness ?? null))
-                                Screening review · {{ (int) ($screeningReadiness['checklist_percent'] ?? 0) }}%
-                                @if (($screeningReadiness['attention_count'] ?? 0) > 0)
-                                    · {{ (int) $screeningReadiness['attention_count'] }} {{ (int) $screeningReadiness['attention_count'] === 1 ? 'thing needs you' : 'things need you' }}
+                @php
+                    $guidedNext = $isScreeningStage
+                        ? app(\App\Services\ScreeningNextActionService::class)->forApplication($record, auth()->user())
+                        : null;
+                    $committeeNext = $isCommitteeStage
+                        ? app(\App\Services\GuidedApprovalService::class)->committeeNext($record)
+                        : null;
+                    $managementNext = ($isManagementApprovalStage || $isPostApprovalStage)
+                        ? app(\App\Services\PostApprovalNextActionService::class)->forApplication($record)
+                        : null;
+                @endphp
+                <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">
+                                @if ($guidedNext)
+                                    {{ $guidedNext['what_happens_next'] ?? $guidedNext['cta'] }}
+                                @elseif ($committeeNext)
+                                    Screening complete. Committee reviews the established file — it does not re-screen.
+                                @elseif ($managementNext)
+                                    {{ $managementNext['what_happens_next'] ?? 'Committee already decided. Complete post-approval conditions through to disbursement.' }}
+                                @elseif (is_array($screeningReadiness ?? null) && ($screeningReadiness['ready'] ?? false))
+                                    All required screening checks complete
+                                @else
+                                    Open guided Screening when you are ready to work the file.
                                 @endif
-                            @else
-                                Open the review checklist when you are ready to work the file.
+                            </p>
+                            @if ($guidedNext)
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    Gate {{ $guidedNext['gate_index'] }} of 6
+                                    @if (! empty($guidedNext['last_activity_at']))
+                                        · Last activity {{ \Illuminate\Support\Carbon::parse($guidedNext['last_activity_at'])->diffForHumans() }}
+                                    @endif
+                                </p>
                             @endif
-                        </p>
-                        <p class="text-xs text-gray-500 mt-0.5">The four cards stay here. Checklist is for answering the remaining questions.</p>
+                        </div>
+                        @if ($guidedNext)
+                            <a href="{{ $guidedNext['href'] }}"
+                               class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                                {{ $guidedNext['cta'] }}
+                            </a>
+                        @elseif ($committeeNext)
+                            <a href="{{ $committeeNext['href'] }}"
+                               class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                                {{ $committeeNext['cta'] }}
+                            </a>
+                        @elseif ($managementNext)
+                            <a href="{{ $managementNext['href'] }}"
+                               class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                                {{ $managementNext['cta'] }}
+                            </a>
+                        @else
+                            <a href="{{ $workspaceUrl('checklist') }}"
+                               class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                                Open review checklist
+                            </a>
+                        @endif
                     </div>
-                    <a href="{{ $workspaceUrl('checklist') }}"
-                       class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
-                        Open review checklist
-                    </a>
+                    @if ($guidedNext)
+                        <a href="{{ $guidedNext['checklist_href'] }}" class="text-xs font-semibold text-slate-600 underline">View full checklist</a>
+                    @endif
                 </div>
+                @if ($guidedNext)
+                    <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-3">
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Screening progress</p>
+                        <ul class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
+                            @foreach (($guidedNext['sequence']['sequence'] ?? []) as $row)
+                                <li class="flex justify-between gap-2">
+                                    <span>{{ $row['label'] ?? $row['key'] }}</span>
+                                    <span class="font-semibold">{{ $row['chip'] ?? $row['status'] ?? '' }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                @if ($isCommitteeStage)
+                    @include('admin.loan-applications.guided._committee_scan', [
+                        'record' => $record,
+                        'review' => $review,
+                        'screeningReadiness' => $screeningReadiness ?? null,
+                    ])
+                @endif
+                @if ($isManagementApprovalStage)
+                    @include('admin.loan-applications.guided._management_scan', [
+                        'record' => $record,
+                        'review' => $review,
+                    ])
+                @endif
             @elseif ($workspace === 'checklist')
                 @include('admin.loan-applications.review._review_desk')
             @elseif ($workspace === 'profiles')
@@ -718,6 +786,19 @@
                 </div>
             @else
                 @if ($isCommitteeStage || $isManagementApprovalStage)
+                    @if ($isCommitteeStage)
+                        @include('admin.loan-applications.guided._committee_scan', [
+                            'record' => $record,
+                            'review' => $review,
+                            'screeningReadiness' => $screeningReadiness ?? null,
+                        ])
+                    @endif
+                    @if ($isManagementApprovalStage)
+                        @include('admin.loan-applications.guided._management_scan', [
+                            'record' => $record,
+                            'review' => $review,
+                        ])
+                    @endif
                     @include('admin.loan-applications.review._committee_inputs')
                     @include('admin.loan-applications.review._committee_sprint', [
                         'screeningReadiness' => $screeningReadiness ?? null,

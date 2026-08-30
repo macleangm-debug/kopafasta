@@ -131,6 +131,9 @@ class LoanApplicationWorkflowService
             ->filter(fn (array $action, string $key) => ! ($key === 'management_approve'
                 && ! app(CreditAuthorityService::class)->canManagementApprove($user)))
             ->filter(fn (array $action, string $key) => ! ($key === 'disburse' && ! app(ApplicationDisbursementReadinessService::class)->canMarkDisbursement($application)))
+            ->filter(fn (array $action, string $key) => ! ($key === 'disburse'
+                && app(CreditAuthorityService::class)->managementApprovalRequired($application)
+                && ! app(CreditAuthorityService::class)->canManagementApprove($user)))
             ->filter(fn (array $action, string $key) => ! ($key === 'validate_screening' && ! app(ApplicationOfferService::class)->canValidateScreening($application, $user)))
             ->filter(fn (array $action) => $this->sameBranch($user, $application))
             ->map(fn (array $action, string $key) => [
@@ -355,17 +358,6 @@ class LoanApplicationWorkflowService
             }
         }
 
-        if (in_array($actionKey, ['approve', 'approve_with_conditions'], true)
-            && app(CreditAuthorityService::class)->managementApprovalRequired($application, $user)) {
-            $to = 'awaiting_management';
-            $appraisal['awaiting_management'] = [
-                'queued_at' => now()->toIso8601String(),
-                'queued_by' => $user->id,
-                'reason' => app(CreditAuthorityService::class)->managementRequirementReason($application)
-                    ?? 'Approval matrix requires management after committee.',
-            ];
-        }
-
         if ($actionKey === 'refer_back') {
             $appraisal['management_refer_back'] = $from === 'awaiting_management'
                 ? [
@@ -401,6 +393,22 @@ class LoanApplicationWorkflowService
                 : $application->screening_rejection_reason_code,
             'credit_appraisal_payload' => $appraisal,
         ]);
+
+        if ($actionKey === 'refer_back' && $to === 'screening') {
+            $payload = $application->screening_payload ?? [];
+            $guided = (array) ($payload['guided'] ?? []);
+            $guided['committee_clarification'] = [
+                'question' => $remarks,
+                'from_stage' => $from,
+                'at' => now()->toIso8601String(),
+                'by' => $user->id,
+                'resolved_at' => null,
+                'returned_at' => null,
+                'response' => null,
+            ];
+            $payload['guided'] = $guided;
+            $application->update(['screening_payload' => $payload]);
+        }
 
         if ($actionKey === 'return_for_documents') {
             $this->notifyReturnForDocuments($application->fresh(['customer']), $remarks);

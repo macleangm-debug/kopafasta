@@ -32,8 +32,10 @@ class CreditAuthorityService
     }
 
     /**
-     * True when the configured matrix requires a management step after a valid committee decision.
-     * When no committee/manager loan_approve limits exist, do not invent a fake management stage.
+     * True when Settings Hub requires Management authorization for a sensitive
+     * post-approval action (typically disbursement dual control).
+     * Committee remains the credit-approval stage; this does not insert a second underwrite.
+     * When no committee/manager loan_approve limits exist, do not invent a fake stage.
      */
     public function managementApprovalRequired(LoanApplication $application, ?User $actor = null): bool
     {
@@ -73,10 +75,10 @@ class CreditAuthorityService
         $committeeCover = $this->coveringLimits($relevant, self::COMMITTEE_ROLES, $amount);
 
         if ($committeeCover->isEmpty()) {
-            return 'The requested amount is outside the Credit Committee approval band in Settings Hub.';
+            return 'The requested amount is outside the Credit Committee approval band in Settings Hub. Management must authorize disbursement.';
         }
 
-        return 'Settings Hub requires Management authorization after Credit Committee approval (dual control).';
+        return 'Settings Hub requires Management authorization for disbursement (dual control). Committee remains the credit decision.';
     }
 
     public function canManagementApprove(User $user): bool

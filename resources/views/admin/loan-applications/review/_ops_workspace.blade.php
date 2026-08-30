@@ -4,7 +4,8 @@
     $stage = $record->current_stage ?? 'submitted';
     $isDisbursementStage = in_array($stage, ['disbursement'], true) || $record->status === 'disbursed';
     $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
-    $checklist = $readiness->managementReleaseChecklist($record);
+    $post = app(\App\Services\PostApprovalNextActionService::class)->forApplication($record);
+    $checklist = $post['checklist'] ?? $readiness->managementReleaseChecklist($record);
     $doneCount = collect($checklist)->where('complete', true)->count();
     $totalCount = max(1, count($checklist));
     $readyPct = (int) round(($doneCount / $totalCount) * 100);
@@ -22,12 +23,16 @@
         'pending_borrower' => 'from-amber-500 to-amber-700',
         default => 'from-brand to-brand-light',
     };
-    $canPushDisburse = $readiness->canMarkDisbursement($record) && $offerStatus !== 'declined';
+    $canPushDisburse = ! empty($post['disbursement_ready']) && $offerStatus !== 'declined';
     $loan = $record->loan;
     $isActiveLoan = $loan && in_array((string) $loan->status, ['active', 'disbursed', 'arrears', 'defaulted'], true);
 @endphp
 
 <section class="space-y-4 mb-6" id="credit-management-desk">
+    @include('admin.loan-applications.guided._management_scan', [
+        'record' => $record,
+        'review' => $review ?? [],
+    ])
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Credit management workspace</p>
@@ -37,6 +42,18 @@
             <p class="text-sm text-gray-500 mt-0.5">
                 Offer → fees → destination → contract → disbursement. Capital was settled at committee — this desk tracks borrower completion and release.
             </p>
+            @php
+                $nextCondition = $post['condition'] ?? collect($checklist)->first(fn ($row) => empty($row['complete']));
+            @endphp
+            @if (! empty($post['disbursement_ready']))
+                <p class="text-sm font-semibold text-emerald-800 mt-2">Ready for disbursement</p>
+            @elseif (! empty($post['waiting']))
+                <p class="text-sm font-semibold text-amber-900 mt-2">{{ $post['cta'] }}</p>
+            @elseif ($nextCondition)
+                <p class="text-sm font-semibold text-slate-800 mt-2">Continue Post-Approval · {{ $nextCondition['label'] ?? 'Next condition' }}</p>
+            @else
+                <p class="text-sm font-semibold text-emerald-800 mt-2">Ready for disbursement</p>
+            @endif
         </div>
         <span class="text-xs font-semibold rounded-full px-3 py-1.5 bg-brand-gold text-brand ring-1 ring-brand/20">
             {{ $readiness->managementLifecycleLabel($record) }}

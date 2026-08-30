@@ -29,6 +29,7 @@ use App\Services\CreditDeskAssignmentService;
 use App\Services\GpsPartnerService;
 use App\Services\GroupLoanMemberReviewService;
 use App\Services\GroupLoanReviewService;
+use App\Services\GuidedApprovalService;
 use App\Services\GuarantorReplacementService;
 use App\Services\GuarantorSupplementService;
 use App\Services\LoanAgreementService;
@@ -40,6 +41,7 @@ use App\Services\ReferenceNumberService;
 use App\Services\ScreeningChecklistGateService;
 use App\Services\ScreeningChecklistService;
 use App\Services\ScreeningPartnerAvailabilityService;
+use App\Services\ScreeningNextActionService;
 use App\Services\ScreeningReadinessService;
 use App\Services\ScreeningSequenceService;
 use App\Services\SmartLoanApplicationWizardService;
@@ -281,6 +283,13 @@ class LoanApplicationController extends ResourceController
             $groupReview = [];
         }
 
+        if ($record->current_stage === 'pre_approval') {
+            app(GuidedApprovalService::class)->markCommitteeOpened($record);
+        }
+        if (in_array((string) $record->current_stage, ['awaiting_management', 'approval', 'disbursement'], true)) {
+            app(GuidedApprovalService::class)->markPostApprovalOpened($record);
+        }
+
         $underwritingDeptId = Department::query()->where('code', 'UND')->value('id');
         $assignableAnalysts = User::query()
             ->where('is_active', true)
@@ -354,6 +363,21 @@ class LoanApplicationController extends ResourceController
     private function assertApplicationMutable(LoanApplication $application): void
     {
         abort_if($application->isClosed(), 403, 'This application is closed and can only be viewed.');
+    }
+
+    private function guidedOrBack(
+        Request $request,
+        LoanApplication $application,
+        string $status,
+        string $fragment,
+    ): RedirectResponse {
+        if ($request->input('return_workspace') === 'guided') {
+            return redirect()
+                ->route('admin.loan-applications.guided-screening', $application)
+                ->with('status', $status);
+        }
+
+        return back()->with('status', $status)->withFragment($fragment);
     }
 
     public function assignAnalyst(Request $request, LoanApplication $loan_application): RedirectResponse
@@ -581,6 +605,129 @@ class LoanApplicationController extends ResourceController
         return $redirect;
     }
 
+    public function guidedScreening(LoanApplication $loan_application): View
+    {
+        abort_unless(
+            app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $loan_application),
+            403
+        );
+        $next = app(ScreeningNextActionService::class)->forApplication($loan_application, auth()->user());
+        if (($next['cta_kind'] ?? '') === 'start') {
+            app(ScreeningNextActionService::class)->markStarted($loan_application);
+            $next = app(ScreeningNextActionService::class)->forApplication($loan_application->fresh(), auth()->user());
+        }
+
+        return view('admin.loan-applications.guided.show', [
+            'record' => $loan_application,
+            'guided' => $next,
+        ]);
+    }
+
+    public function guidedCommittee(Request $request, LoanApplication $loan_application): View
+    {
+        abort_unless(
+            app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $loan_application),
+            403
+        );
+        $walk = app(GuidedApprovalService::class)->committeeWalk(
+            $loan_application,
+            $request->integer('step') ?: null,
+        );
+
+        return view('admin.loan-applications.guided.committee', [
+            'record' => $loan_application,
+            'walk' => $walk,
+            'review' => app(LoanApplicationReviewService::class)->dossier($loan_application),
+        ]);
+    }
+
+    public function guidedPostApproval(LoanApplication $loan_application): View
+    {
+        abort_unless(
+            app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $loan_application),
+            403
+        );
+
+        return view('admin.loan-applications.guided.post_approval', [
+            'record' => $loan_application,
+            'walk' => app(GuidedApprovalService::class)->postApprovalWalk($loan_application),
+        ]);
+    }
+
+    public function saveGuidedScreening(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
+        $next = app(ScreeningNextActionService::class);
+
+        if ($request->filled('ack_gate')) {
+            $next->markGateSeen($loan_application, (string) $request->input('ack_gate'));
+
+            return redirect()
+                ->route('admin.loan-applications.guided-screening', $loan_application)
+                ->with('status', 'Saved.');
+        }
+
+        if ($request->filled('committee_clarification_response')) {
+            $data = $request->validate([
+                'committee_clarification_response' => ['required', 'string', 'min:8', 'max:4000'],
+            ]);
+            $next->saveCommitteeClarification($loan_application, $data['committee_clarification_response']);
+
+            return redirect()
+                ->route('admin.loan-applications.guided-screening', $loan_application)
+                ->with('status', 'Clarification recorded.');
+        }
+
+        $person = match ($request->input('person', 'borrower')) {
+            'guarantor' => 'guarantor',
+            'member' => 'member',
+            default => 'borrower',
+        };
+        $guarantorLinkId = $person === 'guarantor' ? (int) $request->input('g') : null;
+        $memberId = $person === 'member' ? (int) $request->input('m') : null;
+
+        try {
+            app(ScreeningChecklistService::class)->save(
+                $loan_application,
+                $request->user(),
+                $request->input('items', []),
+                $person,
+                $guarantorLinkId ?: null,
+                $memberId ?: null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+
+        app(ScreeningNextActionService::class)->markActivity($loan_application->fresh(), [
+            'gate' => $request->input('gate'),
+            'person' => $person,
+            'm' => $memberId ?: null,
+            'g' => $guarantorLinkId ?: null,
+            'item' => $request->input('open_item'),
+        ]);
+
+        return redirect()
+            ->route('admin.loan-applications.guided-screening', $loan_application)
+            ->with('status', 'Saved.');
+    }
+
+    public function returnClarificationToCommittee(LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
+        app(ScreeningNextActionService::class)->returnClarificationToCommittee($loan_application);
+
+        return redirect()
+            ->route('admin.loan-applications.show', [
+                'loan_application' => $loan_application,
+                'workspace' => 'decision',
+            ])
+            ->with('status', 'Clarification returned to Committee.')
+            ->withFragment('committee-sprint');
+    }
+
     private function wantsChecklistJson(Request $request): bool
     {
         return $request->expectsJson()
@@ -724,6 +871,7 @@ class LoanApplicationController extends ResourceController
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:1000'],
+            'return_workspace' => ['nullable', 'in:guided,checklist'],
         ]);
 
         try {
@@ -731,15 +879,18 @@ class LoanApplicationController extends ResourceController
                 $loan_application,
                 $customerGuarantor,
                 $request->user(),
-                $data['notes'] ?? null,
+                $data['notes'] ?? "The guarantor's current financial commitments do not provide enough capacity for this guarantee.",
             );
         } catch (\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return back()
-            ->with('status', __('borrower.guarantor_supplement.change_admin_success'))
-            ->withFragment('borrower-file');
+        return $this->guidedOrBack(
+            $request,
+            $loan_application,
+            __('borrower.guarantor_supplement.change_admin_success'),
+            'borrower-file',
+        );
     }
 
     public function runWorkflow(Request $request, LoanApplication $loan_application, LoanApplicationWorkflowService $workflow): RedirectResponse
@@ -1116,6 +1267,7 @@ class LoanApplicationController extends ResourceController
 
         $data = $request->validate([
             'reason' => ['nullable', 'string', 'max:2000'],
+            'return_workspace' => ['nullable', 'in:guided,checklist'],
         ]);
 
         $review->requestReplacement(
@@ -1124,7 +1276,38 @@ class LoanApplicationController extends ResourceController
             $data['reason'] ?? null,
         );
 
-        return back()->with('status', 'Replacement requested. The group leader has been notified.')->withFragment('review-group');
+        return $this->guidedOrBack(
+            $request,
+            $loan_application,
+            'Replacement requested. The group leader has been notified.',
+            'review-group',
+        );
+    }
+
+    public function requestGuidedMemberReplacements(
+        Request $request,
+        LoanApplication $loan_application,
+        GroupLoanMemberReviewService $review,
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $this->assertApplicationMutable($loan_application);
+        $loan_application->loadMissing('loanGroup.members');
+
+        $data = $request->validate([
+            'member_ids' => ['required', 'array', 'min:1'],
+            'member_ids.*' => ['integer'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        foreach ($data['member_ids'] as $id) {
+            $member = $loan_application->loanGroup?->members?->firstWhere('id', (int) $id);
+            abort_unless($member, 404);
+            $review->requestReplacement($member, auth()->user(), $data['reason'] ?? null);
+        }
+
+        return redirect()
+            ->route('admin.loan-applications.guided-screening', $loan_application)
+            ->with('status', 'Replacement requested. The group leader has been notified.');
     }
 
     public function continueWithEligibleMembers(
@@ -1137,6 +1320,7 @@ class LoanApplicationController extends ResourceController
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'min:8', 'max:2000'],
+            'return_workspace' => ['nullable', 'in:guided,checklist'],
         ]);
 
         try {
@@ -1145,10 +1329,12 @@ class LoanApplicationController extends ResourceController
             return back()->with('error', $e->getMessage())->withFragment('review-desk');
         }
 
-        return back()->with(
-            'status',
+        return $this->guidedOrBack(
+            $request,
+            $loan_application,
             'Failed members marked ineligible. The group continues with the remaining eligible members. Paid fees and historical screening records are kept.',
-        )->withFragment('review-desk');
+            'review-desk',
+        );
     }
 
     public function replaceGuarantor(
