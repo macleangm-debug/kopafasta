@@ -253,33 +253,33 @@
                                 $idPhoto = collect($item['evidence']['photos'])->firstWhere('role', 'id');
                                 $supportPhotos = collect($item['evidence']['photos'])->where('role', 'face_support')->values();
                                 $evidenceAssets = collect($item['evidence']['assets'] ?? []);
+                                $allPairs = collect($item['evidence']['photo_pairs'] ?? []);
+                                $matchedPairs = $allPairs->reject(fn ($pair) => ! empty($pair['extra']) || ! empty($pair['valuer_only']))->values();
+                                $extraPairs = $allPairs->filter(fn ($pair) => ! empty($pair['extra']) || ! empty($pair['valuer_only']))->values();
+                                $defaultPhotoTab = ($itemKey === 'collateral.asset_identity' && $extraPairs->isNotEmpty()) ? 'extra' : 'matched';
                             @endphp
                             <div x-data="{
                                      lightbox: null,
                                      pair: null,
                                      assetTab: {{ (int) ($evidenceAssets->first()['id'] ?? 0) }},
+                                     photoTab: @js($defaultPhotoTab),
+                                     extraType: 'all',
                                      open(url, label) { this.pair = null; this.lightbox = { url, label } },
                                      openPair(left, right, label) { this.lightbox = null; this.pair = { left, right, label } },
                                      close() { this.lightbox = null; this.pair = null }
                                  }">
                                 @if ($photoLayout === 'photo_pairs' && ! empty($item['evidence']['photo_pairs']))
-                                    @php
-                                        $allPairs = collect($item['evidence']['photo_pairs'] ?? []);
-                                        $matchedPairs = $allPairs->reject(fn ($pair) => ! empty($pair['extra']))->values();
-                                        $extraPairs = $allPairs->filter(fn ($pair) => ! empty($pair['extra']))->values();
-                                    @endphp
-                                    <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white"
-                                         x-data="{ photoTab: 'matched' }">
+                                    <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">
                                         <div class="flex gap-1 px-2 pt-2 border-b border-brand/10 bg-brand-muted/30">
-                                            <button type="button" @click="photoTab = 'matched'"
+                                            <button type="button" @click="photoTab = 'matched'; extraType = 'all'"
                                                     class="rounded-t-lg px-3 py-2 text-[11px] font-bold"
                                                     :class="photoTab === 'matched' ? 'bg-white text-brand' : 'text-slate-600'">
-                                                Matched photos
+                                                Same angles
                                             </button>
                                             <button type="button" @click="photoTab = 'extra'"
                                                     class="rounded-t-lg px-3 py-2 text-[11px] font-bold"
                                                     :class="photoTab === 'extra' ? 'bg-white text-brand' : 'text-slate-600'">
-                                                Additional photos
+                                                Valuer-only types
                                                 @if ($extraPairs->isNotEmpty())
                                                     · {{ $extraPairs->count() }}
                                                 @endif
@@ -296,20 +296,19 @@
                                                 @endforeach
                                             </div>
                                         @endif
-                                        <div x-show="photoTab === 'matched'" x-cloak class="divide-y divide-gray-100">
-                                            @forelse ($matchedPairs as $pair)
-                                                @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair, 'compare' => true])
-                                            @empty
-                                                <p class="px-3 py-4 text-sm text-slate-600">No matching borrower/valuer angles yet.</p>
-                                            @endforelse
+                                        <div x-show="photoTab === 'matched'" x-cloak>
+                                            <p class="px-3 pt-3 text-[12px] text-slate-600">Borrower vs valuer for the angles the borrower photographed (front, rear, sides, owner).</p>
+                                            <div class="divide-y divide-gray-100">
+                                                @forelse ($matchedPairs as $pair)
+                                                    <div x-show="!assetTab || assetTab === {{ (int) ($pair['asset_id'] ?? 0) }}">
+                                                        @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair, 'compare' => true])
+                                                    </div>
+                                                @empty
+                                                    <p class="px-3 py-4 text-sm text-slate-600">No matching borrower/valuer angles yet. Open Valuer-only types for inspection shots the borrower did not take.</p>
+                                                @endforelse
+                                            </div>
                                         </div>
-                                        <div x-show="photoTab === 'extra'" x-cloak class="divide-y divide-gray-100">
-                                            @forelse ($extraPairs as $pair)
-                                                @include('admin.loan-applications.review._photo_pair_row', ['pair' => $pair, 'compare' => false])
-                                            @empty
-                                                <p class="px-3 py-4 text-sm text-slate-600">No extra valuer photos (engine, chassis, damage) on this file.</p>
-                                            @endforelse
-                                        </div>
+                                        @include('admin.loan-applications.review._valuer_only_gallery', ['extraPairs' => $extraPairs])
                                     </div>
                                 @elseif ($photoLayout === 'face_id_compare' && ($facePhoto || $idPhoto))
                                     <div class="rounded-xl ring-2 ring-brand/20 overflow-hidden bg-white">

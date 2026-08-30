@@ -7,14 +7,21 @@ use App\Models\CustomerAsset;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\LoanProduct;
+use App\Models\PartnerDocument;
+use App\Models\PartnerTask;
 use App\Models\User;
 use App\Models\ValuationAssignment;
 use App\Models\Vendor;
 use App\Services\CollateralCoverageService;
 use App\Services\CollateralSecureService;
+use App\Services\CustomerAssetService;
+use App\Services\LoanApplicationNextActionService;
+use App\Services\PinService;
+use App\Services\ScreeningChecklistService;
 use App\Services\ValuationPartnerService;
 use Database\Seeders\ValuationPricingDefaultsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\Support\CompletesPartnerJobs;
 use Tests\TestCase;
 
@@ -32,7 +39,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
     private function borrower(): Customer
     {
         $user = User::factory()->create(['role' => 'borrower']);
-        app(\App\Services\PinService::class)->setPin($user, '1234');
+        app(PinService::class)->setPin($user, '1234');
 
         return Customer::create([
             'user_id' => $user->id,
@@ -127,7 +134,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
         $this->assertSame(CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, $state['status'] ?? null);
         $this->assertSame(0, ValuationAssignment::query()->where('loan_application_id', $application->id)->count());
 
-        $next = app(\App\Services\LoanApplicationNextActionService::class)
+        $next = app(LoanApplicationNextActionService::class)
             ->forApplication($customer, $application);
         $this->assertSame('pay_valuation_fee', $next['code'] ?? null);
     }
@@ -147,7 +154,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
         ]);
         $this->completePartnerForJobs($valuer);
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         app(ValuationPartnerService::class)->assign($application, $valuer, $admin);
     }
 
@@ -248,13 +255,13 @@ class ScreeningValuationGateFeatureTest extends TestCase
             'label' => 'Rav4',
         ])));
 
-        app(\App\Services\CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
+        app(CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
 
         $state = app(CollateralSecureService::class)->state($application->fresh());
         $this->assertSame(CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, $state['status'] ?? null);
         $this->assertSame(CollateralSecureService::PATH_SCREENING_VALUATION, $state['path'] ?? null);
 
-        $next = app(\App\Services\LoanApplicationNextActionService::class)
+        $next = app(LoanApplicationNextActionService::class)
             ->forApplication($customer, $application->fresh());
         $this->assertSame('pay_valuation_fee', $next['code'] ?? null);
     }
@@ -267,7 +274,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
 
         $this->assertNull(app(CollateralSecureService::class)->state($application->fresh()));
 
-        app(\App\Services\CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
+        app(CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
 
         $state = app(CollateralSecureService::class)->state($application->fresh());
         $this->assertSame(CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, $state['status'] ?? null);
@@ -302,7 +309,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
             'label' => 'Rav4',
         ])));
 
-        app(\App\Services\CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
+        app(CustomerAssetService::class)->attachToApplication($asset, $application, $customer);
 
         $state = app(CollateralSecureService::class)->state($application->fresh());
         $this->assertSame(CollateralSecureService::STATUS_AWAITING_VALUATION_FEE, $state['status'] ?? null);
@@ -314,7 +321,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
         $customer = $this->borrower();
         $application = $this->installment($customer, 800_000);
         $this->pledge($application, $customer);
-        app(\App\Services\CustomerAssetService::class)->persistOnLoanIds($application, [
+        app(CustomerAssetService::class)->persistOnLoanIds($application, [
             (int) $application->collateralAssets()->value('customer_asset_id'),
         ]);
 
@@ -336,7 +343,7 @@ class ScreeningValuationGateFeatureTest extends TestCase
         $application = $application->fresh();
 
         $admin = User::factory()->create(['role' => 'admin']);
-        $vm = app(\App\Services\ScreeningChecklistService::class)
+        $vm = app(ScreeningChecklistService::class)
             ->viewModel($application, $admin, 'borrower', null, null, ['customer' => $customer]);
         $collateral = collect($vm['groups'] ?? [])->firstWhere('key', 'collateral');
         $this->assertNotNull($collateral);
@@ -362,41 +369,11 @@ class ScreeningValuationGateFeatureTest extends TestCase
         $customer = $this->borrower();
         $application = $this->installment($customer);
         $asset = $this->pledge($application, $customer);
-        app(\App\Services\CustomerAssetService::class)->persistOnLoanIds($application, [(int) $asset->id]);
-
-        $valuer = Vendor::create([
-            'vendor_number' => 'V-PHOTO-'.random_int(100, 999),
-            'name' => 'Geofrey Mwaijjonga',
-            'category' => 'valuer',
-            'status' => 'active',
-        ]);
-        $task = \App\Models\PartnerTask::query()->create([
-            'partner_id' => $valuer->id,
-            'loan_application_id' => $application->id,
-            'task_type' => 'asset_valuation',
-            'status' => 'completed',
-        ]);
-        ValuationAssignment::query()->create([
-            'loan_application_id' => $application->id,
-            'vendor_id' => $valuer->id,
-            'vendor_task_id' => $task->id,
-            'status' => ValuationAssignment::STATUS_COMPLETED,
-            'market_value' => 20_000_000,
-            'forced_sale_value' => 15_000_000,
-            'completed_at' => now(),
-        ]);
-        foreach (['front', 'dashboard', 'engine', 'vin'] as $angle) {
-            \App\Models\PartnerDocument::query()->create([
-                'vendor_id' => $valuer->id,
-                'vendor_task_id' => $task->id,
-                'doc_type' => 'valuer_photo_'.$angle.'_'.$asset->id,
-                'label' => ucfirst($angle).' #'.$asset->id,
-                'file_path' => 'valuer/'.$angle.'.jpg',
-            ]);
-        }
+        app(CustomerAssetService::class)->persistOnLoanIds($application, [(int) $asset->id]);
+        $this->attachValuerPhotos($application, $asset, ['front', 'dashboard', 'engine', 'vin']);
 
         $admin = User::factory()->create(['role' => 'admin']);
-        $vm = app(\App\Services\ScreeningChecklistService::class)
+        $vm = app(ScreeningChecklistService::class)
             ->viewModel($application->fresh(), $admin, 'borrower', null, null, ['customer' => $customer]);
         $photos = collect(collect($vm['groups'] ?? [])->firstWhere('key', 'collateral')['items'] ?? [])
             ->firstWhere('key', 'collateral.valuation_or_photos');
@@ -423,8 +400,113 @@ class ScreeningValuationGateFeatureTest extends TestCase
             ]))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('Matched photos', $html);
-        $this->assertStringContainsString('Additional photos', $html);
+        $this->assertStringContainsString('Same angles', $html);
+        $this->assertStringContainsString('Valuer-only types', $html);
+        $this->assertStringContainsString('Not taken by the borrower', $html);
+        $this->assertStringContainsString('All types', $html);
+        $this->assertStringContainsString('Engine', $html);
+        $this->assertStringContainsString('Chassis / VIN', $html);
+        $this->assertStringContainsString('Dashboard / odometer', $html);
         $this->assertStringContainsString('Matches', $html);
+    }
+
+    public function test_asset_identity_shows_valuer_only_types(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer);
+        $asset = $this->pledge($application, $customer);
+        app(CustomerAssetService::class)->persistOnLoanIds($application, [(int) $asset->id]);
+        $this->attachValuerPhotos($application, $asset, ['front', 'dashboard', 'engine', 'vin']);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $vm = app(ScreeningChecklistService::class)
+            ->viewModel($application->fresh(), $admin, 'borrower', null, null, ['customer' => $customer]);
+        $identity = collect(collect($vm['groups'] ?? [])->firstWhere('key', 'collateral')['items'] ?? [])
+            ->firstWhere('key', 'collateral.asset_identity');
+
+        $this->assertSame('photo_pairs', $identity['evidence']['layout'] ?? null);
+        $this->assertTrue(
+            collect($identity['evidence']['photo_pairs'] ?? [])->contains(fn ($pair) => ! empty($pair['valuer_only']))
+        );
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+                'gate' => 'collateral',
+                'open_item' => 'collateral.asset_identity',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Valuer-only types', $html);
+        $this->assertStringContainsString('Engine', $html);
+        $this->assertStringContainsString('Chassis / VIN', $html);
+        $this->assertStringContainsString('Not taken by the borrower', $html);
+    }
+
+    public function test_valuer_photo_without_borrower_angle_is_valuer_only(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->installment($customer);
+        $asset = $this->pledge($application, $customer);
+        $meta = $asset->metadata ?? [];
+        $meta['photo_angles'] = ['back' => 'assets/back.jpg'];
+        unset($meta['person_with_asset_path']);
+        $asset->update([
+            'photo_paths' => ['assets/back.jpg'],
+            'metadata' => $meta,
+        ]);
+        app(CustomerAssetService::class)->persistOnLoanIds($application, [(int) $asset->id]);
+        $this->attachValuerPhotos($application, $asset, ['front', 'engine']);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $vm = app(ScreeningChecklistService::class)
+            ->viewModel($application->fresh(), $admin, 'borrower', null, null, ['customer' => $customer]);
+        $photos = collect(collect($vm['groups'] ?? [])->firstWhere('key', 'collateral')['items'] ?? [])
+            ->firstWhere('key', 'collateral.valuation_or_photos');
+
+        $front = collect($photos['evidence']['photo_pairs'] ?? [])->firstWhere('angle', 'front');
+        $this->assertNotNull($front);
+        $this->assertTrue($front['valuer_only'] ?? false);
+        $this->assertTrue($front['extra'] ?? false);
+        $this->assertEmpty($front['borrower']['url'] ?? null);
+        $this->assertNotEmpty($front['valuer']['url'] ?? null);
+
+        $engine = collect($photos['evidence']['photo_pairs'] ?? [])->firstWhere('angle', 'engine');
+        $this->assertTrue($engine['valuer_only'] ?? false);
+    }
+
+    private function attachValuerPhotos(LoanApplication $application, CustomerAsset $asset, array $angles): void
+    {
+        $valuer = Vendor::create([
+            'vendor_number' => 'V-PHOTO-'.random_int(100, 999),
+            'name' => 'Geofrey Mwaijjonga',
+            'category' => 'valuer',
+            'status' => 'active',
+        ]);
+        $task = PartnerTask::query()->create([
+            'partner_id' => $valuer->id,
+            'loan_application_id' => $application->id,
+            'task_type' => 'asset_valuation',
+            'status' => 'completed',
+        ]);
+        ValuationAssignment::query()->create([
+            'loan_application_id' => $application->id,
+            'vendor_id' => $valuer->id,
+            'vendor_task_id' => $task->id,
+            'status' => ValuationAssignment::STATUS_COMPLETED,
+            'market_value' => 20_000_000,
+            'forced_sale_value' => 15_000_000,
+            'completed_at' => now(),
+        ]);
+        foreach ($angles as $angle) {
+            PartnerDocument::query()->create([
+                'vendor_id' => $valuer->id,
+                'vendor_task_id' => $task->id,
+                'doc_type' => 'valuer_photo_'.$angle.'_'.$asset->id,
+                'label' => ucfirst($angle).' #'.$asset->id,
+                'file_path' => 'valuer/'.$angle.'.jpg',
+            ]);
+        }
     }
 }

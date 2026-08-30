@@ -5,7 +5,10 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\CustomerAsset;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationAsset;
 use App\Models\User;
+use App\Models\ValuationAssignment;
+use App\Support\NationalIdDob;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -379,7 +382,7 @@ class ScreeningChecklistService
                         'person' => $person,
                         'g' => $guarantorLinkId,
                         'm' => $memberId,
-                        'customer_id' => $context['customer'] instanceof \App\Models\Customer
+                        'customer_id' => $context['customer'] instanceof Customer
                             ? $context['customer']->id
                             : null,
                     ],
@@ -1753,7 +1756,7 @@ class ScreeningChecklistService
 
         switch ($type) {
             case 'nida_dob':
-                $cmp = \App\Support\NationalIdDob::matchesBorrower(
+                $cmp = NationalIdDob::matchesBorrower(
                     $customer?->national_id,
                     $customer?->date_of_birth,
                 );
@@ -2236,15 +2239,21 @@ class ScreeningChecklistService
                 foreach ($asset['documents'] ?? [] as $doc) {
                     $documents[] = $doc;
                 }
+                $photoPairs = $pledged->flatMap(fn ($row) => $row['photo_pairs'] ?? [])->values()->all();
                 if ($itemKey === 'valuation_or_photos') {
-                    $photoPairs = (array) ($asset['photo_pairs'] ?? []);
                     $layout = 'photo_pairs';
-                    $hint = 'Look at each pair, including extra valuer shots (dashboard, engine, VIN). Same asset? Pass. Different car / angle / person? Fail. The system does not compare the pictures.';
+                    $hint = 'Compare the same angles the borrower photographed, then open Valuer-only types (engine, VIN, dashboard, damage — shots the borrower does not take). Same asset? Pass. Different car / angle / person? Fail. The system does not compare the pictures.';
                 } else {
-                    foreach ($asset['photos'] ?? [] as $photo) {
-                        $photos[] = $photo;
+                    if ($photoPairs !== []) {
+                        $layout = 'photo_pairs';
+                    } else {
+                        foreach ($pledged as $row) {
+                            foreach ($row['photos'] ?? [] as $photo) {
+                                $photos[] = $photo;
+                            }
+                        }
                     }
-                    $hint = 'Confirm the pledged asset identity from photos and registration. Person-with-asset shots are supporting evidence, not the thumbnail.';
+                    $hint = 'Confirm registration / serial / title against the photos. Valuer-only types (VIN, engine, dashboard) are inspection shots the borrower did not take — use them to confirm it is the same asset.';
                 }
                 break;
 
@@ -2455,8 +2464,7 @@ class ScreeningChecklistService
         string $crb,
         string $profileSource = 'Borrower-provided',
         string $crbSource = 'CRB',
-    ): array
-    {
+    ): array {
         $profileNorm = strtolower(trim(preg_replace('/\s+/', ' ', $profile) ?? ''));
         $crbNorm = strtolower(trim(preg_replace('/\s+/', ' ', $crb) ?? ''));
         $status = match (true) {
@@ -2485,7 +2493,7 @@ class ScreeningChecklistService
 
         $out = [];
         foreach ($application->collateralAssets as $row) {
-            if (($row->uw_status ?? '') === \App\Models\LoanApplicationAsset::UW_DECLINED) {
+            if (($row->uw_status ?? '') === LoanApplicationAsset::UW_DECLINED) {
                 continue;
             }
             $asset = $row->customerAsset;
@@ -2571,7 +2579,7 @@ class ScreeningChecklistService
     }
 
     /**
-     * @return list<array{angle: string, label: string, extra?: bool, required?: bool, borrower: ?array{url: string, label: string}, valuer: ?array{url: string, label: string}}>
+     * @return list<array{angle: string, label: string, extra?: bool, valuer_only?: bool, required?: bool, asset_id: int, borrower: ?array{url: string, label: string}, valuer: ?array{url: string, label: string}}>
      */
     private function photoPairsForAsset(CustomerAsset $asset, LoanApplication $application): array
     {
@@ -2607,16 +2615,22 @@ class ScreeningChecklistService
                 continue;
             }
             $label = (string) ($meta['label'] ?? $evidence->labelFor((string) $angle));
+            $hasBorrower = filled($bPath);
+            $hasValuer = filled($vPath);
+            $ownerAngle = in_array($angle, $ownerAngles, true);
+            $valuerOnly = $hasValuer && (! $hasBorrower || ! $ownerAngle);
             $pairs[] = [
                 'angle' => (string) $angle,
                 'label' => $label,
-                'extra' => ! in_array($angle, $ownerAngles, true),
+                'asset_id' => (int) $asset->id,
+                'extra' => $valuerOnly,
+                'valuer_only' => $valuerOnly,
                 'required' => (bool) ($meta['required'] ?? false),
-                'borrower' => filled($bPath) ? [
+                'borrower' => $hasBorrower ? [
                     'url' => asset('storage/'.$bPath),
                     'label' => 'Asset · '.$label,
                 ] : null,
-                'valuer' => filled($vPath) ? [
+                'valuer' => $hasValuer ? [
                     'url' => asset('storage/'.$vPath),
                     'label' => 'Valuer · '.$label,
                 ] : null,
@@ -2703,9 +2717,9 @@ class ScreeningChecklistService
 
         $open = $application->valuationAssignments
             ->first(fn ($row) => in_array($row->status, [
-                \App\Models\ValuationAssignment::STATUS_ASSIGNED,
-                \App\Models\ValuationAssignment::STATUS_IN_PROGRESS,
-                \App\Models\ValuationAssignment::STATUS_COMPLETED,
+                ValuationAssignment::STATUS_ASSIGNED,
+                ValuationAssignment::STATUS_IN_PROGRESS,
+                ValuationAssignment::STATUS_COMPLETED,
             ], true));
 
         $feeDue = (int) ($cs['valuation_fee_due'] ?? 0);

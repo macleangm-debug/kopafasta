@@ -554,7 +554,7 @@ class ScreeningChecklistAutoVerdictService
             );
         }
 
-        // Files existing is not a match. Screening looks at the pairs (and extra valuer shots) and Pass / Fail.
+        // Files existing is not a match. Screening looks at the pairs (and valuer-only types) and Pass / Fail.
         return ['verdict' => '', 'source' => 'system_skip'];
     }
 
