@@ -12,7 +12,10 @@ use App\Models\LoanGroupMember;
 use App\Models\LoanProduct;
 use App\Models\User;
 use App\Services\ApplicationDocumentRequestService;
+use App\Services\LoanApplicationWorkflowService;
+use App\Services\ScreeningChecklistAutoVerdictService;
 use App\Services\ScreeningChecklistService;
+use App\Services\ScreeningReadinessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -89,6 +92,11 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('id="review-desk"', $html);
         $this->assertStringContainsString('Review checklist', $html);
         $this->assertStringContainsString('Next action', $html);
+        $this->assertStringContainsString('data-sequence-gate="declared"', $html);
+        $this->assertStringContainsString('data-sequence-gate="collateral"', $html);
+        $this->assertStringContainsString('data-desk-gate="income"', $html);
+        $this->assertStringContainsString('data-screening-save', $html);
+        $this->assertStringContainsString('setGate(', $html);
         $this->assertStringContainsString('2.1 Statement totals', $html);
         $this->assertStringContainsString('Pass ✓', $html);
         $this->assertStringContainsString('Concern', $html);
@@ -216,7 +224,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         ])->save();
         $customer = $customer->fresh();
 
-        $suggestions = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+        $suggestions = app(ScreeningChecklistAutoVerdictService::class)->suggest(
             $app->fresh(),
             'borrower',
             ['customer' => $customer],
@@ -225,7 +233,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertSame('pass', $suggestions['identity.nida_vs_dob']['verdict'] ?? null);
 
         $customer->forceFill(['date_of_birth' => '1988-03-12'])->save();
-        $mismatch = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+        $mismatch = app(ScreeningChecklistAutoVerdictService::class)->suggest(
             $app->fresh(),
             'borrower',
             ['customer' => $customer->fresh()],
@@ -234,7 +242,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertSame('nida_dob_mismatch', $mismatch['identity.nida_vs_dob']['fail_reason_code'] ?? null);
 
         $customer->forceFill(['national_id' => '12'])->save();
-        $short = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+        $short = app(ScreeningChecklistAutoVerdictService::class)->suggest(
             $app->fresh(),
             'borrower',
             ['customer' => $customer->fresh()],
@@ -242,14 +250,14 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertSame('nida_malformed', $short['identity.nida_vs_dob']['fail_reason_code'] ?? null);
 
         $customer->forceFill(['national_id' => '123456789102984678399477484'])->save();
-        $impossible = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+        $impossible = app(ScreeningChecklistAutoVerdictService::class)->suggest(
             $app->fresh(),
             'borrower',
             ['customer' => $customer->fresh()],
         );
         $this->assertSame('nida_impossible', $impossible['identity.nida_vs_dob']['fail_reason_code'] ?? null);
 
-        $named = app(\App\Services\ScreeningChecklistAutoVerdictService::class)->suggest(
+        $named = app(ScreeningChecklistAutoVerdictService::class)->suggest(
             $app->fresh(),
             'borrower',
             ['customer' => $customer->fresh(), 'crb' => []],
@@ -977,7 +985,7 @@ class ScreeningChecklistFeatureTest extends TestCase
 
         $request = $app->fresh()->documentRequests()->first();
         $this->assertNotNull($request);
-        $this->assertNotEmpty(app(\App\Services\LoanApplicationWorkflowService::class)->screeningDocumentBlockers($app->fresh()));
+        $this->assertNotEmpty(app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($app->fresh()));
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.loan-applications.document-requests.cancel', $app), [
@@ -992,7 +1000,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertSame('cancelled', $request->status);
         $this->assertStringContainsString('Retracted by', (string) $request->admin_notes);
         $this->assertStringContainsString('No longer required', (string) $request->admin_notes);
-        $blockers = app(\App\Services\LoanApplicationWorkflowService::class)->screeningDocumentBlockers($app->fresh());
+        $blockers = app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($app->fresh());
         $this->assertFalse(collect($blockers)->contains(fn ($label) => str_contains((string) $label, 'Updated Bank Statement')));
     }
 
@@ -1019,6 +1027,27 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('Decision status', (string) $response->json('readiness_html'));
         $items = data_get($app->fresh()->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
         $this->assertSame('pass', $items['activity_income.activity_plausible']['verdict'] ?? null);
+    }
+
+    public function test_ajax_save_returns_json_error_when_concern_has_no_reason(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->postJson(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'activity_plausible' => ['verdict' => 'fail'],
+                    ],
+                ],
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('ok', false);
+        $this->assertStringContainsString('fail reason', strtolower((string) $response->json('error')));
     }
 
     public function test_nida_match_is_quiet_auto_and_mismatch_is_needs_attention_not_a_question(): void
@@ -1051,7 +1080,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertFalse($mismatch['human_work'] ?? true);
         $this->assertFalse($mismatch['quiet_auto'] ?? true);
 
-        $readiness = app(\App\Services\ScreeningReadinessService::class)->forApplication(
+        $readiness = app(ScreeningReadinessService::class)->forApplication(
             $app->fresh(),
             ['customer' => $app->customer->fresh(), 'affordability' => ['verdict' => 'pass'], 'crb' => []],
             null,

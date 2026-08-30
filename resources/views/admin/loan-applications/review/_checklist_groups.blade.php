@@ -368,7 +368,8 @@
                                     </div>
                                 @endif
                                 <div x-show="lightbox || pair" x-cloak
-                                     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+                                     class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70"
+                                     style="display: none;"
                                      @keydown.escape.window="close()"
                                      @click.self="close()">
                                     <div class="relative max-w-5xl w-full max-h-[90vh] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/20">

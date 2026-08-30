@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\LoanApplication;
-use Illuminate\Support\Carbon;
+use App\Models\ValuationAssignment;
 
 /**
  * Sequential Screening orchestration: Gate 1 (declared) then Gate 2 (verified)
@@ -141,7 +141,7 @@ class ScreeningSequenceService
             return true;
         }
 
-        if (\App\Models\ValuationAssignment::query()
+        if (ValuationAssignment::query()
             ->where('loan_application_id', $application->id)
             ->whereIn('status', ['completed', 'accepted', 'complete'])
             ->exists()) {
@@ -463,6 +463,7 @@ class ScreeningSequenceService
                 'chip' => $chip,
                 'detail' => $detail,
                 'unlocked' => $status !== 'locked',
+                'desk_gate' => $key === self::GATE_DECLARED ? self::GATE_INCOME : $key,
             ];
         }
 

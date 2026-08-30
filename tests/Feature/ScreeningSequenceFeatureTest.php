@@ -137,6 +137,8 @@ class ScreeningSequenceFeatureTest extends TestCase
         $this->assertTrue($snap['grandfathered']);
         $this->assertTrue($snap['later_unlocked']);
         $this->assertFalse($snap['pending_rejection']);
+        $this->assertSame('income', collect($snap['sequence'])->firstWhere('key', 'declared')['desk_gate'] ?? null);
+        $this->assertSame('collateral', collect($snap['sequence'])->firstWhere('key', 'collateral')['desk_gate'] ?? null);
     }
 
     public function test_group_member_fail_does_not_park_the_whole_application(): void
