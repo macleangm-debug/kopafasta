@@ -46,16 +46,42 @@
         </div>
     </section>
 
+    <div class="hidden lg:grid lg:grid-cols-12 gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+        <div class="col-span-3">Application / customer</div>
+        <div class="col-span-2">Product</div>
+        <div class="col-span-1">Amount</div>
+        <div class="col-span-3">State</div>
+        <div class="col-span-3">Action</div>
+    </div>
+
     <div class="space-y-3">
         @forelse ($queue[$tab] as $row)
             @php $next = $row['next']; $app = $row['application']; @endphp
-            <a href="{{ $next['href'] }}"
-               class="block rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-4 hover:ring-brand/30">
-                <p class="text-sm font-bold text-slate-900">{{ $app->application_number }}</p>
-                <p class="text-xs text-slate-600 mt-0.5">{{ $app->partyLabel() }} · {{ format_money((float) $app->requested_amount) }}</p>
-                <p class="text-sm text-slate-800 mt-2">{{ $next['what_happens_next'] }}</p>
-                <p class="text-xs font-bold text-brand mt-2">{{ $next['cta'] }}</p>
-            </a>
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-4">
+                <div class="lg:grid lg:grid-cols-12 lg:gap-3 lg:items-center">
+                    <div class="col-span-3">
+                        <a href="{{ $next['desk_href'] ?? $next['href'] }}" class="text-sm font-bold text-slate-900 hover:underline">{{ $app->application_number }}</a>
+                        <p class="text-xs text-slate-600 mt-0.5">{{ $app->partyLabel() }}</p>
+                    </div>
+                    <div class="col-span-2 mt-2 lg:mt-0">
+                        <p class="text-xs font-semibold text-slate-800">{{ $app->product?->name ?? 'Loan' }}</p>
+                    </div>
+                    <div class="col-span-1 mt-2 lg:mt-0">
+                        <p class="text-sm font-semibold text-slate-900">{{ format_money((float) $app->requested_amount) }}</p>
+                    </div>
+                    <div class="col-span-3 mt-2 lg:mt-0">
+                        <p class="text-xs text-slate-800">{{ $next['what_happens_next'] }}</p>
+                        <p class="text-[11px] text-slate-500 mt-1">{{ optional($app->updated_at)->diffForHumans() }}</p>
+                    </div>
+                    <div class="col-span-3 mt-3 lg:mt-0 flex flex-col gap-1.5 items-start">
+                        @if (str_starts_with((string) ($next['cta'] ?? ''), 'Waiting'))
+                            <span class="inline-flex rounded-xl bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-950">{{ $next['cta'] }}</span>
+                        @else
+                            <a href="{{ $next['review_href'] ?? $next['href'] }}" class="inline-flex rounded-xl bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand">{{ $next['cta'] }}</a>
+                        @endif
+                    </div>
+                </div>
+            </div>
         @empty
             <p class="text-sm text-slate-600">Nothing in this list.</p>
         @endforelse

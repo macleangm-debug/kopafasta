@@ -29,9 +29,10 @@ class ScreeningNextActionService
     ) {}
 
     /**
+     * @param  array{after_item?: ?string, after_person?: ?string, after_m?: ?int, after_g?: ?int}  $cursor
      * @return array<string, mixed>
      */
-    public function forApplication(LoanApplication $application, ?User $actor = null): array
+    public function forApplication(LoanApplication $application, ?User $actor = null, array $cursor = []): array
     {
         $actor = $actor ?? auth()->user();
         $application->loadMissing(['customer', 'product', 'loanGroup.members.customer', 'documentRequests', 'customerGuarantors.invitation']);
@@ -48,6 +49,7 @@ class ScreeningNextActionService
         }
 
         $subjects = $this->checklist->deskSubjects($application, $review, $groupReview, $actor);
+        $progress = $this->checklistProgress($subjects);
         $leaderDesk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, 'borrower');
         $leaderGates = $this->gates->regroup($leaderDesk['groups'] ?? [], $application);
         $snapshot = $this->sequence->snapshot($application, $leaderGates);
@@ -63,21 +65,29 @@ class ScreeningNextActionService
             $clarification !== null => $this->clarificationStep($clarification),
             $waiting !== null => $this->waitingStep($waiting, $snapshot),
             $needsResolutionUi => $this->resolutionStep($application, $snapshot, $groupReview),
-            default => $this->firstActionableStep($application, $actor, $review, $groupReview, $subjects, $snapshot),
+            default => $this->firstActionableStep($application, $actor, $review, $groupReview, $subjects, $snapshot, $cursor),
         };
+        $unresolved = $step;
+        if (($cursor['at_item'] ?? '') !== '' && ! in_array($step['type'] ?? '', ['waiting', 'clarification', 'resolution', 'return_to_committee'], true)) {
+            $unresolved = $this->firstActionableStep($application, $actor, $review, $groupReview, $subjects, $snapshot, array_diff_key($cursor, array_flip(['at_item', 'at_person', 'at_m', 'at_g'])));
+        }
+        if (empty($cursor['back']) && ! in_array($step['type'] ?? '', ['waiting', 'decision'], true)) {
+            $this->pushWalk($application, $step);
+        }
 
         $started = filled(data_get($application->screening_payload, 'guided.started_at'));
         $stage = (string) $application->current_stage;
         $screeningOpen = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
-        $decisionReady = (bool) ($snapshot['decision_unlocked'] ?? false);
+        $stepIsDecision = ($step['type'] ?? '') === 'decision';
+        $stillOpen = in_array($step['type'] ?? '', ['human', 'request', 'attention', 'waiting', 'resolution', 'clarification', 'gate_1', 'gate_complete'], true);
         $bucket = match (true) {
-            ! $screeningOpen || $decisionReady => self::BUCKET_COMPLETED,
+            ! $screeningOpen || ($stepIsDecision && ! $stillOpen) => self::BUCKET_COMPLETED,
             $waiting !== null => self::BUCKET_WAITING,
             default => self::BUCKET_DO_NOW,
         };
 
         $ctaKind = match (true) {
-            $bucket === self::BUCKET_COMPLETED => 'decision',
+            $bucket === self::BUCKET_COMPLETED && $stepIsDecision => 'decision',
             $waiting !== null => 'waiting',
             $started => 'continue',
             default => 'start',
@@ -85,32 +95,38 @@ class ScreeningNextActionService
         $cta = match ($ctaKind) {
             'decision' => 'Continue to Decision',
             'waiting' => (string) ($waiting['label'] ?? 'Waiting'),
-            'continue' => 'Continue Screening',
-            default => 'Start Screening',
+            'continue' => 'Continue Reviewing',
+            default => 'Start Reviewing',
         };
 
-        $resume = $this->resumeFromStep($step);
+        $resume = $this->resumeFromStep($unresolved);
         $this->persistQuiet($application, $resume, $bucket, $waiting);
 
-        $href = $ctaKind === 'decision'
-            ? route('admin.loan-applications.show', [
-                'loan_application' => $application,
-                'workspace' => 'decision',
-            ]).'#review-recommendation'
-            : route('admin.loan-applications.guided-screening', array_filter([
-                'loan_application' => $application,
-                'gate' => $resume['gate'] ?? null,
-                'person' => $resume['person'] ?? null,
-                'm' => $resume['m'] ?? null,
-                'g' => $resume['g'] ?? null,
-                'open_item' => $resume['item'] ?? null,
-            ]));
+        $deskHref = route('admin.loan-applications.show', [
+            'loan_application' => $application,
+            'workspace' => 'overview',
+        ]).'#credit-workspace';
+        $reviewHref = route('admin.loan-applications.guided-screening', $application);
+        $decisionHref = route('admin.loan-applications.show', [
+            'loan_application' => $application,
+            'workspace' => 'decision',
+        ]).'#review-recommendation';
+        $href = match ($ctaKind) {
+            'decision' => $decisionHref,
+            default => $deskHref,
+        };
+
+        $blockers = $this->unresolvedCount($subjects, $application, $actor, $review, $groupReview);
+        $gateProgress = $this->gateProgressForStep($step, $subjects, $application, $actor, $review, $groupReview);
 
         return [
             'cta' => $cta,
             'cta_kind' => $ctaKind,
             'resumable' => $ctaKind === 'continue' || $ctaKind === 'start',
             'href' => $href,
+            'desk_href' => $deskHref,
+            'review_href' => $reviewHref,
+            'prev_href' => $this->previousWalkHref($application),
             'checklist_href' => route('admin.loan-applications.show', [
                 'loan_application' => $application,
                 'workspace' => 'checklist',
@@ -125,11 +141,24 @@ class ScreeningNextActionService
             'started' => $started,
             'last_activity_at' => data_get($application->screening_payload, 'guided.last_activity_at'),
             'gate' => $resume['gate'] ?? ($step['gate'] ?? 'income'),
+            'current_gate' => $resume['gate'] ?? ($step['gate'] ?? 'income'),
             'gate_index' => (int) ($step['gate_index'] ?? 1),
             'gate_total' => 6,
+            'gate_label' => (string) ($step['gate_label'] ?? ''),
+            'current_gate_label' => trim(
+                'Gate '.((int) ($step['gate_index'] ?? 1))
+                .(! empty($step['gate_label']) ? ' · '.$step['gate_label'] : '')
+            ),
+            'percent' => $progress['percent'],
+            'checks_done' => $progress['done'],
+            'checks_total' => $progress['total'],
+            'remaining' => $progress['remaining'],
+            'remaining_blockers' => $blockers,
+            'gate_progress' => $gateProgress,
+            'product_name' => $application->product?->name,
             'participant' => $step['participant'] ?? null,
             'step' => $step,
-            'what_happens_next' => $this->whatHappensNext($step, $waiting, $ctaKind),
+            'what_happens_next' => $this->whatHappensNext($step, $waiting, $ctaKind, $blockers),
             'recommended' => $step['recommended'] ?? null,
             'sequence' => $snapshot,
             'subjects' => collect($subjects)->map(fn ($s) => [
@@ -206,6 +235,7 @@ class ScreeningNextActionService
         array $groupReview,
         array $subjects,
         array $snapshot,
+        array $cursor = [],
     ): array {
         if ($snapshot['pending_rejection'] ?? false) {
             return $this->gateOneStep($application, $snapshot, $groupReview);
@@ -220,6 +250,16 @@ class ScreeningNextActionService
             return $this->gateOneStep($application, $snapshot, $groupReview);
         }
 
+        $skipItem = (string) ($cursor['after_item'] ?? '');
+        $skipPerson = (string) ($cursor['after_person'] ?? '');
+        $skipM = isset($cursor['after_m']) ? (int) $cursor['after_m'] : null;
+        $skipG = isset($cursor['after_g']) ? (int) $cursor['after_g'] : null;
+        $passedCursor = $skipItem === '';
+        $pinItem = (string) ($cursor['at_item'] ?? '');
+        $pinPerson = (string) ($cursor['at_person'] ?? 'borrower');
+        $pinM = isset($cursor['at_m']) ? (int) $cursor['at_m'] : null;
+        $pinG = isset($cursor['at_g']) ? (int) $cursor['at_g'] : null;
+
         $subjectTotal = max(1, count($subjects));
         foreach ($this->orderedSubjects($subjects) as $subject) {
             $subjectIndex = $this->subjectIndex($subjects, $subject);
@@ -233,18 +273,42 @@ class ScreeningNextActionService
 
             foreach (['income', 'crb', 'identity', 'collateral', 'final'] as $gateKey) {
                 $gate = $gates[$gateKey] ?? null;
-                if (! is_array($gate) || ! empty($gate['locked'])) {
+                if (! is_array($gate) || ($pinItem === '' && ! empty($gate['locked']))) {
                     continue;
                 }
                 foreach ($gate['groups'] ?? [] as $group) {
                     foreach ($group['items'] ?? [] as $item) {
-                        if ($this->gates->isQuietAuto($item)) {
+                        $samePerson = $person === $pinPerson
+                            && (int) ($m ?? 0) === (int) ($pinM ?? 0)
+                            && (int) ($g ?? 0) === (int) ($pinG ?? 0);
+                        if ($pinItem !== '' && $samePerson && (string) ($item['key'] ?? '') === $pinItem) {
+                            $step = $this->itemStep(
+                                $application,
+                                $item,
+                                $gateKey,
+                                $subject,
+                                $subjectIndex,
+                                $subjectTotal,
+                                $card,
+                                $customer,
+                                $snapshot,
+                            );
+                            $step['revisiting'] = ($item['verdict'] ?? null) !== null || ! $this->itemNeedsAction($item);
+
+                            return $step;
+                        }
+
+                        if (! $this->itemNeedsAction($item) || $pinItem !== '') {
                             continue;
                         }
-                        $humanOpen = ($item['verdict'] ?? null) === null && $this->gates->isHumanWork($item);
-                        $needsResolution = $this->gates->isSystemFail($item)
-                            || ! empty($item['awaiting_data']);
-                        if (! $humanOpen && ! $needsResolution) {
+
+                        if (! $passedCursor) {
+                            $sameSkip = $person === $skipPerson
+                                && (int) ($m ?? 0) === (int) ($skipM ?? 0)
+                                && (int) ($g ?? 0) === (int) ($skipG ?? 0);
+                            if ($sameSkip && (string) ($item['key'] ?? '') === $skipItem) {
+                                $passedCursor = true;
+                            }
                             continue;
                         }
 
@@ -264,19 +328,34 @@ class ScreeningNextActionService
             }
         }
 
-        if ($snapshot['decision_unlocked'] ?? false) {
+        if ($pinItem !== '') {
+            return $this->firstActionableStep($application, $actor, $review, $groupReview, $subjects, $snapshot, array_diff_key($cursor, array_flip(['at_item', 'at_person', 'at_m', 'at_g'])));
+        }
+
+        $remaining = $this->unresolvedCount($subjects, $application, $actor, $review, $groupReview);
+        if ($remaining > 0) {
             return [
-                'type' => 'decision',
-                'gate' => 'final',
-                'gate_index' => 6,
+                'type' => 'gate_complete',
+                'gate' => (string) ($snapshot['next_action']['gate'] ?? 'final'),
+                'gate_index' => (int) ($snapshot['next_action']['gate_index'] ?? 6),
                 'gate_label' => 'Final review',
-                'title' => 'Screening complete',
-                'prompt' => 'All required Screening checks are complete.',
-                'primary' => 'Continue to Decision',
+                'title' => 'Checks still need attention',
+                'prompt' => $remaining === 1
+                    ? '1 requirement remains before Screening can be completed.'
+                    : $remaining.' requirements remain before Screening can be completed.',
+                'primary' => 'View Review Checklist',
             ];
         }
 
-        return $this->gateCompleteStep($snapshot);
+        return [
+            'type' => 'decision',
+            'gate' => 'final',
+            'gate_index' => 6,
+            'gate_label' => 'Final review',
+            'title' => 'Screening complete',
+            'prompt' => 'All required Screening checks are complete.',
+            'primary' => 'Continue to Decision',
+        ];
     }
 
     /**
@@ -353,14 +432,14 @@ class ScreeningNextActionService
         };
         $requestable = $this->requestablePreset($key, $item);
         $contact = $this->contactContext($key, $card, $customer);
+        $isSystemItem = ! empty($item['catalog_system'])
+            || ! empty($item['system_checked'])
+            || ! empty($item['documents_checked'])
+            || $this->gates->isSystemFail($item);
         $isRequest = $requestable && (($item['verdict'] ?? null) === 'fail' || ! empty($item['awaiting_data']));
+        $isAttention = $isSystemItem && ! $isRequest;
 
-        return [
-            'type' => $isRequest ? 'request' : 'human',
-            'recommended' => $isRequest ? [
-                'label' => 'Required next step',
-                'detail' => $requestable['label'] ?? 'Request the missing evidence',
-            ] : null,
+        $base = [
             'gate' => $gateKey,
             'gate_index' => $index,
             'gate_label' => ScreeningSequenceService::SEQUENCE[$gateKey === 'income' ? 'income' : $gateKey]
@@ -374,6 +453,7 @@ class ScreeningNextActionService
             'fail_reasons' => $item['fail_reasons'] ?? [],
             'verdict' => $item['verdict'] ?? null,
             'requestable' => $requestable,
+            'destination' => $item['destination'] ?? null,
             'contact' => $contact,
             'participant' => [
                 'label' => $subject['label'] ?? 'Participant',
@@ -384,10 +464,30 @@ class ScreeningNextActionService
                 'total' => $subjectTotal,
                 'name' => $customer?->full_name ?? ($subject['sublabel'] ?? null),
             ],
-            'primary' => $requestable ? 'Request & pause' : 'Save & Next',
-            'outcomes' => $this->outcomesFor($key),
             'evidence' => $item['evidence'] ?? [],
         ];
+
+        if ($isAttention) {
+            return array_merge($base, [
+                'type' => 'attention',
+                'recommended' => [
+                    'label' => 'Needs attention',
+                    'detail' => $item['fail_reason_label'] ?? 'The system recorded a finding that still needs to be resolved.',
+                ],
+                'primary' => 'Continue reviewing',
+                'outcomes' => [],
+            ]);
+        }
+
+        return array_merge($base, [
+            'type' => $isRequest ? 'request' : 'human',
+            'recommended' => $isRequest ? [
+                'label' => 'Required next step',
+                'detail' => $requestable['label'] ?? 'Request the missing evidence',
+            ] : null,
+            'primary' => $requestable ? 'Request & pause' : 'Save & Next',
+            'outcomes' => $this->outcomesFor($key),
+        ]);
     }
 
     /**
@@ -506,6 +606,30 @@ class ScreeningNextActionService
         $fromReview = $review['customer'] ?? $application->customer;
 
         return $fromReview instanceof Customer ? $fromReview : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function itemNeedsAction(array $item): bool
+    {
+        if ($this->gates->isQuietAuto($item)) {
+            return false;
+        }
+        if (app(ScreeningExceptionService::class)->isAccepted($item)) {
+            return false;
+        }
+
+        $systemish = ! empty($item['catalog_system'])
+            || ! empty($item['system_checked'])
+            || ! empty($item['documents_checked']);
+        $systemOpen = $systemish && ! in_array($item['verdict'] ?? null, ['pass', 'na'], true);
+        $humanOpen = ($item['verdict'] ?? null) === null && $this->gates->isHumanWork($item);
+        $needsResolution = $this->gates->isSystemFail($item) || ! empty($item['awaiting_data']);
+        $needsRequest = ($item['verdict'] ?? null) === 'fail'
+            && $this->requestablePreset((string) ($item['key'] ?? ''), $item) !== null;
+
+        return $humanOpen || $needsResolution || $needsRequest || $systemOpen;
     }
 
     /**
@@ -631,9 +755,86 @@ class ScreeningNextActionService
     }
 
     /**
-     * @param  array<string, mixed>  $step
-     * @return array<string, mixed>
+     * @param  list<array<string, mixed>>  $subjects
+     * @return array{done: int, total: int, percent: int, remaining: int}
      */
+    private function checklistProgress(array $subjects): array
+    {
+        $done = 0;
+        $total = 0;
+        foreach ($subjects as $subject) {
+            $done += (int) ($subject['done'] ?? 0);
+            $total += (int) ($subject['total'] ?? 0);
+        }
+
+        return [
+            'done' => $done,
+            'total' => $total,
+            'percent' => $total > 0 ? (int) round(($done / $total) * 100) : 0,
+            'remaining' => max(0, $total - $done),
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $subjects
+     */
+    private function unresolvedCount(
+        array $subjects,
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+    ): int {
+        $count = 0;
+        foreach ($subjects as $subject) {
+            $person = (string) ($subject['person'] ?? 'borrower');
+            $m = isset($subject['m']) ? (int) $subject['m'] : null;
+            $g = isset($subject['g']) ? (int) $subject['g'] : null;
+            $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
+            foreach ($desk['groups'] ?? [] as $group) {
+                foreach ($group['items'] ?? [] as $item) {
+                    if ($this->itemNeedsAction($item)) {
+                        $count++;
+                    }
+                }
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * @param  array<string, mixed>  $step
+     * @param  list<array<string, mixed>>  $subjects
+     * @return array{done: int, total: int, label: string}
+     */
+    private function gateProgressForStep(
+        array $step,
+        array $subjects,
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+    ): array {
+        $gateKey = (string) ($step['gate'] ?? '');
+        $person = (string) ($step['participant']['person'] ?? 'borrower');
+        $m = isset($step['participant']['m']) ? (int) $step['participant']['m'] : null;
+        $g = isset($step['participant']['g']) ? (int) $step['participant']['g'] : null;
+        $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
+        $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
+        $gate = $gates[$gateKey] ?? null;
+        $total = (int) ($gate['total'] ?? 0);
+        $done = (int) ($gate['decided'] ?? 0);
+
+        return [
+            'done' => $done,
+            'total' => $total,
+            'label' => $total > 0
+                ? 'Gate '.((int) ($step['gate_index'] ?? 0)).' · '.$done.' of '.$total.' applicable checks complete'
+                : (string) ($step['gate_label'] ?? ''),
+        ];
+    }
+
     private function resumeFromStep(array $step): array
     {
         $participant = $step['participant'] ?? [];
@@ -672,10 +873,68 @@ class ScreeningNextActionService
     }
 
     /**
+     * Drop the current walk frame and return the previous guided item, or null to leave the wizard.
+     *
+     * @return array{gate?: string, person?: string, m?: int, g?: int, item?: string, group?: string}|null
+     */
+    public function popWalk(LoanApplication $application): ?array
+    {
+        $payload = $application->screening_payload ?? [];
+        $guided = (array) ($payload['guided'] ?? []);
+        $walk = array_values((array) ($guided['walk'] ?? []));
+        if ($walk === []) {
+            return null;
+        }
+        array_pop($walk);
+        $prev = $walk !== [] ? $walk[array_key_last($walk)] : null;
+        $guided['walk'] = $walk;
+        $payload['guided'] = $guided;
+        $application->forceFill(['screening_payload' => $payload])->saveQuietly();
+
+        return is_array($prev) && filled($prev['item'] ?? null) ? $prev : null;
+    }
+
+    private function pushWalk(LoanApplication $application, array $step): void
+    {
+        $pointer = $this->resumeFromStep($step);
+        if (! filled($pointer['item'] ?? null)) {
+            return;
+        }
+        $payload = $application->screening_payload ?? [];
+        $guided = (array) ($payload['guided'] ?? []);
+        $walk = array_values((array) ($guided['walk'] ?? []));
+        $last = $walk !== [] ? $walk[array_key_last($walk)] : null;
+        if (is_array($last)
+            && ($last['item'] ?? null) === ($pointer['item'] ?? null)
+            && ($last['person'] ?? null) === ($pointer['person'] ?? null)
+            && (int) ($last['m'] ?? 0) === (int) ($pointer['m'] ?? 0)
+            && (int) ($last['g'] ?? 0) === (int) ($pointer['g'] ?? 0)) {
+            return;
+        }
+        $walk[] = $pointer;
+        $guided['walk'] = array_slice($walk, -40);
+        $payload['guided'] = $guided;
+        $application->forceFill(['screening_payload' => $payload])->saveQuietly();
+    }
+
+    private function previousWalkHref(LoanApplication $application): ?string
+    {
+        $walk = array_values((array) data_get($application->screening_payload, 'guided.walk', []));
+        if (count($walk) < 2) {
+            return null;
+        }
+
+        return route('admin.loan-applications.guided-screening', [
+            'loan_application' => $application,
+            'back' => 1,
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $step
      * @param  array<string, mixed>|null  $waiting
      */
-    private function whatHappensNext(array $step, ?array $waiting, string $ctaKind): string
+    private function whatHappensNext(array $step, ?array $waiting, string $ctaKind, int $remaining = 0): string
     {
         if ($waiting) {
             return 'Screening is paused. '.$waiting['detail'].' No action is required from you now.';
@@ -691,7 +950,15 @@ class ScreeningNextActionService
         if (($step['type'] ?? '') === 'return_to_committee') {
             return 'Clarification is recorded. Return this file to Committee — they will see what changed.';
         }
-        if ($ctaKind === 'decision') {
+        if (($step['type'] ?? '') === 'attention') {
+            $detail = $step['recommended']['detail'] ?? $step['prompt'] ?? 'Review this finding.';
+            if ($remaining > 0) {
+                return $detail.' There are '.$remaining.' checks remaining before Screening can be completed.';
+            }
+
+            return $detail;
+        }
+        if ($ctaKind === 'decision' && ($step['type'] ?? '') === 'decision') {
             return 'Screening is complete. Continue to Decision when you are ready to record the recommendation.';
         }
         $name = $step['participant']['name'] ?? $step['participant']['label'] ?? 'this participant';

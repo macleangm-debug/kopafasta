@@ -61,12 +61,23 @@ class GuidedApprovalService
             default => 'View file',
         };
 
+        $deskHref = route('admin.loan-applications.show', [
+            'loan_application' => $application,
+            'workspace' => 'overview',
+        ]).'#credit-workspace';
+
         return [
             'bucket' => $bucket,
             'cta' => $cta,
-            'href' => $waitingOnScreening
-                ? route('admin.loan-applications.guided-screening', $application)
+            'href' => $deskHref,
+            'desk_href' => $deskHref,
+            'review_href' => $waitingOnScreening
+                ? $deskHref
                 : route('admin.loan-applications.guided-committee', $application),
+            'file_href' => route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+            ]),
             'what_happens_next' => $waitingOnScreening
                 ? 'Screening is answering Committee’s clarification. No Committee action until it returns.'
                 : ($changed['has_changes'] ?? false
@@ -164,6 +175,7 @@ class GuidedApprovalService
         return [
             'sequence' => $snap,
             'what_changed' => $changed,
+            'exceptions' => app(ScreeningExceptionService::class)->summary($application),
             'gates' => collect($snap['sequence'] ?? [])->map(fn ($row) => [
                 'label' => $row['label'] ?? $row['key'] ?? '',
                 'status' => $row['status'] ?? '',
@@ -185,6 +197,14 @@ class GuidedApprovalService
             'recommendation' => (string) ($application->recommendation_type ?? ''),
             'checklist_updated' => (string) data_get($payload, 'screening_checklist.updated_at', ''),
             'docs' => (int) $application->documentRequests()->count(),
+            'exceptions_signature' => collect(data_get($payload, 'screening_exceptions', []))
+                ->map(fn ($row) => implode(':', [
+                    $row['id'] ?? '',
+                    $row['reason'] ?? '',
+                    $row['committee']['status'] ?? '',
+                    $row['committee']['note'] ?? '',
+                ]))
+                ->implode('|'),
         ];
     }
 
@@ -197,6 +217,7 @@ class GuidedApprovalService
     {
         $this->markCommitteeOpened($application);
         $scan = $this->executiveScan($application);
+        $exceptions = $scan['exceptions'] ?? ['total' => 0, 'items' => [], 'unacknowledged_material' => 0];
         $application->loadMissing(['customer', 'product', 'collateralAssets.customerAsset']);
         $steps = [
             ['key' => 'facility', 'title' => 'Facility', 'prompt' => 'Confirm the requested facility before scanning credit evidence.'],
@@ -204,11 +225,22 @@ class GuidedApprovalService
             ['key' => 'crb', 'title' => 'CRB', 'prompt' => 'Review the compact bureau result. Only material issues need attention.'],
             ['key' => 'people', 'title' => 'People', 'prompt' => 'Identity, NOK and LGO were completed in Screening. Inspect a participant only if needed.'],
             ['key' => 'security', 'title' => 'Security', 'prompt' => 'Collateral values come from the same record Screening and Valuation used.'],
-            ['key' => 'exceptions', 'title' => 'Exceptions & recommendation', 'prompt' => 'This is the only place to challenge Screening. Then record the Committee decision.'],
+            ['key' => 'recommendation', 'title' => 'Recommendation', 'prompt' => 'This is the only place to challenge Screening. Then record the Committee decision.'],
         ];
+        if ((int) ($exceptions['total'] ?? 0) > 0) {
+            array_unshift($steps, [
+                'key' => 'exceptions',
+                'title' => 'Exceptions from Screening',
+                'prompt' => 'The system raised these findings and Screening disagreed. Review the original recommendation, the analyst decision, and the rationale. Do not re-do Screening.',
+            ]);
+        }
         $saved = (int) data_get($application->screening_payload, 'guided.committee_step', 1);
         $index = $requestedStep ?: $saved;
         $index = max(1, min(count($steps), $index));
+        if ((int) ($exceptions['unacknowledged_material'] ?? 0) > 0
+            && ($steps[$index - 1]['key'] ?? '') === 'recommendation') {
+            $index = 1;
+        }
         $this->persistCommitteeStep($application, $index);
         $step = $steps[$index - 1];
         $changed = $scan['what_changed'] ?? ['has_changes' => false, 'items' => []];
@@ -216,8 +248,11 @@ class GuidedApprovalService
         return [
             'index' => $index,
             'total' => count($steps),
+            'percent' => (int) round(($index / max(1, count($steps))) * 100),
             'step' => $step,
             'scan' => $scan,
+            'exceptions' => $exceptions,
+            'block_decision' => (int) ($exceptions['unacknowledged_material'] ?? 0) > 0,
             'changed' => $changed,
             'next_index' => $index < count($steps) ? $index + 1 : null,
             'prev_index' => $index > 1 ? $index - 1 : null,
@@ -228,6 +263,13 @@ class GuidedApprovalService
             'file_href' => route('admin.loan-applications.show', [
                 'loan_application' => $application,
                 'workspace' => 'checklist',
+            ]),
+            'crb_href' => route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'checklist',
+                'desk_phase' => 'capacity',
+                'capacity_tab' => 'crb',
+                'from' => 'committee',
             ]),
         ];
     }

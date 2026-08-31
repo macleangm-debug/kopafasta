@@ -80,11 +80,8 @@ class ScreeningChecklistGateService
         if (! $auto) {
             return false;
         }
-        if (! empty($item['awaiting_data'])) {
-            return true;
-        }
 
-        return in_array($item['verdict'] ?? null, ['pass', 'na', 'fail'], true);
+        return true;
     }
 
     /**

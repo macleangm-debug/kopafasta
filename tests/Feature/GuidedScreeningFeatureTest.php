@@ -32,7 +32,9 @@ class GuidedScreeningFeatureTest extends TestCase
             ->get(route('admin.loan-applications.guided-screening', $app))
             ->assertOk()
             ->assertSee('Gate')
-            ->assertSee('What happens next');
+            ->assertSee('What happens next')
+            ->assertSee('Kopafasta Credit')
+            ->assertSee('Overall Screening');
 
         $app->refresh();
         $this->assertNotEmpty(data_get($app->screening_payload, 'guided.started_at'));
@@ -135,7 +137,7 @@ class GuidedScreeningFeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('Do now', $html);
         $this->assertStringContainsString($app->application_number, $html);
-        $this->assertStringContainsString('Start Screening', $html);
+        $this->assertStringContainsString('Start Reviewing', $html);
     }
 
     public function test_committee_clarification_resumes_in_the_wizard(): void
@@ -179,7 +181,8 @@ class GuidedScreeningFeatureTest extends TestCase
             ->get(route('admin.loan-applications.guided-committee', $app))
             ->assertOk()
             ->assertSee('Facility')
-            ->assertSee('Committee');
+            ->assertSee('Committee')
+            ->assertSee('Kopafasta Credit');
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.guided-committee', ['loan_application' => $app, 'step' => 2]))
@@ -187,6 +190,139 @@ class GuidedScreeningFeatureTest extends TestCase
             ->assertSee('Repayment capacity');
 
         $this->assertSame(2, (int) data_get($app->fresh()->screening_payload, 'guided.committee_step'));
+    }
+
+    public function test_crb_page_from_guided_review_is_not_a_dead_end(): void
+    {
+        [$admin, $app] = $this->file();
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'checklist',
+                'desk_phase' => 'capacity',
+                'capacity_tab' => 'crb',
+                'from' => 'guided',
+            ]))
+            ->assertOk()
+            ->assertSee('Back to Review', false)
+            ->assertSee('Manual CRB review required', false)
+            ->assertSee('CRB recommendation', false)
+            ->assertSee('Status: REFER', false)
+            ->assertSee('Not provided', false)
+            ->assertSee('What happens next', false)
+            ->assertSee('Accept &amp; continue', false)
+            ->assertDontSee('Score —', false)
+            ->assertDontSee('Quick red flags', false);
+    }
+
+    public function test_accepting_reviewable_crb_finding_returns_to_guided_review_and_keeps_system_outcome(): void
+    {
+        [$admin, $app] = $this->file();
+        $app->update([
+            'screening_payload' => [
+                'screening_checklist' => [
+                    'by_subject' => [
+                        'borrower' => [
+                            'items' => [
+                                'identity.name_vs_crb' => [
+                                    'key' => 'identity.name_vs_crb',
+                                    'verdict' => 'fail',
+                                    'fail_reason_code' => 'crb_name_unusable',
+                                    'source' => 'system',
+                                    'catalog_system' => true,
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.discrepancy-waiver', $app), [
+                'code' => 'crb_name_unusable',
+                'reason' => 'CRB returned no usable name, but identity was confirmed from the National ID photo.',
+                'from' => 'guided',
+                'review_person' => 'borrower',
+                'open_item' => 'identity.name_vs_crb',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app));
+
+        $app->refresh();
+        $item = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items')['identity.name_vs_crb'] ?? null;
+        $this->assertSame('fail', $item['verdict'] ?? null);
+        $this->assertSame('crb_name_unusable', $item['fail_reason_code'] ?? null);
+        $this->assertSame('accepted', $item['analyst_review'] ?? null);
+        $exception = collect(data_get($app->screening_payload, 'screening_exceptions', []))->first();
+        $this->assertIsArray($exception);
+        $this->assertSame('REFER', $exception['system_outcome'] ?? null);
+        $this->assertSame('accepted', $exception['analyst_outcome'] ?? null);
+
+        $next = app(ScreeningNextActionService::class)->forApplication($app->fresh(), $admin);
+        $this->assertNotSame('identity.name_vs_crb', $next['step']['item_key'] ?? null);
+    }
+
+    public function test_hard_policy_failure_cannot_be_accepted_as_a_discrepancy(): void
+    {
+        [$admin, $app] = $this->file();
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.loan-applications.show', $app))
+            ->post(route('admin.loan-applications.discrepancy-waiver', $app), [
+                'code' => 'name_mismatch',
+                'reason' => 'I want to override a hard identity mismatch against policy.',
+            ])
+            ->assertSessionHasErrors('code');
+
+        $this->assertEmpty(data_get($app->fresh()->screening_payload, 'screening_exceptions'));
+    }
+
+    public function test_accepting_from_committee_returns_to_committee_review(): void
+    {
+        [$admin, $app] = $this->file();
+        $app->update(['current_stage' => 'pre_approval']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.discrepancy-waiver', $app), [
+                'code' => 'crb_refer',
+                'reason' => 'Bureau referred the file; identity and income evidence are consistent enough to continue.',
+                'from' => 'committee',
+                'review_person' => 'borrower',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-committee', $app));
+    }
+
+    public function test_committee_sees_and_acknowledges_screening_exceptions(): void
+    {
+        [$admin, $app] = $this->file();
+        app(\App\Services\ScreeningExceptionService::class)->accept(
+            $app,
+            $admin,
+            'crb_name_unusable',
+            'CRB returned no usable name, but the National ID photo confirmed identity.',
+            'CRB record without a usable name',
+        );
+        $app->refresh()->update(['current_stage' => 'pre_approval']);
+        $exceptionId = data_get($app->fresh()->screening_payload, 'screening_exceptions.0.id');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.guided-committee', $app))
+            ->assertOk()
+            ->assertSee('Exceptions from Screening', false)
+            ->assertSee('System recommendation', false)
+            ->assertSee('REFER', false)
+            ->assertSee('ACCEPTED', false)
+            ->assertSee('1 exception requires Committee attention', false);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-exceptions.acknowledge', [$app, $exceptionId]))
+            ->assertRedirect(route('admin.loan-applications.guided-committee', $app));
+
+        $this->assertSame(
+            'acknowledged',
+            data_get($app->fresh()->screening_payload, 'screening_exceptions.0.committee.status')
+        );
     }
 
     public function test_post_approval_walk_opens(): void
@@ -199,6 +335,7 @@ class GuidedScreeningFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Post-approval')
             ->assertSee('What happens next')
+            ->assertSee('Kopafasta Credit')
             ->assertDontSee('Start Management Review', false);
     }
 
@@ -240,12 +377,13 @@ class GuidedScreeningFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('fixed inset-x-0 bottom-0', $html);
+        $this->assertStringContainsString('Kopafasta Credit', $html);
         $this->assertTrue(
             str_contains($html, 'Save & Next')
             || (str_contains($html, 'Continue to') && str_contains($html, 'Verified Income'))
             || str_contains($html, 'Confirm in the card')
         );
-        $this->assertStringContainsString('View full checklist', $html);
+        $this->assertStringContainsString('Review Checklist', $html);
         $this->assertStringContainsString('whitespace-normal', $html);
         if (getenv('DUMP_GUIDED_HTML')) {
             @mkdir('/tmp/kopafasta-qa', 0777, true);
@@ -275,6 +413,167 @@ class GuidedScreeningFeatureTest extends TestCase
         $this->assertSame($before['cta'], $after['cta']);
     }
 
+    public function test_application_overview_is_the_screening_landing(): void
+    {
+        [$admin, $app] = $this->file();
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Facility summary', $html);
+        $this->assertStringContainsString('Start Reviewing', $html);
+        $this->assertStringContainsString('Review Checklist', $html);
+        $this->assertStringNotContainsString('Guided Screening', $html);
+        $this->assertStringNotContainsString('Save & Next', $html);
+    }
+
+    public function test_save_and_next_advances_to_a_different_item(): void
+    {
+        [$admin, $app] = $this->file();
+        $this->actingAs($admin, 'admin');
+
+        $cursor = [];
+        $step = [];
+        for ($i = 0; $i < 20; $i++) {
+            $before = app(ScreeningNextActionService::class)->forApplication($app->fresh(), $admin, $cursor);
+            $step = $before['step'] ?? [];
+            $type = $step['type'] ?? '';
+            if ($type === 'gate_1') {
+                $this->post(route('admin.loan-applications.guided-screening.save', $app), [
+                    'ack_gate' => 'declared',
+                ])->assertRedirect();
+                $cursor = [];
+                continue;
+            }
+            if ($type === 'attention') {
+                $cursor = array_filter([
+                    'after_item' => $step['item_key'] ?? null,
+                    'after_person' => $step['participant']['person'] ?? null,
+                    'after_m' => $step['participant']['m'] ?? null,
+                    'after_g' => $step['participant']['g'] ?? null,
+                ], fn ($v) => $v !== null && $v !== '');
+                continue;
+            }
+            if ($type === 'human') {
+                break;
+            }
+            $this->assertNotSame('decision', $type);
+            $this->assertStringNotContainsString('Screening is complete', (string) ($before['what_happens_next'] ?? ''));
+
+            return;
+        }
+
+        $this->assertSame('human', $step['type'] ?? null);
+        $key = (string) ($step['item_key'] ?? '');
+        $this->assertNotSame('', $key);
+        [$group, $short] = array_pad(explode('.', $key, 2), 2, '');
+        $response = $this->post(route('admin.loan-applications.guided-screening.save', $app), [
+            'person' => $step['participant']['person'] ?? 'borrower',
+            'gate' => $step['gate'] ?? 'identity',
+            'open_item' => $key,
+            'm' => $step['participant']['m'] ?? null,
+            'g' => $step['participant']['g'] ?? null,
+            'items' => [
+                $group => [
+                    $short => ['verdict' => 'pass'],
+                ],
+            ],
+        ]);
+        $response->assertRedirect(route('admin.loan-applications.guided-screening', $app));
+        $response->assertSessionMissing('status');
+
+        $subject = match ($step['participant']['person'] ?? 'borrower') {
+            'member' => 'member:'.($step['participant']['m'] ?? ''),
+            'guarantor' => 'guarantor:'.($step['participant']['g'] ?? ''),
+            default => 'borrower',
+        };
+        $items = $app->fresh()->screening_payload['screening_checklist']['by_subject'][$subject]['items'] ?? [];
+        $this->assertSame('pass', $items[$key]['verdict'] ?? null);
+
+        $after = app(ScreeningNextActionService::class)->forApplication($app->fresh(), $admin);
+        $this->assertNotSame($key, $after['step']['item_key'] ?? null);
+        if (in_array($after['step']['type'] ?? '', ['human', 'attention', 'request'], true)) {
+            $this->assertStringNotContainsString('Screening is complete', (string) ($after['what_happens_next'] ?? ''));
+        }
+
+        $html = $this->get(route('admin.loan-applications.guided-screening', $app))
+            ->assertOk()
+            ->assertSessionMissing('status')
+            ->getContent();
+        $this->assertStringNotContainsString("message: @js('Saved.')", $html);
+        $this->assertDoesNotMatchRegularExpression('/showAdminFeedback\(\{[^}]*Saved\./', $html);
+    }
+
+    public function test_catalog_system_items_are_not_pass_concern_questions(): void
+    {
+        [$admin, $app] = $this->file();
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.guided-screening.save', $app), [
+                'ack_gate' => 'declared',
+            ]);
+        $next = app(ScreeningNextActionService::class)->forApplication($app->fresh(), $admin);
+        $key = (string) ($next['step']['item_key'] ?? '');
+        if ($key === '') {
+            $this->assertNotSame('human', $next['step']['type'] ?? 'human');
+
+            return;
+        }
+        [$group, $short] = array_pad(explode('.', $key, 2), 2, '');
+        $system = (bool) data_get(config('screening_checklist'), $group.'.items.'.$short.'.system');
+        if ($system) {
+            $this->assertSame('attention', $next['step']['type'] ?? null);
+            $this->assertSame([], $next['step']['outcomes'] ?? []);
+        }
+    }
+
+    public function test_manual_checklist_answer_is_skipped_by_the_wizard(): void
+    {
+        [$admin, $app] = $this->file();
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'contacts' => [
+                        'call_next_of_kin' => ['verdict' => 'pass'],
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $next = app(ScreeningNextActionService::class)->forApplication($app->fresh(), $admin);
+        $this->assertNotSame('contacts.call_next_of_kin', $next['step']['item_key'] ?? null);
+    }
+
+    public function test_ordinary_save_does_not_open_a_success_modal(): void
+    {
+        [$admin, $app] = $this->file();
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.guided-screening.save', $app), [
+                'person' => 'borrower',
+                'gate' => 'identity',
+                'open_item' => 'contacts.call_next_of_kin',
+                'items' => [
+                    'contacts' => [
+                        'call_next_of_kin' => ['verdict' => 'pass'],
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionMissing('status');
+    }
+
+    public function test_completion_copy_is_not_shown_while_a_question_is_open(): void
+    {
+        [$admin, $app] = $this->file();
+        $next = app(ScreeningNextActionService::class)->forApplication($app, $admin);
+        $type = $next['step']['type'] ?? '';
+        if (in_array($type, ['human', 'request', 'attention', 'waiting', 'gate_1'], true)) {
+            $this->assertStringNotContainsString('Screening is complete', (string) ($next['what_happens_next'] ?? ''));
+            $this->assertNotSame('decision', $type);
+        }
+    }
+
     public function test_hard_refresh_keeps_the_same_derived_step(): void
     {
         [$admin, $app] = $this->file();
@@ -291,6 +590,40 @@ class GuidedScreeningFeatureTest extends TestCase
         $this->assertSame($before['step']['item_key'] ?? $before['step']['type'], $after['step']['item_key'] ?? $after['step']['type']);
         $this->assertSame($before['gate_index'], $after['gate_index']);
         $this->assertSame($first->status(), $second->status());
+    }
+
+    public function test_guided_back_keeps_the_saved_answer(): void
+    {
+        [$admin, $app] = $this->file();
+        $this->actingAs($admin, 'admin');
+        $this->post(route('admin.loan-applications.guided-screening.save', $app), [
+            'person' => 'borrower',
+            'gate' => 'income',
+            'open_item' => 'activity_income.activity_plausible',
+            'items' => [
+                'activity_income' => [
+                    'activity_plausible' => ['verdict' => 'pass'],
+                ],
+            ],
+        ])->assertRedirect();
+
+        $this->get(route('admin.loan-applications.guided-screening', [
+            'loan_application' => $app,
+            'at_item' => 'activity_income.activity_plausible',
+            'at_person' => 'borrower',
+        ]))
+            ->assertOk()
+            ->assertSee('Already recorded')
+            ->assertSee('Back to Screening')
+            ->assertDontSee('Saved.');
+
+        $items = $app->fresh()->screening_payload['screening_checklist']['by_subject']['borrower']['items'] ?? [];
+        $this->assertSame('pass', $items['activity_income.activity_plausible']['verdict'] ?? null);
+
+        $this->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'overview']))
+            ->assertOk()
+            ->assertSee('Facility summary')
+            ->assertDontSee('Save & Next');
     }
 
     public function test_guarantor_fail_replacement_waiting_then_continue_preserves_borrower_work(): void

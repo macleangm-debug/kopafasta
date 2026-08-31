@@ -30,6 +30,7 @@ use App\Services\GpsPartnerService;
 use App\Services\GroupLoanMemberReviewService;
 use App\Services\GroupLoanReviewService;
 use App\Services\GuidedApprovalService;
+use App\Services\GuidedEvidenceContext;
 use App\Services\GuarantorReplacementService;
 use App\Services\GuarantorSupplementService;
 use App\Services\LoanAgreementService;
@@ -40,6 +41,7 @@ use App\Services\LoanRejectionReasonService;
 use App\Services\ReferenceNumberService;
 use App\Services\ScreeningChecklistGateService;
 use App\Services\ScreeningChecklistService;
+use App\Services\ScreeningExceptionService;
 use App\Services\ScreeningPartnerAvailabilityService;
 use App\Services\ScreeningNextActionService;
 use App\Services\ScreeningReadinessService;
@@ -289,6 +291,7 @@ class LoanApplicationController extends ResourceController
         if (in_array((string) $record->current_stage, ['awaiting_management', 'approval', 'disbursement'], true)) {
             app(GuidedApprovalService::class)->markPostApprovalOpened($record);
         }
+        app(GuidedEvidenceContext::class)->rememberFromRequest(request(), $record);
 
         $underwritingDeptId = Department::query()->where('code', 'UND')->value('id');
         $assignableAnalysts = User::query()
@@ -605,16 +608,45 @@ class LoanApplicationController extends ResourceController
         return $redirect;
     }
 
-    public function guidedScreening(LoanApplication $loan_application): View
+    public function guidedScreening(Request $request, LoanApplication $loan_application): View|RedirectResponse
     {
         abort_unless(
             app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $loan_application),
             403
         );
-        $next = app(ScreeningNextActionService::class)->forApplication($loan_application, auth()->user());
+        $cursor = array_filter([
+            'after_item' => $request->input('after_item'),
+            'after_person' => $request->input('after_person'),
+            'after_m' => $request->filled('after_m') ? $request->integer('after_m') : null,
+            'after_g' => $request->filled('after_g') ? $request->integer('after_g') : null,
+            'at_item' => $request->input('at_item'),
+            'at_person' => $request->input('at_person'),
+            'at_m' => $request->filled('at_m') ? $request->integer('at_m') : null,
+            'at_g' => $request->filled('at_g') ? $request->integer('at_g') : null,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        if ($request->boolean('back')) {
+            $prev = app(ScreeningNextActionService::class)->popWalk($loan_application);
+            if (! is_array($prev) || empty($prev['item'])) {
+                return redirect()->route('admin.loan-applications.show', [
+                    'loan_application' => $loan_application,
+                    'workspace' => 'overview',
+                ])->withFragment('credit-workspace');
+            }
+            $cursor['at_item'] = $prev['item'];
+            $cursor['at_person'] = $prev['person'] ?? 'borrower';
+            if (! empty($prev['m'])) {
+                $cursor['at_m'] = (int) $prev['m'];
+            }
+            if (! empty($prev['g'])) {
+                $cursor['at_g'] = (int) $prev['g'];
+            }
+            $cursor['back'] = true;
+        }
+        $next = app(ScreeningNextActionService::class)->forApplication($loan_application, auth()->user(), $cursor);
         if (($next['cta_kind'] ?? '') === 'start') {
             app(ScreeningNextActionService::class)->markStarted($loan_application);
-            $next = app(ScreeningNextActionService::class)->forApplication($loan_application->fresh(), auth()->user());
+            $next = app(ScreeningNextActionService::class)->forApplication($loan_application->fresh(), auth()->user(), $cursor);
         }
 
         return view('admin.loan-applications.guided.show', [
@@ -664,8 +696,17 @@ class LoanApplicationController extends ResourceController
             $next->markGateSeen($loan_application, (string) $request->input('ack_gate'));
 
             return redirect()
-                ->route('admin.loan-applications.guided-screening', $loan_application)
-                ->with('status', 'Saved.');
+                ->route('admin.loan-applications.guided-screening', $loan_application);
+        }
+
+        if ($request->filled('continue_past')) {
+            return redirect()->route('admin.loan-applications.guided-screening', array_filter([
+                'loan_application' => $loan_application,
+                'after_item' => $request->input('continue_past'),
+                'after_person' => $request->input('person'),
+                'after_m' => $request->input('m'),
+                'after_g' => $request->input('g'),
+            ]));
         }
 
         if ($request->filled('committee_clarification_response')) {
@@ -700,17 +741,10 @@ class LoanApplicationController extends ResourceController
             return back()->with('error', $e->getMessage())->withInput();
         }
 
-        app(ScreeningNextActionService::class)->markActivity($loan_application->fresh(), [
-            'gate' => $request->input('gate'),
-            'person' => $person,
-            'm' => $memberId ?: null,
-            'g' => $guarantorLinkId ?: null,
-            'item' => $request->input('open_item'),
-        ]);
+        app(ScreeningNextActionService::class)->markActivity($loan_application->fresh());
 
         return redirect()
-            ->route('admin.loan-applications.guided-screening', $loan_application)
-            ->with('status', 'Saved.');
+            ->route('admin.loan-applications.guided-screening', $loan_application);
     }
 
     public function returnClarificationToCommittee(LoanApplication $loan_application): RedirectResponse
@@ -826,38 +860,103 @@ class LoanApplicationController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
         $this->assertApplicationMutable($loan_application);
+        $exceptions = app(ScreeningExceptionService::class);
 
-        $waivable = [
-            'spouse_missing_on_crb',
-            'spouse_mismatch',
-            'marital_mismatch',
-            'children_mismatch',
-            'employment_soft_mismatch',
-        ];
         $data = $request->validate([
-            'code' => ['required', 'string', 'in:'.implode(',', $waivable)],
+            'code' => ['required', 'string', 'in:'.implode(',', $exceptions->reviewableCodes())],
             'reason' => ['required', 'string', 'min:12', 'max:500'],
             'detail' => ['nullable', 'string', 'max:500'],
+            'from' => ['nullable', 'in:guided,committee,post_approval'],
+            'review_person' => ['nullable', 'in:borrower,member,guarantor'],
+            'review_m' => ['nullable', 'integer'],
+            'review_g' => ['nullable', 'integer'],
+            'open_item' => ['nullable', 'string', 'max:80'],
         ]);
+        $person = match ($data['review_person'] ?? 'borrower') {
+            'member' => 'member',
+            'guarantor' => 'guarantor',
+            default => 'borrower',
+        };
 
-        $payload = is_array($loan_application->screening_payload) ? $loan_application->screening_payload : [];
-        $waivers = is_array($payload['discrepancy_waivers'] ?? null) ? $payload['discrepancy_waivers'] : [];
-        $waivers[$data['code']] = [
-            'by' => $request->user()->id,
-            'by_name' => $request->user()->name,
-            'at' => now()->toIso8601String(),
-            'reason' => $data['reason'],
-            'detail' => $data['detail'] ?? null,
-        ];
-        $payload['discrepancy_waivers'] = $waivers;
-        $loan_application->forceFill(['screening_payload' => $payload])->save();
+        try {
+            $exceptions->accept(
+                $loan_application,
+                $request->user(),
+                $data['code'],
+                $data['reason'],
+                $data['detail'] ?? null,
+                $person,
+                $person === 'member' ? ($data['review_m'] ?? null) : null,
+                $person === 'guarantor' ? ($data['review_g'] ?? null) : null,
+                $data['open_item'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+
+        app(ScreeningNextActionService::class)->markActivity($loan_application->fresh());
 
         $this->auditAdmin('admin.loan_applications.discrepancy_waived', $loan_application, [
             'code' => $data['code'],
             'reason' => $data['reason'],
+            'person' => $person,
         ]);
 
-        return back()->with('status', 'Discrepancy accepted. The CRB report is unchanged.');
+        $context = app(GuidedEvidenceContext::class);
+        if (! empty($data['from'])) {
+            $context->rememberFromRequest($request, $loan_application);
+        }
+        if (in_array($context->from($loan_application), ['guided', 'committee', 'post_approval'], true)) {
+            return $context->redirectAfterResolution($loan_application);
+        }
+
+        return back();
+    }
+
+    public function acknowledgeScreeningException(Request $request, LoanApplication $loan_application, string $exception): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        try {
+            app(ScreeningExceptionService::class)->acknowledge($loan_application, $request->user(), $exception);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('admin.loan-applications.guided-committee', $loan_application);
+    }
+
+    public function clarifyScreeningException(Request $request, LoanApplication $loan_application, string $exception): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        $data = $request->validate([
+            'note' => ['required', 'string', 'min:8', 'max:1000'],
+        ]);
+
+        try {
+            app(ScreeningExceptionService::class)->requestClarification(
+                $loan_application,
+                $request->user(),
+                $exception,
+                $data['note'],
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $fresh = $loan_application->fresh();
+        if ($fresh && $fresh->current_stage === 'pre_approval') {
+            app(LoanApplicationWorkflowService::class)->transition(
+                $fresh,
+                $request->user(),
+                'refer_back',
+                $data['note'],
+            );
+
+            return redirect()->route('admin.teams.committee', ['bucket' => 'waiting']);
+        }
+
+        return redirect()->route('admin.loan-applications.guided-committee', $loan_application);
     }
 
     public function requestGuarantorChange(

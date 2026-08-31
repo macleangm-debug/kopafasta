@@ -30,13 +30,21 @@
         && ! $writeOffApprovalRequired
         && $writeOffService->canFinanceApprove(auth()->user())
         && $writeOffService->loanEligibleForRecommendation($linkedLoan);
+    $fromGuided = app(\App\Services\GuidedEvidenceContext::class)->from($record);
+    $evidenceCtx = app(\App\Services\GuidedEvidenceContext::class);
+    $layoutBackUrl = $fromGuided
+        ? $evidenceCtx->backUrl($record)
+        : route('admin.loan-applications.index');
+    $layoutBackLabel = $fromGuided
+        ? $evidenceCtx->backLabel($record)
+        : 'Back to applications';
 @endphp
 
 <x-admin.layout
     :title="$record->application_number"
     heading=""
-    :backUrl="route('admin.loan-applications.index')"
-    backLabel="Back to applications">
+    :backUrl="$layoutBackUrl"
+    :backLabel="$layoutBackLabel">
 
     {{-- Compact credit file letterhead --}}
     <div class="mb-5 -mt-2 rounded-2xl overflow-hidden ring-1 ring-brand/20 shadow-sm">

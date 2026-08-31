@@ -701,7 +701,7 @@
                         <div>
                             <p class="text-sm font-semibold text-gray-900">
                                 @if ($guidedNext)
-                                    {{ $guidedNext['what_happens_next'] ?? $guidedNext['cta'] }}
+                                    Screening · {{ (int) ($guidedNext['percent'] ?? 0) }}% complete
                                 @elseif ($committeeNext)
                                     Screening complete. Committee reviews the established file — it does not re-screen.
                                 @elseif ($managementNext)
@@ -709,12 +709,16 @@
                                 @elseif (is_array($screeningReadiness ?? null) && ($screeningReadiness['ready'] ?? false))
                                     All required screening checks complete
                                 @else
-                                    Open guided Screening when you are ready to work the file.
+                                    Review this file from the existing Screening desk.
                                 @endif
                             </p>
                             @if ($guidedNext)
+                                <p class="text-sm text-gray-800 mt-1">{{ $guidedNext['what_happens_next'] ?? '' }}</p>
                                 <p class="text-xs text-gray-500 mt-0.5">
                                     Gate {{ $guidedNext['gate_index'] }} of 6
+                                    @if (! empty($guidedNext['gate_label']))
+                                        · {{ $guidedNext['gate_label'] }}
+                                    @endif
                                     @if (! empty($guidedNext['last_activity_at']))
                                         · Last activity {{ \Illuminate\Support\Carbon::parse($guidedNext['last_activity_at'])->diffForHumans() }}
                                     @endif
@@ -722,20 +726,51 @@
                             @endif
                         </div>
                         @if ($guidedNext)
-                            <a href="{{ $guidedNext['href'] }}"
-                               class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
-                                {{ $guidedNext['cta'] }}
-                            </a>
+                            <div class="flex flex-col items-stretch sm:items-end gap-2">
+                                @if (($guidedNext['cta_kind'] ?? '') === 'waiting')
+                                    <span class="inline-flex rounded-xl bg-amber-100 text-amber-950 text-sm font-bold px-4 py-2.5">
+                                        {{ $guidedNext['cta'] }}
+                                    </span>
+                                @elseif (($guidedNext['cta_kind'] ?? '') === 'decision')
+                                    <a href="{{ $guidedNext['href'] }}"
+                                       class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                                        Continue to Decision
+                                    </a>
+                                @else
+                                    <a href="{{ $guidedNext['review_href'] }}"
+                                       class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                                        {{ $guidedNext['cta'] }}
+                                    </a>
+                                @endif
+                                <a href="{{ $guidedNext['checklist_href'] }}" class="text-xs font-semibold text-slate-600 underline text-center sm:text-right">Review Checklist</a>
+                            </div>
                         @elseif ($committeeNext)
-                            <a href="{{ $committeeNext['href'] }}"
-                               class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
-                                {{ $committeeNext['cta'] }}
-                            </a>
+                            <div class="flex flex-col items-stretch sm:items-end gap-2">
+                                @if (str_starts_with((string) ($committeeNext['cta'] ?? ''), 'Waiting'))
+                                    <span class="inline-flex rounded-xl bg-amber-100 text-amber-950 text-sm font-bold px-4 py-2.5">
+                                        {{ $committeeNext['cta'] }}
+                                    </span>
+                                @else
+                                    <a href="{{ $committeeNext['review_href'] ?? $committeeNext['href'] }}"
+                                       class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                                        {{ $committeeNext['cta'] }}
+                                    </a>
+                                @endif
+                                <a href="{{ $committeeNext['file_href'] ?? $workspaceUrl('checklist') }}" class="text-xs font-semibold text-slate-600 underline text-center sm:text-right">View credit file</a>
+                            </div>
                         @elseif ($managementNext)
-                            <a href="{{ $managementNext['href'] }}"
-                               class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
-                                {{ $managementNext['cta'] }}
-                            </a>
+                            <div class="flex flex-col items-stretch sm:items-end gap-2">
+                                @if (($managementNext['cta_kind'] ?? '') === 'waiting')
+                                    <span class="inline-flex rounded-xl bg-amber-100 text-amber-950 text-sm font-bold px-4 py-2.5">
+                                        {{ $managementNext['cta'] }}
+                                    </span>
+                                @else
+                                    <a href="{{ ($managementNext['cta_kind'] ?? '') === 'disburse' ? ($managementNext['desk_href'] ?? $managementNext['href']) : ($managementNext['review_href'] ?? $managementNext['href']) }}"
+                                       class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
+                                        {{ $managementNext['cta'] }}
+                                    </a>
+                                @endif
+                            </div>
                         @else
                             <a href="{{ $workspaceUrl('checklist') }}"
                                class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
@@ -743,18 +778,24 @@
                             </a>
                         @endif
                     </div>
-                    @if ($guidedNext)
-                        <a href="{{ $guidedNext['checklist_href'] }}" class="text-xs font-semibold text-slate-600 underline">View full checklist</a>
-                    @endif
                 </div>
                 @if ($guidedNext)
                     <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-3">
                         <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Screening progress</p>
                         <ul class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
-                            @foreach (($guidedNext['sequence']['sequence'] ?? []) as $row)
+                            @foreach (($guidedNext['sequence']['sequence'] ?? []) as $index => $row)
+                                @php
+                                    $status = (string) ($row['status'] ?? '');
+                                    $mark = match ($status) {
+                                        'passed' => '✓',
+                                        'attention', 'fail', 'failed', 'pending_rejection' => 'Attention',
+                                        'locked' => 'Locked',
+                                        default => 'In progress',
+                                    };
+                                @endphp
                                 <li class="flex justify-between gap-2">
-                                    <span>{{ $row['label'] ?? $row['key'] }}</span>
-                                    <span class="font-semibold">{{ $row['chip'] ?? $row['status'] ?? '' }}</span>
+                                    <span>Gate {{ $index + 1 }} · {{ $row['label'] ?? $row['key'] }}</span>
+                                    <span class="font-semibold {{ $status === 'passed' ? 'text-emerald-800' : ($mark === 'Attention' ? 'text-amber-800' : 'text-slate-600') }}">{{ $mark }}</span>
                                 </li>
                             @endforeach
                         </ul>

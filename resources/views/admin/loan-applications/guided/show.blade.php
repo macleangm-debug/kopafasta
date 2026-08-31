@@ -9,26 +9,24 @@
     $gateIndex = (int) ($guided['gate_index'] ?? $step['gate_index'] ?? 1);
     $personIndex = (int) ($participant['index'] ?? 1);
     $personTotal = (int) ($participant['total'] ?? 1);
+    $personChip = null;
+    if (($participant['name'] ?? $participant['label'] ?? null) && $personTotal > 1) {
+        $personChip = ($participant['name'] ?? $participant['label']).' · '.($participant['label'] ?? 'Participant').' '.$personIndex.' of '.$personTotal;
+    }
 @endphp
 
-<x-admin.layout
-    :title="$record->application_number.' · Guided Screening'"
-    heading=""
-    :backUrl="route('admin.loan-applications.show', $record)"
-    backLabel="Credit file">
-
-    <div class="max-w-xl mx-auto pb-28">
-        <p class="text-[11px] font-bold uppercase tracking-widest text-brand">
-            Gate {{ $gateIndex }} of 6
-            @if (($participant['label'] ?? null) && $personTotal > 1)
-                · {{ $participant['label'] }} · {{ $personIndex }} of {{ $personTotal }}
-            @endif
-        </p>
-        <h1 class="text-xl font-bold text-slate-900 mt-1 break-words">{{ $step['title'] ?? $guided['cta'] }}</h1>
-        <p class="text-sm text-slate-600 mt-1 break-words">{{ $record->application_number }} · {{ $record->partyLabel() }}</p>
+<x-admin.guided-review-shell
+    :record="$record"
+    mode="screening"
+    :percent="$guided['percent'] ?? 0"
+    :gateChip="'Gate '.$gateIndex.' of 6'.(! empty($step['gate_label']) ? ' · '.$step['gate_label'] : '')"
+    :personChip="$personChip"
+    :gateProgress="$guided['gate_progress']['label'] ?? null"
+    :backUrl="$guided['desk_href'] ?? route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'overview'])"
+    backLabel="Back to Screening">
 
         @if (count($guided['subjects'] ?? []) > 1)
-            <div class="mt-3 flex gap-2 overflow-x-auto pb-1" data-participant-switcher>
+            <div class="mt-4 flex gap-2 overflow-x-auto pb-1" data-participant-switcher>
                 @foreach ($guided['subjects'] as $subject)
                     @php
                         $current = ($participant['person'] ?? null) === ($subject['person'] ?? null)
@@ -45,8 +43,10 @@
             </div>
         @endif
 
+        <h2 class="text-lg font-bold text-slate-900 mt-5 break-words">{{ $step['title'] ?? $guided['cta'] }}</h2>
+
         @if (! empty($guided['what_happens_next']))
-            <div class="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
+            <div class="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
                 <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">What happens next</p>
                 <p class="text-sm text-slate-800 mt-1">{{ $guided['what_happens_next'] }}</p>
             </div>
@@ -176,13 +176,61 @@
                     @endforeach
                 </ul>
             </div>
-        @elseif ($type === 'decision' || $type === 'gate_complete')
+        @elseif ($type === 'decision')
             <div class="mt-6 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-5">
                 <p class="text-sm font-bold text-emerald-950">{{ $step['title'] }}</p>
                 <p class="text-sm text-emerald-900 mt-1">{{ $step['prompt'] }}</p>
             </div>
+        @elseif ($type === 'gate_complete')
+            <div class="mt-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-5">
+                <p class="text-sm font-bold text-amber-950">{{ $step['title'] }}</p>
+                <p class="text-sm text-amber-900 mt-1">{{ $step['prompt'] }}</p>
+            </div>
+        @elseif ($type === 'attention')
+            <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-4">
+                <p class="text-sm text-slate-800">{{ $step['prompt'] }}</p>
+                @include('admin.loan-applications.guided._evidence', ['step' => $step])
+                @if (! empty($step['destination']['href']))
+                    <a href="{{ guided_evidence_url($step['destination']['href'], 'guided') }}" class="inline-flex text-sm font-bold text-brand underline">
+                        {{ $step['destination']['cta'] ?? 'View details' }}
+                    </a>
+                @endif
+                <form method="POST" action="{{ route('admin.loan-applications.guided-screening.save', $record) }}"
+                      id="guided-screening-form" data-no-draft>
+                    @csrf
+                    <input type="hidden" name="continue_past" value="{{ $step['item_key'] }}">
+                    <input type="hidden" name="person" value="{{ $participant['person'] ?? 'borrower' }}">
+                    @if (! empty($participant['m']))
+                        <input type="hidden" name="m" value="{{ $participant['m'] }}">
+                    @endif
+                    @if (! empty($participant['g']))
+                        <input type="hidden" name="g" value="{{ $participant['g'] }}">
+                    @endif
+                </form>
+            </div>
         @else
             <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-4">
+                @if (! empty($step['revisiting']) && filled($step['verdict'] ?? null))
+                    <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
+                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Already recorded</p>
+                        <p class="text-sm font-semibold text-slate-900 mt-1">
+                            {{ ($step['verdict'] ?? '') === 'pass' ? 'Pass' : (($step['verdict'] ?? '') === 'na' ? 'N/A' : 'Concern') }}
+                            — this answer is kept. Continue does not write it again.
+                        </p>
+                    </div>
+                    <form method="POST" action="{{ route('admin.loan-applications.guided-screening.save', $record) }}"
+                          id="guided-screening-form" data-no-draft>
+                        @csrf
+                        <input type="hidden" name="continue_past" value="{{ $step['item_key'] }}">
+                        <input type="hidden" name="person" value="{{ $participant['person'] ?? 'borrower' }}">
+                        @if (! empty($participant['m']))
+                            <input type="hidden" name="m" value="{{ $participant['m'] }}">
+                        @endif
+                        @if (! empty($participant['g']))
+                            <input type="hidden" name="g" value="{{ $participant['g'] }}">
+                        @endif
+                    </form>
+                @endif
                 @if ($contact)
                     <div>
                         <p class="text-base font-bold text-slate-900 break-words">{{ $contact['name'] ?? $participant['name'] ?? '—' }}</p>
@@ -197,6 +245,11 @@
                 @endif
                 <p class="text-sm text-slate-800">{{ $step['prompt'] }}</p>
                 @include('admin.loan-applications.guided._evidence', ['step' => $step])
+                @if (! empty($step['destination']['href']))
+                    <a href="{{ guided_evidence_url($step['destination']['href'], 'guided') }}" class="inline-flex text-sm font-bold text-brand underline">
+                        {{ $step['destination']['cta'] ?? 'Open evidence' }}
+                    </a>
+                @endif
                 @if (! empty($step['why']))
                     <details class="text-sm">
                         <summary class="cursor-pointer font-semibold text-slate-600">Why this matters</summary>
@@ -231,6 +284,7 @@
                         </div>
                     </form>
                 @else
+                @if (empty($step['revisiting']) || blank($step['verdict'] ?? null))
                     <form method="POST" action="{{ route('admin.loan-applications.guided-screening.save', $record) }}"
                           id="guided-screening-form" class="space-y-3" data-no-draft
                           x-data="{ verdict: '', reason: '' }">
@@ -261,34 +315,50 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="{{ $fieldBase }}[fail_reason_code]" :value="verdict === 'fail' ? reason : ''">
-                        <div x-show="verdict === 'fail' && ! reason" x-cloak class="space-y-2">
-                            <label class="text-xs font-bold text-slate-600">Reason</label>
-                            <select x-model="reason" class="w-full rounded-xl border-slate-300 text-sm">
+                        <div x-show="verdict === 'fail'" x-cloak class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">What is the concern?</label>
+                            <select x-model="reason" :required="verdict === 'fail'" class="w-full rounded-xl border-slate-300 text-sm">
                                 <option value="">Select a reason</option>
                                 @foreach ($failReasons as $code => $label)
                                     <option value="{{ $code }}">{{ is_string($label) ? $label : $code }}</option>
                                 @endforeach
                             </select>
+                            <textarea x-show="reason === 'custom'" x-cloak
+                                      name="{{ $fieldBase }}[fail_reason_custom]" rows="2"
+                                      :required="verdict === 'fail' && reason === 'custom'"
+                                      placeholder="Describe the concern"
+                                      class="w-full rounded-xl border-slate-300 text-sm"></textarea>
+                            <p class="text-xs text-slate-500">After you save, the Review Checklist decides whether to continue, request evidence, or pause.</p>
                         </div>
                         <textarea name="{{ $fieldBase }}[notes]" rows="2" placeholder="Optional note"
                                   class="w-full rounded-xl border-slate-300 text-sm"></textarea>
                     </form>
                 @endif
+                @endif
             </div>
         @endif
 
         <p class="mt-4">
-            <a href="{{ $guided['checklist_href'] }}" class="text-xs font-semibold text-slate-600 underline">View full checklist</a>
+            <a href="{{ $guided['checklist_href'] }}" class="text-xs font-semibold text-slate-600 underline">Review Checklist</a>
         </p>
-    </div>
 
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div class="max-w-xl mx-auto flex gap-2 items-stretch">
-            <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'overview']) }}"
-               class="flex-1 min-w-0 text-center rounded-xl bg-white ring-1 ring-slate-200 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Back</a>
-            @if (($step['type'] ?? '') === 'decision' || ($step['type'] ?? '') === 'gate_complete')
+    <x-slot:footer>
+    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none">
+        <div class="max-w-xl mx-auto flex gap-2 items-stretch pointer-events-auto">
+            @if (! empty($guided['prev_href']))
+                <a href="{{ $guided['prev_href'] }}"
+                   class="flex-1 min-w-0 text-center rounded-xl bg-white ring-1 ring-slate-200 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Back</a>
+            @else
+                <a href="{{ $guided['desk_href'] ?? route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'overview']) }}"
+                   class="flex-1 min-w-0 text-center rounded-xl bg-white ring-1 ring-slate-200 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Back to Screening</a>
+            @endif
+            @if (($step['type'] ?? '') === 'decision')
                 <a href="{{ $guided['href'] }}" class="flex-[2] min-w-0 text-center rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
-                    {{ $step['primary'] ?? $guided['cta'] }}
+                    Continue to Decision
+                </a>
+            @elseif (($step['type'] ?? '') === 'gate_complete')
+                <a href="{{ $guided['checklist_href'] }}" class="flex-[2] min-w-0 text-center rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
+                    {{ $step['primary'] ?? 'Review Checklist' }}
                 </a>
             @elseif (($step['type'] ?? '') === 'waiting' || ! empty($step['parked']))
                 <span class="flex-[2] min-w-0 text-center rounded-xl bg-amber-100 text-amber-950 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
@@ -302,6 +372,16 @@
                     <input type="hidden" name="ack_gate" value="declared">
                     <button type="submit" class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Continue to<br class="sm:hidden"> Verified Income</button>
                 </form>
+            @elseif (! empty($step['revisiting']) && filled($step['verdict'] ?? null))
+                <button type="submit" form="guided-screening-form"
+                        class="flex-[2] min-w-0 rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
+                    Continue
+                </button>
+            @elseif (($step['type'] ?? '') === 'attention')
+                <button type="submit" form="guided-screening-form" data-loading-label="Saving…"
+                        class="flex-[2] min-w-0 rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
+                    Continue reviewing
+                </button>
             @else
                 <button type="submit" form="guided-screening-form" data-loading-label="Saving…"
                         class="flex-[2] min-w-0 rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
@@ -310,4 +390,5 @@
             @endif
         </div>
     </div>
-</x-admin.layout>
+    </x-slot:footer>
+</x-admin.guided-review-shell>

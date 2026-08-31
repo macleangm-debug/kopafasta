@@ -92,7 +92,12 @@
 
 @if ($phaseKey === 'capacity' && ($section === null || $section === 'crb'))
     <div id="checklist-crb" class="scroll-mt-24 space-y-4">
-        @include('admin.loan-applications.review._subject_crb', ['review' => $panelSubjectReview])
+        @include('admin.loan-applications.review._subject_crb', [
+            'review' => $panelSubjectReview,
+            'crbPerson' => $panelPerson,
+            'crbM' => $panelM,
+            'crbG' => $panelG,
+        ])
     </div>
 @endif
 

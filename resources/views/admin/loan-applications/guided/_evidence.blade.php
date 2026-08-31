@@ -3,12 +3,13 @@
     $photos = collect($evidence['photos'] ?? []);
     $pairs = collect($evidence['photo_pairs'] ?? []);
     $docs = collect($evidence['documents'] ?? []);
+    $compare = collect($evidence['compare'] ?? []);
     $facePhoto = $photos->firstWhere('role', 'face');
     $idPhoto = $photos->firstWhere('role', 'id');
     $layout = $evidence['layout'] ?? null;
     $hasPhotos = $photos->isNotEmpty() || $pairs->isNotEmpty();
 @endphp
-@if ($hasPhotos || $docs->isNotEmpty())
+@if ($hasPhotos || $docs->isNotEmpty() || $compare->isNotEmpty())
     <div class="space-y-3" x-data="{
             lightbox: null,
             pair: null,
@@ -56,12 +57,38 @@
             </div>
         @endif
 
+        @if ($compare->isNotEmpty())
+            <div class="rounded-xl ring-1 ring-slate-200 overflow-hidden">
+                <p class="px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 bg-slate-50">View CRB details</p>
+                <dl class="divide-y divide-slate-100">
+                    @foreach ($compare as $row)
+                        <div class="grid grid-cols-2 gap-2 px-3 py-2 text-sm">
+                            <div>
+                                <p class="text-[10px] uppercase text-slate-500">{{ $row['profile_source'] ?? 'File' }}</p>
+                                <p class="font-semibold break-words">{{ $row['profile'] ?? $row['ours'] ?? '—' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] uppercase text-slate-500">{{ $row['crb_source'] ?? 'CRB' }}</p>
+                                <p class="font-semibold break-words">{{ $row['crb'] ?? $row['theirs'] ?? '—' }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </dl>
+            </div>
+        @endif
+
         @if ($docs->isNotEmpty())
             <div class="space-y-2">
+                <p class="text-xs font-bold text-slate-600">
+                    {{ $docs->count() === 1 ? 'Preview document' : 'View documents ('.$docs->count().')' }}
+                </p>
                 @foreach ($docs as $doc)
                     @if (! empty($doc['url']))
-                        <a href="{{ $doc['url'] }}" target="_blank" rel="noopener"
-                           class="block text-sm font-semibold text-brand underline break-words">{{ $doc['label'] ?? 'Open document' }}</a>
+                        <button type="button"
+                                onclick="window.kfOpenDocumentPreview(@js($doc['url']), @js($doc['label'] ?? 'Document'), @js($doc['kind'] ?? null))"
+                                class="block w-full text-left text-sm font-semibold text-brand underline break-words">
+                            {{ $doc['label'] ?? 'Open document' }}
+                        </button>
                     @endif
                 @endforeach
             </div>
@@ -88,7 +115,11 @@
                     </div>
                 </template>
                 <template x-if="lightbox">
-                    <img :src="lightbox?.url" :alt="lightbox?.label || 'Photo'" class="w-full max-h-[90vh] object-contain">
+                    <div>
+                        <img :src="lightbox?.url" :alt="lightbox?.label || 'Photo'" class="w-full max-h-[90vh] object-contain">
+                        <button type="button" class="absolute bottom-3 left-3 rounded-lg bg-black/60 text-white text-xs font-bold px-3 py-1.5 sm:hidden"
+                                @click="close()">Back to review</button>
+                    </div>
                 </template>
             </div>
         </div>

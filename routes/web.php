@@ -671,6 +671,12 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.guided-post-approval');
         Route::post('loan-applications/{loan_application}/discrepancy-waiver', [LoanApplicationController::class, 'waiveDiscrepancy'])
             ->name('loan-applications.discrepancy-waiver');
+        Route::post('loan-applications/{loan_application}/screening-exceptions/{exception}/acknowledge', [LoanApplicationController::class, 'acknowledgeScreeningException'])
+            ->middleware('permission:applications.review')
+            ->name('loan-applications.screening-exceptions.acknowledge');
+        Route::post('loan-applications/{loan_application}/screening-exceptions/{exception}/clarify', [LoanApplicationController::class, 'clarifyScreeningException'])
+            ->middleware('permission:applications.review')
+            ->name('loan-applications.screening-exceptions.clarify');
         Route::post('loan-applications/{loan_application}/guarantors/{customerGuarantor}/change', [LoanApplicationController::class, 'requestGuarantorChange'])
             ->name('loan-applications.guarantor-change');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])

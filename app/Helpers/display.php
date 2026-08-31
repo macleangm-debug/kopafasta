@@ -38,6 +38,28 @@ if (! function_exists('format_app_datetime')) {
     }
 }
 
+if (! function_exists('guided_evidence_url')) {
+    /**
+     * Keep Guided Review (or Committee / Post-Approval) as the return context
+     * when opening a full evidence page from a wizard step.
+     */
+    function guided_evidence_url(?string $href, string $from = 'guided'): string
+    {
+        if (! is_string($href) || $href === '') {
+            return '';
+        }
+        $from = in_array($from, ['guided', 'committee', 'post_approval'], true) ? $from : 'guided';
+        $hash = '';
+        if (str_contains($href, '#')) {
+            [$href, $hash] = explode('#', $href, 2);
+            $hash = '#'.$hash;
+        }
+        $join = str_contains($href, '?') ? '&' : '?';
+
+        return $href.$join.'from='.rawurlencode($from).$hash;
+    }
+}
+
 if (! function_exists('format_app_date')) {
     function format_app_date(\DateTimeInterface|string|null $value, string $format = 'd M Y'): string
     {

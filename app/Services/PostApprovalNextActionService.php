@@ -234,6 +234,11 @@ class PostApprovalNextActionService
             default => self::BUCKET_DO_NOW,
         };
 
+        $applicable = collect($conditions)->filter(fn ($row) => ! empty($row['applies']));
+        $checksTotal = $applicable->count();
+        $checksDone = $applicable->where('complete', true)->count();
+        $percent = $checksTotal > 0 ? (int) round(($checksDone / $checksTotal) * 100) : 0;
+
         $cta = match (true) {
             $bucket === self::BUCKET_READY => 'Review disbursement',
             $waiting => 'Waiting · '.($next['label'] ?? 'condition'),
@@ -241,12 +246,12 @@ class PostApprovalNextActionService
             default => 'Start Post-Approval',
         };
 
-        $href = $bucket === self::BUCKET_READY
-            ? route('admin.loan-applications.show', [
-                'loan_application' => $application,
-                'workspace' => 'overview',
-            ]).'#credit-management-desk'
-            : route('admin.loan-applications.guided-post-approval', $application);
+        $fragment = is_array($next) ? ($next['fragment'] ?? '#credit-management-desk') : '#credit-management-desk';
+        $deskHref = route('admin.loan-applications.show', [
+            'loan_application' => $application,
+            'workspace' => 'overview',
+        ]).$fragment;
+        $reviewHref = route('admin.loan-applications.guided-post-approval', $application);
 
         return [
             'bucket' => $bucket,
@@ -257,11 +262,12 @@ class PostApprovalNextActionService
                 self::BUCKET_COMPLETED => 'completed',
                 default => $started ? 'continue' : 'start',
             },
-            'href' => $href,
-            'desk_href' => route('admin.loan-applications.show', [
-                'loan_application' => $application,
-                'workspace' => 'overview',
-            ]).($next['fragment'] ?? '#credit-management-desk'),
+            'href' => $deskHref,
+            'desk_href' => $deskHref,
+            'review_href' => $reviewHref,
+            'percent' => $percent,
+            'checks_done' => $checksDone,
+            'checks_total' => $checksTotal,
             'condition' => $next,
             'conditions' => $conditions,
             'checklist' => $this->checklistFromConditions($conditions),
@@ -413,6 +419,8 @@ class PostApprovalNextActionService
             'cta_kind' => 'leftover',
             'href' => $href,
             'desk_href' => $href,
+            'review_href' => $href,
+            'percent' => 0,
             'condition' => [
                 'key' => 'leftover_authorization',
                 'label' => 'Issue Offer',

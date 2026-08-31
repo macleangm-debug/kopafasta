@@ -5,25 +5,17 @@
     $ready = ! empty($walk['ready']);
     $contract = $walk['contract_readiness'] ?? [];
     $isContractStep = ($condition['key'] ?? '') === 'contract_executed';
+    $index = (int) ($condition['index'] ?? 0);
+    $label = $condition['label'] ?? 'Conditions to disbursement';
 @endphp
-<x-admin.layout
-    :title="$record->application_number.' · Post-Approval'"
-    heading=""
-    :backUrl="route('admin.loan-applications.show', $record)"
-    backLabel="Credit file">
-
-    <div class="max-w-xl mx-auto pb-28">
-        <p class="text-[11px] font-bold uppercase tracking-widest text-brand">Post-approval</p>
-        <h1 class="text-xl font-bold text-slate-900 mt-1 break-words">
-            @if ($ready)
-                Ready for disbursement
-            @elseif ($waiting)
-                Waiting · {{ $condition['label'] ?? 'condition' }}
-            @else
-                Step {{ $condition['index'] ?? '' }} · {{ $condition['label'] ?? 'Conditions to disbursement' }}
-            @endif
-        </h1>
-        <p class="text-sm text-slate-600 mt-1">{{ $record->application_number }} · Committee already approved. Do not re-underwrite.</p>
+<x-admin.guided-review-shell
+    :record="$record"
+    mode="post_approval"
+    :percent="$next['percent'] ?? 0"
+    :gateChip="$ready ? 'Ready for disbursement' : (($waiting ? 'Waiting · ' : 'Step '.($index ?: '').' · ').$label)"
+    :gateProgress="$ready ? 'All required post-approval conditions are complete' : (($next['checks_done'] ?? null) !== null ? (($next['checks_done'] ?? 0).' of '.($next['checks_total'] ?? 0).' applicable conditions complete') : null)"
+    :backUrl="route('admin.teams.management')"
+    backLabel="Back to Management">
 
         <div class="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
             <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">What happens next</p>
@@ -76,19 +68,21 @@
                 </div>
             @endforeach
         </div>
-    </div>
 
+        <p class="mt-4">
+            <a href="{{ guided_evidence_url($walk['file_href'] ?? $walk['desk_href'], 'post_approval') }}" class="text-xs font-semibold text-slate-600 underline">View credit file</a>
+        </p>
+
+    <x-slot:footer>
     <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div class="max-w-xl mx-auto flex gap-2 items-stretch">
-            <a href="{{ route('admin.loan-applications.show', $record) }}"
+            <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'overview']) }}"
                class="flex-1 min-w-0 text-center rounded-xl bg-white ring-1 ring-slate-200 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Back</a>
             @if ($ready)
                 <a href="{{ $walk['desk_href'] }}"
                    class="flex-[2] min-w-0 text-center rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Review disbursement</a>
             @elseif ($waiting)
                 <span class="flex-[2] min-w-0 text-center rounded-xl bg-amber-100 text-amber-950 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">{{ $next['cta'] ?? 'Waiting' }}</span>
-            @elseif ($isContractStep && empty($walk['contract_ready']))
-                <span class="flex-[2] min-w-0 text-center rounded-xl bg-slate-100 text-slate-500 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Confirm in the card</span>
             @elseif ($isContractStep)
                 <span class="flex-[2] min-w-0 text-center rounded-xl bg-slate-100 text-slate-500 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Confirm in the card</span>
             @else
@@ -97,4 +91,5 @@
             @endif
         </div>
     </div>
-</x-admin.layout>
+    </x-slot:footer>
+</x-admin.guided-review-shell>
