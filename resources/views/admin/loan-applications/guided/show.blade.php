@@ -13,6 +13,20 @@
     if (($participant['name'] ?? $participant['label'] ?? null) && $personTotal > 1) {
         $personChip = ($participant['name'] ?? $participant['label']).' · '.($participant['label'] ?? 'Participant').' '.$personIndex.' of '.$personTotal;
     }
+    $evidenceReturn = [
+        'open_item' => $step['item_key'] ?? null,
+        'review_person' => $participant['person'] ?? null,
+        'review_m' => $participant['m'] ?? null,
+        'review_g' => $participant['g'] ?? null,
+    ];
+    $idPhoto = collect($step['evidence']['photos'] ?? [])
+        ->first(fn ($p) => ($p['role'] ?? '') === 'id' && filled($p['url'] ?? null))
+        ?? collect($step['evidence']['photos'] ?? [])->first(fn ($p) => filled($p['url'] ?? null));
+    $idEvidenceUrl = is_array($idPhoto) ? ($idPhoto['url'] ?? null) : null;
+    $nationalIdMissing = is_array($contact) && (
+        ! empty($contact['national_id_missing'])
+        || (! filled($contact['national_id'] ?? $contact['detail'] ?? null) && ! $idEvidenceUrl)
+    );
 @endphp
 
 <x-admin.guided-review-shell
@@ -43,7 +57,9 @@
             </div>
         @endif
 
-        <h2 class="text-lg font-bold text-slate-900 mt-5 break-words">{{ $step['title'] ?? $guided['cta'] }}</h2>
+        @if (! in_array($type, ['human', 'request', 'attention'], true))
+            <h2 class="text-lg font-bold text-slate-900 mt-5 break-words">{{ $step['title'] ?? $guided['cta'] }}</h2>
+        @endif
 
         @if (! empty($guided['what_happens_next']))
             <div class="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
@@ -188,13 +204,29 @@
                 <p class="text-sm text-amber-900 mt-1">{{ $step['prompt'] }}</p>
             </div>
         @elseif ($type === 'attention')
-            <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-4">
+            <div class="mt-2 space-y-4">
+                @include('admin.loan-applications.guided._participant_header', [
+                    'participant' => $participant,
+                    'contact' => $contact,
+                    'idEvidenceUrl' => $idEvidenceUrl,
+                    'nationalIdMissing' => $nationalIdMissing,
+                    'evidenceReturn' => $evidenceReturn,
+                    'step' => $step,
+                ])
+                <h2 class="text-lg font-bold text-slate-900 break-words">{{ $step['title'] ?? $guided['cta'] }}</h2>
                 <p class="text-sm text-slate-800">{{ $step['prompt'] }}</p>
                 @include('admin.loan-applications.guided._evidence', ['step' => $step])
-                @include('admin.loan-applications.guided._inline_request', ['step' => $step, 'record' => $record])
+                @include('admin.loan-applications.guided._inline_request', [
+                    'step' => $step,
+                    'record' => $record,
+                    'nationalIdMissing' => $nationalIdMissing,
+                ])
                 @include('admin.loan-applications.guided._request_history', ['step' => $step, 'record' => $record])
-                @if (! empty($step['destination']['href']))
-                    <a href="{{ guided_evidence_url($step['destination']['href'], 'guided') }}" class="inline-flex text-sm font-bold text-brand underline">
+                @if (! empty($step['destination']['href'])
+                    && ! $nationalIdMissing
+                    && ! $idEvidenceUrl
+                    && ! str_contains((string) ($step['destination']['cta'] ?? ''), 'not provided'))
+                    <a href="{{ guided_evidence_url($step['destination']['href'], 'guided', $evidenceReturn) }}" class="inline-flex items-center rounded-lg bg-white px-2.5 py-1.5 text-xs font-bold text-brand ring-1 ring-brand/25">
                         {{ $step['destination']['cta'] ?? 'View details' }}
                     </a>
                 @endif
@@ -212,7 +244,16 @@
                 </form>
             </div>
         @else
-            <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-4">
+            <div class="mt-2 space-y-4">
+                @include('admin.loan-applications.guided._participant_header', [
+                    'participant' => $participant,
+                    'contact' => $contact,
+                    'idEvidenceUrl' => $idEvidenceUrl,
+                    'nationalIdMissing' => $nationalIdMissing,
+                    'evidenceReturn' => $evidenceReturn,
+                    'step' => $step,
+                ])
+                <h2 class="text-lg font-bold text-slate-900 break-words">{{ $step['title'] ?? $guided['cta'] }}</h2>
                 @if (! empty($step['revisiting']) && filled($step['verdict'] ?? null))
                     <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
                         <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Already recorded</p>
@@ -234,64 +275,35 @@
                         @endif
                     </form>
                 @endif
-                @if ($contact)
+                <p class="text-sm text-slate-800">{{ $step['prompt'] }}</p>
+                @if (! empty($step['why']))
                     <div>
-                        <p class="text-base font-bold text-slate-900 break-words">{{ $contact['name'] ?? $participant['name'] ?? '—' }}</p>
-                        @if (! empty($contact['detail']))
-                            <p class="text-sm text-slate-600">{{ $contact['detail'] }}</p>
-                        @endif
-                        @if (! empty($contact['phone']))
-                            <a href="tel:{{ preg_replace('/\s+/', '', $contact['phone']) }}"
-                               class="inline-flex mt-1 text-sm font-bold text-brand underline">{{ $contact['phone'] }}</a>
-                        @endif
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Why this matters</p>
+                        <p class="mt-1 text-sm text-slate-600">{{ $step['why'] }}</p>
                     </div>
                 @endif
-                <p class="text-sm text-slate-800">{{ $step['prompt'] }}</p>
                 @include('admin.loan-applications.guided._evidence', ['step' => $step])
-                @if (! empty($step['destination']['href']))
-                    <a href="{{ guided_evidence_url($step['destination']['href'], 'guided') }}" class="inline-flex text-sm font-bold text-brand underline">
+                @if ($nationalIdMissing && str_starts_with((string) ($step['item_key'] ?? ''), 'identity.'))
+                    <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                        <p class="text-sm font-bold text-amber-950">National ID not provided</p>
+                        <p class="text-xs text-amber-900 mt-1">Request National ID from this member. Do not open an empty ID record.</p>
+                    </div>
+                @elseif (! empty($step['destination']['href'])
+                    && ! $nationalIdMissing
+                    && ! $idEvidenceUrl
+                    && ! str_contains((string) ($step['destination']['cta'] ?? ''), 'not provided'))
+                    <a href="{{ guided_evidence_url($step['destination']['href'], 'guided', $evidenceReturn) }}" class="inline-flex items-center rounded-lg bg-white px-2.5 py-1.5 text-xs font-bold text-brand ring-1 ring-brand/25">
                         {{ $step['destination']['cta'] ?? 'Open evidence' }}
                     </a>
                 @endif
-                @if (! empty($step['why']))
-                    <details class="text-sm">
-                        <summary class="cursor-pointer font-semibold text-slate-600">Why this matters</summary>
-                        <p class="mt-1 text-slate-600">{{ $step['why'] }}</p>
-                    </details>
-                @endif
 
-                @include('admin.loan-applications.guided._inline_request', ['step' => $step, 'record' => $record])
+                @include('admin.loan-applications.guided._inline_request', [
+                    'step' => $step,
+                    'record' => $record,
+                    'nationalIdMissing' => $nationalIdMissing,
+                ])
                 @include('admin.loan-applications.guided._request_history', ['step' => $step, 'record' => $record])
 
-                @if (($step['type'] ?? '') === 'request' && ! empty($step['requestable']))
-                    <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}"
-                          class="space-y-3" x-data="{ step: 'review' }" data-no-draft>
-                        @csrf
-                        <input type="hidden" name="type" value="document">
-                        <input type="hidden" name="presets[]" value="{{ $step['requestable']['preset'] }}">
-                        <input type="hidden" name="subject_kind" value="{{ $participant['person'] ?? 'borrower' }}">
-                        @if (! empty($participant['m']))
-                            <input type="hidden" name="loan_group_member_id" value="{{ $participant['m'] }}">
-                        @endif
-                        <input type="hidden" name="return_workspace" value="guided">
-                        <input type="hidden" name="confirmed" value="1">
-                        <p class="text-sm font-semibold text-slate-900">{{ $step['requestable']['label'] }}</p>
-                        <p class="text-sm text-slate-600">Due in {{ app(\App\Services\UnderwritingSettingsService::class)->documentRequestDefaultDueDays() }} days — set by Screening policy. Screening pauses until it is received.</p>
-                        <input type="hidden" name="open_item" value="{{ $step['item_key'] ?? '' }}">
-                        <input type="hidden" name="gate" value="{{ $step['gate'] ?? '' }}">
-                        <button type="button" x-show="step === 'review'" @click="step = 'confirm'"
-                                class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3">
-                            Review & confirm request
-                        </button>
-                        <div x-show="step === 'confirm'" x-cloak class="space-y-2">
-                            <p class="text-sm font-semibold text-slate-900">Send “{{ $step['requestable']['preset'] }}” and pause Screening?</p>
-                            <div class="flex gap-2">
-                                <button type="button" @click="step = 'review'" class="flex-1 rounded-xl bg-white ring-1 ring-slate-200 font-bold text-sm py-3">Go back</button>
-                                <button type="submit" class="flex-1 rounded-xl bg-brand text-white font-bold text-sm py-3">Send request & pause</button>
-                            </div>
-                        </div>
-                    </form>
-                @else
                 @if (empty($step['revisiting']) || blank($step['verdict'] ?? null))
                     <form method="POST" action="{{ route('admin.loan-applications.guided-screening.save', $record) }}"
                           id="guided-screening-form" class="space-y-3" data-no-draft
@@ -341,12 +353,11 @@
                                   class="w-full rounded-xl border-slate-300 text-sm"></textarea>
                     </form>
                 @endif
-                @endif
             </div>
         @endif
 
-        <p class="mt-4">
-            <a href="{{ $guided['checklist_href'] }}" class="text-xs font-semibold text-slate-600 underline">Review Checklist</a>
+        <p class="mt-2">
+            <a href="{{ $guided['checklist_href'] }}" class="inline-flex items-center rounded-lg bg-white px-2.5 py-1.5 text-xs font-bold text-brand ring-1 ring-brand/25">Review Checklist</a>
         </p>
 
     <x-slot:footer>
@@ -367,10 +378,10 @@
                     {{ $step['primary'] ?? 'Review Checklist' }}
                 </a>
             @elseif (($step['type'] ?? '') === 'waiting' || ! empty($step['parked']))
-                <span class="flex-[2] min-w-0 text-center rounded-xl bg-amber-100 text-amber-950 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
-                    {{ $guided['cta'] }}
+                <span class="flex-[2] min-w-0 text-center rounded-xl bg-slate-100 text-slate-500 font-bold text-sm py-3 px-2 leading-snug whitespace-normal cursor-not-allowed">
+                    Waiting
                 </span>
-            @elseif (in_array($step['type'] ?? '', ['request', 'resolution', 'return_to_committee'], true))
+            @elseif (in_array($step['type'] ?? '', ['resolution', 'return_to_committee'], true))
                 <span class="flex-[2] min-w-0 text-center rounded-xl bg-slate-100 text-slate-500 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Confirm in the card</span>
             @elseif (($step['type'] ?? '') === 'gate_1' && ! empty($step['all_pass']))
                 <form method="POST" action="{{ route('admin.loan-applications.guided-screening.save', $record) }}" class="flex-[2] min-w-0" data-no-draft>

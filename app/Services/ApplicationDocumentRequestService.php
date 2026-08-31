@@ -10,6 +10,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
 use App\Models\NotificationLog;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -219,8 +220,8 @@ class ApplicationDocumentRequestService
         $application = $request->application;
 
         // Owner assisting a member/guarantor: loan-file uploads stay on the application.
-        // Profile-guided items (income, ID, face, collateral) are fulfilled on that person's profile.
-        if ($viewer && $this->borrowerIsAssisting($viewer, $request) && $application && ! $this->isProfileGuidedRequest($request)) {
+        // National ID is also fulfilled on the exact request (front/back), not the helper's profile.
+        if ($viewer && $this->assistantUploadsOnApplication($viewer, $request) && $application) {
             return route('site.borrower.application', $application).'?doc='.$request->id.'#request-'.$request->id;
         }
 
@@ -361,6 +362,12 @@ class ApplicationDocumentRequestService
         return in_array($request->status, ['pending', 'uploaded', 'rejected'], true);
     }
 
+    /** True when Screening should stay paused until the borrower/leader acts. */
+    public function isWaitingOnBorrower(LoanApplicationDocumentRequest $request): bool
+    {
+        return $request->needsBorrowerAction();
+    }
+
     public function operationalStatusLabel(LoanApplicationDocumentRequest $request): string
     {
         $label = mb_strtolower((string) $request->label);
@@ -434,8 +441,8 @@ class ApplicationDocumentRequestService
     /**
      * Loan-file collateral requirements for this application (not the asset master record).
      *
-     * @param  \Illuminate\Support\Collection<int, LoanApplicationDocumentRequest>|iterable<LoanApplicationDocumentRequest>  $requests
-     * @return \Illuminate\Support\Collection<int, LoanApplicationDocumentRequest>
+     * @param  Collection<int, LoanApplicationDocumentRequest>|iterable<LoanApplicationDocumentRequest>  $requests
+     * @return Collection<int, LoanApplicationDocumentRequest>
      */
     public function collateralRequestsForLoan($requests): Collection
     {
@@ -448,7 +455,7 @@ class ApplicationDocumentRequestService
 
     private function relativePhrase(mixed $at): string
     {
-        if (! $at instanceof \Carbon\CarbonInterface) {
+        if (! $at instanceof CarbonInterface) {
             return 'just now';
         }
         $local = $at->timezone(config('app.timezone'));
@@ -460,7 +467,7 @@ class ApplicationDocumentRequestService
 
         return $local->diffForHumans([
             'parts' => $hours < 72 ? 2 : 1,
-            'syntax' => \Carbon\CarbonInterface::DIFF_RELATIVE_TO_NOW,
+            'syntax' => CarbonInterface::DIFF_RELATIVE_TO_NOW,
         ]);
     }
 
@@ -983,8 +990,7 @@ class ApplicationDocumentRequestService
         LoanApplicationDocumentRequest $request,
         User $actor,
         ?string $reason = null,
-    ): LoanApplicationDocumentRequest
-    {
+    ): LoanApplicationDocumentRequest {
         if ($request->status !== 'pending') {
             throw new \InvalidArgumentException('Only a waiting request can be withdrawn.');
         }
@@ -1436,6 +1442,79 @@ class ApplicationDocumentRequestService
         return $stored;
     }
 
+    /**
+     * Store National ID front and back as separate profile documents on the subject.
+     *
+     * @return Collection<int, CustomerDocument>
+     */
+    public function recordIdentityCardUploads(
+        LoanApplicationDocumentRequest $request,
+        Customer $actor,
+        UploadedFile $front,
+        UploadedFile $back,
+        ?Customer $subjectCustomer = null,
+    ): Collection {
+        $application = $request->application;
+        $documentCustomerId = (int) (
+            $request->subject_customer_id
+            ?? $subjectCustomer?->id
+            ?? $actor->id
+        );
+
+        $stored = collect();
+        foreach (['national_id_front' => $front, 'national_id_back' => $back] as $code => $file) {
+            if (! $file->isValid()) {
+                continue;
+            }
+            $type = DocumentType::query()->where('code', $code)->where('is_active', true)->first();
+            $existing = CustomerDocument::query()
+                ->where('customer_id', $documentCustomerId)
+                ->when(
+                    $type,
+                    fn ($q) => $q->where('document_type_id', $type->id),
+                    fn ($q) => $q->whereNull('document_type_id'),
+                )
+                ->whereNull('loan_application_id')
+                ->whereNotIn('status', ['replaced', 'archived'])
+                ->latest('id')
+                ->first();
+            if ($existing) {
+                $existing->update(['status' => 'replaced']);
+            }
+
+            $path = $file->store("borrower/{$documentCustomerId}/identity", 'public');
+            $stored->push(CustomerDocument::create([
+                'customer_id' => $documentCustomerId,
+                'loan_application_id' => null,
+                'loan_application_document_request_id' => $request->id,
+                'document_type_id' => $type?->id,
+                'file_path' => $path,
+                'status' => 'pending_review',
+                'notes' => json_encode(array_filter([
+                    'side' => $code === 'national_id_front' ? 'front' : 'back',
+                    'request_label' => $request->label,
+                    'original_name' => $file->getClientOriginalName(),
+                    'test_evidence' => str_contains(strtolower((string) $file->getClientOriginalName()), 'test'),
+                ])),
+            ]));
+        }
+
+        if ($stored->isEmpty()) {
+            return $stored;
+        }
+
+        $request->update([
+            'status' => 'uploaded',
+            'admin_notes' => null,
+            'uploaded_by_customer_id' => $actor->id,
+        ]);
+
+        $this->syncApplicationStatus($application->fresh());
+        app(NotificationCtaService::class)->consumeDocumentRequestCtas((int) $application->id, (int) $request->id);
+
+        return $stored;
+    }
+
     public function recordClarification(
         LoanApplicationDocumentRequest $request,
         string $response,
@@ -1626,6 +1705,21 @@ class ApplicationDocumentRequestService
         }
 
         return $this->isProfileGuidedRequest($request);
+    }
+
+    /**
+     * Leader/borrower may upload National ID (and non-profile documents) on the
+     * application request itself. Face, signature, income, and residence stay on
+     * the subject's profile.
+     */
+    public function assistantUploadsOnApplication(Customer $customer, LoanApplicationDocumentRequest $request): bool
+    {
+        if (! $this->borrowerIsAssisting($customer, $request)) {
+            return false;
+        }
+
+        return $this->borrowerActionKind($request) === 'identity'
+            || ! $this->isProfileGuidedRequest($request);
     }
 
     public function customerCanFulfillRequest(Customer $customer, LoanApplicationDocumentRequest $request): bool
@@ -2102,7 +2196,7 @@ class ApplicationDocumentRequestService
      * Close files whose Screening document request is past due.
      * This is not a credit rejection.
      *
-     * @return \Illuminate\Support\Collection<int, LoanApplication>
+     * @return Collection<int, LoanApplication>
      */
     public function expireOverdueRequests(): Collection
     {

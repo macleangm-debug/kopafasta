@@ -75,9 +75,9 @@
                     </div>
                     <div class="col-span-3 mt-3 lg:mt-0 flex flex-col gap-1.5 items-start">
                         @if (str_starts_with((string) ($next['cta'] ?? ''), 'Waiting'))
-                            <span class="inline-flex rounded-xl bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-950">{{ $next['cta'] }}</span>
+                            <span class="inline-flex rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">Waiting</span>
                         @else
-                            <a href="{{ $next['review_href'] ?? $next['href'] }}" class="inline-flex rounded-xl bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand">{{ $next['cta'] }}</a>
+                            <a href="{{ $next['review_href'] ?? $next['href'] }}" class="inline-flex rounded-xl bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-light">{{ $next['cta'] }}</a>
                         @endif
                     </div>
                 </div>

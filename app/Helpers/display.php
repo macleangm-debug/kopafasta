@@ -24,7 +24,7 @@ if (! function_exists('format_app_datetime')) {
     /**
      * Format a stored timestamp in the local display timezone (default EAT).
      */
-    function format_app_datetime(\DateTimeInterface|string|null $value, string $format = 'd M Y H:i'): string
+    function format_app_datetime(DateTimeInterface|string|null $value, string $format = 'd M Y H:i'): string
     {
         if ($value === null || $value === '') {
             return '—';
@@ -43,7 +43,7 @@ if (! function_exists('guided_evidence_url')) {
      * Keep Guided Review (or Committee / Post-Approval) as the return context
      * when opening a full evidence page from a wizard step.
      */
-    function guided_evidence_url(?string $href, string $from = 'guided'): string
+    function guided_evidence_url(?string $href, string $from = 'guided', array $context = []): string
     {
         if (! is_string($href) || $href === '') {
             return '';
@@ -54,14 +54,20 @@ if (! function_exists('guided_evidence_url')) {
             [$href, $hash] = explode('#', $href, 2);
             $hash = '#'.$hash;
         }
+        $query = ['from' => $from];
+        foreach (['open_item', 'review_person', 'review_m', 'review_g'] as $key) {
+            if (isset($context[$key]) && $context[$key] !== '' && $context[$key] !== null) {
+                $query[$key] = $context[$key];
+            }
+        }
         $join = str_contains($href, '?') ? '&' : '?';
 
-        return $href.$join.'from='.rawurlencode($from).$hash;
+        return $href.$join.http_build_query($query).$hash;
     }
 }
 
 if (! function_exists('format_app_date')) {
-    function format_app_date(\DateTimeInterface|string|null $value, string $format = 'd M Y'): string
+    function format_app_date(DateTimeInterface|string|null $value, string $format = 'd M Y'): string
     {
         return format_app_datetime($value, $format);
     }
@@ -109,14 +115,14 @@ if (! function_exists('marketplace_category_emoji')) {
     function marketplace_category_emoji(?string $category): string
     {
         return match ($category) {
-            'vehicle', 'vehicles'       => '🚗',
+            'vehicle', 'vehicles' => '🚗',
             'motorcycle', 'motorcycles' => '🏍️',
-            'truck', 'trucks'           => '🚚',
-            'equipment'                 => '🧰',
-            'electronics'               => '📱',
-            'furniture'                 => '🪑',
-            'property'                  => '🏠',
-            default                     => '🏭',
+            'truck', 'trucks' => '🚚',
+            'equipment' => '🧰',
+            'electronics' => '📱',
+            'furniture' => '🪑',
+            'property' => '🏠',
+            default => '🏭',
         };
     }
 }

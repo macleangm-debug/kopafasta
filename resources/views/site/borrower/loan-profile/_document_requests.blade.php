@@ -174,35 +174,50 @@
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <h3 class="text-base font-bold text-gray-900">{{ $docSvc->localizedLabel((string) $docReq->label) }}</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ __('borrower.document_upload.required_title', ['document' => $docSvc->localizedLabel((string) $docReq->label)]) }}</h3>
                                             <span @class([
                                                 'rounded-full px-2.5 py-0.5 text-[11px] font-bold',
                                                 'bg-red-100 text-red-800' => $isRejected,
-                                                'bg-amber-100 text-amber-900' => ! $isRejected,
+                                                'bg-emerald-100 text-emerald-800' => $docReq->status === 'uploaded',
+                                                'bg-amber-100 text-amber-900' => ! $isRejected && $docReq->status !== 'uploaded',
                                             ])>
                                                 {{ $isRejected
                                                     ? __('borrower.application.request_status_rejected')
-                                                    : __('borrower.loan_profile.documents_status_action') }}
+                                                    : ($docReq->status === 'uploaded'
+                                                        ? __('borrower.document_upload.submitted_short')
+                                                        : __('borrower.loan_profile.documents_status_action')) }}
                                             </span>
                                         </div>
-                                        <p class="mt-1 text-xs font-semibold text-brand">
-                                            {{ $docSvc->localizedSubjectRoleLabel($docReq) }}
-                                        </p>
+                                        @php
+                                            $subjectName = $docReq->subjectCustomer?->full_name
+                                                ?? $docReq->groupMember?->customer?->full_name;
+                                        @endphp
+                                        @if ($subjectName)
+                                            <p class="mt-1 text-sm font-semibold text-gray-900">
+                                                {{ __('borrower.document_upload.requested_for', ['name' => $subjectName]) }}
+                                            </p>
+                                            <p class="text-sm text-gray-700">
+                                                {{ __('borrower.document_upload.document_line', ['document' => $docSvc->localizedLabel((string) $docReq->label)]) }}
+                                            </p>
+                                        @else
+                                            <p class="mt-1 text-xs font-semibold text-brand">
+                                                {{ $docSvc->localizedSubjectRoleLabel($docReq) }}
+                                            </p>
+                                        @endif
+                                        @if ($reqInstructions = $docSvc->localizedInstructions((string) $docReq->label, $docReq->instructions))
+                                            <p class="mt-1 text-xs text-gray-600">{{ __('borrower.document_upload.why_line', ['reason' => $reqInstructions]) }}</p>
+                                        @endif
                                         <p class="mt-1 text-xs font-bold text-amber-950">
                                             {{ $docSvc->waitingOnLabel($docReq) }}
                                         </p>
                                         <p class="mt-0.5 text-xs text-gray-600">
                                             {{ $docSvc->outstandingTimingPhrase($docReq) }}
+                                            @if ($docReq->due_at)
+                                                · {{ __('borrower.document_upload.due_line', ['date' => $docReq->due_at->timezone(config('app.timezone'))->format('d M Y')]) }}
+                                            @endif
                                         </p>
                                     </div>
                                 </div>
-
-                                @php
-                                    $reqInstructions = $docSvc->localizedInstructions((string) $docReq->label, $docReq->instructions);
-                                @endphp
-                                @if ($reqInstructions)
-                                    <p class="mt-2 text-xs text-gray-600">{{ $reqInstructions }}</p>
-                                @endif
 
                                 @if ($docReq->admin_notes && $isRejected)
                                     <p class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 ring-1 ring-red-200">
@@ -224,12 +239,22 @@
                                 @endif
                             </div>
 
-                            @if ($docReq->needsBorrowerAction())
+                            @if ($docReq->status === 'uploaded')
+                                <div class="bg-emerald-50/80 px-4 py-4 sm:px-5">
+                                    <p class="text-base font-bold text-emerald-950">{{ __('borrower.document_upload.submitted') }}</p>
+                                    <p class="mt-1 text-sm text-emerald-900">{{ __('borrower.document_upload.submitted_body') }}</p>
+                                </div>
+                            @elseif ($docReq->needsBorrowerAction())
                                 <div class="bg-gray-50/80 px-4 py-4 sm:px-5">
                                     @php
                                         $assistingProfile = $profileGuided
                                             && $customer
-                                            && $docSvc->borrowerIsAssisting($customer, $docReq);
+                                            && $docSvc->borrowerIsAssisting($customer, $docReq)
+                                            && ! $docSvc->assistantUploadsOnApplication($customer, $docReq);
+                                        $identityKind = $docSvc->borrowerActionKind($docReq) === 'identity';
+                                        $subjectName = $docReq->subjectCustomer?->full_name
+                                            ?? $docReq->groupMember?->customer?->full_name
+                                            ?? null;
                                     @endphp
                                     @if ((string) $docReq->label === 'Add collateral asset')
                                         <div class="space-y-3">
@@ -245,9 +270,9 @@
                                                 'name' => $docSvc->localizedSubjectRoleLabel($docReq),
                                             ]) }}
                                         </p>
-                                    @elseif ($profileGuided)
+                                    @elseif ($profileGuided && ! $identityKind)
                                         <a href="{{ $profileUrl }}"
-                                           class="inline-flex w-full items-center justify-center rounded-xl bg-brand-gold px-4 py-3 text-sm font-bold text-brand shadow-sm hover:brightness-95 sm:w-auto">
+                                           class="inline-flex w-full items-center justify-center rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light sm:w-auto">
                                             {{ __('borrower.loan_profile.document_go_to_profile') }}
                                         </a>
                                     @else
@@ -262,11 +287,33 @@
                                                   confirmLabel: @js(__('borrower.document_upload.submit')),
                                               })">
                                             @csrf
-                                            <x-site.multi-page-document-upload
-                                                name="files"
-                                                :input-host-id="'doc-req-pages-'.$docReq->id"
-                                                :max-pages="12"
-                                            />
+                                            @if ($identityKind)
+                                                <p class="text-sm font-bold text-gray-900">{{ __('borrower.document_upload.upload_named', ['document' => $docSvc->localizedLabel((string) $docReq->label)]) }}</p>
+                                                <div class="grid gap-3 sm:grid-cols-2">
+                                                    <x-site.multi-page-document-upload
+                                                        name="front"
+                                                        :input-host-id="'doc-req-front-'.$docReq->id"
+                                                        :max-pages="1"
+                                                        :required="true"
+                                                        :labels="['uploadFile' => __('borrower.document_upload.front'), 'addPicture' => __('borrower.document_upload.front')]"
+                                                    />
+                                                    <x-site.multi-page-document-upload
+                                                        name="back"
+                                                        :input-host-id="'doc-req-back-'.$docReq->id"
+                                                        :max-pages="1"
+                                                        :required="true"
+                                                        :labels="['uploadFile' => __('borrower.document_upload.back'), 'addPicture' => __('borrower.document_upload.back')]"
+                                                    />
+                                                </div>
+                                                @error('front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                                @error('back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                            @else
+                                                <x-site.multi-page-document-upload
+                                                    name="files"
+                                                    :input-host-id="'doc-req-pages-'.$docReq->id"
+                                                    :max-pages="12"
+                                                />
+                                            @endif
                                             @if ($docReq->type === 'clarification')
                                                 <div>
                                                     <label class="mb-1 block text-xs font-semibold text-gray-600">{{ __('borrower.document_upload.your_response') }}</label>
@@ -274,7 +321,7 @@
                                                 </div>
                                             @endif
                                             <button type="submit"
-                                                    class="w-full rounded-xl bg-brand-gold px-4 py-3 text-sm font-bold text-brand shadow-sm hover:brightness-95">
+                                                    class="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light">
                                                 {{ __('borrower.document_upload.submit') }}
                                             </button>
                                         </form>

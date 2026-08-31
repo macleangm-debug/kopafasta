@@ -106,6 +106,8 @@ class LoanApplicationProfileService
         $application->loadMissing([
             'product.requirements',
             'documentRequests.uploads',
+            'documentRequests.subjectCustomer',
+            'documentRequests.groupMember.customer',
             'customerGuarantors.guarantor',
         ]);
 
@@ -180,7 +182,10 @@ class LoanApplicationProfileService
         $disbursementChecklist = app(ApplicationDisbursementReadinessService::class)
             ->borrowerDisbursementChecklist($application);
         $docRequestService = app(ApplicationDocumentRequestService::class);
-        $documentRequests = $application->documentRequests()->with('uploads')->latest()->get();
+        $documentRequests = $application->documentRequests()
+            ->with(['uploads', 'subjectCustomer', 'groupMember.customer'])
+            ->latest()
+            ->get();
         $requestsForCustomer = $documentRequests->filter(
             fn ($request) => $docRequestService->isSubjectOfRequest($customer, $request)
                 || $docRequestService->borrowerIsAssisting($customer, $request)

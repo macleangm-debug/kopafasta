@@ -11,5 +11,5 @@
     :show-insured="$showInsured"
     :source-label="$sourceLabel"
 >
-    {{ $slot }}
+    {{ $slot ?? '' }}
 </x-site.collateral-card>

@@ -61,6 +61,12 @@ class ScreeningNextActionService
             && $waiting === null
             && ! ($snapshot['pending_rejection'] ?? false);
 
+        if ($waiting === null
+            && ($cursor['at_item'] ?? '') === ''
+            && ($cursor['after_item'] ?? '') === '') {
+            $cursor = $this->pinUploadedRequest($application, $cursor);
+        }
+
         $step = match (true) {
             $clarification !== null => $this->clarificationStep($clarification),
             $waiting !== null => $this->waitingStep($waiting, $snapshot),
@@ -106,7 +112,13 @@ class ScreeningNextActionService
             'loan_application' => $application,
             'workspace' => 'overview',
         ]).'#credit-workspace';
-        $reviewHref = route('admin.loan-applications.guided-screening', $application);
+        $reviewHref = route('admin.loan-applications.guided-screening', array_filter([
+            'loan_application' => $application,
+            'at_item' => $step['item_key'] ?? null,
+            'at_person' => $step['participant']['person'] ?? null,
+            'at_m' => $step['participant']['m'] ?? null,
+            'at_g' => $step['participant']['g'] ?? null,
+        ], fn ($v) => $v !== null && $v !== ''));
         $decisionHref = route('admin.loan-applications.show', [
             'loan_application' => $application,
             'workspace' => 'decision',
@@ -135,7 +147,12 @@ class ScreeningNextActionService
                 'review_m' => $resume['m'] ?? null,
                 'review_g' => $resume['g'] ?? null,
                 'open_item' => $resume['item'] ?? null,
-            ]).'#review-desk', 'guided'),
+            ]).'#review-desk', 'guided', [
+                'open_item' => $resume['item'] ?? null,
+                'review_person' => $resume['person'] ?? null,
+                'review_m' => $resume['m'] ?? null,
+                'review_g' => $resume['g'] ?? null,
+            ]),
             'bucket' => $bucket,
             'waiting' => $waiting,
             'started' => $started,
@@ -237,16 +254,21 @@ class ScreeningNextActionService
         array $snapshot,
         array $cursor = [],
     ): array {
+        $pinItem = (string) ($cursor['at_item'] ?? '');
+        $pinPerson = (string) ($cursor['at_person'] ?? 'borrower');
+        $pinM = isset($cursor['at_m']) ? (int) $cursor['at_m'] : null;
+        $pinG = isset($cursor['at_g']) ? (int) $cursor['at_g'] : null;
+
         if ($snapshot['pending_rejection'] ?? false) {
             return $this->gateOneStep($application, $snapshot, $groupReview);
         }
 
-        if (! ($snapshot['declared']['pass'] ?? false)) {
+        if ($pinItem === '' && ! ($snapshot['declared']['pass'] ?? false)) {
             return $this->gateOneStep($application, $snapshot, $groupReview);
         }
 
         $gate1Seen = (bool) data_get($application->screening_payload, 'guided.seen_gates.declared');
-        if (! $gate1Seen && ! $this->hasLaterHumanWork($application)) {
+        if ($pinItem === '' && ! $gate1Seen && ! $this->hasLaterHumanWork($application)) {
             return $this->gateOneStep($application, $snapshot, $groupReview);
         }
 
@@ -255,10 +277,6 @@ class ScreeningNextActionService
         $skipM = isset($cursor['after_m']) ? (int) $cursor['after_m'] : null;
         $skipG = isset($cursor['after_g']) ? (int) $cursor['after_g'] : null;
         $passedCursor = $skipItem === '';
-        $pinItem = (string) ($cursor['at_item'] ?? '');
-        $pinPerson = (string) ($cursor['at_person'] ?? 'borrower');
-        $pinM = isset($cursor['at_m']) ? (int) $cursor['at_m'] : null;
-        $pinG = isset($cursor['at_g']) ? (int) $cursor['at_g'] : null;
 
         $subjectTotal = max(1, count($subjects));
         foreach ($this->orderedSubjects($subjects) as $subject) {
@@ -309,6 +327,7 @@ class ScreeningNextActionService
                             if ($sameSkip && (string) ($item['key'] ?? '') === $skipItem) {
                                 $passedCursor = true;
                             }
+
                             continue;
                         }
 
@@ -431,7 +450,7 @@ class ScreeningNextActionService
             default => 6,
         };
         $requestable = $this->requestablePreset($key, $item);
-        $contact = $this->contactContext($key, $card, $customer);
+        $contact = $this->contactContext($key, $card, $customer, $item['destination'] ?? null);
         $isSystemItem = ! empty($item['catalog_system'])
             || ! empty($item['system_checked'])
             || ! empty($item['documents_checked'])
@@ -561,7 +580,7 @@ class ScreeningNextActionService
         }
 
         $open = $application->documentRequests
-            ->filter(fn ($req) => $this->documents->isOutstanding($req))
+            ->filter(fn ($req) => $this->documents->isWaitingOnBorrower($req))
             ->first();
         if ($open instanceof LoanApplicationDocumentRequest) {
             $waitingOn = $this->documents->waitingOnLabel($open, $groupReview);
@@ -642,16 +661,24 @@ class ScreeningNextActionService
     {
         $code = (string) ($item['fail_reason_code'] ?? '');
         if (in_array($key, ['identity.nida_vs_dob'], true)
-            || in_array($code, ['nida_missing', 'nida_malformed', 'nida_incomplete'], true)) {
-            return ['label' => 'Request National ID', 'preset' => 'Updated National ID'];
+            || in_array($code, ['nida_missing', 'nida_malformed', 'nida_incomplete'], true)
+            || ($key === 'identity.id_document_quality' && ! empty($item['awaiting_data']))) {
+            return [
+                'headline' => 'National ID required',
+                'label' => 'Request National ID',
+                'preset' => 'Updated National ID',
+                'reason' => 'National ID is not on this member\'s profile.',
+            ];
         }
         if ($key === 'identity.face_vs_nida' || in_array($code, ['face_photo_missing', 'photos_missing'], true)) {
             return ['label' => 'Request face photo', 'preset' => 'Image Not Clear'];
         }
         if ($key === 'identity.id_document_quality' || in_array($code, ['id_photo_missing', 'poor_quality', 'proof_missing', 'document_unclear'], true)) {
             return [
-                'label' => 'Request clearer National ID',
+                'headline' => 'National ID required',
+                'label' => 'Request National ID',
                 'preset' => 'Updated National ID',
+                'reason' => 'National ID is not on this member\'s profile.',
                 'alternatives' => [
                     ['label' => 'Request ID photo', 'preset' => 'New National ID photo'],
                     ['label' => 'Request face photo', 'preset' => 'Image Not Clear'],
@@ -696,9 +723,10 @@ class ScreeningNextActionService
 
     /**
      * @param  array<string, mixed>  $card
+     * @param  array<string, mixed>|null  $destination
      * @return array<string, mixed>|null
      */
-    private function contactContext(string $key, array $card, ?Customer $customer): ?array
+    private function contactContext(string $key, array $card, ?Customer $customer, ?array $destination = null): ?array
     {
         return match ($key) {
             'contacts.call_next_of_kin' => [
@@ -722,8 +750,11 @@ class ScreeningNextActionService
             default => $customer ? [
                 'kind' => 'person',
                 'name' => $customer->full_name,
-                'detail' => $customer->national_id,
+                'detail' => filled($customer->national_id) ? (string) $customer->national_id : null,
                 'phone' => $customer->phone,
+                'national_id' => $customer->national_id,
+                'national_id_missing' => ! filled($customer->national_id),
+                'profile_href' => $destination['profile_href'] ?? null,
             ] : null,
         };
     }
@@ -874,6 +905,50 @@ class ScreeningNextActionService
                 ? 'Gate '.((int) ($step['gate_index'] ?? 0)).' · '.$done.' of '.$total.' applicable checks complete'
                 : (string) ($step['gate_label'] ?? ''),
         ];
+    }
+
+    /**
+     * After a borrower upload, resume Guided Review on that checklist item —
+     * not the first open check on the file.
+     *
+     * @param  array<string, mixed>  $cursor
+     * @return array<string, mixed>
+     */
+    private function pinUploadedRequest(LoanApplication $application, array $cursor): array
+    {
+        $ready = $application->documentRequests
+            ->filter(fn ($req) => $req->status === 'uploaded' && filled($req->checklist_item))
+            ->sortByDesc('id')
+            ->first();
+        if (! $ready instanceof LoanApplicationDocumentRequest) {
+            return $cursor;
+        }
+
+        $person = match ((string) ($ready->subject_kind ?? 'borrower')) {
+            'member' => 'member',
+            'guarantor' => 'guarantor',
+            default => 'borrower',
+        };
+        $subject = $this->checklist->subjectKey(
+            $person,
+            null,
+            $person === 'member' ? (int) $ready->loan_group_member_id : null,
+        );
+        $verdict = data_get(
+            $this->checklist->state($application, $subject),
+            'items.'.$ready->checklist_item.'.verdict'
+        );
+        if (in_array($verdict, ['pass', 'na'], true)) {
+            return $cursor;
+        }
+
+        $cursor['at_item'] = (string) $ready->checklist_item;
+        $cursor['at_person'] = $person;
+        if ($person === 'member' && $ready->loan_group_member_id) {
+            $cursor['at_m'] = (int) $ready->loan_group_member_id;
+        }
+
+        return $cursor;
     }
 
     private function resumeFromStep(array $step): array

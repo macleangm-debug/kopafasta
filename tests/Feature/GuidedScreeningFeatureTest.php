@@ -16,8 +16,10 @@ use App\Services\GroupLendingService;
 use App\Services\GroupMemberReplacementService;
 use App\Services\GuarantorSupplementService;
 use App\Services\ScreeningChecklistService;
+use App\Services\ScreeningExceptionService;
 use App\Services\ScreeningNextActionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Tests\TestCase;
 
 class GuidedScreeningFeatureTest extends TestCase
@@ -92,6 +94,11 @@ class GuidedScreeningFeatureTest extends TestCase
         $this->assertSame(ScreeningNextActionService::BUCKET_WAITING, $next['bucket']);
         $this->assertSame('waiting', $next['cta_kind']);
         $this->assertSame('document', $next['waiting']['kind'] ?? null);
+
+        $app->documentRequests()->update(['status' => 'uploaded']);
+        $reviewing = app(ScreeningNextActionService::class)->forApplication($app->fresh(['documentRequests']), $admin);
+        $this->assertSame(ScreeningNextActionService::BUCKET_DO_NOW, $reviewing['bucket']);
+        $this->assertSame('continue', $reviewing['cta_kind']);
 
         $app->documentRequests()->update(['status' => 'satisfied']);
         $after = app(ScreeningNextActionService::class)->forApplication($app->fresh(['documentRequests']), $admin);
@@ -296,7 +303,7 @@ class GuidedScreeningFeatureTest extends TestCase
     public function test_committee_sees_and_acknowledges_screening_exceptions(): void
     {
         [$admin, $app] = $this->file();
-        app(\App\Services\ScreeningExceptionService::class)->accept(
+        app(ScreeningExceptionService::class)->accept(
             $app,
             $admin,
             'crb_name_unusable',
@@ -451,6 +458,7 @@ class GuidedScreeningFeatureTest extends TestCase
                     'ack_gate' => 'declared',
                 ])->assertRedirect();
                 $cursor = [];
+
                 continue;
             }
             if ($type === 'attention') {
@@ -460,6 +468,7 @@ class GuidedScreeningFeatureTest extends TestCase
                     'after_m' => $step['participant']['m'] ?? null,
                     'after_g' => $step['participant']['g'] ?? null,
                 ], fn ($v) => $v !== null && $v !== '');
+
                 continue;
             }
             if ($type === 'human') {
@@ -915,7 +924,7 @@ class GuidedScreeningFeatureTest extends TestCase
     }
 
     /**
-     * @return array{0: User, 1: LoanApplication, 2: array{weak: \Illuminate\Support\Collection}}
+     * @return array{0: User, 1: LoanApplication, 2: array{weak: Collection}}
      */
     private function groupFile(int $weakCount): array
     {
@@ -1031,5 +1040,25 @@ class GuidedScreeningFeatureTest extends TestCase
         $this->assertStringContainsString('Request sent', $html);
         $this->assertStringContainsString('Screening paused', $html);
         $this->assertStringNotContainsString('name="due_at"', $html);
+    }
+
+    public function test_evidence_return_url_pins_the_current_checklist_item(): void
+    {
+        [$admin, $app] = $this->file();
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'checklist',
+                'from' => 'guided',
+                'open_item' => 'identity.id_document_quality',
+                'review_person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('at_item=identity.id_document_quality', $html);
+        $this->assertStringContainsString('Back to Guided Review', $html);
+        $this->assertStringNotContainsString('Open member National ID', $html);
     }
 }

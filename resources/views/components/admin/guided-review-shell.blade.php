@@ -74,7 +74,7 @@
             </div>
 
             @isset($footer)
-                <div class="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <div class="sticky bottom-0 z-20 border-t border-slate-100 bg-white px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                     {{ $footer }}
                 </div>
             @endisset

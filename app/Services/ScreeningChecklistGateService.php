@@ -201,7 +201,7 @@ class ScreeningChecklistGateService
             ],
             $fullKey === 'identity.nida_vs_dob' => [
                 'cta' => match ($code) {
-                    'nida_missing', 'nida_malformed', 'nida_impossible', 'nida_unverifiable' => 'Open member National ID',
+                    'nida_missing', 'nida_malformed', 'nida_impossible', 'nida_unverifiable' => 'National ID not provided',
                     'nida_incomplete' => 'Open member profile (date of birth)',
                     default => 'Open identity',
                 },

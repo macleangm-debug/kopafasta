@@ -6,51 +6,104 @@ use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\CustomerAsset;
+use App\Models\CustomerDisbursementAccount;
 use App\Models\CustomerDocument;
 use App\Models\CustomerGuarantor;
 use App\Models\CustomerKyc;
+use App\Models\CustomerPayment;
 use App\Models\DocumentType;
 use App\Models\Guarantor;
+use App\Models\GuarantorInvitation;
 use App\Models\Loan;
+use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
-use App\Models\LoanApplicationDraft;
 use App\Models\LoanApplicationDocumentRequest;
+use App\Models\LoanApplicationDraft;
+use App\Models\LoanProduct;
+use App\Models\LoanProductRequirement;
+use App\Models\LoanTopUpRequest;
 use App\Models\NotificationLog;
 use App\Models\Repayment;
 use App\Models\RepaymentSchedule;
-use App\Models\LoanProduct;
-use App\Models\LoanTopUpRequest;
 use App\Models\RestructureRequest;
+use App\Models\Setting;
 use App\Models\TrustedDevice;
-use App\Support\KinName;
-use App\Rules\MinimumAge;
 use App\Rules\ValidNationalId;
-use App\Support\NationalIdValidator;
+use App\Rules\ValidNidaNumber;
+use App\Services\ActiveLoanServicingService;
+use App\Services\ApplicationConversionFeePaymentService;
+use App\Services\ApplicationDisbursementReadinessService;
 use App\Services\ApplicationDocumentRequestService;
+use App\Services\ApplicationFeeCreditService;
+use App\Services\ApplicationOfferService;
 use App\Services\ApplicationRequirementsService;
+use App\Services\AuctionHoldService;
+use App\Services\BorrowerApplicationsDashboardService;
+use App\Services\BorrowerDashboardHeroService;
+use App\Services\BorrowerFinancialHealthService;
+use App\Services\BorrowerFinancialSnapshotService;
+use App\Services\BorrowerSignatureService;
+use App\Services\CollateralSecureService;
 use App\Services\CrbService;
-use App\Services\FaceVerificationService;
-use App\Services\GuarantorInvitationService;
-use App\Services\GuarantorOnboardingService;
-use App\Services\KycFreshnessService;
-use App\Services\LoanQualificationService;
-use App\Services\NidaVerificationService;
-use App\Services\PinService;
-use App\Services\PostApprovalFeeService;
+use App\Services\CustomerAssetService;
+use App\Services\CustomerDisbursementDetailsService;
+use App\Services\CustomerPaymentService;
+use App\Services\DisbursementSlaService;
 use App\Services\DocumentPageMerger;
+use App\Services\FaceVerificationService;
+use App\Services\Grades\GradeBenefitService;
+use App\Services\GroupLoanMemberReviewService;
+use App\Services\GroupMemberApplicationService;
+use App\Services\GroupMemberProgressService;
+use App\Services\GroupMemberReplacementService;
+use App\Services\GroupPayoutService;
+use App\Services\GuaranteedLoanService;
+use App\Services\GuarantorAccessService;
+use App\Services\GuarantorInvitationService;
+use App\Services\GuarantorNotificationService;
+use App\Services\GuarantorOnboardingService;
+use App\Services\GuarantorSupplementService;
+use App\Services\IncomeProofService;
+use App\Services\KycFreshnessService;
+use App\Services\LendingJourneyService;
+use App\Services\LoanAgreementService;
+use App\Services\LoanApplicationDraftService;
+use App\Services\LoanApplicationProfileService;
+use App\Services\LoanPolicyService;
+use App\Services\LoanQualificationService;
+use App\Services\LoanServicingTimelineService;
+use App\Services\MemberEngagementRewardService;
+use App\Services\MemberEngagementService;
+use App\Services\NidaVerificationService;
+use App\Services\NotificationCenterService;
+use App\Services\NotificationCtaService;
+use App\Services\PaymentAccountService;
+use App\Services\PinService;
+use App\Services\Plus\PlusService;
+use App\Services\PortalContextService;
+use App\Services\PortalOnboardingResumeService;
+use App\Services\PostApprovalFeePaymentService;
+use App\Services\PostApprovalFeeService;
 use App\Services\ProfileCompletionService;
-use App\Services\ProfileWizardService;
+use App\Services\ProfileDocumentService;
+use App\Services\ProfileRevisionService;
 use App\Services\ProfileValidationService;
-use App\Services\AffiliateService;
+use App\Services\ProfileWizardService;
 use App\Services\ReferralService;
-use App\Services\ResidenceLetterMerger;
-use Illuminate\Validation\Rule;
+use App\Services\StaffNotificationService;
+use App\Support\Celebration;
+use App\Support\KinName;
+use App\Support\MoneyFormat;
+use App\Support\NationalIdValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class BorrowerController extends Controller
@@ -67,13 +120,13 @@ class BorrowerController extends Controller
             $u = Auth::user();
             [$firstName, $lastName] = $this->splitUserDisplayName((string) ($u->name ?? ''));
             $c = Customer::create([
-                'user_id'         => $u->id,
+                'user_id' => $u->id,
                 'customer_number' => 'CUS-'.strtoupper(Str::random(6)),
-                'first_name'      => $firstName,
-                'last_name'       => $lastName,
-                'email'           => $u->email,
-                'type'            => 'individual',
-                'status'          => 'active',
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => $u->email,
+                'type' => 'individual',
+                'status' => 'active',
             ]);
         } else {
             $this->healCustomerNameFromUser($c);
@@ -138,12 +191,12 @@ class BorrowerController extends Controller
     ): View|RedirectResponse {
         $customer = $this->customer();
 
-        if ($redirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
+        if ($redirect = app(PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
             return $redirect;
         }
 
         $activeLoan = Loan::where('customer_id', $customer->id)
-            ->whereIn('status', ['active','disbursed','arrears'])
+            ->whereIn('status', ['active', 'disbursed', 'arrears'])
             ->latest('disbursement_date')->first();
 
         $nextDue = null;
@@ -155,7 +208,7 @@ class BorrowerController extends Controller
 
         $applicationsCount = LoanApplication::where('customer_id', $customer->id)->count();
 
-        $portal = app(\App\Services\PortalContextService::class);
+        $portal = app(PortalContextService::class);
         $notifications = $portal->borrowerNotificationsQuery($customer)
             ->latest()->limit(4)->get();
         $unreadNotificationCount = $portal->borrowerNotificationsQuery($customer)
@@ -164,8 +217,8 @@ class BorrowerController extends Controller
         $eligibility = $qualification->calculate($customer);
         $applyRequirements = $requirements->checklist($customer);
         $onboardingBanner = $requirements->onboardingBanner($customer);
-        $groupInviteBanner = app(\App\Services\GroupMemberApplicationService::class)->dashboardBanner($customer);
-        $applyDraftResume = app(\App\Services\LoanApplicationDraftService::class)->resumeSummary($customer);
+        $groupInviteBanner = app(GroupMemberApplicationService::class)->dashboardBanner($customer);
+        $applyDraftResume = app(LoanApplicationDraftService::class)->resumeSummary($customer);
 
         $activeApplications = LoanApplication::with('product')
             ->where('customer_id', $customer->id)
@@ -174,11 +227,11 @@ class BorrowerController extends Controller
             ->limit(5)
             ->get();
 
-        $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
+        $applicationsDashboard = app(BorrowerApplicationsDashboardService::class);
         $activeApplicationRows = collect(
             $activeApplications->map(fn (LoanApplication $app) => $applicationsDashboard->formatSubmitted($app))->all()
         )
-            ->concat(app(\App\Services\GroupMemberApplicationService::class)->applicationRowsForCustomer($customer))
+            ->concat(app(GroupMemberApplicationService::class)->applicationRowsForCustomer($customer))
             ->values()
             ->all();
 
@@ -193,26 +246,26 @@ class BorrowerController extends Controller
         $referralLink = $referralService->referralLink($customer);
         $referralShareMessage = $referralService->shareMessage($customer);
         $referralWallet = $referralService->wallet($customer);
-        $dashboardHero = app(\App\Services\BorrowerDashboardHeroService::class)->forCustomer($customer, $activeLoan, $nextDue);
-        $financialSnapshot = app(\App\Services\BorrowerFinancialSnapshotService::class)->forCustomer($customer, $activeLoan);
-        $financialHealth = app(\App\Services\BorrowerFinancialHealthService::class)->forCustomer($customer, $activeLoan);
+        $dashboardHero = app(BorrowerDashboardHeroService::class)->forCustomer($customer, $activeLoan, $nextDue);
+        $financialSnapshot = app(BorrowerFinancialSnapshotService::class)->forCustomer($customer, $activeLoan);
+        $financialHealth = app(BorrowerFinancialHealthService::class)->forCustomer($customer, $activeLoan);
         $kycFreshness = app(KycFreshnessService::class);
         $kycSectionsDue = $kycFreshness->sectionsDueForRefresh($customer);
 
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
-        $plusService = app(\App\Services\Plus\PlusService::class);
+        $plusService = app(PlusService::class);
         $plusActive = $plusService->isActive($customer);
         $plusNeedsRenewal = $plusService->needsRenewal($customer);
-        $trustScore = app(\App\Services\MemberEngagementService::class)->trustScore($customer);
-        $trust = app(\App\Services\Grades\GradeBenefitService::class)
+        $trustScore = app(MemberEngagementService::class)->trustScore($customer);
+        $trust = app(GradeBenefitService::class)
             ->trustLabel((int) ($trustScore['percent'] ?? 0), $locale);
 
         return view('site.borrower.dashboard', compact(
-            'customer','activeLoan','nextDue','applicationsCount',
-            'notifications','eligibility',
-            'products','applyRequirements','onboardingBanner','groupInviteBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
-            'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','financialSnapshot','financialHealth','kycSectionsDue',
-            'plusActive','plusNeedsRenewal','trust',
+            'customer', 'activeLoan', 'nextDue', 'applicationsCount',
+            'notifications', 'eligibility',
+            'products', 'applyRequirements', 'onboardingBanner', 'groupInviteBanner', 'applyDraftResume', 'activeApplications', 'activeApplicationRows', 'unreadNotificationCount',
+            'openDocumentRequests', 'referralCode', 'referralLink', 'referralShareMessage', 'referralWallet', 'dashboardHero', 'financialSnapshot', 'financialHealth', 'kycSectionsDue',
+            'plusActive', 'plusNeedsRenewal', 'trust',
         ));
     }
 
@@ -232,11 +285,11 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($draft->customer_id !== $customer->id, 404);
 
-        $profile = app(\App\Services\LoanApplicationProfileService::class)->forDraft($customer, $draft);
+        $profile = app(LoanApplicationProfileService::class)->forDraft($customer, $draft);
         $groupProgress = null;
         $product = $draft->product;
         if ($product && is_group_loan_product($product)) {
-            $groupProgress = app(\App\Services\GroupMemberProgressService::class)
+            $groupProgress = app(GroupMemberProgressService::class)
                 ->forDraftPayload(($draft->payload ?? [])['group'] ?? null);
         }
 
@@ -248,13 +301,13 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($draft->customer_id !== $customer->id, 404);
 
-        $product = $draft->product ?? \App\Models\LoanProduct::find($draft->loan_product_id);
+        $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
         abort_unless($product, 404);
 
         $isAssetLending = filled($draft->asset_reservation_id) || is_marketplace_loan_product($product->code);
 
         $request->merge([
-            'requested_amount' => \App\Support\MoneyFormat::toNumber($request->input('requested_amount')),
+            'requested_amount' => MoneyFormat::toNumber($request->input('requested_amount')),
         ]);
 
         $data = $request->validate([
@@ -313,19 +366,19 @@ class BorrowerController extends Controller
     public function application(LoanApplication $application): View
     {
         $customer = $this->customer();
-        $docRequests = app(\App\Services\ApplicationDocumentRequestService::class);
+        $docRequests = app(ApplicationDocumentRequestService::class);
         abort_unless($docRequests->customerCanViewApplication($customer, $application), 404);
 
-        app(\App\Services\ProfileRevisionService::class)->ensureClearedForOpenRequests($application);
-        $profile = app(\App\Services\LoanApplicationProfileService::class)->forApplication($customer->fresh(), $application);
-        $groupFeedback = app(\App\Services\GroupLoanMemberReviewService::class)->leaderFeedbackSummary($application);
-        $groupContract = app(\App\Services\GroupMemberReplacementService::class)->leaderDashboard($application, $customer);
+        app(ProfileRevisionService::class)->ensureClearedForOpenRequests($application);
+        $profile = app(LoanApplicationProfileService::class)->forApplication($customer->fresh(), $application);
+        $groupFeedback = app(GroupLoanMemberReviewService::class)->leaderFeedbackSummary($application);
+        $groupContract = app(GroupMemberReplacementService::class)->leaderDashboard($application, $customer);
         $groupPayout = null;
         $groupProgress = null;
         $application->loadMissing('loanGroup');
         if ($application->loanGroup) {
-            $groupPayout = app(\App\Services\GroupPayoutService::class)->queueForGroup($application->loanGroup);
-            $groupProgress = app(\App\Services\GroupMemberProgressService::class)->forLoanApplication($application);
+            $groupPayout = app(GroupPayoutService::class)->queueForGroup($application->loanGroup);
+            $groupProgress = app(GroupMemberProgressService::class)->forLoanApplication($application);
         }
 
         return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback', 'groupContract', 'groupPayout', 'groupProgress'));
@@ -352,7 +405,7 @@ class BorrowerController extends Controller
 
         // Wipe product draft so a new apply cannot resume the deleted application spine.
         if ($application->loan_product_id) {
-            app(\App\Services\LoanApplicationDraftService::class)
+            app(LoanApplicationDraftService::class)
                 ->clear($customer, (int) $application->loan_product_id);
         }
 
@@ -373,7 +426,7 @@ class BorrowerController extends Controller
         abort_if($application->customer_id !== $customer->id, 404);
 
         try {
-            $url = app(\App\Services\GuarantorSupplementService::class)
+            $url = app(GuarantorSupplementService::class)
                 ->startBorrowerChangeWhileHeld($application, $customer);
         } catch (\InvalidArgumentException $e) {
             return redirect()
@@ -390,14 +443,14 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.guarantor_supplement.borrower_change_started'));
     }
 
-    public function discardDraft(Request $request, \App\Models\LoanApplicationDraft $draft): RedirectResponse
+    public function discardDraft(Request $request, LoanApplicationDraft $draft): RedirectResponse
     {
         $customer = $this->customer();
         abort_if($draft->customer_id !== $customer->id, 404);
 
         $productId = (int) $draft->loan_product_id;
         $reference = $draft->draft_reference;
-        app(\App\Services\LoanApplicationDraftService::class)->clear($customer, $productId);
+        app(LoanApplicationDraftService::class)->clear($customer, $productId);
 
         $reapply = $request->boolean('reapply') && $productId > 0;
 
@@ -410,7 +463,7 @@ class BorrowerController extends Controller
                 ]));
     }
 
-    public function replaceAssetDocument(Request $request, \App\Models\CustomerAsset $asset): RedirectResponse
+    public function replaceAssetDocument(Request $request, CustomerAsset $asset): RedirectResponse
     {
         $customer = $this->customer();
         abort_if($asset->customer_id !== $customer->id || ! $asset->is_active, 404);
@@ -437,7 +490,7 @@ class BorrowerController extends Controller
         }
         $asset->update(['metadata' => $meta]);
         if (filled($previous)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($previous);
+            Storage::disk('public')->delete($previous);
         }
 
         return redirect()
@@ -452,7 +505,7 @@ class BorrowerController extends Controller
         abort_unless($application->offer_status === 'pending_borrower', 404);
 
         $application->loadMissing(['product']);
-        $offerFacts = app(\App\Services\LendingJourneyService::class)->offerPresentation($application);
+        $offerFacts = app(LendingJourneyService::class)->offerPresentation($application);
         $installment = $offerFacts['installment'];
 
         return view('site.borrower.offer', compact('customer', 'application', 'installment', 'offerFacts'));
@@ -464,14 +517,14 @@ class BorrowerController extends Controller
         abort_if($application->customer_id !== $customer->id, 404);
 
         $data = $request->validate(['decision' => ['required', 'in:accept,decline']]);
-        $offers = app(\App\Services\ApplicationOfferService::class);
+        $offers = app(ApplicationOfferService::class);
 
         if ($data['decision'] === 'accept') {
             $application = $offers->acceptOffer($application, $customer);
             $message = __('borrower.offer.accepted');
             $this->auditBorrower('application.offer_accept', $application);
 
-            $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+            $readiness = app(ApplicationDisbursementReadinessService::class);
             if ($readiness->needsPostApprovalFees($application)) {
                 return redirect()
                     ->route('site.borrower.application.post-approval-fees', $application)
@@ -484,7 +537,7 @@ class BorrowerController extends Controller
                     ->with('status', $message);
             }
 
-            app(\App\Services\LoanAgreementService::class)->ensureLoanContractAfterFees($application);
+            app(LoanAgreementService::class)->ensureLoanContractAfterFees($application);
             if ($readiness->needsContractSignature($application)) {
                 return redirect()
                     ->route('site.borrower.application.contract', $application)
@@ -510,20 +563,20 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $offers = app(\App\Services\ApplicationOfferService::class);
+        $offers = app(ApplicationOfferService::class);
         abort_unless(
             $offers->pendingAssetConversion($application) || $offers->needsConversionFee($application),
             404,
         );
 
         $application->loadMissing(['product', 'alternativeProduct']);
-        $quote = app(\App\Services\ApplicationFeeCreditService::class)->conversionQuote(
+        $quote = app(ApplicationFeeCreditService::class)->conversionQuote(
             $application,
             $application->alternativeProduct,
         );
-        $feeQuote = app(\App\Services\ApplicationConversionFeePaymentService::class)->quote($application);
-        $paymentReference = $application->application_number ?? app(\App\Services\CustomerPaymentService::class)->generateReference();
-        $accounts = app(\App\Services\PaymentAccountService::class);
+        $feeQuote = app(ApplicationConversionFeePaymentService::class)->quote($application);
+        $paymentReference = $application->application_number ?? app(CustomerPaymentService::class)->generateReference();
+        $accounts = app(PaymentAccountService::class);
         $bankAccounts = $accounts->bankAccountsForDisplay('application_fee', $paymentReference, $application->alternativeProduct);
         $mobileResolved = $accounts->resolve('application_fee', 'mobile_money', $application->alternativeProduct);
         $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $paymentReference);
@@ -551,7 +604,7 @@ class BorrowerController extends Controller
         abort_if($application->customer_id !== $customer->id, 404);
 
         $data = $request->validate(['decision' => ['required', 'in:accept,decline']]);
-        $offers = app(\App\Services\ApplicationOfferService::class);
+        $offers = app(ApplicationOfferService::class);
 
         if ($data['decision'] === 'accept') {
             $result = $offers->acceptAssetConversion($application, $customer);
@@ -581,19 +634,19 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $offers = app(\App\Services\ApplicationOfferService::class);
+        $offers = app(ApplicationOfferService::class);
         abort_unless($offers->needsConversionFee($application), 422);
 
         $data = $request->validate([
-            'channel'       => ['required', 'in:mobile_money,bank'],
+            'channel' => ['required', 'in:mobile_money,bank'],
             'mobile_number' => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
-            'payment_date'  => ['nullable', 'date'],
-            'proof'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'use_wallet'    => ['nullable', 'boolean'],
+            'payment_date' => ['nullable', 'date'],
+            'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'use_wallet' => ['nullable', 'boolean'],
         ]);
 
-        $paymentService = app(\App\Services\ApplicationConversionFeePaymentService::class);
-        $reference = $application->application_number ?? app(\App\Services\CustomerPaymentService::class)->generateReference();
+        $paymentService = app(ApplicationConversionFeePaymentService::class);
+        $reference = $application->application_number ?? app(CustomerPaymentService::class)->generateReference();
         $useWallet = $request->boolean('use_wallet');
 
         if ($data['channel'] === 'mobile_money') {
@@ -629,7 +682,7 @@ class BorrowerController extends Controller
         }
 
         if ($request->hasFile('proof')) {
-            app(\App\Services\CustomerPaymentService::class)->uploadProof($payment, $request->file('proof'));
+            app(CustomerPaymentService::class)->uploadProof($payment, $request->file('proof'));
         }
 
         return redirect()
@@ -654,10 +707,41 @@ class BorrowerController extends Controller
             return back()->withErrors(['upload' => 'This request is no longer open for uploads.']);
         }
 
-        if ($docRequests->isProfileGuidedRequest($documentRequest)) {
+        // National ID is fulfilled on this request (front/back). Other profile-guided
+        // items still open the subject's own profile card.
+        if ($docRequests->isProfileGuidedRequest($documentRequest)
+            && $docRequests->borrowerActionKind($documentRequest) !== 'identity') {
             return redirect()
                 ->to($docRequests->borrowerActionUrl($documentRequest, $customer))
                 ->with('status', __('borrower.loan_profile.document_go_to_profile'));
+        }
+
+        if ($docRequests->borrowerActionKind($documentRequest) === 'identity') {
+            $request->validate([
+                'front' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'back' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            ]);
+            $subject = $documentRequest->subject_customer_id
+                ? Customer::find($documentRequest->subject_customer_id)
+                : null;
+            $docRequests->recordIdentityCardUploads(
+                $documentRequest,
+                $customer,
+                $request->file('front'),
+                $request->file('back'),
+                $subject,
+            );
+
+            $this->auditBorrower('application.document_request_uploaded', $application, [
+                'document_request_id' => $documentRequest->id,
+                'type' => $documentRequest->type,
+                'sides' => ['front', 'back'],
+            ]);
+
+            return redirect()
+                ->route('site.borrower.application', ['application' => $application->id, 'doc' => $documentRequest->id])
+                ->withFragment('request-'.$documentRequest->id)
+                ->with('status', __('borrower.document_upload.submitted_body'));
         }
 
         $files = array_filter(array_merge(
@@ -684,23 +768,24 @@ class BorrowerController extends Controller
         if (! empty($files)) {
             $request->validate([
                 'files.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'file'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
             $subject = $documentRequest->subject_customer_id
-                ? \App\Models\Customer::find($documentRequest->subject_customer_id)
+                ? Customer::find($documentRequest->subject_customer_id)
                 : null;
             $docRequests->recordUploads($documentRequest, $customer, $files, $subject);
         }
 
         $this->auditBorrower('application.document_request_uploaded', $application, [
             'document_request_id' => $documentRequest->id,
-            'type'                => $documentRequest->type,
+            'type' => $documentRequest->type,
         ]);
 
         return redirect()
-            ->route('site.borrower.application', $application->id)
-            ->with('status', 'Submitted — our team will review it shortly.');
+            ->route('site.borrower.application', ['application' => $application->id, 'doc' => $documentRequest->id])
+            ->withFragment('request-'.$documentRequest->id)
+            ->with('status', __('borrower.document_upload.submitted_body'));
     }
 
     public function uploadApplicationDocument(Request $request, LoanApplication $application): RedirectResponse
@@ -709,13 +794,13 @@ class BorrowerController extends Controller
         abort_if($application->customer_id !== $customer->id, 404);
 
         $data = $request->validate([
-            'loan_product_requirement_id' => ['required','exists:loan_product_requirements,id'],
-            'file'                        => ['required','file','mimes:jpg,jpeg,png,pdf','max:5120'],
-            'notes'                       => ['nullable','string','max:500'],
+            'loan_product_requirement_id' => ['required', 'exists:loan_product_requirements,id'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         // Make sure the requirement belongs to the application's product
-        $requirement = \App\Models\LoanProductRequirement::where('id', $data['loan_product_requirement_id'])
+        $requirement = LoanProductRequirement::where('id', $data['loan_product_requirement_id'])
             ->where('loan_product_id', $application->loan_product_id)
             ->firstOrFail();
 
@@ -724,13 +809,13 @@ class BorrowerController extends Controller
         );
 
         CustomerDocument::create([
-            'customer_id'                 => $customer->id,
-            'loan_application_id'         => $application->id,
-            'document_type_id'            => null,
+            'customer_id' => $customer->id,
+            'loan_application_id' => $application->id,
+            'document_type_id' => null,
             'loan_product_requirement_id' => $requirement->id,
-            'file_path'                   => $path,
-            'status'                      => 'pending_review',
-            'notes'                       => $data['notes'] ?? null,
+            'file_path' => $path,
+            'status' => 'pending_review',
+            'notes' => $data['notes'] ?? null,
         ]);
 
         $this->auditBorrower('application.document_uploaded', $application, [
@@ -749,13 +834,13 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
 
-        $portal = app(\App\Services\PortalContextService::class);
+        $portal = app(PortalContextService::class);
         $pendingGuarantorRequests = $portal->pendingGuarantorLinks($customer);
-        $guaranteedService = app(\App\Services\GuaranteedLoanService::class);
+        $guaranteedService = app(GuaranteedLoanService::class);
         $trackingGuarantees = $guaranteedService->trackingForGuarantor($customer);
         $guaranteedLinks = $guaranteedService->disbursedForGuarantor($customer);
 
-        $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
+        $applicationsDashboard = app(BorrowerApplicationsDashboardService::class);
         $applicationRows = $applicationsDashboard->applicationsForCustomer($customer);
 
         $loans = Loan::with('product')
@@ -819,7 +904,7 @@ class BorrowerController extends Controller
         $guarantorExposure = ($portal->hasGuarantorWork($customer)
             || $trackingGuarantees->isNotEmpty()
             || $guaranteedLinks->isNotEmpty())
-            ? app(\App\Services\LoanPolicyService::class)->guarantorExposureSummary($customer)
+            ? app(LoanPolicyService::class)->guarantorExposureSummary($customer)
             : null;
 
         $isGuarantorPortal = ($pendingGuarantorRequests->isNotEmpty() || $trackingGuarantees->isNotEmpty())
@@ -839,8 +924,8 @@ class BorrowerController extends Controller
             'guarantorExposure',
             'isGuarantorPortal',
         ))->with([
-            'showGuarantorTab'   => in_array('guarantor', $allowedTabs, true),
-            'showGuaranteedTab'  => in_array('guaranteed', $allowedTabs, true),
+            'showGuarantorTab' => in_array('guarantor', $allowedTabs, true),
+            'showGuaranteedTab' => in_array('guaranteed', $allowedTabs, true),
         ]);
     }
 
@@ -870,9 +955,9 @@ class BorrowerController extends Controller
     public function showGuaranteedLoan(CustomerGuarantor $customerGuarantor): View
     {
         $customer = $this->customer();
-        abort_unless(app(\App\Services\GuarantorAccessService::class)->canViewGuarantee($customer, $customerGuarantor), 404);
+        abort_unless(app(GuarantorAccessService::class)->canViewGuarantee($customer, $customerGuarantor), 404);
 
-        $row = app(\App\Services\GuaranteedLoanService::class)->formatLink(
+        $row = app(GuaranteedLoanService::class)->formatLink(
             $customerGuarantor->load([
                 'customer',
                 'application.product',
@@ -882,7 +967,7 @@ class BorrowerController extends Controller
             ])
         );
 
-        $guaranteedService = app(\App\Services\GuaranteedLoanService::class);
+        $guaranteedService = app(GuaranteedLoanService::class);
         $timeline = $guaranteedService->progressTimeline($row);
         $listTab = (($row->is_loan_approved ?? false) || ($row->is_terminal ?? false))
             ? 'guaranteed'
@@ -890,9 +975,9 @@ class BorrowerController extends Controller
 
         $collateralSecure = null;
         if ($customerGuarantor->loan_application_id) {
-            $app = \App\Models\LoanApplication::query()->find($customerGuarantor->loan_application_id);
+            $app = LoanApplication::query()->find($customerGuarantor->loan_application_id);
             if ($app) {
-                $collateralSecure = app(\App\Services\CollateralSecureService::class)->viewModel($app);
+                $collateralSecure = app(CollateralSecureService::class)->viewModel($app);
             }
         }
 
@@ -908,7 +993,7 @@ class BorrowerController extends Controller
 
         if (! $loan || ! $loan->exists) {
             $loan = Loan::where('customer_id', $customer->id)
-                ->whereIn('status', ['active','disbursed','arrears'])
+                ->whereIn('status', ['active', 'disbursed', 'arrears'])
                 ->latest('disbursement_date')->first()
                 ?? Loan::where('customer_id', $customer->id)->latest()->first();
         }
@@ -923,9 +1008,9 @@ class BorrowerController extends Controller
             ? RepaymentSchedule::where('loan_id', $loan->id)->orderBy('installment_no')->get()
             : collect();
 
-        $allLoans = Loan::where('customer_id', $customer->id)->get(['id','loan_number']);
+        $allLoans = Loan::where('customer_id', $customer->id)->get(['id', 'loan_number']);
 
-        return view('site.borrower.schedule', compact('customer','loan','schedule','allLoans'));
+        return view('site.borrower.schedule', compact('customer', 'loan', 'schedule', 'allLoans'));
     }
 
     public function showLoan(Loan $loan): View
@@ -934,30 +1019,30 @@ class BorrowerController extends Controller
         abort_if($loan->customer_id !== $customer->id, 404);
 
         $loan->loadMissing(['product', 'repaymentSchedules', 'repayments', 'application']);
-        $servicing = app(\App\Services\ActiveLoanServicingService::class)->forLoan($loan);
+        $servicing = app(ActiveLoanServicingService::class)->forLoan($loan);
         $recentRepayments = $loan->repayments()->latest('paid_at')->limit(5)->get();
 
         $finalContract = null;
         $scheduleAnnex = null;
         if ($loan->loan_application_id) {
-            $finalContract = \App\Models\LoanAgreement::query()
+            $finalContract = LoanAgreement::query()
                 ->where('loan_application_id', $loan->loan_application_id)
                 ->where('document_type', 'final_loan_contract')
                 ->latest('id')
                 ->first();
-            $scheduleAnnex = \App\Models\LoanAgreement::query()
+            $scheduleAnnex = LoanAgreement::query()
                 ->where('loan_application_id', $loan->loan_application_id)
                 ->where('document_type', 'repayment_schedule')
                 ->latest('id')
                 ->first();
         }
 
-        $policy = app(\App\Services\LoanPolicyService::class);
+        $policy = app(LoanPolicyService::class);
         $canRestructure = $policy->canSubmitRestructureRequest($loan) === null;
         $canTopUp = $policy->canSubmitTopUpRequest($loan) === null;
-        $timeline = app(\App\Services\LoanServicingTimelineService::class)->forLoan($loan);
-        $auctionHold = app(\App\Services\AuctionHoldService::class)->statusForLoan($loan);
-        $openPayment = \App\Models\CustomerPayment::query()
+        $timeline = app(LoanServicingTimelineService::class)->forLoan($loan);
+        $auctionHold = app(AuctionHoldService::class)->statusForLoan($loan);
+        $openPayment = CustomerPayment::query()
             ->where('loan_id', $loan->id)
             ->where('customer_id', $customer->id)
             ->where('payment_type', 'loan_repayment')
@@ -986,7 +1071,7 @@ class BorrowerController extends Controller
         abort_if($loan->customer_id !== $customer->id, 404);
         abort_unless($loan->isServicingLocked(), 404);
 
-        $agreement = \App\Models\LoanAgreement::query()
+        $agreement = LoanAgreement::query()
             ->where('loan_application_id', $loan->loan_application_id)
             ->where('document_type', 'final_loan_contract')
             ->where('customer_id', $customer->id)
@@ -1003,19 +1088,19 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_unless($loan->customer_id === $customer->id, 404);
 
-        $policy = app(\App\Services\LoanPolicyService::class);
+        $policy = app(LoanPolicyService::class);
         $blocked = $policy->canSubmitRestructureRequest($loan);
 
         $loanSettings = $policy->settings();
 
         return view('site.borrower.loan-restructure', [
-            'customer'              => $customer,
-            'loan'                  => $loan->loadMissing('product'),
-            'blocked'               => $blocked,
-            'holidayMaxMonths'      => $loanSettings['payment_holiday_max_months'],
+            'customer' => $customer,
+            'loan' => $loan->loadMissing('product'),
+            'blocked' => $blocked,
+            'holidayMaxMonths' => $loanSettings['payment_holiday_max_months'],
             'holidayAccrueInterest' => $loanSettings['payment_holiday_accrue_interest'],
-            'types'                 => [
-                'extend_term'     => __('borrower.loan_actions.restructure_types.extend_term'),
+            'types' => [
+                'extend_term' => __('borrower.loan_actions.restructure_types.extend_term'),
                 'payment_holiday' => __('borrower.loan_actions.restructure_types.payment_holiday'),
             ],
         ]);
@@ -1026,14 +1111,14 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_unless($loan->customer_id === $customer->id, 404);
 
-        $policy = app(\App\Services\LoanPolicyService::class);
+        $policy = app(LoanPolicyService::class);
         if ($message = $policy->canSubmitRestructureRequest($loan)) {
             return back()->withErrors(['restructure' => $message]);
         }
 
         $data = $request->validate([
-            'restructure_type'  => ['required', 'in:extend_term,payment_holiday'],
-            'reason'            => ['required', 'string', 'max:500'],
+            'restructure_type' => ['required', 'in:extend_term,payment_holiday'],
+            'reason' => ['required', 'string', 'max:500'],
             'new_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
         ]);
 
@@ -1049,27 +1134,27 @@ class BorrowerController extends Controller
         }
 
         $record = RestructureRequest::create([
-            'loan_id'           => $loan->id,
-            'customer_id'       => $customer->id,
-            'restructure_type'  => $data['restructure_type'],
-            'reason'            => $data['reason'],
+            'loan_id' => $loan->id,
+            'customer_id' => $customer->id,
+            'restructure_type' => $data['restructure_type'],
+            'reason' => $data['reason'],
             'new_tenure_months' => $data['new_tenure_months'] ?? null,
-            'status'            => 'pending',
+            'status' => 'pending',
         ]);
 
         $this->auditBorrower('loan.restructure_requested', $record, [
             'loan_id' => $loan->id,
-            'type'    => $data['restructure_type'],
+            'type' => $data['restructure_type'],
         ]);
 
-        app(\App\Services\StaffNotificationService::class)->notifyLoanModificationRequest(
+        app(StaffNotificationService::class)->notifyLoanModificationRequest(
             'restructure_request',
             'New restructure request — '.$loan->loan_number,
             trim($customer->full_name.' requested '.$data['restructure_type'].' for loan '.$loan->loan_number.'.'),
             '/admin/restructure-requests/'.$record->id,
         );
 
-        app(\App\Services\GuarantorNotificationService::class)->notifyRestructureRequested($loan, $data['restructure_type']);
+        app(GuarantorNotificationService::class)->notifyRestructureRequested($loan, $data['restructure_type']);
 
         return redirect()
             ->route('site.borrower.loans', ['tab' => 'active'])
@@ -1081,14 +1166,14 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_unless($loan->customer_id === $customer->id, 404);
 
-        $policy = app(\App\Services\LoanPolicyService::class);
+        $policy = app(LoanPolicyService::class);
         $blocked = $policy->canSubmitTopUpRequest($loan);
         $available = $blocked ? 0 : $policy->topUpAvailableAmount($loan, $customer);
 
         return view('site.borrower.loan-top-up', [
-            'customer'  => $customer,
-            'loan'      => $loan->loadMissing('product'),
-            'blocked'   => $blocked,
+            'customer' => $customer,
+            'loan' => $loan->loadMissing('product'),
+            'blocked' => $blocked,
             'available' => $available,
         ]);
     }
@@ -1098,7 +1183,7 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_unless($loan->customer_id === $customer->id, 404);
 
-        $policy = app(\App\Services\LoanPolicyService::class);
+        $policy = app(LoanPolicyService::class);
         $available = $policy->topUpAvailableAmount($loan, $customer);
 
         if ($message = $policy->canSubmitTopUpRequest($loan)) {
@@ -1107,30 +1192,30 @@ class BorrowerController extends Controller
 
         $data = $request->validate([
             'requested_amount' => ['required', 'numeric', 'min:1000', 'max:'.$available],
-            'reason'           => ['required', 'string', 'max:500'],
+            'reason' => ['required', 'string', 'max:500'],
         ]);
 
         $record = LoanTopUpRequest::create([
-            'loan_id'          => $loan->id,
-            'customer_id'      => $customer->id,
+            'loan_id' => $loan->id,
+            'customer_id' => $customer->id,
             'requested_amount' => $data['requested_amount'],
-            'reason'           => $data['reason'],
-            'status'           => 'pending',
+            'reason' => $data['reason'],
+            'status' => 'pending',
         ]);
 
         $this->auditBorrower('loan.top_up_requested', $record, [
             'loan_id' => $loan->id,
-            'amount'  => $data['requested_amount'],
+            'amount' => $data['requested_amount'],
         ]);
 
-        app(\App\Services\StaffNotificationService::class)->notifyLoanModificationRequest(
+        app(StaffNotificationService::class)->notifyLoanModificationRequest(
             'top_up_request',
             'New top-up request — '.$loan->loan_number,
             trim($customer->full_name.' requested a top-up of '.format_money($data['requested_amount']).' on loan '.$loan->loan_number.'.'),
             '/admin/top-up-requests/'.$record->id,
         );
 
-        app(\App\Services\GuarantorNotificationService::class)->notifyTopUpRequested($loan, (float) $data['requested_amount']);
+        app(GuarantorNotificationService::class)->notifyTopUpRequested($loan, (float) $data['requested_amount']);
 
         return redirect()
             ->route('site.borrower.loans', ['tab' => 'active'])
@@ -1146,7 +1231,7 @@ class BorrowerController extends Controller
         $types = DocumentType::where('is_active', true)->orderBy('name')->get();
         $documents = CustomerDocument::with('documentType')
             ->where('customer_id', $customer->id)->latest()->get();
-        $verificationSections = collect(app(\App\Services\ProfileCompletionService::class)->displaySections($customer, false))
+        $verificationSections = collect(app(ProfileCompletionService::class)->displaySections($customer, false))
             ->filter(fn (array $section) => in_array($section['key'], ['personal', 'documents', 'face', 'identity'], true))
             ->values();
 
@@ -1158,8 +1243,8 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         $data = $request->validate([
-            'document_type_id' => ['required','exists:document_types,id'],
-            'file'             => ['required','file','mimes:jpg,jpeg,png,pdf','max:5120'],
+            'document_type_id' => ['required', 'exists:document_types,id'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         $path = $request->file('file')->store(
@@ -1167,10 +1252,10 @@ class BorrowerController extends Controller
         );
 
         $document = CustomerDocument::create([
-            'customer_id'      => $customer->id,
+            'customer_id' => $customer->id,
             'document_type_id' => $data['document_type_id'],
-            'file_path'        => $path,
-            'status'           => 'pending',
+            'file_path' => $path,
+            'status' => 'pending',
         ]);
 
         $this->auditBorrower('document.uploaded', $document, [
@@ -1180,7 +1265,7 @@ class BorrowerController extends Controller
         try {
             $typeCode = trim((string) ($document->documentType?->code ?? ''));
             if ($typeCode !== '') {
-                app(\App\Services\MemberEngagementRewardService::class)->afterDocumentUploaded(
+                app(MemberEngagementRewardService::class)->afterDocumentUploaded(
                     $customer,
                     $typeCode,
                 );
@@ -1224,7 +1309,7 @@ class BorrowerController extends Controller
         $required = $types->count();
         $uploaded = $uploads->keys()->count();
         $progress = $required > 0 ? (int) round(($uploaded / $required) * 100) : 0;
-        $missing  = $types->reject(fn ($t) => $uploads->has($t->id))->values();
+        $missing = $types->reject(fn ($t) => $uploads->has($t->id))->values();
 
         return view('site.borrower.kyc', compact(
             'customer', 'kyc', 'types', 'uploads',
@@ -1238,8 +1323,8 @@ class BorrowerController extends Controller
 
         $data = $request->validate([
             'document_type_id' => ['required', 'exists:document_types,id'],
-            'file'             => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'notes'            => ['nullable', 'string', 'max:500'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         // Confirm the chosen type is a KYC type
@@ -1251,11 +1336,11 @@ class BorrowerController extends Controller
         $path = $request->file('file')->store("borrower/{$customer->id}/kyc", 'public');
 
         CustomerDocument::create([
-            'customer_id'      => $customer->id,
+            'customer_id' => $customer->id,
             'document_type_id' => $type->id,
-            'file_path'        => $path,
-            'status'           => 'pending_review',
-            'notes'            => $data['notes'] ?? null,
+            'file_path' => $path,
+            'status' => 'pending_review',
+            'notes' => $data['notes'] ?? null,
         ]);
 
         // Update KYC envelope
@@ -1294,9 +1379,10 @@ class BorrowerController extends Controller
     public function guarantors(): View
     {
         $customer = $this->customer();
-        $links = CustomerGuarantor::with(['guarantor','application'])
+        $links = CustomerGuarantor::with(['guarantor', 'application'])
             ->where('customer_id', $customer->id)->latest()->get();
-        return view('site.borrower.guarantors', compact('customer','links'));
+
+        return view('site.borrower.guarantors', compact('customer', 'links'));
     }
 
     public function addGuarantor(Request $request): RedirectResponse
@@ -1304,21 +1390,21 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         $data = $request->validate([
-            'first_name'   => ['required','string','max:60'],
-            'last_name'    => ['required','string','max:60'],
-            'phone'        => ['required','string','max:20'],
-            'email'        => ['nullable','email','max:120'],
-            'national_id'  => ['required','string','max:30'],
-            'address'      => ['nullable','string','max:255'],
-            'relationship' => ['required','string','max:30'],
+            'first_name' => ['required', 'string', 'max:60'],
+            'last_name' => ['required', 'string', 'max:60'],
+            'phone' => ['required', 'string', 'max:20'],
+            'email' => ['nullable', 'email', 'max:120'],
+            'national_id' => ['required', 'string', 'max:30'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'relationship' => ['required', 'string', 'max:30'],
         ]);
 
         $guarantor = Guarantor::create($data);
 
         $link = CustomerGuarantor::create([
-            'customer_id'  => $customer->id,
+            'customer_id' => $customer->id,
             'guarantor_id' => $guarantor->id,
-            'status'       => 'pending',
+            'status' => 'pending',
         ]);
 
         $this->auditBorrower('guarantor.added', $link, [
@@ -1335,11 +1421,11 @@ class BorrowerController extends Controller
     public function notifications(Request $request): View
     {
         $customer = $this->customer();
-        $center = app(\App\Services\NotificationCenterService::class);
+        $center = app(NotificationCenterService::class);
         $category = $request->query('category', 'all');
         $groups = $center->groupedForCustomer($customer, $category === 'all' ? null : $category);
         $categories = $center->categories();
-        $unreadCount = app(\App\Services\PortalContextService::class)
+        $unreadCount = app(PortalContextService::class)
             ->borrowerNotificationsQuery($customer)
             ->whereNull('read_at')
             ->count();
@@ -1350,7 +1436,7 @@ class BorrowerController extends Controller
     public function guarantorNotifications(): View
     {
         $customer = $this->customer();
-        $items = app(\App\Services\PortalContextService::class)
+        $items = app(PortalContextService::class)
             ->guarantorNotificationsQuery($customer)
             ->latest()
             ->paginate(20);
@@ -1361,7 +1447,7 @@ class BorrowerController extends Controller
     public function guarantorMarkNotificationsRead(Request $request): RedirectResponse
     {
         $customer = $this->customer();
-        app(\App\Services\PortalContextService::class)
+        app(PortalContextService::class)
             ->guarantorNotificationsQuery($customer)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
@@ -1372,37 +1458,37 @@ class BorrowerController extends Controller
     public function guarantorClearAllNotifications(): RedirectResponse
     {
         $customer = $this->customer();
-        app(\App\Services\PortalContextService::class)
+        app(PortalContextService::class)
             ->guarantorNotificationsQuery($customer)
             ->delete();
 
         return back()->with('status', 'All guarantor notifications cleared.');
     }
 
-    public function notificationPreview(): \Illuminate\Http\JsonResponse
+    public function notificationPreview(): JsonResponse
     {
         $customer = $this->customer();
-        $portal = app(\App\Services\PortalContextService::class);
-        $ctaService = app(\App\Services\NotificationCtaService::class);
+        $portal = app(PortalContextService::class);
+        $ctaService = app(NotificationCtaService::class);
         $items = $portal->borrowerNotificationsQuery($customer)
             ->latest()
             ->limit(8)
             ->get()
             ->map(function (NotificationLog $n) use ($ctaService) {
-                $center = app(\App\Services\NotificationCenterService::class);
+                $center = app(NotificationCenterService::class);
                 $category = $center->normalizeCategory((string) ($n->category ?: 'general'));
                 $ctas = $ctaService->resolve($n);
 
                 return [
-                    'id'         => $n->id,
-                    'title'      => $n->displayTitle(),
-                    'body'       => $n->displayBody(),
-                    'message'    => trim($n->displayTitle().' '.$n->displayBody()),
-                    'category'   => $category,
+                    'id' => $n->id,
+                    'title' => $n->displayTitle(),
+                    'body' => $n->displayBody(),
+                    'message' => trim($n->displayTitle().' '.$n->displayBody()),
+                    'category' => $category,
                     'category_label' => $center->categoryLabel($category),
-                    'template'   => $n->template,
-                    'read'       => (bool) $n->read_at,
-                    'when'       => $n->created_at?->diffForHumans(),
+                    'template' => $n->template,
+                    'read' => (bool) $n->read_at,
+                    'when' => $n->created_at?->diffForHumans(),
                     'action_url' => $ctas['action_url'],
                     'action_label' => $ctas['action_label'],
                     'accept_url' => $ctas['accept_url'],
@@ -1413,7 +1499,7 @@ class BorrowerController extends Controller
 
         return response()->json([
             'unread' => $portal->borrowerNotificationsQuery($customer)->whereNull('read_at')->count(),
-            'items'  => $items,
+            'items' => $items,
         ]);
     }
 
@@ -1428,7 +1514,7 @@ class BorrowerController extends Controller
             ? (string) $notification->recipient
             : route('site.borrower.notifications');
 
-        app(\App\Services\NotificationCtaService::class)->consume($notification);
+        app(NotificationCtaService::class)->consume($notification);
 
         return redirect()->to($target);
     }
@@ -1454,17 +1540,17 @@ class BorrowerController extends Controller
     public function clearAllNotifications(): RedirectResponse
     {
         $customer = $this->customer();
-        app(\App\Services\PortalContextService::class)
+        app(PortalContextService::class)
             ->borrowerNotificationsQuery($customer)
             ->delete();
 
         return back()->with('status', 'All notifications cleared.');
     }
 
-    public function markNotificationsRead(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
+    public function markNotificationsRead(Request $request): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
-        app(\App\Services\PortalContextService::class)
+        app(PortalContextService::class)
             ->borrowerNotificationsQuery($customer)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
@@ -1504,11 +1590,11 @@ class BorrowerController extends Controller
         abort_unless($user, 403);
 
         $data = $request->validate([
-            'display_name'       => ['nullable', 'string', 'max:80'],
-            'preferred_locale'   => ['required', 'in:en,sw'],
-            'preferred_channel'  => ['required', 'in:in_app,sms,whatsapp'],
-            'quiet_hours_start'  => ['nullable', 'date_format:H:i'],
-            'quiet_hours_end'    => ['nullable', 'date_format:H:i'],
+            'display_name' => ['nullable', 'string', 'max:80'],
+            'preferred_locale' => ['required', 'in:en,sw'],
+            'preferred_channel' => ['required', 'in:in_app,sms,whatsapp'],
+            'quiet_hours_start' => ['nullable', 'date_format:H:i'],
+            'quiet_hours_end' => ['nullable', 'date_format:H:i'],
         ]);
 
         $prefs = $user->preferences ?? [];
@@ -1548,13 +1634,13 @@ class BorrowerController extends Controller
         $wizardMode = $request->boolean('wizard');
 
         if ($section === 'membership') {
-            $referrals = app(\App\Services\ReferralService::class);
+            $referrals = app(ReferralService::class);
 
             return view('site.borrower.profile.membership', [
-                'customer'       => $customer,
-                'history'        => $customer->membershipHistories()->latest()->limit(20)->get(),
-                'referralLink'   => $referrals->referralLink($customer),
-                'referralCode'   => $referrals->ensureCode($customer),
+                'customer' => $customer,
+                'history' => $customer->membershipHistories()->latest()->limit(20)->get(),
+                'referralLink' => $referrals->referralLink($customer),
+                'referralCode' => $referrals->ensureCode($customer),
                 'referralWallet' => $referrals->wallet($customer),
             ]);
         }
@@ -1562,9 +1648,9 @@ class BorrowerController extends Controller
         if ($section === 'kin') {
             return redirect()->route('site.borrower.profile', array_filter([
                 'section' => 'personal',
-                'focus'   => 'kin',
-                'wizard'  => $wizardMode ? 1 : null,
-                'return'  => $request->query('return'),
+                'focus' => 'kin',
+                'wizard' => $wizardMode ? 1 : null,
+                'return' => $request->query('return'),
                 'application' => $request->query('application'),
                 'solo' => $request->boolean('solo') ? 1 : null,
             ]));
@@ -1574,9 +1660,9 @@ class BorrowerController extends Controller
         if ($section === 'kyc') {
             return redirect()->route('site.borrower.profile', array_filter([
                 'section' => 'activity',
-                'focus'   => $request->query('focus', 'income'),
-                'wizard'  => $wizardMode ? 1 : null,
-                'return'  => $request->query('return'),
+                'focus' => $request->query('focus', 'income'),
+                'wizard' => $wizardMode ? 1 : null,
+                'return' => $request->query('return'),
                 'application' => $request->query('application'),
                 'solo' => $request->boolean('solo') ? 1 : null,
             ]));
@@ -1587,19 +1673,19 @@ class BorrowerController extends Controller
             : 'personal';
 
         $view = match ($section) {
-            'activity'  => 'site.borrower.profile.activity',
+            'activity' => 'site.borrower.profile.activity',
             'residence' => 'site.borrower.profile.residence',
-            'security'  => 'site.borrower.profile.security',
-            'payment'   => 'site.borrower.profile.payment',
-            'assets'    => 'site.borrower.profile.assets',
-            default     => 'site.borrower.profile.personal',
+            'security' => 'site.borrower.profile.security',
+            'payment' => 'site.borrower.profile.payment',
+            'assets' => 'site.borrower.profile.assets',
+            default => 'site.borrower.profile.personal',
         };
 
         $trustedDevices = $section === 'security'
             ? TrustedDevice::where('user_id', auth()->id())->where('expires_at', '>', now())->latest('last_used_at')->get()
             : collect();
 
-        $nidaDocuments = app(\App\Services\ProfileDocumentService::class)
+        $nidaDocuments = app(ProfileDocumentService::class)
             ->latestByCodes($customer, [
                 'national_id_front',
                 'national_id_back',
@@ -1609,32 +1695,32 @@ class BorrowerController extends Controller
                 'other_id',
             ]);
 
-        $employmentContract = app(\App\Services\ProfileDocumentService::class)
+        $employmentContract = app(ProfileDocumentService::class)
             ->latestByCodes($customer, ['employment_contract'])
             ->get('employment_contract');
 
-        $residenceLetter = app(\App\Services\ProfileDocumentService::class)
+        $residenceLetter = app(ProfileDocumentService::class)
             ->latestByCodes($customer, ['residence_letter'])
             ->get('residence_letter');
 
-        $marriageCertificate = app(\App\Services\ProfileDocumentService::class)
+        $marriageCertificate = app(ProfileDocumentService::class)
             ->latestByCodes($customer, ['marriage_certificate'])
             ->get('marriage_certificate');
 
-        $incomeProofChecklist = app(\App\Services\IncomeProofService::class)->checklist($customer);
-        $incomeProofEmployed = app(\App\Services\IncomeProofService::class)->isEmployed($customer);
-        $incomeProofMethod = app(\App\Services\IncomeProofService::class)->selectedPrimaryMethod($customer);
-        $incomePrimaryOptions = app(\App\Services\IncomeProofService::class)->informalPrimaryOptions();
-        $completionSummary = app(\App\Services\ProfileCompletionService::class)->completionSummary($customer);
+        $incomeProofChecklist = app(IncomeProofService::class)->checklist($customer);
+        $incomeProofEmployed = app(IncomeProofService::class)->isEmployed($customer);
+        $incomeProofMethod = app(IncomeProofService::class)->selectedPrimaryMethod($customer);
+        $incomePrimaryOptions = app(IncomeProofService::class)->informalPrimaryOptions();
+        $completionSummary = app(ProfileCompletionService::class)->completionSummary($customer);
         $returnUrl = $this->profileReturnUrl($request, $customer);
         $wizardKey = match ($section) {
-            'activity'  => 'activity',
+            'activity' => 'activity',
             'residence' => 'residence',
-            'kyc'       => 'documents',
-            default     => $request->query('focus') === 'kin' ? 'kin' : 'nida',
+            'kyc' => 'documents',
+            default => $request->query('focus') === 'kin' ? 'kin' : 'nida',
         };
 
-        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $detailsService = app(CustomerDisbursementDetailsService::class);
         $borrowerLegalName = $customer->legalDisplayName() ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
         $faceSteps = null;
@@ -1645,7 +1731,7 @@ class BorrowerController extends Controller
         $faceAngles = null;
 
         if ($section === 'personal') {
-            $faces = app(\App\Services\FaceVerificationService::class);
+            $faces = app(FaceVerificationService::class);
             $facePhotos = $faces->latestByAngle($customer);
             $faceAngles = $faces->angles();
             $faceWizard = $faces->wizardState($customer);
@@ -1662,12 +1748,12 @@ class BorrowerController extends Controller
             ->with('paymentAccounts', $section === 'payment' ? $detailsService->accountsForCustomer($customer) : collect())
             ->with('borrowerLegalName', $borrowerLegalName)
             ->with('detailsService', $detailsService)
-            ->with('assets', $section === 'assets' ? app(\App\Services\CustomerAssetService::class)->forCustomer($customer) : collect())
-            ->with('assetTypes', \App\Models\CustomerAsset::typeOptions())
+            ->with('assets', $section === 'assets' ? app(CustomerAssetService::class)->forCustomer($customer) : collect())
+            ->with('assetTypes', CustomerAsset::typeOptions())
             ->with(
                 'uwApplication',
                 $section === 'assets'
-                    ? app(\App\Services\CustomerAssetService::class)->resolveUwApplication(
+                    ? app(CustomerAssetService::class)->resolveUwApplication(
                         $customer,
                         $request->integer('application') ?: null
                     )
@@ -1681,34 +1767,34 @@ class BorrowerController extends Controller
 
         if ($section === 'kin') {
             $data = $request->validate([
-                'nok_first_name'   => ['required', 'string', 'max:80'],
-                'nok_middle_name'  => ['nullable', 'string', 'max:80'],
-                'nok_last_name'    => ['required', 'string', 'max:80'],
+                'nok_first_name' => ['required', 'string', 'max:80'],
+                'nok_middle_name' => ['nullable', 'string', 'max:80'],
+                'nok_last_name' => ['required', 'string', 'max:80'],
                 'nok_relationship' => ['required', 'string', 'max:60', 'in:'.implode(',', config('kin.relationships', []))],
-                'nok_phone'        => ['required', 'string', 'max:30'],
-                'nok_region'       => ['required', 'string', 'max:100'],
-                'nok_district'     => ['required', 'string', 'max:100'],
-                'nok_ward'         => ['nullable', 'string', 'max:100'],
-                'nok_street'       => ['required', 'string', 'max:255'],
+                'nok_phone' => ['required', 'string', 'max:30'],
+                'nok_region' => ['required', 'string', 'max:100'],
+                'nok_district' => ['required', 'string', 'max:100'],
+                'nok_ward' => ['nullable', 'string', 'max:100'],
+                'nok_street' => ['required', 'string', 'max:255'],
             ]);
 
             $customer->fill([
-                'nok_first_name'   => $data['nok_first_name'],
-                'nok_middle_name'  => $data['nok_middle_name'] ?? null,
-                'nok_last_name'    => $data['nok_last_name'],
-                'nok_name'         => \App\Support\KinName::full($data['nok_first_name'], $data['nok_middle_name'] ?? null, $data['nok_last_name']),
+                'nok_first_name' => $data['nok_first_name'],
+                'nok_middle_name' => $data['nok_middle_name'] ?? null,
+                'nok_last_name' => $data['nok_last_name'],
+                'nok_name' => KinName::full($data['nok_first_name'], $data['nok_middle_name'] ?? null, $data['nok_last_name']),
                 'nok_relationship' => $data['nok_relationship'],
-                'nok_phone'        => $data['nok_phone'],
-                'nok_region'       => $data['nok_region'],
-                'nok_district'     => $data['nok_district'],
-                'nok_ward'         => $data['nok_ward'] ?? null,
-                'nok_street'       => $data['nok_street'],
+                'nok_phone' => $data['nok_phone'],
+                'nok_region' => $data['nok_region'],
+                'nok_district' => $data['nok_district'],
+                'nok_ward' => $data['nok_ward'] ?? null,
+                'nok_street' => $data['nok_street'],
             ])->save();
 
             app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'kin');
 
             try {
-                app(\App\Services\MemberEngagementRewardService::class)->afterProfileSectionSaved($customer->fresh(), 'kin');
+                app(MemberEngagementRewardService::class)->afterProfileSectionSaved($customer->fresh(), 'kin');
             } catch (\Throwable $e) {
                 report($e);
             }
@@ -1723,7 +1809,7 @@ class BorrowerController extends Controller
 
         if ($section === 'personal') {
             $focus = (string) $request->input('focus', 'all');
-            $identityRequired = app(\App\Services\ProfileCompletionService::class)->identityRequiredDuringProfile();
+            $identityRequired = app(ProfileCompletionService::class)->identityRequiredDuringProfile();
             $kinRequired = in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
             $familyRequired = in_array($focus, ['family', 'all'], true);
             $married = strtolower((string) $request->input('marital_status', $customer->marital_status)) === 'married';
@@ -1735,7 +1821,7 @@ class BorrowerController extends Controller
                     in_array($focus, ['identity', 'all'], true) && ! filled($customer->national_id) ? 'required' : 'nullable',
                     'string',
                     'max:30',
-                    new \App\Rules\ValidNidaNumber,
+                    new ValidNidaNumber,
                 ],
                 'marital_status' => [$familyRequired ? 'required' : 'nullable', 'string', 'in:single,married,divorced,widowed'],
                 'spouse_first_name' => [$familyRequired && $married ? 'required' : 'nullable', 'string', 'max:80'],
@@ -1743,15 +1829,15 @@ class BorrowerController extends Controller
                 'spouse_last_name' => [$familyRequired && $married ? 'required' : 'nullable', 'string', 'max:80'],
                 'number_of_children' => [$familyRequired ? 'required' : 'nullable', 'integer', 'min:0', 'max:30'],
                 'marriage_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'nok_first_name'   => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
-                'nok_middle_name'  => ['nullable', 'string', 'max:80'],
-                'nok_last_name'    => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
+                'nok_first_name' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
+                'nok_middle_name' => ['nullable', 'string', 'max:80'],
+                'nok_last_name' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
                 'nok_relationship' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:60', 'in:'.implode(',', config('kin.relationships', []))],
-                'nok_phone'        => [$kinRequired ? 'required' : 'nullable', 'string', 'max:30'],
-                'nok_region'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
-                'nok_district'     => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
-                'nok_ward'         => ['nullable', 'string', 'max:100'],
-                'nok_street'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:255'],
+                'nok_phone' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:30'],
+                'nok_region' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
+                'nok_district' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
+                'nok_ward' => ['nullable', 'string', 'max:100'],
+                'nok_street' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:255'],
                 'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'no_physical_nida_card' => ['nullable', 'boolean'],
@@ -1808,16 +1894,16 @@ class BorrowerController extends Controller
 
             if (in_array($focus, ['kin', 'all'], true)) {
                 $customer->fill(array_filter([
-                    'nok_first_name'   => $data['nok_first_name'] ?? null,
-                    'nok_middle_name'  => $data['nok_middle_name'] ?? null,
-                    'nok_last_name'    => $data['nok_last_name'] ?? null,
-                    'nok_name'         => KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null) ?: null,
+                    'nok_first_name' => $data['nok_first_name'] ?? null,
+                    'nok_middle_name' => $data['nok_middle_name'] ?? null,
+                    'nok_last_name' => $data['nok_last_name'] ?? null,
+                    'nok_name' => KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null) ?: null,
                     'nok_relationship' => $data['nok_relationship'] ?? null,
-                    'nok_phone'        => $data['nok_phone'] ?? null,
-                    'nok_region'       => $data['nok_region'] ?? null,
-                    'nok_district'     => $data['nok_district'] ?? null,
-                    'nok_ward'         => $data['nok_ward'] ?? null,
-                    'nok_street'       => $data['nok_street'] ?? null,
+                    'nok_phone' => $data['nok_phone'] ?? null,
+                    'nok_region' => $data['nok_region'] ?? null,
+                    'nok_district' => $data['nok_district'] ?? null,
+                    'nok_ward' => $data['nok_ward'] ?? null,
+                    'nok_street' => $data['nok_street'] ?? null,
                 ], fn ($value) => $value !== null));
             }
 
@@ -1859,9 +1945,9 @@ class BorrowerController extends Controller
             if ($focus === 'signature') {
                 $sigData = $request->validate([
                     'signature_data' => ['required', 'string', 'starts_with:data:image/png;base64,'],
-                    'signer_name'    => ['nullable', 'string', 'max:120'],
+                    'signer_name' => ['nullable', 'string', 'max:120'],
                 ]);
-                app(\App\Services\BorrowerSignatureService::class)->saveProfileSignature(
+                app(BorrowerSignatureService::class)->saveProfileSignature(
                     $customer->fresh(),
                     $sigData['signature_data'],
                     $sigData['signer_name'] ?? $customer->full_name,
@@ -1903,9 +1989,9 @@ class BorrowerController extends Controller
             }
 
             $data = $request->validate([
-                'activity_type'    => ['required', 'string', 'max:40'],
+                'activity_type' => ['required', 'string', 'max:40'],
                 'activity_details' => ['nullable', 'array'],
-                'income_range'     => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+                'income_range' => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
                 'employment_contract' => [
                     Rule::requiredIf($needsContract),
                     'nullable',
@@ -1920,11 +2006,11 @@ class BorrowerController extends Controller
             $incomeKey = normalize_income_range_key($data['income_range']) ?? $data['income_range'];
 
             $customer->fill([
-                'activity_type'    => $data['activity_type'],
+                'activity_type' => $data['activity_type'],
                 'activity_details' => $data['activity_details'] ?? [],
-                'employment_type'  => $data['activity_type'],
-                'income_range'     => $incomeKey,
-                'monthly_income'   => config('income_ranges.'.$incomeKey.'.midpoint'),
+                'employment_type' => $data['activity_type'],
+                'income_range' => $incomeKey,
+                'monthly_income' => config('income_ranges.'.$incomeKey.'.midpoint'),
             ])->save();
 
             $this->persistProfileDocumentUpload(
@@ -1950,10 +2036,10 @@ class BorrowerController extends Controller
 
             if ($isVerification) {
                 $data = $request->validate([
-                    'region'   => ['required', 'string', 'max:100'],
+                    'region' => ['required', 'string', 'max:100'],
                     'district' => ['required', 'string', 'max:100'],
-                    'ward'     => ['nullable', 'string', 'max:100'],
-                    'street'   => ['required', 'string', 'max:255'],
+                    'ward' => ['nullable', 'string', 'max:100'],
+                    'street' => ['required', 'string', 'max:255'],
                     'lga_officer_name' => ['required', 'string', 'max:150'],
                     'lga_officer_position' => ['required', 'string', 'max:120'],
                     'lga_officer_phone' => ['required', 'string', 'max:30'],
@@ -1962,14 +2048,14 @@ class BorrowerController extends Controller
                     'residence_letter_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 ]);
                 $customer->fill([
-                    'region'   => $data['region'],
+                    'region' => $data['region'],
                     'district' => $data['district'],
-                    'ward'     => $data['ward'] ?? null,
-                    'street'   => $data['street'],
+                    'ward' => $data['ward'] ?? null,
+                    'street' => $data['street'],
                     'lga_officer_name' => $data['lga_officer_name'],
                     'lga_officer_position' => $data['lga_officer_position'],
                     'lga_officer_phone' => preg_replace('/\D+/', '', (string) $data['lga_officer_phone']) ?: $data['lga_officer_phone'],
-                    'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+                    'address' => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
                 ])->save();
 
                 $pageFiles = array_values(array_filter($request->file('residence_letter_pages', []) ?? []));
@@ -1982,7 +2068,7 @@ class BorrowerController extends Controller
 
                 if ($request->file('residence_letter') || $pageFiles !== []) {
                     try {
-                        app(\App\Services\ApplicationDocumentRequestService::class)
+                        app(ApplicationDocumentRequestService::class)
                             ->markIncomeRequestsUploadedFromProfile($customer->fresh(), ['residence_letter']);
                     } catch (\Throwable $e) {
                         report($e);
@@ -1991,8 +2077,8 @@ class BorrowerController extends Controller
 
                 $residenceParams = array_filter([
                     'section' => 'residence',
-                    'focus'   => 'verification',
-                    'wizard'  => $request->boolean('wizard') ? 1 : null,
+                    'focus' => 'verification',
+                    'wizard' => $request->boolean('wizard') ? 1 : null,
                 ]);
 
                 if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer->fresh())) {
@@ -2006,17 +2092,17 @@ class BorrowerController extends Controller
                 app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'residence');
             } else {
                 $data = $request->validate([
-                    'region'   => ['required', 'string', 'max:100'],
+                    'region' => ['required', 'string', 'max:100'],
                     'district' => ['required', 'string', 'max:100'],
-                    'ward'     => ['nullable', 'string', 'max:100'],
-                    'street'   => ['required', 'string', 'max:255'],
+                    'ward' => ['nullable', 'string', 'max:100'],
+                    'street' => ['required', 'string', 'max:255'],
                 ]);
                 $customer->fill([
-                    'region'   => $data['region'],
+                    'region' => $data['region'],
                     'district' => $data['district'],
-                    'ward'     => $data['ward'] ?? null,
-                    'street'   => $data['street'],
-                    'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+                    'ward' => $data['ward'] ?? null,
+                    'street' => $data['street'],
+                    'address' => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
                 ])->save();
             }
         }
@@ -2079,6 +2165,7 @@ class BorrowerController extends Controller
                 foreach (['income_account_provider', 'income_account_number', 'income_account_name'] as $detailKey) {
                     if ($detailKey === 'income_account_name') {
                         $details[$detailKey] = $customer->legalDisplayName();
+
                         continue;
                     }
                     if ($request->has($detailKey)) {
@@ -2109,7 +2196,7 @@ class BorrowerController extends Controller
 
             if ($uploadedIncomeCodes !== []) {
                 try {
-                    app(\App\Services\ApplicationDocumentRequestService::class)
+                    app(ApplicationDocumentRequestService::class)
                         ->markIncomeRequestsUploadedFromProfile($customer->fresh(), $uploadedIncomeCodes);
                 } catch (\Throwable $e) {
                     report($e);
@@ -2130,7 +2217,7 @@ class BorrowerController extends Controller
         $this->auditBorrower('profile.updated', $customer, ['section' => $section]);
 
         try {
-            app(\App\Services\MemberEngagementRewardService::class)->afterProfileSectionSaved($customer->fresh(), $section);
+            app(MemberEngagementRewardService::class)->afterProfileSectionSaved($customer->fresh(), $section);
         } catch (\Throwable $e) {
             report($e);
         }
@@ -2160,19 +2247,19 @@ class BorrowerController extends Controller
 
             $fragment = match ($section) {
                 'personal' => match ((string) $request->input('focus')) {
-                    'contact'  => 'profile-contact',
-                    'kin'      => 'profile-kin',
+                    'contact' => 'profile-contact',
+                    'kin' => 'profile-kin',
                     'identity' => 'profile-identity',
-                    'face'     => 'profile-face',
-                    default    => null,
+                    'face' => 'profile-face',
+                    default => null,
                 },
                 'kyc' => match ((string) $request->input('focus')) {
                     'additional' => 'profile-additional-documents',
-                    default      => 'profile-income-statement',
+                    default => 'profile-income-statement',
                 },
                 'residence' => match ((string) $request->input('focus')) {
                     'verification' => 'profile-residence-verification',
-                    default        => 'profile-residence-address',
+                    default => 'profile-residence-address',
                 },
                 default => null,
             };
@@ -2185,9 +2272,9 @@ class BorrowerController extends Controller
         }
 
         // Confetti only when compulsory hub profile is complete (collateral never required).
-        if (app(\App\Services\ProfileCompletionService::class)->isFullyComplete($customer->fresh())) {
-            \App\Support\Celebration::flashOne('profile_complete');
-            app(\App\Services\GuarantorInvitationService::class)
+        if (app(ProfileCompletionService::class)->isFullyComplete($customer->fresh())) {
+            Celebration::flashOne('profile_complete');
+            app(GuarantorInvitationService::class)
                 ->releaseHeldApplicationsForGuarantor($customer->fresh());
         }
 
@@ -2198,11 +2285,11 @@ class BorrowerController extends Controller
     {
         $wizard = app(ProfileWizardService::class);
         $currentKey = match ($section) {
-            'activity'  => 'activity',
+            'activity' => 'activity',
             'residence' => 'residence',
-            'kyc'       => 'documents',
-            'payment'   => 'payment',
-            default     => $request->input('focus') === 'kin' ? 'kin' : 'nida',
+            'kyc' => 'documents',
+            'payment' => 'payment',
+            default => $request->input('focus') === 'kin' ? 'kin' : 'nida',
         };
 
         $next = $wizard->navigation($customer->fresh(), $currentKey)['next'];
@@ -2220,7 +2307,7 @@ class BorrowerController extends Controller
 
     private function redirectWithGuarantorResume(Request $request, Customer $customer, RedirectResponse $default): RedirectResponse
     {
-        if ($redirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
+        if ($redirect = app(PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
             return $redirect;
         }
 
@@ -2241,7 +2328,7 @@ class BorrowerController extends Controller
 
     private function storePaymentAccount(Request $request, Customer $customer): RedirectResponse
     {
-        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $detailsService = app(CustomerDisbursementDetailsService::class);
         $type = $request->input('type', $request->input('preferred_disbursement_method'));
         $legalName = $customer->legalDisplayName()
             ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
@@ -2255,7 +2342,7 @@ class BorrowerController extends Controller
 
         try {
             $detailsService->createAccount($customer, $data);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
 
@@ -2270,14 +2357,14 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.payment_details.account_saved'));
     }
 
-    public function destroyPaymentAccount(Request $request, \App\Models\CustomerDisbursementAccount $account): RedirectResponse
+    public function destroyPaymentAccount(Request $request, CustomerDisbursementAccount $account): RedirectResponse
     {
         $customer = $this->customer();
         abort_if((int) $account->customer_id !== (int) $customer->id, 404);
 
         try {
-            app(\App\Services\CustomerDisbursementDetailsService::class)->deleteAccount($customer, $account);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+            app(CustomerDisbursementDetailsService::class)->deleteAccount($customer, $account);
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }
 
@@ -2292,12 +2379,12 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.payment_details.account_removed'));
     }
 
-    public function setDefaultPaymentAccount(Request $request, \App\Models\CustomerDisbursementAccount $account): RedirectResponse
+    public function setDefaultPaymentAccount(Request $request, CustomerDisbursementAccount $account): RedirectResponse
     {
         $customer = $this->customer();
         abort_if((int) $account->customer_id !== (int) $customer->id, 404);
 
-        app(\App\Services\CustomerDisbursementDetailsService::class)->setDefaultAccount($customer, $account);
+        app(CustomerDisbursementDetailsService::class)->setDefaultAccount($customer, $account);
         $this->auditBorrower('profile.payment_account_defaulted', $customer, ['account_id' => $account->id]);
 
         if ($return = $this->validatedReturnUrl($request)) {
@@ -2361,11 +2448,11 @@ class BorrowerController extends Controller
         }
 
         $fresh = $customer->fresh();
-        $checklist = app(\App\Services\ApplicationRequirementsService::class)
+        $checklist = app(ApplicationRequirementsService::class)
             ->checklistForApply($fresh, $return);
 
         if ($checklist['can_apply'] ?? false) {
-            \App\Support\Celebration::flashOne('profile_complete');
+            Celebration::flashOne('profile_complete');
 
             return redirect($return)
                 ->with('status', __('borrower.profile.ready_to_submit_message'))
@@ -2442,7 +2529,7 @@ class BorrowerController extends Controller
         return redirect()
             ->route('site.borrower.profile', ['section' => 'personal'])
             ->with('nida_result', [
-                'status'  => 'failed',
+                'status' => 'failed',
                 'message' => __('borrower.nida.mismatch_no_override'),
             ]);
     }
@@ -2452,9 +2539,9 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         $data = $request->validate([
-            'national_id'       => ['required', 'string', 'max:30', new ValidNationalId($customer->country_code)],
+            'national_id' => ['required', 'string', 'max:30', new ValidNationalId($customer->country_code)],
             'search_request_id' => ['required', 'string', 'max:120'],
-            'entity_key'        => ['required', 'string', 'max:80'],
+            'entity_key' => ['required', 'string', 'max:80'],
         ]);
 
         $data['national_id'] = NationalIdValidator::format($data['national_id'], $customer->country_code)
@@ -2536,7 +2623,7 @@ class BorrowerController extends Controller
         }
 
         $this->auditBorrower('face_verification.uploaded', $customer, [
-            'angle'    => $angle,
+            'angle' => $angle,
             'complete' => $faces->progress($customer->fresh())['complete'] ?? false,
         ]);
 
@@ -2550,14 +2637,14 @@ class BorrowerController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'ok'         => true,
-                'angle'      => $angle,
+                'ok' => true,
+                'angle' => $angle,
                 'previewUrl' => $previewUrl,
-                'progress'   => $progress,
-                'wizard'     => $wizard,
-                'status'     => $customer->face_verification_status,
-                'message'    => $message,
-                'complete'   => $progress['complete'],
+                'progress' => $progress,
+                'wizard' => $wizard,
+                'status' => $customer->face_verification_status,
+                'message' => $message,
+                'complete' => $progress['complete'],
             ]);
         }
 
@@ -2586,8 +2673,8 @@ class BorrowerController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'ok'      => true,
-                'status'  => 'pending',
+                'ok' => true,
+                'status' => 'pending',
                 'message' => $message,
                 'redirect' => $this->validatedReturnUrl($request),
             ]);
@@ -2627,12 +2714,12 @@ class BorrowerController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'ok'       => true,
-                'angle'    => $angle,
+                'ok' => true,
+                'angle' => $angle,
                 'progress' => $progress,
-                'wizard'   => $wizard,
-                'status'   => $customer->face_verification_status,
-                'message'  => $message,
+                'wizard' => $wizard,
+                'status' => $customer->face_verification_status,
+                'message' => $message,
                 'complete' => $progress['complete'],
             ]);
         }
@@ -2674,13 +2761,13 @@ class BorrowerController extends Controller
 
         $data = $request->validate([
             'residence_unchanged' => ['nullable', 'boolean'],
-            'region'           => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:100'],
-            'district'         => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:100'],
-            'ward'             => ['nullable', 'string', 'max:100'],
-            'street'           => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:255'],
-            'activity_type'    => [in_array('activity', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:40'],
+            'region' => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:100'],
+            'district' => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:100'],
+            'ward' => ['nullable', 'string', 'max:100'],
+            'street' => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:255'],
+            'activity_type' => [in_array('activity', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:40'],
             'activity_details' => ['nullable', 'array'],
-            'income_range'     => [in_array('activity', $staleBefore, true) ? 'required' : 'nullable', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+            'income_range' => [in_array('activity', $staleBefore, true) ? 'required' : 'nullable', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
             'residence_letter' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'residence_letter_pages' => ['nullable', 'array'],
             'residence_letter_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
@@ -2699,11 +2786,11 @@ class BorrowerController extends Controller
 
             if (! $unchanged) {
                 $customer->fill([
-                    'region'   => $data['region'],
+                    'region' => $data['region'],
                     'district' => $data['district'],
-                    'ward'     => $data['ward'] ?? null,
-                    'street'   => $data['street'],
-                    'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+                    'ward' => $data['ward'] ?? null,
+                    'street' => $data['street'],
+                    'address' => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
                 ]);
             }
         }
@@ -2711,11 +2798,11 @@ class BorrowerController extends Controller
         if (in_array('activity', $staleBefore, true)) {
             $incomeKey = normalize_income_range_key($data['income_range'] ?? null) ?? ($data['income_range'] ?? null);
             $customer->fill([
-                'activity_type'   => $data['activity_type'],
-                'activity_details'=> $data['activity_details'] ?? [],
+                'activity_type' => $data['activity_type'],
+                'activity_details' => $data['activity_details'] ?? [],
                 'employment_type' => $data['activity_type'],
-                'income_range'    => $incomeKey,
-                'monthly_income'  => $incomeKey ? config('income_ranges.'.$incomeKey.'.midpoint') : $customer->monthly_income,
+                'income_range' => $incomeKey,
+                'monthly_income' => $incomeKey ? config('income_ranges.'.$incomeKey.'.midpoint') : $customer->monthly_income,
             ]);
         }
 
@@ -2746,7 +2833,7 @@ class BorrowerController extends Controller
     public function guarantorRequests(): View
     {
         $customer = $this->customer();
-        $requests = \App\Models\GuarantorInvitation::with(['borrower', 'application.product', 'customerGuarantor'])
+        $requests = GuarantorInvitation::with(['borrower', 'application.product', 'customerGuarantor'])
             ->where('guarantor_customer_id', $customer->id)
             ->where('status', 'pending')
             ->latest()
@@ -2759,7 +2846,7 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
 
-        $invitation = \App\Models\GuarantorInvitation::query()
+        $invitation = GuarantorInvitation::query()
             ->where('customer_guarantor_id', $customerGuarantor->id)
             ->where('guarantor_customer_id', $customer->id)
             ->first();
@@ -2769,7 +2856,7 @@ class BorrowerController extends Controller
 
         $data = $request->validate([
             'action' => ['required', 'in:approve,reject'],
-            'notes'  => ['nullable', 'string', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         if ($data['action'] === 'approve') {
@@ -2808,7 +2895,7 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
 
-        $invitation = \App\Models\GuarantorInvitation::query()
+        $invitation = GuarantorInvitation::query()
             ->with(['borrower', 'application.product', 'product'])
             ->where('customer_guarantor_id', $customerGuarantor->id)
             ->where('guarantor_customer_id', $customer->id)
@@ -2818,8 +2905,8 @@ class BorrowerController extends Controller
         abort_unless($customerGuarantor->status === 'pending', 404);
 
         $profileStatus = $guarantorOnboarding->guarantorProfileStatus($customer);
-        $guarantorExposure = app(\App\Services\PortalContextService::class)->hasGuarantorWork($customer)
-            ? app(\App\Services\LoanPolicyService::class)->guarantorExposureSummary($customer)
+        $guarantorExposure = app(PortalContextService::class)->hasGuarantorWork($customer)
+            ? app(LoanPolicyService::class)->guarantorExposureSummary($customer)
             : null;
 
         return view('site.borrower.guarantor-request-show', compact(
@@ -2836,7 +2923,7 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+        $readiness = app(ApplicationDisbursementReadinessService::class);
 
         if ($readiness->needsBorrowerSignature($application)) {
             return redirect()
@@ -2856,8 +2943,8 @@ class BorrowerController extends Controller
                 ->with('status', __('borrower.disbursement_details.already_confirmed'));
         }
 
-        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
-        $loanAmount = app(\App\Services\ApplicationOfferService::class)->effectiveAmount($application);
+        $detailsService = app(CustomerDisbursementDetailsService::class);
+        $loanAmount = app(ApplicationOfferService::class)->effectiveAmount($application);
         $accounts = $detailsService->accountsForCustomer($customer)
             ->filter(fn ($account) => $detailsService->accountIsComplete($account));
         $borrowerLegalName = $customer->legalDisplayName() ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
@@ -2879,8 +2966,8 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
-        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $readiness = app(ApplicationDisbursementReadinessService::class);
+        $detailsService = app(CustomerDisbursementDetailsService::class);
 
         if ($readiness->disbursementDetailsConfirmed($application)) {
             return redirect()
@@ -2910,24 +2997,24 @@ class BorrowerController extends Controller
             'disbursement_account_id' => ['required', 'integer', 'exists:customer_disbursement_accounts,id'],
         ]);
 
-        $account = \App\Models\CustomerDisbursementAccount::query()
+        $account = CustomerDisbursementAccount::query()
             ->where('customer_id', $customer->id)
             ->where('id', $data['disbursement_account_id'])
             ->firstOrFail();
 
         try {
             $detailsService->confirmForApplication($application, $customer, $account);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
 
         $this->auditBorrower('disbursement_details.confirmed', $application, [
             'account_id' => $account->id,
-            'method'     => $account->type,
+            'method' => $account->type,
         ]);
 
         $application = $application->fresh();
-        app(\App\Services\LoanAgreementService::class)->ensureLoanContractAfterFees($application);
+        app(LoanAgreementService::class)->ensureLoanContractAfterFees($application);
 
         $contract = $readiness->loanContract($application->fresh());
         if (! $contract) {
@@ -2946,7 +3033,7 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+        $readiness = app(ApplicationDisbursementReadinessService::class);
         if ($readiness->needsBorrowerSignature($application)) {
             return redirect()
                 ->route('site.borrower.application.agreement', $application)
@@ -2962,7 +3049,7 @@ class BorrowerController extends Controller
             $application->load('postApprovalFees');
         }
 
-        app(\App\Services\PostApprovalFeePaymentService::class)->reconcileVerifiedPayment($application);
+        app(PostApprovalFeePaymentService::class)->reconcileVerifiedPayment($application);
         $application->refresh();
 
         if ($readiness->feesPaid($application) || ! $readiness->hasPostApprovalFees($application)) {
@@ -2983,31 +3070,31 @@ class BorrowerController extends Controller
         $referrals = app(ReferralService::class);
         $useWallet = (bool) old('use_wallet', false);
         $promoCode = old('promo_code');
-        $paymentService = app(\App\Services\PostApprovalFeePaymentService::class);
+        $paymentService = app(PostApprovalFeePaymentService::class);
         $feeQuote = $paymentService->quote($customer, $application, $useWallet, $promoCode);
         $maxWalletQuote = $paymentService->quote($customer, $application, true, $promoCode);
         $referralSettings = $referrals->settings();
 
         $paymentReference = $paymentService->generatePaymentReference($application);
-        $accounts = app(\App\Services\PaymentAccountService::class);
+        $accounts = app(PaymentAccountService::class);
         $bankAccounts = $accounts->bankAccountsForDisplay('post_approval_fee', $paymentReference, $application->product);
         $mobileResolved = $accounts->resolve('post_approval_fee', 'mobile_money', $application->product);
         $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $paymentReference);
         $channelOptions = payment_channels_for_amount($feeQuote['after_discount']);
-        $loanAmount = app(\App\Services\ApplicationOfferService::class)->effectiveAmount($application);
+        $loanAmount = app(ApplicationOfferService::class)->effectiveAmount($application);
         $feeLines = $application->postApprovalFees->map(fn ($fee) => [
-            'name'       => $fee->name,
-            'code'       => $fee->code,
-            'fee_type'   => $fee->fee_type,
+            'name' => $fee->name,
+            'code' => $fee->code,
+            'fee_type' => $fee->fee_type,
             'rate_label' => $fee->fee_type === 'percent'
                 ? rtrim(rtrim(format_number($fee->configured_amount, 2), '0'), '.').'%'
                 : null,
-            'amount'     => (float) $fee->calculated_amount,
-            'paid'       => $fee->isPaid(),
-            'is_fast_track' => strtoupper((string) $fee->code) === \App\Services\DisbursementSlaService::FEE_CODE,
+            'amount' => (float) $fee->calculated_amount,
+            'paid' => $fee->isPaid(),
+            'is_fast_track' => strtoupper((string) $fee->code) === DisbursementSlaService::FEE_CODE,
         ])->values()->all();
 
-        $fastTrack = app(\App\Services\DisbursementSlaService::class)->viewModel($application);
+        $fastTrack = app(DisbursementSlaService::class)->viewModel($application);
 
         return view('site.borrower.post-approval-fees', compact(
             'customer',
@@ -3035,7 +3122,7 @@ class BorrowerController extends Controller
             'opt_in' => ['required', 'boolean'],
         ]);
 
-        $sla = app(\App\Services\DisbursementSlaService::class);
+        $sla = app(DisbursementSlaService::class);
         abort_unless($sla->enabled(), 422);
 
         $sla->setOptIn($application->fresh(), (bool) $data['opt_in']);
@@ -3053,15 +3140,15 @@ class BorrowerController extends Controller
         abort_if($application->customer_id !== $customer->id, 404);
 
         $data = $request->validate([
-            'channel'        => ['required', 'in:mobile_money,bank'],
-            'mobile_number'  => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
-            'payment_date'   => ['nullable', 'date'],
-            'proof'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'use_wallet'     => ['nullable', 'boolean'],
-            'promo_code'     => ['nullable', 'string', 'max:40'],
+            'channel' => ['required', 'in:mobile_money,bank'],
+            'mobile_number' => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'payment_date' => ['nullable', 'date'],
+            'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'use_wallet' => ['nullable', 'boolean'],
+            'promo_code' => ['nullable', 'string', 'max:40'],
         ]);
 
-        $paymentService = app(\App\Services\PostApprovalFeePaymentService::class);
+        $paymentService = app(PostApprovalFeePaymentService::class);
         $reference = $paymentService->generatePaymentReference($application);
         $useWallet = $request->boolean('use_wallet');
 
@@ -3078,7 +3165,7 @@ class BorrowerController extends Controller
 
             $this->auditBorrower('post_approval_fees.paid', $application, [
                 'channel' => 'mobile_money',
-                'amount'  => $result['quote']['after_discount'] ?? 0,
+                'amount' => $result['quote']['after_discount'] ?? 0,
             ]);
 
             if (! $payment) {
@@ -3100,7 +3187,7 @@ class BorrowerController extends Controller
                 ->with('status', payment_gateway_is_dummy()
                     ? __('borrower.post_approval_fees.paid_dummy')
                     : __('borrower.post_approval_fees.paid_mobile'))
-                ->with(\App\Support\Celebration::SESSION_KEY, ['post_approval_fee']);
+                ->with(Celebration::SESSION_KEY, ['post_approval_fee']);
         }
 
         $result = $paymentService->processBankPending(
@@ -3120,12 +3207,12 @@ class BorrowerController extends Controller
         }
 
         if ($request->hasFile('proof')) {
-            app(\App\Services\CustomerPaymentService::class)->uploadProof($payment, $request->file('proof'));
+            app(CustomerPaymentService::class)->uploadProof($payment, $request->file('proof'));
         }
 
         $this->auditBorrower('post_approval_fees.submitted', $application, [
             'channel' => 'bank',
-            'amount'  => $result['quote']['after_discount'] ?? 0,
+            'amount' => $result['quote']['after_discount'] ?? 0,
         ]);
 
         return redirect()
@@ -3133,7 +3220,7 @@ class BorrowerController extends Controller
             ->with('status', payment_gateway_is_dummy()
                 ? __('borrower.post_approval_fees.paid_dummy')
                 : __('borrower.post_approval_fees.bank_submitted'))
-            ->with(\App\Support\Celebration::SESSION_KEY, ['post_approval_fee']);
+            ->with(Celebration::SESSION_KEY, ['post_approval_fee']);
     }
 
     public function updatePin(Request $request, PinService $pins): RedirectResponse
@@ -3199,7 +3286,7 @@ class BorrowerController extends Controller
 
         if ($document) {
             if ($document->file_path) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($document->file_path);
+                Storage::disk('public')->delete($document->file_path);
             }
             $document->delete();
         }
@@ -3210,12 +3297,12 @@ class BorrowerController extends Controller
     }
 
     /**
-     * @param  list<\Illuminate\Http\UploadedFile>  $pageFiles
+     * @param  list<UploadedFile>  $pageFiles
      */
     private function persistProfileDocumentUpload(
         Customer $customer,
         string $documentCode,
-        ?\Illuminate\Http\UploadedFile $single,
+        ?UploadedFile $single,
         array $pageFiles,
     ): void {
         $pageFiles = array_values(array_filter($pageFiles));
@@ -3226,7 +3313,7 @@ class BorrowerController extends Controller
         $type = DocumentType::where('code', $documentCode)->where('is_active', true)->first();
         if (! $type) {
             report(new \RuntimeException("Missing active DocumentType [{$documentCode}] during profile upload."));
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 $documentCode => [__('borrower.profile.document_type_unavailable')],
             ]);
         }
@@ -3276,7 +3363,7 @@ class BorrowerController extends Controller
         ]);
 
         try {
-            app(\App\Services\MemberEngagementRewardService::class)->afterDocumentUploaded($customer, $documentCode);
+            app(MemberEngagementRewardService::class)->afterDocumentUploaded($customer, $documentCode);
         } catch (\Throwable $e) {
             report($e);
         }
@@ -3290,7 +3377,7 @@ class BorrowerController extends Controller
         $status = $nida->isLocked($customer) ? 'locked' : 'name_mismatch';
 
         $this->auditBorrower('nida.name_mismatch', $customer, [
-            'level'  => $level,
+            'level' => $level,
             'locked' => $status === 'locked',
         ]);
 
@@ -3304,16 +3391,17 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         $type = (string) $request->input('asset_type');
         $detailRules = [];
-        $vehicleMaxAge = (int) (\App\Models\Setting::get('asset_lending.vehicle_max_age_years')
+        $vehicleMaxAge = (int) (Setting::get('asset_lending.vehicle_max_age_years')
             ?? config('asset_lending.vehicle_max_age_years', 10));
         $yearMax = (int) now()->year;
         $yearMin = $yearMax - max(1, $vehicleMaxAge);
-        foreach (\App\Models\CustomerAsset::detailFieldsFor($type) as $field) {
+        foreach (CustomerAsset::detailFieldsFor($type) as $field) {
             if ($field['column'] ?? false) {
                 continue;
             }
             if (in_array($field['key'], ['year', 'purchase_year'], true)) {
                 $detailRules['details.'.$field['key']] = ['required', 'integer', 'min:'.$yearMin, 'max:'.$yearMax];
+
                 continue;
             }
             $detailRules['details.'.$field['key']] = ['required', 'string', 'max:150'];
@@ -3324,17 +3412,17 @@ class BorrowerController extends Controller
         }
 
         $data = $request->validate(array_merge([
-            'asset_type'          => ['required', 'string', 'max:40'],
-            'label'               => ['required', 'string', 'max:150'],
-            'description'         => ['nullable', 'string', 'max:2000'],
+            'asset_type' => ['required', 'string', 'max:40'],
+            'label' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:2000'],
             'registration_number' => [$type === 'vehicle' ? 'required' : 'nullable', 'string', 'max:80'],
-            'estimated_value'     => ['nullable', 'numeric', 'min:1'],
-            'details'             => ['nullable', 'array'],
-            'photos'              => ['nullable', 'array', 'max:6'],
-            'photos.*'            => ['nullable', 'image', 'max:5120'],
-            'person_photo'        => ['required', 'image', 'max:5120'],
-            'ownership_document'  => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
-            'insurance_document'  => [
+            'estimated_value' => ['nullable', 'numeric', 'min:1'],
+            'details' => ['nullable', 'array'],
+            'photos' => ['nullable', 'array', 'max:6'],
+            'photos.*' => ['nullable', 'image', 'max:5120'],
+            'person_photo' => ['required', 'image', 'max:5120'],
+            'ownership_document' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'insurance_document' => [
                 $type === 'vehicle' ? 'required' : 'nullable',
                 'file',
                 'mimes:jpg,jpeg,png,webp,pdf',
@@ -3351,20 +3439,20 @@ class BorrowerController extends Controller
             }
         }
 
-        $requiredAngles = \App\Models\CustomerAsset::bodyPhotoAngleKeys($type);
+        $requiredAngles = CustomerAsset::bodyPhotoAngleKeys($type);
         $photoFiles = is_array($request->file('photos')) ? $request->file('photos') : [];
         $validPhotos = [];
         $missingAngles = [];
         foreach ($requiredAngles as $index => $angle) {
             $file = $photoFiles[$angle] ?? $photoFiles[$index] ?? null;
-            if ($file instanceof \Illuminate\Http\UploadedFile && $file->isValid()) {
+            if ($file instanceof UploadedFile && $file->isValid()) {
                 $validPhotos[$angle] = $file;
             } else {
-                $missingAngles[] = \App\Models\CustomerAsset::photoAngleLabels($type)[$angle] ?? $angle;
+                $missingAngles[] = CustomerAsset::photoAngleLabels($type)[$angle] ?? $angle;
             }
         }
         if ($missingAngles !== []) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'photos' => [__('borrower.profile.asset_photos_all_required', ['angles' => implode(', ', $missingAngles)])],
             ]);
         }
@@ -3378,7 +3466,7 @@ class BorrowerController extends Controller
 
         // Keep only detail keys that belong to the selected type (guards against tampering),
         // plus vehicle insurance metadata collected in the dedicated insurance block.
-        $allowed = collect(\App\Models\CustomerAsset::detailFieldsFor($data['asset_type']))
+        $allowed = collect(CustomerAsset::detailFieldsFor($data['asset_type']))
             ->reject(fn ($f) => $f['column'] ?? false)
             ->pluck('key')
             ->all();
@@ -3393,20 +3481,20 @@ class BorrowerController extends Controller
             ->only($allowed)
             ->all();
 
-        $saved = app(\App\Services\CustomerAssetService::class)->store($customer, $data, [
-            'photos'              => $validPhotos,
-            'person_photo'        => $request->file('person_photo'),
-            'ownership_document'  => $request->file('ownership_document'),
-            'insurance_document'  => $request->file('insurance_document'),
+        $saved = app(CustomerAssetService::class)->store($customer, $data, [
+            'photos' => $validPhotos,
+            'person_photo' => $request->file('person_photo'),
+            'ownership_document' => $request->file('ownership_document'),
+            'insurance_document' => $request->file('insurance_document'),
         ]);
 
         $explicitApplicationId = $request->integer('application') ?: null;
-        $assets = app(\App\Services\CustomerAssetService::class);
+        $assets = app(CustomerAssetService::class);
         $uwApplication = $assets->resolveUwApplication($customer, $explicitApplicationId);
         if ($uwApplication && ($explicitApplicationId || $assets->shouldAutoLinkOnProfileSave($uwApplication))) {
             try {
                 $assets->attachToApplication($saved, $uwApplication, $customer);
-            } catch (\Illuminate\Validation\ValidationException $e) {
+            } catch (ValidationException $e) {
                 if ($explicitApplicationId) {
                     return redirect()
                         ->route('site.borrower.profile', [
@@ -3430,7 +3518,7 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.profile.asset_saved'));
     }
 
-    public function useAsset(Request $request, \App\Models\CustomerAsset $asset): RedirectResponse
+    public function useAsset(Request $request, CustomerAsset $asset): RedirectResponse
     {
         $customer = $this->customer();
         abort_if($asset->customer_id !== $customer->id || ! $asset->is_active, 404);
@@ -3439,11 +3527,11 @@ class BorrowerController extends Controller
             'application_id' => ['required', 'integer', 'exists:loan_applications,id'],
         ]);
 
-        $application = app(\App\Services\CustomerAssetService::class)
+        $application = app(CustomerAssetService::class)
             ->resolveUwApplication($customer, (int) $data['application_id']);
         abort_unless($application, 404);
 
-        app(\App\Services\CustomerAssetService::class)
+        app(CustomerAssetService::class)
             ->attachToApplication($asset, $application, $customer);
 
         return redirect()
@@ -3451,23 +3539,24 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.profile.collateral_linked'));
     }
 
-    public function updateAsset(Request $request, \App\Models\CustomerAsset $asset): RedirectResponse
+    public function updateAsset(Request $request, CustomerAsset $asset): RedirectResponse
     {
         $customer = $this->customer();
         abort_if($asset->customer_id !== $customer->id || ! $asset->is_active, 404);
 
         $type = (string) $asset->asset_type;
         $detailRules = [];
-        $vehicleMaxAge = (int) (\App\Models\Setting::get('asset_lending.vehicle_max_age_years')
+        $vehicleMaxAge = (int) (Setting::get('asset_lending.vehicle_max_age_years')
             ?? config('asset_lending.vehicle_max_age_years', 10));
         $yearMax = (int) now()->year;
         $yearMin = $yearMax - max(1, $vehicleMaxAge);
-        foreach (\App\Models\CustomerAsset::detailFieldsFor($type) as $field) {
+        foreach (CustomerAsset::detailFieldsFor($type) as $field) {
             if ($field['column'] ?? false) {
                 continue;
             }
             if (in_array($field['key'], ['year', 'purchase_year'], true)) {
                 $detailRules['details.'.$field['key']] = ['required', 'integer', 'min:'.$yearMin, 'max:'.$yearMax];
+
                 continue;
             }
             $detailRules['details.'.$field['key']] = ['required', 'string', 'max:150'];
@@ -3478,14 +3567,14 @@ class BorrowerController extends Controller
         }
 
         $data = $request->validate(array_merge([
-            'label'               => ['required', 'string', 'max:150'],
-            'description'         => ['nullable', 'string', 'max:2000'],
+            'label' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:2000'],
             'registration_number' => [$type === 'vehicle' ? 'required' : 'nullable', 'string', 'max:80'],
-            'estimated_value'     => ['nullable', 'numeric', 'min:1'],
-            'details'             => ['nullable', 'array'],
+            'estimated_value' => ['nullable', 'numeric', 'min:1'],
+            'details' => ['nullable', 'array'],
         ], $detailRules));
 
-        $allowed = collect(\App\Models\CustomerAsset::detailFieldsFor($type))
+        $allowed = collect(CustomerAsset::detailFieldsFor($type))
             ->reject(fn ($f) => $f['column'] ?? false)
             ->pluck('key')
             ->all();
@@ -3506,13 +3595,13 @@ class BorrowerController extends Controller
             $meta['details'] = array_merge((array) ($meta['details'] ?? []), $data['details']);
         }
         $asset->update([
-            'label'               => $data['label'],
-            'description'         => $data['description'] ?? null,
+            'label' => $data['label'],
+            'description' => $data['description'] ?? null,
             'registration_number' => $data['registration_number'] ?? null,
-            'estimated_value'     => array_key_exists('estimated_value', $data) && filled($data['estimated_value'])
+            'estimated_value' => array_key_exists('estimated_value', $data) && filled($data['estimated_value'])
                 ? (float) $data['estimated_value']
                 : $asset->estimated_value,
-            'metadata'            => $meta,
+            'metadata' => $meta,
         ]);
 
         return redirect()
@@ -3529,28 +3618,28 @@ class BorrowerController extends Controller
             'notifications' => ['nullable', 'array'],
             'notifications.loan_updates' => ['nullable', 'boolean'],
             'notifications.guarantor_updates' => ['nullable', 'boolean'],
-            'notifications.payments'     => ['nullable', 'boolean'],
-            'notifications.promotions'   => ['nullable', 'boolean'],
+            'notifications.payments' => ['nullable', 'boolean'],
+            'notifications.promotions' => ['nullable', 'boolean'],
             'notifications.credit_limit_updates' => ['nullable', 'boolean'],
-            'notifications.push'         => ['nullable', 'boolean'],
-            'notifications.plus_goals'   => ['nullable', 'boolean'],
-            'notifications.plus_business'=> ['nullable', 'boolean'],
-            'notifications.plus_learn'   => ['nullable', 'boolean'],
-            'notifications.plus_offers'  => ['nullable', 'boolean'],
+            'notifications.push' => ['nullable', 'boolean'],
+            'notifications.plus_goals' => ['nullable', 'boolean'],
+            'notifications.plus_business' => ['nullable', 'boolean'],
+            'notifications.plus_learn' => ['nullable', 'boolean'],
+            'notifications.plus_offers' => ['nullable', 'boolean'],
         ]);
 
         $incoming = $data['notifications'] ?? [];
         $notifications = [
             'loan_updates' => array_key_exists('loan_updates', $incoming),
             'guarantor_updates' => array_key_exists('guarantor_updates', $incoming),
-            'payments'     => array_key_exists('payments', $incoming),
-            'promotions'   => array_key_exists('promotions', $incoming),
+            'payments' => array_key_exists('payments', $incoming),
+            'promotions' => array_key_exists('promotions', $incoming),
             'credit_limit_updates' => array_key_exists('credit_limit_updates', $incoming),
-            'push'         => array_key_exists('push', $incoming),
-            'plus_goals'   => array_key_exists('plus_goals', $incoming),
-            'plus_business'=> array_key_exists('plus_business', $incoming),
-            'plus_learn'   => array_key_exists('plus_learn', $incoming),
-            'plus_offers'  => array_key_exists('plus_offers', $incoming),
+            'push' => array_key_exists('push', $incoming),
+            'plus_goals' => array_key_exists('plus_goals', $incoming),
+            'plus_business' => array_key_exists('plus_business', $incoming),
+            'plus_learn' => array_key_exists('plus_learn', $incoming),
+            'plus_offers' => array_key_exists('plus_offers', $incoming),
         ];
 
         $prefs = $user->preferences ?? [];
@@ -3565,7 +3654,7 @@ class BorrowerController extends Controller
     public function destroyAsset(CustomerAsset $asset): RedirectResponse
     {
         abort_unless($asset->customer_id === $this->customer()->id, 403);
-        app(\App\Services\CustomerAssetService::class)->deactivate($asset);
+        app(CustomerAssetService::class)->deactivate($asset);
 
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets'])
@@ -3576,15 +3665,15 @@ class BorrowerController extends Controller
     {
         abort_unless($asset->customer_id === $this->customer()->id, 403);
         $request->validate([
-            'photos'   => ['required', 'array', 'min:1', 'max:6'],
+            'photos' => ['required', 'array', 'min:1', 'max:6'],
             'photos.*' => ['required', 'image', 'max:5120'],
         ]);
 
-        app(\App\Services\CustomerAssetService::class)->addPhotos(
+        app(CustomerAssetService::class)->addPhotos(
             $asset,
             array_values(array_filter(
                 is_array($request->file('photos')) ? $request->file('photos') : [],
-                fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
+                fn ($file) => $file instanceof UploadedFile && $file->isValid()
             ))
         );
 
@@ -3600,7 +3689,7 @@ class BorrowerController extends Controller
             'index' => ['required', 'integer', 'min:0'],
         ]);
 
-        app(\App\Services\CustomerAssetService::class)->deletePhoto($asset, (int) $data['index']);
+        app(CustomerAssetService::class)->deletePhoto($asset, (int) $data['index']);
 
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets'])
@@ -3615,7 +3704,7 @@ class BorrowerController extends Controller
             'photo' => ['required', 'image', 'max:5120'],
         ]);
 
-        app(\App\Services\CustomerAssetService::class)->replacePhoto(
+        app(CustomerAssetService::class)->replacePhoto(
             $asset,
             (int) $data['index'],
             $request->file('photo')

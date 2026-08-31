@@ -80,7 +80,12 @@
                         <p class="text-[11px] text-slate-500 mt-1">{{ optional($app->updated_at)->diffForHumans() }}</p>
                     </div>
                     <div class="col-span-3 mt-3 lg:mt-0">
-                        <a href="{{ $ctaHref }}" class="inline-flex rounded-xl bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand">{{ $next['cta'] }}</a>
+                        <a href="{{ $ctaHref }}"
+                           @class([
+                               'inline-flex rounded-xl px-3 py-1.5 text-xs font-bold',
+                               'bg-slate-100 text-slate-500 cursor-not-allowed pointer-events-none' => ($next['cta_kind'] ?? '') === 'waiting',
+                               'bg-brand text-white hover:bg-brand-light' => ($next['cta_kind'] ?? '') !== 'waiting',
+                           ])>{{ ($next['cta_kind'] ?? '') === 'waiting' ? 'Waiting' : $next['cta'] }}</a>
                     </div>
                 </div>
             </div>

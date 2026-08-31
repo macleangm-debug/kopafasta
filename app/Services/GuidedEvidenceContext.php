@@ -70,8 +70,18 @@ class GuidedEvidenceContext
 
     public function backUrl(LoanApplication $application): string
     {
-        return match ($this->from($application)) {
-            'guided' => route('admin.loan-applications.guided-screening', $application),
+        $ctx = $this->peek($application);
+        $from = $ctx['from'] ?? $this->from($application);
+        $query = array_filter([
+            'at_item' => $ctx['item'] ?? null,
+            'at_person' => $ctx['person'] ?? null,
+            'at_m' => $ctx['m'] ?? null,
+            'at_g' => $ctx['g'] ?? null,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        return match ($from) {
+            'guided' => route('admin.loan-applications.guided-screening', $application)
+                .($query !== [] ? '?'.http_build_query($query) : ''),
             'committee' => route('admin.loan-applications.guided-committee', $application),
             'post_approval' => route('admin.loan-applications.guided-post-approval', $application),
             default => route('admin.loan-applications.show', [
@@ -83,10 +93,18 @@ class GuidedEvidenceContext
 
     public function redirectAfterResolution(LoanApplication $application): RedirectResponse
     {
-        $url = $this->backUrl($application);
-        if (in_array($this->from($application), ['guided', 'committee', 'post_approval'], true)) {
-            $this->forget($application);
-        }
+        $from = $this->from($application);
+        $this->forget($application);
+
+        $url = match ($from) {
+            'guided' => route('admin.loan-applications.guided-screening', $application),
+            'committee' => route('admin.loan-applications.guided-committee', $application),
+            'post_approval' => route('admin.loan-applications.guided-post-approval', $application),
+            default => route('admin.loan-applications.show', [
+                'loan_application' => $application,
+                'workspace' => 'overview',
+            ]).'#credit-workspace',
+        };
 
         return redirect()->to($url);
     }

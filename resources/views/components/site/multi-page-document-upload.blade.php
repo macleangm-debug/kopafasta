@@ -287,7 +287,7 @@
                     this.pages.forEach((page, index) => {
                         const input = document.createElement('input');
                         input.type = 'file';
-                        input.name = this.fieldName + '[]';
+                        input.name = this.maxPages === 1 ? this.fieldName : this.fieldName + '[]';
                         input.className = 'sr-only';
                         const dt = new DataTransfer();
                         const file = page.blob instanceof File

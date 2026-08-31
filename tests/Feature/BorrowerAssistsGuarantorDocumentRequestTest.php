@@ -7,6 +7,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\User;
 use App\Services\ApplicationDocumentRequestService;
+use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -35,7 +36,7 @@ class BorrowerAssistsGuarantorDocumentRequestTest extends TestCase
 
         $borrowerUser = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($borrowerUser, '1234');
-        app(\App\Services\PinRecoveryChallengeService::class)->enroll($borrowerUser, [
+        app(PinRecoveryChallengeService::class)->enroll($borrowerUser, [
             'mother_first_name' => 'Asha',
             'primary_school' => 'Uhuru Primary',
             'nida_middle4' => '4582',
@@ -120,7 +121,7 @@ class BorrowerAssistsGuarantorDocumentRequestTest extends TestCase
 
         $borrowerUser = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($borrowerUser, '1234');
-        app(\App\Services\PinRecoveryChallengeService::class)->enroll($borrowerUser, [
+        app(PinRecoveryChallengeService::class)->enroll($borrowerUser, [
             'mother_first_name' => 'Asha',
             'primary_school' => 'Uhuru Primary',
             'nida_middle4' => '4582',
@@ -171,7 +172,11 @@ class BorrowerAssistsGuarantorDocumentRequestTest extends TestCase
                 'file' => UploadedFile::fake()->image('residence.jpg'),
             ]);
 
-        $response->assertRedirect(route('site.borrower.application', $application->id));
+        $response->assertRedirect();
+        $this->assertStringContainsString(
+            '/applications/'.$application->id,
+            (string) $response->headers->get('Location')
+        );
         $this->assertSame('uploaded', $request->fresh()->status);
     }
 }

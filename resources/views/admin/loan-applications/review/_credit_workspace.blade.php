@@ -728,8 +728,8 @@
                         @if ($guidedNext)
                             <div class="flex flex-col items-stretch sm:items-end gap-2">
                                 @if (($guidedNext['cta_kind'] ?? '') === 'waiting')
-                                    <span class="inline-flex rounded-xl bg-amber-100 text-amber-950 text-sm font-bold px-4 py-2.5">
-                                        {{ $guidedNext['cta'] }}
+                                    <span class="inline-flex rounded-xl bg-slate-100 text-slate-500 text-sm font-bold px-4 py-2.5 cursor-not-allowed">
+                                        Waiting
                                     </span>
                                 @elseif (($guidedNext['cta_kind'] ?? '') === 'decision')
                                     <a href="{{ $guidedNext['href'] }}"
@@ -747,8 +747,8 @@
                         @elseif ($committeeNext)
                             <div class="flex flex-col items-stretch sm:items-end gap-2">
                                 @if (str_starts_with((string) ($committeeNext['cta'] ?? ''), 'Waiting'))
-                                    <span class="inline-flex rounded-xl bg-amber-100 text-amber-950 text-sm font-bold px-4 py-2.5">
-                                        {{ $committeeNext['cta'] }}
+                                    <span class="inline-flex rounded-xl bg-slate-100 text-slate-500 text-sm font-bold px-4 py-2.5 cursor-not-allowed">
+                                        Waiting
                                     </span>
                                 @else
                                     <a href="{{ $committeeNext['review_href'] ?? $committeeNext['href'] }}"
@@ -761,8 +761,8 @@
                         @elseif ($managementNext)
                             <div class="flex flex-col items-stretch sm:items-end gap-2">
                                 @if (($managementNext['cta_kind'] ?? '') === 'waiting')
-                                    <span class="inline-flex rounded-xl bg-amber-100 text-amber-950 text-sm font-bold px-4 py-2.5">
-                                        {{ $managementNext['cta'] }}
+                                    <span class="inline-flex rounded-xl bg-slate-100 text-slate-500 text-sm font-bold px-4 py-2.5 cursor-not-allowed">
+                                        Waiting
                                     </span>
                                 @else
                                     <a href="{{ ($managementNext['cta_kind'] ?? '') === 'disburse' ? ($managementNext['desk_href'] ?? $managementNext['href']) : ($managementNext['review_href'] ?? $managementNext['href']) }}"
