@@ -24,9 +24,32 @@ class UnderwritingSettingsService
         return max(1, (int) $this->get('awaiting_guarantor_deadline_days', 7));
     }
 
+    /** Screening document/evidence requests cannot exceed this window. */
+    public const SCREENING_REQUEST_MAX_DAYS = 7;
+
     public function documentRequestDefaultDueDays(): int
     {
-        return max(1, (int) $this->get('document_request_default_due_days', 7));
+        return max(1, min(self::SCREENING_REQUEST_MAX_DAYS, (int) $this->get('document_request_default_due_days', 7)));
+    }
+
+    /**
+     * Days after the request was sent to fire reminders. Always before the due day.
+     *
+     * @return list<int>
+     */
+    public function documentRequestReminderOffsets(): array
+    {
+        $raw = $this->get('document_request_reminder_offsets', '3,5,6');
+        $due = $this->documentRequestDefaultDueDays();
+        $offsets = collect(is_array($raw) ? $raw : preg_split('/\s*,\s*/', (string) $raw))
+            ->map(fn ($day) => (int) $day)
+            ->filter(fn ($day) => $day > 0 && $day < $due)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        return $offsets !== [] ? $offsets : [3, 5, 6];
     }
 
     public function blockAcknowledgeWithoutGuarantor(): bool

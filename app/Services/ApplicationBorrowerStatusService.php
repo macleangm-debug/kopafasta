@@ -40,6 +40,36 @@ class ApplicationBorrowerStatusService
 
     public function borrowerDetail(LoanApplication $application): ?string
     {
+        if ($this->resolveCode($application) === 'required_information_not_provided') {
+            $closure = data_get($application->screening_payload, 'document_request_closure', []);
+            $label = (string) ($closure['label'] ?? 'document');
+            $requested = ! empty($closure['requested_at'])
+                ? format_app_datetime($closure['requested_at'], 'd M Y')
+                : '—';
+            $deadline = ! empty($closure['deadline_at'])
+                ? format_app_datetime($closure['deadline_at'], 'd M Y')
+                : '—';
+            $closed = ! empty($closure['closed_at'])
+                ? format_app_datetime($closure['closed_at'], 'd M Y')
+                : '—';
+            $reminders = (int) ($closure['reminders_sent'] ?? 0);
+
+            return trim(
+                (string) ($closure['customer_reason'] ?? __('borrower.notifications.document_request_closed_body', [
+                    'label' => $label,
+                    'requested' => $requested,
+                    'deadline' => $deadline,
+                ]))
+                ."\n".__('borrower.loan_profile.document_request_closed_meta', [
+                    'requested' => $requested,
+                    'deadline' => $deadline,
+                    'reminders' => $reminders,
+                    'closed' => $closed,
+                ])
+                ."\n".__('borrower.loan_profile.document_request_closed_next')
+            );
+        }
+
         if ($this->resolveCode($application) === 'offer_declined') {
             return __('borrower.loan_profile.offer_declined_detail');
         }
@@ -322,6 +352,12 @@ class ApplicationBorrowerStatusService
             return 'rejected';
         }
 
+        if (data_get($application->screening_payload, 'document_request_closure')
+            || $status === 'expired'
+            || $stage === 'expired') {
+            return 'required_information_not_provided';
+        }
+
         if ($status === 'awaiting_guarantor' || $stage === 'awaiting_guarantor') {
             return 'awaiting_guarantor';
         }
@@ -443,6 +479,7 @@ class ApplicationBorrowerStatusService
             'ready_for_disbursement'=> __('borrower.applications_list.statuses.ready_for_disbursement'),
             'approved'              => __('borrower.applications_list.statuses.approved'),
             'rejected'              => __('borrower.applications_list.statuses.not_approved'),
+            'required_information_not_provided' => __('borrower.applications_list.statuses.required_information_not_provided'),
             'disbursed'             => __('borrower.applications_list.statuses.disbursed'),
             'closed'                => __('borrower.applications_list.statuses.closed'),
             default                 => ucfirst(str_replace('_', ' ', $code)),
@@ -453,6 +490,7 @@ class ApplicationBorrowerStatusService
     {
         return match ($code) {
             'rejected' => 'red',
+            'required_information_not_provided' => 'red',
             'offer_declined', 'withdrawn' => 'red',
             'awaiting_guarantor' => 'amber',
             'awaiting_offer' => 'amber',

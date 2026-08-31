@@ -649,6 +649,8 @@ class LoanApplicationController extends ResourceController
             $next = app(ScreeningNextActionService::class)->forApplication($loan_application->fresh(), auth()->user(), $cursor);
         }
 
+        $loan_application->loadMissing(['documentRequests.uploads', 'documentRequests.requester']);
+
         return view('admin.loan-applications.guided.show', [
             'record' => $loan_application,
             'guided' => $next,

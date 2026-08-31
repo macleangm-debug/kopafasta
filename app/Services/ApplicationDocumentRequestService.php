@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ApplicationStageHistory;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\DocumentType;
@@ -24,6 +25,7 @@ class ApplicationDocumentRequestService
         'New Ownership Document',
         'New Asset Photo',
         'Updated National ID',
+        'Updated residence proof',
         'Image Not Clear',
         'Ownership Certificate Missing Page',
         'Signature Not Visible',
@@ -68,6 +70,7 @@ class ApplicationDocumentRequestService
             'New Ownership Document' => 'Upload the ownership or logbook document.',
             'New Asset Photo' => 'Upload a clear photo of the asset.',
             'Updated National ID' => 'Upload a clear national ID photo.',
+            'Updated residence proof' => 'Upload a clear residence letter, LGO letter, or utility bill that matches the stated address.',
             'New National ID photo' => 'Upload a clearer national ID photo from your profile.',
             'New face verification photo' => 'Retake face photos in your profile.',
             'Identity verification photo' => 'Upload a photo of you holding your national ID.',
@@ -367,6 +370,7 @@ class ApplicationDocumentRequestService
             'rejected' => 'Needs replacement',
             'uploaded' => 'Under review',
             'cancelled' => 'Cancelled',
+            'expired' => 'Expired — not provided',
             default => str_contains($label, 'valuation')
                 ? 'Waiting for valuer'
                 : 'Requested',
@@ -817,6 +821,12 @@ class ApplicationDocumentRequestService
         ?int $loanGroupMemberId = null,
     ): LoanApplicationDocumentRequest {
         $instructions ??= self::presetInstructions()[$label] ?? null;
+        $settings = app(UnderwritingSettingsService::class);
+        $maxDue = now()->addDays($settings->documentRequestDefaultDueDays());
+        $dueAt ??= $maxDue;
+        if ($dueAt > $maxDue) {
+            $dueAt = $maxDue;
+        }
         [$subjectKind, $subjectCustomerId, $loanGroupMemberId] = $this->resolveSubject(
             $application,
             $subjectKind,
@@ -1995,5 +2005,210 @@ class ApplicationDocumentRequestService
             });
 
         return $sent;
+    }
+
+    /**
+     * Reminders on Settings Hub offsets (default day 3, 5, 6) plus the due-tomorrow reminder.
+     */
+    public function sendScheduledReminders(): int
+    {
+        $sent = $this->sendDueTomorrowReminders();
+        $offsets = app(UnderwritingSettingsService::class)->documentRequestReminderOffsets();
+        $dueDays = app(UnderwritingSettingsService::class)->documentRequestDefaultDueDays();
+
+        foreach ($offsets as $offset) {
+            $start = now()->subDays($offset)->startOfDay();
+            $end = now()->subDays($offset)->endOfDay();
+            $template = 'application_document_request_reminder_day_'.$offset;
+            $isFinal = $offset === ($dueDays - 1);
+
+            LoanApplicationDocumentRequest::query()
+                ->with(['application.customer'])
+                ->whereIn('status', ['pending', 'rejected'])
+                ->whereBetween('created_at', [$start, $end])
+                ->orderBy('id')
+                ->get()
+                ->groupBy('loan_application_id')
+                ->each(function (Collection $requests) use (&$sent, $offset, $template, $isFinal, $dueDays) {
+                    $application = $requests->first()?->application;
+                    $customer = $application?->customer;
+                    if (! $application || ! $customer) {
+                        return;
+                    }
+                    if (in_array($application->status, ['withdrawn', 'rejected', 'disbursed', 'expired', 'cancelled'], true)) {
+                        return;
+                    }
+                    if (NotificationLog::query()
+                        ->where('customer_id', $customer->id)
+                        ->where('channel', 'in_app')
+                        ->where('template', $template)
+                        ->where('meta->loan_application_id', $application->id)
+                        ->exists()) {
+                        return;
+                    }
+
+                    $labels = $requests->pluck('label')->filter()->take(7)->implode(', ');
+                    $dueDate = optional($requests->first()->due_at)
+                        ->timezone(config('app.timezone'))
+                        ->format('d M Y');
+                    $params = [
+                        'application' => $application->application_number,
+                        'count' => $requests->count(),
+                        'labels' => $labels,
+                        'date' => $dueDate ?: now()->addDays(max(1, $dueDays - $offset))->format('d M Y'),
+                        'days_left' => max(1, $dueDays - $offset),
+                    ];
+                    $titleKey = $isFinal
+                        ? 'borrower.notifications.document_request_final_reminder_title'
+                        : 'borrower.notifications.document_request_cadence_reminder_title';
+                    $bodyKey = $isFinal
+                        ? 'borrower.notifications.document_request_final_reminder_body'
+                        : 'borrower.notifications.document_request_cadence_reminder_body';
+
+                    $this->notifier->notifyInApp(
+                        $customer,
+                        __($bodyKey, $params),
+                        'document_request',
+                        $template,
+                        __($titleKey),
+                        route('site.borrower.application', $application),
+                        __('borrower.notifications.document_request_cta'),
+                        [
+                            'title_key' => $titleKey,
+                            'body_key' => $bodyKey,
+                            'params' => $params,
+                            'loan_application_id' => $application->id,
+                            'reminder_day' => $offset,
+                        ],
+                    );
+                    foreach ($requests as $row) {
+                        $lifecycle = is_array($row->lifecycle) ? $row->lifecycle : [];
+                        $lifecycle['reminders'] = array_values(array_merge($lifecycle['reminders'] ?? [], [[
+                            'day' => $offset,
+                            'at' => now()->toIso8601String(),
+                            'template' => $template,
+                            'final' => $isFinal,
+                        ]]));
+                        $row->forceFill(['lifecycle' => $lifecycle])->save();
+                    }
+                    $sent++;
+                });
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Close files whose Screening document request is past due.
+     * This is not a credit rejection.
+     *
+     * @return \Illuminate\Support\Collection<int, LoanApplication>
+     */
+    public function expireOverdueRequests(): Collection
+    {
+        $closed = collect();
+
+        LoanApplicationDocumentRequest::query()
+            ->with(['application.customer', 'requester'])
+            ->whereIn('status', ['pending', 'rejected'])
+            ->whereNotNull('due_at')
+            ->where('due_at', '<', now())
+            ->orderBy('id')
+            ->get()
+            ->groupBy('loan_application_id')
+            ->each(function (Collection $requests) use (&$closed) {
+                $application = $requests->first()?->application;
+                if (! $application || $application->isClosed()) {
+                    return;
+                }
+                if (in_array($application->current_stage, ['pre_approval', 'awaiting_management', 'approval', 'disbursement'], true)) {
+                    return;
+                }
+
+                $primary = $requests->sortBy('due_at')->first();
+                $reminderCount = NotificationLog::query()
+                    ->where('customer_id', $application->customer_id)
+                    ->where('meta->loan_application_id', $application->id)
+                    ->where('template', 'like', 'application_document_request_reminder%')
+                    ->count();
+
+                $closure = [
+                    'kind' => 'required_information_not_provided',
+                    'label' => $primary?->label,
+                    'request_id' => $primary?->id,
+                    'requested_at' => optional($primary?->created_at)?->toIso8601String(),
+                    'deadline_at' => optional($primary?->due_at)?->toIso8601String(),
+                    'reminders_sent' => $reminderCount,
+                    'submitted' => false,
+                    'closed_at' => now()->toIso8601String(),
+                    'staff_reason' => 'Required '.($primary?->label ?: 'document').' not received.',
+                    'customer_reason' => 'Your application has been closed because the requested '
+                        .($primary?->label ?: 'document')
+                        .' was not submitted within the required period.',
+                ];
+                $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+                $payload['document_request_closure'] = $closure;
+                $fromStage = (string) ($application->current_stage ?: 'screening');
+
+                $application->forceFill([
+                    'status' => 'expired',
+                    'current_stage' => 'expired',
+                    'screening_payload' => $payload,
+                    'rejection_reason' => null,
+                ])->save();
+
+                foreach ($requests as $row) {
+                    $lifecycle = is_array($row->lifecycle) ? $row->lifecycle : [];
+                    $lifecycle['outcome'] = 'expired';
+                    $lifecycle['closed_at'] = now()->toIso8601String();
+                    $row->forceFill([
+                        'status' => 'expired',
+                        'lifecycle' => $lifecycle,
+                        'admin_notes' => trim(($row->admin_notes ? $row->admin_notes."\n" : '').'Closed automatically — required information not provided.'),
+                    ])->save();
+                }
+
+                ApplicationStageHistory::create([
+                    'loan_application_id' => $application->id,
+                    'from_stage' => $fromStage,
+                    'to_stage' => 'expired',
+                    'changed_by' => null,
+                    'remarks' => $closure['staff_reason'],
+                ]);
+
+                app(PartnerTaskLifecycleService::class)->closeForApplication(
+                    $application->fresh(),
+                    'Closed because required information was not provided.',
+                );
+
+                $customer = $application->customer;
+                if ($customer) {
+                    $params = [
+                        'application' => $application->application_number,
+                        'label' => $primary?->label ?: 'document',
+                        'requested' => optional($primary?->created_at)->timezone(config('app.timezone'))->format('d M Y'),
+                        'deadline' => optional($primary?->due_at)->timezone(config('app.timezone'))->format('d M Y'),
+                    ];
+                    $this->notifier->notifyInApp(
+                        $customer,
+                        __('borrower.notifications.document_request_closed_body', $params),
+                        'document_request',
+                        'application_document_request_closed',
+                        __('borrower.notifications.document_request_closed_title'),
+                        route('site.borrower.application', $application),
+                        __('borrower.notifications.document_request_closed_cta'),
+                        [
+                            'title_key' => 'borrower.notifications.document_request_closed_title',
+                            'body_key' => 'borrower.notifications.document_request_closed_body',
+                            'params' => $params,
+                            'loan_application_id' => $application->id,
+                        ],
+                    );
+                }
+
+                $closed->push($application->fresh());
+            });
+
+        return $closed;
     }
 }

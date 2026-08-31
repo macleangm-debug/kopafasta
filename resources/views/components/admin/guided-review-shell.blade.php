@@ -31,8 +31,9 @@
     :backUrl="$backUrl"
     :backLabel="$backLabel">
 
-    <div class="max-w-xl mx-auto pb-28">
-        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-white">
+    <div class="max-w-xl mx-auto" data-guided-review>
+        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-white"
+             x-data="{ verdict: '', reason: '', missing: false }">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 py-4 text-white">
                 <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-brand-gold">Kopafasta Credit</p>
                 <h1 class="text-xl font-bold mt-1">{{ $modeLabel }}</h1>
@@ -45,7 +46,7 @@
                     @endif
                 </p>
             </div>
-            <div class="px-5 py-4 space-y-3">
+            <div class="px-5 py-4 space-y-3 border-b border-slate-100">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     @if ($gateChip)
                         <p class="text-[11px] font-bold uppercase tracking-widest text-brand">{{ $gateChip }}</p>
@@ -67,10 +68,16 @@
                     @endif
                 </div>
             </div>
+
+            <div class="px-5 py-5 space-y-4">
+                {{ $slot }}
+            </div>
+
+            @isset($footer)
+                <div class="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                    {{ $footer }}
+                </div>
+            @endisset
         </div>
-
-        {{ $slot }}
     </div>
-
-    {{ $footer ?? '' }}
 </x-admin.layout>

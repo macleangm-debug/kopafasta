@@ -16,6 +16,12 @@ class GuidedEvidenceContext
     {
         $from = (string) $request->input('from', '');
         if (! in_array($from, ['guided', 'committee', 'post_approval'], true)) {
+            $stayingOnFile = $request->isMethod('get')
+                && $this->peek($application) !== null
+                && in_array((string) $request->input('workspace', ''), ['checklist', 'profiles', 'decision'], true);
+            if ($stayingOnFile) {
+                return;
+            }
             if ($request->isMethod('get')) {
                 $this->forget($application);
             }
@@ -55,7 +61,7 @@ class GuidedEvidenceContext
     public function backLabel(LoanApplication $application): string
     {
         return match ($this->from($application)) {
-            'guided' => 'Back to Review',
+            'guided' => 'Back to Guided Review',
             'committee' => 'Back to Committee Review',
             'post_approval' => 'Back to Post-Approval',
             default => 'Back to Screening',

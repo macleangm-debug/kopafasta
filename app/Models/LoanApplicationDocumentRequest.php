@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LoanApplicationDocumentRequest extends Model
 {
-    public const STATUSES = ['pending', 'uploaded', 'satisfied', 'rejected', 'cancelled'];
+    public const STATUSES = ['pending', 'uploaded', 'satisfied', 'rejected', 'cancelled', 'expired'];
 
     public const TYPES = ['document', 'clarification'];
 
@@ -17,6 +17,7 @@ class LoanApplicationDocumentRequest extends Model
         return [
             'due_at' => 'datetime',
             'satisfied_at' => 'datetime',
+            'lifecycle' => 'array',
         ];
     }
 

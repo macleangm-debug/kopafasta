@@ -127,7 +127,7 @@ class ScreeningNextActionService
             'desk_href' => $deskHref,
             'review_href' => $reviewHref,
             'prev_href' => $this->previousWalkHref($application),
-            'checklist_href' => route('admin.loan-applications.show', [
+            'checklist_href' => guided_evidence_url(route('admin.loan-applications.show', [
                 'loan_application' => $application,
                 'workspace' => 'checklist',
                 'gate' => $resume['gate'] ?? 'income',
@@ -135,7 +135,7 @@ class ScreeningNextActionService
                 'review_m' => $resume['m'] ?? null,
                 'review_g' => $resume['g'] ?? null,
                 'open_item' => $resume['item'] ?? null,
-            ]).'#review-desk',
+            ]).'#review-desk', 'guided'),
             'bucket' => $bucket,
             'waiting' => $waiting,
             'started' => $started,
@@ -564,10 +564,12 @@ class ScreeningNextActionService
             ->filter(fn ($req) => $this->documents->isOutstanding($req))
             ->first();
         if ($open instanceof LoanApplicationDocumentRequest) {
+            $waitingOn = $this->documents->waitingOnLabel($open, $groupReview);
+
             return [
                 'kind' => 'document',
-                'label' => 'Waiting for document',
-                'detail' => $open->label.' · '.$this->documents->waitingOnLabel($open, $groupReview),
+                'label' => 'Screening paused — '.$waitingOn,
+                'detail' => $open->label.' is outstanding. Due '.optional($open->due_at)->timezone(config('app.timezone'))->format('d M Y').'.',
                 'gate' => $this->documents->borrowerActionKind($open) === 'collateral' ? 'collateral' : 'identity',
                 'gate_index' => $this->documents->borrowerActionKind($open) === 'collateral' ? 5 : 4,
                 'request_id' => $open->id,
@@ -645,6 +647,45 @@ class ScreeningNextActionService
         }
         if ($key === 'identity.face_vs_nida' || in_array($code, ['face_photo_missing', 'photos_missing'], true)) {
             return ['label' => 'Request face photo', 'preset' => 'Image Not Clear'];
+        }
+        if ($key === 'identity.id_document_quality' || in_array($code, ['id_photo_missing', 'poor_quality', 'proof_missing', 'document_unclear'], true)) {
+            return [
+                'label' => 'Request clearer National ID',
+                'preset' => 'Updated National ID',
+                'alternatives' => [
+                    ['label' => 'Request ID photo', 'preset' => 'New National ID photo'],
+                    ['label' => 'Request face photo', 'preset' => 'Image Not Clear'],
+                ],
+            ];
+        }
+        if ($key === 'residence.utility_or_proof' || in_array($code, ['proof_missing', 'proof_invalid', 'document_unclear', 'wrong_document'], true)) {
+            return [
+                'label' => 'Request residence proof',
+                'preset' => 'Updated residence proof',
+                'alternatives' => [
+                    ['label' => 'LGO / residence letter', 'preset' => 'Guarantor residence letter'],
+                ],
+            ];
+        }
+        if (str_starts_with($key, 'activity_income.income_evidence') || $key === 'activity_income.income_evidence') {
+            return [
+                'label' => 'Request statement',
+                'preset' => 'Updated Bank Statement',
+                'alternatives' => [
+                    ['label' => 'Mobile money statement', 'preset' => 'Updated Mobile Money Statement'],
+                    ['label' => 'Salary slip', 'preset' => 'Latest salary slip'],
+                ],
+            ];
+        }
+        if (str_starts_with($key, 'collateral.')) {
+            return [
+                'label' => 'Request collateral document',
+                'preset' => 'Updated collateral ownership document',
+                'alternatives' => [
+                    ['label' => 'Collateral photo', 'preset' => 'New collateral photo'],
+                    ['label' => 'Insurance certificate', 'preset' => 'New Insurance Certificate'],
+                ],
+            ];
         }
         if (in_array($code, ['id_photo_missing'], true)) {
             return ['label' => 'Request ID photo', 'preset' => 'New National ID photo'];

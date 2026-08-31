@@ -1066,7 +1066,8 @@ class SettingsController extends Controller
         $data = $request->validate([
             'guarantor_invitation_expiry_days'       => ['required', 'integer', 'min:1', 'max:90'],
             'awaiting_guarantor_deadline_days'       => ['required', 'integer', 'min:1', 'max:90'],
-            'document_request_default_due_days'      => ['required', 'integer', 'min:1', 'max:60'],
+            'document_request_default_due_days'      => ['required', 'integer', 'min:1', 'max:'.\App\Services\UnderwritingSettingsService::SCREENING_REQUEST_MAX_DAYS],
+            'document_request_reminder_offsets'      => ['nullable', 'string', 'max:40'],
             'stage_sla_days'                         => ['required', 'integer', 'min:1', 'max:60'],
             'default_rate_tier_count'                => ['required', 'integer', 'min:2', 'max:8'],
             'default_rate_discount_fraction'         => ['required', 'numeric', 'min:0', 'max:0.85'],

@@ -118,6 +118,19 @@
                         @if (! empty($row['reason']))
                             <p class="text-slate-800">Why: “{{ $row['reason'] }}”</p>
                         @endif
+                        @if (! empty($row['request_history']))
+                            <ol class="text-xs text-slate-700 space-y-1 rounded-lg bg-white/70 ring-1 ring-slate-200 px-3 py-2">
+                                @foreach ($row['request_history'] as $event)
+                                    <li>
+                                        <span class="font-semibold">{{ $event['label'] }}</span>
+                                        · {{ $event['status'] }}
+                                        @if (! empty($event['at']))
+                                            · {{ format_app_datetime($event['at'], 'd M Y') }}
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ol>
+                        @endif
                         <p class="text-xs text-slate-600">
                             Accepted by {{ $row['by_name'] ?? 'analyst' }}
                             · {{ format_app_datetime($row['at'] ?? null, 'd M Y') }}
@@ -187,8 +200,7 @@
         </p>
 
     <x-slot:footer>
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div class="max-w-xl mx-auto flex gap-2 items-stretch">
+    <div class="flex gap-2 items-stretch">
             @if (! empty($walk['prev_index']))
                 <a href="{{ route('admin.loan-applications.guided-committee', ['loan_application' => $record, 'step' => $walk['prev_index']]) }}"
                    class="flex-1 min-w-0 text-center rounded-xl bg-white ring-1 ring-slate-200 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Back</a>
@@ -206,7 +218,6 @@
                 <a href="{{ $walk['decision_href'] }}"
                    class="flex-[2] min-w-0 text-center rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Committee decision</a>
             @endif
-        </div>
     </div>
     </x-slot:footer>
 </x-admin.guided-review-shell>

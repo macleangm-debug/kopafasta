@@ -1650,6 +1650,12 @@ class ScreeningChecklistService
                 'label' => (string) $label,
                 'url' => asset('storage/'.$path),
                 'status' => (string) ($status ?: 'uploaded'),
+                'kind' => str_ends_with(strtolower($path), '.pdf') ? 'pdf' : 'image',
+                'uploaded_at' => format_app_datetime(
+                    is_object($upload) ? ($upload->created_at ?? null) : ($upload['created_at'] ?? null),
+                    'd M Y'
+                ),
+                'owner' => $customer?->full_name,
             ];
         }
 
@@ -1667,6 +1673,13 @@ class ScreeningChecklistService
             $docs['id_files'][] = [
                 'label' => (string) $label,
                 'url' => asset('storage/'.$path),
+                'kind' => str_ends_with(strtolower((string) $path), '.pdf') ? 'pdf' : 'image',
+                'uploaded_at' => format_app_datetime(
+                    is_object($doc) ? ($doc->created_at ?? null) : ($doc['created_at'] ?? null),
+                    'd M Y'
+                ),
+                'owner' => $customer?->full_name,
+                'type_label' => 'National ID',
             ];
         }
 
@@ -1823,6 +1836,9 @@ class ScreeningChecklistService
                 'url' => asset('storage/'.$doc->file_path),
                 'status' => $doc->status ?? null,
                 'file_path' => $doc->file_path,
+                'kind' => str_ends_with(strtolower((string) $doc->file_path), '.pdf') ? 'pdf' : 'image',
+                'uploaded_at' => format_app_datetime($doc->created_at ?? null, 'd M Y'),
+                'type_label' => 'Income evidence',
             ];
         }
 
@@ -2189,19 +2205,25 @@ class ScreeningChecklistService
                 })->values();
                 $rows = [
                     ['label' => 'Residence / utility files', 'value' => (string) $files->count()],
-                    ['label' => 'How confirmed', 'value' => 'You review the letter / utility image — system only counts uploads'],
+                    ['label' => 'How confirmed', 'value' => 'You review the uploaded letter or utility image'],
                 ];
                 foreach ($files->take(8) as $file) {
                     if (! empty($file['url'])) {
-                        $photos[] = [
-                            'label' => trim(($file['label'] ?? 'Residence proof').(isset($file['status']) ? ' · '.$file['status'] : '')),
+                        $row = [
+                            'label' => trim((string) ($file['label'] ?? 'Residence proof')),
                             'url' => (string) $file['url'],
+                            'kind' => $file['kind'] ?? (str_contains(strtolower((string) $file['url']), '.pdf') ? 'pdf' : 'image'),
+                            'uploaded_at' => $file['uploaded_at'] ?? null,
+                            'owner' => $file['owner'] ?? null,
+                            'type_label' => $file['type_label'] ?? ($file['label'] ?? 'Residence proof'),
                         ];
+                        $photos[] = $row;
+                        $documents[] = $row;
                     }
                 }
                 $hint = $photos === []
-                    ? 'No residence / utility proof uploaded yet — request a re-upload if needed.'
-                    : 'Open the images and confirm they match the stated address. System does not auto-verify the letter.';
+                    ? 'No residence / utility proof uploaded yet — request a replacement from this card.'
+                    : 'Open the uploaded letter or bill and confirm it matches the stated address.';
                 break;
 
             case 'activity':
@@ -2244,6 +2266,8 @@ class ScreeningChecklistService
                         'url' => (string) $file['url'],
                         'kind' => $kind,
                         'status' => $file['status'] ?? null,
+                        'uploaded_at' => $file['uploaded_at'] ?? null,
+                        'type_label' => $file['type_label'] ?? 'Statement',
                     ];
                 }
                 $hint = $documents === []
@@ -2259,10 +2283,16 @@ class ScreeningChecklistService
                 $idFiles = (array) data_get($ctx, 'documents.id_files', []);
                 foreach ($idFiles as $file) {
                     if (! empty($file['url'])) {
-                        $photos[] = [
+                        $row = [
                             'label' => (string) ($file['label'] ?? 'ID'),
                             'url' => (string) $file['url'],
+                            'kind' => $file['kind'] ?? 'image',
+                            'uploaded_at' => $file['uploaded_at'] ?? null,
+                            'owner' => $file['owner'] ?? null,
+                            'type_label' => $file['type_label'] ?? 'National ID',
                         ];
+                        $photos[] = $row;
+                        $documents[] = $row;
                     }
                 }
                 $rows = [

@@ -156,6 +156,20 @@
                  });
              }
          }">
+    @php
+        $guidedReturn = app(\App\Services\GuidedEvidenceContext::class);
+        $fromGuidedDesk = $guidedReturn->from($record);
+    @endphp
+    @if ($fromGuidedDesk)
+        <div class="px-5 py-3 border-b border-brand/15 bg-brand-muted/40 flex flex-wrap items-center justify-between gap-2">
+            <a href="{{ $guidedReturn->backUrl($record) }}" class="text-sm font-bold text-brand">
+                ← {{ $guidedReturn->backLabel($record) }}
+            </a>
+            <a href="{{ $guidedReturn->backUrl($record) }}" class="text-sm font-bold text-brand">
+                Continue Reviewing →
+            </a>
+        </div>
+    @endif
     @include('admin.loan-applications.review._early_eligibility', ['sequence' => $sequence, 'record' => $record])
 
     <div class="px-5 py-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-center justify-between gap-3">

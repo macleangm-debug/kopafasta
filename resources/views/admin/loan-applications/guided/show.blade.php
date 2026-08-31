@@ -158,6 +158,7 @@
             </div>
         @elseif ($type === 'waiting')
             <div class="mt-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-5 space-y-2">
+                <p class="text-sm font-bold text-emerald-800">Request sent ✓</p>
                 <p class="text-sm font-bold text-amber-950">{{ $step['title'] }}</p>
                 <p class="text-sm text-amber-900">{{ $step['prompt'] }}</p>
                 <p class="text-xs text-amber-800">You can leave this file. It will return to Do now when the resolution arrives.</p>
@@ -190,6 +191,8 @@
             <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-4">
                 <p class="text-sm text-slate-800">{{ $step['prompt'] }}</p>
                 @include('admin.loan-applications.guided._evidence', ['step' => $step])
+                @include('admin.loan-applications.guided._inline_request', ['step' => $step, 'record' => $record])
+                @include('admin.loan-applications.guided._request_history', ['step' => $step, 'record' => $record])
                 @if (! empty($step['destination']['href']))
                     <a href="{{ guided_evidence_url($step['destination']['href'], 'guided') }}" class="inline-flex text-sm font-bold text-brand underline">
                         {{ $step['destination']['cta'] ?? 'View details' }}
@@ -257,6 +260,9 @@
                     </details>
                 @endif
 
+                @include('admin.loan-applications.guided._inline_request', ['step' => $step, 'record' => $record])
+                @include('admin.loan-applications.guided._request_history', ['step' => $step, 'record' => $record])
+
                 @if (($step['type'] ?? '') === 'request' && ! empty($step['requestable']))
                     <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}"
                           class="space-y-3" x-data="{ step: 'review' }" data-no-draft>
@@ -270,7 +276,9 @@
                         <input type="hidden" name="return_workspace" value="guided">
                         <input type="hidden" name="confirmed" value="1">
                         <p class="text-sm font-semibold text-slate-900">{{ $step['requestable']['label'] }}</p>
-                        <p class="text-sm text-slate-600">The borrower or member will be asked through the existing request channel. Screening pauses until it is received.</p>
+                        <p class="text-sm text-slate-600">Due in {{ app(\App\Services\UnderwritingSettingsService::class)->documentRequestDefaultDueDays() }} days — set by Screening policy. Screening pauses until it is received.</p>
+                        <input type="hidden" name="open_item" value="{{ $step['item_key'] ?? '' }}">
+                        <input type="hidden" name="gate" value="{{ $step['gate'] ?? '' }}">
                         <button type="button" x-show="step === 'review'" @click="step = 'confirm'"
                                 class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3">
                             Review & confirm request
@@ -287,7 +295,7 @@
                 @if (empty($step['revisiting']) || blank($step['verdict'] ?? null))
                     <form method="POST" action="{{ route('admin.loan-applications.guided-screening.save', $record) }}"
                           id="guided-screening-form" class="space-y-3" data-no-draft
-                          x-data="{ verdict: '', reason: '' }">
+                          @submit="if (!verdict) { $event.preventDefault(); missing = true }">
                         @csrf
                         <input type="hidden" name="person" value="{{ $participant['person'] ?? 'borrower' }}">
                         <input type="hidden" name="gate" value="{{ $step['gate'] ?? '' }}">
@@ -306,9 +314,8 @@
                                 <label class="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 px-4 py-3">
                                     <input type="radio" name="{{ $fieldBase }}[verdict]" value="{{ $outcome['value'] }}"
                                            x-model="verdict"
-                                           @if (! empty($outcome['fail_reason_code']))
-                                               @change="reason = '{{ $outcome['fail_reason_code'] }}'"
-                                           @endif
+                                           required
+                                           @change="missing = false; @if (! empty($outcome['fail_reason_code'])) reason = '{{ $outcome['fail_reason_code'] }}'; @endif"
                                            class="text-brand">
                                     <span class="text-sm font-bold text-slate-900">{{ $outcome['label'] }}</span>
                                 </label>
@@ -343,8 +350,7 @@
         </p>
 
     <x-slot:footer>
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none">
-        <div class="max-w-xl mx-auto flex gap-2 items-stretch pointer-events-auto">
+    <div class="flex gap-2 items-stretch">
             @if (! empty($guided['prev_href']))
                 <a href="{{ $guided['prev_href'] }}"
                    class="flex-1 min-w-0 text-center rounded-xl bg-white ring-1 ring-slate-200 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Back</a>
@@ -383,12 +389,14 @@
                     Continue reviewing
                 </button>
             @else
-                <button type="submit" form="guided-screening-form" data-loading-label="Saving…"
-                        class="flex-[2] min-w-0 rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
-                    Save & Next
-                </button>
+                <div class="flex-[2] min-w-0">
+                    <p x-show="missing && !verdict" x-cloak class="text-[11px] font-semibold text-rose-700 mb-1 text-center">Select Pass, Concern, or N/A</p>
+                    <button type="submit" form="guided-screening-form" data-loading-label="Saving…"
+                            class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
+                        Save & Next
+                    </button>
+                </div>
             @endif
-        </div>
     </div>
     </x-slot:footer>
 </x-admin.guided-review-shell>

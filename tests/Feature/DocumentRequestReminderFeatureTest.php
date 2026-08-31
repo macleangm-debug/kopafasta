@@ -63,6 +63,44 @@ class DocumentRequestReminderFeatureTest extends TestCase
         $this->assertSame($application->id, (int) data_get($log->meta, 'loan_application_id'));
     }
 
+    public function test_cadence_reminders_and_day_seven_close_are_not_a_credit_rejection(): void
+    {
+        [$customer, $application] = $this->applicationPair();
+        $request = LoanApplicationDocumentRequest::create([
+            'loan_application_id' => $application->id,
+            'requested_by' => User::factory()->create(['role' => 'admin'])->id,
+            'label' => 'Updated residence proof',
+            'type' => 'document',
+            'status' => 'pending',
+            'due_at' => now()->subMinute(),
+            'created_at' => now()->subDays(3)->setTime(10, 0),
+            'updated_at' => now()->subDays(3)->setTime(10, 0),
+        ]);
+
+        $service = app(ApplicationDocumentRequestService::class);
+        $this->assertGreaterThanOrEqual(1, $service->sendScheduledReminders());
+
+        $request->forceFill(['due_at' => now()->subMinute()])->save();
+        $closed = $service->expireOverdueRequests();
+        $this->assertTrue($closed->contains(fn ($row) => (int) $row->id === (int) $application->id));
+
+        $application->refresh();
+        $this->assertSame('expired', $application->status);
+        $this->assertNotSame('rejected', $application->status);
+        $this->assertSame('Closed — Required information not provided', $application->closedReasonLabel());
+        $this->assertSame('expired', $request->fresh()->status);
+        $this->assertSame('required_information_not_provided', data_get($application->screening_payload, 'document_request_closure.kind'));
+        $this->assertNull($application->rejection_reason);
+
+        $notify = NotificationLog::query()
+            ->where('customer_id', $customer->id)
+            ->where('template', 'application_document_request_closed')
+            ->first();
+        $this->assertNotNull($notify);
+        $this->assertStringContainsString('Updated residence proof', $notify->message);
+        $this->assertStringContainsString('closed', strtolower($notify->message));
+    }
+
     /** @return array{0: Customer, 1: LoanApplication} */
     private function applicationPair(): array
     {

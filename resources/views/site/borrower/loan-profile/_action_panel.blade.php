@@ -196,6 +196,19 @@
             </div>
         </div>
     @endunless
+@elseif (($status['code'] ?? '') === 'required_information_not_provided')
+    <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand-muted/60 to-white ring-1 ring-brand/10 p-4 sm:p-5">
+        <div class="rounded-xl bg-white ring-1 ring-amber-100 px-4 py-4 space-y-2">
+            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.current_status') }}</p>
+            <p class="text-lg font-bold text-amber-950 mt-1">{{ __('borrower.applications_list.statuses.required_information_not_provided') }}</p>
+            @php
+                $detailLines = preg_split("/\n+/", trim((string) ($status['detail'] ?? ''))) ?: [];
+            @endphp
+            @foreach ($detailLines as $line)
+                <p class="text-sm text-slate-700">{{ $line }}</p>
+            @endforeach
+        </div>
+    </div>
 @elseif (($status['code'] ?? '') === 'rejected')
     <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand-muted/60 to-white ring-1 ring-brand/10 p-4 sm:p-5">
         <div id="rejection" class="rounded-xl bg-white ring-1 ring-red-100 px-4 py-4">

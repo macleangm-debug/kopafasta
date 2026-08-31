@@ -31,6 +31,9 @@ class LoanApplicationDocumentRequestController extends Controller
             'presets.*' => ['string', 'max:120'],
             'instructions' => ['nullable', 'string', 'max:2000'],
             'due_at' => ['nullable', 'date', 'after_or_equal:today'],
+            'open_item' => ['nullable', 'string', 'max:80'],
+            'gate' => ['nullable', 'string', 'max:40'],
+            'request_reason' => ['nullable', 'string', 'max:500'],
             'subject_kind' => ['nullable', 'in:borrower,member,guarantor'],
             'subject_customer_id' => ['nullable', 'integer'],
             'loan_group_member_id' => ['nullable', 'integer'],
@@ -72,9 +75,7 @@ class LoanApplicationDocumentRequestController extends Controller
             $data,
         );
 
-        $dueAt = isset($data['due_at'])
-            ? new \DateTimeImmutable($data['due_at'])
-            : now()->addDays(app(UnderwritingSettingsService::class)->documentRequestDefaultDueDays());
+        $dueAt = now()->addDays(app(UnderwritingSettingsService::class)->documentRequestDefaultDueDays());
 
         try {
             if ($request->boolean('ask_members')) {
@@ -119,6 +120,8 @@ class LoanApplicationDocumentRequestController extends Controller
                     $loanGroupMemberId,
                 );
 
+                $this->attachRequestContext($docRequest, $data);
+
                 $this->auditAdmin('admin.loan_applications.document_request_created', $loanApplication, [
                     'request_id' => $docRequest->id,
                     'label' => $labels[0],
@@ -128,8 +131,7 @@ class LoanApplicationDocumentRequestController extends Controller
 
                 if ($request->input('return_workspace') === 'guided') {
                     return redirect()
-                        ->route('admin.loan-applications.guided-screening', $loanApplication)
-                        ->with('status', 'Request sent. Screening is paused until it is received.');
+                        ->route('admin.loan-applications.guided-screening', $loanApplication);
                 }
 
                 return redirect()
@@ -390,5 +392,23 @@ class LoanApplicationDocumentRequestController extends Controller
             ))
             ->with('status', $cancelled === 1 ? 'Request withdrawn.' : $cancelled.' requests withdrawn.')
             ->withFragment($this->returnFragment($request));
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function attachRequestContext(LoanApplicationDocumentRequest $docRequest, array $data): void
+    {
+        $item = trim((string) ($data['open_item'] ?? ''));
+        $gate = trim((string) ($data['gate'] ?? ''));
+        $reason = trim((string) ($data['request_reason'] ?? ''));
+        if ($item === '' && $gate === '' && $reason === '') {
+            return;
+        }
+        $docRequest->forceFill(array_filter([
+            'checklist_item' => $item !== '' ? $item : null,
+            'gate' => $gate !== '' ? $gate : null,
+            'request_reason' => $reason !== '' ? $reason : null,
+        ], fn ($value) => $value !== null))->save();
     }
 }

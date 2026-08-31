@@ -92,6 +92,15 @@ class LoanApplication extends Model
         return (string) $this->status;
     }
 
+    public function closedReasonLabel(): string
+    {
+        if (data_get($this->screening_payload, 'document_request_closure')) {
+            return 'Closed — Required information not provided';
+        }
+
+        return display_label($this->closedStatus(), 'application_status');
+    }
+
     /** Linked loan is past origination — credit management / servicing desk. */
     public function hasActiveFacility(): bool
     {

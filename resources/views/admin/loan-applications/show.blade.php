@@ -93,9 +93,15 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 shrink-0">
+                    @if ($fromGuided)
+                        <a href="{{ $evidenceCtx->backUrl($record) }}"
+                           class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-gold text-brand-dark">
+                            Continue Reviewing →
+                        </a>
+                    @endif
                     @if ($fileIsClosed)
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
-                            {{ display_label($closedStatus, 'application_status') }}
+                            {{ $record->closedReasonLabel() }}
                         </span>
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/80 ring-1 ring-white/15">
                             View only
@@ -151,6 +157,21 @@
             @endif
         </div>
     </div>
+
+    @php $documentRequestClosure = data_get($record->screening_payload, 'document_request_closure'); @endphp
+    @if (is_array($documentRequestClosure))
+        <div class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 space-y-1">
+            <p class="text-xs uppercase tracking-widest text-amber-800 font-bold">{{ $record->closedReasonLabel() }}</p>
+            <p class="text-sm font-semibold text-amber-950">{{ $documentRequestClosure['staff_reason'] ?? 'Required information not provided.' }}</p>
+            <p class="text-xs text-amber-900">
+                Requested {{ format_app_datetime($documentRequestClosure['requested_at'] ?? null, 'd M Y') }}
+                · Deadline {{ format_app_datetime($documentRequestClosure['deadline_at'] ?? null, 'd M Y') }}
+                · Reminders sent {{ (int) ($documentRequestClosure['reminders_sent'] ?? 0) }}
+                · Submitted {{ ! empty($documentRequestClosure['submitted']) ? 'Yes' : 'No' }}
+                · Closed automatically {{ format_app_datetime($documentRequestClosure['closed_at'] ?? null, 'd M Y') }}
+            </p>
+        </div>
+    @endif
 
     @php
         $capacityAutoReject = app(\App\Services\CapacityAutoRejectService::class);

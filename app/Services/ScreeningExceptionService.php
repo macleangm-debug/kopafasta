@@ -174,8 +174,70 @@ class ScreeningExceptionService
     public function all(LoanApplication $application): array
     {
         $rows = data_get($application->screening_payload, 'screening_exceptions', []);
+        if (! is_array($rows)) {
+            return [];
+        }
 
-        return is_array($rows) ? array_values($rows) : [];
+        $requests = $application->documentRequests()->orderBy('id')->get();
+
+        return array_values(array_map(function ($row) use ($requests) {
+            if (! is_array($row)) {
+                return $row;
+            }
+            $itemKey = (string) ($row['item_key'] ?? '');
+            $person = (string) ($row['person'] ?? 'borrower');
+            $related = $requests->filter(function ($req) use ($itemKey, $person, $row) {
+                if ($itemKey !== '' && (string) $req->checklist_item === $itemKey) {
+                    return true;
+                }
+
+                return (string) $req->subject_kind === $person
+                    && filled($req->request_reason)
+                    && (int) ($req->loan_group_member_id ?? 0) === (int) ($row['m'] ?? 0);
+            });
+            $row['request_history'] = $related->map(function ($req) {
+                $lifecycle = is_array($req->lifecycle) ? $req->lifecycle : [];
+                $events = [
+                    [
+                        'label' => 'Requested '.$req->label,
+                        'status' => $req->request_reason ?: 'Request sent',
+                        'at' => optional($req->created_at)?->toIso8601String(),
+                    ],
+                ];
+                foreach ($lifecycle['reminders'] ?? [] as $reminder) {
+                    $events[] = [
+                        'label' => 'Reminder',
+                        'status' => ! empty($reminder['final']) ? 'Final reminder' : ('Day '.($reminder['day'] ?? '')),
+                        'at' => $reminder['at'] ?? null,
+                    ];
+                }
+                if ($req->status === 'uploaded' || $req->satisfied_at) {
+                    $events[] = [
+                        'label' => 'Replacement submitted',
+                        'status' => ucfirst((string) $req->status),
+                        'at' => optional($req->satisfied_at ?? $req->updated_at)?->toIso8601String(),
+                    ];
+                }
+                if ($req->status === 'satisfied') {
+                    $events[] = [
+                        'label' => 'Screening accepted',
+                        'status' => 'Satisfied',
+                        'at' => optional($req->satisfied_at)?->toIso8601String(),
+                    ];
+                }
+                if ($req->status === 'expired') {
+                    $events[] = [
+                        'label' => 'Expired',
+                        'status' => 'Required information not provided',
+                        'at' => $lifecycle['closed_at'] ?? null,
+                    ];
+                }
+
+                return $events;
+            })->flatten(1)->values()->all();
+
+            return $row;
+        }, $rows));
     }
 
     public function acknowledge(LoanApplication $application, User $actor, string $id): void

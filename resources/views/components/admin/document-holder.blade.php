@@ -41,6 +41,13 @@
                 @if (! empty($tab['caption']))
                     <p class="text-xs text-gray-500 mt-0.5">{{ $tab['caption'] }}</p>
                 @endif
+                @if (! empty($tab['owner']) || ! empty($tab['uploaded_at']) || ! empty($tab['request_label']))
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        @if (! empty($tab['owner'])) {{ $tab['owner'] }} @endif
+                        @if (! empty($tab['uploaded_at'])) · Uploaded {{ $tab['uploaded_at'] }} @endif
+                        @if (! empty($tab['request_label'])) · {{ $tab['request_label'] }} @endif
+                    </p>
+                @endif
             </div>
         @endforeach
 

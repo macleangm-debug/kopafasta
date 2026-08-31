@@ -74,8 +74,7 @@
         </p>
 
     <x-slot:footer>
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div class="max-w-xl mx-auto flex gap-2 items-stretch">
+    <div class="flex gap-2 items-stretch">
             <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'overview']) }}"
                class="flex-1 min-w-0 text-center rounded-xl bg-white ring-1 ring-slate-200 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Back</a>
             @if ($ready)
@@ -89,7 +88,6 @@
                 <a href="{{ $walk['desk_href'] }}"
                    class="flex-[2] min-w-0 text-center rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">{{ $next['cta'] ?? 'Continue Post-Approval' }}</a>
             @endif
-        </div>
     </div>
     </x-slot:footer>
 </x-admin.guided-review-shell>

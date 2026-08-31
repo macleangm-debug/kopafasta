@@ -49,11 +49,17 @@
         <x-admin.settings-panel id="documents">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-1">Document requests</h3>
-                <p class="text-xs text-gray-500 mb-4">Default due date when underwriting requests additional documents without specifying a date.</p>
+                <p class="text-xs text-gray-500 mb-4">
+                    Screening due dates are generated automatically. Staff cannot type a deadline.
+                    Maximum waiting period is {{ \App\Services\UnderwritingSettingsService::SCREENING_REQUEST_MAX_DAYS }} days.
+                </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <x-admin.input name="document_request_default_due_days" label="Default due date (days from request)" type="number"
-                                   :value="$values['document_request_default_due_days'] ?? 7" required />
+                    <x-admin.input name="document_request_default_due_days" label="Due date (days from request)" type="number"
+                                   :value="$values['document_request_default_due_days'] ?? 7" min="1" :max="\App\Services\UnderwritingSettingsService::SCREENING_REQUEST_MAX_DAYS" required />
+                    <x-admin.input name="document_request_reminder_offsets" label="Reminder days after request (comma-separated)"
+                                   :value="$values['document_request_reminder_offsets'] ?? '3,5,6'" />
                 </div>
+                <p class="mt-3 text-xs text-slate-600">Example: due in 7 days with reminders on days 3, 5 and 6. Day 7 closes the file if the document is still outstanding — this is not a credit rejection.</p>
             </div>
         </x-admin.settings-panel>
 

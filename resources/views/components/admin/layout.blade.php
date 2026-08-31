@@ -436,15 +436,16 @@
                 <div class="min-w-0">
                     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Document preview</p>
                     <p id="kf-doc-drawer-title" class="text-sm font-semibold text-gray-900 truncate"></p>
+                    <p id="kf-doc-drawer-meta" class="text-xs text-gray-500 truncate hidden"></p>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <a id="kf-doc-drawer-open-tab" href="#" target="_blank" rel="noopener"
                        class="text-xs font-semibold text-brand hover:text-brand-light px-3 py-1.5 rounded-lg ring-1 ring-brand/15 bg-white">
-                        Open in tab
+                        Open original
                     </a>
-                    <button type="button" onclick="window.kfCloseDocumentPreview()"
-                            class="text-gray-500 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100" aria-label="Close">
-                        <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <button type="button" id="kf-doc-drawer-close" onclick="window.kfCloseDocumentPreview()"
+                            class="text-xs font-bold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg ring-1 ring-slate-200 bg-white">
+                        Back to Review
                     </button>
                 </div>
             </div>
@@ -453,6 +454,10 @@
                 <div id="kf-doc-drawer-image-wrap" class="hidden w-full flex items-center justify-center">
                     <img id="kf-doc-drawer-image" alt="" class="max-w-full max-h-[70vh] rounded-lg shadow-sm ring-1 ring-gray-200 object-contain">
                 </div>
+            </div>
+            <div class="sm:hidden px-4 py-3 border-t border-gray-200 bg-white shrink-0">
+                <button type="button" id="kf-doc-drawer-close-mobile" onclick="window.kfCloseDocumentPreview()"
+                        class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3">Back to Review</button>
             </div>
         </div>
     </div>
@@ -496,11 +501,31 @@ window.kfOpenDocumentPreview = function (url, title, type) {
     var image = document.getElementById('kf-doc-drawer-image');
     var titleEl = document.getElementById('kf-doc-drawer-title');
     var openTab = document.getElementById('kf-doc-drawer-open-tab');
+    var closeBtn = document.getElementById('kf-doc-drawer-close');
+    var closeMobile = document.getElementById('kf-doc-drawer-close-mobile');
+    var panel = drawer ? drawer.querySelector('[role="dialog"]') : null;
 
     if (! drawer) return;
 
+    var fromReview = !!document.querySelector('[data-guided-review]');
     titleEl.textContent = title || 'Document';
     openTab.href = url;
+    var closeLabel = fromReview ? 'Back to Review' : 'Close';
+    if (closeBtn) {
+        closeBtn.textContent = closeLabel;
+    }
+    if (closeMobile) {
+        closeMobile.textContent = closeLabel;
+    }
+    if (panel) {
+        if (window.matchMedia('(max-width: 640px)').matches) {
+            panel.classList.remove('max-w-3xl', 'max-h-[90vh]', 'rounded-2xl');
+            panel.classList.add('max-w-none', 'h-full', 'rounded-none');
+        } else {
+            panel.classList.add('max-w-3xl', 'max-h-[90vh]', 'rounded-2xl');
+            panel.classList.remove('max-w-none', 'h-full', 'rounded-none');
+        }
+    }
 
     var urlLower = String(url || '').toLowerCase();
     if (type === 'pdf' || urlLower.indexOf('.pdf') !== -1 || urlLower.indexOf('loan-agreements') !== -1 || urlLower.indexOf('rejection-letter') !== -1) {

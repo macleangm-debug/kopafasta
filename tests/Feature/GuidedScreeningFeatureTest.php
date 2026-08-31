@@ -376,7 +376,9 @@ class GuidedScreeningFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('fixed inset-x-0 bottom-0', $html);
+        $this->assertStringContainsString('data-guided-review', $html);
+        $this->assertStringContainsString('sticky bottom-0', $html);
+        $this->assertStringNotContainsString('fixed inset-x-0 bottom-0', $html);
         $this->assertStringContainsString('Kopafasta Credit', $html);
         $this->assertTrue(
             str_contains($html, 'Save & Next')
@@ -385,6 +387,11 @@ class GuidedScreeningFeatureTest extends TestCase
         );
         $this->assertStringContainsString('Review Checklist', $html);
         $this->assertStringContainsString('whitespace-normal', $html);
+        $this->assertTrue(
+            str_contains($html, 'data-loading-label="Saving…"')
+            || (str_contains($html, 'Continue to') && str_contains($html, 'Verified Income'))
+            || str_contains($html, 'Confirm in the card')
+        );
         if (getenv('DUMP_GUIDED_HTML')) {
             @mkdir('/tmp/kopafasta-qa', 0777, true);
             file_put_contents('/tmp/kopafasta-qa/guided-wizard.html', $html);
@@ -965,5 +972,64 @@ class GuidedScreeningFeatureTest extends TestCase
         $weak = $app->loanGroup->members->filter(fn ($m) => in_array((int) $m->customer_id, $weakIds, true))->values();
 
         return [$admin, $app, ['weak' => $weak]];
+    }
+
+    public function test_residence_proof_is_first_in_gate_4_residence_sequence(): void
+    {
+        $keys = array_keys(config('screening_checklist.residence.items'));
+        $this->assertSame('utility_or_proof', $keys[0] ?? null);
+        $this->assertSame('address_consistency', $keys[1] ?? null);
+        $this->assertSame('local_government', $keys[2] ?? null);
+    }
+
+    public function test_checklist_opened_from_guided_review_returns_to_the_wizard(): void
+    {
+        [$admin, $app] = $this->file();
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'checklist',
+                'from' => 'guided',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Back to Guided Review', $html);
+        $this->assertStringContainsString('Continue Reviewing', $html);
+    }
+
+    public function test_inline_document_request_uses_settings_due_days_and_stores_checklist_context(): void
+    {
+        [$admin, $app] = $this->file();
+        Setting::set('underwriting.document_request_default_due_days', 7);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $app), [
+                'type' => 'document',
+                'presets' => ['Updated National ID'],
+                'confirmed' => '1',
+                'return_workspace' => 'guided',
+                'open_item' => 'identity.id_document_quality',
+                'gate' => 'identity',
+                'request_reason' => 'Current copy is unclear.',
+                'due_at' => now()->addDays(30)->toDateString(),
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app));
+
+        $request = $app->documentRequests()->latest('id')->first();
+        $this->assertNotNull($request);
+        $this->assertSame('identity.id_document_quality', $request->checklist_item);
+        $this->assertSame('identity', $request->gate);
+        $this->assertSame('Current copy is unclear.', $request->request_reason);
+        $this->assertTrue($request->due_at->lte(now()->addDays(7)->endOfDay()));
+        $this->assertTrue($request->due_at->gte(now()->addDays(6)->startOfDay()));
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.guided-screening', $app))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Request sent', $html);
+        $this->assertStringContainsString('Screening paused', $html);
+        $this->assertStringNotContainsString('name="due_at"', $html);
     }
 }

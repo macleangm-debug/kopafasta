@@ -82,12 +82,15 @@ return [
                 ],
             ],
             'id_document_quality' => [
-                'label' => 'Confirm ID documents are clear (via Documents)',
+                'label' => 'Confirm ID documents are clear',
                 'evidence' => 'id_docs',
                 'risk' => 'critical',
                 'document_bundle' => 'id_quality',
                 'fail_reasons' => [
-                    'poor_quality' => 'Document unclear or incomplete',
+                    'poor_quality' => 'Document unclear',
+                    'wrong_document' => 'Wrong document',
+                    'information_does_not_match' => 'Information does not match',
+                    'document_incomplete' => 'Document appears incomplete',
                     'suspected_tamper' => 'Suspected tampering / falsified ID',
                     'proof_missing' => 'ID document missing',
                     'custom' => 'Other (write reason)',
@@ -101,6 +104,20 @@ return [
         'phase_label' => '1 · Personal in place',
         'subjects' => ['borrower', 'guarantor', 'member'],
         'items' => [
+            'utility_or_proof' => [
+                'label' => 'Confirm residence proof',
+                'evidence' => 'residence_proof',
+                'document_bundle' => 'residence_proof',
+                'fail_reasons' => [
+                    'proof_missing' => 'Residence proof missing',
+                    'document_unclear' => 'Document unclear',
+                    'wrong_document' => 'Wrong document',
+                    'information_does_not_match' => 'Information does not match',
+                    'document_incomplete' => 'Document appears incomplete',
+                    'proof_invalid' => 'Residence proof invalid or outdated',
+                    'custom' => 'Other (write reason)',
+                ],
+            ],
             'address_consistency' => [
                 'label' => 'Confirm residence details are complete (address + LGO)',
                 'evidence' => 'residence',
@@ -127,16 +144,6 @@ return [
                 'fail_reasons' => [
                     'not_verified' => 'Landlord / ownership not verified',
                     'not_applicable_fail' => 'Claimed ownership cannot be confirmed',
-                    'custom' => 'Other (write reason)',
-                ],
-            ],
-            'utility_or_proof' => [
-                'label' => 'Confirm residence proof (via Documents)',
-                'evidence' => 'residence_proof',
-                'document_bundle' => 'residence_proof',
-                'fail_reasons' => [
-                    'proof_missing' => 'Residence proof missing',
-                    'proof_invalid' => 'Residence proof invalid or outdated',
                     'custom' => 'Other (write reason)',
                 ],
             ],

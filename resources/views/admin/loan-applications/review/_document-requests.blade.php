@@ -482,14 +482,10 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1">Due date (optional)</label>
-                            <input type="date" name="due_at"
-                                   min="{{ now()->toDateString() }}"
-                                   value="{{ old('due_at') }}"
-                                   class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
-                            @error('due_at')
-                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                            @enderror
+                            <p class="text-xs font-semibold text-gray-600">Due</p>
+                            <p class="mt-1 text-sm text-slate-800">
+                                Due in {{ app(\App\Services\UnderwritingSettingsService::class)->documentRequestDefaultDueDays() }} days — set by Screening policy
+                            </p>
                         </div>
                     </div>
 
