@@ -44,22 +44,34 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Requested for: Rogathe Nyelle', $en);
+        $this->assertStringContainsString('For Rogathe Nyelle', $en);
+        $this->assertStringContainsString('You can add this for Rogathe Nyelle', $en);
         $this->assertStringContainsString('Rogathe Nyelle', $en);
         $this->assertStringContainsString('Front', $en);
         $this->assertStringContainsString('Back', $en);
+        $this->assertStringContainsString('Take ID photos', $en);
+        $this->assertStringContainsString('Take the FRONT of the national ID', $en);
+        $this->assertStringContainsString('Take the BACK of the national ID', $en);
+        $this->assertStringContainsString('Landscape', $en);
+        $this->assertStringContainsString('Portrait', $en);
+        $this->assertStringContainsString('valuationCamera', $en);
         $this->assertStringContainsString('doc-req-front-'.$request->id, $en);
         $this->assertStringContainsString('doc-req-back-'.$request->id, $en);
         $this->assertStringNotContainsString('must update this in their profile', $en);
+        $this->assertStringNotContainsString('Waiting for group leader', $en);
 
         $sw = $this->actingAs($leaderUser)
             ->withSession(['locale' => 'sw'])
             ->get(route('site.borrower.application', ['application' => $application->id, 'doc' => $request->id]))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('Imeombwa kwa: Rogathe Nyelle', $sw);
+        $this->assertStringContainsString('Kwa Rogathe Nyelle', $sw);
+        $this->assertStringContainsString('Unaweza kuongeza hii kwa Rogathe Nyelle', $sw);
         $this->assertStringContainsString('Mbele', $sw);
         $this->assertStringContainsString('Nyuma', $sw);
+        $this->assertStringContainsString('Piga picha za kitambulisho', $sw);
+        $this->assertStringContainsString('Mlalo', $sw);
+        $this->assertStringContainsString('Wima', $sw);
 
         $this->actingAs($leaderUser)
             ->post(route('site.borrower.application.document-requests.store', [$application, $request]), [
@@ -81,6 +93,49 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('Submitted', $receipt);
         $this->assertStringContainsString('Kopafasta will review this document', $receipt);
+    }
+
+    public function test_group_peer_cannot_upload_another_members_national_id(): void
+    {
+        Storage::fake('public');
+        DocumentType::create(['code' => 'national_id_front', 'name' => 'National ID front', 'is_active' => true]);
+        DocumentType::create(['code' => 'national_id_back', 'name' => 'National ID back', 'is_active' => true]);
+
+        [, $application, $request, $member] = $this->groupNationalIdRequest();
+        $peerUser = User::factory()->create(['role' => 'borrower']);
+        $peer = Customer::create([
+            'user_id' => $peerUser->id,
+            'customer_number' => 'CU-PEER-NID',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Amina',
+            'last_name' => 'Peer',
+            'phone' => '255712340103',
+        ]);
+        LoanGroupMember::create([
+            'loan_group_id' => $application->loan_group_id,
+            'customer_id' => $peer->id,
+            'loan_application_id' => $application->id,
+            'role' => 'member',
+            'requested_amount' => 450_000,
+            'sort_order' => 3,
+            'onboarding_status' => 'complete',
+            'underwriting_status' => 'pending',
+        ]);
+
+        $service = app(ApplicationDocumentRequestService::class);
+        $this->assertFalse($service->customerCanFulfillRequest($peer->fresh(), $request->fresh()));
+        $this->assertFalse($service->borrowerIsAssisting($peer->fresh(), $request->fresh()));
+        $this->assertFalse($service->borrowerIsAssisting($member->fresh(), $request->fresh()));
+
+        $this->actingAs($peerUser)
+            ->post(route('site.borrower.application.document-requests.store', [$application, $request]), [
+                'front' => UploadedFile::fake()->image('nida-front-peer.jpg'),
+                'back' => UploadedFile::fake()->image('nida-back-peer.jpg'),
+            ])
+            ->assertForbidden();
+
+        $this->assertSame('pending', $request->fresh()->status);
     }
 
     public function test_collateral_asset_card_include_does_not_require_a_component_slot(): void

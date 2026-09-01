@@ -83,4 +83,39 @@ class CollateralCardServiceTest extends TestCase
         $this->assertFalse($service->isOutstanding($satisfied));
         $this->assertSame('Accepted', $service->operationalStatusLabel($satisfied));
     }
+
+    public function test_borrower_card_hides_market_and_forced_sale_values(): void
+    {
+        $html = view('components.site.collateral-card', [
+            'selected' => [
+                'label' => 'Toyota Rav4',
+                'type_label' => 'Vehicle',
+                'viewer' => CollateralCardService::VIEWER_BORROWER,
+                'registration_number' => 'T123ABC',
+                'make' => 'Toyota',
+                'year' => '2025',
+                'show' => [
+                    'identity' => true,
+                    'ownership' => false,
+                    'insurance' => false,
+                    'valuation' => false,
+                    'ltv' => false,
+                    'valuer' => false,
+                ],
+                'badges' => [
+                    ['label' => 'Insured', 'tone' => 'emerald'],
+                    ['label' => 'Waiting for valuer', 'tone' => 'amber'],
+                ],
+                'valuation' => [
+                    'market_value' => 20_000_000,
+                    'forced_sale_value' => 15_000_000,
+                ],
+            ],
+        ])->render();
+
+        $this->assertStringContainsString('Toyota Rav4', $html);
+        $this->assertStringContainsString('Waiting for valuer', $html);
+        $this->assertStringNotContainsString('Forced sale value', $html);
+        $this->assertStringNotContainsString('Market value', $html);
+    }
 }

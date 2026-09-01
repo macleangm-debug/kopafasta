@@ -119,7 +119,6 @@ class CollateralCardService
         }
 
         $showValuation = $valued && in_array($viewer, [
-            self::VIEWER_BORROWER,
             self::VIEWER_SCREENING,
             self::VIEWER_COMMITTEE,
             self::VIEWER_MANAGEMENT,
@@ -136,10 +135,10 @@ class CollateralCardService
             $badges[] = ['label' => __('borrower.collateral_secure.badge_insured'), 'tone' => 'emerald'];
         }
         if ($valued) {
-            $badges[] = ['label' => 'Valued', 'tone' => 'sky'];
+            $badges[] = ['label' => __('borrower.collateral_secure.badge_valued'), 'tone' => 'sky'];
         }
         if ($secured) {
-            $badges[] = ['label' => 'Secured', 'tone' => 'emerald'];
+            $badges[] = ['label' => __('borrower.collateral_secure.badge_secured'), 'tone' => 'emerald'];
         }
         if ($onLoan && $viewer !== self::VIEWER_BORROWER) {
             $badges[] = ['label' => 'On this loan', 'tone' => 'brand'];

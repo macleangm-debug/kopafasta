@@ -90,8 +90,8 @@ class Phase31FeatureTest extends TestCase
             ->assertSee('max-w-3xl', false)
             ->assertSee(__('borrower.loan_profile.summary_title'), false)
             ->assertSee(__('borrower.loan_profile.label'), false)
-            ->assertSee(__('borrower.loan_profile.standing_title'), false)
-            ->assertSee(__('borrower.loan_profile.standing_grade'), false);
+            ->assertDontSee(__('borrower.loan_profile.standing_title'), false)
+            ->assertDontSee(__('borrower.loan_profile.standing_grade'), false);
     }
 
     public function test_loan_restructure_and_top_up_pages_use_wide_layout(): void

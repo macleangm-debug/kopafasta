@@ -207,6 +207,23 @@ body.kf-camera-open {
     overflow: hidden;
 }
 
+.kf-cam-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #111;
+}
+
+.kf-cam-stage.is-rotated video {
+    width: 100vh;
+    height: 100vw;
+    max-width: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+
 body.kf-camera-open .kf-mobile-bottom-nav {
     display: none !important;
 }

@@ -1,0 +1,51 @@
+<template x-teleport="body">
+    <div x-show="open" x-cloak class="fixed inset-0 z-[95] bg-black flex flex-col">
+        <div class="kf-cam-stage" :class="needsPreviewRotate() ? 'is-rotated' : ''">
+            <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
+                   class="absolute inset-0 z-[1] w-full h-full object-cover bg-gray-900"></video>
+        </div>
+        <div class="relative z-[4] pt-[max(1rem,env(safe-area-inset-top))] px-4 flex items-start justify-between gap-3 bg-gradient-to-b from-black/80 to-transparent pb-8">
+            <div class="min-w-0 max-w-md rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold"
+                   x-text="current() && current().required ? (captureOrdinal() + ' of ' + requiredTotal() + ' — ' + current().label) : (current() ? current().label : '')"></p>
+                <p class="text-sm font-semibold mt-1" x-text="current()?.guidance || ''"></p>
+            </div>
+            <button type="button" @click="closeCamera()"
+                    class="shrink-0 text-xs font-semibold text-white/90 bg-white/15 ring-1 ring-white/25 px-3 py-2 rounded-full">
+                {{ __('site.partner_portal.valuation_camera_close') }}
+            </button>
+        </div>
+        <div x-show="guideFrame === 'id-card'" x-cloak
+             class="absolute inset-0 z-[3] flex items-center justify-center pointer-events-none px-6">
+            <div class="rounded-xl border-[3px] border-brand-gold/90 shadow-[0_0_24px_rgba(251,191,36,0.28)]"
+                 :class="orientation === 'landscape' ? 'w-[88%] max-w-lg aspect-[1.586]' : 'h-[58%] max-h-[28rem] aspect-[0.63]'"></div>
+        </div>
+        <div x-show="flash" x-cloak class="relative z-[5] mt-auto mb-auto px-6 text-center text-white">
+            <p class="text-xl font-extrabold" x-text="flash ? ('✓ ' + flash.label) : ''"></p>
+            <p class="text-sm font-semibold mt-1" x-show="flash?.next"
+               x-text="flash ? @js(__('site.partner_portal.valuation_next_is', ['label' => '__L__'])).replace('__L__', flash.next) : ''"></p>
+        </div>
+        <p x-show="cameraNotice" x-cloak class="relative z-[4] mx-4 rounded-xl bg-amber-50 text-amber-950 text-sm font-semibold p-3" x-text="cameraNotice"></p>
+        <button type="button" x-show="cameraNotice" x-cloak @click="openCam()"
+                class="relative z-[4] mx-4 mt-3 w-[calc(100%-2rem)] rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">
+            {{ __('site.partner_portal.valuation_camera_retry') }}
+        </button>
+        <div class="relative z-[4] mt-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+            <div class="flex items-center justify-center gap-2 mb-4">
+                <button type="button" @click="orientation !== 'portrait' && toggleOrientation()"
+                        :class="orientation === 'portrait' ? 'bg-brand-gold text-brand' : 'bg-white/15 text-white ring-1 ring-white/30'"
+                        class="rounded-full text-xs font-bold px-3.5 py-2">
+                    {{ __('borrower.document_upload.orientation_portrait') }}
+                </button>
+                <button type="button" @click="orientation !== 'landscape' && toggleOrientation()"
+                        :class="orientation === 'landscape' ? 'bg-brand-gold text-brand' : 'bg-white/15 text-white ring-1 ring-white/30'"
+                        class="rounded-full text-xs font-bold px-3.5 py-2">
+                    {{ __('borrower.document_upload.orientation_landscape') }}
+                </button>
+            </div>
+            <button type="button" @click="capture()"
+                    class="mx-auto block size-16 rounded-full bg-brand-gold text-brand font-extrabold shadow-lg grid place-items-center">●</button>
+            <p class="text-center text-white text-sm font-bold mt-3">{{ __('site.partner_portal.valuation_camera_capture') }}</p>
+        </div>
+    </div>
+</template>

@@ -20,18 +20,5 @@
                 ]) }}</p>
             @endif
         </div>
-        <div class="px-5 sm:px-6 py-5">
-            @include('site.borrower.loan-profile._collateral_next_steps', [
-                'audience' => 'borrower',
-                'progress' => [
-                    'status' => ($wait['status'] ?? '') === 'in_progress'
-                        ? 'in_progress'
-                        : (($wait['unassigned'] ?? false) ? 'awaiting_valuer' : 'in_progress'),
-                    'label' => ! empty($wait['no_regional_cover'])
-                        ? __('borrower.collateral_secure.valuation_status_no_regional_valuer')
-                        : __('borrower.collateral_secure.valuation_status_awaiting_valuer'),
-                ],
-            ])
-        </div>
     </div>
 @endif

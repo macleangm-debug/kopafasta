@@ -49,24 +49,55 @@
             $selected['make'] ?? null,
             $selected['model'] ?? null,
         ])));
+        $isBorrower = ($selected['viewer'] ?? '') === \App\Services\CollateralCardService::VIEWER_BORROWER;
+        $identityRows = [];
+        if (! empty($show['identity'])) {
+            if (! empty($selected['registration_number']) && $selected['registration_number'] !== '—') {
+                $identityRows[] = [__('borrower.profile.collateral_fields.registration_number'), $selected['registration_number']];
+            }
+            if ($makeModel !== '') {
+                $identityRows[] = [__('borrower.profile.collateral_fields.make'), $makeModel];
+            }
+            if (! empty($selected['year']) && $selected['year'] !== '—') {
+                $identityRows[] = [__('borrower.profile.collateral_fields.year'), $selected['year']];
+            }
+            if (! empty($selected['chassis']) && $selected['chassis'] !== '—') {
+                $identityRows[] = [__('borrower.profile.collateral_fields.chassis_number'), $selected['chassis']];
+            } elseif (! empty($selected['serial'])) {
+                $identityRows[] = [__('borrower.profile.collateral_fields.serial_number'), $selected['serial']];
+            }
+        }
     @endphp
     <div @class([
-        'rounded-2xl ring-1 ring-brand/15 overflow-hidden bg-brand-muted/20',
+        'rounded-2xl ring-1 ring-brand/15 overflow-hidden',
+        'bg-white' => $isBorrower,
+        'bg-brand-muted/20' => ! $isBorrower,
         'h-full flex flex-col' => $layout === 'grid',
     ])>
-        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3.5 sm:p-4 items-start">
-            <div class="shrink-0 size-16 sm:size-20 rounded-xl overflow-hidden bg-white ring-1 ring-gray-200">
+        <div @class([
+            'flex gap-4 items-start',
+            'flex-col' => $isBorrower,
+            'flex-col sm:flex-row p-3.5 sm:p-4' => ! $isBorrower,
+        ])>
+            <div @class([
+                'overflow-hidden bg-brand-muted/40',
+                'w-full aspect-[16/10] sm:aspect-[21/9]' => $isBorrower,
+                'shrink-0 size-16 sm:size-20 rounded-xl ring-1 ring-gray-200' => ! $isBorrower,
+            ])>
                 @if (! empty($selected['thumbnail']))
                     <img src="{{ $selected['thumbnail'] }}" alt="" class="h-full w-full object-cover">
                 @else
-                    <span class="h-full w-full grid place-items-center text-2xl">{{ $icons[$selected['asset_type'] ?? ''] ?? '📦' }}</span>
+                    <span class="h-full w-full grid place-items-center {{ $isBorrower ? 'text-4xl' : 'text-2xl' }}">{{ $icons[$selected['asset_type'] ?? ''] ?? '📦' }}</span>
                 @endif
             </div>
-            <div class="min-w-0 flex-1 space-y-2">
+            <div @class([
+                'min-w-0 flex-1 space-y-3',
+                'px-4 pb-4' => $isBorrower,
+            ])>
                 <div class="flex flex-wrap items-start justify-between gap-2">
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $selected['type_label'] ?? '' }}</p>
-                        <p class="text-base sm:text-lg font-extrabold text-gray-900 mt-0.5 truncate">{{ $selected['label'] }}</p>
+                        <p class="text-lg sm:text-xl font-extrabold text-gray-900 mt-0.5 truncate">{{ $selected['label'] }}</p>
                     </div>
                     @if ($badges->isNotEmpty())
                         <div class="flex flex-wrap justify-end gap-1">
@@ -79,36 +110,26 @@
                     @endif
                 </div>
 
-                @if (! empty($show['identity']))
-                    <div class="space-y-0.5">
-                        @if (! empty($selected['registration_number']) && $selected['registration_number'] !== '—')
-                            <p class="text-xs sm:text-sm font-semibold text-gray-600 truncate">{{ __('borrower.profile.collateral_fields.registration_number') }}: {{ $selected['registration_number'] }}</p>
-                        @endif
-                        @if ($makeModel !== '')
-                            <p class="text-xs sm:text-sm font-semibold text-gray-600 truncate">{{ __('borrower.profile.collateral_fields.make') }}: {{ $makeModel }}</p>
-                        @endif
-                        @if (! empty($selected['year']) && $selected['year'] !== '—')
-                            <p class="text-xs sm:text-sm font-semibold text-gray-600 truncate">{{ __('borrower.profile.collateral_fields.year') }}: {{ $selected['year'] }}</p>
-                        @endif
-                        @if (! empty($selected['chassis']) && $selected['chassis'] !== '—')
-                            <p class="text-xs sm:text-sm font-semibold text-gray-600 truncate">{{ __('borrower.profile.collateral_fields.chassis_number') }}: {{ $selected['chassis'] }}</p>
-                        @elseif (! empty($selected['serial']))
-                            <p class="text-xs sm:text-sm font-semibold text-gray-600 truncate">{{ __('borrower.profile.collateral_fields.serial_number') }}: {{ $selected['serial'] }}</p>
-                        @endif
-                    </div>
+                @if ($identityRows !== [])
+                    <dl class="grid grid-cols-[minmax(0,8.5rem)_1fr] gap-x-3 gap-y-1.5 text-sm">
+                        @foreach ($identityRows as [$rowLabel, $rowValue])
+                            <dt class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{{ $rowLabel }}</dt>
+                            <dd class="font-semibold text-gray-900 truncate">{{ $rowValue }}</dd>
+                        @endforeach
+                    </dl>
                 @endif
 
-                @if (! empty($show['ownership']) && (! empty($selected['owner_name']) || ! empty($selected['belongs_to']) || ! empty($selected['ownership_status'])))
+                @if (! empty($show['ownership']) && (! empty($selected['owner_name']) || ! empty($selected['belongs_to']) || (! $isBorrower && ! empty($selected['ownership_status']))))
                     <div class="space-y-0.5">
-                        @if (! empty($selected['owner_name']))
-                            <p class="text-xs font-semibold text-gray-800 truncate">{{ $selected['owner_name'] }}</p>
+                        @if (! $isBorrower && ! empty($selected['belongs_to']))
+                            <p class="text-sm font-semibold text-gray-700 truncate">{{ __('site.partner_portal.valuation_belongs_to') }}: {{ $selected['belongs_to'] }}</p>
+                        @elseif (! empty($selected['owner_name']))
+                            <p class="text-sm font-semibold text-gray-800 truncate">{{ $selected['owner_name'] }}</p>
                             @if (! empty($selected['owner_role']))
                                 <p class="text-[11px] font-bold text-brand">{{ $selected['owner_role'] }}</p>
                             @endif
-                        @elseif (! empty($selected['belongs_to']))
-                            <p class="text-xs font-semibold text-gray-700 truncate">{{ __('site.partner_portal.valuation_belongs_to') }}: {{ $selected['belongs_to'] }}</p>
                         @endif
-                        @if (! empty($selected['ownership_status']))
+                        @if (! $isBorrower && ! empty($selected['ownership_status']))
                             <p class="text-[11px] font-semibold text-gray-500">{{ $selected['ownership_status'] }}</p>
                         @endif
                     </div>
@@ -167,7 +188,7 @@
                     </div>
                 @endif
 
-                {{ $slot }}
+                {{ $slot ?? '' }}
             </div>
         </div>
     </div>

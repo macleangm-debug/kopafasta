@@ -972,6 +972,7 @@ class CollateralSecureService
         };
 
         $wait = app(ValuationPartnerService::class)->borrowerWaitView($application);
+        $valuationProgress = $this->valuationProgress($application, $state);
 
         return [
             'active' => ! in_array($state['status'] ?? '', [self::STATUS_REJECTED, self::STATUS_EXPIRED], true),
@@ -986,7 +987,7 @@ class CollateralSecureService
                 ? null
                 : $this->feeQuote($application),
             'valuation_fee_quote' => $this->valuationFeeQuote($application),
-            'valuation_progress' => $this->valuationProgress($application, $state),
+            'valuation_progress' => $valuationProgress,
             'valuer_unassigned' => (bool) ($wait['unassigned'] ?? false),
             'no_regional_cover' => (bool) ($wait['no_regional_cover'] ?? false),
             'valuer_name' => $wait['valuer_name'] ?? null,
@@ -997,7 +998,7 @@ class CollateralSecureService
                 'edit' => $state['customer_asset_id'] ?? null,
             ]),
             'assets' => $this->selectableAssets($application, $state)->map(fn (CustomerAsset $a) => $this->assetCard($a, $application))->values(),
-            'selected_asset' => $selected,
+            'selected_asset' => $this->withBorrowerValuationStage($selected, $valuationProgress),
             'insurance' => $state['insurance'] ?? null,
             'insurance_purchase' => $state['insurance_purchase'] ?? null,
             'insurance_quote_defaults' => [
@@ -1017,6 +1018,45 @@ class CollateralSecureService
     private function assetCard(CustomerAsset $asset, LoanApplication $application): array
     {
         return app(CollateralCardService::class)->forAsset($asset, $application, CollateralCardService::VIEWER_BORROWER);
+    }
+
+    /**
+     * Surface the current valuation stage as a status on the borrower asset card
+     * instead of a separate four-step checklist.
+     *
+     * @param  array<string, mixed>|null  $selected
+     * @param  array<string, mixed>  $progress
+     * @return array<string, mixed>|null
+     */
+    private function withBorrowerValuationStage(?array $selected, array $progress): ?array
+    {
+        if (! $selected) {
+            return null;
+        }
+
+        $status = (string) ($progress['status'] ?? '');
+        $label = (string) ($progress['label'] ?? '');
+        $selected['valuation_stage'] = $status;
+        $selected['valuation_stage_label'] = $label;
+
+        $existing = collect($selected['badges'] ?? [])->pluck('label')->all();
+        $valuedLabel = __('borrower.collateral_secure.badge_valued');
+        if ($status === 'completed' && in_array($valuedLabel, $existing, true)) {
+            return $selected;
+        }
+
+        if ($label === '' || in_array($label, $existing, true)) {
+            return $selected;
+        }
+
+        $tone = match ($status) {
+            'completed', 'in_progress' => 'sky',
+            'awaiting_valuer', 'pay_valuation', 'idle', 'waiting_payment' => 'amber',
+            default => 'brand',
+        };
+        $selected['badges'][] = ['label' => $label, 'tone' => $tone];
+
+        return $selected;
     }
 
     /** @return \Illuminate\Support\Collection<int, CustomerAsset> */

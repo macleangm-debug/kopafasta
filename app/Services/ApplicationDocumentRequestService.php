@@ -387,27 +387,27 @@ class ApplicationDocumentRequestService
     public function waitingOnLabel(LoanApplicationDocumentRequest $request, ?array $groupReview = null): string
     {
         if ($request->status === 'uploaded') {
-            return 'Waiting for review';
+            return __('borrower.document_upload.waiting_review');
         }
         if ($request->status === 'rejected') {
-            return 'Needs replacement';
+            return __('borrower.document_upload.waiting_replacement');
         }
         if (str_contains(mb_strtolower((string) $request->label), 'valuation')) {
-            return 'Waiting for valuer';
+            return __('borrower.document_upload.waiting_valuer');
         }
 
         $role = $request->subjectRoleLabel($groupReview);
         if (str_contains($role, 'Leader')) {
-            return 'Waiting for group leader';
+            return __('borrower.document_upload.waiting_leader');
         }
         if (str_contains($role, 'Guarantor')) {
-            return 'Waiting for guarantor';
+            return __('borrower.document_upload.waiting_guarantor');
         }
         if (str_contains($role, 'Member')) {
-            return 'Waiting for member';
+            return __('borrower.document_upload.waiting_member');
         }
 
-        return 'Waiting for borrower';
+        return __('borrower.document_upload.waiting_borrower');
     }
 
     public function outstandingTimingPhrase(LoanApplicationDocumentRequest $request): string
@@ -1675,8 +1675,8 @@ class ApplicationDocumentRequestService
     }
 
     /**
-     * True when the logged-in customer is the application owner helping a
-     * member or guarantor fulfill a request targeted at someone else.
+     * True when the logged-in customer is the application owner (group leader /
+     * borrower) helping a member or guarantor fulfill a request targeted at someone else.
      */
     public function borrowerIsAssisting(Customer $customer, LoanApplicationDocumentRequest $request): bool
     {
@@ -1726,17 +1726,14 @@ class ApplicationDocumentRequestService
     {
         $request->loadMissing('application');
 
-        if ($request->subject_customer_id) {
-            if ((int) $request->subject_customer_id === (int) $customer->id) {
-                return true;
-            }
-        } elseif ((int) $request->application?->customer_id === (int) $customer->id) {
+        if ($this->isSubjectOfRequest($customer, $request)) {
             return true;
         }
 
-        // Primary borrower / group leader can assist members and guarantors.
-        return in_array((string) ($request->subject_kind ?? ''), ['member', 'guarantor'], true)
-            && (int) $request->application?->customer_id === (int) $customer->id;
+        $kind = (string) ($request->subject_kind ?? '');
+        $isOwner = (int) $request->application?->customer_id === (int) $customer->id;
+
+        return $isOwner && in_array($kind, ['member', 'guarantor'], true);
     }
 
     public function pendingReviewCount(): int

@@ -298,16 +298,11 @@
                 @php
                     $valQuote = $secure['valuation_fee_quote'] ?? null;
                     $valAmount = (int) ($valQuote['due'] ?? 0);
-                    $progress = $secure['valuation_progress'] ?? null;
                 @endphp
                 <div class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3">
                     <p class="text-base font-extrabold text-gray-900">{{ __('borrower.collateral_secure.valuation_fee_title') }}</p>
                     <p class="text-3xl font-extrabold text-brand tabular-nums">{{ format_money($valAmount) }}</p>
                     <p class="text-sm font-semibold text-gray-600">{{ __('borrower.collateral_secure.valuation_fee_hint') }}</p>
-                    @include('site.borrower.loan-profile._collateral_next_steps', [
-                        'audience' => 'borrower',
-                        'progress' => $progress,
-                    ])
                     <form method="POST" action="{{ route('site.borrower.collateral-secure.pay-valuation', $application) }}"
                           @submit.prevent="window.confirmForm($el, {
                               title: @js(__('borrower.collateral_secure.pay_valuation_confirm_title')),
@@ -321,20 +316,6 @@
                         </button>
                     </form>
                 </div>
-            @elseif ($status === 'awaiting_valuer')
-                @if (! empty($secure['no_regional_cover']))
-                    <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.awaiting_valuer_unassigned_body') }}</p>
-                @elseif (! empty($secure['valuer_unassigned']))
-                    <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.awaiting_valuer_pending_body') }}</p>
-                @else
-                    <p class="text-sm text-gray-700">{{ __('borrower.collateral_secure.awaiting_valuer_body', [
-                        'name' => $secure['valuer_name'] ?: __('borrower.collateral_secure.valuer_generic_name'),
-                    ]) }}</p>
-                @endif
-                @include('site.borrower.loan-profile._collateral_next_steps', [
-                    'audience' => 'borrower',
-                    'progress' => $secure['valuation_progress'] ?? null,
-                ])
             @elseif ($status === 'collateral_shortfall')
                 @php $coverage = $secure['coverage'] ?? []; @endphp
                 <ul class="text-sm text-gray-700 list-disc pl-5 space-y-1">
@@ -354,11 +335,6 @@
                         </button>
                     </form>
                 </div>
-            @elseif ($status === 'secured')
-                @include('site.borrower.loan-profile._collateral_next_steps', [
-                    'audience' => 'borrower',
-                    'progress' => $secure['valuation_progress'] ?? null,
-                ])
             @elseif (in_array($status, ['rejected', 'expired'], true))
                 <p class="text-base font-bold text-red-800">{{ __('borrower.collateral_secure.rejected_body') }}</p>
             @endif

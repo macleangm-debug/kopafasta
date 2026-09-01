@@ -4,6 +4,7 @@
     'labels' => [],
     'maxPages' => 12,
     'required' => false,
+    'cameraFirst' => false,
 ])
 
 @php
@@ -34,14 +35,25 @@
 <div class="space-y-4" x-data="multiPageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), {{ (int) $maxPages }})">
     <input type="hidden" value="" x-bind:value="pages.length ? String(pages.length) : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
     <div class="flex flex-wrap items-center gap-3">
-        <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
-            <span>{{ __('borrower.profile.upload') }}</span>
-            <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="addFiles($event)">
-        </label>
-        <button type="button" @click="openCamera()"
-                class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand shadow-sm ring-1 ring-brand/20 hover:bg-brand-muted/40">
-            {{ __('borrower.document_upload.camera') }}
-        </button>
+        @if ($cameraFirst)
+            <button type="button" @click="openCamera()"
+                    class="inline-flex items-center justify-center rounded-xl bg-brand-gold px-5 py-3 text-sm font-bold text-brand shadow-sm hover:bg-yellow-400">
+                {{ __('borrower.document_upload.open_camera') }}
+            </button>
+            <label class="inline-flex items-center justify-center bg-white hover:bg-gray-50 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm ring-1 ring-brand/20">
+                <span>{{ __('borrower.profile.upload') }}</span>
+                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="addFiles($event)">
+            </label>
+        @else
+            <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
+                <span>{{ __('borrower.profile.upload') }}</span>
+                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="addFiles($event)">
+            </label>
+            <button type="button" @click="openCamera()"
+                    class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand shadow-sm ring-1 ring-brand/20 hover:bg-brand-muted/40">
+                {{ __('borrower.document_upload.camera') }}
+            </button>
+        @endif
     </div>
 
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2" x-text="cameraNotice"></p>
@@ -253,7 +265,9 @@
                     canvas.toBlob(blob => {
                         if (!blob) return;
                         this.addBlob(blob, 'page-' + (this.pages.length + 1) + '.jpg');
-                        // Keep camera open so user can add more pages quickly.
+                        if (this.maxPages === 1) {
+                            this.closeCamera();
+                        }
                     }, 'image/jpeg', 0.92);
                 },
                 addFiles(event) {
@@ -273,12 +287,14 @@
                     const previewUrl = isPdf ? null : URL.createObjectURL(blob);
                     this.pages.push({ id: this.nextId++, blob, name, previewUrl, isPdf });
                     this.syncInputs();
+                    this.$dispatch('document-pages-changed', { name: this.fieldName, count: this.pages.length });
                 },
                 removePage(index) {
                     const page = this.pages[index];
                     if (page?.previewUrl) URL.revokeObjectURL(page.previewUrl);
                     this.pages.splice(index, 1);
                     this.syncInputs();
+                    this.$dispatch('document-pages-changed', { name: this.fieldName, count: this.pages.length });
                 },
                 syncInputs() {
                     const host = document.getElementById(this.hostId);
