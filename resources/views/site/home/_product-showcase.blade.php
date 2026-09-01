@@ -1,4 +1,4 @@
-{{-- Desktop: device frame. Mobile: swipeable screens, no nested phone. --}}
+{{-- Desktop only. Mobile must not show these demo screens. --}}
 <div
     class="mt-8 lg:mt-0"
     x-data="{
@@ -39,28 +39,5 @@
                 <button type="button" @click="go({{ $idx }})" class="size-2 rounded-full" :class="i === {{ $idx }} ? 'bg-brand' : 'bg-gray-300'" aria-label="{{ $label }}"></button>
             @endforeach
         </div>
-    </div>
-
-    <div class="lg:hidden -mx-4">
-        <div class="flex overflow-x-auto snap-x snap-mandatory gap-3 px-4 pb-2"
-             @touchstart="this.paused = true">
-            <div class="snap-start shrink-0 w-[min(100%,20rem)] rounded-3xl overflow-hidden aspect-[9/16] bg-brand">@include('site.home._screen-home')</div>
-            <div class="snap-start shrink-0 w-[min(100%,20rem)] rounded-3xl overflow-hidden aspect-[9/16] bg-brand">@include('site.home._screen-loans')</div>
-            <div class="snap-start shrink-0 w-[min(100%,20rem)] rounded-3xl overflow-hidden aspect-[9/16] bg-brand">@include('site.home._screen-market')</div>
-            <div class="snap-start shrink-0 w-[min(100%,20rem)] rounded-3xl overflow-hidden aspect-[9/16] bg-brand">
-                @include('site._plus-phone-screen', [
-                    'title' => __('plus.home.summary'),
-                    'body' => __('site.plus.screen_home_body'),
-                    'stats' => [
-                        ['label' => __('plus.money.left_label'), 'value' => '730K', 'gold' => true],
-                        ['label' => __('plus.business.diff'), 'value' => '+1.15M'],
-                        ['label' => __('plus.reports.trust'), 'value' => '81'],
-                    ],
-                    'bar' => 72,
-                    'note' => __('site.plus.screen_home_note'),
-                ])
-            </div>
-        </div>
-        <p class="mt-2 text-center text-[10px] uppercase tracking-widest text-gray-400">● ○ ○ ○</p>
     </div>
 </div>

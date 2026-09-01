@@ -1,6 +1,6 @@
 {{-- Variant A: split layout with side illustration --}}
 <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-    <div class="animate-fade-up order-2 lg:order-1">
+    <div class="animate-fade-up">
         <span class="inline-flex items-center gap-2 rounded-full glass-card px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-gray-600">
             {{ __('site.hero.badge') }}
         </span>
@@ -27,7 +27,7 @@
             </p>
         @endguest
     </div>
-    <div class="animate-fade-up order-1 lg:order-2 pb-8 lg:pb-0">
+    <div class="hidden lg:block animate-fade-up">
         @include('site.home._product-showcase')
     </div>
 </div>
