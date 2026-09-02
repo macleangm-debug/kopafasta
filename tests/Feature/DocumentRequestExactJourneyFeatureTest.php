@@ -49,6 +49,7 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
         $this->assertStringNotContainsString('You can add this for Rogathe Nyelle', $en);
         $this->assertStringContainsString('Front', $en);
         $this->assertStringContainsString('Back', $en);
+        $this->assertStringContainsString('kf-request-card', $en);
         $this->assertStringContainsString('Take ID photos', $en);
         $this->assertStringContainsString('Take the FRONT of the national ID', $en);
         $this->assertStringContainsString('Take the BACK of the national ID', $en);

@@ -6,6 +6,7 @@
     'required' => true,
     'dbName' => 'kf-nida-card',
     'subjectName' => null,
+    'compact' => false,
 ])
 
 @php
@@ -54,11 +55,9 @@
            class="sr-only" data-guided-input="{{ $backName }}">
     <input type="hidden" value="" x-bind:value="requiredDone() >= requiredTotal() ? '1' : ''" @if ($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
 
-    <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3.5 py-2.5">
-        <p class="text-xs font-semibold text-brand leading-snug">{{ __('borrower.document_upload.identity_steps_hint') }}</p>
-    </div>
-    <button type="button" x-show="pendingRequired().length" @click="start()"
-            class="w-full rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3 shadow-sm hover:bg-yellow-400">
+    <button type="button" data-kf-cam-start @click="start()"
+            @unless ($compact) x-show="pendingRequired().length" @endunless
+            class="{{ $compact ? 'sr-only' : 'w-full rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3 shadow-sm hover:bg-yellow-400' }}">
         {{ __('borrower.document_upload.nida_start') }}
     </button>
 

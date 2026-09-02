@@ -707,10 +707,10 @@ class BorrowerController extends Controller
             return back()->withErrors(['upload' => 'This request is no longer open for uploads.']);
         }
 
-        // National ID is fulfilled on this request (front/back). Other profile-guided
-        // items still open the subject's own profile card.
+        // Own profile items (including the leader's own NIDA) open the profile card.
+        // Assisting another member's National ID stays on this application request.
         if ($docRequests->isProfileGuidedRequest($documentRequest)
-            && $docRequests->borrowerActionKind($documentRequest) !== 'identity') {
+            && ! $docRequests->assistantUploadsOnApplication($customer, $documentRequest)) {
             return redirect()
                 ->to($docRequests->borrowerActionUrl($documentRequest, $customer))
                 ->with('status', __('borrower.loan_profile.document_go_to_profile'));
@@ -1810,6 +1810,7 @@ class BorrowerController extends Controller
         if ($section === 'personal') {
             $focus = (string) $request->input('focus', 'all');
             $identityRequired = app(ProfileCompletionService::class)->identityRequiredDuringProfile();
+            $idImagesFocus = in_array($focus, ['identity', 'id_images', 'all'], true);
             $kinRequired = in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
             $familyRequired = in_array($focus, ['family', 'all'], true);
             $married = strtolower((string) $request->input('marital_status', $customer->marital_status)) === 'married';
@@ -1852,13 +1853,13 @@ class BorrowerController extends Controller
 
             $data = $request->validate($rules);
 
-            if (in_array($focus, ['identity', 'all'], true)
+            if ($idImagesFocus
                 && $request->boolean('no_physical_nida_card')
                 && empty($data['alternate_id_types'] ?? [])) {
                 return back()
                     ->withInput()
                     ->withErrors(['alternate_id_types' => __('borrower.nida.alt_id_required')])
-                    ->withFragment('profile-identity');
+                    ->withFragment($focus === 'id_images' ? 'profile-id-images' : 'profile-identity');
             }
 
             if (in_array($focus, ['contact', 'all'], true)) {
@@ -1881,7 +1882,7 @@ class BorrowerController extends Controller
                 }
             }
 
-            if (in_array($focus, ['identity', 'all'], true) && ! $customer->identity_locked) {
+            if ($idImagesFocus && ! $customer->identity_locked) {
                 $customer->no_physical_nida_card = $request->boolean('no_physical_nida_card');
                 if ($customer->no_physical_nida_card) {
                     $customer->alternate_id_types = array_values(array_unique($data['alternate_id_types'] ?? []));
@@ -1954,7 +1955,7 @@ class BorrowerController extends Controller
                 );
             }
 
-            if (in_array($focus, ['identity', 'all'], true)) {
+            if ($idImagesFocus) {
                 if (! $customer->no_physical_nida_card) {
                     $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
                     $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), []);
@@ -1967,11 +1968,26 @@ class BorrowerController extends Controller
                 }
 
                 if ($identityRequired && ! $validation->nationalIdUploadsComplete($customer->fresh())) {
+                    $idErrorParams = array_filter([
+                        'section' => 'personal',
+                        'focus' => $focus === 'id_images' ? 'id_images' : 'identity',
+                        'solo' => $request->boolean('solo') ? 1 : null,
+                        'application' => $request->integer('application') ?: null,
+                        'return' => $this->validatedReturnUrl($request),
+                    ]);
+
                     return redirect()
-                        ->route('site.borrower.profile', ['section' => 'personal'])
+                        ->route('site.borrower.profile', $idErrorParams)
                         ->withErrors(['national_id_front' => __('borrower.profile.nida_uploads_required')])
                         ->withInput()
-                        ->withFragment('profile-identity');
+                        ->withFragment($focus === 'id_images' ? 'profile-id-images' : 'profile-identity');
+                }
+
+                try {
+                    app(ApplicationDocumentRequestService::class)
+                        ->markIdentityRequestsUploadedFromProfile($customer->fresh());
+                } catch (\Throwable $e) {
+                    report($e);
                 }
             }
         }
@@ -2250,6 +2266,7 @@ class BorrowerController extends Controller
                     'contact' => 'profile-contact',
                     'kin' => 'profile-kin',
                     'identity' => 'profile-identity',
+                    'id_images' => 'profile-id-images',
                     'face' => 'profile-face',
                     default => null,
                 },

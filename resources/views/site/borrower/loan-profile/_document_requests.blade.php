@@ -163,156 +163,155 @@
                                 ? $docSvc->displayDocumentsForRequest($docReq, $customer)
                                 : $docReq->uploads;
                             $thumbDocs = collect($displayDocs)->filter(fn ($u) => filled($u->file_path ?? null))->values();
+                            $subjectName = $docReq->subjectCustomer?->full_name
+                                ?? $docReq->groupMember?->customer?->full_name
+                                ?? $application->customer?->full_name
+                                ?? $customer?->full_name;
+                            $canFulfill = $customer && $docSvc->customerCanFulfillRequest($customer, $docReq);
+                            $identityKind = $docSvc->borrowerActionKind($docReq) === 'identity';
+                            $actionKind = $docSvc->borrowerActionKind($docReq);
+                            $statusLabel = $isRejected
+                                ? __('borrower.application.request_status_rejected')
+                                : ($docReq->status === 'uploaded'
+                                    ? __('borrower.document_upload.submitted_short')
+                                    : __('borrower.loan_profile.documents_status_action'));
+                            $statusTone = $isRejected ? 'rose' : ($docReq->status === 'uploaded' ? 'emerald' : 'amber');
+                            $dueMeta = $docReq->due_at
+                                ? __('borrower.document_upload.due_line', ['date' => $docReq->due_at->timezone(config('app.timezone'))->format('d M Y')])
+                                : null;
+                            $reqInstructions = $docSvc->localizedInstructions((string) $docReq->label, $docReq->instructions);
+                            $cardMeta = collect([$dueMeta, $reqInstructions])->filter()->implode(' · ') ?: null;
+                            $uploadOnApplication = $customer && $docSvc->assistantUploadsOnApplication($customer, $docReq);
+                            $goToProfile = $profileGuided && ! $uploadOnApplication;
+                            $assistingProfile = $profileGuided
+                                && $customer
+                                && $docSvc->borrowerIsAssisting($customer, $docReq)
+                                && ! $uploadOnApplication;
+                            $addLabel = $identityKind && $uploadOnApplication
+                                ? __('borrower.document_upload.nida_start')
+                                : __('borrower.document_upload.add');
                         @endphp
                         <li id="request-{{ $docReq->id }}"
-                            @class([
-                                'scroll-mt-24 overflow-hidden rounded-2xl bg-white shadow-sm ring-1',
-                                'ring-red-200' => $isRejected,
-                                'ring-brand/10' => ! $isRejected,
-                            ])>
-                            <div class="px-4 py-4 sm:px-5">
-                                @php
-                                    $subjectName = $docReq->subjectCustomer?->full_name
-                                        ?? $docReq->groupMember?->customer?->full_name
-                                        ?? $application->customer?->full_name
-                                        ?? $customer?->full_name;
-                                    $canFulfill = $customer && $docSvc->customerCanFulfillRequest($customer, $docReq);
-                                @endphp
-                                <div class="flex flex-wrap items-start justify-between gap-2">
-                                    <h3 class="text-base font-bold text-gray-900 leading-snug">{{ $docSvc->localizedLabel((string) $docReq->label) }}</h3>
-                                    <span @class([
-                                        'rounded-full px-2.5 py-0.5 text-[11px] font-bold shrink-0',
-                                        'bg-red-100 text-red-800' => $isRejected,
-                                        'bg-emerald-100 text-emerald-800' => $docReq->status === 'uploaded',
-                                        'bg-amber-100 text-amber-900' => ! $isRejected && $docReq->status !== 'uploaded',
-                                    ])>
-                                        {{ $isRejected
-                                            ? __('borrower.application.request_status_rejected')
-                                            : ($docReq->status === 'uploaded'
-                                                ? __('borrower.document_upload.submitted_short')
-                                                : __('borrower.loan_profile.documents_status_action')) }}
-                                    </span>
+                            class="scroll-mt-24"
+                            x-data="{ adding: false }">
+                            <x-site.request-card
+                                :icon="$actionKind"
+                                :title="$docSvc->localizedLabel((string) $docReq->label)"
+                                :subtitle="$subjectName"
+                                :meta="$cardMeta"
+                                :status="$statusLabel"
+                                :status-tone="$statusTone"
+                            >
+                                @if ($docReq->needsBorrowerAction() && $canFulfill && ! $assistingProfile)
+                                    <x-slot:action>
+                                        @if ($goToProfile)
+                                            <x-site.request-add-button :href="$profileUrl" :label="$addLabel" />
+                                        @elseif ($identityKind)
+                                            <x-site.request-add-button
+                                                :label="$addLabel"
+                                                x-bind:class="adding ? 'is-open' : ''"
+                                                x-bind:aria-expanded="adding"
+                                                @click="adding = ! adding; if (adding) $nextTick(() => $el.closest('li')?.querySelector('[data-kf-cam-start]')?.click())"
+                                            />
+                                        @else
+                                            <x-site.request-add-button
+                                                :label="$addLabel"
+                                                x-bind:class="adding ? 'is-open' : ''"
+                                                x-bind:aria-expanded="adding"
+                                                @click="adding = ! adding"
+                                            />
+                                        @endif
+                                    </x-slot:action>
+                                @endif
+                            </x-site.request-card>
+
+                            @if ($isRejected && $thumbDocs->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-2 px-1">
+                                    @foreach ($thumbDocs as $upload)
+                                        <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
+                                    @endforeach
                                 </div>
-                                @if ($subjectName)
-                                    <p class="mt-2 text-sm font-extrabold text-gray-900 tracking-tight">{{ $subjectName }}</p>
-                                @endif
-                                @if (! $canFulfill && $docReq->needsBorrowerAction())
-                                    <p class="mt-1.5 text-xs font-semibold text-amber-950">
-                                        {{ $docSvc->waitingOnLabel($docReq) }}
-                                    </p>
-                                @endif
-                                @if ($reqInstructions = $docSvc->localizedInstructions((string) $docReq->label, $docReq->instructions))
-                                    <p class="mt-2 text-sm text-gray-600 leading-snug">{{ $reqInstructions }}</p>
-                                @endif
-                                @if ($docReq->due_at)
-                                    <p class="mt-1.5 text-xs text-gray-500">
-                                        {{ __('borrower.document_upload.due_line', ['date' => $docReq->due_at->timezone(config('app.timezone'))->format('d M Y')]) }}
-                                    </p>
-                                @endif
+                            @endif
 
-                                @if ($docReq->admin_notes && $isRejected)
-                                    <p class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 ring-1 ring-red-200">
-                                        {{ $docReq->admin_notes }}
-                                    </p>
-                                @endif
-
-                                @if ($thumbDocs->isNotEmpty())
-                                    <div class="mt-3">
-                                        <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                                            {{ __('borrower.loan_profile.documents_previous_files') }}
-                                        </p>
-                                        <div class="flex flex-wrap gap-2">
-                                            @foreach ($thumbDocs as $upload)
-                                                <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
+                            @if ($isRejected && $docReq->admin_notes)
+                                <p class="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 ring-1 ring-red-200">
+                                    {{ $docReq->admin_notes }}
+                                </p>
+                            @endif
 
                             @if ($docReq->status === 'uploaded')
-                                <div class="bg-emerald-50/80 px-4 py-4 sm:px-5">
-                                    <p class="text-base font-bold text-emerald-950">{{ __('borrower.document_upload.submitted') }}</p>
-                                    <p class="mt-1 text-sm text-emerald-900">{{ __('borrower.document_upload.submitted_body') }}</p>
-                                </div>
+                                <p class="mt-2 px-1 text-xs font-semibold text-emerald-800">{{ __('borrower.document_upload.submitted_body') }}</p>
                             @elseif ($docReq->needsBorrowerAction())
-                                <div class="border-t border-gray-100 px-4 py-4 sm:px-5">
-                                    @php
-                                        $assistingProfile = $profileGuided
-                                            && $customer
-                                            && $docSvc->borrowerIsAssisting($customer, $docReq)
-                                            && ! $docSvc->assistantUploadsOnApplication($customer, $docReq);
-                                        $identityKind = $docSvc->borrowerActionKind($docReq) === 'identity';
-                                    @endphp
-                                    @if ((string) $docReq->label === 'Add collateral asset')
-                                        <div class="space-y-3">
+                                @if (! $canFulfill)
+                                    <p class="mt-2 px-1 text-xs font-semibold text-amber-950">{{ $docSvc->waitingOnLabel($docReq) }}</p>
+                                @elseif ($assistingProfile)
+                                    <p class="mt-2 px-1 text-xs text-gray-600">
+                                        {{ __('borrower.loan_profile.ask_subject_profile', [
+                                            'name' => $docSvc->localizedSubjectRoleLabel($docReq),
+                                        ]) }}
+                                    </p>
+                                @elseif ($goToProfile)
+                                    {{-- Add icon links to profile --}}
+                                @else
+                                    <div x-show="adding" x-cloak class="mt-2 rounded-2xl bg-white p-3 ring-1 ring-brand/10">
+                                        @if ((string) $docReq->label === 'Add collateral asset')
                                             @include('site.borrower.loan-profile._collateral_request_picker', [
                                                 'assets' => $savedCollateral,
                                                 'availabilities' => $collateralAvailabilities,
                                                 'application' => $application,
                                             ])
-                                        </div>
-                                    @elseif ($assistingProfile)
-                                        <p class="text-sm text-gray-700">
-                                            {{ __('borrower.loan_profile.ask_subject_profile', [
-                                                'name' => $docSvc->localizedSubjectRoleLabel($docReq),
-                                            ]) }}
-                                        </p>
-                                    @elseif ($profileGuided && ! $identityKind)
-                                        <a href="{{ $profileUrl }}"
-                                           class="inline-flex w-full items-center justify-center rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light sm:w-auto">
-                                            {{ __('borrower.loan_profile.document_go_to_profile') }}
-                                        </a>
-                                    @else
-                                        <form method="POST"
-                                              action="{{ route('site.borrower.application.document-requests.store', [$application, $docReq]) }}"
-                                              enctype="multipart/form-data"
-                                              class="space-y-4"
-                                              data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
-                                              @submit.prevent="window.confirmForm($el, {
-                                                  title: @js(__('borrower.document_upload.submit_confirm_title')),
-                                                  message: @js(__('borrower.document_upload.submit_confirm_body')),
-                                                  confirmLabel: @js(__('borrower.document_upload.submit')),
-                                              })">
-                                            @csrf
-                                            @if ($identityKind)
-                                                <x-site.nida-card-camera
-                                                    front-name="front"
-                                                    back-name="back"
-                                                    :front-host-id="'doc-req-front-'.$docReq->id"
-                                                    :back-host-id="'doc-req-back-'.$docReq->id"
-                                                    :db-name="'kf-nida-doc-'.$docReq->id"
-                                                    :subject-name="$subjectName"
-                                                >
+                                        @else
+                                            <form method="POST"
+                                                  action="{{ route('site.borrower.application.document-requests.store', [$application, $docReq]) }}"
+                                                  enctype="multipart/form-data"
+                                                  class="space-y-3"
+                                                  data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
+                                                  @submit.prevent="window.confirmForm($el, {
+                                                      title: @js(__('borrower.document_upload.submit_confirm_title')),
+                                                      message: @js(__('borrower.document_upload.submit_confirm_body')),
+                                                      confirmLabel: @js(__('borrower.document_upload.submit')),
+                                                  })">
+                                                @csrf
+                                                @if ($identityKind)
+                                                    <x-site.nida-card-camera
+                                                        front-name="front"
+                                                        back-name="back"
+                                                        :front-host-id="'doc-req-front-'.$docReq->id"
+                                                        :back-host-id="'doc-req-back-'.$docReq->id"
+                                                        :db-name="'kf-nida-doc-'.$docReq->id"
+                                                        :subject-name="$subjectName"
+                                                        :compact="true"
+                                                    >
+                                                        <button type="submit"
+                                                                x-show="requiredDone() >= requiredTotal()"
+                                                                x-cloak
+                                                                class="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light">
+                                                            {{ __('borrower.document_upload.submit') }}
+                                                        </button>
+                                                    </x-site.nida-card-camera>
+                                                    @error('front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                                    @error('back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                                @else
+                                                    <x-site.multi-page-document-upload
+                                                        name="files"
+                                                        :input-host-id="'doc-req-pages-'.$docReq->id"
+                                                        :max-pages="12"
+                                                    />
                                                     <button type="submit"
-                                                            x-show="requiredDone() >= requiredTotal()"
-                                                            x-cloak
                                                             class="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light">
                                                         {{ __('borrower.document_upload.submit') }}
                                                     </button>
-                                                </x-site.nida-card-camera>
-                                                @error('front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                                @error('back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                            @else
-                                                <x-site.multi-page-document-upload
-                                                    name="files"
-                                                    :input-host-id="'doc-req-pages-'.$docReq->id"
-                                                    :max-pages="12"
-                                                />
-                                                <button type="submit"
-                                                        class="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light">
-                                                    {{ __('borrower.document_upload.submit') }}
-                                                </button>
-                                            @endif
-                                            @if ($docReq->type === 'clarification')
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-semibold text-gray-600">{{ __('borrower.document_upload.your_response') }}</label>
-                                                    <textarea name="response" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('borrower.document_upload.response_placeholder') }}"></textarea>
-                                                </div>
-                                            @endif
-                                        </form>
-                                    @endif
-                                </div>
+                                                @endif
+                                                @if ($docReq->type === 'clarification')
+                                                    <div>
+                                                        <label class="mb-1 block text-xs font-semibold text-gray-600">{{ __('borrower.document_upload.your_response') }}</label>
+                                                        <textarea name="response" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('borrower.document_upload.response_placeholder') }}"></textarea>
+                                                    </div>
+                                                @endif
+                                            </form>
+                                        @endif
+                                    </div>
+                                @endif
                             @endif
                         </li>
                     @endforeach

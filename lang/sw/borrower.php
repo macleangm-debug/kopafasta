@@ -2991,6 +2991,7 @@ return [
     'back' => 'Nyuma',
     'you_can_add' => 'Unaweza kuongeza hii kwa :name.',
     'open_camera' => 'Fungua kamera',
+    'add' => 'Ongeza',
     'identity_steps_hint' => 'Kipindi kimoja cha kamera: piga mbele, kisha nyuma.',
     'identity_change_front' => 'Badilisha mbele',
     'nida_start' => 'Piga picha za kitambulisho',

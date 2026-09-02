@@ -9,8 +9,11 @@ use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\User;
 use App\Services\ApplicationDocumentRequestService;
+use App\Services\PinService;
 use App\Services\ProfileRevisionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileLinkedDocumentRequestTest extends TestCase
@@ -606,5 +609,97 @@ class ProfileLinkedDocumentRequestTest extends TestCase
                 $this->assertStringContainsString('solo=1', $cardUrl, $label);
             }
         }
+    }
+
+    public function test_own_national_id_request_opens_profile_and_returns_after_save(): void
+    {
+        Storage::fake('public');
+        DocumentType::create(['code' => 'national_id_front', 'name' => 'National ID front', 'is_active' => true]);
+        DocumentType::create(['code' => 'national_id_back', 'name' => 'National ID back', 'is_active' => true]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $user = User::factory()->create(['role' => 'borrower']);
+        app(PinService::class)->setPin($user, '1234');
+        $customer = Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-DOC-NIDA',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Gaspari',
+            'last_name' => 'Leader',
+            'phone' => '255712340201',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+        $product = LoanProduct::create([
+            'code' => 'IL-NIDA',
+            'name' => 'Installment',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 24,
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-DOC-NIDA',
+            'status' => 'under_review',
+            'current_stage' => 'screening',
+            'requested_amount' => 500_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now(),
+        ]);
+
+        $service = app(ApplicationDocumentRequestService::class);
+        $request = $service->create($application, $admin, 'Updated National ID');
+
+        $this->assertFalse($service->assistantUploadsOnApplication($customer->fresh(), $request->fresh()));
+        $actionUrl = $service->borrowerActionUrl($request->fresh(), $customer->fresh());
+        $this->assertStringContainsString('focus=id_images', $actionUrl);
+        $this->assertStringContainsString('solo=1', $actionUrl);
+        $this->assertStringContainsString('return=', $actionUrl);
+        $this->assertStringContainsString('profile-id-images', $actionUrl);
+
+        $html = $this->actingAs($user)
+            ->get(route('site.borrower.application', ['application' => $application->id, 'doc' => $request->id]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('focus=id_images', $html);
+        $this->assertStringContainsString('profile-id-images', $html);
+        $this->assertStringContainsString('kf-request-add', $html);
+        $this->assertStringNotContainsString('doc-req-front-'.$request->id, $html);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.application.document-requests.store', [$application, $request]), [
+                'front' => UploadedFile::fake()->image('nida-front-own.jpg'),
+                'back' => UploadedFile::fake()->image('nida-back-own.jpg'),
+            ])
+            ->assertRedirect($actionUrl);
+
+        $this->assertSame('pending', $request->fresh()->status);
+
+        $return = route('site.borrower.application', $application);
+        $this->actingAs($user)
+            ->put(route('site.borrower.profile.update', [
+                'section' => 'personal',
+                'return' => $return,
+                'application' => $application->id,
+                'solo' => 1,
+            ]), [
+                'focus' => 'id_images',
+                'return' => $return,
+                'national_id_front' => UploadedFile::fake()->image('nida-front.jpg'),
+                'national_id_back' => UploadedFile::fake()->image('nida-back.jpg'),
+            ])
+            ->assertRedirect($return);
+
+        $this->assertSame('uploaded', $request->fresh()->status);
+        $this->assertEquals(2, CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->whereNull('loan_application_id')
+            ->count());
     }
 }

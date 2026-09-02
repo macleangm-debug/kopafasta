@@ -3180,6 +3180,7 @@ return [
         'back' => 'Back',
         'you_can_add' => 'You can add this for :name.',
         'open_camera' => 'Open camera',
+        'add' => 'Add',
         'identity_steps_hint' => 'One camera session: take the front, then the back.',
         'identity_change_front' => 'Change front',
         'nida_start' => 'Take ID photos',

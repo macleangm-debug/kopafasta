@@ -219,8 +219,8 @@ class ApplicationDocumentRequestService
     {
         $application = $request->application;
 
-        // Owner assisting a member/guarantor: loan-file uploads stay on the application.
-        // National ID is also fulfilled on the exact request (front/back), not the helper's profile.
+        // Owner assisting a member/guarantor: capture on the application (not the helper's profile).
+        // The subject's own National ID and other profile items open the profile card, then return.
         if ($viewer && $this->assistantUploadsOnApplication($viewer, $request) && $application) {
             return route('site.borrower.application', $application).'?doc='.$request->id.'#request-'.$request->id;
         }
@@ -1708,9 +1708,9 @@ class ApplicationDocumentRequestService
     }
 
     /**
-     * Leader/borrower may upload National ID (and non-profile documents) on the
-     * application request itself. Face, signature, income, and residence stay on
-     * the subject's profile.
+     * Leader/borrower helping a member/guarantor captures on the application
+     * (National ID and other loan-file documents). The subject's own profile
+     * items — including the leader's own NIDA — stay on their profile.
      */
     public function assistantUploadsOnApplication(Customer $customer, LoanApplicationDocumentRequest $request): bool
     {
@@ -1843,6 +1843,64 @@ class ApplicationDocumentRequestService
 
         if ($marked > 0) {
             $revision->clearForTarget($customer->fresh(), 'income');
+        }
+
+        return $marked;
+    }
+
+    /** When the subject saves National ID photos on their profile, close matching requests. */
+    public function markIdentityRequestsUploadedFromProfile(Customer $customer): int
+    {
+        if (! app(ProfileValidationService::class)->nationalIdUploadsComplete($customer)) {
+            return 0;
+        }
+
+        $marked = 0;
+        $requests = LoanApplicationDocumentRequest::query()
+            ->where(function ($q) use ($customer) {
+                $q->where('subject_customer_id', $customer->id)
+                    ->orWhere(function ($inner) use ($customer) {
+                        $inner->where(function ($kind) {
+                            $kind->whereNull('subject_kind')
+                                ->orWhere('subject_kind', 'borrower');
+                        })->where(function ($subject) {
+                            $subject->whereNull('subject_customer_id')
+                                ->orWhere('subject_customer_id', 0);
+                        })->whereHas('application', fn ($app) => $app->where('customer_id', $customer->id));
+                    });
+            })
+            ->whereHas('application', function ($app) {
+                $app->whereNotIn('status', ['withdrawn', 'rejected', 'disbursed']);
+            })
+            ->whereIn('status', ['pending', 'rejected'])
+            ->with('application')
+            ->get();
+
+        foreach ($requests as $request) {
+            if (! $this->isSubjectOfRequest($customer, $request)) {
+                continue;
+            }
+            if ($this->borrowerActionKind($request) !== 'identity') {
+                continue;
+            }
+
+            $request->update([
+                'status' => 'uploaded',
+                'admin_notes' => null,
+            ]);
+            $marked++;
+
+            if ($application = $request->application) {
+                $this->syncApplicationStatus($application->fresh());
+                app(NotificationCtaService::class)->consumeDocumentRequestCtas(
+                    (int) $application->id,
+                    (int) $request->id,
+                );
+            }
+        }
+
+        if ($marked > 0) {
+            app(ProfileRevisionService::class)->clearForTarget($customer->fresh(), 'nida_docs');
         }
 
         return $marked;
