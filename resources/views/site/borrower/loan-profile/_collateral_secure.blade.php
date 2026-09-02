@@ -16,7 +16,11 @@
         $typeIcons = \App\Models\CustomerAsset::typeIcons();
     @endphp
 
-    <div id="collateral-secure" class="mb-6 overflow-hidden rounded-2xl ring-1 ring-brand/20 bg-white shadow-sm">
+    <div id="collateral-secure" @class([
+        'mb-6',
+        'overflow-hidden rounded-2xl ring-1 ring-brand/20 bg-white shadow-sm' => $status !== 'secured',
+    ])>
+        @if ($status !== 'secured')
         <div class="px-5 sm:px-6 py-5 border-b border-brand/10 bg-gradient-to-br from-brand-muted/50 via-white to-white flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
                 <p class="text-[11px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.collateral_secure.eyebrow') }}</p>
@@ -74,8 +78,11 @@
                 </span>
             @endif
         </div>
+        @endif
 
-        <div class="px-5 sm:px-6 py-5 space-y-4">
+        <div @class([
+            'px-5 sm:px-6 py-5 space-y-4' => $status !== 'secured',
+        ])>
             @include('site.borrower.loan-profile._collateral_asset_card', [
                 'selected' => $selected,
                 'typeIcons' => $typeIcons,

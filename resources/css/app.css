@@ -218,6 +218,32 @@ body.kf-camera-open {
     transform: none;
 }
 
+.kf-cam-guide {
+    position: relative;
+    margin-inline: auto;
+    max-width: 28rem;
+    border-radius: 1rem;
+    padding: 0.85rem 1rem 1rem;
+    text-align: center;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(11, 61, 50, 0.94) 0%, rgba(18, 122, 95, 0.9) 55%, rgba(8, 47, 39, 0.94) 100%);
+    box-shadow: 0 14px 36px rgba(8, 47, 39, 0.42);
+    outline: 1px solid rgba(245, 200, 66, 0.42);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.kf-cam-guide::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 3px;
+    border-radius: 1rem 1rem 0 0;
+    background-image: linear-gradient(to right, var(--color-brand-gold), #ffe9a3, var(--color-brand-gold));
+    pointer-events: none;
+}
+
 body.kf-camera-open .kf-mobile-bottom-nav {
     display: none !important;
 }

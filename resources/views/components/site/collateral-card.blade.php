@@ -79,6 +79,9 @@
             }
         }
         $summaryLine = implode(' · ', $summaryParts);
+        if ($isBorrower && $badges->count() > 1) {
+            $badges = collect([$badges->last()]);
+        }
     @endphp
     <div @class([
         'rounded-2xl ring-1 ring-brand/15 overflow-hidden',
@@ -86,27 +89,35 @@
         'bg-brand-muted/20' => ! $isBorrower,
         'h-full flex flex-col' => $layout === 'grid',
     ])>
-        <div class="flex gap-3 items-start p-3 sm:p-3.5">
-            <div class="shrink-0 size-16 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-gray-200">
+        <div class="flex gap-3 items-center p-2.5">
+            <div @class([
+                'shrink-0 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-gray-200',
+                'size-12' => $isBorrower,
+                'size-16' => ! $isBorrower,
+            ])>
                 @if (! empty($selected['thumbnail']))
                     <img src="{{ $selected['thumbnail'] }}" alt="" class="h-full w-full object-cover">
                 @else
-                    <span class="h-full w-full grid place-items-center text-2xl">{{ $icons[$selected['asset_type'] ?? ''] ?? '📦' }}</span>
+                    <span class="h-full w-full grid place-items-center {{ $isBorrower ? 'text-lg' : 'text-2xl' }}">{{ $icons[$selected['asset_type'] ?? ''] ?? '📦' }}</span>
                 @endif
             </div>
             <div class="min-w-0 flex-1 space-y-2">
-                <div class="flex flex-wrap items-start justify-between gap-2">
+                <div class="flex items-center justify-between gap-2">
                     <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $selected['type_label'] ?? '' }}</p>
-                        <p class="text-base font-extrabold text-gray-900 mt-0.5 truncate">{{ $selected['label'] }}</p>
-                        @if ($isBorrower && $summaryLine !== '')
-                            <p class="text-xs font-semibold text-gray-500 mt-0.5 truncate">{{ $summaryLine }}</p>
+                        @if ($isBorrower)
+                            <p class="text-sm font-extrabold text-gray-900 truncate">{{ $selected['label'] }}</p>
+                            <p class="text-[11px] font-semibold text-gray-500 truncate">
+                                {{ collect([$selected['type_label'] ?? null, $summaryLine ?: null])->filter()->implode(' · ') }}
+                            </p>
+                        @else
+                            <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $selected['type_label'] ?? '' }}</p>
+                            <p class="text-base font-extrabold text-gray-900 mt-0.5 truncate">{{ $selected['label'] }}</p>
                         @endif
                     </div>
                     @if ($badges->isNotEmpty())
-                        <div class="flex flex-wrap justify-end gap-1">
+                        <div class="flex flex-wrap justify-end gap-1 shrink-0">
                             @foreach ($badges as $badge)
-                                <span class="inline-flex items-center rounded-full text-[11px] font-bold px-2.5 py-1 ring-1 shrink-0 {{ $badgeClass($badge['tone'] ?? 'brand') }}">
+                                <span class="inline-flex items-center rounded-full text-[11px] font-bold px-2.5 py-1 ring-1 {{ $badgeClass($badge['tone'] ?? 'brand') }}">
                                     {{ $badge['label'] }}
                                 </span>
                             @endforeach

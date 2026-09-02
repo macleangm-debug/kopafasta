@@ -56,6 +56,7 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
         $this->assertStringContainsString('Portrait', $en);
         $this->assertStringContainsString('valuationCamera', $en);
         $this->assertStringContainsString('subjectName', $en);
+        $this->assertStringContainsString('kf-cam-guide', $en);
         $this->assertStringContainsString(__('site.partner_portal.valuation_camera_close'), $en);
         $this->assertStringNotContainsString('is-rotated', $en);
         $this->assertStringNotContainsString('needsPreviewRotate', $en);

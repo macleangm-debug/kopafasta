@@ -116,7 +116,8 @@ class CollateralCardServiceTest extends TestCase
         $this->assertStringContainsString('Toyota Rav4', $html);
         $this->assertStringContainsString('Waiting for valuer', $html);
         $this->assertStringContainsString('T123ABC', $html);
-        $this->assertStringContainsString('size-16', $html);
+        $this->assertStringContainsString('size-12', $html);
+        $this->assertStringNotContainsString('Insured', $html);
         $this->assertStringNotContainsString(__('borrower.profile.collateral_fields.registration_number'), $html);
         $this->assertStringNotContainsString(__('borrower.profile.collateral_fields.chassis_number'), $html);
         $this->assertStringNotContainsString('Forced sale value', $html);
