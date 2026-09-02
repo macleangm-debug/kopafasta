@@ -262,6 +262,8 @@
                             'formMode' => true,
                             'dbName' => 'kf-collateral-add',
                             'facingMode' => 'environment',
+                            'subjectName' => $customer->full_name ?? '',
+                            'subjectLine' => $customer->full_name ?? '',
                             'cameraInsecure' => __('borrower.profile.camera_insecure'),
                             'cameraDenied' => __('borrower.profile.camera_denied'),
                             'steps' => $borrowerPhotoSteps,

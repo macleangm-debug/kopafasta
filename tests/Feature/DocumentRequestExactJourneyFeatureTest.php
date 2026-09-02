@@ -55,6 +55,10 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
         $this->assertStringContainsString('Landscape', $en);
         $this->assertStringContainsString('Portrait', $en);
         $this->assertStringContainsString('valuationCamera', $en);
+        $this->assertStringContainsString('subjectName', $en);
+        $this->assertStringContainsString(__('site.partner_portal.valuation_camera_close'), $en);
+        $this->assertStringNotContainsString('is-rotated', $en);
+        $this->assertStringNotContainsString('needsPreviewRotate', $en);
         $this->assertStringContainsString('doc-req-front-'.$request->id, $en);
         $this->assertStringContainsString('doc-req-back-'.$request->id, $en);
         $this->assertStringNotContainsString('must update this in their profile', $en);
@@ -72,6 +76,7 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
         $this->assertStringContainsString('Piga picha za kitambulisho', $sw);
         $this->assertStringContainsString('Mlalo', $sw);
         $this->assertStringContainsString('Wima', $sw);
+        $this->assertStringContainsString('Funga kamera', $sw);
 
         $this->actingAs($leaderUser)
             ->post(route('site.borrower.application.document-requests.store', [$application, $request]), [

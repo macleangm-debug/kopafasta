@@ -81,9 +81,13 @@
         'task' => $task,
         'step' => $needsVehicle ? 'condition' : 'values',
     ]);
+    $cameraSubject = $task->customer_name
+        ?: $assets->first()?->customer?->full_name;
     $cameraCfg = [
         'csrf' => csrf_token(),
         'uploadUrl' => route('site.partner.task.inspect.photo', $task),
+        'subjectName' => $cameraSubject,
+        'subjectLine' => filled($cameraSubject) ? $cameraSubject : '',
         'steps' => collect($photoSteps)->map(fn (array $step) => [
             'asset_id' => $step['asset_id'],
             'asset_label' => $step['asset_label'],

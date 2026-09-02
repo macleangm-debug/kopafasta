@@ -291,6 +291,7 @@
                                                     :front-host-id="'doc-req-front-'.$docReq->id"
                                                     :back-host-id="'doc-req-back-'.$docReq->id"
                                                     :db-name="'kf-nida-doc-'.$docReq->id"
+                                                    :subject-name="$subjectName"
                                                 />
                                                 @error('front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                                 @error('back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror

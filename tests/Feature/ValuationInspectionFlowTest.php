@@ -106,6 +106,8 @@ class ValuationInspectionFlowTest extends TestCase
             ->assertDontSee(__('site.partner_portal.valuation_owner_reference'), false)
             ->assertDontSee(__('site.partner_portal.valuation_no_owner_photo'), false)
             ->assertSee(__('site.partner_portal.valuation_camera_retry'), false)
+            ->assertSee(__('site.partner_portal.valuation_camera_close'), false)
+            ->assertSee('Geofrey Owner', false)
             ->assertSee('T123ABC', false)
             ->assertSee(__('site.partner_portal.valuation_belongs_to'), false)
             ->assertSee(__('borrower.profile.uploading_documents'), false)

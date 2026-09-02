@@ -5,6 +5,7 @@
     'backHostId' => 'nida-back',
     'required' => true,
     'dbName' => 'kf-nida-card',
+    'subjectName' => null,
 ])
 
 @php
@@ -38,6 +39,10 @@
         'facingMode' => 'environment',
         'orientation' => 'landscape',
         'guideFrame' => 'id-card',
+        'subjectName' => $subjectName,
+        'subjectLine' => filled($subjectName)
+            ? __('borrower.document_upload.requested_for', ['name' => $subjectName])
+            : '',
         'cameraInsecure' => __('borrower.profile.camera_insecure'),
         'cameraDenied' => __('borrower.profile.camera_denied'),
         'steps' => $steps,

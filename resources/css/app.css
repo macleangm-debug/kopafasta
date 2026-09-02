@@ -214,14 +214,8 @@ body.kf-camera-open {
     background: #111;
 }
 
-.kf-cam-stage.is-rotated video {
-    width: 100vh;
-    height: 100vw;
-    max-width: none;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(90deg);
+.kf-cam-stage video {
+    transform: none;
 }
 
 body.kf-camera-open .kf-mobile-bottom-nav {

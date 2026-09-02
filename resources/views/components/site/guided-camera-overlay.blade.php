@@ -1,19 +1,29 @@
 <template x-teleport="body">
     <div x-show="open" x-cloak class="fixed inset-0 z-[95] bg-black flex flex-col">
-        <div class="kf-cam-stage" :class="needsPreviewRotate() ? 'is-rotated' : ''">
+        <div class="kf-cam-stage">
             <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
                    class="absolute inset-0 z-[1] w-full h-full object-cover bg-gray-900"></video>
         </div>
-        <div class="relative z-[4] pt-[max(1rem,env(safe-area-inset-top))] px-4 flex items-start justify-between gap-3 bg-gradient-to-b from-black/80 to-transparent pb-8">
-            <div class="min-w-0 max-w-md rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
-                <p class="text-[11px] uppercase tracking-widest text-brand-gold"
-                   x-text="current() && current().required ? (captureOrdinal() + ' of ' + requiredTotal() + ' — ' + current().label) : (current() ? current().label : '')"></p>
-                <p class="text-sm font-semibold mt-1" x-text="current()?.guidance || ''"></p>
+        <div class="relative z-[4] pointer-events-none bg-gradient-to-b from-brand via-brand/90 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))]">
+            <div class="pointer-events-auto flex items-center justify-between gap-3 px-4 pb-2">
+                <x-site.brand-mark size="sm" variant="light" />
+                <button type="button" @click="closeCamera()"
+                        class="shrink-0 size-10 rounded-full bg-white/15 text-white grid place-items-center ring-1 ring-white/25"
+                        aria-label="{{ __('site.partner_portal.valuation_camera_close') }}">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18"/>
+                    </svg>
+                </button>
             </div>
-            <button type="button" @click="closeCamera()"
-                    class="shrink-0 text-xs font-semibold text-white/90 bg-white/15 ring-1 ring-white/25 px-3 py-2 rounded-full">
-                {{ __('site.partner_portal.valuation_camera_close') }}
-            </button>
+            <div class="px-5 pb-5 text-center text-white">
+                <p x-show="subjectLine || subjectName" x-cloak class="text-sm font-extrabold tracking-tight">
+                    <span x-text="subjectLine || subjectName"></span>
+                </p>
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-bold"
+                   :class="(subjectLine || subjectName) ? 'mt-1.5' : ''"
+                   x-text="current() && current().required ? (captureOrdinal() + ' of ' + requiredTotal() + ' — ' + current().label) : (current() ? current().label : '')"></p>
+                <p class="text-sm font-semibold mt-1 leading-snug" x-text="current()?.guidance || ''"></p>
+            </div>
         </div>
         <div x-show="guideFrame === 'id-card'" x-cloak
              class="absolute inset-0 z-[3] flex items-center justify-center pointer-events-none px-6">

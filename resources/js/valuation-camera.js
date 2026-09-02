@@ -19,9 +19,8 @@ export function registerValuationCamera(Alpine) {
         facingMode: cfg.facingMode || 'environment',
         orientation: cfg.orientation || 'portrait',
         guideFrame: cfg.guideFrame || null,
-        viewportPortrait: typeof window !== 'undefined'
-            ? window.matchMedia('(orientation: portrait)').matches
-            : true,
+        subjectName: cfg.subjectName || '',
+        subjectLine: cfg.subjectLine || '',
         open: false,
         review: false,
         uploading: false,
@@ -116,58 +115,14 @@ export function registerValuationCamera(Alpine) {
                 };
             });
         },
-        syncViewport() {
-            this.viewportPortrait = window.matchMedia('(orientation: portrait)').matches;
-        },
-        needsPreviewRotate() {
-            const wantLandscape = this.orientation === 'landscape';
-
-            return wantLandscape === this.viewportPortrait;
-        },
-        async applyOrientationLock() {
-            try {
-                await screen.orientation?.lock?.(this.orientation);
-            } catch (e) { /* iOS and many desktop browsers refuse lock */ }
-        },
-        async toggleOrientation() {
+        toggleOrientation() {
             this.orientation = this.orientation === 'landscape' ? 'portrait' : 'landscape';
-            await this.applyOrientationLock();
-        },
-        drawOriented(video, canvas) {
-            const wantLandscape = this.orientation === 'landscape';
-            const videoIsLandscape = video.videoWidth >= video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            if (wantLandscape === videoIsLandscape) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
-
-                return;
-            }
-            canvas.width = video.videoHeight;
-            canvas.height = video.videoWidth;
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.rotate(wantLandscape ? Math.PI / 2 : -Math.PI / 2);
-            ctx.drawImage(video, -video.videoWidth / 2, -video.videoHeight / 2);
         },
         async init() {
-            this.syncViewport();
-            this._onViewport = () => this.syncViewport();
-            window.addEventListener('resize', this._onViewport);
-            window.addEventListener('orientationchange', this._onViewport);
             await this.restoreDrafts();
             if (this.pendingRequired().length === 0 && Object.keys(this.captures).length) {
                 this.review = this.steps.some((s) => ! s.path && this.captures[this.key(s)]);
             }
-        },
-        destroy() {
-            if (this._onViewport) {
-                window.removeEventListener('resize', this._onViewport);
-                window.removeEventListener('orientationchange', this._onViewport);
-            }
-            try {
-                screen.orientation?.unlock?.();
-            } catch (e) { /* ignore */ }
         },
         async start(optionalOnly = false) {
             this.review = false;
@@ -186,7 +141,6 @@ export function registerValuationCamera(Alpine) {
 
                 return;
             }
-            await this.applyOrientationLock();
             await this.openCam();
         },
         closeCamera() {
@@ -236,7 +190,9 @@ export function registerValuationCamera(Alpine) {
                 return;
             }
             const canvas = document.createElement('canvas');
-            this.drawOriented(video, canvas);
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
             canvas.toBlob(async (blob) => {
                 if (! blob) {
                     return;
@@ -279,7 +235,6 @@ export function registerValuationCamera(Alpine) {
             this.review = false;
             this.open = true;
             document.body.classList.add('kf-camera-open');
-            this.applyOrientationLock();
             this.openCam();
         },
         async uploadAll() {
