@@ -170,18 +170,18 @@
                                 'ring-red-200' => $isRejected,
                                 'ring-brand/10' => ! $isRejected,
                             ])>
-                            <div class="border-b border-gray-100 px-4 py-4 sm:px-5">
+                            <div class="px-4 py-4 sm:px-5">
                                 @php
                                     $subjectName = $docReq->subjectCustomer?->full_name
-                                        ?? $docReq->groupMember?->customer?->full_name;
+                                        ?? $docReq->groupMember?->customer?->full_name
+                                        ?? $application->customer?->full_name
+                                        ?? $customer?->full_name;
                                     $canFulfill = $customer && $docSvc->customerCanFulfillRequest($customer, $docReq);
-                                    $isAssisting = $customer && $docSvc->borrowerIsAssisting($customer, $docReq);
-                                    $isOwnRequest = $customer && $docSvc->isSubjectOfRequest($customer, $docReq);
                                 @endphp
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <h3 class="text-base font-bold text-gray-900">{{ $docSvc->localizedLabel((string) $docReq->label) }}</h3>
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <h3 class="text-base font-bold text-gray-900 leading-snug">{{ $docSvc->localizedLabel((string) $docReq->label) }}</h3>
                                     <span @class([
-                                        'rounded-full px-2.5 py-0.5 text-[11px] font-bold',
+                                        'rounded-full px-2.5 py-0.5 text-[11px] font-bold shrink-0',
                                         'bg-red-100 text-red-800' => $isRejected,
                                         'bg-emerald-100 text-emerald-800' => $docReq->status === 'uploaded',
                                         'bg-amber-100 text-amber-900' => ! $isRejected && $docReq->status !== 'uploaded',
@@ -193,25 +193,19 @@
                                                 : __('borrower.loan_profile.documents_status_action')) }}
                                     </span>
                                 </div>
-                                @if ($subjectName && ! $isOwnRequest)
-                                    <p class="mt-1 text-sm font-semibold text-gray-900">
-                                        {{ __('borrower.document_upload.requested_for', ['name' => $subjectName]) }}
-                                    </p>
+                                @if ($subjectName)
+                                    <p class="mt-2 text-sm font-extrabold text-gray-900 tracking-tight">{{ $subjectName }}</p>
                                 @endif
-                                @if ($isAssisting && $subjectName && $canFulfill && $docReq->needsBorrowerAction())
-                                    <p class="mt-1 text-sm font-semibold text-brand">
-                                        {{ __('borrower.document_upload.you_can_add', ['name' => $subjectName]) }}
-                                    </p>
-                                @elseif (! $canFulfill && $docReq->needsBorrowerAction())
-                                    <p class="mt-1 text-xs font-semibold text-amber-950">
+                                @if (! $canFulfill && $docReq->needsBorrowerAction())
+                                    <p class="mt-1.5 text-xs font-semibold text-amber-950">
                                         {{ $docSvc->waitingOnLabel($docReq) }}
                                     </p>
                                 @endif
                                 @if ($reqInstructions = $docSvc->localizedInstructions((string) $docReq->label, $docReq->instructions))
-                                    <p class="mt-1 text-sm text-gray-600">{{ $reqInstructions }}</p>
+                                    <p class="mt-2 text-sm text-gray-600 leading-snug">{{ $reqInstructions }}</p>
                                 @endif
                                 @if ($docReq->due_at)
-                                    <p class="mt-1 text-xs text-gray-500">
+                                    <p class="mt-1.5 text-xs text-gray-500">
                                         {{ __('borrower.document_upload.due_line', ['date' => $docReq->due_at->timezone(config('app.timezone'))->format('d M Y')]) }}
                                     </p>
                                 @endif
@@ -242,16 +236,13 @@
                                     <p class="mt-1 text-sm text-emerald-900">{{ __('borrower.document_upload.submitted_body') }}</p>
                                 </div>
                             @elseif ($docReq->needsBorrowerAction())
-                                <div class="bg-gray-50/80 px-4 py-4 sm:px-5">
+                                <div class="border-t border-gray-100 px-4 py-4 sm:px-5">
                                     @php
                                         $assistingProfile = $profileGuided
                                             && $customer
                                             && $docSvc->borrowerIsAssisting($customer, $docReq)
                                             && ! $docSvc->assistantUploadsOnApplication($customer, $docReq);
                                         $identityKind = $docSvc->borrowerActionKind($docReq) === 'identity';
-                                        $subjectName = $docReq->subjectCustomer?->full_name
-                                            ?? $docReq->groupMember?->customer?->full_name
-                                            ?? null;
                                     @endphp
                                     @if ((string) $docReq->label === 'Add collateral asset')
                                         <div class="space-y-3">
@@ -292,7 +283,14 @@
                                                     :back-host-id="'doc-req-back-'.$docReq->id"
                                                     :db-name="'kf-nida-doc-'.$docReq->id"
                                                     :subject-name="$subjectName"
-                                                />
+                                                >
+                                                    <button type="submit"
+                                                            x-show="requiredDone() >= requiredTotal()"
+                                                            x-cloak
+                                                            class="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light">
+                                                        {{ __('borrower.document_upload.submit') }}
+                                                    </button>
+                                                </x-site.nida-card-camera>
                                                 @error('front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                                 @error('back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                             @else
@@ -301,6 +299,10 @@
                                                     :input-host-id="'doc-req-pages-'.$docReq->id"
                                                     :max-pages="12"
                                                 />
+                                                <button type="submit"
+                                                        class="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light">
+                                                    {{ __('borrower.document_upload.submit') }}
+                                                </button>
                                             @endif
                                             @if ($docReq->type === 'clarification')
                                                 <div>
@@ -308,10 +310,6 @@
                                                     <textarea name="response" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('borrower.document_upload.response_placeholder') }}"></textarea>
                                                 </div>
                                             @endif
-                                            <button type="submit"
-                                                    class="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light">
-                                                {{ __('borrower.document_upload.submit') }}
-                                            </button>
                                         </form>
                                     @endif
                                 </div>

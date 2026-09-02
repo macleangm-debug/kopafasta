@@ -45,8 +45,8 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('For Rogathe Nyelle', $en);
-        $this->assertStringContainsString('You can add this for Rogathe Nyelle', $en);
         $this->assertStringContainsString('Rogathe Nyelle', $en);
+        $this->assertStringNotContainsString('You can add this for Rogathe Nyelle', $en);
         $this->assertStringContainsString('Front', $en);
         $this->assertStringContainsString('Back', $en);
         $this->assertStringContainsString('Take ID photos', $en);
@@ -71,7 +71,7 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Kwa Rogathe Nyelle', $sw);
-        $this->assertStringContainsString('Unaweza kuongeza hii kwa Rogathe Nyelle', $sw);
+        $this->assertStringNotContainsString('Unaweza kuongeza hii kwa Rogathe Nyelle', $sw);
         $this->assertStringContainsString('Mbele', $sw);
         $this->assertStringContainsString('Nyuma', $sw);
         $this->assertStringContainsString('Piga picha za kitambulisho', $sw);
