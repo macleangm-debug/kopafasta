@@ -219,6 +219,8 @@ return [
         'picker_help_title'  => 'Not sure which product fits?',
         'picker_help_body'   => 'Open any product to see rates, calculator, and requirements — then apply when you are ready.',
         'featured_title'     => 'Featured products',
+        'carousel_prev'      => 'Previous products',
+        'carousel_next'      => 'Next products',
         'see_more'           => 'See more products',
         'see_less'           => 'Show fewer',
         'amount'             => 'Amount',

@@ -27,6 +27,19 @@ class LandingVariantFeatureTest extends TestCase
         $this->assertStringContainsString(__('site.hero.get_started'), $html);
     }
 
+    public function test_homepage_products_use_a_carousel_on_mobile_and_desktop(): void
+    {
+        $this->seed(\Database\Seeders\PublicLoanProductsSeeder::class);
+
+        $html = $this->get(route('site.home'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-landing-products', $html);
+        $this->assertStringContainsString('data-product-slide', $html);
+        $this->assertStringContainsString('snap-x snap-mandatory', $html);
+        $this->assertStringContainsString(__('site.products.carousel_next'), $html);
+        $this->assertStringNotContainsString(__('site.products.see_more'), $html);
+    }
+
     public function test_landing_query_param_switches_to_variant_b(): void
     {
         $response = $this->get(route('site.home', ['landing' => 'b']));

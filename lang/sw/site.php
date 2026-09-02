@@ -212,6 +212,8 @@ return [
         'picker_help_title'  => 'Huna uhakika bidhaa ipi inafaa?',
         'picker_help_body'   => 'Fungua bidhaa yoyote kuona viwango, kikokotoo, na mahitaji — kisha omba ukiwa tayari.',
         'featured_title'     => 'Bidhaa zilizochaguliwa',
+        'carousel_prev'      => 'Bidhaa zilizotangulia',
+        'carousel_next'      => 'Bidhaa zinazofuata',
         'see_more'           => 'Ona bidhaa zaidi',
         'see_less'           => 'Onyesha chache',
         'amount'             => 'Kiasi',
