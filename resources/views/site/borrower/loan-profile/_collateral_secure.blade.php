@@ -43,8 +43,7 @@
                         'shortfall' => format_money((float) data_get($secure, 'coverage.shortfall', 0)),
                     ]) }}</p>
                 @elseif ($status === 'secured')
-                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_secured') }}</h2>
-                    <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_secured') }}</p>
+                    <h2 class="text-lg font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_secured') }}</h2>
                 @elseif ($status === 'awaiting_insurance')
                     <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1 tracking-tight">{{ __('borrower.collateral_secure.title_insurance') }}</h2>
                     <p class="text-sm text-gray-600 mt-1.5 leading-snug">{{ __('borrower.collateral_secure.why_insurance') }}</p>

@@ -51,7 +51,7 @@
         ])));
         $isBorrower = ($selected['viewer'] ?? '') === \App\Services\CollateralCardService::VIEWER_BORROWER;
         $identityRows = [];
-        if (! empty($show['identity'])) {
+        if (! $isBorrower && ! empty($show['identity'])) {
             if (! empty($selected['registration_number']) && $selected['registration_number'] !== '—') {
                 $identityRows[] = [__('borrower.profile.collateral_fields.registration_number'), $selected['registration_number']];
             }
@@ -67,6 +67,18 @@
                 $identityRows[] = [__('borrower.profile.collateral_fields.serial_number'), $selected['serial']];
             }
         }
+        $summaryParts = [];
+        if ($isBorrower) {
+            if (! empty($selected['registration_number']) && $selected['registration_number'] !== '—') {
+                $summaryParts[] = $selected['registration_number'];
+            } elseif ($makeModel !== '' && strcasecmp($makeModel, (string) ($selected['label'] ?? '')) !== 0) {
+                $summaryParts[] = $makeModel;
+            }
+            if (! empty($selected['year']) && $selected['year'] !== '—') {
+                $summaryParts[] = $selected['year'];
+            }
+        }
+        $summaryLine = implode(' · ', $summaryParts);
     @endphp
     <div @class([
         'rounded-2xl ring-1 ring-brand/15 overflow-hidden',
@@ -74,30 +86,22 @@
         'bg-brand-muted/20' => ! $isBorrower,
         'h-full flex flex-col' => $layout === 'grid',
     ])>
-        <div @class([
-            'flex gap-4 items-start',
-            'flex-col' => $isBorrower,
-            'flex-col sm:flex-row p-3.5 sm:p-4' => ! $isBorrower,
-        ])>
-            <div @class([
-                'overflow-hidden bg-brand-muted/40',
-                'w-full aspect-[16/10] sm:aspect-[21/9]' => $isBorrower,
-                'shrink-0 size-16 sm:size-20 rounded-xl ring-1 ring-gray-200' => ! $isBorrower,
-            ])>
+        <div class="flex gap-3 items-start p-3 sm:p-3.5">
+            <div class="shrink-0 size-16 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-gray-200">
                 @if (! empty($selected['thumbnail']))
                     <img src="{{ $selected['thumbnail'] }}" alt="" class="h-full w-full object-cover">
                 @else
-                    <span class="h-full w-full grid place-items-center {{ $isBorrower ? 'text-4xl' : 'text-2xl' }}">{{ $icons[$selected['asset_type'] ?? ''] ?? '📦' }}</span>
+                    <span class="h-full w-full grid place-items-center text-2xl">{{ $icons[$selected['asset_type'] ?? ''] ?? '📦' }}</span>
                 @endif
             </div>
-            <div @class([
-                'min-w-0 flex-1 space-y-3',
-                'px-4 pb-4' => $isBorrower,
-            ])>
+            <div class="min-w-0 flex-1 space-y-2">
                 <div class="flex flex-wrap items-start justify-between gap-2">
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $selected['type_label'] ?? '' }}</p>
-                        <p class="text-lg sm:text-xl font-extrabold text-gray-900 mt-0.5 truncate">{{ $selected['label'] }}</p>
+                        <p class="text-base font-extrabold text-gray-900 mt-0.5 truncate">{{ $selected['label'] }}</p>
+                        @if ($isBorrower && $summaryLine !== '')
+                            <p class="text-xs font-semibold text-gray-500 mt-0.5 truncate">{{ $summaryLine }}</p>
+                        @endif
                     </div>
                     @if ($badges->isNotEmpty())
                         <div class="flex flex-wrap justify-end gap-1">
@@ -119,9 +123,9 @@
                     </dl>
                 @endif
 
-                @if (! empty($show['ownership']) && (! empty($selected['owner_name']) || ! empty($selected['belongs_to']) || (! $isBorrower && ! empty($selected['ownership_status']))))
+                @if (! $isBorrower && ! empty($show['ownership']) && (! empty($selected['owner_name']) || ! empty($selected['belongs_to']) || ! empty($selected['ownership_status'])))
                     <div class="space-y-0.5">
-                        @if (! $isBorrower && ! empty($selected['belongs_to']))
+                        @if (! empty($selected['belongs_to']))
                             <p class="text-sm font-semibold text-gray-700 truncate">{{ __('site.partner_portal.valuation_belongs_to') }}: {{ $selected['belongs_to'] }}</p>
                         @elseif (! empty($selected['owner_name']))
                             <p class="text-sm font-semibold text-gray-800 truncate">{{ $selected['owner_name'] }}</p>
@@ -129,15 +133,15 @@
                                 <p class="text-[11px] font-bold text-brand">{{ $selected['owner_role'] }}</p>
                             @endif
                         @endif
-                        @if (! $isBorrower && ! empty($selected['ownership_status']))
+                        @if (! empty($selected['ownership_status']))
                             <p class="text-[11px] font-semibold text-gray-500">{{ $selected['ownership_status'] }}</p>
                         @endif
                     </div>
                 @endif
 
-                @if (! empty($show['insurance']) && (! empty($insuranceTypeLabel) || ! empty($selected['insurer']) || ! empty($selected['insurance_expires_at']) || ! empty($show['insurance_warning'])))
+                @if (! empty($show['insurance']) && (! empty($show['insurance_warning']) || (! $isBorrower && (! empty($insuranceTypeLabel) || ! empty($selected['insurer']) || ! empty($selected['insurance_expires_at'])))))
                     <div>
-                        @if ($insuranceTypeLabel || ! empty($selected['insurer']) || ! empty($selected['insurance_expires_at']))
+                        @if (! $isBorrower && ($insuranceTypeLabel || ! empty($selected['insurer']) || ! empty($selected['insurance_expires_at'])))
                             <p class="text-xs sm:text-sm font-semibold text-gray-600">
                                 @if ($insuranceTypeLabel)
                                     {{ $insuranceTypeLabel }}
