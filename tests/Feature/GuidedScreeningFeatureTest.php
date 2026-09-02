@@ -90,6 +90,25 @@ class GuidedScreeningFeatureTest extends TestCase
             ])
             ->assertRedirect(route('admin.loan-applications.guided-screening', $app));
 
+        $queued = $app->documentRequests()->latest('id')->first();
+        $this->assertNotNull($queued);
+        $this->assertTrue($queued->isQueued());
+        $this->assertFalse($queued->needsBorrowerAction());
+
+        $reviewing = app(ScreeningNextActionService::class)->forApplication($app->fresh(['documentRequests']), $admin);
+        $this->assertSame(ScreeningNextActionService::BUCKET_DO_NOW, $reviewing['bucket']);
+        $this->assertSame('continue', $reviewing['cta_kind']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $app), [
+                'dispatch_queued' => '1',
+                'confirmed' => '1',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app));
+
+        $this->assertFalse($queued->fresh()->isQueued());
+        $this->assertTrue($queued->fresh()->needsBorrowerAction());
+
         $next = app(ScreeningNextActionService::class)->forApplication($app->fresh(), $admin);
         $this->assertSame(ScreeningNextActionService::BUCKET_WAITING, $next['bucket']);
         $this->assertSame('waiting', $next['cta_kind']);
@@ -1027,6 +1046,7 @@ class GuidedScreeningFeatureTest extends TestCase
 
         $request = $app->documentRequests()->latest('id')->first();
         $this->assertNotNull($request);
+        $this->assertTrue($request->isQueued());
         $this->assertSame('identity.id_document_quality', $request->checklist_item);
         $this->assertSame('identity', $request->gate);
         $this->assertSame('Current copy is unclear.', $request->request_reason);
@@ -1037,9 +1057,87 @@ class GuidedScreeningFeatureTest extends TestCase
             ->get(route('admin.loan-applications.guided-screening', $app))
             ->assertOk()
             ->getContent();
+        $this->assertStringContainsString('Added to this review', $html);
+        $this->assertStringContainsString('Send together', $html);
+        $this->assertStringContainsString('one 7-day deadline', $html);
+        $this->assertStringNotContainsString('Request sent', $html);
+        $this->assertStringNotContainsString('Screening paused', $html);
+        $this->assertStringNotContainsString('name="due_at"', $html);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $app), [
+                'dispatch_queued' => '1',
+                'confirmed' => '1',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app));
+
+        $this->assertFalse($request->fresh()->isQueued());
+        $this->assertTrue($request->fresh()->due_at->lte(now()->addDays(7)->endOfDay()));
+        $this->assertTrue($request->fresh()->due_at->gte(now()->addDays(6)->startOfDay()));
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.guided-screening', $app))
+            ->assertOk()
+            ->getContent();
         $this->assertStringContainsString('Request sent', $html);
         $this->assertStringContainsString('Screening paused', $html);
+        $this->assertStringNotContainsString('Send together', $html);
         $this->assertStringNotContainsString('name="due_at"', $html);
+    }
+
+    public function test_guided_batch_shares_one_deadline_when_sent_together(): void
+    {
+        [$admin, $app] = $this->file();
+        Setting::set('underwriting.document_request_default_due_days', 7);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $app), [
+                'type' => 'document',
+                'presets' => ['Updated National ID'],
+                'confirmed' => '1',
+                'return_workspace' => 'guided',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app));
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $app), [
+                'type' => 'document',
+                'presets' => ['Updated Bank Statement'],
+                'confirmed' => '1',
+                'return_workspace' => 'guided',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app));
+
+        $queued = $app->documentRequests()->orderBy('id')->get();
+        $this->assertCount(2, $queued);
+        $this->assertTrue($queued->every(fn ($row) => $row->isQueued()));
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.guided-screening', $app))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('2 requests ready — one 7-day deadline', $html);
+        $this->assertStringContainsString('Updated National ID', $html);
+        $this->assertStringContainsString('Updated Bank Statement', $html);
+
+        $this->travel(2)->days();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.document-requests.store', $app), [
+                'dispatch_queued' => '1',
+                'confirmed' => '1',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app));
+
+        $sent = $app->documentRequests()->orderBy('id')->get();
+        $this->assertTrue($sent->every(fn ($row) => ! $row->isQueued()));
+        $this->assertTrue($sent->every(fn ($row) => $row->needsBorrowerAction()));
+        $this->assertEquals(
+            $sent[0]->due_at->toDateString(),
+            $sent[1]->due_at->toDateString(),
+        );
+        $this->assertTrue($sent[0]->due_at->gte(now()->addDays(6)->startOfDay()));
+        $this->assertTrue($sent[0]->due_at->lte(now()->addDays(7)->endOfDay()));
     }
 
     public function test_evidence_return_url_pins_the_current_checklist_item(): void

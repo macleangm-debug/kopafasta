@@ -153,7 +153,7 @@
                     @endif
                 </div>
             @else
-                <ul class="space-y-3">
+                <ul class="space-y-2">
                     @foreach ($actionDocs as $docReq)
                         @php
                             $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
@@ -176,11 +176,7 @@
                                     ? __('borrower.document_upload.submitted_short')
                                     : __('borrower.loan_profile.documents_status_action'));
                             $statusTone = $isRejected ? 'rose' : ($docReq->status === 'uploaded' ? 'emerald' : 'amber');
-                            $dueMeta = $docReq->due_at
-                                ? __('borrower.document_upload.due_line', ['date' => $docReq->due_at->timezone(config('app.timezone'))->format('d M Y')])
-                                : null;
                             $reqInstructions = $docSvc->localizedInstructions((string) $docReq->label, $docReq->instructions);
-                            $cardMeta = collect([$dueMeta, $reqInstructions])->filter()->implode(' · ') ?: null;
                             $uploadOnApplication = $customer && $docSvc->assistantUploadsOnApplication($customer, $docReq);
                             $goToProfile = $profileGuided && ! $uploadOnApplication;
                             $assistingProfile = $profileGuided
@@ -192,13 +188,12 @@
                                 : __('borrower.document_upload.add');
                         @endphp
                         <li id="request-{{ $docReq->id }}"
-                            class="scroll-mt-24"
-                            x-data="{ adding: false }">
+                            class="scroll-mt-24">
                             <x-site.request-card
                                 :icon="$actionKind"
                                 :title="$docSvc->localizedLabel((string) $docReq->label)"
                                 :subtitle="$subjectName"
-                                :meta="$cardMeta"
+                                :meta="$reqInstructions"
                                 :status="$statusLabel"
                                 :status-tone="$statusTone"
                             >

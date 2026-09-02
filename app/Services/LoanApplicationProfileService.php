@@ -187,8 +187,9 @@ class LoanApplicationProfileService
             ->latest()
             ->get();
         $requestsForCustomer = $documentRequests->filter(
-            fn ($request) => $docRequestService->isSubjectOfRequest($customer, $request)
-                || $docRequestService->borrowerIsAssisting($customer, $request)
+            fn ($request) => ! $request->isQueued()
+                && ($docRequestService->isSubjectOfRequest($customer, $request)
+                    || $docRequestService->borrowerIsAssisting($customer, $request))
         )->values();
 
         return [

@@ -74,6 +74,11 @@
             $showSoloCard = function (array $keys) use ($solo, $soloFocus): bool {
                 return ! $solo || in_array($soloFocus, $keys, true);
             };
+            $startIdCamera = ($editFocus === 'id_images' || ($solo && $focusHash === 'id_images'))
+                && ! $uploadsComplete
+                && ! $idPhotosLocked
+                && ! $noPhysicalCard;
+            $idImagesDefaultEdit = $editFocus === 'id_images' || $startIdCamera;
         @endphp
 
         @include('site.borrower.profile._nida_result', ['customer' => $customer])
@@ -168,7 +173,7 @@
                     :complete="$uploadsComplete"
                     :empty="! $uploadsComplete"
                     :default-open="$focusHash === 'id_images'"
-                    :default-edit="$editFocus === 'id_images'">
+                    :default-edit="$idImagesDefaultEdit">
                     <x-slot:view>
                         <div x-data="{ expandedUrl: null }" class="space-y-3">
                             @if ($customer->no_physical_nida_card)
@@ -191,7 +196,7 @@
                                     @endif
                                 @empty
                                     <p class="text-sm text-gray-500">{{ __('borrower.profile.id_images_empty') }}</p>
-                                    <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                                    <button type="button" @click="$dispatch('profile-card-open-edit', 'profile-id-images')" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                                 @endforelse
                             @else
                                 <div class="grid sm:grid-cols-2 gap-3">
@@ -229,7 +234,7 @@
                                     </div>
                                 </div>
                                 @unless ($uploadsComplete)
-                                    <button type="button" @click="openEdit()" class="mt-1 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                                    <button type="button" @click="$dispatch('profile-card-open-edit', 'profile-id-images')" class="mt-1 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                                 @endunless
                             @endif
                             <div x-show="expandedUrl" x-cloak x-transition
@@ -254,7 +259,20 @@
                             <div class="space-y-4" x-data="{
                                 noCard: @js($noPhysicalCard),
                                 altTypes: @js(array_values(old('alternate_id_types', $customer->alternate_id_types ?? []))),
-                            }">
+                                startIdCam() {
+                                    if (this.noCard) return;
+                                    this.$nextTick(() => this.$refs.nidaCam?.querySelector('[data-kf-cam-start]')?.click());
+                                },
+                                onIdSectionEdit(e) {
+                                    if (e.detail === 'profile-id-images') this.startIdCam();
+                                },
+                            }"
+                            x-init="
+                                const onEdit = (e) => onIdSectionEdit(e);
+                                window.addEventListener('profile-section-edit', onEdit);
+                                if (@js($startIdCamera)) startIdCam();
+                                $cleanup(() => window.removeEventListener('profile-section-edit', onEdit));
+                            ">
                                 @if ($idPhotosLocked)
                                     <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-3 text-sm text-slate-700">
                                         {{ __('borrower.profile.id_photos_locked_hint') }}
@@ -271,12 +289,21 @@
                                         </span>
                                     </label>
                                 @endunless
-                                <div x-show="!noCard" x-cloak class="space-y-4">
-                                    <x-site.profile-document-field :document="$nidaFront" field-name="national_id_front" mode="single" :label="__('borrower.profile.nida_front')" input-host-id="nida-front-upload" :required="! $nidaFront && ! $noPhysicalCard && ! $idPhotosLocked" :read-only="$idPhotosLocked" />
+                                @unless ($idPhotosLocked)
+                                <div x-show="!noCard" x-cloak class="space-y-4" x-ref="nidaCam">
+                                    <x-site.nida-card-camera
+                                        front-name="national_id_front"
+                                        back-name="national_id_back"
+                                        front-host-id="nida-front-upload"
+                                        back-host-id="nida-back-upload"
+                                        db-name="kf-nida-profile"
+                                        :subject-name="$customer->full_name"
+                                        :required="false"
+                                    />
                                     @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                    <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack && ! $noPhysicalCard && ! $idPhotosLocked" :read-only="$idPhotosLocked" />
                                     @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>
+                                @endunless
                                 <div x-show="noCard" x-cloak class="space-y-4 rounded-xl bg-amber-50/80 ring-1 ring-amber-200 p-4">
                                     <div>
                                         <p class="text-sm font-semibold text-amber-950">{{ __('borrower.nida.alt_id_title') }}</p>

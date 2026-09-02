@@ -63,7 +63,13 @@ class LoanApplicationDocumentRequest extends Model
 
     public function needsBorrowerAction(): bool
     {
-        return in_array($this->status, ['pending', 'rejected'], true);
+        return in_array($this->status, ['pending', 'rejected'], true)
+            && ! $this->isQueued();
+    }
+
+    public function isQueued(): bool
+    {
+        return (bool) data_get($this->lifecycle, 'queued');
     }
 
     /** Human label: "Amina Juma · Leader" / "John Doe · Guarantor" / "Borrower". */

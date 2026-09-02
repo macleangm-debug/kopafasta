@@ -672,6 +672,20 @@ class ProfileLinkedDocumentRequestTest extends TestCase
         $this->assertStringContainsString('kf-request-add', $html);
         $this->assertStringNotContainsString('doc-req-front-'.$request->id, $html);
 
+        $profileHtml = $this->actingAs($user)
+            ->get($actionUrl)
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('valuationCamera', $profileHtml);
+        $this->assertStringContainsString('data-kf-cam-start', $profileHtml);
+        $this->assertStringContainsString('national_id_front', $profileHtml);
+        $this->assertStringContainsString('national_id_back', $profileHtml);
+        $this->assertStringContainsString('nida-front-upload', $profileHtml);
+        $this->assertTrue(
+            str_contains($profileHtml, __('borrower.document_upload.nida_start', [], 'en'))
+            || str_contains($profileHtml, __('borrower.document_upload.nida_start', [], 'sw'))
+        );
+
         $this->actingAs($user)
             ->post(route('site.borrower.application.document-requests.store', [$application, $request]), [
                 'front' => UploadedFile::fake()->image('nida-front-own.jpg'),

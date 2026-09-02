@@ -27,6 +27,11 @@
         ! empty($contact['national_id_missing'])
         || (! filled($contact['national_id'] ?? $contact['detail'] ?? null) && ! $idEvidenceUrl)
     );
+    $queuedRequests = ($record->relationLoaded('documentRequests')
+        ? $record->documentRequests
+        : $record->documentRequests()->orderByDesc('id')->get()
+    )->filter(fn ($row) => $row->isQueued())->values();
+    $queuedDueDays = app(\App\Services\UnderwritingSettingsService::class)->documentRequestDefaultDueDays();
 @endphp
 
 <x-admin.guided-review-shell
@@ -72,6 +77,35 @@
             <div class="mt-3 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
                 <p class="text-[11px] font-bold uppercase tracking-wide text-amber-800">{{ $guided['recommended']['label'] ?? 'Required next step' }}</p>
                 <p class="text-sm text-amber-950 mt-1">{{ $guided['recommended']['detail'] }}</p>
+            </div>
+        @endif
+
+        @if ($queuedRequests->isNotEmpty())
+            <div class="mt-3 rounded-2xl bg-white ring-1 ring-brand/20 px-4 py-4 space-y-3" x-data="{ step: 'review' }">
+                <p class="text-[11px] font-bold uppercase tracking-wide text-brand">Send together</p>
+                <p class="text-base font-bold text-slate-900">{{ $queuedRequests->count() }} {{ $queuedRequests->count() === 1 ? 'request' : 'requests' }} ready — one {{ $queuedDueDays }}-day deadline</p>
+                <ul class="text-sm text-slate-700 space-y-1">
+                    @foreach ($queuedRequests as $queued)
+                        <li>{{ $queued->label }}</li>
+                    @endforeach
+                </ul>
+                <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="space-y-2" data-no-draft>
+                    @csrf
+                    <input type="hidden" name="dispatch_queued" value="1">
+                    <input type="hidden" name="type" value="document">
+                    <input type="hidden" name="return_workspace" value="guided">
+                    <button type="button" x-show="step === 'review'" @click="step = 'confirm'"
+                            class="w-full rounded-xl bg-brand text-white font-bold text-sm py-2.5 hover:bg-brand-light">
+                        Review & send all
+                    </button>
+                    <div x-show="step === 'confirm'" x-cloak class="space-y-2">
+                        <p class="text-sm text-slate-800">We will notify the borrower{{ $record->loanGroup ? ' and group leader' : '' }} of all {{ $queuedRequests->count() }} items with the same {{ $queuedDueDays }}-day deadline. Screening pauses until they respond.</p>
+                        <div class="flex gap-2">
+                            <button type="button" @click="step = 'review'" class="flex-1 rounded-xl bg-white ring-1 ring-brand/30 text-brand font-bold text-sm py-2.5">Go back</button>
+                            <button type="submit" name="confirmed" value="1" data-loading-label="Sending…" class="flex-1 rounded-xl bg-brand text-white font-bold text-sm py-2.5">Send all requests</button>
+                        </div>
+                    </div>
+                </form>
             </div>
         @endif
 

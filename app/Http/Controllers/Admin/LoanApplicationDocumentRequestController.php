@@ -22,6 +22,24 @@ class LoanApplicationDocumentRequestController extends Controller
     ): RedirectResponse {
         abort_if($loanApplication->isClosed(), 403, 'This application is closed and can only be viewed.');
 
+        if ($request->boolean('dispatch_queued')) {
+            $request->validate([
+                'confirmed' => ['accepted'],
+                'dispatch_queued' => ['accepted'],
+            ]);
+            $sent = $service->dispatchQueued($loanApplication);
+            $this->auditAdmin('admin.loan_applications.document_requests_dispatched', $loanApplication, [
+                'count' => $sent->count(),
+                'labels' => $sent->pluck('label')->all(),
+            ]);
+
+            return redirect()
+                ->route('admin.loan-applications.guided-screening', $loanApplication)
+                ->with('status', $sent->count() === 1
+                    ? '1 document request sent.'
+                    : $sent->count().' document requests sent.');
+        }
+
         $data = $request->validate([
             'type' => ['required', 'in:document,clarification'],
             'label' => ['nullable', 'string', 'max:120'],
@@ -47,6 +65,7 @@ class LoanApplicationDocumentRequestController extends Controller
             'return_workspace' => ['nullable', 'in:checklist,profiles,guided'],
             'return_tab' => ['nullable', 'string', 'max:40'],
             'person' => ['nullable', 'in:borrower,member,guarantor'],
+            'dispatch_queued' => ['sometimes', 'boolean'],
         ]);
 
         if (in_array($data['intent'] ?? '', ['collateral', 'documents'], true) && ! $request->boolean('confirmed')) {
@@ -118,6 +137,7 @@ class LoanApplicationDocumentRequestController extends Controller
                     $subjectKind,
                     $subjectCustomerId,
                     $loanGroupMemberId,
+                    dispatch: $request->input('return_workspace') !== 'guided',
                 );
 
                 $this->attachRequestContext($docRequest, $data);
@@ -131,7 +151,8 @@ class LoanApplicationDocumentRequestController extends Controller
 
                 if ($request->input('return_workspace') === 'guided') {
                     return redirect()
-                        ->route('admin.loan-applications.guided-screening', $loanApplication);
+                        ->route('admin.loan-applications.guided-screening', $loanApplication)
+                        ->with('status', 'Added to this review. Continue reviewing, then send all requests together.');
                 }
 
                 return redirect()

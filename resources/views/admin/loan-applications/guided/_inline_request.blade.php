@@ -7,19 +7,20 @@
     $requests = $record->relationLoaded('documentRequests')
         ? $record->documentRequests
         : $record->documentRequests()->orderByDesc('id')->get();
-    $openRequest = $requests
-        ->first(function ($row) use ($itemKey, $participant) {
-            if ($itemKey !== '' && (string) $row->checklist_item === $itemKey && $row->needsBorrowerAction()) {
-                return true;
-            }
-            $m = (int) ($participant['m'] ?? 0);
+    $matchesStep = function ($row) use ($itemKey, $participant) {
+        if ($itemKey !== '' && (string) $row->checklist_item === $itemKey && in_array($row->status, ['pending', 'rejected'], true)) {
+            return true;
+        }
+        $m = (int) ($participant['m'] ?? 0);
 
-            return ($participant['person'] ?? '') === 'member'
-                && $m > 0
-                && (int) $row->loan_group_member_id === $m
-                && $row->needsBorrowerAction()
-                && app(\App\Services\ApplicationDocumentRequestService::class)->borrowerActionKind($row) === 'identity';
-        });
+        return ($participant['person'] ?? '') === 'member'
+            && $m > 0
+            && (int) $row->loan_group_member_id === $m
+            && in_array($row->status, ['pending', 'rejected'], true)
+            && app(\App\Services\ApplicationDocumentRequestService::class)->borrowerActionKind($row) === 'identity';
+    };
+    $openRequest = $requests->first(fn ($row) => $row->needsBorrowerAction() && $matchesStep($row));
+    $queuedRequest = $requests->first(fn ($row) => $row->isQueued() && $matchesStep($row));
     $showComposer = ! empty($requestable['preset'])
         && (
             ! empty($nationalIdMissing)
@@ -40,6 +41,12 @@
         @if ($openRequest->due_at)
             <p class="text-xs text-slate-600">Deadline: <span class="font-bold text-slate-900">{{ $dueDays }} days · set by Screening policy</span></p>
         @endif
+    </div>
+@elseif ($queuedRequest)
+    <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 space-y-1">
+        <p class="text-sm font-bold text-brand">Added to this review</p>
+        <p class="text-base font-bold text-slate-900">{{ $queuedRequest->label }}</p>
+        <p class="text-sm text-slate-700">Not sent yet. Continue reviewing, then send all requests together.</p>
     </div>
 @elseif ($showComposer)
     <div class="rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-3" x-data="{ open: true, preset: @js($requestable['preset']), step: 'review' }">
@@ -78,13 +85,13 @@
             </div>
             <button type="button" x-show="step === 'review'" @click="step = 'confirm'"
                     class="w-full rounded-xl bg-brand text-white font-bold text-sm py-2.5 hover:bg-brand-light">
-                Review & send request
+                Review & add to requests
             </button>
             <div x-show="step === 'confirm'" x-cloak class="space-y-2">
-                <p class="text-sm text-slate-800">Send this request and pause Screening until it is received?</p>
+                <p class="text-sm text-slate-800">Add this to the review batch. The borrower is not notified until you send all requests together.</p>
                 <div class="flex gap-2">
                     <button type="button" @click="step = 'review'" class="flex-1 rounded-xl bg-white ring-1 ring-brand/30 text-brand font-bold text-sm py-2.5">Go back</button>
-                    <button type="submit" data-loading-label="Sending…" class="flex-1 rounded-xl bg-brand text-white font-bold text-sm py-2.5">Send request</button>
+                    <button type="submit" data-loading-label="Adding…" class="flex-1 rounded-xl bg-brand text-white font-bold text-sm py-2.5">Add to requests</button>
                 </div>
             </div>
         </form>

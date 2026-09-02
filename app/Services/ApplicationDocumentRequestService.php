@@ -826,6 +826,7 @@ class ApplicationDocumentRequestService
         string $subjectKind = 'borrower',
         ?int $subjectCustomerId = null,
         ?int $loanGroupMemberId = null,
+        bool $dispatch = true,
     ): LoanApplicationDocumentRequest {
         $instructions ??= self::presetInstructions()[$label] ?? null;
         $settings = app(UnderwritingSettingsService::class);
@@ -873,13 +874,49 @@ class ApplicationDocumentRequestService
             'instructions' => $instructions,
             'status' => 'pending',
             'due_at' => $dueAt,
+            'lifecycle' => $dispatch ? null : ['queued' => true],
         ]);
 
-        $this->syncApplicationStatus($application->fresh());
-        $this->notifyBorrower($request);
-        app(ProfileRevisionService::class)->applyForDocumentRequest($application->fresh(), $request, notify: false);
+        if ($dispatch) {
+            $this->syncApplicationStatus($application->fresh());
+            $this->notifyBorrower($request);
+            app(ProfileRevisionService::class)->applyForDocumentRequest($application->fresh(), $request, notify: false);
+        }
 
         return $request;
+    }
+
+    /** Send every queued Guided Review request with one shared deadline. */
+    public function dispatchQueued(LoanApplication $application): Collection
+    {
+        $queued = $application->documentRequests()
+            ->whereIn('status', ['pending', 'rejected'])
+            ->get()
+            ->filter(fn (LoanApplicationDocumentRequest $request) => $request->isQueued())
+            ->values();
+
+        if ($queued->isEmpty()) {
+            return $queued;
+        }
+
+        $dueAt = now()->addDays(app(UnderwritingSettingsService::class)->documentRequestDefaultDueDays());
+
+        foreach ($queued as $request) {
+            $lifecycle = is_array($request->lifecycle) ? $request->lifecycle : [];
+            unset($lifecycle['queued']);
+            $lifecycle['dispatched_at'] = now()->toIso8601String();
+            $request->update([
+                'due_at' => $dueAt,
+                'lifecycle' => $lifecycle === [] ? null : $lifecycle,
+            ]);
+            $this->notifyBorrower($request->fresh(), inApp: false);
+            app(ProfileRevisionService::class)->applyForDocumentRequest($application->fresh(), $request->fresh(), notify: false);
+        }
+
+        $this->notifyBorrowerBatch($application->fresh(), $queued);
+        $this->syncApplicationStatus($application->fresh());
+
+        return $queued;
     }
 
     /**
@@ -1616,7 +1653,8 @@ class ApplicationDocumentRequestService
 
         $needsAction = $application->documentRequests()
             ->whereIn('status', ['pending', 'rejected'])
-            ->exists();
+            ->get()
+            ->contains(fn (LoanApplicationDocumentRequest $request) => ! $request->isQueued());
 
         if ($needsAction) {
             if ($application->status !== 'pending_documents') {
