@@ -26,6 +26,7 @@ class ScreeningNextActionService
         private readonly ScreeningChecklistGateService $gates,
         private readonly ScreeningSequenceService $sequence,
         private readonly ApplicationDocumentRequestService $documents,
+        private readonly CollateralSecureService $collateralSecure,
     ) {}
 
     /**
@@ -85,7 +86,7 @@ class ScreeningNextActionService
         $stage = (string) $application->current_stage;
         $screeningOpen = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
         $stepIsDecision = ($step['type'] ?? '') === 'decision';
-        $stillOpen = in_array($step['type'] ?? '', ['human', 'request', 'attention', 'waiting', 'resolution', 'clarification', 'gate_1', 'gate_complete'], true);
+        $stillOpen = in_array($step['type'] ?? '', ['human', 'request', 'attention', 'waiting', 'resolution', 'clarification', 'gate_1', 'gate_complete', 'collateral_secure'], true);
         $bucket = match (true) {
             ! $screeningOpen || ($stepIsDecision && ! $stillOpen) => self::BUCKET_COMPLETED,
             $waiting !== null => self::BUCKET_WAITING,
@@ -272,6 +273,10 @@ class ScreeningNextActionService
             return $this->gateOneStep($application, $snapshot, $groupReview);
         }
 
+        if ($pinItem === '' && $this->needsCollateralSecureRequest($application, $snapshot)) {
+            return $this->collateralSecureStep($application, $snapshot);
+        }
+
         $skipItem = (string) ($cursor['after_item'] ?? '');
         $skipPerson = (string) ($cursor['after_person'] ?? '');
         $skipM = isset($cursor['after_m']) ? (int) $cursor['after_m'] : null;
@@ -289,7 +294,7 @@ class ScreeningNextActionService
             $customer = $this->subjectCustomer($application, $review, $subject);
             $card = $this->checklist->identityPeopleCard($desk, $customer);
 
-            foreach (['income', 'crb', 'identity', 'collateral', 'final'] as $gateKey) {
+            foreach (['income', 'crb', 'collateral', 'identity', 'final'] as $gateKey) {
                 $gate = $gates[$gateKey] ?? null;
                 if (! is_array($gate) || ($pinItem === '' && ! empty($gate['locked']))) {
                     continue;
@@ -442,13 +447,7 @@ class ScreeningNextActionService
     ): array {
         $key = (string) ($item['key'] ?? '');
         [$groupKey, $itemKey] = array_pad(explode('.', $key, 2), 2, '');
-        $index = match ($gateKey) {
-            'income' => 2,
-            'crb' => 3,
-            'identity' => 4,
-            'collateral' => 5,
-            default => 6,
-        };
+        $index = ScreeningSequenceService::gateIndex($gateKey);
         $requestable = $this->requestablePreset($key, $item);
         $contact = $this->contactContext($key, $card, $customer, $item['destination'] ?? null);
         $isSystemItem = ! empty($item['catalog_system'])
@@ -519,12 +518,59 @@ class ScreeningNextActionService
         return [
             'type' => 'waiting',
             'gate' => $waiting['gate'] ?? 'identity',
-            'gate_index' => (int) ($waiting['gate_index'] ?? 4),
+            'gate_index' => ScreeningSequenceService::gateIndex((string) ($waiting['gate'] ?? 'identity')),
             'gate_label' => $waiting['label'] ?? 'Waiting',
             'title' => $waiting['label'] ?? 'Screening paused',
             'prompt' => $waiting['detail'] ?? 'We will continue from this step when the required information is received.',
             'waiting' => $waiting,
             'primary' => null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function needsCollateralSecureRequest(LoanApplication $application, array $snapshot): bool
+    {
+        if (! ($snapshot['unlocked']['collateral'] ?? false)) {
+            return false;
+        }
+        if ($this->collateralSecure->isAwaitingCustomerCollateral($application)
+            || $this->collateralSecure->isOpen($application)) {
+            return false;
+        }
+        if (is_asset_backed_loan_product($application->product?->code)
+            || is_marketplace_loan_product($application->product?->code)) {
+            return false;
+        }
+        $application->loadMissing('collateralAssets');
+        if ($application->collateralAssets->isNotEmpty()) {
+            return false;
+        }
+
+        return app(LoanPolicyService::class)->applicationRequiresCollateral($application);
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @return array<string, mixed>
+     */
+    private function collateralSecureStep(LoanApplication $application, array $snapshot): array
+    {
+        $who = filled($application->loan_group_id) ? 'group leader' : 'borrower';
+
+        return [
+            'type' => 'collateral_secure',
+            'gate' => 'collateral',
+            'gate_index' => ScreeningSequenceService::gateIndex('collateral'),
+            'gate_label' => 'Collateral & security',
+            'title' => 'Collateral is required',
+            'prompt' => 'This file needs pledged security. Ask the '.$who.' to add it on their loan profile. Do not assign a valuer to pass this gate.',
+            'primary' => 'Review & request collateral',
+            'recommended' => [
+                'label' => 'Required next step',
+                'detail' => 'Request collateral via the existing loan-profile journey.',
+            ],
         ];
     }
 
@@ -579,18 +625,33 @@ class ScreeningNextActionService
             ];
         }
 
+        if ($this->collateralSecure->isAwaitingCustomerCollateral($application)) {
+            $state = $this->collateralSecure->state($application) ?? [];
+
+            return [
+                'kind' => 'collateral',
+                'label' => 'Waiting for collateral',
+                'detail' => 'Collateral is required and has not been pledged yet.',
+                'gate' => 'collateral',
+                'gate_index' => ScreeningSequenceService::gateIndex('collateral'),
+                'since' => $state['requested_at'] ?? data_get($application->screening_payload, 'guided.waiting_since'),
+            ];
+        }
+
         $open = $application->documentRequests
             ->filter(fn ($req) => $this->documents->isWaitingOnBorrower($req))
             ->first();
         if ($open instanceof LoanApplicationDocumentRequest) {
-            $waitingOn = $this->documents->waitingOnLabel($open, $groupReview);
+            $kind = $this->documents->borrowerActionKind($open);
+            $isCollateral = $kind === 'collateral';
+            [$waitKind, $waitLabel] = $this->documentWaitingBucket($open, $groupReview, $isCollateral);
 
             return [
-                'kind' => 'document',
-                'label' => 'Screening paused — '.$waitingOn,
+                'kind' => $waitKind,
+                'label' => $waitLabel,
                 'detail' => $open->label.' is outstanding. Due '.optional($open->due_at)->timezone(config('app.timezone'))->format('d M Y').'.',
-                'gate' => $this->documents->borrowerActionKind($open) === 'collateral' ? 'collateral' : 'identity',
-                'gate_index' => $this->documents->borrowerActionKind($open) === 'collateral' ? 5 : 4,
+                'gate' => $isCollateral ? 'collateral' : 'identity',
+                'gate_index' => ScreeningSequenceService::gateIndex($isCollateral ? 'collateral' : 'identity'),
                 'request_id' => $open->id,
                 'since' => optional($open->created_at)->toIso8601String(),
             ];
@@ -610,6 +671,31 @@ class ScreeningNextActionService
         }
 
         return null;
+    }
+
+    /**
+     * Screening Home waiting labels come from who must act, not translated copy.
+     *
+     * @param  array<string, mixed>  $groupReview
+     * @return array{0: string, 1: string}
+     */
+    private function documentWaitingBucket(
+        LoanApplicationDocumentRequest $request,
+        array $groupReview,
+        bool $isCollateral,
+    ): array {
+        if ($isCollateral) {
+            return ['collateral', 'Waiting for collateral'];
+        }
+
+        $role = $request->subjectRoleLabel($groupReview);
+
+        return match (true) {
+            str_contains($role, 'Guarantor') => ['guarantor', 'Waiting for guarantor'],
+            str_contains($role, 'Member') => ['member', 'Waiting for member'],
+            str_contains($role, 'Leader') => ['group_leader', 'Waiting for group leader'],
+            default => ['document', 'Waiting for document'],
+        };
     }
 
     /**
@@ -1054,6 +1140,9 @@ class ScreeningNextActionService
     {
         if ($waiting) {
             return 'Screening is paused. '.$waiting['detail'].' No action is required from you now.';
+        }
+        if (($step['type'] ?? '') === 'collateral_secure') {
+            return 'Ask the borrower to pledge required collateral on their loan profile. Screening pauses after they are notified.';
         }
         if (($step['type'] ?? '') === 'resolution') {
             return ($step['kind'] ?? '') === 'guarantor'

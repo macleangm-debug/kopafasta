@@ -235,6 +235,7 @@ class ValuerCoverageGapFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Ask Partner support to add a valuer', false)
             ->assertSee('Screening does not enroll partners', false)
+            ->assertSee('Fee is paid. No valuer covers Kigoma', false)
             ->assertDontSee('Create this partner?', false)
             ->assertDontSee('Add valuer', false)
             ->getContent();

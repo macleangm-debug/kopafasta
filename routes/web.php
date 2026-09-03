@@ -86,6 +86,11 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::post('/country', [\App\Http\Controllers\Site\CountryController::class, 'update'])->name('country.update');
 
     Route::get('/',                 [\App\Http\Controllers\Site\PageController::class, 'home'])->name('home');
+    Route::get('/robots.txt',       [\App\Http\Controllers\Site\SeoController::class, 'robots'])->name('robots');
+    Route::get('/sitemap.xml',      [\App\Http\Controllers\Site\SeoController::class, 'sitemap'])->name('sitemap');
+    Route::get('/learn',            [\App\Http\Controllers\Site\LearnController::class, 'index'])->name('learn');
+    Route::get('/learn/{category}/{slug}', [\App\Http\Controllers\Site\LearnController::class, 'show'])->name('learn.show');
+    Route::get('/learn/{category}', [\App\Http\Controllers\Site\LearnController::class, 'category'])->name('learn.category');
     Route::get('/plus', [\App\Http\Controllers\Site\PageController::class, 'plus'])->name('plus');
     Route::get('/rewards', [\App\Http\Controllers\Site\PageController::class, 'rewards'])->name('rewards');
     Route::get('/loans',            [\App\Http\Controllers\Site\PageController::class, 'products'])->name('products');
@@ -462,6 +467,12 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
                 Route::get('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPayForm'])->name('membership.pay');
                 Route::post('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPay'])->name('membership.pay.post');
+                Route::get('/terms', [\App\Http\Controllers\Site\AffiliateController::class, 'terms'])->name('terms');
+                Route::post('/terms', [\App\Http\Controllers\Site\AffiliateController::class, 'acceptTerms'])->name('terms.accept');
+                Route::post('/membership/checkout/{payment}/pay', [\App\Http\Controllers\Site\PartnerMembershipPaymentController::class, 'pay'])->name('membership.checkout.pay');
+                Route::get('/membership/checkout/{payment}/status', [\App\Http\Controllers\Site\PartnerMembershipPaymentController::class, 'status'])->name('membership.checkout.status');
+                Route::post('/membership/checkout/{payment}/retry', [\App\Http\Controllers\Site\PartnerMembershipPaymentController::class, 'retry'])->name('membership.checkout.retry');
+                Route::post('/membership/checkout/{payment}/gate', [\App\Http\Controllers\Site\PartnerMembershipPaymentController::class, 'returnToGate'])->name('membership.checkout.gate');
             });
         });
 
@@ -480,6 +491,12 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
             Route::get('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPayForm'])->name('membership.pay');
             Route::post('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPay'])->name('membership.pay.post');
+            Route::get('/terms', [\App\Http\Controllers\Site\AffiliateController::class, 'terms'])->name('terms');
+            Route::post('/terms', [\App\Http\Controllers\Site\AffiliateController::class, 'acceptTerms'])->name('terms.accept');
+            Route::post('/membership/checkout/{payment}/pay', [\App\Http\Controllers\Site\PartnerMembershipPaymentController::class, 'pay'])->name('membership.checkout.pay');
+            Route::get('/membership/checkout/{payment}/status', [\App\Http\Controllers\Site\PartnerMembershipPaymentController::class, 'status'])->name('membership.checkout.status');
+            Route::post('/membership/checkout/{payment}/retry', [\App\Http\Controllers\Site\PartnerMembershipPaymentController::class, 'retry'])->name('membership.checkout.retry');
+            Route::post('/membership/checkout/{payment}/gate', [\App\Http\Controllers\Site\PartnerMembershipPaymentController::class, 'returnToGate'])->name('membership.checkout.gate');
         });
         Route::redirect('/partner/affiliate-portal', '/partner/affiliate');
 
@@ -1087,6 +1104,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings',                  [SettingsController::class, 'index'])         ->name('settings.index');
         Route::get('settings/company',          [SettingsController::class, 'company'])       ->name('settings.company');
         Route::put('settings/company',          [SettingsController::class, 'saveCompany'])   ->name('settings.company.save');
+        Route::get('settings/seo',              [SettingsController::class, 'seo'])           ->name('settings.seo');
+        Route::put('settings/seo',              [SettingsController::class, 'saveSeo'])       ->name('settings.seo.save');
         Route::get('settings/working-hours',    [SettingsController::class, 'workingHours'])->name('settings.working-hours');
         Route::put('settings/working-hours',    [SettingsController::class, 'saveWorkingHours'])->name('settings.working-hours.save');
         Route::post('settings/working-hours/holidays', [SettingsController::class, 'storePublicHoliday'])->name('settings.working-hours.holidays.store');

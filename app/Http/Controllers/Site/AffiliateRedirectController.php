@@ -19,7 +19,7 @@ class AffiliateRedirectController extends Controller
                 ->where('affiliate_code', strtoupper(trim($code)))
                 ->first();
 
-            $message = $raw && ! app(\App\Services\AffiliateLifecycleService::class)->canSharePublicly($raw)
+            $message = $raw && ! app(\App\Services\AffiliateEligibilityService::class)->canSharePromo($raw)
                 ? __('site.affiliate_portal.link_not_verified')
                 : __('site.affiliate_portal.link_not_recognized');
 

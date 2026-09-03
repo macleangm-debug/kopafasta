@@ -64,6 +64,7 @@
         $reassigned => __('site.partner_portal.task_reassigned_title'),
         $task->status === 'assigned' && $jobBlock === 'profile' => __('site.partner_portal.cta_complete_profile'),
         $task->status === 'assigned' && $jobBlock === 'payment' => __('site.partner_portal.cta_pay_membership'),
+        $task->status === 'assigned' && $jobBlock === 'terms' => __('site.partner_portal.cta_accept_terms'),
         $task->status === 'assigned' => __('site.partner_portal.accept_task'),
         $open && ! $started => __('site.partner_portal.valuation_start_work'),
         $open && ! $photosDone => __('site.partner_portal.valuation_continue_photos'),
@@ -205,6 +206,9 @@
             @elseif ($jobBlock === 'payment')
                 <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.job_requires_payment') }}</p>
                 <a href="{{ route($payRoute) }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_pay_membership') }}</a>
+            @elseif ($jobBlock === 'terms')
+                <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.job_requires_terms') }}</p>
+                <a href="{{ route('site.partner.terms') }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_accept_terms') }}</a>
             @else
                 <form method="POST" action="{{ route('site.partner.task.accept', $task) }}">
                     @csrf
@@ -224,6 +228,9 @@
             @elseif ($jobBlock === 'payment')
                 <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.job_requires_payment') }}</p>
                 <a href="{{ route($payRoute) }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_pay_membership') }}</a>
+            @elseif ($jobBlock === 'terms')
+                <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.job_requires_terms') }}</p>
+                <a href="{{ route('site.partner.terms') }}" class="block w-full text-center rounded-xl bg-brand-gold text-brand text-sm font-extrabold py-3">{{ __('site.partner_portal.cta_accept_terms') }}</a>
             @else
                 <p class="text-sm font-bold text-gray-800">{{ __('site.partner_portal.valuation_start_hint') }}</p>
                 <form method="POST" action="{{ route('site.partner.task.start', $task) }}">

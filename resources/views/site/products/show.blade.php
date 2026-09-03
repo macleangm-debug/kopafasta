@@ -13,7 +13,20 @@
     $cadence = app(\App\Services\GroupLendingService::class)->effectiveRepaymentCadence($product);
     $isMonthlyCadence = $cadence === 'monthly';
 @endphp
-<x-site.layout :title="$p['name'].' — '.brand_name()">
+<x-site.layout
+    :title="$productSeo['title']"
+    :description="$productSeo['description']"
+    :seo="[
+        'image' => $productSeo['image'] ?? null,
+        'indexable' => $productSeo['indexable'] ?? true,
+        'faqs' => $p['faq'] ?? [],
+        'breadcrumbs' => [
+            ['name' => brand_name(), 'url' => route('site.home')],
+            ['name' => __('site.nav.all_products'), 'url' => route('site.products')],
+            ['name' => $p['name'], 'url' => route('site.product', $product->code)],
+        ],
+    ]"
+>
     {{-- Hero --}}
     <section class="relative overflow-hidden bg-brand text-white">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
@@ -99,6 +112,38 @@
     </section>
 
     @include('site.products._details-tabs', ['p' => $p])
+
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+        <div class="grid lg:grid-cols-3 gap-4">
+            <div class="glass-card p-5">
+                <h2 class="text-sm font-bold text-gray-900">{{ __('seo.how_it_works') }}</h2>
+                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ $p['overview'] }}</p>
+            </div>
+            <div class="glass-card p-5">
+                <h2 class="text-sm font-bold text-gray-900">{{ __('seo.repayment_heading') }}</h2>
+                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ __('seo.repayment_body', [
+                    'frequency' => $p['repayment_frequency_label'],
+                    'min' => $p['limits']['tenure_min_months'],
+                    'max' => $p['limits']['tenure_max_months'],
+                ]) }}</p>
+            </div>
+            <div class="glass-card p-5">
+                <h2 class="text-sm font-bold text-gray-900">{{ __('seo.collateral_heading') }}</h2>
+                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ $p['collateral_policy']['body'] ?? __('seo.collateral_not_required') }}</p>
+            </div>
+        </div>
+        <div class="glass-card p-5 mt-4">
+            <h2 class="text-sm font-bold text-gray-900">{{ __('seo.how_to_apply') }}</h2>
+            <ol class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                @foreach ($p['apply_steps'] ?? [] as $step)
+                    <li class="text-sm text-gray-700">
+                        <span class="font-semibold text-brand">{{ $step['title'] ?? '' }}</span>
+                        <span class="block text-xs text-gray-600 mt-1">{{ $step['body'] ?? '' }}</span>
+                    </li>
+                @endforeach
+            </ol>
+        </div>
+    </section>
 
     {{-- Calculator (before FAQ for better flow) --}}
     <section class="premium-gradient border-y border-gray-100 py-12 lg:py-16"

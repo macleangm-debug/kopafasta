@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Services\AffiliateEvaluationService;
 use App\Services\AffiliateLifecycleService;
+use App\Support\AffiliatePerformanceStatus;
 use App\Services\PartnerEfficiencyService;
 use App\Services\PartnerPerformanceReviewService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,8 +82,8 @@ class PartnerPerformanceAutomationFeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.show', $partner))
             ->assertOk()
-            ->assertSee('Efficiency', false)
-            ->assertSee('New', false);
+            ->assertSee('Performance', false)
+            ->assertSee('New / Ramp-up', false);
     }
 
     public function test_repeated_at_risk_reviews_suspend_the_partner(): void
@@ -178,7 +179,8 @@ class PartnerPerformanceAutomationFeatureTest extends TestCase
             applyActions: true,
         );
         $this->assertSame('watchlist', $second->recommendation);
-        $this->assertSame(AffiliateLifecycleService::WATCHLIST, $affiliate->fresh()->affiliate_lifecycle_status);
+        $this->assertSame(AffiliateLifecycleService::ACTIVE, $affiliate->fresh()->affiliate_lifecycle_status);
+        $this->assertSame(AffiliatePerformanceStatus::AT_RISK, $affiliate->fresh()->affiliate_performance_status);
 
         $third = $service->evaluatePartner(
             $affiliate->fresh(),
@@ -187,7 +189,9 @@ class PartnerPerformanceAutomationFeatureTest extends TestCase
             applyActions: true,
         );
         $this->assertSame('suspend', $third->recommendation);
-        $this->assertSame(AffiliateLifecycleService::SUSPENDED, $affiliate->fresh()->affiliate_lifecycle_status);
+        $this->assertSame(AffiliateLifecycleService::ACTIVE, $affiliate->fresh()->affiliate_lifecycle_status);
+        $this->assertSame(AffiliatePerformanceStatus::SUSPENDED, $affiliate->fresh()->affiliate_performance_status);
+        $this->assertStringContainsString('consecutive assessment periods', (string) $affiliate->fresh()->affiliate_lifecycle_note);
     }
 
     public function test_affiliate_profile_shows_monthly_target(): void
@@ -205,7 +209,7 @@ class PartnerPerformanceAutomationFeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.show', $affiliate))
             ->assertOk()
-            ->assertSee('This period vs monthly target', false)
+            ->assertSee('This period vs target', false)
             ->assertSee('new users', false);
     }
 

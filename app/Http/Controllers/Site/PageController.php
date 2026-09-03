@@ -70,6 +70,7 @@ class PageController extends Controller
             ->firstOrFail();
 
         $presentation = app(\App\Services\PublicProductPresentationService::class)->forProduct($product);
+        $productSeo = app(\App\Services\SeoService::class)->forProduct($product);
 
         $otherProducts = LoanProduct::with('rateTiers')
             ->whereIn('status', ['active', 'coming_soon'])
@@ -78,7 +79,7 @@ class PageController extends Controller
             ->limit(4)
             ->get();
 
-        return view('site.products.show', compact('product', 'presentation', 'otherProducts'));
+        return view('site.products.show', compact('product', 'presentation', 'otherProducts', 'productSeo'));
     }
 
     public function affiliate(): View

@@ -158,8 +158,14 @@
                             <dd class="mt-0.5">{{ $applicant['region'] ?: '—' }}</dd>
                         </div>
                         <div class="sm:col-span-2">
-                            <dt class="text-xs text-gray-500">Coverage regions</dt>
-                            <dd class="mt-0.5">{{ $applicant['coverage_regions'] ? implode(', ', $applicant['coverage_regions']) : '—' }}</dd>
+                            <dt class="text-xs text-gray-500">Coverage</dt>
+                            <dd class="mt-0.5">
+                                @if (($applicant['category'] ?? '') === 'affiliate')
+                                    Nationwide (online)
+                                @else
+                                    {{ $applicant['coverage_regions'] ? implode(', ', $applicant['coverage_regions']) : '—' }}
+                                @endif
+                            </dd>
                         </div>
                     </dl>
                     @if ($applicant['message'])

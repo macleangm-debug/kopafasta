@@ -186,7 +186,7 @@
                 @endif
                 <p><a href="{{ guided_evidence_url($walk['crb_href'] ?? $walk['file_href'], 'committee') }}" class="font-bold text-brand underline">Review evidence</a></p>
             @elseif ($key === 'people')
-                <p>Participants were verified in Screening Gate 4. Tap View full credit file to inspect evidence. Do not call NOK or LGO again unless returning for clarification.</p>
+                <p>Participants were verified in Screening Gate 5. Tap View full credit file to inspect evidence. Do not call NOK or LGO again unless returning for clarification.</p>
             @elseif ($key === 'security')
                 <p>Collateral and valuation results are the same records Screening used. GPS remains outside Screening where policy says it is post-approval.</p>
             @else

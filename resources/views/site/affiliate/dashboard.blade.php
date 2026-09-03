@@ -1,11 +1,16 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.dashboard_title'))" active="dashboard">
 
     @php
+        $eligibility = $eligibility ?? app(\App\Services\AffiliateEligibilityService::class)->for($vendor);
+        $sharingUnlocked = $eligibility['can_share'] ?? false;
         $kycApproved = in_array($vendor->affiliate_kyc_status, ['verified', 'approved'], true);
         $code = $links['affiliate_code'] ?? $vendor->affiliate_code;
         $regLink = $links['registration_link'] ?? '#';
-        $membershipOk = app(\App\Services\AffiliateMembershipService::class)->isSharingAllowed($vendor);
-        $sharingUnlocked = $kycApproved && $membershipOk;
+        $membership = $membership ?? app(\App\Services\AffiliateMembershipService::class)->summary($vendor);
+        $standing = $standing ?? app(\App\Services\AffiliateEvaluationService::class)->currentStanding($vendor);
+        $membershipDays = $vendor->membership_expires_at
+            ? max(0, (int) now()->startOfDay()->diffInDays($vendor->membership_expires_at->copy()->startOfDay(), false))
+            : 0;
         $hero = [
             'variant' => $sharingUnlocked ? 'applications' : 'guarantor_request',
             'greeting' => $vendor->name,
@@ -13,25 +18,78 @@
             'title' => __('site.affiliate_portal.welcome'),
             'subtitle' => $sharingUnlocked
                 ? __('site.affiliate_portal.banner_verified')
-                : (! $membershipOk
-                    ? __('site.affiliate_portal.membership_subtitle')
-                    : __('site.affiliate_portal.banner_pending')),
+                : (__('site.affiliate_portal.eligibility_blocked')),
             'cta_label' => $sharingUnlocked
                 ? __('site.affiliate_portal.nav_referrals')
-                : (! $membershipOk
-                    ? __('site.affiliate_portal.membership_pay')
-                    : __('site.affiliate_portal.complete_kyc')),
+                : (in_array('terms_unaccepted', $eligibility['reasons'] ?? [], true)
+                    ? __('affiliate_terms.accept_button')
+                    : (! ($membership['active'] ?? false)
+                        ? __('site.affiliate_portal.membership_pay')
+                        : __('site.affiliate_portal.complete_kyc'))),
             'cta_url' => $sharingUnlocked
                 ? route('site.affiliate.referrals')
-                : (! $membershipOk
-                    ? route('site.affiliate.membership.pay')
-                    : route('site.affiliate.profile')),
+                : (in_array('terms_unaccepted', $eligibility['reasons'] ?? [], true)
+                    ? route('site.affiliate.terms')
+                    : (! ($membership['active'] ?? false)
+                        ? route('site.affiliate.membership.pay')
+                        : route('site.affiliate.profile'))),
             'secondary_cta_label' => ($sharingUnlocked && $code) ? __('site.affiliate_portal.verified_badge') : null,
             'secondary_cta_url' => ($sharingUnlocked && $code) ? route('site.affiliate.verify', $code) : null,
         ];
     @endphp
 
     <x-site.borrower-dashboard-hero :hero="$hero" />
+
+    <div class="glass-card p-5 mb-6">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-[11px] uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.membership_status') }}</p>
+                <p class="text-lg font-bold text-gray-900">{{ $membership['label'] ?? '—' }}
+                    @if (($membership['active'] ?? false) && $membershipDays > 0)
+                        · {{ __('site.affiliate_portal.membership_days', ['days' => $membershipDays]) }}
+                    @endif
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ route('site.affiliate.terms') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.view_terms') }}</a>
+                <a href="{{ route('site.affiliate.terms') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.view_policy') }}</a>
+            </div>
+        </div>
+    </div>
+
+    @if ($standing ?? null)
+        <div class="glass-card p-6 mb-8 space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p class="text-[11px] uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.performance_title') }}</p>
+                    <p class="text-lg font-bold text-gray-900">{{ $standing['status_label'] }} · {{ number_format((float) $standing['score'], 0) }}/100</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        {{ $standing['period_start']->format('d M Y') }} – {{ $standing['period_end']->format('d M Y') }}
+                    </p>
+                </div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3">
+                @foreach ($standing['kpi_results'] as $kpi)
+                    @if ($kpi['enabled'])
+                        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
+                            <p class="text-xs text-gray-500">{{ $kpi['label'] }}</p>
+                            @if ($standing['premium'] ?? false)
+                                <p class="text-lg font-bold tabular-nums">{{ $kpi['key'] === 'conversion' ? number_format($kpi['actual'], 1).'%' : number_format($kpi['actual'], 0) }}</p>
+                            @else
+                                <p class="text-lg font-bold tabular-nums">{{ $kpi['key'] === 'conversion' ? number_format($kpi['actual'], 1).'%' : number_format($kpi['actual'], 0) }}
+                                    <span class="text-sm font-medium text-gray-500">/ {{ $kpi['key'] === 'conversion' ? number_format($kpi['target'], 0).'%' : number_format($kpi['target'], 0) }}</span>
+                                    <span class="text-sm">{{ $kpi['met'] ? '✓' : '' }}</span>
+                                </p>
+                            @endif
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+            @if (! empty($standing['next_action']))
+                <p class="text-sm text-gray-700">{{ $standing['next_action'] }}</p>
+            @endif
+        </div>
+    @endif
 
     @if ($sharingUnlocked && $code)
         <section class="mb-8 kf-premium-panel rounded-2xl p-6 sm:p-8">
@@ -81,9 +139,9 @@
                 <a href="{{ $regLink }}" target="_blank" rel="noopener"
                    class="inline-flex text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.registration_link') }} →</a>
             @else
-                <p class="text-sm text-gray-500">{{ ! $membershipOk ? __('site.affiliate_portal.membership_subtitle') : __('site.affiliate_portal.kyc_pending_body') }}</p>
-                <a href="{{ ! $membershipOk ? route('site.affiliate.membership.pay') : route('site.affiliate.profile') }}" class="inline-flex text-sm font-semibold text-brand hover:underline">
-                    {{ ! $membershipOk ? __('site.affiliate_portal.membership_pay') : __('site.affiliate_portal.complete_kyc') }} →
+                <p class="text-sm text-gray-500">{{ ! $sharingUnlocked ? __('site.affiliate_portal.eligibility_blocked') : __('site.affiliate_portal.kyc_pending_body') }}</p>
+                <a href="{{ route('site.affiliate.membership.pay') }}" class="inline-flex text-sm font-semibold text-brand hover:underline">
+                    {{ __('site.affiliate_portal.membership_pay') }} →
                 </a>
             @endif
         </div>

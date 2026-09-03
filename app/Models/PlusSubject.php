@@ -18,6 +18,7 @@ class PlusSubject extends Model
             'featured' => 'boolean',
             'published_at' => 'datetime',
             'eligible_grades' => 'array',
+            'seo_indexable' => 'boolean',
         ];
     }
 

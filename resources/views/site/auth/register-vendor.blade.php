@@ -164,10 +164,13 @@
                                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
 
-                            <button type="submit" x-show="step === 3" x-cloak
-                                    class="ml-auto bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-gray-900 font-bold py-3 px-7 rounded-full transition shadow-sm">
-                                Create vendor account →
-                            </button>
+                            <div x-show="step === 3" x-cloak class="ml-auto w-full sm:w-auto space-y-3">
+                                <x-site.turnstile action="register-vendor" />
+                                <button type="submit"
+                                        class="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-gray-900 font-bold py-3 px-7 rounded-full transition shadow-sm">
+                                    Create vendor account →
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

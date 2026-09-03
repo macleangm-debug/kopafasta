@@ -12,25 +12,25 @@ class ScreeningChecklistGateService
     public const GATES = [
         'income' => 'Gate 2 — Verified income & statements',
         'crb' => 'Gate 3 — CRB / Credit history',
-        'identity' => 'Gate 4 — Identity, people & contacts',
-        'collateral' => 'Gate 5 — Collateral & security',
+        'collateral' => 'Gate 4 — Collateral & security',
+        'identity' => 'Gate 5 — Identity, people & contacts',
         'final' => 'Gate 6 — Final review',
     ];
 
     public const SHORT = [
         'income' => '2 Income',
         'crb' => '3 CRB',
-        'identity' => '4 Identity',
-        'collateral' => '5 Collateral',
+        'collateral' => '4 Collateral',
+        'identity' => '5 Identity',
         'final' => '6 Final review',
     ];
 
     public const LOCK_REASONS = [
         'income' => 'Locked — complete initial affordability first',
         'crb' => 'Locked — complete verified income first',
-        'identity' => 'Locked — complete CRB first',
-        'collateral' => 'Locked — complete identity, people & contacts first',
-        'final' => 'Locked — complete collateral first',
+        'collateral' => 'Locked — complete CRB first',
+        'identity' => 'Locked — complete collateral first',
+        'final' => 'Locked — complete identity, people & contacts first',
     ];
 
     /**
@@ -127,7 +127,9 @@ class ScreeningChecklistGateService
             default => match ($groupKey) {
                 'identity', 'residence', 'contacts' => 'identity',
                 'activity_income' => 'income',
-                'collateral' => 'collateral',
+                'collateral' => str_starts_with($fullKey, 'collateral.valuation') || $fullKey === 'collateral.ltv_covers'
+                    ? 'final'
+                    : 'collateral',
                 'credit_file', 'guarantor_wrap', 'member_wrap' => str_contains($fullKey, 'crb')
                     ? 'crb'
                     : (str_contains($fullKey, 'capacity') ? 'income' : 'final'),

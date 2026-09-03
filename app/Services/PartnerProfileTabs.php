@@ -11,7 +11,7 @@ class PartnerProfileTabs
     /** @return array<string, string> */
     public function tabs(Partner $partner, bool $canSeePayouts = false): array
     {
-        $tabs = ['profile' => 'Profile'];
+        $tabs = ['profile' => 'Overview'];
 
         if ($this->showsJobs($partner)) {
             $tabs['jobs'] = 'Jobs';
@@ -20,7 +20,7 @@ class PartnerProfileTabs
             $tabs['cases'] = 'Cases';
         }
         if ($this->showsPipeline($partner)) {
-            $tabs['pipeline'] = 'Pipeline';
+            $tabs['pipeline'] = 'Business';
         }
         if ($this->showsListings($partner)) {
             $tabs['listings'] = 'Listings';
@@ -32,7 +32,24 @@ class PartnerProfileTabs
             $tabs['performance'] = 'Performance';
         }
         if ($canSeePayouts) {
-            $tabs['payouts'] = 'Payouts';
+            $tabs['payouts'] = 'Earnings';
+        }
+        if ($this->showsPipeline($partner)
+            || ($this->showsFieldGovernance($partner) && (
+                app(PartnerMembershipService::class)->requiresPayment($partner)
+                || filled($partner->membership_started_at)
+            ))) {
+            $tabs['membership'] = 'Membership';
+        }
+        if ($this->showsFieldGovernance($partner)) {
+            $tabs['compliance'] = 'Compliance';
+            $tabs['documents'] = 'Documents';
+        }
+        if ($this->showsPipeline($partner) || $this->showsFieldGovernance($partner)) {
+            $tabs['agreements'] = 'Agreements';
+        }
+        if ($this->showsFieldGovernance($partner)) {
+            $tabs['history'] = 'History';
         }
 
         $tabs['portal'] = 'Portal';
@@ -66,9 +83,18 @@ class PartnerProfileTabs
         return $partner->isCapitalPartner();
     }
 
+    public function showsFieldGovernance(Partner $partner): bool
+    {
+        return app(PartnerEfficiencyPolicy::class)->isGoverned($partner);
+    }
+
     public function showsFieldPerformance(Partner $partner): bool
     {
-        return $this->showsJobs($partner) || $this->showsCases($partner);
+        if ($partner->isTowing() || $partner->isYard()) {
+            return $partner->tasks()->exists() || $partner->recoveryAssignments()->exists();
+        }
+
+        return $this->showsJobs($partner) || ($this->showsCases($partner) && ! $partner->isTowing());
     }
 
     public function showsPerformance(Partner $partner): bool

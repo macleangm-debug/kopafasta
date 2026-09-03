@@ -50,6 +50,8 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
         Route::put('/settings/pin', [PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         Route::get('/support', [VendorController::class, 'support'])->name('support');
+        Route::get('/terms', [VendorController::class, 'terms'])->name('terms');
+        Route::post('/terms', [VendorController::class, 'acceptTerms'])->name('terms.accept');
         Route::get('/verify', [CardVerificationController::class, 'partnerIndex'])->name('verify');
         Route::post('/verify', [CardVerificationController::class, 'partnerLookup'])->name('verify.lookup');
         Route::get('/verify/member/{memberNo}', [CardVerificationController::class, 'partnerShowMember'])->name('verify.member');

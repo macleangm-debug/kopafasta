@@ -21,6 +21,8 @@ class PartnerPortalController extends Controller
 
     public function lookup(Request $request, PartnerActivationService $activation): RedirectResponse|View
     {
+        app(\App\Services\TurnstileService::class)->assertHuman($request);
+
         $data = $request->validate([
             'partner_code' => ['required', 'string', 'max:50'],
             'phone'        => ['required', 'string', 'max:30'],

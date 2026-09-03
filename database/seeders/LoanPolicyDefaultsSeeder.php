@@ -16,5 +16,13 @@ class LoanPolicyDefaultsSeeder extends Seeder
         if (Setting::get('loan.allow_restructure') === null) {
             Setting::set('loan.allow_restructure', false);
         }
+
+        if (Setting::get('loan.collateral_requirement_mode') === null) {
+            Setting::set('loan.collateral_requirement_mode', 'above_amount');
+        }
+
+        if (Setting::get('loan.collateral_required_above') === null) {
+            Setting::set('loan.collateral_required_above', 200_000);
+        }
     }
 }

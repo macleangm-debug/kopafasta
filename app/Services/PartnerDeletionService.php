@@ -70,17 +70,24 @@ class PartnerDeletionService
     /**
      * @return array{action: 'deactivated', message: string}
      */
-    public function deactivate(Partner $partner, ?User $actor = null): array
+    public function deactivate(Partner $partner, ?User $actor = null, string $kind = 'admin'): array
     {
+        $kind = in_array($kind, ['performance', 'compliance', 'fraud', 'admin'], true) ? $kind : 'admin';
         $tasks = $this->openTasks($partner);
         $assignments = $this->openValuationAssignments($partner);
         $plan = $this->workPlan($tasks, $assignments);
 
-        DB::transaction(function () use ($partner, $tasks, $assignments) {
+        DB::transaction(function () use ($partner, $tasks, $assignments, $kind) {
             $this->cancelOpenWork($tasks, $assignments, 'Halted because the partner was deactivated.');
 
-            $updates = ['status' => 'suspended'];
-            if ($partner->isAffiliate() || filled($partner->affiliate_lifecycle_status)) {
+            $updates = [
+                'status' => 'suspended',
+                'suspend_kind' => $kind,
+            ];
+            if ($kind === 'performance') {
+                $updates['performance_status'] = \App\Support\PartnerPerformanceStatus::SUSPENDED;
+            }
+            if ($kind !== 'performance' && ($partner->isAffiliate() || filled($partner->affiliate_lifecycle_status))) {
                 $updates['affiliate_lifecycle_status'] = AffiliateLifecycleService::TERMINATED;
             }
 
@@ -90,6 +97,14 @@ class PartnerDeletionService
                 User::query()->whereKey($partner->user_id)->update(['is_active' => false]);
             }
         });
+
+        app(AuditService::class)->log(
+            $actor,
+            'partner.'.$kind.'_suspended',
+            $partner->fresh(),
+            ['status' => 'active'],
+            ['status' => 'suspended', 'suspend_kind' => $kind],
+        );
 
         $reassigned = $this->reassignHaltedApplications($plan, $actor, [(int) $partner->id], includeGps: true);
 
@@ -102,6 +117,33 @@ class PartnerDeletionService
             'action' => 'deactivated',
             'message' => $message,
         ];
+    }
+
+    public function restoreAfterPerformance(Partner $partner): void
+    {
+        if (($partner->suspend_kind ?? '') !== 'performance') {
+            return;
+        }
+
+        DB::transaction(function () use ($partner): void {
+            $partner->update([
+                'status' => 'active',
+                'suspend_kind' => null,
+                'performance_status' => null,
+            ]);
+
+            if ($partner->user_id) {
+                User::query()->whereKey($partner->user_id)->update(['is_active' => true]);
+            }
+        });
+
+        app(AuditService::class)->log(
+            null,
+            'partner.performance_recovered',
+            $partner->fresh(),
+            ['status' => 'suspended', 'suspend_kind' => 'performance'],
+            ['status' => 'active', 'suspend_kind' => null],
+        );
     }
 
     /**

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Site;
 use App\Http\Controllers\Controller;
 use App\Models\Vendor;
 use App\Services\AffiliateService;
-use App\Services\AffiliateSettingsService;
 use App\Services\GuarantorInvitationService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -79,15 +78,7 @@ class AffiliateVerificationController extends Controller
 
     private function renderResult(?Vendor $affiliate, ?string $code, ?string $phone): View
     {
-        $requireKyc = app(AffiliateSettingsService::class)->requireKycForVerification();
-        $membershipOk = $affiliate
-            ? app(\App\Services\AffiliateMembershipService::class)->isSharingAllowed($affiliate)
-            : false;
-
-        $verified = $affiliate
-            && $affiliate->status === 'active'
-            && $membershipOk
-            && (! $requireKyc || in_array($affiliate->affiliate_kyc_status, ['verified', 'approved'], true));
+            $verified = $affiliate && app(\App\Services\AffiliateEligibilityService::class)->canSharePromo($affiliate);
 
         $notice = $affiliate
             ? app(AffiliateService::class)->renderMessage($affiliate, 'verification_notice')

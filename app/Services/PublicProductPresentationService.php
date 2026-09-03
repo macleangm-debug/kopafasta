@@ -70,6 +70,8 @@ class PublicProductPresentationService
             'requires_collateral' => (bool) $product->requires_collateral,
             'requires_guarantor' => (bool) $product->requires_guarantor,
             'highlights' => $this->highlights($product),
+            'collateral_policy' => $this->collateralPolicy($product),
+            'apply_steps' => __('site.how_it_works.steps'),
             'tiers' => $this->tiers->tiersForProduct($product),
         ];
     }
@@ -96,8 +98,11 @@ class PublicProductPresentationService
             $items[] = __('site.product_detail.highlight_no_guarantor');
         }
 
-        if ($product->requires_collateral) {
+        $collateral = $this->collateralPolicy($product);
+        if ($collateral['state'] === 'required') {
             $items[] = __('site.product_detail.highlight_collateral');
+        } elseif ($collateral['state'] === 'conditional') {
+            $items[] = $collateral['highlight'];
         } else {
             $items[] = __('site.product_detail.highlight_no_collateral');
         }
@@ -161,8 +166,12 @@ class PublicProductPresentationService
             $items[] = ['label' => __('site.product_detail.eligibility.guarantor'), 'detail' => __('site.product_detail.eligibility.guarantor_detail')];
         }
 
-        if ($product->requires_collateral) {
-            $items[] = ['label' => __('site.product_detail.eligibility.collateral'), 'detail' => __('site.product_detail.eligibility.collateral_detail')];
+        $collateral = $this->collateralPolicy($product);
+        if ($collateral['state'] !== 'none') {
+            $items[] = [
+                'label' => __('site.product_detail.eligibility.collateral'),
+                'detail' => $collateral['detail'],
+            ];
         }
 
         return $items;
@@ -270,6 +279,54 @@ class PublicProductPresentationService
             'basis' => $basis,
             'basis_label' => $basisLabel,
             'cap_percent' => $cap,
+        ];
+    }
+
+    /**
+     * Public collateral copy from the same product flag + Settings Hub loan rules used at apply time.
+     *
+     * @return array{state: string, highlight: string, detail: string, body: string}
+     */
+    private function collateralPolicy(LoanProduct $product): array
+    {
+        $policy = app(LoanPolicyService::class);
+        $settings = $policy->settings();
+        $requiredAtMin = $policy->requiresCollateralForApplication($product, (float) $product->min_amount);
+        $requiredAtMax = $policy->requiresCollateralForApplication($product, (float) $product->max_amount);
+
+        if ($requiredAtMin && $requiredAtMax) {
+            $body = $policy->productAlwaysRequiresCollateral($product)
+                ? __('seo.collateral_product_required')
+                : __('seo.collateral_settings_always');
+
+            return [
+                'state' => 'required',
+                'highlight' => __('site.product_detail.highlight_collateral'),
+                'detail' => __('site.product_detail.eligibility.collateral_detail'),
+                'body' => $body,
+            ];
+        }
+
+        if ($requiredAtMax && ! $requiredAtMin && $settings['collateral_requirement_mode'] === 'above_amount') {
+            $amount = format_money($settings['collateral_required_above'], false, 0);
+
+            return [
+                'state' => 'conditional',
+                'highlight' => __('seo.collateral_heading'),
+                'detail' => __('seo.collateral_above_amount', ['amount' => $amount]),
+                'body' => __('seo.collateral_above_amount', ['amount' => $amount]),
+            ];
+        }
+
+        $body = $settings['collateral_requirement_mode'] === 'never'
+            ? __('seo.collateral_settings_never')
+            : __('seo.collateral_not_required');
+
+        return [
+            'state' => 'none',
+            'highlight' => __('site.product_detail.highlight_no_collateral'),
+            'detail' => $body,
+            'body' => $body,
         ];
     }
 }

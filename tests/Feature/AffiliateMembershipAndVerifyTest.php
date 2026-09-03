@@ -132,6 +132,7 @@ class AffiliateMembershipAndVerifyTest extends TestCase
             'affiliate_code' => 'KPA-PHONE1',
             'affiliate_kyc_status' => 'verified',
             'membership_status' => 'active',
+            'membership_started_at' => now()->subMonth(),
             'membership_expires_at' => now()->addYear(),
         ]);
 

@@ -66,6 +66,7 @@ class VendorController extends ResourceController
             'deposit_markup_percent'         => ['nullable', 'numeric', 'min:0', 'max:100'],
             'supplier_type'                  => ['nullable', 'in:managed_loan,upfront_settlement'],
             'affiliate_code'                 => ['nullable', 'string', 'max:32'],
+            'affiliate_premium'              => ['nullable', 'boolean'],
             'recovery_fee_type'              => ['nullable', 'in:percentage,fixed'],
             'recovery_fixed_amount'          => ['nullable', 'numeric', 'min:0'],
             'registration_discount_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -188,6 +189,7 @@ class VendorController extends ResourceController
 
         if ($record->isAffiliate()) {
             app(\App\Services\AffiliateLifecycleService::class)->initializeNewAffiliate($record);
+            app(\App\Services\AffiliateEvaluationService::class)->syncPremiumStanding($record->fresh());
             $record->refresh();
         }
 
@@ -235,6 +237,10 @@ class VendorController extends ResourceController
         $this->storeBusinessDocuments($request, $vendor);
 
         $fresh = $vendor->fresh();
+        if ($fresh->isAffiliate()) {
+            app(\App\Services\AffiliateEvaluationService::class)->syncPremiumStanding($fresh);
+            $fresh = $fresh->fresh();
+        }
         $placed = $this->placeWaitingValuerJobs($fresh, $request->user('admin'));
         $status = ucfirst($this->singular).' updated.';
         $status .= $this->valuerOpsNextSteps($fresh, $placed, onCreate: false);
@@ -434,11 +440,22 @@ class VendorController extends ResourceController
             $data['regions'] = array_values(array_filter($data['regions'] ?? []));
         }
 
-        $coverage = (string) ($data['coverage_type'] ?? 'regions');
-        $data['coverage_type'] = in_array($coverage, ['regions', 'nationwide'], true) ? $coverage : 'regions';
-        if ($data['coverage_type'] === 'nationwide') {
+        $isAffiliate = ($data['category'] ?? '') === 'affiliate'
+            || in_array('affiliate', $data['roles'] ?? [], true)
+            || ($existing instanceof Vendor && $existing->isAffiliate());
+
+        if ($isAffiliate) {
+            $data['coverage_type'] = 'nationwide';
             $data['regions'] = [];
+        } else {
+            $coverage = (string) ($data['coverage_type'] ?? 'regions');
+            $data['coverage_type'] = in_array($coverage, ['regions', 'nationwide'], true) ? $coverage : 'regions';
+            if ($data['coverage_type'] === 'nationwide') {
+                $data['regions'] = [];
+            }
         }
+
+        $data['affiliate_premium'] = $isAffiliate && filter_var($data['affiliate_premium'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         $meta = is_array($existing?->metadata ?? null) ? $existing->metadata : [];
         if ($contactPerson !== '') {
@@ -540,6 +557,39 @@ class VendorController extends ResourceController
         $affiliateVolume = $tabs->showsPipeline($record)
             ? app(\App\Services\AffiliateEvaluationService::class)->currentVolumeProgress($record)
             : null;
+        $affiliateEligibility = $tabs->showsPipeline($record)
+            ? app(\App\Services\AffiliateEligibilityService::class)->for($record)
+            : null;
+        $affiliateStanding = $tabs->showsPipeline($record)
+            ? app(\App\Services\AffiliateEvaluationService::class)->currentStanding($record)
+            : null;
+        $affiliateAgreement = $tabs->showsPipeline($record)
+            ? app(\App\Services\AffiliateTermsService::class)->latestAcceptance($record)
+            : null;
+        $partnerAgreement = $tabs->showsFieldGovernance($record)
+            ? app(\App\Services\PartnerTermsService::class)->latestAcceptance($record)
+            : null;
+        $partnerAgreements = $tabs->showsFieldGovernance($record)
+            ? app(\App\Services\PartnerTermsService::class)->history($record)
+            : collect();
+        $jobEligibility = ($tabs->showsFieldGovernance($record) || $tabs->showsJobs($record) || $tabs->showsCases($record))
+            ? app(\App\Services\PartnerProfileService::class)->jobEligibility($record)
+            : null;
+        $partnerHistory = $tabs->showsFieldGovernance($record)
+            ? app(\App\Services\PartnerHistoryService::class)->for($record)
+            : [];
+        $partnerDocuments = $tabs->showsFieldGovernance($record)
+            ? app(\App\Services\PartnerHistoryService::class)->documents($record)
+            : [];
+        $fieldMembership = null;
+        if ($tabs->showsFieldGovernance($record) && isset($profileTabs['membership']) && ! $tabs->showsPipeline($record)) {
+            $membershipSvc = app(\App\Services\PartnerMembershipService::class);
+            $fieldMembership = [
+                'label' => $membershipSvc->isActive($record) ? 'Active' : ucfirst((string) ($record->membership_status ?: 'inactive')),
+                'fee' => $membershipSvc->feeFor($record),
+                'expires_at' => $record->membership_expires_at,
+            ];
+        }
         $listings = $tabs->showsListings($record)
             ? $record->marketplaceAssets()->latest('id')->limit(50)->get()
             : collect();
@@ -559,6 +609,15 @@ class VendorController extends ResourceController
                 'membership' => $membership,
                 'efficiency' => $efficiency,
                 'affiliateVolume' => $affiliateVolume,
+                'affiliateEligibility' => $affiliateEligibility,
+                'affiliateStanding' => $affiliateStanding,
+                'affiliateAgreement' => $affiliateAgreement,
+                'partnerAgreement' => $partnerAgreement,
+                'partnerAgreements' => $partnerAgreements,
+                'jobEligibility' => $jobEligibility,
+                'partnerHistory' => $partnerHistory,
+                'partnerDocuments' => $partnerDocuments,
+                'fieldMembership' => $fieldMembership,
                 'openTasks' => $openTasks,
                 'openValuations' => $openValuations,
                 'recentTasks' => $recentTasks,

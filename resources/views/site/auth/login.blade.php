@@ -42,13 +42,13 @@
                     <div class="mt-6 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">{{ session('status') }}</div>
                 @endif
 
-                <div class="mt-6 inline-flex rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full" role="tablist" aria-label="{{ __('site.auth.sign_in') }}">
+                <div class="mt-6 flex flex-col sm:flex-row rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full" role="tablist" aria-label="{{ __('site.auth.sign_in') }}">
                     <button type="button" data-set-method="pin" role="tab"
                             aria-selected="{{ $authMethod === 'pin' ? 'true' : 'false' }}"
-                            class="login-method-tab flex-1 rounded-lg py-2.5 transition {{ $authMethod === 'pin' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.phone_pin') }}</button>
+                            class="login-method-tab w-full sm:flex-1 min-w-0 rounded-lg py-2.5 px-2 text-sm leading-snug text-center transition {{ $authMethod === 'pin' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.phone_pin') }}</button>
                     <button type="button" data-set-method="password" role="tab"
                             aria-selected="{{ $authMethod === 'password' ? 'true' : 'false' }}"
-                            class="login-method-tab flex-1 rounded-lg py-2.5 transition {{ $authMethod === 'password' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.email_password') }}</button>
+                            class="login-method-tab w-full sm:flex-1 min-w-0 rounded-lg py-2.5 px-2 text-sm leading-snug text-center transition {{ $authMethod === 'password' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.email_password') }}</button>
                 </div>
 
                 <form method="POST" action="{{ route('site.login.post') }}" class="mt-6 space-y-5 form-scroll-lock">
@@ -58,7 +58,7 @@
                     <div data-method-panel="pin" @class(['hidden' => $authMethod !== 'pin'])>
                         <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="$prefillPhone" variant="rounded" :required="$authMethod === 'pin'" required-when="pin" :show-errors="false" />
                         <div class="mt-4">
-                            <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex flex-col gap-1 mb-1.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-3">
                                 <label class="block text-sm font-medium text-gray-700">{{ __('site.auth.pin_label') }}</label>
                                 <a href="{{ route('site.forgot-pin', array_filter(['phone' => $prefillPhone])) }}" class="text-xs text-brand font-medium hover:underline">{{ __('site.auth.forgot_pin') }}</a>
                             </div>
@@ -101,7 +101,7 @@
                         {{ __('site.auth.remember_me') }}
                     </label>
 
-                    <x-site.turnstile action="login" :show-errors="false" />
+                    <x-site.turnstile action="login" />
 
                     <button class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">
                         {{ __('site.auth.sign_in') }}

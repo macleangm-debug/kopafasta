@@ -33,6 +33,7 @@ class LoanPolicyService
             'payment_holiday_accrue_interest'       => (bool) ($loan['payment_holiday_accrue_interest'] ?? true),
             'payment_holiday_max_months'            => (int) ($loan['payment_holiday_max_months'] ?? 3),
             'guarantor_required_above'              => (float) ($loan['guarantor_required_above'] ?? 0),
+            'collateral_requirement_mode'           => $this->normalizeCollateralMode($loan['collateral_requirement_mode'] ?? null),
             'collateral_required_above'             => (float) ($loan['collateral_required_above'] ?? 0),
             'min_guarantors'                        => (int) ($loan['min_guarantors'] ?? 1),
         ];
@@ -55,13 +56,56 @@ class LoanPolicyService
 
     public function requiresCollateralForApplication(LoanProduct $product, float $requestedAmount): bool
     {
+        if ($this->productAlwaysRequiresCollateral($product)) {
+            return true;
+        }
+
+        $settings = $this->settings();
+
+        return match ($settings['collateral_requirement_mode']) {
+            'never' => false,
+            'always' => true,
+            default => $settings['collateral_required_above'] > 0
+                && $requestedAmount >= $settings['collateral_required_above'],
+        };
+    }
+
+    public function applicationRequiresCollateral(LoanApplication $application): bool
+    {
+        $application->loadMissing('product');
+        if (! $application->product) {
+            return false;
+        }
+
+        return $this->requiresCollateralForApplication(
+            $application->product,
+            (float) $application->requested_amount,
+        );
+    }
+
+    public function productAlwaysRequiresCollateral(LoanProduct $product): bool
+    {
         if ($product->requires_collateral) {
             return true;
         }
 
-        $threshold = $this->settings()['collateral_required_above'];
+        $category = strtolower((string) ($product->category ?? ''));
+        if (in_array($category, ['asset_finance', 'asset_lending'], true)) {
+            return true;
+        }
 
-        return $threshold > 0 && $requestedAmount >= $threshold;
+        $assetCode = strtoupper((string) config('asset_marketplace.asset_loan_product_code', 'AL'));
+
+        return strtoupper((string) ($product->code ?? '')) === $assetCode;
+    }
+
+    private function normalizeCollateralMode(mixed $mode): string
+    {
+        $value = strtolower(trim((string) $mode));
+
+        return in_array($value, ['never', 'always', 'above_amount'], true)
+            ? $value
+            : 'above_amount';
     }
 
     public function canSubmitApplication(Customer $customer, LoanProduct $product, ?LoanApplication $excluding = null): ?string

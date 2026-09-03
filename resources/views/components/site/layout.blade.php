@@ -2,10 +2,22 @@
     'title' => null,
     'description' => null,
     'auth' => false,
+    'seo' => [],
 ])
 @php
-    $title = $title ?? brand_title(brand('tagline'));
-    $description = $description ?? brand('tagline').'. Transparent microfinance for Tanzania.';
+    $seo = is_array($seo) ? $seo : [];
+    if (filled($title)) {
+        $seo['title'] = $title;
+    }
+    if (filled($description)) {
+        $seo['description'] = $description;
+    }
+    if ($auth) {
+        $seo['indexable'] = false;
+    }
+    $document = app(\App\Services\SeoService::class)->forRequest(request(), $seo);
+    $title = $document->title;
+    $description = $document->description;
     $navProducts = $navProducts ?? collect();
     $siteLocale = $siteLocale ?? app()->getLocale();
     $siteCountry = $siteCountry ?? 'TZ';
@@ -21,8 +33,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
     <meta name="app-currency" content="{{ currency_code() }}">
-    <meta name="description" content="{{ $description }}">
-    <title>{{ $title }}</title>
+    <x-site.seo :document="$document" />
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -201,6 +212,7 @@
                     <ul class="space-y-2 text-sm">
                         <li><a href="{{ route('site.about') }}" class="hover:text-brand-gold transition">{{ __('site.footer.about') }}</a></li>
                         <li><a href="{{ route('site.how-it-works') }}" class="hover:text-brand-gold transition">{{ __('site.how_it_works.title') }}</a></li>
+                        <li><a href="{{ route('site.learn') }}" class="hover:text-brand-gold transition">{{ __('seo.footer_learn') }}</a></li>
                         <li><a href="{{ route('site.faq') }}" class="hover:text-brand-gold transition">{{ __('site.footer.faq') }}</a></li>
                         <li><a href="{{ route('site.support') }}" class="hover:text-brand-gold transition">{{ __('site.footer.support') }}</a></li>
                         <li><a href="{{ route('site.feedback') }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>

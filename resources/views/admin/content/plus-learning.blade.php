@@ -65,6 +65,14 @@
             <x-admin.input name="action_sw" label="Practical action (SW)" />
             <x-admin.input name="action_route" label="Action route" value="site.borrower.plus.money" />
             <x-admin.select name="status" label="Status" :options="['draft'=>'Draft','published'=>'Published','archived'=>'Archived']" />
+            <x-admin.input name="seo_title" label="SEO title (EN, optional)" />
+            <x-admin.input name="seo_title_sw" label="SEO title (SW, optional)" />
+            <x-admin.textarea name="seo_description" label="Meta description (EN, optional)" rows="2" />
+            <x-admin.textarea name="seo_description_sw" label="Meta description (SW, optional)" rows="2" />
+            <label class="text-sm inline-flex items-center gap-2">
+                <input type="hidden" name="seo_indexable" value="0">
+                <input type="checkbox" name="seo_indexable" value="1" checked class="rounded border-gray-300 text-brand"> Indexable when published
+            </label>
             <label class="text-sm inline-flex items-center gap-2">
                 <input type="checkbox" name="featured" value="1" class="rounded border-gray-300 text-brand"> Featured
             </label>

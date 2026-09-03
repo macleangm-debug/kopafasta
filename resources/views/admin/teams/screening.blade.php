@@ -94,7 +94,7 @@
                                'inline-flex rounded-xl px-3 py-1.5 text-xs font-bold',
                                'bg-slate-100 text-slate-500 cursor-not-allowed pointer-events-none' => ($next['cta_kind'] ?? '') === 'waiting',
                                'bg-brand text-white hover:bg-brand-light' => ($next['cta_kind'] ?? '') !== 'waiting',
-                           ])>{{ ($next['cta_kind'] ?? '') === 'waiting' ? 'Waiting' : $next['cta'] }}</a>
+                           ])>{{ $next['cta'] }}</a>
                         <a href="{{ $next['checklist_href'] }}" class="text-[11px] font-semibold text-slate-600 underline">Review Checklist</a>
                     </div>
                 </div>

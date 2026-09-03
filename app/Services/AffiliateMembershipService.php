@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class AffiliateMembershipService
 {
-    /** @return array{enabled: bool, fee_amount: float, fee_amount_individual: float, fee_amount_company: float, duration_days: int, grace_period_hours: int, required_before_sharing: bool} */
+    /** @return array{enabled: bool, fee_amount: float, fee_amount_individual: float, fee_amount_company: float, duration_days: int, grace_period_hours: int, required_before_sharing: bool, renewal_window_days: int, require_terms_before_activation: bool, promo_code_on_expiry: string, commission_after_expiry: string} */
     public static function config(): array
     {
         $defaults = config('affiliates.membership', []);
@@ -20,13 +20,17 @@ class AffiliateMembershipService
         $individual = (float) ($merged['fee_amount_individual'] ?? 25000);
 
         return [
-            'enabled'                 => (bool) ($merged['enabled'] ?? true),
-            'fee_amount'              => $company,
-            'fee_amount_individual'   => $individual,
-            'fee_amount_company'      => $company,
-            'duration_days'           => (int) ($merged['duration_days'] ?? 365),
-            'grace_period_hours'      => (int) ($merged['grace_period_hours'] ?? 48),
-            'required_before_sharing' => (bool) ($merged['required_before_sharing'] ?? true),
+            'enabled'                         => (bool) ($merged['enabled'] ?? true),
+            'fee_amount'                      => $company,
+            'fee_amount_individual'           => $individual,
+            'fee_amount_company'              => $company,
+            'duration_days'                   => (int) ($merged['duration_days'] ?? 365),
+            'grace_period_hours'              => (int) ($merged['grace_period_hours'] ?? 48),
+            'required_before_sharing'         => (bool) ($merged['required_before_sharing'] ?? true),
+            'renewal_window_days'             => max(1, (int) ($merged['renewal_window_days'] ?? 30)),
+            'require_terms_before_activation' => (bool) ($merged['require_terms_before_activation'] ?? true),
+            'promo_code_on_expiry'            => (string) ($merged['promo_code_on_expiry'] ?? 'disable'),
+            'commission_after_expiry'         => (string) ($merged['commission_after_expiry'] ?? 'historical_only'),
         ];
     }
 
@@ -73,19 +77,11 @@ class AffiliateMembershipService
     }
 
     /**
-     * Sharing (promo code, referral link, public verification badge) requires approved
-     * KYC plus an active/grace membership whenever required_before_sharing is enabled.
+     * Commercial sharing uses the same eligibility answer as referrals and promo codes.
      */
     public function isSharingAllowed(Vendor|Partner $partner): bool
     {
-        $cfg = self::config();
-        if (! $cfg['enabled'] || ! $cfg['required_before_sharing']) {
-            return true;
-        }
-
-        $kycOk = in_array($partner->affiliate_kyc_status ?? null, ['verified', 'approved'], true);
-
-        return $kycOk && $this->isActive($partner);
+        return app(AffiliateEligibilityService::class)->canSharePromo($partner);
     }
 
     public function startPaymentWindow(Vendor|Partner $partner): Vendor|Partner
@@ -177,6 +173,35 @@ class AffiliateMembershipService
     public function generatePaymentReference(Vendor|Partner $partner): string
     {
         return 'AFF-MEM-'.$partner->id.'-'.Str::upper(Str::random(6));
+    }
+
+    public function ensurePaymentReference(Vendor|Partner $partner): string
+    {
+        $ref = (string) ($partner->membership_payment_reference ?? '');
+        if ($ref !== '') {
+            return $ref;
+        }
+
+        $ref = $this->generatePaymentReference($partner);
+        $partner->update([
+            'membership_status' => in_array($partner->membership_status, ['active', 'grace'], true)
+                ? $partner->membership_status
+                : 'pending_payment',
+            'membership_payment_reference' => $ref,
+        ]);
+
+        return $ref;
+    }
+
+    public function withinRenewalWindow(Vendor|Partner $partner): bool
+    {
+        if (! $partner->membership_expires_at) {
+            return true;
+        }
+
+        $days = self::config()['renewal_window_days'];
+
+        return $partner->membership_expires_at->lte(now()->addDays($days));
     }
 
     /** @return array{status: string, label: string, fee: float, expires_at: mixed, due_at: mixed, active: bool} */

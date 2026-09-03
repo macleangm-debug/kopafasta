@@ -28,6 +28,7 @@ class PartnerApplication extends Model
         'reviewed_by',
         'reviewed_at',
         'partner_id',
+        'payload',
     ];
 
     protected function casts(): array
@@ -36,6 +37,7 @@ class PartnerApplication extends Model
             'reviewed_at' => 'datetime',
             'coverage_regions' => 'array',
             'requested_roles' => 'array',
+            'payload' => 'array',
         ];
     }
 

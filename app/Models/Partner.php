@@ -18,11 +18,13 @@ class Partner extends Model
             'metadata' => 'array',
             'roles'    => 'array',
             'regions'  => 'array',
+            'affiliate_premium' => 'boolean',
             'affiliate_evaluation_snapshot' => 'array',
             'affiliate_fraud_snapshot' => 'array',
             'membership_started_at' => 'datetime',
             'membership_expires_at' => 'datetime',
             'membership_payment_due_at' => 'datetime',
+            'activated_at' => 'datetime',
         ];
     }
 
@@ -86,6 +88,11 @@ class Partner extends Model
     public function isAffiliate(): bool
     {
         return $this->category === 'affiliate';
+    }
+
+    public function isPremiumAffiliate(): bool
+    {
+        return $this->isAffiliate() && (bool) $this->affiliate_premium;
     }
 
     public function isInsurance(): bool
@@ -193,6 +200,11 @@ class Partner extends Model
     public function recoveryAssignments(): HasMany
     {
         return $this->hasMany(RecoveryAssignment::class, 'partner_id');
+    }
+
+    public function agreementAcceptances(): HasMany
+    {
+        return $this->hasMany(PartnerAgreementAcceptance::class, 'partner_id');
     }
 
     public function coverageLabel(): string

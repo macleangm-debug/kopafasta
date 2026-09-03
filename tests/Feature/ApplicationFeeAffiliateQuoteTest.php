@@ -58,6 +58,9 @@ class ApplicationFeeAffiliateQuoteTest extends TestCase
             'affiliate_code'                 => 'AFFFEE'.random_int(10, 99),
             'affiliate_kyc_status'           => 'verified',
             'affiliate_lifecycle_status'     => 'active',
+            'membership_status'              => 'active',
+            'membership_started_at'          => now()->subMonth(),
+            'membership_expires_at'          => now()->addYear(),
             'application_discount_percent'   => 10,
             'registration_discount_percent'  => 10,
         ], $overrides));

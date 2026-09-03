@@ -35,6 +35,8 @@ class LoanRejectionReasonService
             ['code' => 'business_too_new', 'label' => 'Business Too New', 'category' => 'Employment / Business'],
             ['code' => 'guarantor_not_acceptable', 'label' => 'Guarantor Not Acceptable', 'category' => 'Guarantor'],
             ['code' => 'guarantor_profile_incomplete', 'label' => 'Guarantor Profile Incomplete', 'category' => 'Guarantor'],
+            ['code' => 'collateral_not_provided', 'label' => 'Required collateral was not provided', 'category' => 'Collateral'],
+            ['code' => 'collateral_ineligible', 'label' => 'Pledged security does not meet requirements', 'category' => 'Collateral'],
             ['code' => 'collateral_insufficient', 'label' => 'Collateral Insufficient or Unverified', 'category' => 'Collateral'],
             ['code' => 'product_eligibility_not_met', 'label' => 'Product Eligibility Not Met', 'category' => 'Internal Policy'],
             ['code' => 'internal_credit_policy_declined', 'label' => 'Internal Credit Policy Declined', 'category' => 'Internal Policy'],

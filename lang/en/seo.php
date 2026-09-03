@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'default_description' => 'Kopafasta is a Tanzanian financial-services platform for business financing, asset financing, and group loans — clear rates, mobile application, licensed microfinance.',
+    'home_title' => 'Loans in Tanzania — business, asset, and group financing',
+    'home_description' => 'Apply for loans in Tanzania with Kopafasta. Business financing, asset financing, and group loans with transparent rates and a mobile-first application.',
+    'products_title' => 'Loan products in Tanzania',
+    'products_description' => 'Compare Kopafasta loan products for business, assets, salary, agriculture, and groups. Limits, repayment, and eligibility from the same rules used to apply.',
+    'product_title' => ':name — :category — :site',
+    'learn_title' => 'Learn about borrowing and money in Tanzania',
+    'learn_description' => 'Practical articles on borrowing, affordability, business cash flow, collateral, and financial literacy — written for people in Tanzania.',
+    'learn_category_title' => ':category — Learn',
+    'learn_article_title' => ':title — :category — :site',
+    'how_to_apply' => 'How to apply',
+    'how_it_works' => 'How it works',
+    'collateral_heading' => 'Collateral and security',
+    'collateral_product_required' => 'This product requires collateral or a pledged asset. The same product setting is used when you apply.',
+    'collateral_settings_always' => 'Loan rules currently require collateral or security on applications.',
+    'collateral_settings_never' => 'Loan rules currently do not require extra collateral for this product, unless the product itself is asset-backed.',
+    'collateral_above_amount' => 'Collateral or security is required when the requested amount is :amount or more — the same threshold used in loan rules.',
+    'collateral_not_required' => 'This product does not require extra collateral at typical amounts. Asset-backed products still use the asset you are financing.',
+    'repayment_heading' => 'Repayment structure',
+    'repayment_body' => 'Repay :frequency over :min–:max months. The calculator below uses this product’s live rates and limits.',
+    'footer_learn' => 'Learn',
+    'organization_description' => 'Tanzanian microfinance for business financing, asset financing, and group loans.',
+];

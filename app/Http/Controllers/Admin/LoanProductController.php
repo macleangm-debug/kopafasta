@@ -110,6 +110,12 @@ class LoanProductController extends ResourceController
             'rate_tiers.*.service_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'rate_tiers.*.administration_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'rate_tiers.*.monthly_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'seo_title' => ['nullable', 'string', 'max:120'],
+            'seo_title_sw' => ['nullable', 'string', 'max:120'],
+            'seo_description' => ['nullable', 'string', 'max:320'],
+            'seo_description_sw' => ['nullable', 'string', 'max:320'],
+            'seo_image' => ['nullable', 'image', 'max:4096'],
+            'seo_indexable' => ['nullable', 'boolean'],
         ];
     }
 
@@ -132,6 +138,9 @@ class LoanProductController extends ResourceController
             $data['eligible_grades'] = null;
         }
         $data['repayment_cadence']   = $data['repayment_cadence'] ?? 'weekly';
+        $data['seo_indexable'] = array_key_exists('seo_indexable', $data)
+            ? (bool) $data['seo_indexable']
+            : true;
 
         $data['min_amount'] = MoneyFormat::toNumber($data['min_amount'] ?? 0);
         $data['max_amount'] = MoneyFormat::toNumber($data['max_amount'] ?? 0);
@@ -183,6 +192,7 @@ class LoanProductController extends ResourceController
             $validated['rate_tiers'],
             $validated['clone_from_id'],
             $validated['image'],
+            $validated['seo_image'],
             $validated['require_group_constitution'],
             $validated['require_group_member_roster'],
         );
@@ -233,6 +243,9 @@ class LoanProductController extends ResourceController
         $payload = $this->transform($validated);
         if ($request->hasFile('image')) {
             $payload['image_path'] = $request->file('image')->store('loan-products', 'public');
+        }
+        if ($request->hasFile('seo_image')) {
+            $payload['seo_image_path'] = $request->file('seo_image')->store('loan-products', 'public');
         }
 
         $record = LoanProduct::create($payload);
@@ -288,11 +301,14 @@ class LoanProductController extends ResourceController
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
-        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['clone_from_id'], $validated['image'], $validated['require_group_constitution'], $validated['require_group_member_roster']);
+        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['clone_from_id'], $validated['image'], $validated['seo_image'], $validated['require_group_constitution'], $validated['require_group_member_roster']);
 
         $payload = $this->transform($validated, $record);
         if ($request->hasFile('image')) {
             $payload['image_path'] = $request->file('image')->store('loan-products', 'public');
+        }
+        if ($request->hasFile('seo_image')) {
+            $payload['seo_image_path'] = $request->file('seo_image')->store('loan-products', 'public');
         }
 
         $record->update($payload);

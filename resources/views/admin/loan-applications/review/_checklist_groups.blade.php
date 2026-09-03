@@ -80,7 +80,7 @@
                             </p>
                             <div class="mt-2 flex flex-wrap gap-2">
                                 @if ($docReq->status === 'uploaded')
-                                    <p class="text-[12px] font-semibold text-sky-950">Waiting for your collateral review below. This request clears when Gate 5 is complete.</p>
+                                    <p class="text-[12px] font-semibold text-sky-950">Waiting for your collateral review below. This request clears when Gate 4 is complete.</p>
                                 @endif
                                 @if ($docReq->status === 'pending' && auth()->user()?->hasPermission('applications.request_documents'))
                                     <form method="POST" action="{{ route('admin.loan-applications.document-requests.cancel', $record) }}"

@@ -47,6 +47,10 @@ class CollateralSecureService
 
     public const STATUS_EXPIRED = 'expired';
 
+    public const REASON_NOT_PROVIDED = 'collateral_not_provided';
+
+    public const REASON_INELIGIBLE = 'collateral_ineligible';
+
     /** Existing ladder: borrower/guarantor ask + AB fee delta + valuation. */
     public const PATH_SECURE = 'collateral_secure';
 
@@ -72,6 +76,21 @@ class CollateralSecureService
             self::STATUS_AWAITING_VALUER,
             self::STATUS_REJECTED,
             self::STATUS_EXPIRED,
+        ], true);
+    }
+
+    /** True while Screening is waiting for collateral to be pledged — not valuation or insurance. */
+    public function isAwaitingCustomerCollateral(LoanApplication $application): bool
+    {
+        $status = (string) ($this->state($application)['status'] ?? '');
+
+        return in_array($status, [
+            self::STATUS_AWAITING_BORROWER,
+            self::STATUS_AWAITING_ASK_GUARANTOR,
+            self::STATUS_AWAITING_ASK_MEMBERS,
+            self::STATUS_AWAITING_MEMBERS,
+            self::STATUS_AWAITING_BORROWER_ADD,
+            self::STATUS_AWAITING_GUARANTOR,
         ], true);
     }
 
@@ -740,6 +759,15 @@ class CollateralSecureService
             return $state;
         }
 
+        if (($state['status'] ?? '') === self::STATUS_SHORTFALL) {
+            return $this->closeForCollateral(
+                $application,
+                $state,
+                'Pledged security does not meet coverage requirements.',
+                self::REASON_INELIGIBLE,
+            );
+        }
+
         return $this->rejectForNoCollateral($application, $state, 'Collateral decision window expired.');
     }
 
@@ -1290,22 +1318,39 @@ class CollateralSecureService
 
     private function rejectForNoCollateral(LoanApplication $application, array $state, string $reason): array
     {
+        return $this->closeForCollateral($application, $state, $reason, self::REASON_NOT_PROVIDED);
+    }
+
+    private function closeForCollateral(
+        LoanApplication $application,
+        array $state,
+        string $reason,
+        string $code,
+    ): array {
         $state['status'] = self::STATUS_REJECTED;
         $state['rejected_at'] = now()->toIso8601String();
         $state['reject_reason'] = $reason;
+        $state['reject_reason_code'] = $code;
         $this->saveState($application, $state);
 
+        $ineligible = $code === self::REASON_INELIGIBLE;
         $application->update([
             'status' => 'rejected',
             'current_stage' => 'rejected',
-            'rejection_reason_code' => $application->rejection_reason_code ?: 'collateral_not_provided',
-            'rejection_advice' => __('borrower.collateral_secure.rejected_advice'),
+            'rejection_reason_code' => $application->rejection_reason_code ?: $code,
+            'rejection_reason_codes' => $application->rejection_reason_codes ?: [$code],
+            'screening_rejection_reason_code' => $application->screening_rejection_reason_code ?: $code,
+            'rejection_advice' => $ineligible
+                ? __('borrower.collateral_secure.rejected_advice_ineligible')
+                : __('borrower.collateral_secure.rejected_advice'),
         ]);
 
         if ($application->customer) {
             app(NotificationService::class)->notifyInApp(
                 $application->customer,
-                __('borrower.collateral_secure.notify_rejected_body'),
+                $ineligible
+                    ? __('borrower.collateral_secure.notify_rejected_ineligible_body')
+                    : __('borrower.collateral_secure.notify_rejected_body'),
                 category: 'loan_application',
                 template: 'collateral_secure_rejected',
                 title: __('borrower.collateral_secure.notify_rejected_title'),

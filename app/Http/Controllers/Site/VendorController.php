@@ -782,6 +782,10 @@ class VendorController extends Controller
             return redirect()->route($route)
                 ->with('error', __('site.partner_portal.job_requires_payment'));
         }
+        if ($reason === 'terms') {
+            return redirect()->route('site.partner.terms')
+                ->with('error', __('site.partner_portal.job_requires_terms'));
+        }
 
         return null;
     }
@@ -1021,5 +1025,38 @@ class VendorController extends Controller
             'supportEmail' => support_contact('email'),
             'supportWhatsapp' => support_contact('whatsapp'),
         ]);
+    }
+
+    public function terms()
+    {
+        $vendor = $this->vendor();
+        $terms = app(\App\Services\PartnerTermsService::class);
+        abort_unless($terms->appliesTo($vendor), 404);
+        $type = $terms->typeFor($vendor);
+        $accepted = $terms->latestAcceptance($vendor);
+
+        return view('site.partner.terms', [
+            'vendor' => $vendor,
+            'title' => $terms->title($type),
+            'rendered' => $accepted?->rendered_text ?: $terms->render($type, $vendor),
+            'accepted' => $accepted,
+            'satisfied' => $terms->hasSatisfiedTerms($vendor),
+        ]);
+    }
+
+    public function acceptTerms(Request $request)
+    {
+        $vendor = $this->vendor();
+        $terms = app(\App\Services\PartnerTermsService::class);
+        abort_unless($terms->appliesTo($vendor), 404);
+        $request->validate([
+            'partner_terms_accepted' => ['accepted'],
+        ]);
+        if ($terms->hasSatisfiedTerms($vendor) && $terms->latestAcceptance($vendor)) {
+            return back()->with('status', __('partner_terms.already_accepted'));
+        }
+        $terms->accept($vendor, $request);
+
+        return redirect()->route('site.partner.terms')->with('status', __('partner_terms.already_accepted'));
     }
 }

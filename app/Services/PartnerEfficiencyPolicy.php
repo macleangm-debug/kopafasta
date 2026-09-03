@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Partner;
 use App\Models\Setting;
+use App\Support\PartnerPerformanceStatus;
+use Illuminate\Support\Carbon;
 
 class PartnerEfficiencyPolicy
 {
@@ -85,6 +87,11 @@ class PartnerEfficiencyPolicy
         return (bool) ($this->settings()['auto_suspend'] ?? true);
     }
 
+    public function autoRecover(): bool
+    {
+        return (bool) ($this->settings()['auto_recover'] ?? true);
+    }
+
     public function warningsBeforeSuspend(): int
     {
         return max(1, (int) ($this->settings()['warnings_before_suspend'] ?? 2));
@@ -95,14 +102,85 @@ class PartnerEfficiencyPolicy
         return max(1, (int) ($this->settings()['nudge_cooldown_days'] ?? 7));
     }
 
-    public function bandLabel(string $band): string
+    public function excellentScore(): int
+    {
+        $excellent = (int) ($this->settings()['excellent_score'] ?? 90);
+
+        return max($this->strongScore(), min(100, $excellent));
+    }
+
+    public function targetOnTimePercent(): float
+    {
+        return max(0, min(100, (float) ($this->settings()['target_on_time_percent'] ?? 90)));
+    }
+
+    public function targetCompletionPercent(): float
+    {
+        return max(0, min(100, (float) ($this->settings()['target_completion_percent'] ?? 95)));
+    }
+
+    public function recoverLookbackDays(): int
+    {
+        return max(1, min(365, (int) ($this->settings()['recover_lookback_days'] ?? 90)));
+    }
+
+    public function recoverMinScore(): int
+    {
+        $stored = $this->settings()['recover_min_score'] ?? null;
+        if ($stored !== null && $stored !== '') {
+            return max(1, min(100, (int) $stored));
+        }
+
+        return $this->watchScore();
+    }
+
+    public function nextReviewAt(?Carbon $from = null): Carbon
+    {
+        $from = ($from ?? now())->copy();
+        $candidate = $from->copy()->next(Carbon::MONDAY)->setTime(6, 30);
+
+        if ($from->isMonday() && $from->lt($from->copy()->setTime(6, 30))) {
+            return $from->copy()->setTime(6, 30);
+        }
+
+        return $candidate;
+    }
+
+    public function bandLabel(string $band, ?string $locale = null, ?int $score = null): string
+    {
+        return PartnerPerformanceStatus::label($this->presentationStatusForBand($band, $score), $locale);
+    }
+
+    public function presentationStatusForBand(string $band, ?int $score = null): string
     {
         return match ($band) {
-            self::BAND_STRONG => 'Strong',
-            self::BAND_WATCH => 'Watch',
-            self::BAND_AT_RISK => 'Needs coaching',
-            default => 'New',
+            self::BAND_STRONG => ($score !== null && $score >= $this->excellentScore())
+                ? PartnerPerformanceStatus::EXCELLENT
+                : PartnerPerformanceStatus::GOOD_STANDING,
+            self::BAND_WATCH => PartnerPerformanceStatus::NEEDS_ATTENTION,
+            self::BAND_AT_RISK => PartnerPerformanceStatus::AT_RISK,
+            default => PartnerPerformanceStatus::RAMP_UP,
         };
+    }
+
+    /** Task/case partners that receive governance (Terms, eligibility, auto-recovery). */
+    /** @return list<string> */
+    public function governanceCategories(): array
+    {
+        return [
+            'valuer',
+            'gps_installer',
+            'insurance',
+            'call_center',
+            'debt_collector',
+            'auctioneer',
+            'legal_partner',
+        ];
+    }
+
+    public function isGoverned(Partner $partner): bool
+    {
+        return in_array((string) $partner->category, $this->governanceCategories(), true);
     }
 
     /** @return list<string> */
@@ -122,7 +200,7 @@ class PartnerEfficiencyPolicy
 
     public function appliesTo(Partner $partner): bool
     {
-        if (in_array((string) $partner->category, $this->fieldCategories(), true)) {
+        if ($this->isGoverned($partner)) {
             return true;
         }
 

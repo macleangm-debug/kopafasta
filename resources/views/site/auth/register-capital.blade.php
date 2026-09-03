@@ -134,6 +134,8 @@
                             Your account is created in <strong>pending</strong> status. A relationship manager will verify your organisation and unlock institutional features within 24 hours.
                         </div>
 
+                        <x-site.turnstile action="register-capital" />
+
                         <button class="w-full inline-flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3 px-7 rounded-full transition shadow-sm">
                             Submit application →
                         </button>

@@ -17,13 +17,17 @@ class PartnerProfileTabsFeatureTest extends TestCase
         $tabs = app(PartnerProfileTabs::class);
 
         $valuer = Vendor::create(['name' => 'Valuer A', 'category' => 'valuer', 'status' => 'active', 'vendor_number' => 'PT-VL-TABS-1']);
-        $this->assertSame(['profile', 'jobs', 'performance', 'portal', 'account'], array_keys($tabs->tabs($valuer)));
+        $this->assertSame([
+            'profile', 'jobs', 'performance', 'membership', 'compliance', 'documents', 'agreements', 'history', 'portal', 'account',
+        ], array_keys($tabs->tabs($valuer)));
 
         $collector = Vendor::create(['name' => 'Collector A', 'category' => 'debt_collector', 'status' => 'active', 'vendor_number' => 'PT-DC-TABS-1']);
-        $this->assertSame(['profile', 'cases', 'performance', 'portal', 'account'], array_keys($tabs->tabs($collector)));
+        $this->assertSame([
+            'profile', 'cases', 'performance', 'compliance', 'documents', 'agreements', 'history', 'portal', 'account',
+        ], array_keys($tabs->tabs($collector)));
 
         $affiliate = Vendor::create(['name' => 'Affiliate A', 'category' => 'affiliate', 'status' => 'active', 'vendor_number' => 'PT-AF-TABS-1']);
-        $this->assertSame(['profile', 'pipeline', 'performance', 'portal', 'account'], array_keys($tabs->tabs($affiliate)));
+        $this->assertSame(['profile', 'pipeline', 'performance', 'membership', 'agreements', 'portal', 'account'], array_keys($tabs->tabs($affiliate)));
 
         $supplier = Vendor::create(['name' => 'Supplier A', 'category' => 'supplier', 'status' => 'active', 'vendor_number' => 'PT-SU-TABS-1']);
         $this->assertSame(['profile', 'listings', 'performance', 'portal', 'account'], array_keys($tabs->tabs($supplier)));
@@ -49,8 +53,10 @@ class PartnerProfileTabsFeatureTest extends TestCase
         $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.show', $affiliate))
             ->assertOk()
-            ->assertSee('Pipeline', false)
+            ->assertSee('Business', false)
             ->assertSee('Performance', false)
+            ->assertSee('Membership', false)
+            ->assertSee('Agreements', false)
             ->assertSee('Profile', false)
             ->assertDontSee('>Affiliate</', false)
             ->assertDontSee('Update lifecycle', false)

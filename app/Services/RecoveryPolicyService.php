@@ -99,6 +99,24 @@ class RecoveryPolicyService
         return max(1, (int) ($this->partnerTypes()[$type]['default_sla_days'] ?? 7));
     }
 
+    /** @return list<int> */
+    public function remindDaysForType(string $type): array
+    {
+        $stored = Setting::get("recovery.remind_days.{$type}");
+        if ($stored === null || $stored === '') {
+            $stored = Setting::get('recovery.remind_days', config('recovery.default_remind_days', '3,1'));
+        }
+        $parts = is_array($stored) ? $stored : explode(',', (string) $stored);
+
+        return collect($parts)
+            ->map(fn ($v) => (int) $v)
+            ->filter(fn ($v) => $v > 0)
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->all();
+    }
+
     public function defaultCommissionPercent(string $type): float
     {
         $key = "recovery.commission_percent.{$type}";

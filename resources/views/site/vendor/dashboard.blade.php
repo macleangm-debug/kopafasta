@@ -35,9 +35,13 @@
         $jobBlock = app(\App\Services\PartnerProfileService::class)->jobBlockReason($vendor);
         $membershipPayRoute = $vendor->isAffiliate() ? 'site.affiliate.membership.pay' : 'site.partner.membership.pay';
         $showMembershipPayCta = $jobBlock === 'payment';
+        $showTermsCta = $jobBlock === 'terms';
         if ($jobBlock === 'profile') {
             $primaryCtaRoute = 'site.partner.profile';
             $primaryCtaLabel = __('site.partner_portal.cta_complete_profile');
+        } elseif ($jobBlock === 'terms') {
+            $primaryCtaRoute = 'site.partner.terms';
+            $primaryCtaLabel = __('site.partner_portal.cta_accept_terms');
         }
         $activeStatCards = [];
         if (! $isInsurance) {
@@ -146,6 +150,8 @@
                     @endphp
                     <p class="text-sm text-white/90 mt-3 max-w-lg">{{ __('site.partner_portal.membership_due_title') }}</p>
                     <p class="text-sm text-white/75 mt-1 max-w-lg">{{ __('site.partner_portal.membership_due_body', ['amount' => format_money($membershipFee)]) }}</p>
+                @elseif ($showTermsCta)
+                    <p class="text-sm text-white/90 mt-3 max-w-lg">{{ __('site.partner_portal.job_requires_terms') }}</p>
                 @else
                     <p class="text-sm text-white/80 mt-3 max-w-lg">{{ $heroBlurb }}</p>
                 @endif

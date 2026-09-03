@@ -24,17 +24,7 @@ class AffiliateService
             ->where('affiliate_code', strtoupper(trim($code)))
             ->first();
 
-        if (! $affiliate || ! app(AffiliateLifecycleService::class)->canReceiveReferrals($affiliate)) {
-            return null;
-        }
-
-        if (app(AffiliateFraudDetectionService::class)->referralsBlocked($affiliate)) {
-            return null;
-        }
-
-        // When KYC is required for public verification, unsigned codes must not attribute referrals.
-        if (app(AffiliateSettingsService::class)->requireKycForVerification()
-            && ! app(AffiliateLifecycleService::class)->canSharePublicly($affiliate)) {
+        if (! $affiliate || ! app(AffiliateEligibilityService::class)->canAttributeNewReferral($affiliate)) {
             return null;
         }
 
@@ -365,6 +355,10 @@ class AffiliateService
 
         $quote = $this->quoteFee($customer, $baseAmount, $feeType);
         if (! $quote['affiliate'] || $quote['commission'] <= 0) {
+            return null;
+        }
+
+        if (! app(AffiliateEligibilityService::class)->canEarnFromNewBusiness($quote['affiliate'])) {
             return null;
         }
 

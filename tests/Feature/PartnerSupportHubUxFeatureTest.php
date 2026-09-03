@@ -287,7 +287,7 @@ class PartnerSupportHubUxFeatureTest extends TestCase
             ->get(route('admin.partners.efficiency'))
             ->assertOk()
             ->assertSee('Late Collector', false)
-            ->assertSee('Needs coaching', false)
+            ->assertSee(__('partner_governance.status_at_risk'), false)
             ->assertSee('On Time Valuer', false);
 
         $this->actingAs($this->admin(), 'admin')

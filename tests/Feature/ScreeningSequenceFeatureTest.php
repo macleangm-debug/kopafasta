@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDocumentRequest;
 use App\Models\LoanProduct;
 use App\Models\Setting;
 use App\Models\User;
@@ -68,11 +69,12 @@ class ScreeningSequenceFeatureTest extends TestCase
         $this->assertFalse($snap['verified']['pass']);
         $this->assertFalse($snap['later_unlocked']);
         $this->assertTrue(app(ScreeningSequenceService::class)->gateUnlocked($application->fresh(), 'income'));
+        $this->assertFalse(app(ScreeningSequenceService::class)->gateUnlocked($application->fresh(), 'collateral'));
         $this->assertFalse(app(ScreeningSequenceService::class)->gateUnlocked($application->fresh(), 'crb'));
         $this->assertFalse(app(ScreeningSequenceService::class)->gateUnlocked($application->fresh(), 'identity'));
     }
 
-    public function test_gate_2_pass_unlocks_crb_and_locks_identity(): void
+    public function test_gate_2_pass_skips_na_collateral_and_unlocks_crb(): void
     {
         $application = $this->individual(5_000_000, 200_000);
         $payload = $application->screening_payload ?? [];
@@ -90,9 +92,181 @@ class ScreeningSequenceFeatureTest extends TestCase
         $this->assertTrue($snap['verified']['pass']);
         $this->assertTrue($snap['later_unlocked']);
         $this->assertTrue($snap['unlocked']['crb'] ?? false);
+        $this->assertFalse($snap['unlocked']['collateral'] ?? true);
         $this->assertFalse($snap['unlocked']['identity'] ?? true);
         $this->assertStringContainsString('Complete CRB', (string) ($snap['next_action']['label'] ?? ''));
         $this->assertStringNotContainsString('Continue to Identity', (string) ($snap['next_action']['label'] ?? ''));
+    }
+
+    public function test_gate_2_pass_unlocks_crb_before_collateral_when_required(): void
+    {
+        $application = $this->individual(5_000_000, 200_000, true);
+        $payload = $application->screening_payload ?? [];
+        $payload['screening_checklist']['by_subject']['borrower']['items']['activity_income.income_evidence'] = [
+            'verdict' => 'pass',
+            'source' => 'system',
+            'statement_deposits_total' => 30_000_000,
+            'statement_months' => 6,
+            'statement_monthly' => 5_000_000,
+        ];
+        $application->update(['screening_payload' => $payload]);
+
+        $snap = app(ScreeningSequenceService::class)->snapshot($application->fresh(['customer', 'product']));
+        $this->assertTrue($snap['unlocked']['crb'] ?? false);
+        $this->assertFalse($snap['unlocked']['collateral'] ?? true);
+        $this->assertFalse($snap['unlocked']['identity'] ?? true);
+        $this->assertStringContainsString('Complete CRB', (string) ($snap['next_action']['label'] ?? ''));
+    }
+
+    public function test_required_missing_collateral_uses_secure_journey_not_document_request(): void
+    {
+        $application = $this->individual(5_000_000, 200_000, true);
+        $payload = $application->screening_payload ?? [];
+        $payload['guided']['seen_gates']['declared'] = true;
+        $payload['screening_checklist']['by_subject']['borrower']['items']['activity_income.income_evidence'] = [
+            'verdict' => 'pass',
+            'source' => 'system',
+            'statement_deposits_total' => 30_000_000,
+            'statement_months' => 6,
+            'statement_monthly' => 5_000_000,
+        ];
+        $application->update(['screening_payload' => $payload]);
+
+        $beforeCrb = app(\App\Services\ScreeningNextActionService::class)
+            ->forApplication($application->fresh(['customer', 'product', 'documentRequests']));
+        $this->assertNotSame('collateral_secure', $beforeCrb['step']['type'] ?? null);
+
+        $this->passBorrowerCrb($application);
+
+        $next = app(\App\Services\ScreeningNextActionService::class)
+            ->forApplication($application->fresh(['customer', 'product', 'documentRequests']));
+        $this->assertSame('do_now', $next['bucket']);
+        $this->assertSame('collateral_secure', $next['step']['type'] ?? null);
+        $this->assertSame('collateral', $next['step']['gate'] ?? null);
+        $this->assertStringContainsString('not assign a valuer', (string) ($next['step']['prompt'] ?? ''));
+    }
+
+    public function test_awaiting_collateral_pledge_uses_waiting_for_collateral_kind(): void
+    {
+        $application = $this->individual(5_000_000, 200_000, true);
+        $payload = $application->screening_payload ?? [];
+        $payload['collateral_secure'] = [
+            'requested_at' => now()->toIso8601String(),
+            'status' => 'awaiting_borrower_has_collateral',
+        ];
+        $application->update(['screening_payload' => $payload]);
+
+        $next = app(\App\Services\ScreeningNextActionService::class)
+            ->forApplication($application->fresh(['customer', 'product', 'documentRequests']));
+        $this->assertSame('waiting', $next['bucket']);
+        $this->assertSame('collateral', $next['waiting']['kind'] ?? null);
+        $this->assertSame('Waiting for collateral', $next['waiting']['label'] ?? null);
+    }
+
+    public function test_document_waiting_buckets_split_member_guarantor_leader_and_borrower(): void
+    {
+        $borrowerApp = $this->individual(5_000_000, 200_000);
+        LoanApplicationDocumentRequest::create([
+            'loan_application_id' => $borrowerApp->id,
+            'label' => 'Updated National ID',
+            'type' => 'document',
+            'status' => 'pending',
+            'subject_kind' => 'borrower',
+            'due_at' => now()->addDays(7),
+        ]);
+        $next = app(\App\Services\ScreeningNextActionService::class)
+            ->forApplication($borrowerApp->fresh(['customer', 'product', 'documentRequests']));
+        $this->assertSame('waiting', $next['bucket']);
+        $this->assertSame('document', $next['waiting']['kind'] ?? null);
+        $this->assertSame('Waiting for document', $next['waiting']['label'] ?? null);
+
+        $memberApp = $this->individual(5_000_000, 200_000);
+        LoanApplicationDocumentRequest::create([
+            'loan_application_id' => $memberApp->id,
+            'label' => 'Updated National ID',
+            'type' => 'document',
+            'status' => 'pending',
+            'subject_kind' => 'member',
+            'due_at' => now()->addDays(7),
+        ]);
+        $next = app(\App\Services\ScreeningNextActionService::class)
+            ->forApplication($memberApp->fresh(['customer', 'product', 'documentRequests']));
+        $this->assertSame('member', $next['waiting']['kind'] ?? null);
+        $this->assertSame('Waiting for member', $next['waiting']['label'] ?? null);
+
+        $guarantorApp = $this->individual(5_000_000, 200_000);
+        LoanApplicationDocumentRequest::create([
+            'loan_application_id' => $guarantorApp->id,
+            'label' => 'Proof of residence',
+            'type' => 'document',
+            'status' => 'pending',
+            'subject_kind' => 'guarantor',
+            'due_at' => now()->addDays(7),
+        ]);
+        $next = app(\App\Services\ScreeningNextActionService::class)
+            ->forApplication($guarantorApp->fresh(['customer', 'product', 'documentRequests']));
+        $this->assertSame('guarantor', $next['waiting']['kind'] ?? null);
+        $this->assertSame('Waiting for guarantor', $next['waiting']['label'] ?? null);
+    }
+
+    public function test_grandfathered_identity_file_is_not_forced_behind_new_g3_and_keeps_valuation_fee(): void
+    {
+        $application = $this->individual(5_000_000, 200_000, true);
+        $payload = $application->screening_payload ?? [];
+        $payload['screening_checklist']['by_subject']['borrower']['items']['identity.face_vs_nida'] = [
+            'verdict' => 'pass',
+            'source' => 'human',
+        ];
+        $payload['collateral_secure'] = [
+            'requested_at' => now()->subDays(10)->toIso8601String(),
+            'status' => 'awaiting_valuer',
+            'path' => 'screening_valuation',
+            'valuation_fee_due' => 85_000,
+            'valuation_fee_paid_at' => now()->subDays(2)->toIso8601String(),
+            'valuation' => ['status' => 'in_progress'],
+        ];
+        $application->update(['screening_payload' => $payload]);
+
+        $before = $application->fresh()->screening_payload['collateral_secure'];
+        $snap = app(ScreeningSequenceService::class)->snapshot($application->fresh());
+
+        $this->assertTrue($snap['grandfathered']);
+        $this->assertTrue($snap['unlocked']['collateral'] ?? false);
+        $this->assertTrue($snap['unlocked']['crb'] ?? false);
+        $this->assertTrue($snap['unlocked']['identity'] ?? false);
+        $this->assertSame($before, $application->fresh()->screening_payload['collateral_secure']);
+        $this->assertSame(85_000, (int) data_get($application->fresh()->screening_payload, 'collateral_secure.valuation_fee_due'));
+        $this->assertSame('awaiting_valuer', data_get($application->fresh()->screening_payload, 'collateral_secure.status'));
+    }
+
+    public function test_collateral_policy_modes_never_always_and_above_amount(): void
+    {
+        $product = LoanProduct::create([
+            'code' => 'IL-POL-'.random_int(100, 999),
+            'name' => 'Policy Individual',
+            'is_active' => true,
+            'interest_rate' => 0.05,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 1,
+            'tenure_max_months' => 12,
+        ]);
+        $policy = app(\App\Services\LoanPolicyService::class);
+
+        Setting::set('loan.collateral_requirement_mode', 'never');
+        Setting::set('loan.collateral_required_above', 200_000);
+        $this->assertFalse($policy->requiresCollateralForApplication($product, 5_000_000));
+
+        Setting::set('loan.collateral_requirement_mode', 'always');
+        $this->assertTrue($policy->requiresCollateralForApplication($product, 1));
+
+        Setting::set('loan.collateral_requirement_mode', 'above_amount');
+        $this->assertFalse($policy->requiresCollateralForApplication($product, 199_999));
+        $this->assertTrue($policy->requiresCollateralForApplication($product, 200_000));
+
+        $product->requires_collateral = true;
+        Setting::set('loan.collateral_requirement_mode', 'never');
+        $this->assertTrue($policy->requiresCollateralForApplication($product, 1));
     }
 
     public function test_gate_2_system_fail_uses_settings_delay_and_freezes_deadline(): void
@@ -297,7 +471,19 @@ class ScreeningSequenceFeatureTest extends TestCase
             ->firstWhere('partner_type', 'valuer')['wallet'] ?? null);
     }
 
-    private function individual(float $income, float $amount): LoanApplication
+    private function passBorrowerCrb(LoanApplication $application): void
+    {
+        $payload = $application->screening_payload ?? [];
+        foreach (['identity.name_vs_crb', 'identity.marital_vs_crb', 'credit_file.crb_reviewed'] as $key) {
+            $payload['screening_checklist']['by_subject']['borrower']['items'][$key] = [
+                'verdict' => 'pass',
+                'source' => 'system',
+            ];
+        }
+        $application->update(['screening_payload' => $payload]);
+    }
+
+    private function individual(float $income, float $amount, bool $requiresCollateral = false): LoanApplication
     {
         $product = LoanProduct::create([
             'code' => 'IL-SEQ-'.random_int(100, 999),
@@ -308,6 +494,7 @@ class ScreeningSequenceFeatureTest extends TestCase
             'max_amount' => 5_000_000,
             'tenure_min_months' => 1,
             'tenure_max_months' => 12,
+            'requires_collateral' => $requiresCollateral,
         ]);
         $customer = $this->person('Seq', 'Borrower', '25571'.random_int(1000000, 9999999), $income);
 

@@ -194,15 +194,35 @@ class PartnerProfileService
      * Why this partner cannot receive, accept, or start a job yet.
      *
      * Paying types (Settings → Partner membership) need a complete profile and
-     * an active membership. Other types only need a complete profile. Staff can
-     * move any type onto the paying list at any time.
+     * an active membership. Governed types also need current Terms and must not
+     * be performance-suspended. Other types only need a complete profile.
      *
-     * @return 'profile'|'payment'|null
+     * @return 'profile'|'payment'|'terms'|'performance'|'compliance'|'suspended'|'inactive'|null
      */
     public function jobBlockReason(Partner $partner): ?string
     {
+        $status = (string) ($partner->status ?? '');
+        if ($status === 'inactive') {
+            return 'inactive';
+        }
+        if ($status === 'suspended') {
+            return match ((string) ($partner->suspend_kind ?? 'admin')) {
+                'performance' => 'performance',
+                'compliance', 'fraud' => 'compliance',
+                default => 'suspended',
+            };
+        }
+        if (($partner->performance_status ?? '') === \App\Support\PartnerPerformanceStatus::SUSPENDED) {
+            return 'performance';
+        }
+
         if (! $this->isComplete($partner)) {
             return 'profile';
+        }
+
+        $terms = app(PartnerTermsService::class);
+        if ($terms->appliesTo($partner) && ! $terms->hasSatisfiedTerms($partner)) {
+            return 'terms';
         }
 
         if ($partner->isAffiliate()) {
@@ -215,6 +235,22 @@ class PartnerProfileService
         }
 
         return null;
+    }
+
+    /**
+     * @return array{can_receive: bool, reason: ?string, reason_label: string}
+     */
+    public function jobEligibility(Partner $partner): array
+    {
+        $reason = $this->jobBlockReason($partner);
+
+        return [
+            'can_receive' => $reason === null && ($partner->status ?? '') === 'active',
+            'reason' => $reason,
+            'reason_label' => $reason
+                ? __('site.partner_portal.job_block_'.$reason)
+                : __('site.partner_portal.can_receive_jobs_yes'),
+        ];
     }
 
     public function canReceiveJobs(Partner $partner): bool
@@ -247,6 +283,16 @@ class PartnerProfileService
         if ($reason === 'payment') {
             throw ValidationException::withMessages([
                 $field => __('site.partner_portal.job_requires_payment'),
+            ]);
+        }
+        if ($reason === 'terms') {
+            throw ValidationException::withMessages([
+                $field => __('site.partner_portal.job_requires_terms'),
+            ]);
+        }
+        if (in_array($reason, ['performance', 'compliance', 'suspended', 'inactive'], true)) {
+            throw ValidationException::withMessages([
+                $field => __('site.partner_portal.job_block_'.$reason),
             ]);
         }
     }

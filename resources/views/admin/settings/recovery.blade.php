@@ -101,6 +101,9 @@
                                help="Canonical grace lives on each loan product (and Loan rules)." />
                 <x-admin.input name="call_center_lead_days" label="Call center lead (days before grace ends)" type="number" min="0" max="30"
                                :value="$values['call_center_lead_days'] ?? 0" required />
+                <x-admin.input name="remind_days" label="Partner SLA reminders (days before expiry)"
+                               :value="$values['remind_days'] ?? '3,1'"
+                               help="Comma-separated days before sla_due_at, e.g. 3,1. This is not the origination 12h/4h schedule." />
                 <x-admin.input name="auction_hold_days" label="Auction hold after repossession (days)" type="number" min="1" max="30"
                                :value="$values['auction_hold_days'] ?? 4" required
                                help="After debt collector marks repossession complete, the borrower has this many days to settle before an auctioneer is auto-assigned." />

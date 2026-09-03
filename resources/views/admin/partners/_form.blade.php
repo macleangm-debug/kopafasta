@@ -364,6 +364,18 @@
                 @endif
             </div>
             <x-admin.input name="affiliate_code" label="Promo / affiliate code" :value="$r?->affiliate_code" placeholder="Auto-generated for affiliates" />
+            <div class="md:col-span-2">
+                <input type="hidden" name="affiliate_premium" value="0">
+                <label class="flex items-start gap-3 rounded-xl border border-brand/15 bg-white px-4 py-3 cursor-pointer">
+                    <input type="checkbox" name="affiliate_premium" value="1"
+                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
+                           @checked((bool) old('affiliate_premium', $r?->affiliate_premium))>
+                    <span>
+                        <span class="block text-sm font-semibold text-gray-900">Premium affiliate</span>
+                        <span class="block text-xs text-gray-500 mt-0.5">For affiliates with a large following. Volume KPIs, warnings, and automatic performance suspension do not apply. Fraud, compliance, and admin holds still do.</span>
+                    </span>
+                </label>
+            </div>
             @if ($canNegotiateRates)
                 <x-admin.input name="registration_discount_percent" label="Registration discount (%)" type="number" step="0.01" :value="$r?->registration_discount_percent ?? config('affiliates.default_registration_discount_percent')" />
                 <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="$r?->application_discount_percent ?? config('affiliates.default_application_discount_percent')" />

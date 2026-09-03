@@ -32,6 +32,7 @@ class LoanProduct extends Model
             'hides_interest' => 'boolean',
             'eligible_grades' => 'array',
             'status' => 'string',
+            'seo_indexable' => 'boolean',
         ];
     }
 

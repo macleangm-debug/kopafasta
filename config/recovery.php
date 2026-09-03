@@ -90,6 +90,9 @@ return [
     /** Days after repossession before auto-assigning an auctioneer (borrower redemption window). */
     'default_auction_hold_days' => 4,
 
+    /** Days before sla_due_at to remind the assigned recovery partner. Not the origination 12h/4h schedule. */
+    'default_remind_days' => '3,1',
+
     /** Outcomes counted as successful recovery in partner KPIs. */
     'recovered_outcomes' => [
         'resolved',

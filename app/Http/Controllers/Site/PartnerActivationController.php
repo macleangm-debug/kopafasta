@@ -31,19 +31,37 @@ class PartnerActivationController extends Controller
             ]);
         }
 
-        return view('site.partner.activate', compact('vendor', 'token'));
+        return view('site.partner.activate', [
+            'vendor' => $vendor,
+            'token' => $token,
+            'terms' => $this->activationTerms($vendor),
+        ]);
     }
 
     public function store(Request $request, Vendor $vendor, PartnerActivationService $activation): RedirectResponse
     {
         $token = (string) $request->input('token', '');
         if (! $request->boolean('pin_reset')) {
-            $request->validate([
-                'collection_conduct_accepted' => ['accepted'],
-            ]);
+            $terms = app(\App\Services\PartnerTermsService::class);
+            if ($terms->appliesTo($vendor)) {
+                $request->validate([
+                    'partner_terms_accepted' => ['accepted'],
+                ]);
+            } else {
+                $request->validate([
+                    'collection_conduct_accepted' => ['accepted'],
+                ]);
+            }
         }
 
         $user = $activation->activate($vendor, $token, $request->all());
+
+        if (! $request->boolean('pin_reset')) {
+            $terms = app(\App\Services\PartnerTermsService::class);
+            if ($terms->appliesTo($vendor) && $request->boolean('partner_terms_accepted')) {
+                $terms->accept($vendor->fresh(), $request);
+            }
+        }
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -55,5 +73,21 @@ class PartnerActivationController extends Controller
 
         return redirect()->route('site.partner.setup-pin')
             ->with('status', 'Partner account activated. Create your PIN to continue.');
+    }
+
+    /** @return array{applies: bool, title: string, rendered: string}|null */
+    private function activationTerms(Vendor $vendor): ?array
+    {
+        $terms = app(\App\Services\PartnerTermsService::class);
+        if (! $terms->appliesTo($vendor)) {
+            return null;
+        }
+        $type = $terms->typeFor($vendor);
+
+        return [
+            'applies' => true,
+            'title' => $terms->title($type),
+            'rendered' => $terms->render($type, $vendor),
+        ];
     }
 }

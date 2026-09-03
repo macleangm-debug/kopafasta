@@ -95,7 +95,9 @@ class PartnerEnrollmentAnomalyService
             }
         }
 
-        if (empty($application->coverage_regions) && ! filled($application->region)) {
+        if (($application->type !== 'affiliate' && $application->partner_category !== 'affiliate')
+            && empty($application->coverage_regions)
+            && ! filled($application->region)) {
             $anomalies[] = $this->item('coverage_missing', 'info', 'Coverage not specified', 'No primary region or coverage regions provided.');
         }
 

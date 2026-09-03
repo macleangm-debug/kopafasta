@@ -34,7 +34,9 @@ return [
 
     'evaluation' => [
         'auto_apply_actions'                  => (bool) env('AFFILIATE_EVAL_AUTO_APPLY', true),
-        'period_days'                         => (int) env('AFFILIATE_EVAL_PERIOD_DAYS', 30),
+        'auto_recover'                        => true,
+        'policy_version'                      => 1,
+        'period_days'                         => (int) env('AFFILIATE_EVAL_PERIOD_DAYS', 90),
         'min_events_for_scoring'              => (int) env('AFFILIATE_EVAL_MIN_EVENTS', 3),
         'watchlist_risk_score'                => (float) env('AFFILIATE_EVAL_WATCHLIST_RISK', 60),
         'watchlist_fraud_score'               => (float) env('AFFILIATE_EVAL_WATCHLIST_FRAUD', 50),
@@ -45,7 +47,7 @@ return [
         'high_click_threshold'                => (int) env('AFFILIATE_EVAL_HIGH_CLICKS', 50),
         /** Borrower registrations via the affiliate code in the evaluation period. */
         'monthly_registration_target'         => (int) env('AFFILIATE_MONTHLY_REG_TARGET', 10),
-        'volume_min_active_days'              => (int) env('AFFILIATE_VOLUME_MIN_ACTIVE_DAYS', 30),
+        'volume_min_active_days'              => (int) env('AFFILIATE_VOLUME_MIN_ACTIVE_DAYS', 90),
         'volume_misses_before_nudge'          => (int) env('AFFILIATE_VOLUME_MISSES_NUDGE', 1),
         'volume_misses_before_watchlist'      => (int) env('AFFILIATE_VOLUME_MISSES_WATCHLIST', 2),
         'volume_misses_before_suspend'        => (int) env('AFFILIATE_VOLUME_MISSES_SUSPEND', 3),
@@ -53,6 +55,12 @@ return [
             'volume'     => 0.3,
             'conversion' => 0.4,
             'commission' => 0.3,
+        ],
+        'kpis' => [
+            'qualified_referrals' => ['enabled' => true, 'target' => 10, 'weight' => 1],
+            'applications' => ['enabled' => false, 'target' => 5, 'weight' => 1],
+            'disbursed_loans' => ['enabled' => false, 'target' => 3, 'weight' => 1],
+            'conversion' => ['enabled' => false, 'target' => 30, 'weight' => 1],
         ],
     ],
 
@@ -99,12 +107,16 @@ return [
      * before sharing is unlocked when required_before_sharing is true.
      */
     'membership' => [
-        'enabled'                 => true,
-        'fee_amount'              => 50000,
-        'fee_amount_individual'   => 25000,
-        'fee_amount_company'      => 50000,
-        'duration_days'           => 365,
-        'grace_period_hours'      => 48,
-        'required_before_sharing' => true,
+        'enabled'                         => true,
+        'fee_amount'                      => 50000,
+        'fee_amount_individual'           => 25000,
+        'fee_amount_company'              => 50000,
+        'duration_days'                   => 365,
+        'grace_period_hours'              => 48,
+        'required_before_sharing'         => true,
+        'renewal_window_days'             => 30,
+        'require_terms_before_activation' => true,
+        'promo_code_on_expiry'            => 'disable',
+        'commission_after_expiry'         => 'historical_only',
     ],
 ];

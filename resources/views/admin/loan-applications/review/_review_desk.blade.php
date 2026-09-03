@@ -172,6 +172,28 @@
     @endif
     @include('admin.loan-applications.review._early_eligibility', ['sequence' => $sequence, 'record' => $record])
 
+    @php
+        $coverageLoan = $record;
+        $csGap = $coverageLoan instanceof \App\Models\LoanApplication
+            ? app(\App\Services\CollateralSecureService::class)->viewModel($coverageLoan)
+            : [];
+        if ($coverageLoan instanceof \App\Models\LoanApplication) {
+            $coverageLoan->loadMissing('customer');
+        }
+    @endphp
+    @if (! empty($csGap['no_regional_cover']) && ! empty($csGap['valuer_unassigned']))
+        <div class="px-5 py-3 bg-amber-50 border-b border-amber-100 space-y-2">
+            <p class="text-sm font-semibold text-amber-950">
+                Fee is paid. No valuer covers {{ $coverageLoan->customer?->region ?: 'this region' }}.
+            </p>
+            @include('admin.loan-applications.review._request_partner_coverage', [
+                'coverageApplication' => $coverageLoan,
+                'coverageCategory' => 'valuer',
+                'coverageRegion' => $coverageLoan->customer?->region,
+            ])
+        </div>
+    @endif
+
     <div class="px-5 py-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-3 min-w-0">
             <h3 class="text-base font-bold text-gray-900">Review checklist</h3>
@@ -239,9 +261,21 @@
                 @foreach ($gates as $gate)
                     <div x-show="gate === @js($gate['key'])" x-cloak class="space-y-3">
                         @if (! empty($gate['locked']))
-                            <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-4">
+                            <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-4 space-y-3">
                                 <p class="text-sm font-bold text-slate-900">{{ $gate['chip'] ?? $gate['label'] }}</p>
                                 <p class="text-sm text-slate-600 mt-1">{{ $gate['lock_detail'] ?? 'Complete Income & Statement Review to continue screening.' }}</p>
+                                @if ($gate['key'] === 'collateral' && ! empty($csGap['no_regional_cover']) && ! empty($csGap['valuer_unassigned']))
+                                    <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-3 py-3 space-y-2">
+                                        <p class="text-sm font-semibold text-amber-950">
+                                            Fee is paid. No valuer covers {{ $record->customer?->region ?: 'this region' }}. Partner coverage can be requested before CRB is complete.
+                                        </p>
+                                        @include('admin.loan-applications.review._request_partner_coverage', [
+                                            'coverageApplication' => $record,
+                                            'coverageCategory' => 'valuer',
+                                            'coverageRegion' => $record->customer?->region,
+                                        ])
+                                    </div>
+                                @endif
                             </div>
                         @else
                             @if ($gate['key'] === 'identity')

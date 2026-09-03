@@ -81,11 +81,7 @@ class AuthController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
-        if (! app(TurnstileService::class)->verify($request->input('cf-turnstile-response'), $request->ip())) {
-            return back()
-                ->withErrors(['cf-turnstile-response' => 'Please complete the human verification challenge.'])
-                ->withInput($request->except('password', 'pin'));
-        }
+        app(TurnstileService::class)->assertHuman($request);
 
         $method = $request->input('auth_method', 'pin');
 
@@ -374,6 +370,8 @@ class AuthController extends Controller
 
     public function startPinRecovery(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
     {
+        app(TurnstileService::class)->assertHuman($request);
+
         $data = $request->validate([
             'phone' => ['required', 'string', 'max:20'],
         ]);
@@ -888,6 +886,8 @@ class AuthController extends Controller
 
     public function registerBorrower(Request $request, ReferralService $referrals): RedirectResponse
     {
+        app(TurnstileService::class)->assertHuman($request);
+
         $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
         $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
 
@@ -926,12 +926,6 @@ class AuthController extends Controller
         }
 
         $data = $request->validate($rules);
-
-        if (! app(TurnstileService::class)->verify($request->input('cf-turnstile-response'), $request->ip())) {
-            return back()
-                ->withErrors(['cf-turnstile-response' => 'Please complete the human verification challenge.'])
-                ->withInput();
-        }
 
         $phoneDigits = preg_replace('/\D/', '', $data['phone']);
         $phoneTaken = \App\Models\User::query()
@@ -1133,6 +1127,8 @@ class AuthController extends Controller
 
     public function registerVendor(Request $request): RedirectResponse
     {
+        app(TurnstileService::class)->assertHuman($request);
+
         $data = $request->validate([
             'name'       => ['required', 'string', 'max:120'],
             'category'   => ['required', 'string', 'in:gps_installer,insurance,valuer,yard,debt_collector,supplier,auctioneer,legal_partner,call_center,towing'],
@@ -1220,6 +1216,8 @@ class AuthController extends Controller
 
     public function registerInvestor(Request $request): RedirectResponse
     {
+        app(TurnstileService::class)->assertHuman($request);
+
         $data = $request->validate([
             'name'           => ['required', 'string', 'max:120'],
             'type'           => ['required', 'in:individual,institution,fund'],
@@ -1270,6 +1268,8 @@ class AuthController extends Controller
 
     public function registerCapital(Request $request): RedirectResponse
     {
+        app(TurnstileService::class)->assertHuman($request);
+
         $data = $request->validate([
             'organization'    => ['required', 'string', 'max:160'],
             'org_type'        => ['required', 'in:bank,mfi,dfi,family_office,asset_manager,other'],

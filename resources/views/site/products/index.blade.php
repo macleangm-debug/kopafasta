@@ -1,4 +1,4 @@
-<x-site.layout :title="brand_title(__('site.nav.all_products'))">
+<x-site.layout :title="__('seo.products_title')" :description="__('seo.products_description')">
     <section class="relative overflow-hidden premium-gradient border-b border-gray-100/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
             <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('site.products.featured_title') }}</p>

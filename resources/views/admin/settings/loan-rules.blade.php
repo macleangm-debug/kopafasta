@@ -46,9 +46,26 @@
         <x-admin.settings-panel id="guarantors">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Guarantors & collateral</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4" x-data="{ collateralMode: @js(old('collateral_requirement_mode', $values['collateral_requirement_mode'] ?? 'above_amount')) }">
                     <x-admin.input name="guarantor_required_above"  label="Guarantor required above" type="number" step="0.01" :value="$values['guarantor_required_above'] ?? '1000000'" />
-                    <x-admin.input name="collateral_required_above" label="Collateral required above" type="number" step="0.01" :value="$values['collateral_required_above'] ?? '5000000'" />
+                    @php $collateralMode = old('collateral_requirement_mode', $values['collateral_requirement_mode'] ?? 'above_amount'); @endphp
+                    <div>
+                        <label for="collateral_requirement_mode" class="block text-xs font-semibold text-gray-700 mb-1">When collateral is required</label>
+                        <select
+                            id="collateral_requirement_mode"
+                            name="collateral_requirement_mode"
+                            x-model="collateralMode"
+                            class="appearance-none w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700 cursor-pointer hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 transition"
+                        >
+                            <option value="never" @selected($collateralMode === 'never')>Never (unless the product always requires it)</option>
+                            <option value="always" @selected($collateralMode === 'always')>Always</option>
+                            <option value="above_amount" @selected($collateralMode === 'above_amount')>Above amount</option>
+                        </select>
+                        <p class="mt-1 text-[11px] text-gray-500">Asset-backed products still always require collateral.</p>
+                    </div>
+                    <div x-show="collateralMode === 'above_amount'" x-cloak>
+                        <x-admin.input name="collateral_required_above" label="Collateral required above" type="number" step="0.01" :value="$values['collateral_required_above'] ?? '200000'" help="Used only when the mode is Above amount." />
+                    </div>
                     <x-admin.input name="min_guarantors" label="Minimum guarantors" type="number" :value="$values['min_guarantors'] ?? '1'" required />
                     <x-admin.input name="max_active_applications_per_product" label="Max active applications per product" type="number" :value="$values['max_active_applications_per_product'] ?? '1'" required />
                     <x-admin.input name="max_active_loans" label="Max active loans per borrower" type="number" :value="$values['max_active_loans'] ?? '1'" required />

@@ -1,4 +1,14 @@
-<x-site.layout :title="brand_title(__('site.faq.title'))">
+@php
+    $faqItems = [];
+    foreach (__('site.faq.categories') as $cat) {
+        foreach ($cat['items'] ?? [] as $item) {
+            if (filled($item['q'] ?? null) && filled($item['a'] ?? null)) {
+                $faqItems[] = $item;
+            }
+        }
+    }
+@endphp
+<x-site.layout :title="brand_title(__('site.faq.title'))" :seo="['faqs' => $faqItems]">
     <section class="bg-brand text-white">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-14 text-center">
             <h1 class="text-3xl sm:text-4xl font-bold">{{ __('site.faq.title') }}</h1>

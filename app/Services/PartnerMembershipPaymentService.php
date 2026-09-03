@@ -15,6 +15,7 @@ class PartnerMembershipPaymentService
 
     public function open(Vendor $vendor): CustomerPayment
     {
+        $amount = round($this->feeFor($vendor), 2);
         $existing = CustomerPayment::query()
             ->where('partner_id', $vendor->id)
             ->where('payment_type', 'partner_membership')
@@ -23,19 +24,15 @@ class PartnerMembershipPaymentService
             ->first();
 
         if ($existing) {
-            if ($existing->status === 'awaiting_payment') {
-                $amount = round($this->membership->feeFor($vendor), 2);
-                if ((float) $existing->amount !== $amount) {
-                    $existing->update(['amount' => $amount]);
-                    $existing = $existing->fresh();
-                }
+            if ($existing->status === 'awaiting_payment' && (float) $existing->amount !== $amount) {
+                $existing->update(['amount' => $amount]);
+                $existing = $existing->fresh();
             }
 
             return $existing;
         }
 
-        $amount = round($this->membership->feeFor($vendor), 2);
-        $reference = $this->membership->ensurePaymentReference($vendor);
+        $reference = $this->paymentReference($vendor);
         $resolved = $this->accounts->resolve('partner_membership', 'mobile_money');
 
         return CustomerPayment::query()->create([
@@ -55,9 +52,28 @@ class PartnerMembershipPaymentService
             'created_by' => $vendor->user_id,
             'provider_meta' => [
                 'awaiting_collection' => true,
-                'description' => 'Partner membership',
+                'description' => $vendor->isAffiliate() ? 'Affiliate membership' : 'Partner membership',
+                'affiliate' => $vendor->isAffiliate(),
             ],
         ]);
+    }
+
+    public function feeFor(Vendor $vendor): float
+    {
+        if ($vendor->isAffiliate()) {
+            return app(AffiliateMembershipService::class)->feeFor($vendor);
+        }
+
+        return $this->membership->feeFor($vendor);
+    }
+
+    public function paymentReference(Vendor $vendor): string
+    {
+        if ($vendor->isAffiliate()) {
+            return app(AffiliateMembershipService::class)->ensurePaymentReference($vendor);
+        }
+
+        return $this->membership->ensurePaymentReference($vendor);
     }
 
     public function dashboardUrl(Vendor $vendor): string

@@ -26,6 +26,9 @@ class Phase67AffiliatePhase4FeatureTest extends TestCase
             'affiliate_code'             => 'AFFP67',
             'affiliate_lifecycle_status' => AffiliateLifecycleService::ACTIVE,
             'affiliate_kyc_status'       => 'verified',
+            'membership_status'          => 'active',
+            'membership_started_at'      => now()->subMonth(),
+            'membership_expires_at'      => now()->addYear(),
         ], $overrides));
     }
 

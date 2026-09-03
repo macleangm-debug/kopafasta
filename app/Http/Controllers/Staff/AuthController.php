@@ -25,6 +25,8 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
+        app(\App\Services\TurnstileService::class)->assertHuman($request);
+
         if (! Auth::guard('admin')->attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => 'These credentials do not match our records.',

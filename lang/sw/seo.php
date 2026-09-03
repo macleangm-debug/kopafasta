@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'default_description' => 'Kopafasta ni jukwaa la huduma za kifedha Tanzania kwa ufadhili wa biashara, ufadhili wa mali, na mikopo ya vikundi — viwango wazi, maombi kwa simu, microfinance iliyosajiliwa.',
+    'home_title' => 'Mikopo Tanzania — biashara, mali, na vikundi',
+    'home_description' => 'Omba mikopo Tanzania na Kopafasta. Ufadhili wa biashara, ufadhili wa mali, na mikopo ya vikundi kwa viwango wazi na maombi kwa simu.',
+    'products_title' => 'Bidhaa za mikopo Tanzania',
+    'products_description' => 'Linganisha bidhaa za mkopo za Kopafasta kwa biashara, mali, mshahara, kilimo, na vikundi. Viwango, malipo, na sifa vinatoka kwenye sheria zilezile unazotumia kuomba.',
+    'product_title' => ':name — :category — :site',
+    'learn_title' => 'Jifunze kuhusu kukopa na pesa Tanzania',
+    'learn_description' => 'Makala rahisi kuhusu kukopa, uwezo wa kulipa, mtiririko wa pesa wa biashara, dhamana, na elimu ya fedha — kwa watu Tanzania.',
+    'learn_category_title' => ':category — Jifunze',
+    'learn_article_title' => ':title — :category — :site',
+    'how_to_apply' => 'Jinsi ya kuomba',
+    'how_it_works' => 'Jinsi inavyofanya kazi',
+    'collateral_heading' => 'Dhamana na usalama',
+    'collateral_product_required' => 'Bidhaa hii inahitaji dhamana au mali iliyowekwa. Mpangilio huohuo wa bidhaa unatumika unapoombwa.',
+    'collateral_settings_always' => 'Sheria za mkopo kwa sasa zinahitaji dhamana au usalama kwenye maombi.',
+    'collateral_settings_never' => 'Sheria za mkopo kwa sasa hazihitaji dhamana ya ziada kwa bidhaa hii, isipokuwa bidhaa yenyewe inategemea mali.',
+    'collateral_above_amount' => 'Dhamana au usalama inahitajika kiasi kilichoombwa kikiwa :amount au zaidi — kizingiti kile kile kinachotumika kwenye sheria za mkopo.',
+    'collateral_not_required' => 'Bidhaa hii haihitaji dhamana ya ziada kwa kiasi cha kawaida. Bidhaa za mali bado zinatumia mali unayofadhiliwa.',
+    'repayment_heading' => 'Muundo wa malipo',
+    'repayment_body' => 'Lipa :frequency kwa miezi :min–:max. Kikokotoo hapa chini kinatumia viwango na mipaka hai ya bidhaa hii.',
+    'footer_learn' => 'Jifunze',
+    'organization_description' => 'Microfinance ya Tanzania kwa ufadhili wa biashara, ufadhili wa mali, na mikopo ya vikundi.',
+];

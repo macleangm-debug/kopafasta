@@ -101,6 +101,8 @@ class AffiliateSettingsService
             'require_kyc_for_verification'        => $this->requireKycForVerification(),
             'minimum_payout_amount'               => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
             'membership'                          => AffiliateMembershipService::config(),
+            'terms_body_en'                       => (string) Setting::get('affiliates.terms.body_en', ''),
+            'terms_body_sw'                       => (string) Setting::get('affiliates.terms.body_sw', ''),
             'message_share_template_sw'           => $this->localizedMessage('share_template', 'sw'),
             'message_referral_sms_sw'             => $this->localizedMessage('referral_sms', 'sw'),
             'message_verification_notice_sw'      => $this->localizedMessage('verification_notice', 'sw'),
@@ -175,6 +177,7 @@ class AffiliateSettingsService
 
         $merged = array_merge($defaults, $stored);
         $merged['weights'] = array_merge($defaults['weights'] ?? [], $stored['weights'] ?? []);
+        $merged['kpis'] = $this->mergeKpiCatalog($defaults['kpis'] ?? [], $stored['kpis'] ?? []);
 
         return $merged;
     }
@@ -186,7 +189,7 @@ class AffiliateSettingsService
 
     public function evaluationPeriodDays(): int
     {
-        return max(1, (int) ($this->evaluationSettings()['period_days'] ?? 30));
+        return max(1, (int) ($this->evaluationSettings()['period_days'] ?? 90));
     }
 
     public function minEventsForScoring(): int
@@ -229,14 +232,9 @@ class AffiliateSettingsService
         return max(1, (int) ($this->evaluationSettings()['high_click_threshold'] ?? 50));
     }
 
-    public function monthlyRegistrationTarget(): int
-    {
-        return max(0, (int) ($this->evaluationSettings()['monthly_registration_target'] ?? 10));
-    }
-
     public function volumeMinActiveDays(): int
     {
-        return max(0, (int) ($this->evaluationSettings()['volume_min_active_days'] ?? 30));
+        return max(0, (int) ($this->evaluationSettings()['volume_min_active_days'] ?? 90));
     }
 
     public function volumeMissesBeforeNudge(): int
@@ -298,6 +296,62 @@ class AffiliateSettingsService
     public function sharedDeviceRegistrationThreshold(): int
     {
         return max(1, (int) ($this->fraudSettings()['shared_device_registration_threshold'] ?? 2));
+    }
+
+    public function monthlyRegistrationTarget(): int
+    {
+        $eval = $this->evaluationSettings();
+        if (array_key_exists('monthly_registration_target', $eval) && $eval['monthly_registration_target'] !== null) {
+            return max(0, (int) $eval['monthly_registration_target']);
+        }
+
+        $kpis = $this->kpiCatalog();
+
+        return max(0, (int) ($kpis['qualified_referrals']['target'] ?? 10));
+    }
+
+    public function policyVersion(): int
+    {
+        return max(1, (int) ($this->evaluationSettings()['policy_version'] ?? 1));
+    }
+
+    public function autoRecover(): bool
+    {
+        return (bool) ($this->evaluationSettings()['auto_recover'] ?? true);
+    }
+
+    /**
+     * @return array<string, array{enabled: bool, target: float, weight: float}>
+     */
+    public function kpiCatalog(): array
+    {
+        $defaults = config('affiliates.evaluation.kpis', []);
+        $stored = $this->evaluationSettings()['kpis'] ?? [];
+
+        return $this->mergeKpiCatalog(is_array($defaults) ? $defaults : [], is_array($stored) ? $stored : []);
+    }
+
+    /**
+     * @param  array<string, mixed>  $defaults
+     * @param  array<string, mixed>  $stored
+     * @return array<string, array{enabled: bool, target: float, weight: float}>
+     */
+    private function mergeKpiCatalog(array $defaults, array $stored): array
+    {
+        $keys = array_unique(array_merge(array_keys($defaults), array_keys($stored)));
+        $out = [];
+        foreach ($keys as $key) {
+            $base = is_array($defaults[$key] ?? null) ? $defaults[$key] : [];
+            $overlay = is_array($stored[$key] ?? null) ? $stored[$key] : [];
+            $merged = array_merge($base, $overlay);
+            $out[$key] = [
+                'enabled' => (bool) ($merged['enabled'] ?? false),
+                'target' => (float) ($merged['target'] ?? 0),
+                'weight' => (float) ($merged['weight'] ?? 1),
+            ];
+        }
+
+        return $out;
     }
 
     public function multiAccountDeviceThreshold(): int

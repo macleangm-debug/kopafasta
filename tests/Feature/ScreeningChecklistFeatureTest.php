@@ -119,7 +119,8 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertStringContainsString('2.4 Affordability', $html);
         $this->assertStringContainsString('System checked', $html);
         $this->assertStringContainsString('Needs attention', $html);
-        $this->assertStringContainsString('4 Identity · Locked', $html);
+        $this->assertStringContainsString('5 Identity · Locked', $html);
+        $this->assertStringContainsString('4 Collateral · Locked', $html);
         $this->assertStringContainsString('3 CRB · Locked', $html);
         $this->assertStringContainsString('complete verified income first', $html);
         $this->assertStringNotContainsString('Continue to Identity', $html);
@@ -650,6 +651,11 @@ class ScreeningChecklistFeatureTest extends TestCase
         ]);
 
         $this->assertFalse($svc->collateralReviewApplies($app->fresh(), 'member'));
+        $this->assertFalse($svc->collateralReviewApplies($app->fresh(), 'borrower'));
+
+        $product->update(['requires_collateral' => true]);
+
+        $this->assertFalse($svc->collateralReviewApplies($app->fresh(), 'member'));
         $this->assertTrue($svc->collateralReviewApplies($app->fresh(), 'borrower'));
 
         $groupReview = [
@@ -769,6 +775,7 @@ class ScreeningChecklistFeatureTest extends TestCase
             'max_amount' => 5_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 12,
+            'requires_collateral' => true,
         ]);
         $app->update(['loan_product_id' => $product->id]);
         $group = LoanGroup::create([

@@ -441,7 +441,13 @@ class LoanApplicationController extends ResourceController
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:1000'],
+            'confirmed' => ['sometimes', 'accepted'],
+            'return_workspace' => ['nullable', 'in:checklist,guided'],
         ]);
+
+        if (($data['return_workspace'] ?? '') === 'guided' && ! $request->boolean('confirmed')) {
+            return back()->withErrors(['confirmed' => 'Review the request, then send it.'])->withInput();
+        }
 
         try {
             app(CollateralSecureService::class)->request(
@@ -453,7 +459,11 @@ class LoanApplicationController extends ResourceController
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('status', 'Collateral request sent to the borrower loan profile.');
+        $redirect = ($data['return_workspace'] ?? '') === 'guided'
+            ? redirect()->route('admin.loan-applications.guided-screening', $loan_application)
+            : back();
+
+        return $redirect->with('status', 'Collateral request sent to the borrower loan profile.');
     }
 
     public function requestValuation(Request $request, LoanApplication $loan_application): RedirectResponse

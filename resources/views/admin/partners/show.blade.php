@@ -8,13 +8,41 @@
         'Partner #'  => $record->vendor_number,
         'Category'  => ucfirst(str_replace('_', ' ', $record->category)),
         'Status'    => ucfirst($record->status ?? ''),
+        'Performance' => isset($efficiency) && is_array($efficiency)
+            ? ($efficiency['status_label'] ?? $efficiency['band_label'] ?? null)
+            : null,
+        'Can receive work' => isset($jobEligibility)
+            ? (($jobEligibility['can_receive'] ?? false) ? 'Yes' : ('No — '.$jobEligibility['reason_label']))
+            : null,
         'Phone'     => ['value' => $record->phone, 'phone' => true],
+        'Membership' => isset($profileTabs['membership'])
+            ? (($membership ?? $fieldMembership ?? null)['label'] ?? null)
+            : null,
         'Open jobs' => isset($profileTabs['jobs'])
             ? ((($openTasks ?? collect())->count() > 0) ? $openTasks->count().' ongoing' : 'None')
+            : null,
+        'Jobs completed' => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
+            ? (string) ($efficiency['completed'] ?? 0)
+            : null,
+        'On-time rate' => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
+            ? (($efficiency['on_time_rate'] ?? 0).'%')
+            : null,
+        'SLA breaches' => is_array($efficiency ?? null) ? (string) ($efficiency['sla_breaches'] ?? 0) : null,
+        'Reassignments' => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
+            ? (string) ($efficiency['reassignments'] ?? 0)
+            : null,
+        'Avg turnaround' => isset($profileTabs['jobs']) && is_array($efficiency ?? null) && ($efficiency['avg_turnaround_hours'] ?? null) !== null
+            ? $efficiency['avg_turnaround_hours'].'h'
             : null,
         'Open cases' => isset($profileTabs['cases']) && ($recoveryAssignments ?? collect())->filter(fn ($a) => $a->isOpen())->count() > 0
             ? ($recoveryAssignments->filter(fn ($a) => $a->isOpen())->count()).' open'
             : (isset($profileTabs['cases']) ? 'None' : null),
+        'Cases completed' => isset($profileTabs['cases']) && is_array($recoveryStats ?? null)
+            ? (string) ($recoveryStats['completed_cases'] ?? 0)
+            : null,
+        'Escalations' => isset($profileTabs['cases']) && is_array($efficiency ?? null)
+            ? (string) ($efficiency['escalated'] ?? 0)
+            : null,
         'Applications' => isset($profileTabs['pipeline'])
             ? (string) (int) (($affiliateStats ?? [])['applications'] ?? 0)
             : null,
@@ -37,9 +65,9 @@
     $enrollmentApplication = $enrollmentApplication ?? null;
     $profileTabs = $profileTabs ?? ['profile' => 'Profile', 'portal' => 'Portal', 'account' => 'Account'];
     $requestedTab = (string) request('tab', '');
-    $startTab = in_array($requestedTab, array_keys($profileTabs), true)
-        ? $requestedTab
-        : ((session('partner_invite_ready') || session('partner_activation_url')) ? 'portal' : 'profile');
+        $startTab = in_array($requestedTab, array_keys($profileTabs), true)
+            ? $requestedTab
+            : ((session('partner_invite_ready') || session('partner_activation_url')) ? 'portal' : 'profile');
 @endphp
 
 <div class="mt-6 space-y-4"
@@ -79,6 +107,12 @@
                     <div>
                         <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Affiliate code</dt>
                         <dd class="mt-1 font-semibold text-gray-900 font-mono">{{ $record->affiliate_code }}</dd>
+                    </div>
+                @endif
+                @if ($record->isPremiumAffiliate())
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Premium affiliate</dt>
+                        <dd class="mt-1 font-semibold text-gray-900">Yes</dd>
                     </div>
                 @endif
                 @if ($record->deposit_markup_percent)
@@ -144,37 +178,61 @@
     <div x-show="tab === 'performance'" x-cloak class="space-y-6">
 @if ($efficiency ?? null)
     @php
-        $effBand = $efficiency['band'];
+        $effStatus = $efficiency['status'] ?? $efficiency['band'];
         $effStyles = [
+            'excellent' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+            'good_standing' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+            'ramp_up' => 'bg-gray-100 text-gray-700 ring-gray-200',
+            'needs_attention' => 'bg-amber-50 text-amber-800 ring-amber-100',
+            'at_risk' => 'bg-rose-50 text-rose-800 ring-rose-100',
+            'suspended' => 'bg-rose-50 text-rose-800 ring-rose-100',
             'strong' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
             'watch' => 'bg-amber-50 text-amber-800 ring-amber-100',
-            'at_risk' => 'bg-rose-50 text-rose-800 ring-rose-100',
             'new' => 'bg-gray-100 text-gray-700 ring-gray-200',
         ];
     @endphp
     <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-brand/15 p-6">
         <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
             <div>
-                <h3 class="text-sm font-semibold text-gray-900">Efficiency</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Same score as the partner efficiency board — completion, on-time, escalations, failed jobs.</p>
+                <h3 class="text-sm font-semibold text-gray-900">Performance — {{ $efficiency['status_label'] ?? $efficiency['band_label'] }}</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Calculated from jobs and cases. Internal score still uses Partner Performance Settings.</p>
             </div>
             <div class="flex items-center gap-3">
-                <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $effStyles[$effBand] ?? $effStyles['new'] }}">
-                    {{ $efficiency['band_label'] }}
+                <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $effStyles[$effStatus] ?? $effStyles['ramp_up'] }}">
+                    {{ $efficiency['status_label'] ?? $efficiency['band_label'] }}
                 </span>
                 <a href="{{ route('admin.partners.efficiency') }}" class="text-sm font-semibold text-brand hover:underline">Board →</a>
             </div>
         </div>
+        <div class="grid sm:grid-cols-2 gap-3 mb-4">
+            @foreach (($efficiency['kpi_rows'] ?? []) as $kpi)
+                <div class="rounded-xl bg-gray-50 px-3 py-2 text-sm">
+                    <span class="text-gray-500">{{ $kpi['label'] }}</span>
+                    <p class="font-bold">{{ $kpi['actual'] }} / {{ $kpi['target'] }}
+                        @if ($kpi['met'] === true) ✓ @elseif ($kpi['met'] === false) — below target @endif
+                    </p>
+                </div>
+            @endforeach
+        </div>
         <div class="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
             <div><span class="text-gray-500">Score</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['score'] ?? '—' }}</p></div>
-            <div><span class="text-gray-500">Jobs</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['assigned'] }}</p></div>
-            <div><span class="text-gray-500">Completed</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['completion_rate'] }}%</p></div>
-            <div><span class="text-gray-500">On time</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['on_time_rate'] }}%</p></div>
-            <div><span class="text-gray-500">Escalated</span><p class="text-xl font-bold tabular-nums {{ $efficiency['escalated'] > 0 ? 'text-red-700' : '' }}">{{ $efficiency['escalated'] }}</p></div>
-            <div><span class="text-gray-500">Failed</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['failed'] }}</p></div>
+            <div><span class="text-gray-500">Assigned</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['assigned'] }}</p></div>
+            <div><span class="text-gray-500">Accepted</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['accepted'] ?? '—' }}</p></div>
+            <div><span class="text-gray-500">Open</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['open'] }}</p></div>
+            <div><span class="text-gray-500">SLA breaches</span><p class="text-xl font-bold tabular-nums {{ ($efficiency['sla_breaches'] ?? 0) > 0 ? 'text-red-700' : '' }}">{{ $efficiency['sla_breaches'] ?? 0 }}</p></div>
+            <div><span class="text-gray-500">Reassignments</span><p class="text-xl font-bold tabular-nums">{{ $efficiency['reassignments'] ?? 0 }}</p></div>
         </div>
+        @if (! empty($efficiency['why']))
+            <div class="mt-4 rounded-xl bg-brand-muted/40 px-4 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('partner_governance.why_this_status') }}</p>
+                <p class="text-sm text-gray-800 mt-1">{{ $efficiency['why'] }}</p>
+            </div>
+        @endif
+        @if (! empty($efficiency['next_action']))
+            <p class="mt-3 text-xs text-gray-600">{{ __('partner_governance.next_system_action') }}: {{ $efficiency['next_action'] }}</p>
+        @endif
         @if (($efficiency['consecutive_at_risk'] ?? 0) > 0)
-            <p class="mt-3 text-xs text-rose-800">{{ $efficiency['consecutive_at_risk'] }} coaching review(s) in a row. Settings control when a warning goes out and when the account is suspended.</p>
+            <p class="mt-3 text-xs text-rose-800">{{ $efficiency['consecutive_at_risk'] }} at-risk review(s) in a row.</p>
         @endif
     </div>
 @endif
@@ -196,19 +254,52 @@
 @if ($affiliateStats ?? null)
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <h3 class="text-sm font-semibold text-gray-700 mb-3">Affiliate performance</h3>
-        <p class="text-xs text-gray-500 mb-3">Volume against the monthly registration target, plus KPI / risk / fraud scores.</p>
+        @if ($affiliateStanding ?? null)
+            <p class="text-lg font-bold text-gray-900 mb-1">{{ $affiliateStanding['status_label'] }} · {{ number_format((float) $affiliateStanding['score'], 0) }}/100</p>
+            <p class="text-xs text-gray-500 mb-3">
+                Policy v{{ $affiliateStanding['policy_version'] }}
+                · {{ $affiliateStanding['period_start']->format('d M Y') }} – {{ $affiliateStanding['period_end']->format('d M Y') }}
+            </p>
+            @if ($affiliateEligibility ?? null)
+                <p class="text-xs mb-3 {{ $affiliateEligibility['can_operate'] ? 'text-emerald-700' : 'text-amber-800' }}">
+                    Operational eligibility: {{ $affiliateEligibility['can_operate'] ? 'Can operate' : implode(', ', $affiliateEligibility['reasons']) }}
+                </p>
+            @endif
+            <div class="grid sm:grid-cols-2 gap-3 mb-4">
+                @foreach ($affiliateStanding['kpi_results'] as $kpi)
+                    @if ($kpi['enabled'])
+                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-sm">
+                            <span class="text-gray-500">{{ $kpi['label'] }}</span>
+                            @if ($affiliateStanding['premium'] ?? false)
+                                <p class="font-bold">{{ number_format($kpi['actual'], $kpi['key'] === 'conversion' ? 1 : 0) }}</p>
+                            @else
+                                <p class="font-bold">{{ number_format($kpi['actual'], $kpi['key'] === 'conversion' ? 1 : 0) }} / {{ number_format($kpi['target'], 0) }} {{ $kpi['met'] ? '✓' : '— below target' }}</p>
+                            @endif
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+            @if (! empty($affiliateStanding['next_action']))
+                <p class="text-sm text-gray-700 mb-4">{{ $affiliateStanding['next_action'] }}</p>
+            @endif
+        @endif
+        <p class="text-xs text-gray-500 mb-3">Volume against the Settings-owned referral target, plus KPI / risk / fraud scores.</p>
         @if ($affiliateVolume ?? null)
-            <div class="mb-4 rounded-xl {{ $affiliateVolume['missed'] ? 'bg-rose-50 ring-rose-100' : 'bg-brand-muted/40 ring-brand/10' }} ring-1 px-4 py-3">
-                <p class="text-xs font-semibold text-gray-800">This period vs monthly target</p>
+            <div class="mb-4 rounded-xl {{ ($affiliateStanding['premium'] ?? false) ? 'bg-brand-muted/40 ring-brand/10' : ($affiliateVolume['missed'] ? 'bg-rose-50 ring-rose-100' : 'bg-brand-muted/40 ring-brand/10') }} ring-1 px-4 py-3">
+                <p class="text-xs font-semibold text-gray-800">{{ ($affiliateStanding['premium'] ?? false) ? 'This period' : 'This period vs target' }}</p>
                 <p class="text-sm text-gray-700 mt-1">
                     {{ $affiliateVolume['registrations'] }} new users
-                    of {{ $affiliateVolume['target'] }}
-                    @if ($affiliateVolume['onboarding'])
-                        · still in onboarding
-                    @elseif ($affiliateVolume['missed'])
-                        · below target · {{ $affiliateVolume['consecutive_misses'] }} missed month(s)
+                    @if ($affiliateStanding['premium'] ?? false)
+                        · KPI targets do not apply
                     @else
-                        · on target
+                        of {{ $affiliateVolume['target'] }}
+                        @if ($affiliateVolume['onboarding'])
+                            · still in ramp-up
+                        @elseif ($affiliateVolume['missed'])
+                            · below target · {{ $affiliateVolume['consecutive_misses'] }} missed period(s)
+                        @else
+                            · on target
+                        @endif
                     @endif
                 </p>
             </div>
@@ -386,7 +477,7 @@
 
     <div x-show="tab === 'pipeline'" x-cloak class="space-y-6">
 <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-    <h3 class="text-sm font-semibold text-gray-700 mb-1">Pipeline</h3>
+    <h3 class="text-sm font-semibold text-gray-700 mb-1">Business</h3>
     <p class="text-xs text-gray-500 mb-4">Clicks, registrations, and loan applications this affiliate brought in. Commission is on Payouts.</p>
     @if ($affiliateStats ?? null)
         <div class="grid sm:grid-cols-3 gap-4 text-sm mb-4">
@@ -417,6 +508,93 @@
         </ul>
     @endif
 </div>
+    </div>
+
+    <div x-show="tab === 'membership'" x-cloak class="space-y-6">
+        @if ($membership ?? $fieldMembership ?? null)
+            @php $mem = $membership ?? $fieldMembership; @endphp
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Membership</h3>
+                <div class="grid sm:grid-cols-3 gap-4 text-sm">
+                    <div><span class="text-gray-500">Status</span><p class="text-lg font-bold">{{ $mem['label'] }}</p></div>
+                    <div><span class="text-gray-500">Fee</span><p class="text-lg font-bold">{{ format_money($mem['fee']) }}</p></div>
+                    <div><span class="text-gray-500">Expires</span><p class="text-lg font-bold">{{ $mem['expires_at']?->format('d M Y') ?? '—' }}</p></div>
+                </div>
+            </div>
+        @endif
+    </div>
+
+    <div x-show="tab === 'agreements'" x-cloak class="space-y-6">
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Agreements</h3>
+            @if ($affiliateAgreement ?? null)
+                <p class="text-sm text-gray-700">Accepted {{ $affiliateAgreement->accepted_at?->format('d M Y H:i') }} · agreement v{{ $affiliateAgreement->agreement_version }} · policy v{{ $affiliateAgreement->policy_version }} · {{ $affiliateAgreement->locale }}</p>
+                <pre class="mt-4 text-xs whitespace-pre-wrap bg-gray-50 rounded-xl p-4 ring-1 ring-gray-100 max-h-96 overflow-y-auto">{{ $affiliateAgreement->rendered_text }}</pre>
+            @elseif (($partnerAgreements ?? collect())->isNotEmpty())
+                @foreach ($partnerAgreements as $agreement)
+                    <div class="mb-6 last:mb-0">
+                        <p class="text-sm text-gray-700">
+                            {{ $loop->first ? 'Current' : 'Superseded' }}
+                            · accepted {{ $agreement->accepted_at?->format('d M Y H:i') }}
+                            · agreement v{{ $agreement->agreement_version }}
+                            · policy v{{ $agreement->policy_version }}
+                            · {{ $agreement->locale }}
+                        </p>
+                        <pre class="mt-3 text-xs whitespace-pre-wrap bg-gray-50 rounded-xl p-4 ring-1 ring-gray-100 max-h-72 overflow-y-auto">{{ $agreement->rendered_text }}</pre>
+                    </div>
+                @endforeach
+            @else
+                <x-site.empty-state compact icon="📄" title="No Terms accepted yet" />
+            @endif
+        </div>
+    </div>
+
+    <div x-show="tab === 'documents'" x-cloak class="space-y-6">
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Documents</h3>
+            @forelse ($partnerDocuments ?? [] as $doc)
+                <div class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0 text-sm">
+                    <div>
+                        <p class="font-semibold text-gray-900">{{ $doc['label'] }}</p>
+                        <p class="text-xs text-gray-500">{{ $doc['source'] }}</p>
+                    </div>
+                    @if ($doc['url'])
+                        <a href="{{ $doc['url'] }}" class="text-sm font-semibold text-brand hover:underline" target="_blank" rel="noopener">View</a>
+                    @endif
+                </div>
+            @empty
+                <x-site.empty-state compact icon="📁" title="No documents on file" />
+            @endforelse
+        </div>
+    </div>
+
+    <div x-show="tab === 'history'" x-cloak class="space-y-6">
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">History</h3>
+            @forelse ($partnerHistory ?? [] as $event)
+                <div class="py-2 border-b border-gray-100 last:border-0 text-sm">
+                    <p class="font-semibold text-gray-900">{{ $event['label'] }}</p>
+                    <p class="text-xs text-gray-500">{{ $event['at']?->format('d M Y H:i') }} @if ($event['detail']) · {{ $event['detail'] }} @endif</p>
+                </div>
+            @empty
+                <x-site.empty-state compact icon="🕒" title="No history events yet" />
+            @endforelse
+        </div>
+    </div>
+
+    <div x-show="tab === 'compliance'" x-cloak class="space-y-6">
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Compliance</h3>
+            <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                <div><dt class="text-gray-500">Account</dt><dd class="font-semibold">{{ ucfirst($record->status ?? '') }}</dd></div>
+                <div><dt class="text-gray-500">Suspend kind</dt><dd class="font-semibold">{{ $record->suspend_kind ?: '—' }}</dd></div>
+                <div><dt class="text-gray-500">Performance</dt><dd class="font-semibold">{{ $efficiency['status_label'] ?? ($record->performance_status ?: '—') }}</dd></div>
+                <div>
+                    <dt class="text-gray-500">Can receive work</dt>
+                    <dd class="font-semibold">{{ ($jobEligibility['can_receive'] ?? false) ? 'Yes' : ('No — '.($jobEligibility['reason_label'] ?? '')) }}</dd>
+                </div>
+            </dl>
+        </div>
     </div>
 
     <div x-show="tab === 'listings'" x-cloak class="space-y-6">

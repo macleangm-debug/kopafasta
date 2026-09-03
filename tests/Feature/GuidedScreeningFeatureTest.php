@@ -1002,7 +1002,7 @@ class GuidedScreeningFeatureTest extends TestCase
         return [$admin, $app, ['weak' => $weak]];
     }
 
-    public function test_residence_proof_is_first_in_gate_4_residence_sequence(): void
+    public function test_residence_proof_is_first_in_gate_5_residence_sequence(): void
     {
         $keys = array_keys(config('screening_checklist.residence.items'));
         $this->assertSame('utility_or_proof', $keys[0] ?? null);
@@ -1080,7 +1080,7 @@ class GuidedScreeningFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Request sent', $html);
-        $this->assertStringContainsString('Screening paused', $html);
+        $this->assertStringContainsString('Waiting for document', $html);
         $this->assertStringNotContainsString('Send together', $html);
         $this->assertStringNotContainsString('name="due_at"', $html);
     }
@@ -1158,5 +1158,65 @@ class GuidedScreeningFeatureTest extends TestCase
         $this->assertStringContainsString('at_item=identity.id_document_quality', $html);
         $this->assertStringContainsString('Back to Guided Review', $html);
         $this->assertStringNotContainsString('Open member National ID', $html);
+    }
+
+    public function test_guided_collateral_request_stays_on_same_surface_and_opens_secure_journey(): void
+    {
+        [$admin, $app] = $this->file();
+        $app->product->update(['requires_collateral' => true]);
+        $payload = $app->screening_payload ?? [];
+        $payload['guided']['seen_gates']['declared'] = true;
+        $payload['screening_checklist']['by_subject']['borrower']['items']['activity_income.income_evidence'] = [
+            'verdict' => 'pass',
+            'source' => 'system',
+            'statement_deposits_total' => 12_000_000,
+            'statement_months' => 6,
+            'statement_monthly' => 2_000_000,
+        ];
+        foreach (['identity.name_vs_crb', 'identity.marital_vs_crb', 'credit_file.crb_reviewed'] as $key) {
+            $payload['screening_checklist']['by_subject']['borrower']['items'][$key] = [
+                'verdict' => 'pass',
+                'source' => 'system',
+            ];
+        }
+        $app->update(['screening_payload' => $payload]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.guided-screening', $app))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Collateral is required', $html);
+        $this->assertStringContainsString('Review &amp; request collateral', $html);
+        $this->assertStringContainsString('A valuer is not assigned yet', $html);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.loan-applications.guided-screening', $app))
+            ->post(route('admin.loan-applications.request-collateral-secure', $app), [
+                'return_workspace' => 'guided',
+                'notes' => 'Need pledged land',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app))
+            ->assertSessionHasErrors('confirmed');
+        $this->assertNull(data_get($app->fresh()->screening_payload, 'collateral_secure.status'));
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.request-collateral-secure', $app), [
+                'return_workspace' => 'guided',
+                'confirmed' => '1',
+                'notes' => 'Need pledged land',
+            ])
+            ->assertRedirect(route('admin.loan-applications.guided-screening', $app))
+            ->assertSessionHas('status');
+
+        $this->assertSame(
+            \App\Services\CollateralSecureService::STATUS_AWAITING_BORROWER,
+            data_get($app->fresh()->screening_payload, 'collateral_secure.status')
+        );
+
+        $next = app(ScreeningNextActionService::class)->forApplication($app->fresh(['customer', 'product', 'documentRequests']), $admin);
+        $this->assertSame(ScreeningNextActionService::BUCKET_WAITING, $next['bucket']);
+        $this->assertSame('collateral', $next['waiting']['kind'] ?? null);
+        $this->assertSame('Waiting for collateral', $next['waiting']['label'] ?? null);
+        $this->assertSame('Waiting for collateral', $next['cta'] ?? null);
     }
 }

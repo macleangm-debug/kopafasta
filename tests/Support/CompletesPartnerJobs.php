@@ -37,8 +37,13 @@ trait CompletesPartnerJobs
         ]);
 
         $partner = $partner->fresh();
-        if ($payMembership || app(PartnerMembershipService::class)->requiresPayment($partner)) {
+        if ($payMembership) {
             app(PartnerMembershipService::class)->activate($partner);
+        }
+
+        $terms = app(\App\Services\PartnerTermsService::class);
+        if ($terms->appliesTo($partner) && ! $terms->hasSatisfiedTerms($partner)) {
+            $terms->accept($partner, \Illuminate\Http\Request::create('/partner/terms', 'POST'));
         }
 
         return $partner->fresh();

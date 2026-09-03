@@ -248,7 +248,7 @@ class ScreeningChecklistService
     }
 
     /**
-     * Compact Gate 4 card: identity ticks + NOK / LGO / spouse from the live profile.
+     * Compact Gate 5 card: identity ticks + NOK / LGO / spouse from the live profile.
      *
      * @param  array<string, mixed>  $vm
      * @return array<string, mixed>
@@ -1104,11 +1104,11 @@ class ScreeningChecklistService
     }
 
     /**
-     * Collateral checklist applies when the product is asset-backed, collateral is already
-     * attached, screening has moved the file onto the secure-with-asset path, or this is
-     * a group file (leader desk). Member desks do not run the loan-collateral checklist —
-     * pledges belong on the group leader. Unsecured individual loans stay auto N/A even
-     * if the borrower has unrelated profile assets.
+     * Collateral checklist applies when policy requires it, pledges are already
+     * attached, or screening has already moved the file onto the secure-with-asset
+     * path. Group files are not automatically on that path. Member desks never run
+     * the loan-collateral checklist — pledges belong on the group leader.
+     * Unsecured loans stay auto N/A even if the borrower has unrelated profile assets.
      *
      * @param  array<string, mixed>|null  $context
      */
@@ -1135,28 +1135,11 @@ class ScreeningChecklistService
                 ->exists();
         }
 
-        $product = $application->product;
-        if ($product) {
-            if ((bool) $product->requires_collateral) {
-                return true;
-            }
-
-            $category = strtolower((string) ($product->category ?? ''));
-            if (in_array($category, ['asset_finance', 'asset_lending'], true)) {
-                return true;
-            }
-
-            $assetCode = strtoupper((string) config('asset_marketplace.asset_loan_product_code', 'AL'));
-            if (strtoupper((string) ($product->code ?? '')) === $assetCode) {
-                return true;
-            }
-        }
-
         if ($application->collateralAssets->isNotEmpty()) {
             return true;
         }
 
-        if ($this->isGroupLoanFile($application)) {
+        if (app(LoanPolicyService::class)->applicationRequiresCollateral($application)) {
             return true;
         }
 
@@ -1173,7 +1156,7 @@ class ScreeningChecklistService
     }
 
     /**
-     * Clear uploaded collateral requests once Gate 5 is actually complete, including
+     * Clear uploaded collateral requests once Gate 4 is actually complete, including
      * system N/A items that never required a human Save.
      *
      * @param  array<string, mixed>  $vm
@@ -1186,6 +1169,12 @@ class ScreeningChecklistService
         ?int $guarantorLinkId,
         ?int $memberId,
     ): void {
+        if (! $this->collateralReviewApplies($application, $person, [
+            'customer' => $this->resolveSubjectCustomer($application, $person, $guarantorLinkId, $memberId),
+        ])) {
+            return;
+        }
+
         $stored = [];
         foreach ($vm['groups'] ?? [] as $group) {
             foreach ($group['items'] ?? [] as $item) {

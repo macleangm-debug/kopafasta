@@ -397,4 +397,24 @@ return [
         'summary' => 'Company signatories used on generated contracts.',
         'where' => 'Agreement signature blocks.',
     ],
+    'seo' => [
+        'title' => 'Website SEO',
+        'summary' => 'Global public SEO defaults: brand name, title pattern, descriptions, canonical domain, social image, verification codes, and organization schema. Private borrower, login, and staff pages stay noindex.',
+        'where' => 'Public site HTML head, sitemap.xml, and robots.txt.',
+        'affects' => [
+            'What Google can index on the public website.',
+            'Canonical URLs and Open Graph cards for sharing.',
+            'Whether production public pages may be indexed at all.',
+        ],
+        'how_to' => [
+            'Set the public canonical domain (https host) used in canonicals and the sitemap — do not hard-code it in templates.',
+            'Write a default English and Kiswahili description; leave product/article fields blank to auto-generate from content.',
+            'Keep “Allow indexing” on for production public pages only. Local and staging stay noindex even if this is checked.',
+            'Override SEO on a loan product or Plus article when the automatic title is not right.',
+        ],
+        'terms' => [
+            'Canonical domain' => 'The public host every indexable URL should resolve to. Query strings and staging hosts must not create extra indexable variants.',
+            'noindex' => 'Tells search engines not to list the page. Authentication still protects private data — robots.txt is not security.',
+        ],
+    ],
 ];

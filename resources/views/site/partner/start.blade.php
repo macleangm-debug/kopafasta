@@ -35,6 +35,7 @@
                     </div>
                     <x-site.phone-input name="phone" :label="__('site.feedback.phone')" :value="old('phone', request('phone'))" variant="rounded" :required="true" />
                     <p class="text-xs text-gray-500">{{ __('site.auth.partner_activate_pin_next') }}</p>
+                    <x-site.turnstile action="partner-activate" />
                     <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">
                         {{ __('site.auth.continue_activation') }}
                     </button>

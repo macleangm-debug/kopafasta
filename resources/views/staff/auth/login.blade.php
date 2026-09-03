@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff sign in · {{ brand_name() }}</title>
+    @php
+        $seoDocument = app(\App\Services\SeoService::class)->privateDocument(request(), 'Staff sign in · '.brand_name());
+    @endphp
+    <x-site.seo :document="$seoDocument" />
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
     @vite(['resources/css/app.css'])
@@ -52,6 +55,7 @@
                     <input type="checkbox" name="remember" class="rounded border-gray-300 text-brand focus:ring-brand">
                     Remember me
                 </label>
+                <x-site.turnstile action="staff-login" inline />
                 <button type="submit"
                         class="w-full bg-brand hover:bg-brand-light text-white font-semibold rounded-xl py-3 transition shadow-sm">
                     Sign in

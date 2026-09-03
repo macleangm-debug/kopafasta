@@ -1189,12 +1189,19 @@ class CustomerPaymentService
         if ($payment->payment_type === 'partner_membership' && $payment->partner_id) {
             $partner = \App\Models\Partner::query()->find($payment->partner_id);
             if ($partner) {
-                $partner = app(\App\Services\PartnerMembershipService::class)->activate($partner, $payment->reference);
-                if ($partner->isValuer()) {
-                    try {
-                        app(\App\Services\ValuationPartnerService::class)->assignWaitingJobsCoveredBy($partner);
-                    } catch (\Throwable $e) {
-                        report($e);
+                if ($partner->isAffiliate()) {
+                    $affiliateMembership = app(\App\Services\AffiliateMembershipService::class);
+                    $partner = $partner->membership_started_at
+                        ? $affiliateMembership->renew($partner, $payment->reference)
+                        : $affiliateMembership->activate($partner, $payment->reference);
+                } else {
+                    $partner = app(\App\Services\PartnerMembershipService::class)->activate($partner, $payment->reference);
+                    if ($partner->isValuer()) {
+                        try {
+                            app(\App\Services\ValuationPartnerService::class)->assignWaitingJobsCoveredBy($partner);
+                        } catch (\Throwable $e) {
+                            report($e);
+                        }
                     }
                 }
             }

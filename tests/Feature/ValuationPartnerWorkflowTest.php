@@ -85,6 +85,11 @@ class ValuationPartnerWorkflowTest extends TestCase
 
         app(PartnerMembershipService::class)->activate($valuer);
 
+        $terms = app(\App\Services\PartnerTermsService::class);
+        if ($terms->appliesTo($valuer) && ! $terms->hasSatisfiedTerms($valuer)) {
+            $terms->accept($valuer, \Illuminate\Http\Request::create('/partner/terms', 'POST'));
+        }
+
         return $valuer->fresh();
     }
 

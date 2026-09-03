@@ -31,11 +31,11 @@ class ShariaLoanProductFeatureTest extends TestCase
 
         $this->assertStringContainsString('Monthly charge', loan_product_rate_field_label($product));
 
-        $this->get(route('site.home'))
+        $this->withSession(['locale' => 'en'])->get(route('site.home'))
             ->assertOk()
             ->assertSee('Sharia Loan', false);
 
-        $this->get(route('site.products'))
+        $this->withSession(['locale' => 'en'])->get(route('site.products'))
             ->assertOk()
             ->assertSee('Sharia Loan', false);
     }

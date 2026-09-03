@@ -4,8 +4,12 @@ namespace App\Services;
 
 use App\Models\AffiliateEvaluation;
 use App\Models\AffiliateEvent;
+use App\Models\Customer;
+use App\Models\Loan;
+use App\Models\LoanApplication;
 use App\Models\PartnerPayment;
 use App\Models\Vendor;
+use App\Support\AffiliatePerformanceStatus;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -25,23 +29,45 @@ class AffiliateEvaluationService
 
         $metrics = $this->metricsForPeriod($affiliate, $periodStart, $periodEnd);
         $volume = $this->volumeProgress($affiliate, $metrics, $periodStart, $periodEnd);
+        if ($affiliate->isPremiumAffiliate()) {
+            $volume['missed'] = false;
+            $volume['consecutive_misses'] = 0;
+        }
         $metrics['monthly_registration_target'] = $volume['target'];
         $metrics['volume_missed'] = $volume['missed'] ? 1 : 0;
         $metrics['volume_consecutive_misses'] = $volume['consecutive_misses'];
+        $metrics['policy_version'] = $this->settings()->policyVersion();
+        $metrics['kpi_results'] = $this->kpiResults($metrics);
 
         $kpiScore = $this->kpiScore($metrics);
         $riskScore = $this->riskScore($metrics);
         $fraudScore = $this->fraudScore($metrics);
         $recommendation = $this->recommendation($kpiScore, $riskScore, $fraudScore, $metrics, $volume);
+        $performanceStatus = $this->resolvePerformanceStatus($affiliate, $volume, $kpiScore, $recommendation);
+        $metrics['performance_status'] = $performanceStatus;
+
+        $previousPerformance = (string) ($affiliate->affiliate_performance_status ?? '');
+        $affiliate->update(['affiliate_performance_status' => $performanceStatus]);
+
         $actionTaken = $applyActions && $this->settings()->autoApplyActions()
-            ? $this->applyRecommendation($affiliate, $recommendation)
+            ? $this->applyRecommendation($affiliate->fresh(), $recommendation, $volume, $fraudScore, $riskScore)
             : 'skipped';
 
         if ($applyActions && $volume['missed'] && $volume['consecutive_misses'] >= $this->settings()->volumeMissesBeforeNudge()) {
-            $this->nudgeVolume($affiliate, $volume);
+            $this->nudgeVolume($affiliate->fresh(), $volume, $periodStart, $periodEnd, $performanceStatus);
         }
 
-        $this->storeVolumeMetadata($affiliate, $volume);
+        if ($applyActions && $this->settings()->autoRecover()
+            && $previousPerformance === AffiliatePerformanceStatus::SUSPENDED
+            && $performanceStatus !== AffiliatePerformanceStatus::SUSPENDED
+            && ! $volume['missed']) {
+            $this->notifyRecovered($affiliate->fresh(), $volume, $periodStart, $periodEnd);
+            if ($actionTaken === 'none' || $actionTaken === 'skipped') {
+                $actionTaken = 'recovered';
+            }
+        }
+
+        $this->storeVolumeMetadata($affiliate->fresh(), $volume);
 
         $evaluation = AffiliateEvaluation::create([
             'partner_id'     => $affiliate->id,
@@ -69,6 +95,9 @@ class AffiliateEvaluationService
                 'volume_target'  => $volume['target'],
                 'volume_registrations' => $volume['registrations'],
                 'volume_consecutive_misses' => $volume['consecutive_misses'],
+                'performance_status' => $performanceStatus,
+                'policy_version' => $metrics['policy_version'],
+                'kpi_results' => $metrics['kpi_results'],
                 'evaluated_at'   => now()->toIso8601String(),
             ],
         ]);
@@ -175,10 +204,15 @@ class AffiliateEvaluationService
             ? round(($disputedPayments / $commissionPayments) * 100, 2)
             : 0.0;
 
+        $loanFacts = $this->loanFactsForPeriod($affiliate, $start, $end);
+
         return [
             'clicks'                     => $clicks,
             'registrations'              => $registrations,
             'applications'               => $applications,
+            'approved_loans'             => $loanFacts['approved_loans'],
+            'disbursed_loans'            => $loanFacts['disbursed_loans'],
+            'disbursed_value'            => $loanFacts['disbursed_value'],
             'commissions_total'        => $commissionsTotal,
             'commission_payments'      => $commissionPayments,
             'disputed_payments'          => $disputedPayments,
@@ -286,10 +320,14 @@ class AffiliateEvaluationService
         $target = $this->settings()->monthlyRegistrationTarget();
         $registrations = (int) ($metrics['registrations'] ?? 0);
         $minActiveDays = $this->settings()->volumeMinActiveDays();
+        $anchor = $affiliate->membership_started_at ?: $affiliate->created_at;
         $onboarding = $minActiveDays > 0
-            && $affiliate->created_at
-            && $affiliate->created_at->gt(now()->subDays($minActiveDays));
+            && $anchor
+            && $anchor->gt(now()->subDays($minActiveDays));
         $missed = $target > 0 && ! $onboarding && $registrations < $target;
+        if ($affiliate->isPremiumAffiliate()) {
+            $missed = false;
+        }
 
         $meta = is_array($affiliate->metadata) ? $affiliate->metadata : [];
         $previous = (int) (data_get($meta, 'affiliate_volume.consecutive_misses') ?? 0);
@@ -318,7 +356,9 @@ class AffiliateEvaluationService
         $volume = $this->volumeProgress($affiliate, $metrics, $start, $end);
         $meta = is_array($affiliate->metadata) ? $affiliate->metadata : [];
         $volume['consecutive_misses'] = (int) (data_get($meta, 'affiliate_volume.consecutive_misses') ?? 0);
-        $volume['missed'] = $volume['target'] > 0 && ! $volume['onboarding'] && $volume['registrations'] < $volume['target'];
+        $volume['missed'] = $affiliate->isPremiumAffiliate()
+            ? false
+            : ($volume['target'] > 0 && ! $volume['onboarding'] && $volume['registrations'] < $volume['target']);
 
         return $volume;
     }
@@ -333,9 +373,13 @@ class AffiliateEvaluationService
             ->get()
             ->map(function (Vendor $affiliate): array {
                 $volume = $this->currentVolumeProgress($affiliate);
-                $label = $volume['onboarding']
-                    ? 'Onboarding'
-                    : ($volume['missed'] ? 'Below target' : 'On track');
+                $label = $affiliate->isPremiumAffiliate()
+                    ? AffiliatePerformanceStatus::label(AffiliatePerformanceStatus::PREMIUM)
+                    : ($volume['onboarding']
+                        ? AffiliatePerformanceStatus::label(AffiliatePerformanceStatus::RAMP_UP)
+                        : ($volume['missed']
+                            ? AffiliatePerformanceStatus::label(AffiliatePerformanceStatus::NEEDS_ATTENTION)
+                            : AffiliatePerformanceStatus::label(AffiliatePerformanceStatus::GOOD_STANDING)));
 
                 return array_merge($volume, [
                     'partner' => $affiliate,
@@ -361,21 +405,46 @@ class AffiliateEvaluationService
     }
 
     /** @param  array{target: int, registrations: int, consecutive_misses: int}  $volume */
-    protected function nudgeVolume(Vendor $affiliate, array $volume): void
-    {
+    protected function nudgeVolume(
+        Vendor $affiliate,
+        array $volume,
+        ?Carbon $periodStart = null,
+        ?Carbon $periodEnd = null,
+        string $status = AffiliatePerformanceStatus::NEEDS_ATTENTION,
+    ): void {
+        $periodStart ??= now()->subDays($this->settings()->evaluationPeriodDays());
+        $periodEnd ??= now();
         $left = max(0, $this->settings()->volumeMissesBeforeSuspend() - $volume['consecutive_misses']);
+        $required = (int) $volume['target'];
+        $achieved = (int) $volume['registrations'];
+        $period = $periodStart->format('d M Y').' – '.$periodEnd->format('d M Y');
+        $locale = $this->partnerLocale($affiliate);
+        $statusLabel = AffiliatePerformanceStatus::label($status, $locale);
+
         app(NotificationService::class)->notifyPartner($affiliate, 'affiliate_volume_warning', [
             'partner' => $affiliate->name,
-            'registrations' => (string) $volume['registrations'],
-            'target' => (string) $volume['target'],
+            'registrations' => (string) $achieved,
+            'target' => (string) $required,
             'remaining' => (string) $left,
-            '_fallback_subject' => 'Bring in more customers this month',
-            '_fallback_body' => 'Hi '.$affiliate->name.', you brought '.$volume['registrations'].' new users vs the target of '.$volume['target'].'. Pull up — '.$left.' more missed month(s) and the account may be suspended. — '.(function_exists('brand_name') ? brand_name() : 'KopaFasta'),
+            'period' => $period,
+            'status' => $statusLabel,
+            '_fallback_subject' => trans('site.affiliate_portal.warning_subject', [], $locale),
+            '_fallback_body' => trans('site.affiliate_portal.warning_body', [
+                'period' => $period,
+                'required' => $required,
+                'achieved' => $achieved,
+                'status' => $statusLabel,
+            ], $locale),
         ]);
     }
 
-    public function applyRecommendation(Vendor $affiliate, string $recommendation): string
-    {
+    public function applyRecommendation(
+        Vendor $affiliate,
+        string $recommendation,
+        array $volume = [],
+        float $fraud = 0,
+        float $risk = 0,
+    ): string {
         $lifecycle = app(AffiliateLifecycleService::class);
         $current = $lifecycle->statusFor($affiliate);
 
@@ -383,11 +452,25 @@ class AffiliateEvaluationService
             return 'skipped';
         }
 
-        return match ($recommendation) {
-            'watchlist' => $this->applyWatchlist($affiliate, $lifecycle, $current),
-            'suspend'   => $this->applySuspend($affiliate, $lifecycle),
-            default     => 'none',
-        };
+        $fraudSuspend = $fraud >= $this->settings()->suspendFraudScore()
+            || $risk >= $this->settings()->suspendRiskScore();
+        $volumeSuspend = ! $affiliate->isPremiumAffiliate()
+            && (int) ($volume['consecutive_misses'] ?? 0) >= $this->settings()->volumeMissesBeforeSuspend()
+            && ! ($volume['onboarding'] ?? false);
+
+        if ($recommendation === 'suspend' && $fraudSuspend) {
+            return $this->applyComplianceSuspend($affiliate, $lifecycle, $fraud, $risk);
+        }
+
+        if ($recommendation === 'suspend' && $volumeSuspend) {
+            return $this->applyPerformanceSuspend($affiliate, $volume);
+        }
+
+        if ($recommendation === 'watchlist' && $fraudSuspend === false && ($fraud >= $this->settings()->watchlistFraudScore() || $risk >= $this->settings()->watchlistRiskScore())) {
+            return $this->applyWatchlist($affiliate, $lifecycle, $current);
+        }
+
+        return 'none';
     }
 
     protected function applyWatchlist(Vendor $affiliate, AffiliateLifecycleService $lifecycle, string $current): string
@@ -399,39 +482,85 @@ class AffiliateEvaluationService
         $lifecycle->transition(
             $affiliate,
             AffiliateLifecycleService::WATCHLIST,
-            'Automated watchlist from monthly affiliate evaluation.',
+            'Automated watchlist from affiliate evaluation (risk/fraud). Policy v'.$this->settings()->policyVersion().'.',
         );
 
         return 'watchlisted';
     }
 
-    protected function applySuspend(Vendor $affiliate, AffiliateLifecycleService $lifecycle): string
+    protected function applyComplianceSuspend(Vendor $affiliate, AffiliateLifecycleService $lifecycle, float $fraud, float $risk): string
     {
         $lifecycle->transition(
             $affiliate,
             AffiliateLifecycleService::SUSPENDED,
-            'Automated suspension from monthly affiliate evaluation.',
+            'Suspended — compliance/fraud threshold reached (fraud '.$fraud.', risk '.$risk.'). Policy v'.$this->settings()->policyVersion().'.',
         );
 
         return 'suspended';
+    }
+
+    /** @param  array{target?: int, registrations?: int, consecutive_misses?: int}  $volume */
+    protected function applyPerformanceSuspend(Vendor $affiliate, array $volume): string
+    {
+        $required = (int) ($volume['target'] ?? $this->settings()->monthlyRegistrationTarget());
+        $actual = (int) ($volume['registrations'] ?? 0);
+        $misses = (int) ($volume['consecutive_misses'] ?? 0);
+        $reason = 'Suspended — Quarterly performance requirement not met for '.$misses
+            .' consecutive assessment periods. Required qualified referrals: '.$required
+            .'. Actual: '.$actual.'. Policy v'.$this->settings()->policyVersion().'.';
+
+        $affiliate->update([
+            'affiliate_performance_status' => AffiliatePerformanceStatus::SUSPENDED,
+            'affiliate_lifecycle_note' => $reason,
+        ]);
+
+        $locale = $this->partnerLocale($affiliate);
+        app(NotificationService::class)->notifyPartner($affiliate, 'affiliate_performance_suspended', [
+            'partner' => $affiliate->name,
+            'required' => (string) $required,
+            'actual' => (string) $actual,
+            'misses' => (string) $misses,
+            '_fallback_subject' => trans('site.affiliate_portal.suspended_subject', [], $locale),
+            '_fallback_body' => trans('site.affiliate_portal.suspended_notice', [
+                'required' => $required,
+                'actual' => $actual,
+                'misses' => $misses,
+            ], $locale),
+        ]);
+
+        return 'suspended';
+    }
+
+    protected function notifyRecovered(Vendor $affiliate, array $volume, Carbon $periodStart, Carbon $periodEnd): void
+    {
+        $period = $periodStart->format('d M Y').' – '.$periodEnd->format('d M Y');
+        $locale = $this->partnerLocale($affiliate);
+        app(NotificationService::class)->notifyPartner($affiliate, 'affiliate_performance_recovered', [
+            'partner' => $affiliate->name,
+            'registrations' => (string) ($volume['registrations'] ?? 0),
+            'target' => (string) ($volume['target'] ?? 0),
+            '_fallback_subject' => trans('site.affiliate_portal.recovered_subject', [], $locale),
+            '_fallback_body' => trans('site.affiliate_portal.recovered_body', ['period' => $period], $locale),
+        ]);
     }
 
     /** @param  array<string, int|float>  $metrics */
     protected function notesFor(string $recommendation, array $metrics): string
     {
         $note = sprintf(
-            'Recommendation: %s. Clicks %d, registrations %d, applications %d, dispute rate %.1f%%, duplicate IP clusters %d.',
+            'Recommendation: %s. Policy v%s. Clicks %d, qualified referrals %d, applications %d, disbursed %d, dispute rate %.1f%%.',
             $recommendation,
+            $metrics['policy_version'] ?? $this->settings()->policyVersion(),
             $metrics['clicks'],
             $metrics['registrations'],
             $metrics['applications'],
+            (int) ($metrics['disbursed_loans'] ?? 0),
             $metrics['dispute_rate'],
-            $metrics['duplicate_ip_registrations'],
         );
 
         if ((int) ($metrics['volume_missed'] ?? 0) === 1) {
             $note .= sprintf(
-                ' Volume: %d registrations vs target %d (%d missed month(s)).',
+                ' Volume: %d referrals vs target %d (%d missed period(s)).',
                 $metrics['registrations'],
                 (int) ($metrics['monthly_registration_target'] ?? 0),
                 (int) ($metrics['volume_consecutive_misses'] ?? 0),
@@ -470,8 +599,186 @@ class AffiliateEvaluationService
             ->get();
     }
 
+    /**
+     * Live standing for dashboards — same engine as the formal assessment.
+     *
+     * @return array<string, mixed>
+     */
+    public function currentStanding(Vendor $affiliate): array
+    {
+        $end = now()->endOfDay();
+        $start = $end->copy()->subDays($this->settings()->evaluationPeriodDays())->startOfDay();
+        $metrics = $this->metricsForPeriod($affiliate, $start, $end);
+        $volume = $this->volumeProgress($affiliate, $metrics, $start, $end);
+        $metrics['monthly_registration_target'] = $volume['target'];
+        $kpiScore = $this->kpiScore($metrics);
+        $status = $affiliate->isPremiumAffiliate()
+            ? AffiliatePerformanceStatus::PREMIUM
+            : (string) ($affiliate->affiliate_performance_status
+                ?: $this->resolvePerformanceStatus($affiliate, $volume, $kpiScore, 'none'));
+        $results = $this->kpiResults($metrics);
+        $needed = $affiliate->isPremiumAffiliate()
+            ? 0
+            : max(0, (int) $volume['target'] - (int) $volume['registrations']);
+
+        return [
+            'status' => $status,
+            'status_label' => AffiliatePerformanceStatus::label($status),
+            'score' => $kpiScore,
+            'period_start' => $start,
+            'period_end' => $end,
+            'volume' => $volume,
+            'kpi_results' => $results,
+            'needed_referrals' => $needed,
+            'policy_version' => $this->settings()->policyVersion(),
+            'premium' => $affiliate->isPremiumAffiliate(),
+            'next_action' => $this->nextActionCopy($status, $volume, $needed, $end),
+        ];
+    }
+
+    /**
+     * @param  array<string, int|float>  $metrics
+     * @return list<array{key: string, label: string, actual: float, target: float, met: bool, enabled: bool}>
+     */
+    public function kpiResults(array $metrics): array
+    {
+        $actuals = [
+            'qualified_referrals' => (float) ($metrics['registrations'] ?? 0),
+            'applications' => (float) ($metrics['applications'] ?? 0),
+            'disbursed_loans' => (float) ($metrics['disbursed_loans'] ?? 0),
+            'conversion' => (float) ($metrics['reg_to_app_rate'] ?? 0),
+        ];
+        $labels = [
+            'qualified_referrals' => __('site.affiliate_portal.kpi_qualified_referrals'),
+            'applications' => __('site.affiliate_portal.kpi_applications'),
+            'disbursed_loans' => __('site.affiliate_portal.kpi_disbursed'),
+            'conversion' => __('site.affiliate_portal.kpi_conversion'),
+        ];
+
+        $rows = [];
+        foreach ($this->settings()->kpiCatalog() as $key => $kpi) {
+            $actual = $actuals[$key] ?? 0;
+            $target = (float) ($kpi['target'] ?? 0);
+            $rows[] = [
+                'key' => $key,
+                'label' => $labels[$key] ?? $key,
+                'actual' => $actual,
+                'target' => $target,
+                'met' => ! ($kpi['enabled'] ?? false) || $target <= 0 || $actual >= $target,
+                'enabled' => (bool) ($kpi['enabled'] ?? false),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array{target: int, registrations: int, missed: bool, consecutive_misses: int, onboarding: bool}  $volume
+     */
+    public function resolvePerformanceStatus(Vendor $affiliate, array $volume, float $kpiScore, string $recommendation): string
+    {
+        if ($affiliate->isPremiumAffiliate()) {
+            return AffiliatePerformanceStatus::PREMIUM;
+        }
+
+        if ($volume['onboarding']) {
+            return AffiliatePerformanceStatus::RAMP_UP;
+        }
+
+        $misses = (int) $volume['consecutive_misses'];
+        if ($recommendation === 'suspend' || $misses >= $this->settings()->volumeMissesBeforeSuspend()) {
+            return AffiliatePerformanceStatus::SUSPENDED;
+        }
+        if ($misses >= $this->settings()->volumeMissesBeforeWatchlist()) {
+            return AffiliatePerformanceStatus::AT_RISK;
+        }
+        if ($volume['missed'] || $misses >= $this->settings()->volumeMissesBeforeNudge()) {
+            return AffiliatePerformanceStatus::NEEDS_ATTENTION;
+        }
+        if ($kpiScore >= 85) {
+            return AffiliatePerformanceStatus::EXCELLENT;
+        }
+
+        return AffiliatePerformanceStatus::GOOD_STANDING;
+    }
+
+    /** @return array{approved_loans: int, disbursed_loans: int, disbursed_value: float} */
+    protected function loanFactsForPeriod(Vendor $affiliate, Carbon $start, Carbon $end): array
+    {
+        $customerIds = Customer::query()
+            ->where('affiliate_partner_id', $affiliate->id)
+            ->pluck('id');
+
+        if ($customerIds->isEmpty()) {
+            return ['approved_loans' => 0, 'disbursed_loans' => 0, 'disbursed_value' => 0.0];
+        }
+
+        $approved = LoanApplication::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereIn('status', ['approved', 'pre_approved', 'awaiting_offer', 'disbursed'])
+            ->whereBetween('updated_at', [$start, $end])
+            ->count();
+
+        $disbursedQuery = Loan::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereNotNull('disbursement_date')
+            ->whereBetween('disbursement_date', [$start->toDateString(), $end->toDateString()]);
+
+        return [
+            'approved_loans' => $approved,
+            'disbursed_loans' => (clone $disbursedQuery)->count(),
+            'disbursed_value' => (float) (clone $disbursedQuery)->sum('principal_amount'),
+        ];
+    }
+
+    /**
+     * @param  array{consecutive_misses?: int, target?: int}  $volume
+     */
+    protected function nextActionCopy(string $status, array $volume, int $needed, Carbon $periodEnd): string
+    {
+        if ($status === AffiliatePerformanceStatus::PREMIUM) {
+            return __('site.affiliate_portal.next_action_premium');
+        }
+        if ($status === AffiliatePerformanceStatus::SUSPENDED) {
+            return __('site.affiliate_portal.next_action_suspended');
+        }
+        if ($needed > 0 && in_array($status, [AffiliatePerformanceStatus::NEEDS_ATTENTION, AffiliatePerformanceStatus::AT_RISK, AffiliatePerformanceStatus::RAMP_UP, AffiliatePerformanceStatus::GOOD_STANDING], true)) {
+            return __('site.affiliate_portal.needed_by', [
+                'count' => $needed,
+                'date' => $periodEnd->format('d M Y'),
+            ]);
+        }
+        if ($status === AffiliatePerformanceStatus::AT_RISK) {
+            return __('site.affiliate_portal.next_action_at_risk');
+        }
+
+        return __('site.affiliate_portal.next_action_none');
+    }
+
+    protected function partnerLocale(Vendor $affiliate): string
+    {
+        $locale = $affiliate->user?->locale ?? app()->getLocale();
+
+        return in_array($locale, ['en', 'sw'], true) ? $locale : app()->getLocale();
+    }
+
     protected function settings(): AffiliateSettingsService
     {
         return app(AffiliateSettingsService::class);
+    }
+
+    public function syncPremiumStanding(Vendor $affiliate): void
+    {
+        if (! $affiliate->isPremiumAffiliate()) {
+            return;
+        }
+
+        if ($affiliate->affiliate_performance_status === AffiliatePerformanceStatus::PREMIUM) {
+            return;
+        }
+
+        $affiliate->update([
+            'affiliate_performance_status' => AffiliatePerformanceStatus::PREMIUM,
+        ]);
     }
 }

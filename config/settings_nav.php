@@ -8,6 +8,9 @@
  *         group => list of [label, routeName, optional tab key]
  */
 return [
+    'Website' => [
+        ['SEO', 'admin.settings.seo', 'seo', 'meta robots sitemap canonical social schema google'],
+    ],
     'Organization' => [
         ['Company profile', 'admin.settings.company', 'company'],
         ['Working hours', 'admin.settings.working-hours', 'working-hours', 'sla holiday calendar office'],

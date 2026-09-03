@@ -11,6 +11,7 @@
             'membership' => 'Membership',
             'messages' => 'Messages',
             'evaluation' => 'Evaluation',
+            'terms' => 'Terms',
             'fraud' => 'Fraud',
         ]"
     >
@@ -225,6 +226,31 @@
                                    :value="$membership['duration_days'] ?? 365" />
                     <x-admin.input name="membership_grace_period_hours" label="Pay-within window (hours)" type="number" min="1"
                                    :value="$membership['grace_period_hours'] ?? 48" />
+                    <x-admin.input name="membership_renewal_window_days" label="Renewal window (days before expiry)" type="number" min="1"
+                                   :value="$membership['renewal_window_days'] ?? 30" />
+                </div>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="hidden" name="membership_require_terms" value="0">
+                    <input type="checkbox" name="membership_require_terms" value="1"
+                           @checked((bool) ($membership['require_terms_before_activation'] ?? true))
+                           class="rounded border-gray-300 text-brand">
+                    Require Affiliate Terms before first membership payment
+                </label>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Promo code when membership expires</label>
+                        <select name="membership_promo_code_on_expiry" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            <option value="disable" @selected(($membership['promo_code_on_expiry'] ?? 'disable') === 'disable')>Disable new qualifying referrals</option>
+                            <option value="keep" @selected(($membership['promo_code_on_expiry'] ?? '') === 'keep')>Keep operational (not recommended)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Commission after expiry</label>
+                        <select name="membership_commission_after_expiry" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            <option value="historical_only" @selected(($membership['commission_after_expiry'] ?? 'historical_only') === 'historical_only')>Preserve history; no new commission</option>
+                            <option value="continue" @selected(($membership['commission_after_expiry'] ?? '') === 'continue')>Continue accruing</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </x-admin.settings-panel>
@@ -253,32 +279,39 @@
 
         <x-admin.settings-panel id="evaluation">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
-                <h3 class="text-sm font-semibold text-gray-900 mb-1">Monthly evaluation &amp; automation</h3>
-                <p class="text-xs text-gray-500">Used by <span class="font-mono">php artisan affiliate:evaluate</span> (scheduled 1st of each month). <strong>New users per month</strong> is borrower registrations via their code — change 10 to 15 or 20 here. First miss sends a nudge; repeated misses go to watchlist then suspend (never terminate automatically). Fraud still suspends immediately when those scores are hit. Field partners (valuer, GPS, recovery) use <a href="{{ route('admin.settings.partner-performance') }}" class="font-semibold text-brand hover:underline">Partner performance</a>.</p>
-                @php $eval = $values['evaluation'] ?? []; @endphp
+                <h3 class="text-sm font-semibold text-gray-900 mb-1">Affiliate performance &amp; automation</h3>
+                <p class="text-xs text-gray-500">Used by <span class="font-mono">php artisan affiliate:evaluate</span>. The formal assessment period defaults to 90 days (quarterly) and is Settings-owned. Qualified referrals use existing registration events. First miss warns; repeated misses move to At risk then Suspended. Fraud still suspends compliance immediately. Field partners use <a href="{{ route('admin.settings.partner-performance') }}" class="font-semibold text-brand hover:underline">Partner performance</a>.</p>
+                @php $eval = $values['evaluation'] ?? []; $kpis = $eval['kpis'] ?? config('affiliates.evaluation.kpis', []); @endphp
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800 mb-2">
                     <input type="hidden" name="eval_auto_apply_actions" value="0">
                     <input type="checkbox" name="eval_auto_apply_actions" value="1"
                            @checked((bool) ($eval['auto_apply_actions'] ?? true))
                            class="rounded border-gray-300 text-brand">
-                    Automatically apply watchlist / suspension recommendations
+                    Automatically apply warnings / suspension / recovery
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800 mb-2">
+                    <input type="hidden" name="eval_auto_recover" value="0">
+                    <input type="checkbox" name="eval_auto_recover" value="1"
+                           @checked((bool) ($eval['auto_recover'] ?? true))
+                           class="rounded border-gray-300 text-brand">
+                    Automatically restore eligibility when recovery KPIs are met
                 </label>
                 <div class="grid md:grid-cols-3 gap-4">
-                    <x-admin.input name="eval_period_days" label="Evaluation period (days)" type="number" min="1"
-                                   :value="$eval['period_days'] ?? 30" />
+                    <x-admin.input name="eval_period_days" label="Assessment period (days)" type="number" min="1"
+                                   :value="$eval['period_days'] ?? 90" />
                     <x-admin.input name="eval_min_events_for_scoring" label="Min events before scoring" type="number" min="1"
                                    :value="$eval['min_events_for_scoring'] ?? 3" />
                     <x-admin.input name="eval_high_click_threshold" label="High click threshold" type="number" min="1"
                                    :value="$eval['high_click_threshold'] ?? 50" />
-                    <x-admin.input name="eval_monthly_registration_target" label="New users per month (target)" type="number" min="0"
-                                   :value="$eval['monthly_registration_target'] ?? 10" />
-                    <x-admin.input name="eval_volume_min_active_days" label="Days before volume scoring (onboarding)" type="number" min="0"
-                                   :value="$eval['volume_min_active_days'] ?? 30" />
-                    <x-admin.input name="eval_volume_misses_before_nudge" label="Missed months before a nudge" type="number" min="1"
+                    <x-admin.input name="eval_monthly_registration_target" label="Qualified referrals (target)" type="number" min="0"
+                                   :value="$eval['monthly_registration_target'] ?? ($kpis['qualified_referrals']['target'] ?? 10)" />
+                    <x-admin.input name="eval_volume_min_active_days" label="Ramp-up days before enforcement" type="number" min="0"
+                                   :value="$eval['volume_min_active_days'] ?? 90" />
+                    <x-admin.input name="eval_volume_misses_before_nudge" label="Missed periods before warning" type="number" min="1"
                                    :value="$eval['volume_misses_before_nudge'] ?? 1" />
-                    <x-admin.input name="eval_volume_misses_before_watchlist" label="Missed months before watchlist" type="number" min="1"
+                    <x-admin.input name="eval_volume_misses_before_watchlist" label="Missed periods before at-risk" type="number" min="1"
                                    :value="$eval['volume_misses_before_watchlist'] ?? 2" />
-                    <x-admin.input name="eval_volume_misses_before_suspend" label="Missed months before suspend" type="number" min="1"
+                    <x-admin.input name="eval_volume_misses_before_suspend" label="Missed periods before suspend" type="number" min="1"
                                    :value="$eval['volume_misses_before_suspend'] ?? 3" />
                     <x-admin.input name="eval_low_conversion_threshold" label="Low conversion % threshold" type="number" step="0.1" min="0"
                                    :value="$eval['low_conversion_threshold'] ?? 5" />
@@ -293,6 +326,47 @@
                     <x-admin.input name="eval_suspend_fraud_score" label="Suspend fraud score" type="number" step="0.1" min="0" max="100"
                                    :value="$eval['suspend_fraud_score'] ?? 75" />
                 </div>
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 pt-2">KPI catalogue (only enabled metrics are enforced)</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="text-xs uppercase text-gray-500">
+                            <tr>
+                                <th class="text-left py-2">Enabled</th>
+                                <th class="text-left py-2">Metric</th>
+                                <th class="text-left py-2">Target</th>
+                                <th class="text-left py-2">Weight</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ([
+                                'qualified_referrals' => 'Qualified referrals',
+                                'applications' => 'Applications generated',
+                                'disbursed_loans' => 'Loans disbursed',
+                                'conversion' => 'Conversion % (reg → application)',
+                            ] as $key => $label)
+                                @php $row = $kpis[$key] ?? ['enabled' => $key === 'qualified_referrals', 'target' => $key === 'conversion' ? 30 : 10, 'weight' => 1]; @endphp
+                                <tr>
+                                    <td class="py-2">
+                                        <input type="hidden" name="kpi_{{ $key }}_enabled" value="0">
+                                        <input type="checkbox" name="kpi_{{ $key }}_enabled" value="1" class="rounded border-gray-300 text-brand" @checked((bool) ($row['enabled'] ?? false))>
+                                    </td>
+                                    <td class="py-2">{{ $label }}</td>
+                                    <td class="py-2"><input type="number" name="kpi_{{ $key }}_target" value="{{ $row['target'] ?? 0 }}" min="0" step="0.1" class="w-28 rounded-lg border-gray-300 ring-1 ring-gray-200 px-2 py-1.5 text-sm"></td>
+                                    <td class="py-2"><input type="number" name="kpi_{{ $key }}_weight" value="{{ $row['weight'] ?? 1 }}" min="0" step="0.1" class="w-20 rounded-lg border-gray-300 ring-1 ring-gray-200 px-2 py-1.5 text-sm"></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="terms">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
+                <h3 class="text-sm font-semibold text-gray-900">Affiliate Terms</h3>
+                <p class="text-xs text-gray-500">Templates may only use approved Settings variables such as <span class="font-mono">@{{membership_fee_individual}}</span>, <span class="font-mono">@{{assessment_period}}</span>, <span class="font-mono">@{{minimum_qualified_referrals}}</span>. Leave blank to use the built-in EN/SW catalogue. Saving Terms increments the agreement version; historical acceptances stay frozen.</p>
+                <x-admin.textarea name="terms_body_en" label="English Terms (optional override)" rows="8" :value="$values['terms_body_en'] ?? ''" />
+                <x-admin.textarea name="terms_body_sw" label="Kiswahili Terms (optional override)" rows="8" :value="$values['terms_body_sw'] ?? ''" />
             </div>
         </x-admin.settings-panel>
 

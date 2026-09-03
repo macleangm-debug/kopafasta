@@ -5,12 +5,17 @@
         'watch' => 'bg-amber-50 text-amber-800 ring-amber-100',
         'at_risk' => 'bg-rose-50 text-rose-800 ring-rose-100',
         'new' => 'bg-gray-100 text-gray-700 ring-gray-200',
+        'excellent' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+        'good_standing' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+        'ramp_up' => 'bg-gray-100 text-gray-700 ring-gray-200',
+        'needs_attention' => 'bg-amber-50 text-amber-800 ring-amber-100',
+        'suspended' => 'bg-rose-50 text-rose-800 ring-rose-100',
     ];
     $bandLabels = [
-        'strong' => 'Strong',
-        'watch' => 'Watch',
-        'at_risk' => 'Needs coaching',
-        'new' => 'New',
+        'strong' => __('partner_governance.status_good'),
+        'watch' => __('partner_governance.status_needs_attention'),
+        'at_risk' => __('partner_governance.status_at_risk'),
+        'new' => __('partner_governance.status_ramp_up'),
     ];
 @endphp
 
@@ -34,11 +39,11 @@
                     <p class="text-2xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($rows->count()) }}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Strong</p>
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">{{ __('partner_governance.status_good') }}</p>
                     <p class="text-2xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($leaders->count()) }}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] uppercase tracking-widest text-rose-800 font-semibold">Needs coaching</p>
+                    <p class="text-[10px] uppercase tracking-widest text-rose-800 font-semibold">{{ __('partner_governance.status_at_risk') }}</p>
                     <p class="text-2xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($coaching->count()) }}</p>
                 </div>
                 <div>
@@ -82,7 +87,7 @@
                     <th class="px-4 py-3">Escalated</th>
                     <th class="px-4 py-3">Failed</th>
                     <th class="px-4 py-3">Score</th>
-                    <th class="px-4 py-3">Band</th>
+                    <th class="px-4 py-3">Standing</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -101,8 +106,8 @@
                         <td class="px-4 py-3 tabular-nums">{{ $row['failed'] }} · {{ $row['fail_rate'] }}%</td>
                         <td class="px-4 py-3 font-bold tabular-nums">{{ $row['score'] ?? '—' }}</td>
                         <td class="px-4 py-3">
-                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $bandStyles[$row['band']] }}">
-                                {{ $row['band_label'] ?? $bandLabels[$row['band']] }}
+                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $bandStyles[$row['status'] ?? $row['band']] ?? $bandStyles['new'] }}">
+                                {{ $row['status_label'] ?? $row['band_label'] ?? $bandLabels[$row['band']] ?? '' }}
                             </span>
                         </td>
                     </tr>

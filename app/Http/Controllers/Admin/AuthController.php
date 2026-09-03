@@ -29,11 +29,7 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        if (! app(\App\Services\TurnstileService::class)->verify($request->input('cf-turnstile-response'), $request->ip())) {
-            throw ValidationException::withMessages([
-                'cf-turnstile-response' => 'Please complete the human verification challenge.',
-            ]);
-        }
+        app(\App\Services\TurnstileService::class)->assertHuman($request);
 
         if (! Auth::guard('admin')->attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([

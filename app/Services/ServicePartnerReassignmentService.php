@@ -69,11 +69,12 @@ class ServicePartnerReassignmentService
                     if ($hoursLeft > $mark || isset($sent[(string) $mark])) {
                         continue;
                     }
+                    $locale = app(PartnerTermsService::class)->partnerLocale($task->partner);
                     $this->notifier->notifyAssigned($task->partner, $task->task_type, [
-                        'title' => 'Task due soon',
-                        'body' => $hoursLeft <= 4
-                            ? 'Urgent: complete this task within '.$mark.' hours.'
-                            : $mark.' hours remaining to complete this task.',
+                        'title' => trans('partner_governance.task_due_title', [], $locale),
+                        'body' => trans('partner_governance.task_due_body', [
+                            'hours' => $mark,
+                        ], $locale),
                         'action_url' => '/partner/tasks/'.$task->id,
                     ]);
                     $sent[(string) $mark] = now()->toIso8601String();
@@ -106,9 +107,14 @@ class ServicePartnerReassignmentService
                 if (! empty($meta['sla_breached_at'])) {
                     continue;
                 }
+                $locale = $task->partner
+                    ? app(PartnerTermsService::class)->partnerLocale($task->partner)
+                    : app()->getLocale();
                 $this->notifier->notifyStaff(
-                    'SLA breached: '.$task->task_type.' #'.$task->id,
-                    ($task->partner?->name ?? 'Partner').' missed the completion SLA. Grace may still apply before reassignment.',
+                    trans('partner_governance.sla_breached_title', ['type' => $task->task_type, 'id' => $task->id], $locale),
+                    trans('partner_governance.sla_breached_body', [
+                        'partner' => $task->partner?->name ?? 'Partner',
+                    ], $locale),
                     '/partner/tasks/'.$task->id,
                 );
                 $task->mergeNotesMeta(['sla_breached_at' => now()->toIso8601String()]);

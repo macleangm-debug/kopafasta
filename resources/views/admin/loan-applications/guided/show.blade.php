@@ -213,6 +213,29 @@
                 <p class="text-sm text-amber-900">{{ $step['prompt'] }}</p>
                 <p class="text-xs text-amber-800">You can leave this file. It will return to Do now when the resolution arrives.</p>
             </div>
+        @elseif ($type === 'collateral_secure')
+            <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-3" x-data="{ step: 'review' }">
+                <p class="text-sm text-slate-700">{{ $step['prompt'] }}</p>
+                <form method="POST" action="{{ route('admin.loan-applications.request-collateral-secure', $record) }}" class="space-y-3" data-no-draft>
+                    @csrf
+                    <input type="hidden" name="return_workspace" value="guided">
+                    <label class="block">
+                        <span class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Internal note (optional)</span>
+                        <textarea name="notes" rows="2" maxlength="1000" class="mt-1 w-full rounded-xl border-slate-300 text-sm"></textarea>
+                    </label>
+                    <button type="button" x-show="step === 'review'" @click="step = 'confirm'"
+                            class="w-full rounded-xl bg-brand text-white font-bold text-sm py-2.5 hover:bg-brand-light">
+                        {{ $step['primary'] ?? 'Review & request collateral' }}
+                    </button>
+                    <div x-show="step === 'confirm'" x-cloak class="space-y-2">
+                        <p class="text-sm text-slate-800">We will notify the {{ $record->loanGroup ? 'group leader' : 'borrower' }} on their loan profile to pledge collateral. Screening pauses until they respond. A valuer is not assigned yet.</p>
+                        <div class="flex gap-2">
+                            <button type="button" @click="step = 'review'" class="flex-1 rounded-xl bg-white ring-1 ring-brand/30 text-brand font-bold text-sm py-2.5">Go back</button>
+                            <button type="submit" name="confirmed" value="1" data-loading-label="Sending…" class="flex-1 rounded-xl bg-brand text-white font-bold text-sm py-2.5">Send collateral request</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         @elseif ($type === 'gate_1')
             <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-3">
                 <p class="text-sm text-slate-700">{{ $step['prompt'] }}</p>
@@ -415,7 +438,7 @@
                 <span class="flex-[2] min-w-0 text-center rounded-xl bg-slate-100 text-slate-500 font-bold text-sm py-3 px-2 leading-snug whitespace-normal cursor-not-allowed">
                     Waiting
                 </span>
-            @elseif (in_array($step['type'] ?? '', ['resolution', 'return_to_committee'], true))
+            @elseif (in_array($step['type'] ?? '', ['resolution', 'return_to_committee', 'collateral_secure'], true))
                 <span class="flex-[2] min-w-0 text-center rounded-xl bg-slate-100 text-slate-500 font-bold text-sm py-3 px-2 leading-snug whitespace-normal">Confirm in the card</span>
             @elseif (($step['type'] ?? '') === 'gate_1' && ! empty($step['all_pass']))
                 <form method="POST" action="{{ route('admin.loan-applications.guided-screening.save', $record) }}" class="flex-[2] min-w-0" data-no-draft>

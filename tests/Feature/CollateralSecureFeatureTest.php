@@ -250,6 +250,24 @@ class CollateralSecureFeatureTest extends TestCase
         $state = $service->expireIfNeeded($app->fresh());
         $this->assertSame(CollateralSecureService::STATUS_REJECTED, $state['status'] ?? null);
         $this->assertSame('rejected', $app->fresh()->status);
+        $this->assertSame(CollateralSecureService::REASON_NOT_PROVIDED, $app->fresh()->rejection_reason_code);
+    }
+
+    public function test_shortfall_expiry_closes_as_ineligible_not_not_provided(): void
+    {
+        $admin = $this->staff();
+        [$app] = $this->applicationWithGuarantor($admin);
+        $service = app(CollateralSecureService::class);
+        $service->request($app, $admin);
+        $payload = $app->fresh()->screening_payload;
+        $payload['collateral_secure']['status'] = CollateralSecureService::STATUS_SHORTFALL;
+        $payload['collateral_secure']['due_at'] = now()->subDays(4)->toIso8601String();
+        $app->update(['screening_payload' => $payload]);
+
+        $state = $service->expireIfNeeded($app->fresh());
+        $this->assertSame(CollateralSecureService::STATUS_REJECTED, $state['status'] ?? null);
+        $this->assertSame(CollateralSecureService::REASON_INELIGIBLE, $app->fresh()->rejection_reason_code);
+        $this->assertNotSame(CollateralSecureService::REASON_NOT_PROVIDED, $app->fresh()->rejection_reason_code);
     }
 
     public function test_insure_it_opens_shared_psp_gate_before_collection(): void

@@ -26,13 +26,18 @@ class Phase66AffiliatePhase3FeatureTest extends TestCase
         $user ??= User::factory()->create(['role' => 'vendor']);
 
         return Vendor::create([
-            'user_id'        => $user->id,
-            'vendor_number'  => 'AFF-P66',
-            'name'           => 'Affiliate P66',
-            'category'       => 'affiliate',
-            'status'         => 'active',
-            'phone'          => '255712346660',
-            'affiliate_code' => 'AFFP66',
+            'user_id'                    => $user->id,
+            'vendor_number'              => 'AFF-P66',
+            'name'                       => 'Affiliate P66',
+            'category'                   => 'affiliate',
+            'status'                     => 'active',
+            'phone'                      => '255712346660',
+            'affiliate_code'             => 'AFFP66',
+            'affiliate_kyc_status'       => 'verified',
+            'affiliate_lifecycle_status' => 'active',
+            'membership_status'          => 'active',
+            'membership_started_at'      => now()->subMonth(),
+            'membership_expires_at'      => now()->addYear(),
         ]);
     }
 
@@ -135,7 +140,7 @@ class Phase66AffiliatePhase3FeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.affiliate.dashboard'))
             ->assertOk()
-            ->assertSee('Affiliate dashboard', false)
+            ->assertSee(__('site.affiliate_portal.dashboard_title'), false)
             ->assertSee('AFFP66', false);
     }
 

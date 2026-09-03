@@ -160,7 +160,7 @@ class PartnerActivationService
         $meta = is_array($vendor->metadata) ? $vendor->metadata : [];
         if (! $alreadyActive) {
             $meta['collection_conduct_accepted_at'] = now()->toIso8601String();
-            $meta['collection_conduct_version'] = 'bot-2024-5.1f';
+            $meta['collection_conduct_version'] = app(PartnerTermsService::class)->conductVersion();
         }
 
         $vendor->update([

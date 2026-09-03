@@ -90,7 +90,7 @@
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
                 <h3 class="text-sm font-semibold text-gray-900 mb-1">Cloudflare Turnstile (bot protection)</h3>
                 <p class="text-xs text-gray-500 mb-4">
-                    Optional. When both keys are set, public login/register and admin login require a Turnstile challenge.
+                    Optional. When both keys are set, every public login and registration form requires a Cloudflare Turnstile challenge: borrower, partner, investor, capital partner, staff, and admin. Partner activation and PIN recovery also require it.
                     Create a widget at Cloudflare → Turnstile, then paste the site and secret keys here.
                 </p>
                 <div class="grid sm:grid-cols-2 gap-4">

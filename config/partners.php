@@ -43,7 +43,33 @@ return [
         'weight_not_failed' => 15,
         'auto_nudge' => true,
         'auto_suspend' => true,
+        'auto_recover' => true,
         'warnings_before_suspend' => 2,
         'nudge_cooldown_days' => 7,
+        'excellent_score' => 90,
+        'target_on_time_percent' => 90,
+        'target_completion_percent' => 95,
+        'recover_lookback_days' => 90,
+    ],
+
+    /**
+     * Versioned Terms for task/case partners. Bodies live in lang/en|sw/partner_terms.php
+     * and may be overridden in Settings. SLA/KPI numbers are never stored here —
+     * Terms render from Origination auto-assign, Recovery policy, and Partner performance.
+     */
+    'terms' => [
+        'require_before_jobs' => true,
+        'material_change_requires_reacceptance' => false,
+        'policy_version' => 1,
+        'conduct_version' => '2026.09',
+        'types' => [
+            'valuer' => ['version' => 1],
+            'gps_installer' => ['version' => 1],
+            'insurance' => ['version' => 1],
+            'call_center' => ['version' => 1],
+            'debt_collector' => ['version' => 1],
+            'auctioneer' => ['version' => 1],
+            'legal_partner' => ['version' => 1],
+        ],
     ],
 ];

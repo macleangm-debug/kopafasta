@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign in · {{ brand_name() }} Console</title>
+    @php
+        $seoDocument = app(\App\Services\SeoService::class)->privateDocument(request(), 'Sign in · '.brand_name().' Console');
+    @endphp
+    <x-site.seo :document="$seoDocument" />
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
     @vite(['resources/css/app.css'])
@@ -56,11 +59,7 @@
                     Remember me
                 </label>
 
-                @php $turnstile = app(\App\Services\TurnstileService::class); @endphp
-                @if ($turnstile->enabled())
-                    <div class="cf-turnstile" data-sitekey="{{ $turnstile->siteKey() }}" data-action="admin-login"></div>
-                    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-                @endif
+                <x-site.turnstile action="admin-login" inline />
 
                 <button type="submit"
                         class="w-full bg-brand hover:bg-brand-light text-white font-semibold rounded-xl py-3 transition shadow-sm">

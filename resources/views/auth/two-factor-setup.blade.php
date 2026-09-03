@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Set up two-factor · {{ brand_name() }}</title>
+    @php
+        $seoDocument = app(\App\Services\SeoService::class)->privateDocument(request(), 'Set up two-factor · '.brand_name());
+    @endphp
+    <x-site.seo :document="$seoDocument" />
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
     @vite(['resources/css/app.css'])

@@ -90,6 +90,8 @@
                             </div>
                         </div>
 
+                        <x-site.turnstile action="register-investor" />
+
                         <button class="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-7 rounded-full transition shadow-sm">
                             Create investor account →
                         </button>

@@ -2,6 +2,7 @@
 
 @php
     $pageTitle = $title ?? brand_title('My account');
+    $seoDocument = app(\App\Services\SeoService::class)->privateDocument(request(), $pageTitle);
     $contentMax = match ($contentWidth) {
         'narrow' => 'max-w-3xl mx-auto',
         'wide'   => 'max-w-7xl',
@@ -86,7 +87,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
-    <title>{{ $pageTitle }}</title>
+    <x-site.seo :document="$seoDocument" />
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
     @vite(['resources/css/app.css','resources/js/app.js'])

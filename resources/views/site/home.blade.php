@@ -1,4 +1,4 @@
-<x-site.layout :title="brand_name().' — '.__('site.hero.title')">
+<x-site.layout>
 
     {{-- HERO --}}
     <section class="relative overflow-hidden premium-gradient">

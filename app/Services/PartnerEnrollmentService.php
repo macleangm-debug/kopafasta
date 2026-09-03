@@ -91,8 +91,10 @@ class PartnerEnrollmentService
                 is_array($data['requested_roles'] ?? null) ? $data['requested_roles'] : []
             );
 
+            $isAffiliate = $category === 'affiliate' || ($data['type'] ?? '') === 'affiliate';
+
             $application = PartnerApplication::create([
-                'type' => $category === 'affiliate' ? 'affiliate' : 'service',
+                'type' => $isAffiliate ? 'affiliate' : 'service',
                 'partner_category' => $category,
                 'requested_roles' => $requestedRoles,
                 'applicant_category' => $data['applicant_category'] ?? 'company',
@@ -104,8 +106,9 @@ class PartnerEnrollmentService
                 'registration_number' => $data['registration_number'] ?? null,
                 'tin' => $data['tin'] ?? null,
                 'region' => $data['region'] ?? null,
-                'coverage_regions' => array_values(array_filter($data['coverage_regions'] ?? [])),
+                'coverage_regions' => $isAffiliate ? [] : array_values(array_filter($data['coverage_regions'] ?? [])),
                 'message' => $data['message'] ?? null,
+                'payload' => is_array($data['payload'] ?? null) ? $data['payload'] : null,
                 'status' => 'pending',
             ]);
 
@@ -172,6 +175,7 @@ class PartnerEnrollmentService
                 $category,
                 is_array($application->requested_roles) ? $application->requested_roles : []
             );
+            $isAffiliate = $category === 'affiliate' || $application->type === 'affiliate';
 
             $partner = Vendor::create([
                 'vendor_number' => app(PartnerCodeService::class)->generate($roles[0] ?? $category),
@@ -181,11 +185,14 @@ class PartnerEnrollmentService
                 'tin' => $application->tin,
                 'category' => $roles[0] ?? $category,
                 'roles' => $roles,
+                'applicant_category' => $application->applicant_category ?: 'company',
                 'phone' => $application->phone,
                 'email' => $application->email,
                 'address' => $application->region,
-                'regions' => $application->coverage_regions ?: array_filter([$application->region]),
-                'coverage_type' => filled($application->coverage_regions) || filled($application->region) ? 'regions' : 'nationwide',
+                'regions' => $isAffiliate ? [] : ($application->coverage_regions ?: array_filter([$application->region])),
+                'coverage_type' => $isAffiliate
+                    ? 'nationwide'
+                    : (filled($application->coverage_regions) || filled($application->region) ? 'regions' : 'nationwide'),
                 'status' => 'inactive',
             ]);
 
@@ -208,6 +215,11 @@ class PartnerEnrollmentService
             if ($partner->isAffiliate()) {
                 app(AffiliateService::class)->ensureCode($partner);
                 app(AffiliateLifecycleService::class)->initializeNewAffiliate($partner->refresh());
+                if (is_array($application->payload)) {
+                    $meta = is_array($partner->metadata) ? $partner->metadata : [];
+                    $meta['affiliate_application'] = $application->payload;
+                    $partner->update(['metadata' => $meta]);
+                }
             }
 
             if (app(PartnerActivationService::class)->requiresActivation($partner)) {

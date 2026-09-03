@@ -169,5 +169,33 @@
         <x-admin.step title="Documents" id="documents">
             @include('admin.loan-products._requirements-fields')
         </x-admin.step>
+
+        <x-admin.step title="SEO (optional overrides)">
+            <p class="md:col-span-2 text-sm text-gray-600">
+                Leave blank to generate a title from the product name, category, and brand, and a description from the public product copy.
+                These fields never change how the loan engine decides eligibility.
+            </p>
+            <x-admin.input name="seo_title" label="SEO title (English)" :value="$r?->seo_title" />
+            <x-admin.input name="seo_title_sw" label="SEO title (Kiswahili)" :value="$r?->seo_title_sw" />
+            <div class="md:col-span-2 grid sm:grid-cols-2 gap-4">
+                <x-admin.textarea name="seo_description" label="Meta description (English)" :value="$r?->seo_description" rows="2" maxlength="320" />
+                <x-admin.textarea name="seo_description_sw" label="Meta description (Kiswahili)" :value="$r?->seo_description_sw" rows="2" maxlength="320" />
+            </div>
+            <label class="md:col-span-2 inline-flex items-center gap-2 text-sm">
+                <input type="hidden" name="seo_indexable" value="0">
+                <input type="checkbox" name="seo_indexable" value="1"
+                       @checked((bool) old('seo_indexable', $r?->seo_indexable ?? true))
+                       class="rounded border-gray-300 text-brand focus:ring-brand/30">
+                Indexable in search engines when the product is public
+            </label>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Social image</label>
+                @if ($r?->seo_image_path)
+                    <img src="{{ asset('storage/'.$r->seo_image_path) }}" alt="" class="mb-3 h-24 w-40 object-cover rounded-xl ring-1 ring-gray-200">
+                @endif
+                <input type="file" name="seo_image" accept="image/*"
+                       class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-amber-800">
+            </div>
+        </x-admin.step>
     </div>
 </div>

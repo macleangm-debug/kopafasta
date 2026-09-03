@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Setting;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 
 class TurnstileService
 {
@@ -56,5 +58,16 @@ class TurnstileService
         }
 
         return (bool) ($response->json('success') ?? false);
+    }
+
+    public function assertHuman(Request $request, string $message = 'Please complete the human verification challenge.'): void
+    {
+        if ($this->verify($request->input('cf-turnstile-response'), $request->ip())) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'cf-turnstile-response' => $message,
+        ]);
     }
 }

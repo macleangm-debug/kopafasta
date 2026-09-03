@@ -37,8 +37,21 @@ class AffiliateController extends Controller
         $share = $affiliateService->renderMessage($vendor, 'share_template');
         $wallet = app(AffiliateCommissionWalletService::class)->summary($vendor);
         $minPayout = app(AffiliateSettingsService::class)->minimumPayoutAmount();
+        $eligibility = app(\App\Services\AffiliateEligibilityService::class)->for($vendor);
+        $standing = app(\App\Services\AffiliateEvaluationService::class)->currentStanding($vendor);
+        $membership = app(\App\Services\AffiliateMembershipService::class)->summary($vendor);
 
-        return view('site.affiliate.dashboard', compact('vendor', 'stats', 'links', 'share', 'wallet', 'minPayout'));
+        return view('site.affiliate.dashboard', compact(
+            'vendor',
+            'stats',
+            'links',
+            'share',
+            'wallet',
+            'minPayout',
+            'eligibility',
+            'standing',
+            'membership',
+        ));
     }
 
     public function referrals(): View
@@ -118,69 +131,80 @@ class AffiliateController extends Controller
         return view('site.affiliate.settings', compact('vendor', 'membership'));
     }
 
+    public function terms(Request $request): View|RedirectResponse
+    {
+        $vendor = $this->affiliate();
+        $terms = app(\App\Services\AffiliateTermsService::class);
+
+        return view('site.affiliate.terms', [
+            'vendor' => $vendor,
+            'rendered' => $terms->render($vendor),
+            'accepted' => $terms->latestAcceptance($vendor),
+        ]);
+    }
+
+    public function acceptTerms(Request $request): RedirectResponse
+    {
+        $vendor = $this->affiliate();
+        $terms = app(\App\Services\AffiliateTermsService::class);
+
+        $request->validate([
+            'affiliate_terms_accepted' => ['accepted'],
+        ]);
+
+        if (! $terms->hasAccepted($vendor)) {
+            $terms->accept($vendor, $request);
+        }
+
+        return redirect()
+            ->route('site.affiliate.membership.pay')
+            ->with('status', __('affiliate_terms.already_accepted'));
+    }
+
     public function membershipPayForm(Request $request): View|RedirectResponse
     {
         $vendor = $this->affiliate();
         $service = app(\App\Services\AffiliateMembershipService::class);
         $cfg = \App\Services\AffiliateMembershipService::config();
-        $cfg['fee_amount'] = $service->feeFor($vendor);
 
         if (! $cfg['enabled']) {
             return redirect()->route('site.affiliate.settings');
         }
 
-        if ($service->isActive($vendor) && ! ($vendor->membership_expires_at?->lte(now()->addDays(30)))) {
+        if (($cfg['require_terms_before_activation'] ?? true)
+            && ! app(\App\Services\AffiliateTermsService::class)->hasAccepted($vendor)
+            && ! $service->isActive($vendor)) {
+            return redirect()->route('site.affiliate.terms')
+                ->with('error', __('affiliate_terms.required'));
+        }
+
+        if ($service->isActive($vendor) && ! $service->withinRenewalWindow($vendor)) {
             return redirect()->route('site.affiliate.settings')
                 ->with('status', __('site.affiliate_portal.membership_active'));
         }
 
-        $vendor = $service->startPaymentWindow($vendor);
-        $paymentReference = $vendor->membership_payment_reference ?: $service->generatePaymentReference($vendor);
-        $request->session()->put('affiliate_membership_payment_ref', $paymentReference);
-
+        $payment = app(\App\Services\PartnerMembershipPaymentService::class)->open($vendor);
         $accounts = app(\App\Services\PaymentAccountService::class);
-        $bankAccounts = $accounts->bankAccountsForDisplay('registration_fee', $paymentReference);
-        $mobileResolved = $accounts->resolve('registration_fee', 'mobile_money');
-        $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'] ?? null, $paymentReference);
+        $bankAccounts = $accounts->bankAccountsForDisplay('partner_membership', $payment->reference);
+        $canSwitchToBank = (bool) $accounts->resolveBankAccount('partner_membership');
 
         return view('site.affiliate.membership-pay', [
             'vendor' => $vendor,
+            'payment' => $payment,
             'config' => $cfg,
-            'paymentReference' => $paymentReference,
             'bankAccounts' => $bankAccounts,
-            'mobileDetails' => $mobileDetails,
+            'canSwitchToBank' => $canSwitchToBank,
+            'payUrl' => route('site.affiliate.membership.checkout.pay', $payment),
+            'statusUrl' => route('site.affiliate.membership.checkout.status', $payment),
+            'retryUrl' => route('site.affiliate.membership.checkout.retry', $payment),
+            'gateUrl' => route('site.affiliate.membership.checkout.gate', $payment),
+            'successUrl' => route('site.affiliate.dashboard'),
         ]);
     }
 
     public function membershipPay(Request $request): RedirectResponse
     {
-        $vendor = $this->affiliate();
-        $service = app(\App\Services\AffiliateMembershipService::class);
-
-        $data = $request->validate([
-            'channel' => ['required', 'in:mobile_money,bank'],
-            'payment_phone' => ['nullable', 'string', 'max:30'],
-            'payment_reference' => ['nullable', 'string', 'max:64'],
-        ]);
-
-        $ref = $data['payment_reference']
-            ?: $request->session()->pull('affiliate_membership_payment_ref')
-            ?: $service->generatePaymentReference($vendor);
-
-        if ($data['channel'] === 'bank') {
-            $vendor->update([
-                'membership_status' => 'pending_payment',
-                'membership_payment_reference' => $ref,
-            ]);
-
-            return redirect()->route('site.affiliate.settings')
-                ->with('status', __('site.affiliate_portal.membership_pending').' · '.$ref);
-        }
-
-        $service->activate($vendor, $ref);
-
-        return redirect()->route('site.affiliate.settings')
-            ->with('status', __('site.affiliate_portal.membership_paid'));
+        return redirect()->route('site.affiliate.membership.pay');
     }
 
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse

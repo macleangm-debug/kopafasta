@@ -83,6 +83,7 @@
                     <form method="POST" action="{{ route('site.forgot-pin.start') }}" class="mt-6 space-y-5">
                         @csrf
                         <x-site.phone-input name="phone" :label="__('site.feedback.phone')" :value="old('phone', $prefillPhone ?? null)" variant="rounded" :required="true" :show-errors="false" />
+                        <x-site.turnstile action="forgot-pin" />
                         <button type="submit" class="w-full rounded-xl bg-brand hover:bg-brand-light text-white font-semibold py-3.5 transition">
                             {{ __('site.auth.pin_recovery.continue') }}
                         </button>

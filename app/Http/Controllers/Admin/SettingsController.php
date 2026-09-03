@@ -61,6 +61,47 @@ class SettingsController extends Controller
         return back()->with('status', 'Company profile saved.');
     }
 
+    public function seo()
+    {
+        return view('admin.settings.seo', [
+            'values' => Setting::group('seo'),
+            'indexingAllowed' => app(\App\Services\SeoService::class)->environmentAllowsIndexing(),
+        ]);
+    }
+
+    public function saveSeo(Request $request)
+    {
+        $data = $request->validate([
+            'site_name' => ['nullable', 'string', 'max:120'],
+            'title_pattern' => ['nullable', 'string', 'max:80'],
+            'default_description' => ['nullable', 'string', 'max:320'],
+            'default_description_sw' => ['nullable', 'string', 'max:320'],
+            'canonical_domain' => ['nullable', 'string', 'max:255'],
+            'default_index' => ['nullable', 'boolean'],
+            'google_site_verification' => ['nullable', 'string', 'max:120'],
+            'bing_site_verification' => ['nullable', 'string', 'max:120'],
+            'organization_name' => ['nullable', 'string', 'max:160'],
+            'organization_legal_name' => ['nullable', 'string', 'max:200'],
+            'organization_description' => ['nullable', 'string', 'max:320'],
+            'organization_logo' => ['nullable', 'string', 'max:255'],
+            'social_image' => ['nullable', 'string', 'max:255'],
+            'social_image_file' => ['nullable', 'image', 'max:4096'],
+            'same_as' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if ($request->hasFile('social_image_file')) {
+            $data['social_image'] = 'storage/'.$request->file('social_image_file')->store('seo', 'public');
+        }
+        unset($data['social_image_file']);
+
+        $data['default_index'] = $request->boolean('default_index');
+        $data['title_pattern'] = $data['title_pattern'] ?: '{page} — {site}';
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["seo.$k" => $v])->all());
+
+        return back()->with('status', 'SEO defaults saved. Public pages pick these up immediately.');
+    }
+
     // ---------------- Working hours & public holidays ----------------
     public function workingHours()
     {
@@ -975,6 +1016,7 @@ class SettingsController extends Controller
             'max_loan_amount'      => ['required', 'numeric', 'min:0'],
             'min_loan_amount'      => ['required', 'numeric', 'min:0'],
             'guarantor_required_above' => ['nullable', 'numeric', 'min:0'],
+            'collateral_requirement_mode' => ['nullable', 'in:never,always,above_amount'],
             'collateral_required_above' => ['nullable', 'numeric', 'min:0'],
             'min_guarantors' => ['required', 'integer', 'min:0', 'max:10'],
             'allow_restructure' => ['nullable', 'boolean'],
@@ -1004,6 +1046,17 @@ class SettingsController extends Controller
             'group_application_fee_per_member'      => ['nullable', 'boolean'],
             'group_post_approval_fee_per_group'     => ['nullable', 'boolean'],
         ]);
+        $data['collateral_requirement_mode'] = in_array($data['collateral_requirement_mode'] ?? '', ['never', 'always', 'above_amount'], true)
+            ? $data['collateral_requirement_mode']
+            : 'above_amount';
+        if (! array_key_exists('collateral_required_above', $data) || $data['collateral_required_above'] === null || $data['collateral_required_above'] === '') {
+            $existingThreshold = Setting::get('loan.collateral_required_above');
+            if ($existingThreshold !== null && $existingThreshold !== '') {
+                $data['collateral_required_above'] = $existingThreshold;
+            } else {
+                unset($data['collateral_required_above']);
+            }
+        }
         $data['allow_asset_reuse'] = (bool) ($data['allow_asset_reuse'] ?? false);
         $data['payment_holiday_accrue_interest'] = (bool) ($data['payment_holiday_accrue_interest'] ?? false);
         $data['payment_holiday_max_months'] = (int) ($data['payment_holiday_max_months'] ?? 3);
@@ -1370,7 +1423,12 @@ class SettingsController extends Controller
             'membership_duration_days'            => ['nullable', 'integer', 'min:1', 'max:1095'],
             'membership_grace_period_hours'       => ['nullable', 'integer', 'min:1', 'max:720'],
             'membership_required_before_sharing'  => ['nullable', 'boolean'],
+            'membership_renewal_window_days'      => ['nullable', 'integer', 'min:1', 'max:180'],
+            'membership_require_terms'            => ['nullable', 'boolean'],
+            'membership_promo_code_on_expiry'     => ['nullable', 'in:disable,keep'],
+            'membership_commission_after_expiry'  => ['nullable', 'in:historical_only,continue'],
             'eval_auto_apply_actions'             => ['nullable', 'boolean'],
+            'eval_auto_recover'                   => ['nullable', 'boolean'],
             'eval_period_days'                    => ['nullable', 'integer', 'min:1', 'max:365'],
             'eval_min_events_for_scoring'         => ['nullable', 'integer', 'min:1', 'max:1000'],
             'eval_watchlist_risk_score'           => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -1385,6 +1443,20 @@ class SettingsController extends Controller
             'eval_volume_misses_before_nudge'     => ['nullable', 'integer', 'min:1', 'max:12'],
             'eval_volume_misses_before_watchlist' => ['nullable', 'integer', 'min:1', 'max:12'],
             'eval_volume_misses_before_suspend'   => ['nullable', 'integer', 'min:1', 'max:12'],
+            'kpi_qualified_referrals_enabled'     => ['nullable', 'boolean'],
+            'kpi_qualified_referrals_target'      => ['nullable', 'numeric', 'min:0'],
+            'kpi_qualified_referrals_weight'      => ['nullable', 'numeric', 'min:0'],
+            'kpi_applications_enabled'            => ['nullable', 'boolean'],
+            'kpi_applications_target'             => ['nullable', 'numeric', 'min:0'],
+            'kpi_applications_weight'             => ['nullable', 'numeric', 'min:0'],
+            'kpi_disbursed_loans_enabled'         => ['nullable', 'boolean'],
+            'kpi_disbursed_loans_target'          => ['nullable', 'numeric', 'min:0'],
+            'kpi_disbursed_loans_weight'          => ['nullable', 'numeric', 'min:0'],
+            'kpi_conversion_enabled'              => ['nullable', 'boolean'],
+            'kpi_conversion_target'               => ['nullable', 'numeric', 'min:0'],
+            'kpi_conversion_weight'               => ['nullable', 'numeric', 'min:0'],
+            'terms_body_en'                       => ['nullable', 'string', 'max:50000'],
+            'terms_body_sw'                       => ['nullable', 'string', 'max:50000'],
             'fraud_medium_score'                  => ['nullable', 'integer', 'min:0', 'max:100'],
             'fraud_high_score'                    => ['nullable', 'integer', 'min:0', 'max:100'],
             'fraud_blocked_score'                 => ['nullable', 'integer', 'min:0', 'max:100'],
@@ -1432,7 +1504,9 @@ class SettingsController extends Controller
             'affiliates.commission_tiers'                    => $tiers,
             'affiliates.evaluation'                          => [
                 'auto_apply_actions'                  => $request->boolean('eval_auto_apply_actions'),
-                'period_days'                         => (int) ($data['eval_period_days'] ?? 30),
+                'auto_recover'                        => $request->boolean('eval_auto_recover'),
+                'policy_version'                      => app(\App\Services\AffiliateSettingsService::class)->policyVersion() + 1,
+                'period_days'                         => (int) ($data['eval_period_days'] ?? 90),
                 'min_events_for_scoring'              => (int) ($data['eval_min_events_for_scoring'] ?? 3),
                 'watchlist_risk_score'                => (float) ($data['eval_watchlist_risk_score'] ?? 60),
                 'watchlist_fraud_score'               => (float) ($data['eval_watchlist_fraud_score'] ?? 50),
@@ -1441,11 +1515,33 @@ class SettingsController extends Controller
                 'duplicate_ip_registration_threshold' => (int) ($data['eval_duplicate_ip_threshold'] ?? 3),
                 'low_conversion_threshold'            => (float) ($data['eval_low_conversion_threshold'] ?? 5),
                 'high_click_threshold'                => (int) ($data['eval_high_click_threshold'] ?? 50),
-                'monthly_registration_target'         => (int) ($data['eval_monthly_registration_target'] ?? 10),
-                'volume_min_active_days'              => (int) ($data['eval_volume_min_active_days'] ?? 30),
+                'monthly_registration_target'         => (int) ($data['eval_monthly_registration_target'] ?? ($data['kpi_qualified_referrals_target'] ?? 10)),
+                'volume_min_active_days'              => (int) ($data['eval_volume_min_active_days'] ?? 90),
                 'volume_misses_before_nudge'          => (int) ($data['eval_volume_misses_before_nudge'] ?? 1),
                 'volume_misses_before_watchlist'      => (int) ($data['eval_volume_misses_before_watchlist'] ?? 2),
                 'volume_misses_before_suspend'        => (int) ($data['eval_volume_misses_before_suspend'] ?? 3),
+                'kpis' => [
+                    'qualified_referrals' => [
+                        'enabled' => $request->boolean('kpi_qualified_referrals_enabled'),
+                        'target' => (float) ($data['kpi_qualified_referrals_target'] ?? $data['eval_monthly_registration_target'] ?? 10),
+                        'weight' => (float) ($data['kpi_qualified_referrals_weight'] ?? 1),
+                    ],
+                    'applications' => [
+                        'enabled' => $request->boolean('kpi_applications_enabled'),
+                        'target' => (float) ($data['kpi_applications_target'] ?? 5),
+                        'weight' => (float) ($data['kpi_applications_weight'] ?? 1),
+                    ],
+                    'disbursed_loans' => [
+                        'enabled' => $request->boolean('kpi_disbursed_loans_enabled'),
+                        'target' => (float) ($data['kpi_disbursed_loans_target'] ?? 3),
+                        'weight' => (float) ($data['kpi_disbursed_loans_weight'] ?? 1),
+                    ],
+                    'conversion' => [
+                        'enabled' => $request->boolean('kpi_conversion_enabled'),
+                        'target' => (float) ($data['kpi_conversion_target'] ?? 30),
+                        'weight' => (float) ($data['kpi_conversion_weight'] ?? 1),
+                    ],
+                ],
             ],
             'affiliates.fraud'                               => [
                 'medium_score'                         => (int) ($data['fraud_medium_score'] ?? 20),
@@ -1470,20 +1566,27 @@ class SettingsController extends Controller
                 'welcome_partner'     => $data['message_welcome_partner_sw'] ?? '',
             ],
             'affiliates.membership'                          => [
-                'enabled'                 => $request->boolean('membership_enabled'),
-                'fee_amount'              => (float) ($data['membership_fee_amount_company'] ?? $data['membership_fee_amount'] ?? 50000),
-                'fee_amount_individual'   => (float) ($data['membership_fee_amount_individual'] ?? 25000),
-                'fee_amount_company'      => (float) ($data['membership_fee_amount_company'] ?? $data['membership_fee_amount'] ?? 50000),
-                'duration_days'           => (int) ($data['membership_duration_days'] ?? 365),
-                'grace_period_hours'      => (int) ($data['membership_grace_period_hours'] ?? 48),
-                'required_before_sharing' => $request->boolean('membership_required_before_sharing'),
+                'enabled'                         => $request->boolean('membership_enabled'),
+                'fee_amount'                      => (float) ($data['membership_fee_amount_company'] ?? $data['membership_fee_amount'] ?? 50000),
+                'fee_amount_individual'           => (float) ($data['membership_fee_amount_individual'] ?? 25000),
+                'fee_amount_company'              => (float) ($data['membership_fee_amount_company'] ?? $data['membership_fee_amount'] ?? 50000),
+                'duration_days'                   => (int) ($data['membership_duration_days'] ?? 365),
+                'grace_period_hours'              => (int) ($data['membership_grace_period_hours'] ?? 48),
+                'required_before_sharing'         => $request->boolean('membership_required_before_sharing'),
+                'renewal_window_days'             => (int) ($data['membership_renewal_window_days'] ?? 30),
+                'require_terms_before_activation' => $request->boolean('membership_require_terms'),
+                'promo_code_on_expiry'            => (string) ($data['membership_promo_code_on_expiry'] ?? 'disable'),
+                'commission_after_expiry'         => (string) ($data['membership_commission_after_expiry'] ?? 'historical_only'),
             ],
+            'affiliates.terms.body_en'                       => (string) ($data['terms_body_en'] ?? ''),
+            'affiliates.terms.body_sw'                       => (string) ($data['terms_body_sw'] ?? ''),
+            'affiliates.terms.version'                       => (int) Setting::get('affiliates.terms.version', 1) + (filled($data['terms_body_en'] ?? null) || filled($data['terms_body_sw'] ?? null) ? 1 : 0),
             'affiliates.require_kyc_for_verification'        => $request->boolean('require_kyc_for_verification'),
             'affiliates.minimum_payout_amount'               => (float) ($data['minimum_payout_amount'] ?? config('affiliates.minimum_payout_amount', 50000)),
         ]);
 
         $tab = (string) $request->input('_tab', 'defaults');
-        $allowedTabs = ['defaults', 'commission', 'promo', 'membership', 'messages', 'evaluation', 'fraud'];
+        $allowedTabs = ['defaults', 'commission', 'promo', 'membership', 'messages', 'evaluation', 'terms', 'fraud'];
         if (! in_array($tab, $allowedTabs, true)) {
             $tab = 'defaults';
         }
@@ -1559,7 +1662,9 @@ class SettingsController extends Controller
 
         return view('admin.settings.partner-performance', [
             'values' => app(\App\Services\PartnerEfficiencyPolicy::class)->settings(),
-            'categories' => app(\App\Services\PartnerEfficiencyPolicy::class)->fieldCategories(),
+            'categories' => app(\App\Services\PartnerEfficiencyPolicy::class)->governanceCategories(),
+            'terms' => app(\App\Services\PartnerTermsService::class)->settings(),
+            'termTypes' => app(\App\Services\PartnerTermsService::class)->governedTypes(),
         ]);
     }
 
@@ -1579,10 +1684,20 @@ class SettingsController extends Controller
             'weight_not_failed' => ['required', 'integer', 'min:0', 'max:100'],
             'warnings_before_suspend' => ['required', 'integer', 'min:1', 'max:12'],
             'nudge_cooldown_days' => ['required', 'integer', 'min:1', 'max:90'],
+            'excellent_score' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'target_on_time_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'target_completion_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'recover_lookback_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'auto_nudge' => ['nullable', 'boolean'],
             'auto_suspend' => ['nullable', 'boolean'],
+            'auto_recover' => ['nullable', 'boolean'],
+            'require_terms_before_jobs' => ['nullable', 'boolean'],
+            'material_change_requires_reacceptance' => ['nullable', 'boolean'],
+            'policy_version' => ['nullable', 'integer', 'min:1', 'max:9999'],
+            'conduct_version' => ['nullable', 'string', 'max:40'],
         ]);
 
+        $current = app(\App\Services\PartnerEfficiencyPolicy::class)->settings();
         Setting::setMany([
             'partners.efficiency' => [
                 'min_jobs_for_score' => (int) $data['min_jobs_for_score'],
@@ -1596,10 +1711,29 @@ class SettingsController extends Controller
                 'weight_not_failed' => (int) $data['weight_not_failed'],
                 'warnings_before_suspend' => (int) $data['warnings_before_suspend'],
                 'nudge_cooldown_days' => (int) $data['nudge_cooldown_days'],
+                'excellent_score' => (int) ($data['excellent_score'] ?? $current['excellent_score'] ?? 90),
+                'target_on_time_percent' => (float) ($data['target_on_time_percent'] ?? $current['target_on_time_percent'] ?? 90),
+                'target_completion_percent' => (float) ($data['target_completion_percent'] ?? $current['target_completion_percent'] ?? 95),
+                'recover_lookback_days' => (int) ($data['recover_lookback_days'] ?? $current['recover_lookback_days'] ?? 90),
                 'auto_nudge' => $request->boolean('auto_nudge'),
                 'auto_suspend' => $request->boolean('auto_suspend'),
+                'auto_recover' => $request->has('auto_recover') ? $request->boolean('auto_recover') : (bool) ($current['auto_recover'] ?? true),
             ],
         ]);
+
+        $terms = app(\App\Services\PartnerTermsService::class)->settings();
+        $terms['require_before_jobs'] = $request->has('require_terms_before_jobs')
+            ? $request->boolean('require_terms_before_jobs')
+            : (bool) ($terms['require_before_jobs'] ?? true);
+        $terms['material_change_requires_reacceptance'] = $request->has('material_change_requires_reacceptance')
+            ? $request->boolean('material_change_requires_reacceptance')
+            : (bool) ($terms['material_change_requires_reacceptance'] ?? false);
+        $terms['policy_version'] = max(1, (int) ($data['policy_version'] ?? $terms['policy_version'] ?? 1));
+        $terms['conduct_version'] = (string) ($data['conduct_version'] ?? $terms['conduct_version'] ?? '2026.09');
+        if (empty($terms['launched_at'])) {
+            $terms['launched_at'] = now()->toIso8601String();
+        }
+        Setting::set('partners.terms', $terms);
 
         return back()->with('status', 'Partner performance settings saved.');
     }
@@ -1774,6 +1908,7 @@ class SettingsController extends Controller
             'auto_escalate'           => ['nullable', 'boolean'],
             'auto_assign_call_center' => ['nullable', 'boolean'],
             'call_center_lead_days'   => ['required', 'integer', 'min:0', 'max:30'],
+            'remind_days'             => ['nullable', 'string', 'max:40'],
         ];
 
         foreach ($types as $type) {
@@ -1819,6 +1954,7 @@ class SettingsController extends Controller
             'recovery.auto_escalate'           => $request->boolean('auto_escalate'),
             'recovery.auto_assign_call_center' => $request->boolean('auto_assign_call_center'),
             'recovery.call_center_lead_days'   => $data['call_center_lead_days'],
+            'recovery.remind_days'             => $data['remind_days'] ?? config('recovery.default_remind_days', '3,1'),
         ];
 
         foreach ($types as $type) {

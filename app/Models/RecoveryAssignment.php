@@ -37,6 +37,7 @@ class RecoveryAssignment extends Model
         'outcome',
         'notes',
         'vendor_task_id',
+        'sla_reminder_meta',
     ];
 
     protected function casts(): array
@@ -51,6 +52,7 @@ class RecoveryAssignment extends Model
             'sla_due_at'             => 'datetime',
             'assigned_at'            => 'datetime',
             'completed_at'           => 'datetime',
+            'sla_reminder_meta'      => 'array',
         ];
     }
 

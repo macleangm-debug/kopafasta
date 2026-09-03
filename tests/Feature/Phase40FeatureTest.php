@@ -294,6 +294,7 @@ class Phase40FeatureTest extends TestCase
         $this->assertDatabaseHas('partners', [
             'name'     => 'Nationwide Affiliate',
             'category' => 'affiliate',
+            'coverage_type' => 'nationwide',
         ]);
     }
 }

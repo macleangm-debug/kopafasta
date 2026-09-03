@@ -68,6 +68,7 @@ class PartnerApplicationReviewService
                 'region'             => $application->region,
                 'coverage_regions'   => $application->coverage_regions ?: [],
                 'message'            => $application->message,
+                'payload'            => is_array($application->payload) ? $application->payload : [],
             ],
             'business' => [
                 'trading_name'        => $application->business_name,

@@ -174,9 +174,10 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'workspace' => 'checklist']))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('Gate 4 — Identity', $documents);
-        $this->assertStringContainsString('4 Identity', $documents);
+        $this->assertStringContainsString('Gate 5 — Identity', $documents);
+        $this->assertStringContainsString('5 Identity', $documents);
         $this->assertStringContainsString('3 CRB', $documents);
+        $this->assertStringContainsString('4 Collateral', $documents);
         $this->assertStringContainsString('2 Income', $documents);
         $this->assertStringContainsString('Request more documents', $documents);
         $this->assertStringContainsString('Review request', $documents);

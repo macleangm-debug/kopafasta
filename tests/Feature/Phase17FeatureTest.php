@@ -139,15 +139,28 @@ class Phase17FeatureTest extends TestCase
 
     public function test_public_affiliate_application_can_be_submitted(): void
     {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
         $this->post(route('site.affiliate.apply.post'), [
-            'applicant_category' => 'company',
+            'applicant_category' => 'individual',
             'full_name'     => 'Affiliate Applicant',
             'email'         => 'affiliate@example.com',
             'phone'         => '+255712345800',
-            'business_name' => 'Promo Shop',
             'region'        => 'Dar es Salaam',
-            'message'       => 'I run a community group with 500 members.',
-        ])->assertRedirect(route('site.affiliate'));
+            'occupation'    => 'Shop owner',
+            'sales_experience' => 'I sell airtime and assist customers daily.',
+            'languages'     => ['sw', 'en'],
+            'why_affiliate' => 'I already advise customers on mobile money.',
+            'acquisition_methods' => ['existing_customers', 'community'],
+            'monthly_reach' => '11-30',
+            'first_10_customers' => 'I will start with my regular shop customers this month.',
+            'declaration_accurate' => '1',
+            'declaration_standards' => '1',
+            'declaration_no_fees' => '1',
+            'declaration_not_employment' => '1',
+            'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
+            'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
+        ])->assertRedirect(route('site.partners.apply.tracking', ['phone' => '+255712345800']));
 
         $this->assertDatabaseHas('partner_applications', [
             'email'  => 'affiliate@example.com',

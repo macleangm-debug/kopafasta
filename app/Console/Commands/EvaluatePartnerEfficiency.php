@@ -30,6 +30,7 @@ class EvaluatePartnerEfficiency extends Command
         $this->info('Reviewed: '.$result['reviewed']);
         $this->info('Nudged: '.$result['nudged']);
         $this->info('Suspended: '.$result['suspended']);
+        $this->info('Recovered: '.($result['recovered'] ?? 0));
         $this->info('No action: '.$result['skipped']);
 
         return self::SUCCESS;
