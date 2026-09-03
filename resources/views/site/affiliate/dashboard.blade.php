@@ -21,20 +21,36 @@
         <section class="glass-card p-6 space-y-4">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <p class="text-[11px] uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.progress_title') }}</p>
+                    <p class="text-[11px] uppercase tracking-widest text-gray-500">
+                        {{ ($progress['premium'] ?? false) ? __('site.affiliate_portal.impact_title') : __('site.affiliate_portal.progress_title') }}
+                    </p>
                     <h2 class="text-lg font-bold text-gray-900 mt-1">{{ $standing['status_label'] ?? '' }}</h2>
                     <p class="text-xs text-gray-500 mt-1">{{ $progress['days_remaining'] ?? 0 }} {{ __('site.affiliate_portal.days_remaining') }}</p>
                 </div>
-                <a href="{{ route('site.affiliate.performance') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.view_performance') }} →</a>
+                <a href="{{ route('site.affiliate.performance') }}" class="text-sm font-semibold text-brand hover:underline">
+                    {{ ($progress['premium'] ?? false) ? __('site.affiliate_portal.view_impact') : __('site.affiliate_portal.view_performance') }} →
+                </a>
             </div>
-            <div class="grid sm:grid-cols-2 gap-3">
-                @foreach ($standing['kpi_results'] ?? [] as $kpi)
-                    @if ($kpi['enabled'] ?? false)
+            @if ($progress['premium'] ?? false)
+                <div class="grid sm:grid-cols-2 gap-3">
+                    @foreach ([
+                        'visited' => __('site.affiliate_portal.impact_visited'),
+                        'registered' => __('site.affiliate_portal.impact_registered'),
+                        'applied' => __('site.affiliate_portal.impact_applied'),
+                        'qualifying' => __('site.affiliate_portal.impact_qualifying'),
+                    ] as $key => $label)
                         <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
-                            <p class="text-xs text-gray-500">{{ $kpi['label'] }}</p>
-                            @if ($progress['premium'] ?? false)
-                                <p class="text-lg font-bold tabular-nums">{{ $kpi['key'] === 'conversion' ? number_format($kpi['actual'], 1).'%' : number_format($kpi['actual'], 0) }}</p>
-                            @else
+                            <p class="text-xs text-gray-500">{{ $label }}</p>
+                            <p class="text-lg font-bold tabular-nums">{{ $impact[$key] ?? 0 }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="grid sm:grid-cols-2 gap-3">
+                    @foreach ($standing['kpi_results'] ?? [] as $kpi)
+                        @if ($kpi['enabled'] ?? false)
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
+                                <p class="text-xs text-gray-500">{{ $kpi['label'] }}</p>
                                 <p class="text-lg font-bold tabular-nums">
                                     {{ $kpi['key'] === 'conversion' ? number_format($kpi['actual'], 1).'%' : number_format($kpi['actual'], 0) }}
                                     <span class="text-sm font-medium text-gray-500">/ {{ $kpi['key'] === 'conversion' ? number_format($kpi['target'], 0).'%' : number_format($kpi['target'], 0) }}</span>
@@ -43,11 +59,11 @@
                                 @if (! $kpi['met'] && ($kpi['target'] ?? 0) > ($kpi['actual'] ?? 0))
                                     <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.more_needed', ['count' => (int) ceil($kpi['target'] - $kpi['actual'])]) }}</p>
                                 @endif
-                            @endif
-                        </div>
-                    @endif
-                @endforeach
-            </div>
+                            </div>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
         </section>
 
         <section class="glass-card p-6 space-y-4">
@@ -109,32 +125,16 @@
         </section>
     </div>
 
-    <div class="grid lg:grid-cols-2 gap-6">
-        <section class="glass-card p-6 space-y-3">
-            <p class="text-[11px] uppercase tracking-widest text-gray-500">{{ ($commercial['premium'] ?? false) ? __('site.affiliate_portal.agreement_title') : __('site.affiliate_portal.membership_title') }}</p>
-            <h2 class="text-lg font-bold text-gray-900">{{ $commercial['label'] ?? '—' }}</h2>
-            @if ($commercial['expires_at'] ?? null)
-                <p class="text-sm text-gray-600">{{ $commercial['started_at']?->format('d M Y') }} – {{ $commercial['expires_at']->format('d M Y') }}</p>
-                @if ($commercial['remaining'] ?? null)
-                    <p class="text-xs text-gray-500">{{ $commercial['remaining'] }} {{ __('site.affiliate_portal.remaining') }}</p>
-                @endif
-            @endif
-            <a href="{{ ($commercial['premium'] ?? false) ? route('site.affiliate.agreement') : route('site.affiliate.profile', ['section' => 'membership']) }}" class="inline-flex text-sm font-semibold text-brand hover:underline">
-                {{ ($commercial['premium'] ?? false) ? __('site.affiliate_portal.view_agreement') : __('site.affiliate_portal.view_membership') }} →
-            </a>
-        </section>
-
-        <section class="glass-card p-6 space-y-3">
-            <p class="text-[11px] uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.recent_activity') }}</p>
-            @forelse ($activity as $item)
-                <div class="flex items-center justify-between gap-3 text-sm">
-                    <p class="text-gray-800">{{ $item['label'] }}</p>
-                    <p class="text-xs text-gray-400 shrink-0">{{ $item['date']?->diffForHumans() }}</p>
-                </div>
-            @empty
-                <p class="text-sm text-gray-500">{{ __('site.affiliate_portal.no_activity') }}</p>
-            @endforelse
-        </section>
-    </div>
+    <section class="glass-card p-6 space-y-3">
+        <p class="text-[11px] uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.recent_activity') }}</p>
+        @forelse ($activity as $item)
+            <div class="flex items-center justify-between gap-3 text-sm">
+                <p class="text-gray-800">{{ $item['label'] }}</p>
+                <p class="text-xs text-gray-400 shrink-0">{{ $item['date']?->diffForHumans() }}</p>
+            </div>
+        @empty
+            <p class="text-sm text-gray-500">{{ __('site.affiliate_portal.no_activity') }}</p>
+        @endforelse
+    </section>
 
 </x-site.affiliate-layout>

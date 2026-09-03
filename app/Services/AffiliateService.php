@@ -159,6 +159,12 @@ class AffiliateService
                 'event_type'  => 'registration',
                 'customer_id' => $customer->id,
             ], $attribution->attributesForEvent()));
+
+            app(NotificationService::class)->notifyPartnerOnce($affiliate, 'affiliate_referral_new', [
+                'partner' => $affiliate->name,
+                '_fallback_subject' => __('site.affiliate_portal.notify_referral_subject'),
+                '_fallback_body' => __('site.affiliate_portal.notify_referral_body'),
+            ], route('site.affiliate.referrals'), 'reg:'.$customer->id);
         }
 
         $attribution->clearSession();
@@ -201,6 +207,16 @@ class AffiliateService
             'loan_application_id' => $application->id,
             'referral_code'       => $attribution->customerClaim($customer)['code_used'] ?? null,
         ]);
+
+        $affiliate = Vendor::query()->find($customer->affiliate_vendor_id);
+        if ($affiliate) {
+            $template = $affiliate->isPremiumAffiliate() ? 'affiliate_impact_progressed' : 'affiliate_referral_progressed';
+            app(NotificationService::class)->notifyPartnerOnce($affiliate, $template, [
+                'partner' => $affiliate->name,
+                '_fallback_subject' => __('site.affiliate_portal.notify_progressed_subject'),
+                '_fallback_body' => __('site.affiliate_portal.notify_progressed_body'),
+            ], route('site.affiliate.referrals'), 'app:'.$application->id);
+        }
     }
 
     public function registrationDiscountPercent(Vendor $affiliate): float
@@ -568,6 +584,15 @@ class AffiliateService
                 $event->id,
                 'Affiliate commission on '.str_replace('_', ' ', $feeType),
             );
+
+            app(NotificationService::class)->notifyPartnerOnce($quote['affiliate'], 'affiliate_commission_earned', [
+                'partner' => $quote['affiliate']->name,
+                'amount' => format_money($quote['commission']),
+                '_fallback_subject' => __('site.affiliate_portal.notify_commission_subject'),
+                '_fallback_body' => __('site.affiliate_portal.notify_commission_body', [
+                    'amount' => format_money($quote['commission']),
+                ]),
+            ], route('site.affiliate.wallet'), 'evt:'.$event->id);
 
             return $event;
         });

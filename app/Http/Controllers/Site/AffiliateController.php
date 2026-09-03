@@ -55,7 +55,20 @@ class AffiliateController extends Controller
 
     public function agreement(): View
     {
-        return view('site.affiliate.agreement', app(AffiliatePortalPresenter::class)->agreementDocument($this->affiliate()));
+        $vendor = $this->affiliate();
+        $accountTabs = [
+            ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.affiliate.profile')],
+            ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.affiliate.settings')],
+        ];
+
+        return view('site.affiliate.agreement', app(AffiliatePortalPresenter::class)->agreementDocument($vendor) + [
+            'partner' => $vendor,
+            'portal' => 'affiliate',
+            'profileRoute' => 'site.affiliate.profile',
+            'accountTabs' => $accountTabs,
+            'eyebrow' => __('site.affiliate_portal.title'),
+            'title' => __('site.affiliate_portal.agreement_title'),
+        ]);
     }
 
     public function profile(Request $request, ?string $section = null): View|RedirectResponse

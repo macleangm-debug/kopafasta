@@ -19,6 +19,7 @@
         'partner' => $vendor,
         'supportRoute' => null,
         'pinUpdateRoute' => route('site.affiliate.settings.pin'),
+        'preferencesUpdateRoute' => route('site.affiliate.settings.preferences'),
     ])
 
 </x-site.affiliate-layout>

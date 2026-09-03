@@ -1,9 +1,23 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.membership_title'))" active="profile">
 
     <x-site.borrower-page-header
-        :eyebrow="__('site.affiliate_portal.membership_title')"
-        :title="__('site.affiliate_portal.membership_subtitle')"
+        :eyebrow="$eyebrow ?? __('site.affiliate_portal.title')"
+        :title="__('site.affiliate_portal.membership_title')"
+        :subtitle="__('site.affiliate_portal.membership_subtitle')"
     />
+
+    @if (! empty($accountTabs))
+        <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
+    @endif
+
+    @if (isset($partner, $profileRoute))
+        @include('site.partner-account._shell', [
+            'partner' => $partner,
+            'portal' => $portal ?? 'affiliate',
+            'active' => 'membership',
+            'profileRoute' => $profileRoute,
+        ])
+    @endif
 
   <div class="glass-card p-6 ring-1 ring-brand/15">
         <dl class="grid sm:grid-cols-2 gap-4 text-sm">

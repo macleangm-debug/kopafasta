@@ -1,10 +1,27 @@
-<x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.agreement_title'))" active="profile">
+@php
+    $showShell = isset($partner, $profileRoute);
+@endphp
+
+<x-site.affiliate-layout :title="brand_title($title ?? __('site.affiliate_portal.agreement_title'))" active="profile">
 
     <x-site.borrower-page-header
-        :eyebrow="__('site.affiliate_portal.agreement_title')"
+        :eyebrow="$eyebrow ?? __('site.affiliate_portal.agreement_title')"
         :title="$commercial['premium'] ?? false ? __('site.affiliate_portal.premium_agreement') : __('site.affiliate_portal.membership_title')"
         :subtitle="__('site.affiliate_portal.agreement_subtitle')"
     />
+
+    @if (! empty($accountTabs))
+        <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
+    @endif
+
+    @if ($showShell)
+        @include('site.partner-account._shell', [
+            'partner' => $partner,
+            'portal' => $portal ?? 'affiliate',
+            'active' => ($commercial['premium'] ?? false) ? 'agreement' : 'membership',
+            'profileRoute' => $profileRoute,
+        ])
+    @endif
 
     <x-site.branded-agreement :header="$header" :sections="$sections">
         <div class="flex flex-wrap gap-3 pt-2">

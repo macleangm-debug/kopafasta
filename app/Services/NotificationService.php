@@ -260,7 +260,9 @@ class NotificationService
         }
 
         $user = $partner->user;
-        $locale = $user?->locale ?? app()->getLocale();
+        $locale = data_get($user?->preferences, 'preferred_locale')
+            ?: $user?->locale
+            ?: app()->getLocale();
         $tpl = NotificationTemplate::resolveActive($templateCode, $locale);
 
         $body = $tpl
@@ -298,6 +300,41 @@ class NotificationService
         $email = $partner->email ?? $user?->email;
         if ($email && $this->messaging->channelEnabled('email')) {
             $this->sendEmail($email, $subject, $body, null, $templateCode);
+        }
+
+        return $log;
+    }
+
+    /**
+     * Send at most once per fingerprint (and optional cooldown).
+     *
+     * @param  array<string, mixed>  $vars
+     */
+    public function notifyPartnerOnce(
+        \App\Models\Partner $partner,
+        string $templateCode,
+        array $vars = [],
+        ?string $actionUrl = null,
+        ?string $fingerprint = null,
+        int $cooldownHours = 8760,
+    ): ?NotificationLog {
+        $user = $partner->user;
+        $key = $templateCode.':'.($fingerprint ?: 'once');
+        if ($user) {
+            $prefs = is_array($user->preferences) ? $user->preferences : [];
+            $sentAt = data_get($prefs, 'lifecycle_notices.'.$key);
+            if (is_string($sentAt) && $sentAt !== '' && now()->lt(\Illuminate\Support\Carbon::parse($sentAt)->addHours($cooldownHours))) {
+                return null;
+            }
+        }
+
+        $log = $this->notifyPartner($partner, $templateCode, $vars, $actionUrl);
+        if ($log && $user) {
+            $prefs = is_array($user->preferences) ? $user->preferences : [];
+            $notices = is_array($prefs['lifecycle_notices'] ?? null) ? $prefs['lifecycle_notices'] : [];
+            $notices[$key] = now()->toIso8601String();
+            $prefs['lifecycle_notices'] = $notices;
+            $user->forceFill(['preferences' => $prefs])->save();
         }
 
         return $log;

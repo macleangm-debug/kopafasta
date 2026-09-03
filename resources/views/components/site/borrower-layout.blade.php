@@ -418,7 +418,7 @@
         <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 {{ $hideMobileNav ? '' : 'pb-28 lg:pb-8' }} overflow-x-clip" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full min-w-0">
                 @if ($portalMode !== 'guarantor')
-
+                    <x-site.account-welcome />
                 @endif
                 {{ $slot }}
             </div>

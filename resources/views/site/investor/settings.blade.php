@@ -23,5 +23,6 @@
         ],
         'supportRoute' => route('site.investor.support'),
         'pinUpdateRoute' => route('site.investor.settings.pin'),
+        'preferencesUpdateRoute' => route('site.investor.settings.preferences'),
     ])
 </x-site.investor-layout>

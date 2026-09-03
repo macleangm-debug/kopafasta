@@ -1,4 +1,4 @@
-@props(['active' => 'personal', 'partner' => null, 'profileRoute'])
+@props(['active' => 'personal', 'partner' => null, 'profileRoute', 'portal' => null])
 
 @php
     $service = app(\App\Services\PartnerProfileService::class);
@@ -12,10 +12,19 @@
             : __('site.partner_account.tab_residence'),
         'activity'  => __('site.partner_account.tab_activity'),
         'payment'   => __('site.partner_account.tab_payment'),
+        'agreement' => __('site.affiliate_portal.agreement_title'),
+        'membership'=> __('site.affiliate_portal.membership_title'),
     ];
     $tabs = collect($sectionKeys)
         ->mapWithKeys(fn (string $key) => [$key => $labels[$key] ?? $key])
         ->all();
+    if ($portal === 'affiliate' && $partner instanceof \App\Models\Partner && $partner->isAffiliate()) {
+        if ($partner->isPremiumAffiliate()) {
+            $tabs['agreement'] = $labels['agreement'];
+        } else {
+            $tabs['membership'] = $labels['membership'];
+        }
+    }
     $activeLabel = $tabs[$active] ?? __('site.partner_account.sections_title');
 @endphp
 

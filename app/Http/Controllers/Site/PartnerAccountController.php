@@ -33,4 +33,23 @@ class PartnerAccountController extends Controller
 
         return back()->with('status', __('site.partner_account.pin_updated'));
     }
+
+    public function updatePreferences(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user && in_array($user->role, ['vendor', 'investor'], true), 403);
+
+        $data = $request->validate([
+            'preferred_locale' => ['required', 'in:en,sw'],
+        ]);
+
+        $prefs = is_array($user->preferences) ? $user->preferences : [];
+        $prefs['preferred_locale'] = $data['preferred_locale'];
+        $user->forceFill(['preferences' => $prefs])->save();
+
+        session(['locale' => $data['preferred_locale']]);
+        app()->setLocale($data['preferred_locale']);
+
+        return back()->with('status', __('site.partner_account.preferences_updated'));
+    }
 }

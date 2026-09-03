@@ -17,5 +17,5 @@
     @include('site.partner-account._member_card', ['partner' => $partner])
     @include('site.partner-account._overview', ['partner' => $partner, 'profileRoute' => $profileRoute])
 @else
-    @include('site.partner-account._tabs', ['active' => $active, 'partner' => $partner, 'profileRoute' => $profileRoute])
+    @include('site.partner-account._tabs', ['active' => $active, 'partner' => $partner, 'profileRoute' => $profileRoute, 'portal' => $portal])
 @endif

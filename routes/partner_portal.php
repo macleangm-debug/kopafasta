@@ -49,6 +49,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::post('/membership/checkout/{payment}/gate', [PartnerMembershipPaymentController::class, 'returnToGate'])->name('membership.checkout.gate');
         Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
         Route::put('/settings/pin', [PartnerAccountController::class, 'updatePin'])->name('settings.pin');
+        Route::put('/settings/preferences', [PartnerAccountController::class, 'updatePreferences'])->name('settings.preferences');
         Route::get('/support', [VendorController::class, 'support'])->name('support');
         Route::get('/terms', [VendorController::class, 'terms'])->name('terms');
         Route::post('/terms', [VendorController::class, 'acceptTerms'])->name('terms.accept');

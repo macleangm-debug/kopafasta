@@ -198,6 +198,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     // Authenticated public area (explicit web guard)
     Route::middleware('auth:web')->group(function () {
         Route::post('/logout', [\App\Http\Controllers\Site\AuthController::class, 'logout'])->name('logout');
+        Route::post('/account-welcome/complete', [\App\Http\Controllers\Site\AccountWelcomeController::class, 'complete'])->name('account-welcome.complete');
 
         Route::get('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'showSetupPin'])->name('borrower.setup-pin');
         Route::post('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'storeSetupPin'])->name('borrower.setup-pin.post');
@@ -450,6 +451,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::post('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'uploadDocument'])->name('documents.store');
                 Route::get('/settings', [\App\Http\Controllers\Site\SupplierController::class, 'settings'])->name('settings');
                 Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
+                Route::put('/settings/preferences', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePreferences'])->name('settings.preferences');
             });
 
             Route::redirect('/supplier', '/partner/supplier');
@@ -466,6 +468,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
                 Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
                 Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
+                Route::put('/settings/preferences', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePreferences'])->name('settings.preferences');
                 Route::get('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPayForm'])->name('membership.pay');
                 Route::post('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPay'])->name('membership.pay.post');
                 Route::get('/terms', [\App\Http\Controllers\Site\AffiliateController::class, 'terms'])->name('terms');
@@ -493,6 +496,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
             Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
             Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
+            Route::put('/settings/preferences', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePreferences'])->name('settings.preferences');
             Route::get('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPayForm'])->name('membership.pay');
             Route::post('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPay'])->name('membership.pay.post');
             Route::get('/terms', [\App\Http\Controllers\Site\AffiliateController::class, 'terms'])->name('terms');
@@ -525,6 +529,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'uploadDocument'])->name('documents.store');
             Route::get('/settings', [\App\Http\Controllers\Site\SupplierController::class, 'settings'])->name('settings');
             Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
+            Route::put('/settings/preferences', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePreferences'])->name('settings.preferences');
         });
 
         // ---- Investor / Capital Lender portal ----
@@ -549,6 +554,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::put('/investor/profile/{section}',                [\App\Http\Controllers\Site\InvestorController::class, 'updateProfile'])->name('investor.profile.update')->where('section', 'personal|face|residence|activity|payment');
         Route::get('/investor/settings',                        [\App\Http\Controllers\Site\InvestorController::class, 'settings'])     ->name('investor.settings');
         Route::put('/investor/settings/pin',                    [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('investor.settings.pin');
+        Route::put('/investor/settings/preferences',            [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePreferences'])->name('investor.settings.preferences');
         Route::get('/investor/support',                         [\App\Http\Controllers\Site\InvestorController::class, 'support'])      ->name('investor.support');
         Route::get('/investor-portal', fn () => redirect()->route('site.investor.dashboard'));
         });

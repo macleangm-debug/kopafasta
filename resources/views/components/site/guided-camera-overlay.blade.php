@@ -34,6 +34,10 @@
             <div class="rounded-xl border-[3px] border-brand-gold/90 shadow-[0_0_24px_rgba(251,191,36,0.28)]"
                  :class="orientation === 'landscape' ? 'w-[88%] max-w-lg aspect-[1.586]' : 'h-[58%] max-h-[28rem] aspect-[0.63]'"></div>
         </div>
+        <div x-show="guideFrame === 'oval'" x-cloak
+             class="absolute inset-0 z-[3] flex items-center justify-center pointer-events-none px-6">
+            <div class="w-[62%] max-w-xs aspect-[3/4] rounded-[50%] border-[3px] border-brand-gold/90 shadow-[0_0_24px_rgba(251,191,36,0.28)]"></div>
+        </div>
         <div x-show="flash" x-cloak class="relative z-[5] mt-auto mb-auto px-6 text-center text-white">
             <p class="text-xl font-extrabold" x-text="flash ? ('✓ ' + flash.label) : ''"></p>
             <p class="text-sm font-semibold mt-1" x-show="flash?.next"
@@ -45,7 +49,7 @@
             {{ __('site.partner_portal.valuation_camera_retry') }}
         </button>
         <div class="relative z-[4] mt-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-            <div class="flex items-center justify-center gap-2 mb-4">
+            <div class="flex items-center justify-center gap-2 mb-4" x-show="guideFrame !== 'oval'">
                 <button type="button" @click="orientation !== 'portrait' && toggleOrientation()"
                         :class="orientation === 'portrait' ? 'bg-brand-gold text-brand' : 'bg-white/15 text-white ring-1 ring-white/30'"
                         class="rounded-full text-xs font-bold px-3.5 py-2">

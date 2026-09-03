@@ -40,8 +40,8 @@ class AffiliatePortalPresenter
         $funnel = $this->referralFunnel($vendor);
         $progress = $this->assessmentProgress($vendor, $standing);
         $activity = $this->recentActivity($vendor);
-        $earnings = $this->earningsExplanation($vendor);
         $attention = $this->needsAttention($vendor, $eligibility, $commercial);
+        $impact = $this->impactSnapshot($vendor);
 
         return [
             'vendor' => $vendor,
@@ -56,8 +56,8 @@ class AffiliatePortalPresenter
             'commercial' => $commercial,
             'funnel' => $funnel,
             'progress' => $progress,
+            'impact' => $impact,
             'activity' => $activity,
-            'earnings' => $earnings,
             'attention' => $attention,
             'hero' => $this->hero($vendor, $links, $available, $walletSummary, $standing, $commercial, $eligibility, $attention),
             'recentReferrals' => $this->recentReferrals($vendor),
@@ -90,16 +90,24 @@ class AffiliatePortalPresenter
     {
         $standing = $this->evaluation->currentStanding($vendor);
         $settings = $this->settings->evaluationSettings();
+        $premium = $vendor->isPremiumAffiliate();
+        $periodDays = $this->settings->evaluationPeriodDays();
 
         return [
             'vendor' => $vendor,
+            'premium' => $premium,
             'standing' => $standing,
             'progress' => $this->assessmentProgress($vendor, $standing),
+            'impact' => $this->impactSnapshot($vendor),
             'warningLadder' => [
                 ['label' => __('site.affiliate_portal.performance_needs_attention'), 'periods' => $this->settings->volumeMissesBeforeNudge()],
                 ['label' => __('site.affiliate_portal.performance_at_risk'), 'periods' => $this->settings->volumeMissesBeforeWatchlist()],
                 ['label' => __('site.affiliate_portal.performance_suspended'), 'periods' => $this->settings->volumeMissesBeforeSuspend()],
             ],
+            'assessmentExplanation' => __('site.affiliate_portal.faq_assessed_body', [
+                'days' => $periodDays,
+                'ramp' => $this->settings->volumeMinActiveDays(),
+            ]),
             'recovery' => ($settings['auto_recover'] ?? true)
                 ? __('site.affiliate_portal.recovery_enabled')
                 : __('site.affiliate_portal.recovery_disabled'),
@@ -132,13 +140,13 @@ class AffiliatePortalPresenter
             'payments' => $this->wallet->paginated($vendor),
             'available' => $available,
             'minPayout' => $this->settings->minimumPayoutAmount(),
+            'pending' => (int) ($summary['pending'] ?? 0),
             'totals' => [
                 'available' => $available,
                 'pending' => (int) ($summary['pending'] ?? 0),
                 'earned' => $approved + $paid + (int) ($summary['pending'] ?? 0),
                 'withdrawn' => $paid,
             ],
-            'earnings' => $this->earningsExplanation($vendor),
         ];
     }
 
@@ -298,6 +306,59 @@ class AffiliatePortalPresenter
         ];
     }
 
+    /** @return array<string, mixed> */
+    private function impactSnapshot(Vendor $vendor): array
+    {
+        $funnel = $this->referralFunnel($vendor);
+        $now = now();
+        $thisStart = $now->copy()->startOfMonth();
+        $prevStart = $thisStart->copy()->subMonth();
+        $prevEnd = $thisStart->copy()->subSecond();
+
+        $count = function (string $type, $from, $to) use ($vendor): int {
+            return AffiliateEvent::query()
+                ->where('partner_id', $vendor->id)
+                ->where('event_type', $type)
+                ->whereBetween('created_at', [$from, $to])
+                ->count();
+        };
+
+        $visitsNow = $count('click', $thisStart, $now);
+        $appsNow = $count('application', $thisStart, $now);
+        $appsPrev = $count('application', $prevStart, $prevEnd);
+        $regsNow = $count('registration', $thisStart, $now);
+
+        $earned = (int) AffiliateEvent::query()
+            ->where('partner_id', $vendor->id)
+            ->where('event_type', 'like', 'commission_%')
+            ->sum('commission_amount');
+
+        $insights = [];
+        if ($appsPrev > 0 && $appsNow > $appsPrev) {
+            $insights[] = __('site.affiliate_portal.insight_apps_up', [
+                'percent' => (int) round(100 * ($appsNow - $appsPrev) / $appsPrev),
+            ]);
+        }
+        if ($visitsNow > 0) {
+            $insights[] = __('site.affiliate_portal.insight_visits', ['count' => number_format($visitsNow)]);
+        }
+        if ($appsNow > 0) {
+            $insights[] = __('site.affiliate_portal.insight_progressed', ['count' => number_format($appsNow)]);
+        }
+
+        return [
+            'visited' => $funnel['visited'],
+            'registered' => $funnel['registered'],
+            'applied' => $funnel['applied'],
+            'qualifying' => $funnel['qualifying'],
+            'earned' => $earned,
+            'visits_this_month' => $visitsNow,
+            'apps_this_month' => $appsNow,
+            'regs_this_month' => $regsNow,
+            'insights' => array_slice($insights, 0, 3),
+        ];
+    }
+
     /** @return array<string, int> */
     private function referralFunnel(Vendor $vendor): array
     {
@@ -416,6 +477,7 @@ class AffiliatePortalPresenter
         $applies = collect($this->settings->appliesTo())
             ->filter()
             ->keys()
+            ->reject(fn ($key) => $key === 'registration_fee')
             ->map(fn ($key) => __('site.affiliate_portal.fee_'.$key))
             ->values()
             ->all();

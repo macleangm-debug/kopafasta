@@ -19,5 +19,6 @@
         'partner' => $vendor,
         'supportRoute' => null,
         'pinUpdateRoute' => route('site.supplier.settings.pin'),
+        'preferencesUpdateRoute' => route('site.supplier.settings.preferences'),
     ])
 </x-site.supplier-layout>

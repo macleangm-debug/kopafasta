@@ -104,7 +104,35 @@ class PartnerProfileService
                 'count'        => null,
                 'missing'      => [],
             ];
-        })->values()->all();
+        })->when(
+            $entity instanceof Partner && $entity->isAffiliate(),
+            function (Collection $cards) use ($entity, $profileRouteName) {
+                $premium = $entity->isPremiumAffiliate();
+                $active = $premium
+                    ? app(AffiliateMembershipService::class)->hasValidAgreement($entity)
+                    : app(AffiliateMembershipService::class)->isActive($entity);
+
+                $cards->push([
+                    'key'          => $premium ? 'agreement' : 'membership',
+                    'icon'         => '📜',
+                    'label'        => $premium
+                        ? __('site.affiliate_portal.premium_agreement')
+                        : __('site.affiliate_portal.membership_title'),
+                    'description'  => $premium
+                        ? __('site.affiliate_portal.agreement_hub_hint')
+                        : __('site.affiliate_portal.membership_hub_hint'),
+                    'status'       => $active ? 'complete' : 'in_progress',
+                    'status_label' => $this->statusLabel($active ? 'complete' : 'in_progress'),
+                    'action_label' => __('borrower.profile.hub.view_edit'),
+                    'url'          => route($profileRouteName, ['section' => $premium ? 'agreement' : 'membership']),
+                    'required'     => true,
+                    'count'        => null,
+                    'missing'      => [],
+                ]);
+
+                return $cards;
+            }
+        )->values()->all();
     }
 
     /** @return array{status: string, complete: bool} */

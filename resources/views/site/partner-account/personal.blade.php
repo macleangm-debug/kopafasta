@@ -174,21 +174,17 @@
                             <span class="block text-xs text-gray-500 mt-0.5">{{ __('site.partner_account.no_physical_card_hint') }}</span>
                         </span>
                     </label>
-                    <div x-show="!noCard" x-cloak class="grid sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.nida_front') }}</label>
-                            <input type="file" name="national_id_front" accept=".jpg,.jpeg,.png,.pdf"
-                                   @if(! filled($identity['national_id_front'] ?? null)) required @endif
-                                   class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
-                            @error('national_id_front')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.nida_back') }}</label>
-                            <input type="file" name="national_id_back" accept=".jpg,.jpeg,.png,.pdf"
-                                   @if(! filled($identity['national_id_back'] ?? null)) required @endif
-                                   class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
-                            @error('national_id_back')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                        </div>
+                    <div x-show="!noCard" x-cloak class="space-y-3">
+                        <x-site.nida-card-camera
+                            front-name="national_id_front"
+                            back-name="national_id_back"
+                            db-name="kf-partner-nida"
+                            :required="! filled($identity['national_id_front'] ?? null) || ! filled($identity['national_id_back'] ?? null)"
+                            :front-path="$identity['national_id_front'] ?? null"
+                            :back-path="$identity['national_id_back'] ?? null"
+                        />
+                        @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                        @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                     </div>
                     <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" :allow-empty="$identityComplete" />
                 </form>

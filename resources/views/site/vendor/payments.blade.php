@@ -11,6 +11,9 @@
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.wallet_available') }}</p>
             <p class="text-2xl font-extrabold text-brand mt-1">{{ $fmt($totals['available'] ?? 0) }}</p>
+            @if (($totals['available'] ?? 0) > 0)
+                <a href="#payout-form" class="inline-flex mt-3 text-sm font-semibold text-brand hover:underline">{{ __('site.partner_portal.payout_submit') }} →</a>
+            @endif
         </div>
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">{{ __('site.partner_portal.wallet_pending_earnings') }}</p>
@@ -27,8 +30,8 @@
     </div>
 
     @if (($totals['available'] ?? 0) > 0)
-        <form method="POST" action="{{ route('site.partner.payments.payout-request') }}"
-              class="mb-6 glass-card rounded-2xl ring-1 ring-brand/10 p-5 grid sm:grid-cols-3 gap-3 items-end"
+        <form id="payout-form" method="POST" action="{{ route('site.partner.payments.payout-request') }}"
+              class="mb-6 glass-card rounded-2xl ring-1 ring-brand/10 p-5 grid sm:grid-cols-3 gap-3 items-end scroll-mt-24"
               @submit.prevent="window.confirmForm($el, {
                   title: @js(__('site.partner_portal.confirm.payout_title')),
                   message: @js(__('site.partner_portal.confirm.payout_message')),
