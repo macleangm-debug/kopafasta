@@ -363,12 +363,11 @@
                     Platform affiliate defaults apply. Admin approves any negotiated discount or commission.
                 @endif
             </div>
-            <x-admin.input name="affiliate_code" label="Promo / affiliate code" :value="$r?->affiliate_code" placeholder="Auto-generated for affiliates" />
             <div class="md:col-span-2">
                 <input type="hidden" name="affiliate_premium" value="0">
-                <label class="flex items-start gap-3 rounded-xl border border-brand/15 bg-white px-4 py-3 cursor-pointer">
+                <label class="flex items-start gap-3 rounded-xl border-2 border-brand/30 bg-white px-4 py-3 cursor-pointer">
                     <input type="checkbox" name="affiliate_premium" value="1"
-                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
+                           class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand"
                            @checked((bool) old('affiliate_premium', $r?->affiliate_premium))>
                     <span>
                         <span class="block text-sm font-semibold text-gray-900">Premium affiliate</span>
@@ -376,6 +375,7 @@
                     </span>
                 </label>
             </div>
+            <x-admin.input name="affiliate_code" label="Promo / affiliate code" :value="$r?->affiliate_code" placeholder="Auto-generated for affiliates" />
             @if ($canNegotiateRates)
                 <x-admin.input name="registration_discount_percent" label="Registration discount (%)" type="number" step="0.01" :value="$r?->registration_discount_percent ?? config('affiliates.default_registration_discount_percent')" />
                 <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="$r?->application_discount_percent ?? config('affiliates.default_application_discount_percent')" />
