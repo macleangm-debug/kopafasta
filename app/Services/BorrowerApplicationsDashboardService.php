@@ -30,33 +30,28 @@ class BorrowerApplicationsDashboardService
             ->where('customer_id', $customer->id)
             ->get(['application_number', 'loan_product_id', 'status']);
 
-        $submittedReferences = $submitted->pluck('application_number')->filter();
-        $submittedProductIds = $submitted
-            ->reject(fn ($app) => in_array((string) $app->status, ['draft', 'withdrawn', 'rejected'], true))
+        $convertedReferences = $submitted->pluck('application_number')->filter();
+        $inFlightProductIds = $submitted
+            ->reject(fn ($app) => $this->isTerminalApplicationStatus((string) $app->status))
             ->pluck('loan_product_id')
             ->filter()
             ->unique();
 
         foreach ($this->drafts->listForCustomer($customer) as $draft) {
-            if ($draft->draft_reference && $submittedReferences->contains($draft->draft_reference)) {
+            if ($draft->draft_reference && $convertedReferences->contains($draft->draft_reference)) {
                 continue;
             }
 
-            // Hide orphan drafts once the same product already has a live application.
-            if ($draft->loan_product_id && $submittedProductIds->contains((int) $draft->loan_product_id)) {
+            // Hide the wizard draft only while the same product still has an open
+            // application on this list. Terminal IL/AB/… apps must not swallow a new draft.
+            if ($draft->loan_product_id && $inFlightProductIds->contains((int) $draft->loan_product_id)) {
                 continue;
             }
 
             $items[] = $this->formatDraft($customer, $draft);
         }
 
-        $submitted = LoanApplication::query()
-            ->with(['product', 'documentRequests', 'loan'])
-            ->where('customer_id', $customer->id)
-            ->whereNotIn('status', ['draft', 'disbursed'])
-            ->whereDoesntHave('loan', fn ($query) => $query->whereIn('status', ['active', 'disbursed', 'arrears']))
-            ->latest()
-            ->get();
+        $submitted = $this->listedSubmittedApplications($customer);
 
         foreach ($submitted as $application) {
             $items[] = $this->formatSubmitted($application);
@@ -258,6 +253,30 @@ class BorrowerApplicationsDashboardService
             'documents_requested', 'documents_resubmitted' => 'orange',
             default => 'sky',
         };
+    }
+
+    /** @return \Illuminate\Support\Collection<int, LoanApplication> */
+    private function listedSubmittedApplications(Customer $customer): Collection
+    {
+        return LoanApplication::query()
+            ->with(['product', 'documentRequests', 'loan'])
+            ->where('customer_id', $customer->id)
+            ->whereNotIn('status', ['draft', 'disbursed'])
+            ->whereDoesntHave('loan', fn ($query) => $query->whereIn('status', ['active', 'disbursed', 'arrears']))
+            ->latest()
+            ->get();
+    }
+
+    private function isTerminalApplicationStatus(string $status): bool
+    {
+        return in_array($status, [
+            'draft',
+            'withdrawn',
+            'rejected',
+            'cancelled',
+            'disbursed',
+            'offer_declined',
+        ], true);
     }
 
     private function loanTypeLabel(?LoanProduct $product): string

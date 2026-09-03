@@ -365,20 +365,11 @@ class LoanApplicationDraftService
     /** @return \Illuminate\Support\Collection<int, LoanApplicationDraft> */
     public function listForCustomer(Customer $customer): \Illuminate\Support\Collection
     {
-        $withdrawnProductIds = LoanApplication::query()
+        $convertedReferences = LoanApplication::query()
             ->where('customer_id', $customer->id)
-            ->where('status', 'withdrawn')
-            ->pluck('loan_product_id')
+            ->whereNotNull('application_number')
+            ->pluck('application_number')
             ->filter()
-            ->unique()
-            ->all();
-
-        $activeProductIds = LoanApplication::query()
-            ->where('customer_id', $customer->id)
-            ->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled'])
-            ->pluck('loan_product_id')
-            ->filter()
-            ->unique()
             ->all();
 
         return LoanApplicationDraft::query()
@@ -387,15 +378,12 @@ class LoanApplicationDraftService
             ->with('product')
             ->orderByDesc('saved_at')
             ->get()
-            ->reject(function (LoanApplicationDraft $draft) use ($withdrawnProductIds, $activeProductIds) {
-                $productId = (int) $draft->loan_product_id;
-                if ($productId <= 0) {
-                    return false;
-                }
-                // Drop drafts for products whose only recent apps were withdrawn,
-                // unless there is still another active application for that product.
-                return in_array($productId, $withdrawnProductIds, true)
-                    && ! in_array($productId, $activeProductIds, true);
+            ->reject(function (LoanApplicationDraft $draft) use ($convertedReferences) {
+                $reference = (string) ($draft->draft_reference ?? '');
+
+                // A converted spine (same number as a submitted/withdrawn application)
+                // is listed from loan_applications, not as a second draft card.
+                return $reference !== '' && in_array($reference, $convertedReferences, true);
             })
             ->values();
     }
@@ -507,6 +495,7 @@ class LoanApplicationDraftService
         $payload['application_fee'] = $feeState;
 
         $draft->fill([
+            'phase'    => 'application',
             'payload'  => $payload,
             'saved_at' => now(),
         ])->save();
