@@ -259,7 +259,6 @@
 
         <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-28 lg:pb-8 overflow-x-clip" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full mx-auto min-w-0">
-                <x-site.account-welcome />
                 {{ $slot }}
             </div>
         </main>

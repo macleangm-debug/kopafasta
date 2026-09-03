@@ -5,6 +5,7 @@ return [
     'skip' => 'Skip',
     'back' => 'Back',
     'next' => 'Next',
+    'finish' => 'Finish',
     'get_started' => 'Get started',
     'card_of' => 'Card :current of :total',
     'borrower' => [

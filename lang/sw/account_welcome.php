@@ -5,6 +5,7 @@ return [
     'skip' => 'Ruka',
     'back' => 'Rudi',
     'next' => 'Endelea',
+    'finish' => 'Maliza',
     'get_started' => 'Anza',
     'card_of' => 'Kadi :current kati ya :total',
     'borrower' => [

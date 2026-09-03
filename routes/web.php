@@ -198,6 +198,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     // Authenticated public area (explicit web guard)
     Route::middleware('auth:web')->group(function () {
         Route::post('/logout', [\App\Http\Controllers\Site\AuthController::class, 'logout'])->name('logout');
+        Route::get('/account-welcome', [\App\Http\Controllers\Site\AccountWelcomeController::class, 'show'])->name('account-welcome.show');
         Route::post('/account-welcome/complete', [\App\Http\Controllers\Site\AccountWelcomeController::class, 'complete'])->name('account-welcome.complete');
 
         Route::get('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'showSetupPin'])->name('borrower.setup-pin');

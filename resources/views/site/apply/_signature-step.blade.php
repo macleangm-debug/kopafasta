@@ -1,5 +1,5 @@
 {{-- Signature step — identity confirmation then pad --}}
-<div x-show="stepKey === 'signature'" class="p-6 sm:p-8" data-signature-step>
+<div x-show="stepKey === 'signature' && ! $data.feeGateOpen" class="p-6 sm:p-8" data-signature-step>
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.signature')"
         :title="__('borrower.apply.signature_title')"

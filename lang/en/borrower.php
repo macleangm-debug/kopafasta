@@ -976,6 +976,8 @@ return [
             'gate_subtitle' => 'Apply any discounts, then continue to the secure payment page.',
             'open_gate_hint' => 'You will choose mobile money or bank transfer and confirm payment on the next screen. Your application continues only after payment is confirmed.',
             'continue_to_payment' => 'Continue to payment',
+            'pay_cta' => 'Pay application fee',
+            'paid_badge' => 'Application fee paid ✓',
             'requirements_before_fee' => 'Complete these requirements before paying the application fee:',
             'amount_label' => 'Application fee',
             'product_note' => 'Fee is charged per product. Mobile money confirms instantly; bank transfers are verified by our team.',

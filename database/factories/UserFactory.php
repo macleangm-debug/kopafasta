@@ -30,6 +30,9 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'preferences' => [
+                'account_welcome_completed_at' => now()->toIso8601String(),
+            ],
         ];
     }
 
@@ -64,6 +67,13 @@ class UserFactory extends Factory
     public function needsPinSetup(): static
     {
         return $this->state(fn () => ['pin_hash' => '__needs_pin_setup__']);
+    }
+
+    public function needsWelcome(): static
+    {
+        return $this->state(fn () => [
+            'preferences' => [],
+        ]);
     }
 
     /**

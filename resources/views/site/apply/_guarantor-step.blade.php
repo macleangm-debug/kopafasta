@@ -1,4 +1,4 @@
-<div x-show="stepKey === 'guarantor'" class="p-6 sm:p-8">
+<div x-show="stepKey === 'guarantor' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :title="__('borrower.apply.guarantor')"
         :subtitle="null"

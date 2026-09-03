@@ -3,6 +3,7 @@
     'description' => null,
     'auth' => false,
     'seo' => [],
+    'minimal' => false,
 ])
 @php
     $seo = is_array($seo) ? $seo : [];
@@ -24,6 +25,7 @@
     $siteCountries = $siteCountries ?? [];
     $currentCountry = collect($siteCountries)->firstWhere('code', $siteCountry) ?? ['code' => 'TZ', 'name' => 'Tanzania', 'emoji' => '🇹🇿'];
     $auth = (bool) $auth;
+    $minimal = (bool) $minimal;
 @endphp
 <!DOCTYPE html>
 <html lang="{{ $siteLocale }}" class="h-full scroll-smooth {{ $auth ? 'overflow-hidden' : '' }}">
@@ -52,12 +54,20 @@
             </div>
         </div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4">
-            <a href="{{ route('site.home') }}" class="flex items-center min-w-0 max-w-[min(100%,11.5rem)] sm:max-w-none shrink">
-                <span class="lg:hidden min-w-0"><x-site.brand-mark size="md" /></span>
-                <span class="hidden lg:inline-flex"><x-site.brand-mark size="lg" /></span>
-            </a>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 grid grid-cols-[minmax(0,1fr)_auto] {{ $minimal ? '' : 'lg:grid-cols-[auto_1fr_auto]' }} items-center gap-2 sm:gap-4">
+            @if ($minimal)
+                <span class="flex items-center min-w-0 max-w-[min(100%,11.5rem)] sm:max-w-none shrink">
+                    <span class="lg:hidden min-w-0"><x-site.brand-mark size="md" /></span>
+                    <span class="hidden lg:inline-flex"><x-site.brand-mark size="lg" /></span>
+                </span>
+            @else
+                <a href="{{ route('site.home') }}" class="flex items-center min-w-0 max-w-[min(100%,11.5rem)] sm:max-w-none shrink">
+                    <span class="lg:hidden min-w-0"><x-site.brand-mark size="md" /></span>
+                    <span class="hidden lg:inline-flex"><x-site.brand-mark size="lg" /></span>
+                </a>
+            @endif
 
+            @unless ($minimal)
             <nav class="hidden lg:flex items-center justify-center gap-1 text-sm font-medium text-gray-700">
                 <div class="relative" x-data="{ productsOpen: false }"
                      @mouseenter="productsOpen = true" @mouseleave="productsOpen = false"
@@ -109,8 +119,12 @@
                     </a>
                 @endauth
             </div>
+            @endunless
 
             <div class="lg:hidden justify-self-end flex items-center gap-1.5 min-w-0">
+                @if ($minimal)
+                    <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                @else
                 @guest
                     <a href="{{ route('site.login') }}"
                        class="text-xs font-semibold text-brand border border-brand/30 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
@@ -151,6 +165,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </header>

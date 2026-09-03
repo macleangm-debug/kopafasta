@@ -6,9 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Services\AccountWelcomeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class AccountWelcomeController extends Controller
 {
+    public function show(Request $request, AccountWelcomeService $welcome): View|RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+
+        $payload = $welcome->forUser($user);
+        if (! $payload) {
+            return redirect()->to($welcome->homeUrl($user));
+        }
+
+        return view('site.account-welcome', [
+            'welcome' => $payload,
+        ]);
+    }
+
     public function complete(Request $request, AccountWelcomeService $welcome): RedirectResponse
     {
         $user = $request->user();
@@ -16,6 +32,6 @@ class AccountWelcomeController extends Controller
 
         $welcome->complete($user, $request->input('audience'));
 
-        return back();
+        return redirect()->to($welcome->homeUrl($user->fresh()));
     }
 }

@@ -33,7 +33,10 @@
                 </div>
                 <div class="min-w-0 sm:ml-auto sm:text-right">
                     <span class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.apply.product_summary.application_fee') }}</span>
-                    <p class="font-bold tabular-nums text-brand" x-text="formatTzs(current?.application_fee ?? 0)"></p>
+                    <p class="font-bold tabular-nums text-brand">
+                        <span x-show="feeGateSatisfied() && effectiveFeeAmount() > 0" x-cloak class="text-emerald-700">{{ __('borrower.apply.application_fee.paid_badge') }}</span>
+                        <span x-show="! (feeGateSatisfied() && effectiveFeeAmount() > 0)" x-text="formatTzs(current?.application_fee ?? 0)"></span>
+                    </p>
                 </div>
             </div>
         </template>

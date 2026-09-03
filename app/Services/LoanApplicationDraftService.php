@@ -152,10 +152,7 @@ class LoanApplicationDraftService
         // Unpaid application fee: do not resume on guarantor/review/submit.
         // Land on the last setup step so the wizard opens the shared fee → payments.show gate (IL path).
         if ($customer) {
-            $quoted = quoted_application_fee($customer, $product);
-            $fee = $payload['application_fee'] ?? null;
-            $feeDue = $quoted > 0
-                && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, $quoted);
+            $feeDue = ! app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $payload);
             if ($feeDue) {
                 $setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members'];
                 $lastSetupIndex = null;
@@ -308,6 +305,32 @@ class LoanApplicationDraftService
         return null;
     }
 
+    public function lastSetupStepKeyForProduct(LoanProduct $product): string
+    {
+        if (is_group_loan_product($product)) {
+            return 'quote';
+        }
+        if (strtoupper((string) $product->code) === 'AB') {
+            return 'asset_details';
+        }
+        if (is_marketplace_loan_product($product->code)) {
+            return 'asset_tenure';
+        }
+
+        return 'quote';
+    }
+
+    /** @param  array<string, mixed>  $payload */
+    public function shouldClampToFeeGate(Customer $customer, LoanProduct $product, array $payload): bool
+    {
+        $stepKey = (string) ($payload['step_key'] ?? '');
+        if ($stepKey === '' || ! app(ApplicationFeePaymentService::class)->blocksWizardStep($stepKey)) {
+            return false;
+        }
+
+        return ! app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $payload);
+    }
+
     /**
      * All in-progress wizard drafts and fee-pending applications.
      *
@@ -319,9 +342,11 @@ class LoanApplicationDraftService
 
         foreach ($this->listForCustomer($customer) as $draft) {
             $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
-            $fee = ($draft->payload ?? [])['application_fee'] ?? null;
-            $feePending = $product && quoted_application_fee($customer, $product) > 0
-                && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, quoted_application_fee($customer, $product));
+            $feePending = $product && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor(
+                $customer,
+                $product,
+                $draft->payload ?? [],
+            );
 
             $items[] = [
                 'type'      => 'wizard_draft',
@@ -422,6 +447,17 @@ class LoanApplicationDraftService
             $draftReference = app(ReferenceNumberService::class)->applicationReference($product);
         }
 
+        $step = (int) ($data['step'] ?? 0);
+        if ($product && $this->shouldClampToFeeGate($customer, $product, $payload)) {
+            $setupKey = $this->lastSetupStepKeyForProduct($product);
+            if ($setupKey) {
+                $payload['step_key'] = $setupKey;
+            }
+            $plan = app(SmartLoanApplicationWizardService::class)->borrowerStepPlan($customer, $product);
+            $index = collect($plan)->search(fn (array $step) => ($step['key'] ?? null) === ($payload['step_key'] ?? null));
+            $step = $index === false ? 0 : (int) $index;
+        }
+
         $draft = LoanApplicationDraft::updateOrCreate(
             [
                 'customer_id'     => $customer->id,
@@ -431,7 +467,7 @@ class LoanApplicationDraftService
                 'draft_reference'      => $draftReference,
                 'asset_reservation_id' => $data['asset_reservation_id'] ?? null,
                 'phase'                => $phase,
-                'step'                 => (int) ($data['step'] ?? 0),
+                'step'                 => $step,
                 'payload'              => $payload,
                 'saved_at'             => now(),
             ],
@@ -621,9 +657,11 @@ class LoanApplicationDraftService
     {
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
         $customer = $draft->customer ?? Customer::find($draft->customer_id);
-        $fee = ($draft->payload ?? [])['application_fee'] ?? null;
-        $feePending = $customer && $product && quoted_application_fee($customer, $product) > 0
-            && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, quoted_application_fee($customer, $product));
+        $feePending = $customer && $product && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor(
+            $customer,
+            $product,
+            $draft->payload ?? [],
+        );
 
         if ($feePending) {
             return ['label' => __('admin.application_drafts.status_fee_pending'), 'tone' => 'amber'];

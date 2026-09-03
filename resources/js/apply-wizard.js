@@ -473,10 +473,15 @@ export function applyWizard(config) {
 
                 /** Fee is a gate between setup steps and guarantor/review — not a numbered wizard step. */
                 needsFeeGateBefore(nextKey) {
-                    if (this.isEditHop()) return false;
                     if (this.supplementMode || this.feeGateSatisfied()) return false;
                     if (this.effectiveFeeAmount() <= 0) return false;
                     return ['guarantor', 'product_questions', 'review', 'signature', 'submit'].includes(nextKey);
+                },
+
+                quoteFeeCtaVisible() {
+                    if (this.supplementMode || this.feeGateSatisfied()) return false;
+                    if (! this.isPreFeeSetupStep(this.stepKey)) return false;
+                    return this.needsFeeGateBefore(this.nextStepKeyAfterFee());
                 },
 
                 feeGateRequiredForStep(targetStepKey) {
@@ -490,7 +495,7 @@ export function applyWizard(config) {
                 },
 
                 enforceStepRequirements(onResume = false) {
-                    if (this.supplementMode || this.isEditHop()) {
+                    if (this.supplementMode) {
                         this.feeGateOpen = false;
                         return;
                     }
@@ -1085,6 +1090,12 @@ export function applyWizard(config) {
                               this.draftSavedAt = new Date().toLocaleTimeString();
                               if (data?.draft_reference) {
                                   this.draftReference = data.draft_reference;
+                              }
+                              if (data?.step_key && data.step_key !== this.stepKey
+                                  && this.needsFeeGateBefore(this.stepKey)) {
+                                  this.goToStepKey(data.step_key);
+                                  this.feeGateOpen = true;
+                                  this.enterApplicationFeeStep();
                               }
                           });
                     };
@@ -3492,18 +3503,15 @@ export function applyWizard(config) {
                             return;
                         }
                         const nextKey = this.steps[this.step + 1]?.key;
-                        // Refresh fee quote before leaving setup so group (and IL) always hit
-                        // the shared payments.show gate when a fee is due.
-                        if (! this.supplementMode && ! this.isEditHop() && nextKey
-                            && ['guarantor', 'product_questions', 'review', 'signature', 'submit'].includes(nextKey)
-                            && ! this.feeGateSatisfied()) {
-                            await this.refreshApplicationFeeQuote();
-                        }
+                        // Never leave the last setup step while a required application fee is unpaid.
                         if (! this.supplementMode && nextKey && this.needsFeeGateBefore(nextKey)) {
-                            this.feeGateOpen = true;
-                            this.enterApplicationFeeStep();
-                            this.scrollWizardIntoView();
-                            return;
+                            await this.refreshApplicationFeeQuote();
+                            if (! this.feeGateSatisfied()) {
+                                this.feeGateOpen = true;
+                                this.enterApplicationFeeStep();
+                                this.scrollWizardIntoView();
+                                return;
+                            }
                         }
                         this.step++;
                         this.bumpFurthest(this.step);
@@ -3561,6 +3569,7 @@ export function applyWizard(config) {
                         this.feeGateOpen = false;
                         this.step = i;
                         this.syncStepKey();
+                        this.enforceStepRequirements();
                         if (this.stepKey === 'signature') {
                             this.$nextTick(() => this.restoreSignaturePad());
                         }

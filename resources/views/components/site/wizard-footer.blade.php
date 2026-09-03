@@ -28,7 +28,9 @@
                     ? @js(__('borrower.apply.complete_editing'))
                     : (stepKey === 'review' && reviewPage < reviewPageCount
                         ? @js(__('borrower.apply.review_step.next_page'))
-                        : @js(__('borrower.apply.continue'))))"></span>
+                        : (quoteFeeCtaVisible()
+                            ? @js(__('borrower.apply.application_fee.pay_cta'))
+                            : @js(__('borrower.apply.continue')))))"></span>
             <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M8 4l6 6-6 6"/></svg>
         </button>
         <button type="button"

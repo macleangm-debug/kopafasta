@@ -1,5 +1,5 @@
 {{-- Submit step — signature-first; group shows member signature readiness --}}
-<div x-show="stepKey === 'submit'" class="p-6 sm:p-8">
+<div x-show="stepKey === 'submit' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.submit')"
         :title="__('borrower.apply.submit_step.title')"

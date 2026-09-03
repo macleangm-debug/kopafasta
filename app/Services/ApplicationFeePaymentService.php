@@ -18,6 +18,143 @@ class ApplicationFeePaymentService
         return app(CustomerPaymentService::class)->generateReference();
     }
 
+    /**
+     * Canonical application-fee decision for this customer + product.
+     *
+     * @param  array<string, mixed>|null  $draftPayload
+     * @return array{
+     *     status: 'not_applicable'|'due'|'initiated'|'paid'|'failed',
+     *     required: bool,
+     *     amount: int,
+     *     basis: 'flat'|'per_member'|'origination',
+     *     member_count: int|null,
+     *     payment: ?CustomerPayment,
+     *     wait_url: ?string
+     * }
+     */
+    public function obligation(
+        Customer $customer,
+        LoanProduct $product,
+        ?array $draftPayload = null,
+        ?\App\Models\LoanApplication $application = null,
+    ): array {
+        $groups = app(GroupLendingService::class);
+        $isGroup = $groups->isGroupProduct($product);
+        $memberCount = $isGroup
+            ? max(1, $groups->memberCountFromPayload(is_array($draftPayload['group'] ?? null) ? $draftPayload['group'] : null))
+            : null;
+        $amount = $this->requiredAmount($customer, $product, $draftPayload);
+        $basis = $isGroup
+            ? 'per_member'
+            : (product_includes_valuation_fee($product) ? 'origination' : 'flat');
+
+        $empty = [
+            'required' => $amount > 0,
+            'amount' => $amount,
+            'basis' => $basis,
+            'member_count' => $memberCount,
+            'payment' => null,
+            'wait_url' => null,
+        ];
+
+        if ($amount <= 0) {
+            return ['status' => 'not_applicable'] + $empty;
+        }
+
+        $draftState = is_array($draftPayload['application_fee'] ?? null) ? $draftPayload['application_fee'] : null;
+        if (in_array((string) ($draftState['status'] ?? ''), ['paid', 'waived'], true)) {
+            return ['status' => 'paid'] + $empty;
+        }
+
+        if ($application && in_array((string) ($application->application_fee_status ?? ''), ['paid', 'waived', 'charged'], true)) {
+            return ['status' => 'paid'] + $empty;
+        }
+
+        $payment = $this->latestFeePayment($customer, $product, $application);
+        if ($payment && in_array($payment->status, ['paid', 'verified'], true)) {
+            return ['status' => 'paid', 'payment' => $payment] + $empty;
+        }
+
+        if ($payment && in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true)) {
+            return [
+                'status' => 'initiated',
+                'payment' => $payment,
+                'wait_url' => route('site.borrower.payments.show', $payment),
+            ] + $empty;
+        }
+
+        if ($payment && in_array($payment->status, ['failed', 'expired', 'cancelled'], true)) {
+            return [
+                'status' => 'failed',
+                'payment' => $payment,
+                'wait_url' => route('site.borrower.payments.show', $payment),
+            ] + $empty;
+        }
+
+        return ['status' => 'due'] + $empty;
+    }
+
+    /** @param  array<string, mixed>|null  $draftPayload */
+    public function requiredAmount(Customer $customer, LoanProduct $product, ?array $draftPayload = null): int
+    {
+        $groups = app(GroupLendingService::class);
+        if ($groups->isGroupProduct($product)) {
+            $count = $groups->memberCountFromPayload(is_array($draftPayload['group'] ?? null) ? $draftPayload['group'] : null);
+
+            return $groups->quotedApplicationFee($customer, $product, $count);
+        }
+
+        if (product_includes_valuation_fee($product)) {
+            return quoted_origination_fee(
+                $customer,
+                $product,
+                selected_collateral_count((array) ($draftPayload['form'] ?? [])),
+            );
+        }
+
+        return quoted_application_fee($customer, $product);
+    }
+
+    public function isSatisfiedFor(
+        Customer $customer,
+        LoanProduct $product,
+        ?array $draftPayload = null,
+        ?\App\Models\LoanApplication $application = null,
+    ): bool {
+        return in_array($this->obligation($customer, $product, $draftPayload, $application)['status'], ['not_applicable', 'paid'], true);
+    }
+
+    public function blocksWizardStep(string $stepKey): bool
+    {
+        return in_array($stepKey, ['guarantor', 'product_questions', 'review', 'signature', 'submit'], true);
+    }
+
+    private function latestFeePayment(
+        Customer $customer,
+        LoanProduct $product,
+        ?\App\Models\LoanApplication $application = null,
+    ): ?CustomerPayment {
+        return CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'application_fee')
+            ->where(function ($q) use ($product) {
+                $q->where('loan_product_id', $product->id)
+                    ->orWhere('provider_meta->apply_context->loan_product_id', $product->id);
+            })
+            ->where(function ($q) use ($application) {
+                if ($application) {
+                    $q->where(function ($inner) use ($application) {
+                        $inner->where('source_type', \App\Models\LoanApplication::class)
+                            ->where('source_id', $application->id);
+                    })->orWhereNull('source_id');
+                } else {
+                    $q->whereNull('source_id');
+                }
+            })
+            ->latest('id')
+            ->first();
+    }
+
     /** @return array<string, mixed> */
     public function quote(
         Customer $customer,
@@ -214,6 +351,10 @@ class ApplicationFeePaymentService
         ?string $affiliateCode = null,
         ?string $mobileNumber = null,
     ): array {
+        if ($settled = $this->alreadySettledFeeState($customer, $product)) {
+            return $settled;
+        }
+
         $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $affiliateCode);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
@@ -332,6 +473,10 @@ class ApplicationFeePaymentService
         ?int $groupMemberCount = null,
         ?string $affiliateCode = null,
     ): array {
+        if ($settled = $this->alreadySettledFeeState($customer, $product)) {
+            return $settled;
+        }
+
         $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $affiliateCode);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
@@ -450,6 +595,41 @@ class ApplicationFeePaymentService
     public function isFeeRecordedForWizard(?array $feeState, int $requiredAmount): bool
     {
         return $this->isFeeSatisfied($feeState, $requiredAmount);
+    }
+
+    /**
+     * @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null, payment_id?: int, wait_url?: string|null}|null
+     */
+    private function alreadySettledFeeState(Customer $customer, LoanProduct $product): ?array
+    {
+        $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
+        $obligation = $this->obligation($customer, $product, is_array($draftPayload) ? $draftPayload : null);
+
+        if ($obligation['status'] === 'not_applicable') {
+            return [
+                'status'    => 'waived',
+                'reference' => null,
+                'channel'   => 'waived',
+                'amount'    => 0,
+                'paid_at'   => now()->toIso8601String(),
+            ];
+        }
+
+        if ($obligation['status'] !== 'paid') {
+            return null;
+        }
+
+        $this->syncDraftFromVerifiedPayment($customer, $product);
+        $payment = $obligation['payment'];
+
+        return [
+            'status'     => 'paid',
+            'reference'  => $payment?->reference,
+            'payment_id' => $payment?->id,
+            'channel'    => $payment?->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
+            'amount'     => (int) ($obligation['amount'] ?? 0),
+            'paid_at'    => optional($payment?->paid_at ?? now())->toIso8601String(),
+        ];
     }
 
     /**

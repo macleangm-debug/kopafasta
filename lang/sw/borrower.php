@@ -496,6 +496,8 @@ return [
       'gate_subtitle' => 'Tumia punguzo lolote, kisha endelea kwenye ukurasa salama wa malipo.',
       'open_gate_hint' => 'Utaweza kuchagua pesa za simu au benki na kuthibitisha malipo kwenye skrini inayofuata. Ombi lako litaendelea tu baada ya malipo kuthibitishwa.',
       'continue_to_payment' => 'Endelea kulipa',
+      'pay_cta' => 'Lipa ada ya maombi',
+      'paid_badge' => 'Ada ya maombi imelipwa ✓',
       'requirements_before_fee' => 'Kamilisha mahitaji haya kabla ya kulipa ada ya maombi:',
       'amount_label' => 'Ada ya maombi',
       'product_note' => 'Ada inatozwa kwa kila bidhaa. Pesa za simu zinathibitishwa papo hapo; uhamisho wa benki unathibitishwa na timu yetu.',

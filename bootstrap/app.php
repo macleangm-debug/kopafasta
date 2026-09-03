@@ -33,9 +33,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'console' => \App\Http\Middleware\EnsureConsoleAccess::class,
             'settings.restrict' => \App\Http\Middleware\RestrictConsoleSettings::class,
             'two_factor' => \App\Http\Middleware\EnsureTwoFactorVerified::class,
+            'account.welcome' => \App\Http\Middleware\EnsureAccountWelcome::class,
         ]);
 
         $middleware->appendToGroup('web', \App\Http\Middleware\QuietBrowserNotifications::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureAccountWelcome::class);
 
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->is('staff', 'staff/*')) {

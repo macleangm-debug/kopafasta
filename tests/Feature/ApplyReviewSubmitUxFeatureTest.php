@@ -53,6 +53,8 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('$data.feeGateOpen', $quote);
         $this->assertStringContainsString('$data.feeGateOpen', $fee);
         $this->assertStringContainsString('$data.feeGateOpen', $group);
+        $guarantor = file_get_contents(resource_path('views/site/apply/_guarantor-step.blade.php'));
+        $this->assertStringContainsString('$data.feeGateOpen', $guarantor);
         $this->assertStringNotContainsString("&& !feeGateOpen", $quote);
         $this->assertStringNotContainsString('|| feeGateOpen', $fee);
     }

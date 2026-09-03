@@ -94,9 +94,11 @@ class BorrowerApplicationsDashboardService
         $profileProgress = $this->draftProgress($customer, $draft, $product);
         $applicationProgress = app(ApplicationProgressService::class)
             ->applicationDraftProgress($customer, $draft, $product);
-        $fee = ($draft->payload ?? [])['application_fee'] ?? null;
-        $feePending = $product && quoted_application_fee($customer, $product) > 0
-            && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, quoted_application_fee($customer, $product));
+        $feePending = $product && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor(
+            $customer,
+            $product,
+            $draft->payload ?? [],
+        );
 
         $resumeTarget = $this->drafts->resumeTarget($customer, $draft);
 

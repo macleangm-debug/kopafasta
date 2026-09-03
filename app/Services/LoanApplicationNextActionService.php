@@ -45,16 +45,13 @@ class LoanApplicationNextActionService
             );
         }
 
-        if ($product && quoted_application_fee($customer, $product) > 0) {
-            $fee = ($draft->payload ?? [])['application_fee'] ?? null;
-            if (! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, quoted_application_fee($customer, $product))) {
-                return $this->action(
-                    'pay_application_fee',
-                    __('borrower.loan_profile.next_actions.application_fee'),
-                    __('borrower.loan_profile.actions.continue_to_form'),
-                    $this->wizardUrlWithStep($wizardUrl, 'application_fee'),
-                );
-            }
+        if ($product && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $draft->payload ?? [])) {
+            return $this->action(
+                'pay_application_fee',
+                __('borrower.loan_profile.next_actions.application_fee'),
+                __('borrower.apply.application_fee.pay_cta'),
+                $wizardUrl,
+            );
         }
 
         $payload = $draft->payload ?? [];

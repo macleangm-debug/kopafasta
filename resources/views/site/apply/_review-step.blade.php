@@ -1,5 +1,5 @@
 {{-- Review step: 2 short premium pages — Overview → Schedule --}}
-<div x-show="stepKey === 'review'" class="p-6 sm:p-8">
+<div x-show="stepKey === 'review' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.review_step.eyebrow')"
         :title="__('borrower.apply.review_step.title')"

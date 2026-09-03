@@ -148,24 +148,42 @@ class PartnerExperienceConsistencyTest extends TestCase
     public function test_account_welcome_shows_once_and_is_bilingual(): void
     {
         [$user] = $this->affiliateUser();
+        $user->forceFill(['preferences' => []])->save();
 
         $this->actingAs($user)
             ->withSession(['locale' => 'en'])
             ->get(route('site.affiliate.dashboard'))
+            ->assertRedirect(route('site.account-welcome.show'));
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.account-welcome.show'))
             ->assertOk()
             ->assertSee(__('account_welcome.affiliate.welcome_title', [], 'en'), false)
-            ->assertSee(__('account_welcome.skip', [], 'en'), false);
+            ->assertSee(__('account_welcome.skip', [], 'en'), false)
+            ->assertSee(__('account_welcome.finish', [], 'en'), false)
+            ->assertDontSee('kf-chrome-page', false)
+            ->assertDontSee('kf-mobile-bottom-nav', false);
 
         $this->actingAs($user)
             ->post(route('site.account-welcome.complete'), ['audience' => 'affiliate'])
-            ->assertRedirect();
+            ->assertRedirect(route('site.affiliate.dashboard'));
 
         $this->actingAs($user->fresh())
             ->get(route('site.affiliate.dashboard'))
             ->assertOk()
             ->assertDontSee(__('account_welcome.skip', [], 'en'), false);
 
-        $borrower = User::factory()->create(['role' => 'customer']);
+        $borrower = User::factory()->needsWelcome()->create(['role' => 'borrower']);
+        $this->actingAs($borrower)
+            ->get(route('site.borrower.dashboard'))
+            ->assertRedirect(route('site.account-welcome.show'));
+        $this->actingAs($borrower)
+            ->get(route('site.account-welcome.show'))
+            ->assertOk()
+            ->assertSee(__('account_welcome.borrower.welcome_title', [], 'en'), false)
+            ->assertDontSee('kf-chrome-page', false);
+
         $payload = app(AccountWelcomeService::class)->forUser($borrower);
         $this->assertSame('borrower', $payload['audience']);
         $this->assertSame(__('account_welcome.borrower.welcome_title', [], 'en'), $payload['cards'][0]['title']);
@@ -174,6 +192,37 @@ class PartnerExperienceConsistencyTest extends TestCase
         $payloadSw = app(AccountWelcomeService::class)->forUser($borrower);
         $this->assertSame(__('account_welcome.borrower.welcome_title', [], 'sw'), $payloadSw['cards'][0]['title']);
         app()->setLocale('en');
+    }
+
+    public function test_account_welcome_covers_operational_partner_audiences(): void
+    {
+        $cases = [
+            'valuer' => ['audience' => 'valuer', 'title' => 'account_welcome.valuer.welcome_title'],
+            'gps_installer' => ['audience' => 'gps_installer', 'title' => 'account_welcome.gps.welcome_title'],
+            'insurance' => ['audience' => 'insurance', 'title' => 'account_welcome.insurance.welcome_title'],
+            'debt_collector' => ['audience' => 'recovery', 'title' => 'account_welcome.recovery.welcome_title'],
+        ];
+
+        foreach ($cases as $category => $expected) {
+            $user = User::factory()->needsWelcome()->create(['role' => 'vendor']);
+            Vendor::create([
+                'user_id' => $user->id,
+                'vendor_number' => 'WEL-'.strtoupper(substr($category, 0, 3)).random_int(100, 999),
+                'name' => $category.' partner',
+                'category' => $category,
+                'status' => 'active',
+                'phone' => '255713'.random_int(100000, 999999),
+            ]);
+
+            $this->assertSame($expected['audience'], app(AccountWelcomeService::class)->audienceFor($user));
+
+            $this->actingAs($user)
+                ->withSession(['locale' => 'en'])
+                ->get(route('site.account-welcome.show'))
+                ->assertOk()
+                ->assertSee(__($expected['title'], [], 'en'), false)
+                ->assertDontSee('kf-chrome-page', false);
+        }
     }
 
     public function test_lifecycle_notifications_dedupe(): void
@@ -216,6 +265,6 @@ class PartnerExperienceConsistencyTest extends TestCase
         };
 
         $this->assertSame([], array_values(array_diff($flatten($en), $flatten($sw))));
-        $this->assertNotNull(app(AccountWelcomeService::class)->audienceFor(User::factory()->create(['role' => 'customer'])));
+        $this->assertNotNull(app(AccountWelcomeService::class)->audienceFor(User::factory()->create(['role' => 'borrower'])));
     }
 }

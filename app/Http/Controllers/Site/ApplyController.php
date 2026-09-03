@@ -330,7 +330,18 @@ class ApplyController extends Controller
                 $target['phase'] = (string) $request->query('phase');
             }
             if ($request->filled('step_key')) {
-                $target['step_key'] = (string) $request->query('step_key');
+                $requestedKey = (string) $request->query('step_key');
+                $feeBlocks = $selectedProduct
+                    && ! $supplementMode
+                    && app(ApplicationFeePaymentService::class)->blocksWizardStep($requestedKey)
+                    && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor(
+                        $customer,
+                        $selectedProduct,
+                        is_array($savedDraft) ? $savedDraft : [],
+                    );
+                if (! $feeBlocks) {
+                    $target['step_key'] = $requestedKey;
+                }
             }
             if ($request->filled('step')) {
                 $target['step'] = (int) $request->query('step');
@@ -494,6 +505,8 @@ class ApplyController extends Controller
             'name'            => ['nullable', 'string', 'max:120'],
             'loan_product_id' => ['nullable', 'integer', 'exists:loan_products,id'],
         ]);
+
+        $this->abortUnlessApplicationFeeAllowsProgress($borrower, isset($data['loan_product_id']) ? (int) $data['loan_product_id'] : null);
 
         $result = $guarantors->verifyInternalMember(
             $borrower,
@@ -864,7 +877,14 @@ class ApplyController extends Controller
 
         $data = $request->validate([
             'customer_guarantor_id' => ['required', 'integer'],
+            'loan_product_id' => ['nullable', 'integer', 'exists:loan_products,id'],
         ]);
+
+        $productId = (int) ($data['loan_product_id'] ?? 0);
+        if ($productId <= 0) {
+            $productId = (int) (app(LoanApplicationDraftService::class)->find($borrower)?->loan_product_id ?? 0);
+        }
+        $this->abortUnlessApplicationFeeAllowsProgress($borrower, $productId ?: null);
 
         $result = $guarantors->prepareWizardPreviousGuarantor($borrower, (int) $data['customer_guarantor_id']);
 
@@ -896,6 +916,8 @@ class ApplyController extends Controller
             'external_channel'      => ['nullable', 'in:whatsapp,sms,email'],
             'external_invitation_id'=> ['nullable', 'integer'],
         ]);
+
+        $this->abortUnlessApplicationFeeAllowsProgress($borrower, (int) $data['loan_product_id']);
 
         $draft = $drafts->find($borrower, (int) $data['loan_product_id']);
         $existingId = $data['external_invitation_id']
@@ -1050,6 +1072,8 @@ class ApplyController extends Controller
             'ok'              => true,
             'saved_at'        => now()->toIso8601String(),
             'draft_reference' => $draft?->draft_reference,
+            'step_key'        => $draft?->payload['step_key'] ?? $data['step_key'] ?? null,
+            'step'            => $draft?->step,
         ]);
     }
 
@@ -1974,10 +1998,12 @@ class ApplyController extends Controller
         $appFee = $isGroupProduct && $groupData
             ? app(GroupLendingService::class)->quotedApplicationFee($customer, $loanProduct, count($groupData['members']))
             : quoted_application_fee($customer, $loanProduct);
-        $feeState = ($draft?->payload ?? [])['application_fee'] ?? null;
         $feeService = app(ApplicationFeePaymentService::class);
+        $feeService->syncDraftFromVerifiedPayment($customer, $loanProduct);
+        $draft = $drafts->find($customer, (int) $loanProduct->id) ?? $draft;
+        $feeState = ($draft?->payload ?? [])['application_fee'] ?? null;
 
-        if (! $feeService->isFeeSatisfied($feeState, $appFee)) {
+        if (! $feeService->isSatisfiedFor($customer, $loanProduct, $draft?->payload)) {
             return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
                 'application_fee' => __('borrower.apply.application_fee.required_before_submit'),
             ]);
@@ -2455,5 +2481,32 @@ class ApplyController extends Controller
             ->whereNotNull('submitted_at')
             ->latest('submitted_at')
             ->first();
+    }
+
+    private function abortUnlessApplicationFeeAllowsProgress(Customer $customer, ?int $productId): void
+    {
+        if (! $productId) {
+            return;
+        }
+
+        $product = LoanProduct::query()->find($productId);
+        if (! $product) {
+            return;
+        }
+
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $productId);
+        $obligation = app(ApplicationFeePaymentService::class)->obligation(
+            $customer,
+            $product,
+            $draft?->payload,
+        );
+
+        if (in_array($obligation['status'], ['not_applicable', 'paid'], true)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'application_fee' => __('borrower.apply.application_fee.required_before_continue'),
+        ]);
     }
 }

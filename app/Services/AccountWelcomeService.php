@@ -59,9 +59,19 @@ class AccountWelcomeService
         $user->forceFill(['preferences' => $prefs])->save();
     }
 
+    public function homeUrl(User $user): string
+    {
+        return match ($user->role) {
+            'borrower', 'customer' => route('site.borrower.dashboard'),
+            'investor' => route('site.investor.dashboard'),
+            'vendor' => app(PartnerPortalRedirectService::class)->homeUrl($user),
+            default => route('site.home'),
+        };
+    }
+
     public function audienceFor(User $user): ?string
     {
-        if ($user->role === 'customer') {
+        if (in_array($user->role, ['customer', 'borrower'], true)) {
             return 'borrower';
         }
 

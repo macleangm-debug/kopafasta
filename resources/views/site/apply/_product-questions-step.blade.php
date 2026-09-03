@@ -1,5 +1,5 @@
 {{-- Product-specific questions step --}}
-<div x-show="stepKey === 'product_questions'" class="p-6 sm:p-8">
+<div x-show="stepKey === 'product_questions' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.product_questions')"
         :title="__('borrower.apply.product_questions.title')"
