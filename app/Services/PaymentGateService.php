@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Services\AffiliateAttributionService;
+use App\Services\AffiliateService;
+use App\Services\AffiliateSettingsService;
 
 class PaymentGateService
 {
@@ -36,7 +39,7 @@ class PaymentGateService
         bool $applyLoyalty = false,
     ): array {
         [$resolvedPromo, $resolvedAffiliate] = app(ApplicationFeePaymentService::class)
-            ->resolvePromoOrAffiliate($promoCode, $affiliateCode);
+            ->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
         if (filled($resolvedAffiliate) && ! app(ReferralService::class)->referrer($customer) && blank($customer->affiliate_vendor_id)) {
             app(AffiliateService::class)->attachAffiliate($customer, $resolvedAffiliate);
@@ -69,9 +72,10 @@ class PaymentGateService
             $afterPartner = (float) $affiliateQuote['after_discount'];
             $commission = (float) $affiliateQuote['commission'];
             $hasAffiliate = (bool) $affiliateQuote['has_affiliate'];
-            if (filled($resolvedAffiliate) && $hasAffiliate) {
+            $linked = $affiliates->affiliate($customer);
+            if ($hasAffiliate && $linked && (filled($resolvedAffiliate) || app(AffiliateSettingsService::class)->autoApplyPromo())) {
                 $promoValid = true;
-                $appliedPromo = strtoupper(trim((string) $resolvedAffiliate));
+                $appliedPromo = strtoupper(trim((string) ($linked->affiliate_code ?: $resolvedAffiliate)));
                 $codeKind = 'affiliate';
             }
         }
@@ -142,6 +146,9 @@ class PaymentGateService
             'promo_valid'           => $promoValid,
             'code_kind'             => $codeKind,
             'referrer'              => $hasReferrer ? $referrals->referrer($customer) : null,
+            'referred_by'           => $hasAffiliate ? $affiliates->affiliate($customer)?->name : null,
+            'affiliate_auto_applied'=> $hasAffiliate && app(AffiliateSettingsService::class)->autoApplyPromo(),
+            'affiliate_locked'      => $hasAffiliate && app(AffiliateAttributionService::class)->isLocked($customer),
             'streak_discount'       => 0.0,
         ], $feeType);
     }

@@ -1,6 +1,7 @@
 @props([
     'grade' => 'bronze',
     'plus' => false,
+    'label' => null,
     'size' => 'md',
 ])
 
@@ -11,6 +12,7 @@
         'silver' => 'from-slate-400 via-slate-100 to-slate-500 text-slate-800 ring-white/80',
         'gold' => 'from-amber-600 via-yellow-200 to-amber-500 text-amber-950 ring-yellow-100',
         'platinum' => 'from-slate-400 via-white to-cyan-200 text-slate-800 ring-white',
+        'premium' => 'from-[#1f2937] via-[#f5c842] to-[#8b6914] text-[#1f2937] ring-[#f5deb3]',
     ];
     $pad = match ($size) {
         'sm' => 'px-2.5 py-0.5 text-[10px] gap-1',
@@ -22,7 +24,7 @@
 
 <span {{ $attributes->merge(['class' => 'inline-flex items-center rounded-full bg-gradient-to-br shadow-md ring-2 font-extrabold uppercase tracking-[0.16em] '.$pad.' '.($palette[$grade] ?? $palette['bronze'])]) }}>
     <svg class="{{ $gem }} fill-current opacity-90" viewBox="0 0 8 8" aria-hidden="true"><path d="M4 0 8 4 4 8 0 4Z"/></svg>
-    {{ strtoupper($grade) }}
+    {{ strtoupper($label ?: $grade) }}
     @if ($plus)
         <span class="normal-case tracking-wide font-bold">· {{ __('plus.card.plus') }}</span>
     @endif

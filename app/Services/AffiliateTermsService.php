@@ -28,6 +28,9 @@ class AffiliateTermsService
         $fee = $affiliate
             ? app(AffiliateMembershipService::class)->feeFor($affiliate)
             : (float) $membership['fee_amount_individual'];
+        $premium = $affiliate?->isPremiumAffiliate() ?? false;
+        $contractMonths = app(AffiliateSettingsService::class)->premiumContractDurationMonths();
+        $contractLabel = $this->contractDurationLabel($contractMonths, $locale);
 
         return [
             'membership_fee' => format_money($fee),
@@ -35,6 +38,13 @@ class AffiliateTermsService
             'membership_fee_company' => format_money((float) $membership['fee_amount_company']),
             'membership_duration' => (string) ($membership['duration_days'] ?? 365),
             'membership_grace_hours' => (string) ($membership['grace_period_hours'] ?? 48),
+            'premium_contract_months' => (string) $contractMonths,
+            'premium_contract_label' => $contractLabel,
+            'affiliate_type' => $premium
+                ? __('site.affiliate_portal.premium_partner')
+                : __('site.affiliate_portal.standard_partner'),
+            'agreement_start' => $affiliate?->membership_started_at?->format('d M Y') ?? '—',
+            'agreement_end' => $affiliate?->membership_expires_at?->format('d M Y') ?? '—',
             'assessment_period' => (string) $settings->evaluationPeriodDays(),
             'assessment_period_label' => $this->periodLabel($settings->evaluationPeriodDays(), $locale),
             'minimum_qualified_referrals' => (string) ($referrals['target'] ?? $settings->monthlyRegistrationTarget()),
@@ -109,7 +119,7 @@ class AffiliateTermsService
         $rendered = $this->render($affiliate instanceof Vendor ? $affiliate : Vendor::query()->find($affiliate->id), $locale);
         $snapshot = $this->variables($affiliate instanceof Vendor ? $affiliate : null, $locale);
 
-        return PartnerAgreementAcceptance::query()->create([
+        $acceptance = PartnerAgreementAcceptance::query()->create([
             'partner_id' => $affiliate->id,
             'partner_type' => 'affiliate',
             'agreement_key' => self::AGREEMENT_KEY,
@@ -123,6 +133,70 @@ class AffiliateTermsService
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
             'accepted_at' => now(),
         ]);
+
+        if ($affiliate->isPremiumAffiliate()) {
+            app(AffiliateMembershipService::class)->startPremiumAgreement($affiliate);
+        }
+
+        return $acceptance;
+    }
+
+    /** @param  array<string, mixed>  $commercial */
+    /** @return array<string, mixed> */
+    public function documentHeader(Vendor $affiliate, array $commercial, ?PartnerAgreementAcceptance $acceptance = null): array
+    {
+        return [
+            'title' => __('affiliate_terms.title'),
+            'affiliate_name' => $affiliate->name,
+            'affiliate_id' => $affiliate->partner_number ?: '#'.$affiliate->id,
+            'affiliate_code' => $affiliate->affiliate_code,
+            'affiliate_type' => $affiliate->isPremiumAffiliate()
+                ? __('site.affiliate_portal.premium_partner')
+                : __('site.affiliate_portal.standard_partner'),
+            'agreement_version' => $acceptance?->agreement_version ?? $this->agreementVersion(),
+            'policy_version' => $acceptance?->policy_version ?? $this->policyVersion(),
+            'effective_date' => $acceptance?->accepted_at?->format('d M Y') ?? now()->format('d M Y'),
+            'contract_term' => $commercial['premium'] ?? false
+                ? $this->contractDurationLabel((int) ($commercial['duration_months'] ?? app(AffiliateSettingsService::class)->premiumContractDurationMonths()))
+                : __('affiliate_terms.annual_membership_term', ['days' => AffiliateMembershipService::config()['duration_days'] ?? 365]),
+            'start_date' => $commercial['started_at']?->format('d M Y'),
+            'end_date' => $commercial['expires_at']?->format('d M Y'),
+            'accepted_at' => $acceptance?->accepted_at?->format('d M Y'),
+        ];
+    }
+
+    /** @return list<array{title: string, body: string}> */
+    public function documentSections(Vendor $affiliate, ?PartnerAgreementAcceptance $acceptance = null): array
+    {
+        $text = $acceptance?->rendered_text ?: $this->render($affiliate);
+        $chunks = preg_split("/\n(?=##\s+)/", trim($text)) ?: [];
+        $sections = [];
+        foreach ($chunks as $chunk) {
+            $chunk = trim($chunk);
+            if ($chunk === '') {
+                continue;
+            }
+            if (preg_match('/^##\s+(.+?)\n(.*)$/s', $chunk, $matches)) {
+                $sections[] = [
+                    'title' => trim($matches[1]),
+                    'body' => trim($matches[2]),
+                ];
+            } else {
+                $sections[] = [
+                    'title' => __('affiliate_terms.general_provisions'),
+                    'body' => $chunk,
+                ];
+            }
+        }
+
+        return $sections;
+    }
+
+    public function contractDurationLabel(int $months, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+
+        return trans_choice('affiliate_terms.contract_months', $months, ['count' => $months], $locale);
     }
 
     private function periodLabel(int $days, ?string $locale = null): string

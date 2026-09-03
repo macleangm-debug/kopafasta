@@ -112,7 +112,9 @@
                 @if ($record->isPremiumAffiliate())
                     <div>
                         <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Premium affiliate</dt>
-                        <dd class="mt-1 font-semibold text-gray-900">Yes</dd>
+                        <dd class="mt-1">
+                            <x-site.grade-badge grade="premium" :label="app(\App\Services\AffiliateSettingsService::class)->premiumBadgeLabel()" size="sm" />
+                        </dd>
                     </div>
                 @endif
                 @if ($record->deposit_markup_percent)

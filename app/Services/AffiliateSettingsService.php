@@ -101,6 +101,9 @@ class AffiliateSettingsService
             'require_kyc_for_verification'        => $this->requireKycForVerification(),
             'minimum_payout_amount'               => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
             'membership'                          => AffiliateMembershipService::config(),
+            'premium'                             => $this->premiumSettings(),
+            'attribution'                         => $this->attributionSettings(),
+            'promo_code'                          => $this->promoCodeSettings(),
             'terms_body_en'                       => (string) Setting::get('affiliates.terms.body_en', ''),
             'terms_body_sw'                       => (string) Setting::get('affiliates.terms.body_sw', ''),
             'message_share_template_sw'           => $this->localizedMessage('share_template', 'sw'),
@@ -121,6 +124,11 @@ class AffiliateSettingsService
             return (string) $stored[$key];
         }
 
+        $defaults = config('affiliates.messages_'.$locale, []);
+        if (is_array($defaults) && filled($defaults[$key] ?? null)) {
+            return (string) $defaults[$key];
+        }
+
         return $this->messages()[$key] ?? '';
     }
 
@@ -137,9 +145,10 @@ class AffiliateSettingsService
         return array_merge($defaults, $stored);
     }
 
-    public function message(string $key, array $replacements = []): string
+    public function message(string $key, array $replacements = [], ?string $locale = null): string
     {
-        $template = $this->messages()[$key] ?? '';
+        $locale = $locale ?: app()->getLocale();
+        $template = $this->localizedMessage($key, $locale);
 
         foreach ($replacements as $placeholder => $value) {
             $template = str_replace('{'.$placeholder.'}', (string) $value, $template);
@@ -357,5 +366,118 @@ class AffiliateSettingsService
     public function multiAccountDeviceThreshold(): int
     {
         return max(1, (int) ($this->fraudSettings()['multi_account_device_threshold'] ?? 2));
+    }
+
+    /** @return array<string, mixed> */
+    public function premiumSettings(): array
+    {
+        $defaults = config('affiliates.premium', []);
+        $stored = Setting::get('affiliates.premium');
+
+        return array_merge($defaults, is_array($stored) ? $stored : []);
+    }
+
+    public function premiumContractDurationMonths(): int
+    {
+        return max(1, (int) ($this->premiumSettings()['contract_duration_months'] ?? 24));
+    }
+
+    public function premiumBadgeLabel(): string
+    {
+        $label = trim((string) ($this->premiumSettings()['badge_label'] ?? 'Premium'));
+
+        return $label !== '' ? $label : 'Premium';
+    }
+
+    public function premiumMembershipRequired(): bool
+    {
+        return (bool) ($this->premiumSettings()['membership_required'] ?? false);
+    }
+
+    /** @return array<string, mixed> */
+    public function attributionSettings(): array
+    {
+        $defaults = config('affiliates.attribution', []);
+        $stored = Setting::get('affiliates.attribution');
+
+        return array_merge($defaults, is_array($stored) ? $stored : []);
+    }
+
+    public function attributionWindowDays(): int
+    {
+        return max(1, (int) ($this->attributionSettings()['window_days'] ?? 30));
+    }
+
+    public function autoApplyPromo(): bool
+    {
+        return (bool) ($this->attributionSettings()['auto_apply_promo'] ?? true);
+    }
+
+    public function attributionLockAt(): string
+    {
+        $lock = (string) ($this->attributionSettings()['lock_at'] ?? 'application_created');
+
+        return in_array($lock, ['application_created', 'registration'], true) ? $lock : 'application_created';
+    }
+
+    public function allowReplacementBeforeLock(): bool
+    {
+        return (bool) ($this->attributionSettings()['allow_replacement_before_lock'] ?? false);
+    }
+
+    public function allowOverrideAfterLock(): bool
+    {
+        return (bool) ($this->attributionSettings()['allow_override_after_lock'] ?? false);
+    }
+
+    public function existingCustomerReferral(): bool
+    {
+        return (bool) ($this->attributionSettings()['existing_customer_referral'] ?? false);
+    }
+
+    public function cookieEnabled(): bool
+    {
+        return (bool) ($this->attributionSettings()['cookie_enabled'] ?? true);
+    }
+
+    public function attributionModel(): string
+    {
+        $model = (string) ($this->attributionSettings()['model'] ?? 'first_valid');
+
+        return in_array($model, ['first_valid', 'last_click'], true) ? $model : 'first_valid';
+    }
+
+    /** @return array<string, mixed> */
+    public function promoCodeSettings(): array
+    {
+        $defaults = config('affiliates.promo_code', []);
+        $stored = Setting::get('affiliates.promo_code');
+
+        $merged = array_merge($defaults, is_array($stored) ? $stored : []);
+        $reserved = $merged['reserved'] ?? [];
+        if (is_string($reserved)) {
+            $reserved = preg_split('/[\s,]+/', $reserved) ?: [];
+        }
+        $merged['reserved'] = array_values(array_filter(array_map(
+            fn ($word) => strtoupper(trim((string) $word)),
+            is_array($reserved) ? $reserved : []
+        )));
+
+        return $merged;
+    }
+
+    public function affiliateCanEditPromoCode(): bool
+    {
+        return (bool) ($this->promoCodeSettings()['affiliate_can_edit'] ?? true);
+    }
+
+    public function promoChangeCooldownDays(): int
+    {
+        return max(0, (int) ($this->promoCodeSettings()['change_cooldown_days'] ?? 30));
+    }
+
+    public function promoOldCodeGraceDays(): int
+    {
+        return max(0, (int) ($this->promoCodeSettings()['old_code_grace_days'] ?? 14));
     }
 }

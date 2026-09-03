@@ -2,19 +2,19 @@
     <x-site.borrower-page-header
         :eyebrow="brand_name()"
         :title="__('affiliate_terms.title')"
-        :subtitle="__('affiliate_terms.required')"
+        :subtitle="$accepted ? __('affiliate_terms.already_accepted') : __('affiliate_terms.required')"
     />
 
-    <div class="max-w-2xl space-y-5">
+    <div class="max-w-3xl space-y-5">
         @if ($accepted)
             <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">
                 {{ __('affiliate_terms.already_accepted') }}
                 · {{ $accepted->accepted_at?->format('d M Y') }}
                 · v{{ $accepted->agreement_version }} / policy v{{ $accepted->policy_version }}
             </div>
-            <article class="glass-card p-6 prose prose-sm max-w-none whitespace-pre-line">{{ $accepted->rendered_text }}</article>
+            <x-site.branded-agreement :header="$header" :sections="$sections" />
         @else
-            <article class="glass-card p-6 prose prose-sm max-w-none whitespace-pre-line">{{ $rendered }}</article>
+            <x-site.branded-agreement :header="$header" :sections="$sections" />
             <form method="POST" action="{{ route('site.affiliate.terms.accept') }}" class="glass-card p-6 space-y-4"
                   x-data
                   @submit.prevent="window.confirmForm($el, {

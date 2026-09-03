@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
+use App\Services\AffiliateAttributionService;
 use App\Services\AffiliateService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AffiliateRedirectController extends Controller
 {
@@ -13,10 +16,13 @@ class AffiliateRedirectController extends Controller
     {
         $affiliate = $affiliates->findByCode($code);
         if (! $affiliate) {
-            // Distinguish unknown vs unverified so we do not silently credit scammers.
             $raw = \App\Models\Vendor::query()
                 ->where('category', 'affiliate')
-                ->where('affiliate_code', strtoupper(trim($code)))
+                ->where(function ($query) use ($code) {
+                    $normalized = strtoupper(trim($code));
+                    $query->where('affiliate_code', $normalized)
+                        ->orWhere('metadata', 'like', '%'.$normalized.'%');
+                })
                 ->first();
 
             $message = $raw && ! app(\App\Services\AffiliateEligibilityService::class)->canSharePromo($raw)
@@ -28,7 +34,14 @@ class AffiliateRedirectController extends Controller
         }
 
         $affiliates->trackClick($affiliate, $request);
-        session(['affiliate_code' => $affiliate->affiliate_code]);
+        app(AffiliateAttributionService::class)->establishClaim($request, $affiliate, 'link', $affiliate->affiliate_code);
+
+        if ($user = Auth::user()) {
+            $customer = Customer::query()->where('user_id', $user->id)->first();
+            if ($customer) {
+                $affiliates->attachAffiliate($customer, $affiliate->affiliate_code, $request);
+            }
+        }
 
         return redirect()
             ->route('site.register.borrower', ['aff' => $affiliate->affiliate_code])

@@ -36,6 +36,10 @@ class AffiliateMembershipService
 
     public function feeFor(Vendor|Partner $partner): float
     {
+        if ($this->usesPremiumAgreement($partner)) {
+            return 0.0;
+        }
+
         $cfg = self::config();
         if ($partner instanceof Partner && $partner->isIndividualApplicant()) {
             return $cfg['fee_amount_individual'];
@@ -48,6 +52,13 @@ class AffiliateMembershipService
         return $cfg['fee_amount_company'];
     }
 
+    public function usesPremiumAgreement(Vendor|Partner $partner): bool
+    {
+        return $partner instanceof Partner
+            && $partner->isPremiumAffiliate()
+            && ! app(AffiliateSettingsService::class)->premiumMembershipRequired();
+    }
+
     public function isEnabled(): bool
     {
         return self::config()['enabled'];
@@ -55,6 +66,10 @@ class AffiliateMembershipService
 
     public function isActive(Vendor|Partner $partner): bool
     {
+        if ($this->usesPremiumAgreement($partner)) {
+            return $this->hasValidAgreement($partner);
+        }
+
         if (! $this->isEnabled()) {
             return true;
         }
@@ -74,6 +89,49 @@ class AffiliateMembershipService
         }
 
         return false;
+    }
+
+    public function hasValidAgreement(Vendor|Partner $partner): bool
+    {
+        return filled($partner->membership_expires_at)
+            && $partner->membership_expires_at->isFuture()
+            && in_array($partner->membership_status, ['active', 'grace'], true);
+    }
+
+    public function startPremiumAgreement(Vendor|Partner $partner, ?int $durationMonths = null): Vendor|Partner
+    {
+        if ($this->hasValidAgreement($partner) && $partner->membership_started_at) {
+            return $partner;
+        }
+
+        $months = $durationMonths ?: app(AffiliateSettingsService::class)->premiumContractDurationMonths();
+        $start = now();
+        $partner->update([
+            'membership_status' => 'active',
+            'membership_started_at' => $partner->membership_started_at ?? $start,
+            'membership_expires_at' => $start->copy()->addMonths($months),
+            'membership_payment_due_at' => null,
+        ]);
+
+        return $partner->fresh();
+    }
+
+    public function ensurePremiumAgreement(Vendor|Partner $partner): Vendor|Partner
+    {
+        if (! $this->usesPremiumAgreement($partner)) {
+            return $partner;
+        }
+
+        if ($this->hasValidAgreement($partner)) {
+            return $partner;
+        }
+
+        if (! app(AffiliateTermsService::class)->hasAccepted($partner)
+            && (AffiliateMembershipService::config()['require_terms_before_activation'] ?? true)) {
+            return $partner;
+        }
+
+        return $this->startPremiumAgreement($partner);
     }
 
     /**
@@ -208,29 +266,50 @@ class AffiliateMembershipService
     public function summary(Vendor|Partner $partner): array
     {
         $cfg = self::config();
+        $premium = $this->usesPremiumAgreement($partner);
         $status = (string) ($partner->membership_status ?? 'inactive');
-        if (! $cfg['enabled']) {
+        if (! $premium && ! $cfg['enabled']) {
             $status = 'disabled';
         }
 
         $labels = [
-            'active'           => __('site.affiliate_portal.membership_active'),
+            'active'           => $premium
+                ? __('site.affiliate_portal.agreement_active')
+                : __('site.affiliate_portal.membership_active'),
             'pending_payment'  => __('site.affiliate_portal.membership_pending'),
             'grace'            => __('site.affiliate_portal.membership_grace'),
-            'expired'          => __('site.affiliate_portal.membership_expired'),
-            'inactive'         => __('site.affiliate_portal.membership_inactive'),
+            'expired'          => $premium
+                ? __('site.affiliate_portal.agreement_expired')
+                : __('site.affiliate_portal.membership_expired'),
+            'inactive'         => $premium
+                ? __('site.affiliate_portal.agreement_inactive')
+                : __('site.affiliate_portal.membership_inactive'),
             'disabled'         => __('site.affiliate_portal.membership_inactive'),
         ];
+
+        $remaining = null;
+        if ($partner->membership_expires_at && $partner->membership_expires_at->isFuture()) {
+            $remaining = $partner->membership_expires_at->diffForHumans(now(), [
+                'syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE,
+                'parts' => 2,
+            ]);
+        }
 
         return [
             'status'     => $status,
             'label'      => $labels[$status] ?? $status,
             'fee'        => $this->feeFor($partner),
             'expires_at' => $partner->membership_expires_at,
+            'started_at' => $partner->membership_started_at,
             'due_at'     => $partner->membership_payment_due_at,
             'active'     => $this->isActive($partner),
-            'enabled'    => $cfg['enabled'],
+            'enabled'    => $premium ? true : $cfg['enabled'],
             'reference'  => $partner->membership_payment_reference,
+            'premium'    => $premium,
+            'remaining'  => $remaining,
+            'duration_months' => $premium
+                ? app(AffiliateSettingsService::class)->premiumContractDurationMonths()
+                : null,
         ];
     }
 }

@@ -10,7 +10,7 @@
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
         <div class="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
-                <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.available_balance_label') }}</p>
+                <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.hero_available') }}</p>
                 <p class="text-3xl sm:text-4xl font-bold mt-1 tabular-nums">{{ format_money($available) }}</p>
                 <p class="text-sm text-white/70 mt-2">{{ __('site.affiliate_portal.min_payout_note', ['amount' => format_money($minPayout)]) }}</p>
             </div>
@@ -24,18 +24,39 @@
 
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         @foreach ([
-            ['pending', $summary['pending'] ?? 0, 'text-amber-700'],
-            ['approved', $summary['approved'] ?? 0, 'text-emerald-700'],
-            ['paid', $summary['paid'] ?? 0, 'text-brand'],
-            ['disputed', $summary['disputed'] ?? 0, 'text-red-700'],
+            ['available', $totals['available'], 'text-emerald-700'],
+            ['pending', $totals['pending'], 'text-amber-700'],
+            ['total_earned', $totals['earned'], 'text-brand'],
+            ['withdrawn', $totals['withdrawn'], 'text-gray-900'],
         ] as [$key, $amount, $color])
             <div class="glass-card p-4">
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __("site.affiliate_portal.{$key}") }}</p>
                 <p class="text-lg font-bold mt-1 tabular-nums {{ $color }}">{{ format_money($amount) }}</p>
-                <p class="text-xs text-gray-400 mt-1">{{ ($summary['counts'][$key] ?? 0).' '.__('site.affiliate_portal.items') }}</p>
             </div>
         @endforeach
     </div>
+
+    <section class="glass-card p-6 mb-6 space-y-3">
+        <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.how_i_earn') }}</h2>
+        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+            <div>
+                <dt class="text-gray-500">{{ __('site.affiliate_portal.your_commission') }}</dt>
+                                <dd class="font-semibold text-gray-900 mt-1">{{ number_format($earnings['commission_percent'], 1) }}% · {{ $earnings['commission_mode_label'] }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500">{{ __('site.affiliate_portal.eligible_business') }}</dt>
+                <dd class="font-semibold text-gray-900 mt-1">{{ implode(', ', $earnings['qualifying_events']) ?: '—' }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500">{{ __('site.affiliate_portal.when_available') }}</dt>
+                <dd class="font-semibold text-gray-900 mt-1">{{ $earnings['settlement'] }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500">{{ __('site.affiliate_portal.minimum_withdrawal') }}</dt>
+                <dd class="font-semibold text-gray-900 mt-1">{{ $earnings['minimum_withdrawal'] }}</dd>
+            </div>
+        </dl>
+    </section>
 
     @if ($available >= $minPayout)
         <form id="payout-form" method="POST" action="{{ route('site.affiliate.wallet.payout-request') }}" class="glass-card p-6 mb-6 space-y-4 scroll-mt-24">
@@ -72,52 +93,28 @@
                 icon="💰"
                 :title="__('site.affiliate_portal.no_payments')"
                 :description="__('site.affiliate_portal.no_payments_hint')"
-                :action-label="__('site.affiliate_portal.go_dashboard')"
-                :action-url="route('site.affiliate.dashboard')"
+                :action-label="__('site.affiliate_portal.nav_share')"
+                :action-url="route('site.affiliate.share')"
             />
         @else
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-left text-xs uppercase tracking-widest text-gray-500">
-                        <tr>
-                            <th class="px-4 py-3">{{ __('site.affiliate_portal.col_invoice') }}</th>
-                            <th class="px-4 py-3">{{ __('site.affiliate_portal.col_amount') }}</th>
-                            <th class="px-4 py-3">{{ __('site.affiliate_portal.col_status') }}</th>
-                            <th class="px-4 py-3"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        @foreach ($payments as $payment)
-                            <tr class="hover:bg-gray-50/50">
-                                <td class="px-4 py-3 font-mono text-xs">{{ $payment->invoice_number ?? '#'.$payment->id }}</td>
-                                <td class="px-4 py-3 tabular-nums font-semibold">{{ format_money($payment->amount) }}</td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1
-                                        {{ match($payment->status) {
-                                            'approved' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-                                            'paid' => 'bg-sky-100 text-sky-800 ring-sky-200',
-                                            'disputed' => 'bg-red-100 text-red-800 ring-red-200',
-                                            default => 'bg-amber-100 text-amber-900 ring-amber-200',
-                                        } }}">
-                                        {{ ucfirst($payment->status) }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-right">
-                                    @if (in_array($payment->status, ['pending', 'approved'], true))
-                                        <details class="inline-block text-left">
-                                            <summary class="text-xs font-semibold text-red-600 cursor-pointer">{{ __('site.affiliate_portal.dispute') }}</summary>
-                                            <form method="POST" action="{{ route('site.affiliate.wallet.dispute', $payment) }}" class="mt-2 p-3 bg-gray-50 rounded-xl w-64 ring-1 ring-gray-100">
-                                                @csrf
-                                                <textarea name="reason" required rows="2" class="w-full text-xs rounded-lg border-gray-200 mb-2 px-2 py-1.5" placeholder="{{ __('site.affiliate_portal.dispute_reason') }}"></textarea>
-                                                <button type="submit" class="text-xs font-semibold text-red-700">{{ __('site.affiliate_portal.submit_dispute') }}</button>
-                                            </form>
-                                        </details>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+            <div class="divide-y divide-gray-100">
+                @foreach ($payments as $payment)
+                    <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <p class="font-mono text-xs text-gray-500">{{ $payment->invoice_number ?? '#'.$payment->id }}</p>
+                            <p class="font-semibold tabular-nums mt-1">{{ format_money($payment->amount) }}</p>
+                        </div>
+                        <span class="inline-flex self-start text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1
+                            {{ match($payment->status) {
+                                'approved' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+                                'paid' => 'bg-sky-100 text-sky-800 ring-sky-200',
+                                'disputed' => 'bg-red-100 text-red-800 ring-red-200',
+                                default => 'bg-amber-100 text-amber-900 ring-amber-200',
+                            } }}">
+                            {{ __('site.affiliate_portal.'.$payment->status) }}
+                        </span>
+                    </div>
+                @endforeach
             </div>
             @if ($payments->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">{{ $payments->links() }}</div>

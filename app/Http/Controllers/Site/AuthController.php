@@ -1018,7 +1018,8 @@ class AuthController extends Controller
             $referrals->ensureCode($customer);
             app(\App\Services\AffiliateService::class)->attachAffiliate(
                 $customer,
-                $data['affiliate_code'] ?? session('affiliate_code')
+                $data['affiliate_code'] ?? session('affiliate_code'),
+                $request
             );
 
             $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);

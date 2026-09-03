@@ -9,6 +9,8 @@
             'commission' => 'Commission',
             'promo' => 'Promo codes',
             'membership' => 'Membership',
+            'premium' => 'Premium',
+            'attribution' => 'Attribution',
             'messages' => 'Messages',
             'evaluation' => 'Evaluation',
             'terms' => 'Terms',
@@ -167,6 +169,34 @@
         <x-admin.settings-panel id="promo">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
                 <div>
+                    <h3 class="text-sm font-semibold text-gray-900">Affiliate promo-code editing</h3>
+                    <p class="text-xs text-gray-500">Affiliates may change their public code subject to these rules. Attribution stays on the Affiliate ID, not the string.</p>
+                </div>
+                @php $promo = $values['promo_code'] ?? []; @endphp
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="hidden" name="promo_affiliate_can_edit" value="0">
+                    <input type="checkbox" name="promo_affiliate_can_edit" value="1"
+                           @checked((bool) ($promo['affiliate_can_edit'] ?? true))
+                           class="rounded border-gray-300 text-brand">
+                    Affiliates may edit their promo code
+                </label>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <x-admin.input name="promo_min_length" label="Minimum length" type="number" min="2"
+                                   :value="$promo['min_length'] ?? 3" />
+                    <x-admin.input name="promo_max_length" label="Maximum length" type="number" min="3"
+                                   :value="$promo['max_length'] ?? 24" />
+                    <x-admin.input name="promo_change_cooldown_days" label="Change cooldown (days)" type="number" min="0"
+                                   :value="$promo['change_cooldown_days'] ?? 30" />
+                    <x-admin.input name="promo_old_code_grace_days" label="Old-code alias grace (days)" type="number" min="0"
+                                   :value="$promo['old_code_grace_days'] ?? 14" />
+                </div>
+                <x-admin.input name="promo_allowed_pattern" label="Allowed characters (character class)"
+                               :value="$promo['allowed_pattern'] ?? 'A-Z0-9_-'" />
+                <x-admin.textarea name="promo_reserved" label="Reserved / prohibited codes (comma-separated)" rows="2"
+                                  :value="implode(', ', $promo['reserved'] ?? [])" />
+            </div>
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
+                <div>
                     <h3 class="text-sm font-semibold text-gray-900">Apply affiliate promo codes to</h3>
                     <p class="text-xs text-gray-500">Choose which fee types accept affiliate discounts and accrue commission.</p>
                 </div>
@@ -251,6 +281,96 @@
                             <option value="continue" @selected(($membership['commission_after_expiry'] ?? '') === 'continue')>Continue accruing</option>
                         </select>
                     </div>
+                </div>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="premium">
+            @php $premium = $values['premium'] ?? []; @endphp
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900">Premium Affiliate</h3>
+                    <p class="text-xs text-gray-500 mt-1">Premium uses a fixed agreement instead of annual membership unless you explicitly require a fee. Duration is Settings-owned and must not be hard-coded in the portal.</p>
+                </div>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="hidden" name="premium_membership_required" value="0">
+                    <input type="checkbox" name="premium_membership_required" value="1"
+                           @checked((bool) ($premium['membership_required'] ?? false))
+                           class="rounded border-gray-300 text-brand">
+                    Require annual membership fee for Premium Affiliates
+                </label>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <x-admin.input name="premium_contract_duration_months" label="Premium contract duration (months)" type="number" min="1"
+                                   :value="$premium['contract_duration_months'] ?? 24" />
+                    <x-admin.input name="premium_renewal_window_days" label="Renewal window (days before expiry)" type="number" min="1"
+                                   :value="$premium['renewal_window_days'] ?? 30" />
+                    <x-admin.input name="premium_badge_label" label="Premium badge label"
+                                   :value="$premium['badge_label'] ?? 'Premium'" />
+                </div>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="attribution">
+            @php $attribution = $values['attribution'] ?? []; @endphp
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900">Referral attribution</h3>
+                    <p class="text-xs text-gray-500 mt-1">The referral link captures the Affiliate at the first eligible touchpoint. Commission still fires only at the configured qualifying fee event. The window governs anonymous/pre-application claims; locked application attribution does not expire with the cookie.</p>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <x-admin.input name="attribution_window_days" label="Attribution window (days)" type="number" min="1"
+                                   :value="$attribution['window_days'] ?? 30" />
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Attribution model</label>
+                        <select name="attribution_model" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            <option value="first_valid" @selected(($attribution['model'] ?? 'first_valid') === 'first_valid')>First valid Affiliate</option>
+                            <option value="last_click" @selected(($attribution['model'] ?? '') === 'last_click')>Last click (not recommended)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Lock attribution at</label>
+                        <select name="attribution_lock_at" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            <option value="application_created" @selected(($attribution['lock_at'] ?? 'application_created') === 'application_created')>Application created</option>
+                            <option value="registration" @selected(($attribution['lock_at'] ?? '') === 'registration')>Registration</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-3 text-sm">
+                    <label class="inline-flex items-center gap-2">
+                        <input type="hidden" name="attribution_auto_apply_promo" value="0">
+                        <input type="checkbox" name="attribution_auto_apply_promo" value="1"
+                               @checked((bool) ($attribution['auto_apply_promo'] ?? true))
+                               class="rounded border-gray-300 text-brand">
+                        Auto-apply promo while attribution is valid
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="hidden" name="attribution_cookie_enabled" value="0">
+                        <input type="checkbox" name="attribution_cookie_enabled" value="1"
+                               @checked((bool) ($attribution['cookie_enabled'] ?? true))
+                               class="rounded border-gray-300 text-brand">
+                        Persist anonymous claim in a cookie
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="hidden" name="attribution_allow_replacement" value="0">
+                        <input type="checkbox" name="attribution_allow_replacement" value="1"
+                               @checked((bool) ($attribution['allow_replacement_before_lock'] ?? false))
+                               class="rounded border-gray-300 text-brand">
+                        Allow replacement before lock
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="hidden" name="attribution_allow_override_after_lock" value="0">
+                        <input type="checkbox" name="attribution_allow_override_after_lock" value="1"
+                               @checked((bool) ($attribution['allow_override_after_lock'] ?? false))
+                               class="rounded border-gray-300 text-brand">
+                        Allow override after lock
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="hidden" name="attribution_existing_customer" value="0">
+                        <input type="checkbox" name="attribution_existing_customer" value="1"
+                               @checked((bool) ($attribution['existing_customer_referral'] ?? false))
+                               class="rounded border-gray-300 text-brand">
+                        Allow referring already-active borrowers
+                    </label>
                 </div>
             </div>
         </x-admin.settings-panel>

@@ -13,13 +13,22 @@
 
 @php
     $hasCode = filled($value) || filled(data_get($quote, 'promo_code'));
+    $autoApplied = ($quote['affiliate_auto_applied'] ?? false) && ($quote['has_affiliate'] ?? false) && ($quote['promo_valid'] ?? false);
 @endphp
 
 <div
     @if ($hiddenWhen) x-show="{{ $hiddenWhen }}" @endif
-    x-data="{ open: @js($hasCode) }"
+    x-data="{ open: @js($hasCode && ! $autoApplied) }"
     class="mb-6"
 >
+    @if ($autoApplied)
+        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">
+            {{ __('site.affiliate_portal.promo_auto_applied', ['code' => $quote['promo_code'] ?? '']) }}
+            @if (filled($quote['referred_by'] ?? null))
+                <span class="block text-xs mt-1">{{ __('site.affiliate_portal.referred_by', ['name' => $quote['referred_by']]) }}</span>
+            @endif
+        </div>
+    @else
     <button type="button"
             @click="open = !open"
             class="text-sm font-semibold text-brand hover:underline inline-flex items-center gap-1.5">
@@ -86,4 +95,5 @@
             @endif
         @endif
     </div>
+@endif
 </div>

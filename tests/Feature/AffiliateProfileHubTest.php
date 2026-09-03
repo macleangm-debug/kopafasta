@@ -22,6 +22,7 @@ class AffiliateProfileHubTest extends TestCase
             'category'      => 'affiliate',
             'status'        => 'active',
             'phone'         => '255712340001',
+            'applicant_category' => 'individual',
         ]);
     }
 
@@ -70,7 +71,7 @@ class AffiliateProfileHubTest extends TestCase
         $vendor->refresh();
         $identity = $vendor->metadata['identity'] ?? [];
 
-        $this->assertSame('19900101123456789012', $identity['national_id']);
+        $this->assertSame('19900101-12345-67890-12', $identity['national_id']);
         $this->assertTrue($identity['no_physical_nida_card']);
 
         // Contact details were already present on the seeded vendor, and the

@@ -1464,6 +1464,25 @@ class SettingsController extends Controller
             'fraud_shared_device_threshold'       => ['nullable', 'integer', 'min:1', 'max:100'],
             'fraud_multi_account_threshold'       => ['nullable', 'integer', 'min:1', 'max:100'],
             'minimum_payout_amount'               => ['required', 'numeric', 'min:0'],
+            'premium_membership_required'         => ['nullable', 'boolean'],
+            'premium_contract_duration_months'    => ['nullable', 'integer', 'min:1', 'max:120'],
+            'premium_renewal_window_days'         => ['nullable', 'integer', 'min:1', 'max:180'],
+            'premium_badge_label'                 => ['nullable', 'string', 'max:40'],
+            'attribution_window_days'             => ['nullable', 'integer', 'min:1', 'max:365'],
+            'attribution_model'                   => ['nullable', 'in:first_valid,last_click'],
+            'attribution_auto_apply_promo'        => ['nullable', 'boolean'],
+            'attribution_allow_replacement'       => ['nullable', 'boolean'],
+            'attribution_lock_at'                 => ['nullable', 'in:application_created,registration'],
+            'attribution_allow_override_after_lock' => ['nullable', 'boolean'],
+            'attribution_existing_customer'       => ['nullable', 'boolean'],
+            'attribution_cookie_enabled'          => ['nullable', 'boolean'],
+            'promo_affiliate_can_edit'            => ['nullable', 'boolean'],
+            'promo_min_length'                    => ['nullable', 'integer', 'min:2', 'max:32'],
+            'promo_max_length'                    => ['nullable', 'integer', 'min:3', 'max:40'],
+            'promo_allowed_pattern'               => ['nullable', 'string', 'max:80'],
+            'promo_change_cooldown_days'          => ['nullable', 'integer', 'min:0', 'max:365'],
+            'promo_old_code_grace_days'           => ['nullable', 'integer', 'min:0', 'max:365'],
+            'promo_reserved'                      => ['nullable', 'string', 'max:2000'],
         ]);
 
         $feeTypes = ['application_fee', 'kopafasta_plus', 'registration_fee', 'valuation_fee', 'gps_fee', 'post_approval_fee', 'interest', 'repayments'];
@@ -1583,10 +1602,39 @@ class SettingsController extends Controller
             'affiliates.terms.version'                       => (int) Setting::get('affiliates.terms.version', 1) + (filled($data['terms_body_en'] ?? null) || filled($data['terms_body_sw'] ?? null) ? 1 : 0),
             'affiliates.require_kyc_for_verification'        => $request->boolean('require_kyc_for_verification'),
             'affiliates.minimum_payout_amount'               => (float) ($data['minimum_payout_amount'] ?? config('affiliates.minimum_payout_amount', 50000)),
+            'affiliates.premium'                             => [
+                'membership_required' => $request->boolean('premium_membership_required'),
+                'contract_duration_months' => (int) ($data['premium_contract_duration_months'] ?? 24),
+                'renewal_window_days' => (int) ($data['premium_renewal_window_days'] ?? 30),
+                'badge_label' => trim((string) ($data['premium_badge_label'] ?? 'Premium')) ?: 'Premium',
+            ],
+            'affiliates.attribution'                         => [
+                'window_days' => (int) ($data['attribution_window_days'] ?? 30),
+                'model' => (string) ($data['attribution_model'] ?? 'first_valid'),
+                'auto_apply_promo' => $request->boolean('attribution_auto_apply_promo'),
+                'allow_replacement_before_lock' => $request->boolean('attribution_allow_replacement'),
+                'lock_at' => (string) ($data['attribution_lock_at'] ?? 'application_created'),
+                'allow_override_after_lock' => $request->boolean('attribution_allow_override_after_lock'),
+                'existing_customer_referral' => $request->boolean('attribution_existing_customer'),
+                'cookie_enabled' => $request->boolean('attribution_cookie_enabled'),
+            ],
+            'affiliates.promo_code'                          => [
+                'affiliate_can_edit' => $request->boolean('promo_affiliate_can_edit'),
+                'min_length' => (int) ($data['promo_min_length'] ?? 3),
+                'max_length' => (int) ($data['promo_max_length'] ?? 24),
+                'allowed_pattern' => (string) ($data['promo_allowed_pattern'] ?? 'A-Z0-9_-'),
+                'change_cooldown_days' => (int) ($data['promo_change_cooldown_days'] ?? 30),
+                'old_code_grace_days' => (int) ($data['promo_old_code_grace_days'] ?? 14),
+                'reserved' => collect(preg_split('/[\s,]+/', (string) ($data['promo_reserved'] ?? '')) ?: [])
+                    ->map(fn ($word) => strtoupper(trim((string) $word)))
+                    ->filter()
+                    ->values()
+                    ->all(),
+            ],
         ]);
 
         $tab = (string) $request->input('_tab', 'defaults');
-        $allowedTabs = ['defaults', 'commission', 'promo', 'membership', 'messages', 'evaluation', 'terms', 'fraud'];
+        $allowedTabs = ['defaults', 'commission', 'promo', 'membership', 'premium', 'attribution', 'messages', 'evaluation', 'terms', 'fraud'];
         if (! in_array($tab, $allowedTabs, true)) {
             $tab = 'defaults';
         }

@@ -160,6 +160,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/forgot-pin/reset-challenge', [\App\Http\Controllers\Site\AuthController::class, 'resetPinWithChallenge'])->name('forgot-pin.reset-challenge');
 
         Route::get('/aff/{code}', \App\Http\Controllers\Site\AffiliateRedirectController::class)->name('affiliate.redirect');
+        Route::get('/ref/{code}', \App\Http\Controllers\Site\AffiliateRedirectController::class)->name('affiliate.ref');
 
         Route::get('/register',          fn () => redirect()->route('site.register.borrower'))->name('register');
         Route::get('/register/options',  fn () => view('site.auth.register-choose'))->name('register.options');
@@ -459,8 +460,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/wallet', [\App\Http\Controllers\Site\AffiliateController::class, 'wallet'])->name('wallet');
                 Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
-                Route::get('/profile/{section?}', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
-                Route::put('/profile/{section}', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
+            Route::get('/profile/{section?}', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|agreement|membership');
+            Route::put('/profile/{section}', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
                 Route::get('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'documents'])->name('documents');
                 Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
                 Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
@@ -478,13 +479,16 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
         Route::prefix('affiliate-portal')->name('affiliate.')->middleware(['two_factor:partner', 'partner.pin'])->group(function () {
             Route::get('/', [\App\Http\Controllers\Site\AffiliateController::class, 'dashboard'])->name('dashboard');
+            Route::get('/share', [\App\Http\Controllers\Site\AffiliateController::class, 'share'])->name('share');
+            Route::get('/performance', [\App\Http\Controllers\Site\AffiliateController::class, 'performance'])->name('performance');
+            Route::get('/agreement', [\App\Http\Controllers\Site\AffiliateController::class, 'agreement'])->name('agreement');
             Route::get('/referrals', [\App\Http\Controllers\Site\AffiliateController::class, 'referrals'])->name('referrals');
             Route::get('/wallet', [\App\Http\Controllers\Site\AffiliateController::class, 'wallet'])->name('wallet');
             Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
             Route::get('/notifications', [\App\Http\Controllers\Site\AffiliateController::class, 'notifications'])->name('notifications');
-            Route::get('/profile/{section?}', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
-            Route::put('/profile/{section}', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
+            Route::get('/profile/{section?}', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|agreement|membership');
+            Route::put('/profile/{section}', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
             Route::get('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'documents'])->name('documents');
             Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
             Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');

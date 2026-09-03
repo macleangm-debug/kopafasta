@@ -44,7 +44,7 @@
                     @if (! empty($verify_url))
                         <div class="mt-6 flex flex-col items-center gap-2">
                             <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={{ urlencode($verify_url) }}"
-                                 alt="Affiliate verification QR" class="size-36 rounded-xl bg-white p-2 ring-1 ring-gray-200">
+                                 alt="{{ __('site.affiliate_portal.qr_alt') }}" class="size-36 rounded-xl bg-white p-2 ring-1 ring-gray-200">
                             <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.verify_qr_hint') }}</p>
                         </div>
                     @endif
@@ -62,7 +62,13 @@
                     <h2 class="text-xl font-bold text-gray-900 mt-2">{{ $affiliate->name }}</h2>
                     <p class="mt-2 font-mono text-sm">{{ $affiliate->affiliate_code ?? $code }}</p>
                     <p class="mt-4 text-sm text-amber-800">{{ __('site.affiliate_portal.verify_unverified_body') }}</p>
-                    <p class="mt-2 text-xs text-gray-500">{{ __('site.affiliate_portal.kyc_status', ['status' => ucfirst($affiliate->affiliate_kyc_status ?? 'pending')]) }}</p>
+                    <p class="mt-2 text-xs text-gray-500">{{ __('site.affiliate_portal.kyc_status', [
+                        'status' => __([
+                            'verified' => 'site.affiliate_portal.kyc_approved',
+                            'approved' => 'site.affiliate_portal.kyc_approved',
+                            'submitted' => 'site.affiliate_portal.kyc_submitted',
+                        ][$affiliate->affiliate_kyc_status ?? 'pending'] ?? 'site.affiliate_portal.kyc_pending'),
+                    ]) }}</p>
                 </div>
             @elseif (filled($code) || filled($phone ?? null))
                 <div class="glass-card rounded-2xl ring-1 ring-gray-200 p-8 text-center bg-white/90">

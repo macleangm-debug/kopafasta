@@ -125,7 +125,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
 
         $this->get('/aff/GOVPAID1')
             ->assertRedirect()
-            ->assertSessionHas('affiliate_code', 'GOVPAID1');
+            ->assertSessionHas(\App\Services\AffiliateAttributionService::CLAIM_SESSION_KEY);
 
         $customer = Customer::create([
             'customer_number' => 'C-GOV-1',

@@ -12,23 +12,39 @@ use Illuminate\Support\Str;
 
 class AffiliateService
 {
-    public function findByCode(?string $code): ?Vendor
+    public function findByCode(?string $code, bool $requireEligible = true): ?Vendor
+    {
+        $affiliate = $this->resolveByPublicCode($code);
+        if (! $affiliate) {
+            return null;
+        }
+
+        if ($requireEligible && ! app(AffiliateEligibilityService::class)->canAttributeNewReferral($affiliate)) {
+            return null;
+        }
+
+        return $affiliate;
+    }
+
+    public function resolveByPublicCode(?string $code): ?Vendor
     {
         if (blank($code)) {
             return null;
         }
 
-        $affiliate = Vendor::query()
+        $code = strtoupper(trim($code));
+
+        $direct = Vendor::query()
             ->where('category', 'affiliate')
             ->where('status', 'active')
-            ->where('affiliate_code', strtoupper(trim($code)))
+            ->where('affiliate_code', $code)
             ->first();
 
-        if (! $affiliate || ! app(AffiliateEligibilityService::class)->canAttributeNewReferral($affiliate)) {
-            return null;
+        if ($direct) {
+            return $direct;
         }
 
-        return $affiliate;
+        return $this->resolveByAlias($code);
     }
 
     public function affiliateLink(Vendor $affiliate): string
@@ -79,28 +95,73 @@ class AffiliateService
         ], app(AffiliateAttributionService::class)->attributesForEvent($attribution)));
     }
 
-    public function attachAffiliate(Customer $customer, ?string $code): void
+    public function attachAffiliate(Customer $customer, ?string $code, ?Request $request = null): void
     {
-        if (blank($code) || filled($customer->affiliate_vendor_id)) {
+        $request = $request ?: request();
+        $settings = app(AffiliateSettingsService::class);
+        $attribution = app(AffiliateAttributionService::class);
+
+        if (filled($customer->affiliate_vendor_id) && $attribution->isLocked($customer) && ! $settings->allowOverrideAfterLock()) {
             return;
         }
 
-        $affiliate = $this->findByCode($code);
-        if (! $affiliate) {
+        if (filled($customer->affiliate_vendor_id)
+            && $settings->attributionModel() === 'first_valid'
+            && ! $settings->allowReplacementBeforeLock()
+            && ! $attribution->isLocked($customer)) {
             return;
         }
 
-        $attribution = app(AffiliateAttributionService::class)->attributesForEvent();
+        $affiliate = null;
+        $claim = null;
 
-        $customer->update(['affiliate_vendor_id' => $affiliate->id]);
+        if (filled($code)) {
+            $affiliate = $this->findByCode($code);
+            if (! $affiliate) {
+                return;
+            }
 
-        AffiliateEvent::create(array_merge([
-            'vendor_id'   => $affiliate->id,
-            'event_type'  => 'registration',
-            'customer_id' => $customer->id,
-        ], $attribution));
+            $claim = [
+                'affiliate_id' => (int) $affiliate->id,
+                'code_used' => strtoupper(trim((string) $code)),
+                'source' => 'promo',
+                'attributed_at' => now()->toIso8601String(),
+                'policy_version' => $settings->policyVersion(),
+            ];
+        } else {
+            $pending = $attribution->pendingClaim($request);
+            $pendingAffiliate = $attribution->pendingAffiliate($request);
+            if ($pending && $pendingAffiliate && app(AffiliateEligibilityService::class)->canAttributeNewReferral($pendingAffiliate)) {
+                $affiliate = $pendingAffiliate;
+                $claim = $pending;
+            }
+        }
 
-        app(AffiliateAttributionService::class)->clearSession();
+        if (! $affiliate || ! $claim) {
+            return;
+        }
+
+        $lockAtRegistration = $settings->attributionLockAt() === 'registration';
+        $attached = $attribution->persistOnCustomer($customer, $affiliate, $claim, lock: $lockAtRegistration);
+        if (! $attached) {
+            return;
+        }
+
+        $customer->refresh();
+
+        if (! AffiliateEvent::query()
+            ->where('partner_id', $affiliate->id)
+            ->where('customer_id', $customer->id)
+            ->where('event_type', 'registration')
+            ->exists()) {
+            AffiliateEvent::create(array_merge([
+                'vendor_id'   => $affiliate->id,
+                'event_type'  => 'registration',
+                'customer_id' => $customer->id,
+            ], $attribution->attributesForEvent()));
+        }
+
+        $attribution->clearSession();
 
         app(AffiliateFraudDetectionService::class)->scanAndPersist($affiliate);
     }
@@ -108,7 +169,28 @@ class AffiliateService
     public function trackApplication(LoanApplication $application): void
     {
         $customer = $application->customer;
-        if (! $customer?->affiliate_vendor_id) {
+        if (! $customer) {
+            return;
+        }
+
+        if (! $customer->affiliate_vendor_id) {
+            $this->attachAffiliate($customer, null);
+            $customer->refresh();
+        }
+
+        if (! $customer->affiliate_vendor_id) {
+            return;
+        }
+
+        $attribution = app(AffiliateAttributionService::class);
+        if (app(AffiliateSettingsService::class)->attributionLockAt() === 'application_created') {
+            $attribution->lockToApplication($customer, $application);
+        }
+
+        if (AffiliateEvent::query()
+            ->where('loan_application_id', $application->id)
+            ->where('event_type', 'application')
+            ->exists()) {
             return;
         }
 
@@ -117,6 +199,7 @@ class AffiliateService
             'event_type'          => 'application',
             'customer_id'         => $customer->id,
             'loan_application_id' => $application->id,
+            'referral_code'       => $attribution->customerClaim($customer)['code_used'] ?? null,
         ]);
     }
 
@@ -235,27 +318,30 @@ class AffiliateService
         return app(AffiliateCommissionCalculatorService::class)->percentFor($affiliate);
     }
 
-    public function codeIsUnique(string $code, ?int $exceptVendorId = null): bool
-    {
-        $code = strtoupper(trim($code));
-        if ($code === '') {
-            return false;
-        }
-
-        return ! Vendor::query()
-            ->where('category', 'affiliate')
-            ->where('affiliate_code', $code)
-            ->when($exceptVendorId, fn ($q) => $q->where('id', '!=', $exceptVendorId))
-            ->exists();
-    }
-
     public function updateCode(Vendor $affiliate, string $code): string
     {
         abort_unless($affiliate->isAffiliate(), 403);
 
-        $code = strtoupper(preg_replace('/[^A-Z0-9_-]/', '', trim($code)) ?? '');
-        if (strlen($code) < 3) {
-            throw new \InvalidArgumentException(__('site.affiliate_portal.code_too_short'));
+        $rules = app(AffiliateSettingsService::class)->promoCodeSettings();
+        $code = strtoupper(trim($code));
+        $pattern = (string) ($rules['allowed_pattern'] ?? 'A-Z0-9_-');
+        $code = preg_replace('/[^'.$pattern.']/', '', $code) ?? '';
+
+        $min = max(2, (int) ($rules['min_length'] ?? 3));
+        $max = max($min, (int) ($rules['max_length'] ?? 24));
+
+        if (strlen($code) < $min || strlen($code) > $max) {
+            throw new \InvalidArgumentException(__('site.affiliate_portal.code_length', [
+                'min' => $min,
+                'max' => $max,
+            ]));
+        }
+
+        $reserved = $rules['reserved'] ?? [];
+        foreach ($reserved as $word) {
+            if ($code === $word || str_contains($code, $word)) {
+                throw new \InvalidArgumentException(__('site.affiliate_portal.code_reserved'));
+            }
         }
 
         $current = strtoupper((string) ($affiliate->affiliate_code ?? ''));
@@ -263,19 +349,55 @@ class AffiliateService
             return $code;
         }
 
-        $meta = $affiliate->metadata ?? [];
-        if (! empty($meta['affiliate_code_changed_at'])) {
-            throw new \InvalidArgumentException(__('site.affiliate_portal.code_change_once'));
+        if (! app(AffiliateSettingsService::class)->affiliateCanEditPromoCode()) {
+            throw new \InvalidArgumentException(__('site.affiliate_portal.code_locked_hint'));
+        }
+
+        if (! $this->canChangeCode($affiliate)) {
+            throw new \InvalidArgumentException(__('site.affiliate_portal.code_cooldown', [
+                'days' => app(AffiliateSettingsService::class)->promoChangeCooldownDays(),
+            ]));
         }
 
         if (! $this->codeIsUnique($code, $affiliate->id)) {
             throw new \InvalidArgumentException(__('site.affiliate_portal.code_taken'));
         }
 
+        $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
+        $aliases = is_array($meta['promo_code_aliases'] ?? null) ? $meta['promo_code_aliases'] : [];
+        $graceDays = app(AffiliateSettingsService::class)->promoOldCodeGraceDays();
+        if ($current !== '') {
+            $aliases[] = [
+                'code' => $current,
+                'retired_at' => now()->toIso8601String(),
+                'grace_until' => $graceDays > 0
+                    ? now()->addDays($graceDays)->toIso8601String()
+                    : now()->toIso8601String(),
+            ];
+        }
+        $meta['promo_code_aliases'] = array_values($aliases);
+        $meta['promo_alias_codes'] = array_values(array_unique(array_map(
+            fn ($row) => strtoupper((string) ($row['code'] ?? '')),
+            $aliases
+        )));
         $meta['affiliate_code_changed_at'] = now()->toIso8601String();
+        $history = is_array($meta['affiliate_code_history'] ?? null) ? $meta['affiliate_code_history'] : [];
+        $history[] = [
+            'from' => $current,
+            'to' => $code,
+            'changed_at' => now()->toIso8601String(),
+        ];
+        $meta['affiliate_code_history'] = $history;
+
         $affiliate->update([
             'affiliate_code' => $code,
             'metadata' => $meta,
+        ]);
+
+        AffiliateEvent::create([
+            'vendor_id' => $affiliate->id,
+            'event_type' => 'promo_code_changed',
+            'referral_code' => $code,
         ]);
 
         return $code;
@@ -283,9 +405,78 @@ class AffiliateService
 
     public function canChangeCode(Vendor $affiliate): bool
     {
-        $meta = $affiliate->metadata ?? [];
+        if (! app(AffiliateSettingsService::class)->affiliateCanEditPromoCode()) {
+            return false;
+        }
 
-        return empty($meta['affiliate_code_changed_at']);
+        $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
+        $changedAt = $meta['affiliate_code_changed_at'] ?? null;
+        $cooldown = app(AffiliateSettingsService::class)->promoChangeCooldownDays();
+        if (! $changedAt || $cooldown <= 0) {
+            return true;
+        }
+
+        return now()->gte(\Illuminate\Support\Carbon::parse($changedAt)->addDays($cooldown));
+    }
+
+    public function nextCodeChangeAt(Vendor $affiliate): ?\Illuminate\Support\Carbon
+    {
+        $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
+        $changedAt = $meta['affiliate_code_changed_at'] ?? null;
+        $cooldown = app(AffiliateSettingsService::class)->promoChangeCooldownDays();
+        if (! $changedAt || $cooldown <= 0) {
+            return null;
+        }
+
+        return \Illuminate\Support\Carbon::parse($changedAt)->addDays($cooldown);
+    }
+
+    public function codeIsUnique(string $code, ?int $exceptVendorId = null): bool
+    {
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            return false;
+        }
+
+        $taken = Vendor::query()
+            ->where('category', 'affiliate')
+            ->where('affiliate_code', $code)
+            ->when($exceptVendorId, fn ($q) => $q->where('id', '!=', $exceptVendorId))
+            ->exists();
+
+        if ($taken) {
+            return false;
+        }
+
+        return $this->resolveByAlias($code, $exceptVendorId) === null;
+    }
+
+    private function resolveByAlias(string $code, ?int $exceptVendorId = null): ?Vendor
+    {
+        $code = strtoupper(trim($code));
+        $candidates = Vendor::query()
+            ->where('category', 'affiliate')
+            ->where('status', 'active')
+            ->when($exceptVendorId, fn ($q) => $q->where('id', '!=', $exceptVendorId))
+            ->where('metadata', 'like', '%'.$code.'%')
+            ->get();
+
+        foreach ($candidates as $affiliate) {
+            $aliases = is_array($affiliate->metadata['promo_code_aliases'] ?? null)
+                ? $affiliate->metadata['promo_code_aliases']
+                : [];
+            foreach ($aliases as $alias) {
+                if (strtoupper((string) ($alias['code'] ?? '')) !== $code) {
+                    continue;
+                }
+                $graceUntil = $alias['grace_until'] ?? null;
+                if ($graceUntil && now()->lte(\Illuminate\Support\Carbon::parse($graceUntil))) {
+                    return $affiliate;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

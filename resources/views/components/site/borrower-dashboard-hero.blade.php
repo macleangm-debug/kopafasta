@@ -37,7 +37,7 @@
         <div class="flex items-start justify-between gap-3">
             <x-site.brand-mark size="sm" variant="light" />
             @if (filled($hero['grade'] ?? null))
-                <x-site.grade-badge :grade="$hero['grade']" :plus="! empty($hero['plus_active'])" size="lg" class="shrink-0" />
+                <x-site.grade-badge :grade="$hero['grade']" :label="$hero['grade_label'] ?? null" :plus="! empty($hero['plus_active'])" size="lg" class="shrink-0" />
             @endif
         </div>
 
@@ -60,7 +60,11 @@
                         <p class="text-xs uppercase tracking-widest font-semibold {{ $lightText ? 'text-white/80' : 'opacity-80' }}">{{ $hero['title'] }}</p>
                     @endif
                     @if (! empty($hero['subtitle']))
-                        <p class="text-sm mt-1 {{ $lightText ? 'text-white/90' : 'opacity-90' }}">{{ $hero['subtitle'] }}</p>
+                        <p @class([
+                            'text-sm mt-1',
+                            $lightText ? 'text-white/90' : 'opacity-90',
+                            'hidden sm:block' => ! empty($hero['compact_mobile']),
+                        ])>{{ $hero['subtitle'] }}</p>
                     @endif
                     @if (! empty($hero['meta']))
                         <p class="text-xs mt-1 font-mono {{ $lightText ? 'text-white/70' : 'opacity-80' }}">{{ $hero['meta'] }}</p>
@@ -80,7 +84,15 @@
                     @endif
                 </div>
             @elseif (! empty($hero['amount']))
-                <p class="text-3xl font-bold tabular-nums">{{ $hero['amount'] }}</p>
+                <div @class([
+                    'rounded-2xl px-4 py-3 ring-1',
+                    $lightText ? 'bg-white/15 ring-white/25' : 'bg-white/70 ring-black/5',
+                ])>
+                    @if (! empty($hero['amount_label']))
+                        <p class="text-[10px] uppercase tracking-widest font-semibold {{ $lightText ? 'text-white/80' : 'text-brand' }}">{{ $hero['amount_label'] }}</p>
+                    @endif
+                    <p class="text-3xl sm:text-4xl font-extrabold tabular-nums mt-0.5 {{ $lightText ? 'text-white' : 'text-gray-900' }}">{{ $hero['amount'] }}</p>
+                </div>
             @endif
 
             @if (! empty($hero['cta_url']) && ! empty($hero['cta_label']))
@@ -93,14 +105,14 @@
                     @if (! empty($hero['secondary_cta_url']) && ! empty($hero['secondary_cta_label']))
                         <a href="{{ $hero['secondary_cta_url'] }}"
                            data-loading="click"
-                           class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25">
+                           class="{{ ! empty($hero['compact_mobile']) ? 'hidden sm:inline-flex' : 'inline-flex' }} justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25">
                             {{ $hero['secondary_cta_label'] }}
                         </a>
                     @endif
                     @if (! empty($hero['tertiary_cta_url']) && ! empty($hero['tertiary_cta_label']))
                         <a href="{{ $hero['tertiary_cta_url'] }}"
                            data-loading="click"
-                           class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-brand-gold/95 text-brand hover:brightness-95 shadow-sm ring-1 ring-brand-gold/40">
+                           class="{{ ! empty($hero['compact_mobile']) ? 'hidden sm:inline-flex' : 'inline-flex' }} justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-brand-gold/95 text-brand hover:brightness-95 shadow-sm ring-1 ring-brand-gold/40">
                             {{ $hero['tertiary_cta_label'] }}
                         </a>
                     @endif

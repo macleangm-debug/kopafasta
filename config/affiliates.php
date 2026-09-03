@@ -90,8 +90,8 @@ return [
 
     /** Placeholders: {brand}, {affiliate_name}, {affiliate_code}, {affiliate_link}, {registration_link}, {verify_link} */
     'messages' => [
-        'share_template'       => 'Join {brand} with my affiliate code {affiliate_code}. Register: {registration_link}',
-        'referral_sms'         => 'Use affiliate code {affiliate_code} at {brand} for a discount on fees. Verify: {verify_link}',
+        'share_template'       => 'Looking for a Kopafasta loan? Start your application using my referral link: {affiliate_link}',
+        'referral_sms'         => 'Need financing? Apply with Kopafasta using my referral link: {affiliate_link}',
         'verification_notice'  => 'This page confirms {affiliate_name} ({affiliate_code}) is a registered {brand} affiliate partner.',
         'welcome_partner'      => 'Welcome to the {brand} affiliate program, {affiliate_name}! Share your link: {affiliate_link}',
     ],
@@ -118,5 +118,40 @@ return [
         'require_terms_before_activation' => true,
         'promo_code_on_expiry'            => 'disable',
         'commission_after_expiry'         => 'historical_only',
+    ],
+
+    'premium' => [
+        'membership_required' => false,
+        'contract_duration_months' => 24,
+        'renewal_window_days' => 30,
+        'badge_label' => 'Premium',
+    ],
+
+    'attribution' => [
+        'window_days' => 30,
+        'model' => 'first_valid',
+        'auto_apply_promo' => true,
+        'allow_replacement_before_lock' => false,
+        'lock_at' => 'application_created',
+        'allow_override_after_lock' => false,
+        'existing_customer_referral' => false,
+        'cookie_enabled' => true,
+    ],
+
+    'messages_sw' => [
+        'share_template' => 'Unatafuta mkopo wa Kopafasta? Anza ombi lako kwa kiungo changu cha rufaa: {affiliate_link}',
+        'referral_sms' => 'Unahitaji fedha? Omba na Kopafasta kwa kiungo changu cha rufaa: {affiliate_link}',
+        'verification_notice' => 'Ukurasa huu unathibitisha {affiliate_name} ({affiliate_code}) ni mshirika msambazaji aliyeandikishwa wa {brand}.',
+        'welcome_partner' => 'Karibu kwenye mpango wa wasambazaji wa {brand}, {affiliate_name}! Sambaza kiungo chako: {affiliate_link}',
+    ],
+
+    'promo_code' => [
+        'affiliate_can_edit' => true,
+        'min_length' => 3,
+        'max_length' => 24,
+        'allowed_pattern' => 'A-Z0-9_-',
+        'change_cooldown_days' => 30,
+        'old_code_grace_days' => 14,
+        'reserved' => ['KOPAFASTA', 'KOPA', 'ADMIN', 'STAFF', 'SYSTEM', 'OFFICIAL', 'SUPPORT'],
     ],
 ];

@@ -36,11 +36,18 @@ class AffiliateEligibilityService
         $accountActive = ($affiliate->status ?? '') === 'active';
         $kycOk = in_array($affiliate->affiliate_kyc_status, ['verified', 'approved'], true)
             || ! app(AffiliateSettingsService::class)->requireKycForVerification();
-        $membershipRequired = $membershipCfg['enabled'] && $membershipCfg['required_before_sharing'];
-        $membershipActive = ! $membershipRequired || $membership->isActive($affiliate);
+        $premiumAgreement = $membership->usesPremiumAgreement($affiliate);
+        $membershipRequired = $premiumAgreement
+            ? false
+            : ($membershipCfg['enabled'] && $membershipCfg['required_before_sharing']);
+        $membershipActive = $premiumAgreement
+            ? $membership->isActive($affiliate)
+            : (! $membershipRequired || $membership->isActive($affiliate));
         $promoAfterExpiry = ($membershipCfg['promo_code_on_expiry'] ?? 'disable') === 'keep';
         $commissionAfterExpiry = ($membershipCfg['commission_after_expiry'] ?? 'historical_only') === 'continue';
-        $membershipOk = $membershipActive || $promoAfterExpiry;
+        $membershipOk = $premiumAgreement
+            ? $membershipActive
+            : ($membershipActive || $promoAfterExpiry);
         $termsOk = ! ($membershipCfg['require_terms_before_activation'] ?? true)
             || app(AffiliateTermsService::class)->hasAccepted($affiliate)
             || $this->legacyMembershipAlreadyActive($affiliate, $membershipCfg);
@@ -64,7 +71,7 @@ class AffiliateEligibilityService
             $reasons[] = 'kyc_unverified';
         }
         if (! $membershipOk) {
-            $reasons[] = 'membership_inactive';
+            $reasons[] = $premiumAgreement ? 'agreement_inactive' : 'membership_inactive';
         }
         if (! $termsOk) {
             $reasons[] = 'terms_unaccepted';

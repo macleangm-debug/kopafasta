@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AffiliateEvent;
 use App\Models\PartnerPayment;
 use App\Models\Vendor;
-use App\Services\AffiliateCommissionWalletService;
+use App\Services\AffiliatePortalPresenter;
 use App\Services\AffiliateService;
 use App\Services\AffiliateSettingsService;
 use App\Services\PartnerPayoutRequestService;
@@ -28,55 +28,34 @@ class AffiliateController extends Controller
 
     public function dashboard(Request $request): View
     {
-        $vendor = $this->affiliate();
-        app(AffiliateService::class)->ensureCode($vendor);
+        $data = app(AffiliatePortalPresenter::class)->dashboard($this->affiliate());
 
-        $affiliateService = app(AffiliateService::class);
-        $stats = $affiliateService->stats($vendor);
-        $links = $affiliateService->messageContext($vendor);
-        $share = $affiliateService->renderMessage($vendor, 'share_template');
-        $wallet = app(AffiliateCommissionWalletService::class)->summary($vendor);
-        $minPayout = app(AffiliateSettingsService::class)->minimumPayoutAmount();
-        $eligibility = app(\App\Services\AffiliateEligibilityService::class)->for($vendor);
-        $standing = app(\App\Services\AffiliateEvaluationService::class)->currentStanding($vendor);
-        $membership = app(\App\Services\AffiliateMembershipService::class)->summary($vendor);
+        return view('site.affiliate.dashboard', $data);
+    }
 
-        return view('site.affiliate.dashboard', compact(
-            'vendor',
-            'stats',
-            'links',
-            'share',
-            'wallet',
-            'minPayout',
-            'eligibility',
-            'standing',
-            'membership',
-        ));
+    public function share(): View
+    {
+        return view('site.affiliate.share', app(AffiliatePortalPresenter::class)->share($this->affiliate()));
+    }
+
+    public function performance(): View
+    {
+        return view('site.affiliate.performance', app(AffiliatePortalPresenter::class)->performance($this->affiliate()));
     }
 
     public function referrals(): View
     {
-        $vendor = $this->affiliate();
-
-        $events = AffiliateEvent::query()
-            ->where('partner_id', $vendor->id)
-            ->with(['customer', 'loanApplication'])
-            ->latest()
-            ->paginate(20);
-
-        return view('site.affiliate.referrals', compact('vendor', 'events'));
+        return view('site.affiliate.referrals', app(AffiliatePortalPresenter::class)->referrals($this->affiliate()));
     }
 
     public function wallet(): View
     {
-        $vendor = $this->affiliate();
-        $walletService = app(AffiliateCommissionWalletService::class);
-        $summary = $walletService->summary($vendor);
-        $payments = $walletService->paginated($vendor);
-        $minPayout = app(AffiliateSettingsService::class)->minimumPayoutAmount();
-        $available = app(PartnerPayoutRequestService::class)->availableBalance($vendor, 'affiliate_commission');
+        return view('site.affiliate.wallet', app(AffiliatePortalPresenter::class)->wallet($this->affiliate()));
+    }
 
-        return view('site.affiliate.wallet', compact('vendor', 'summary', 'payments', 'minPayout', 'available'));
+    public function agreement(): View
+    {
+        return view('site.affiliate.agreement', app(AffiliatePortalPresenter::class)->agreementDocument($this->affiliate()));
     }
 
     public function profile(Request $request, ?string $section = null): View|RedirectResponse
@@ -86,7 +65,7 @@ class AffiliateController extends Controller
 
         $section = $section ?: 'hub';
 
-        if (! in_array($section, array_merge(['hub'], PartnerProfileService::SECTIONS), true)) {
+        if (! in_array($section, array_merge(['hub', 'agreement', 'membership'], PartnerProfileService::SECTIONS), true)) {
             return redirect()->route('site.affiliate.profile');
         }
 
@@ -103,6 +82,7 @@ class AffiliateController extends Controller
             'layoutComponent' => 'site.affiliate-layout',
             'eyebrow'         => __('site.affiliate_portal.title'),
             'accountTabs'     => $accountTabs,
+            'commercial'      => app(\App\Services\AffiliateMembershipService::class)->summary($vendor),
         ];
 
         if ($section === 'hub') {
@@ -112,9 +92,27 @@ class AffiliateController extends Controller
             ]);
         }
 
+        if ($section === 'agreement') {
+            return view('site.affiliate.agreement', app(AffiliatePortalPresenter::class)->agreementDocument($vendor) + $common + [
+                'title' => __('site.affiliate_portal.agreement_title'),
+            ]);
+        }
+
+        if ($section === 'membership') {
+            if ($vendor->isPremiumAffiliate() && ! app(AffiliateSettingsService::class)->premiumMembershipRequired()) {
+                return redirect()->route('site.affiliate.agreement');
+            }
+
+            return view('site.affiliate.membership', $common + [
+                'title' => __('site.affiliate_portal.membership_title'),
+                'membership' => $common['commercial'],
+            ]);
+        }
+
         return view('site.partner-account.'.$section, $common + [
             'title'         => __('site.partner_account.'.$section.'_section'),
             'canChangeCode' => app(AffiliateService::class)->canChangeCode($vendor),
+            'nextCodeChangeAt' => app(AffiliateService::class)->nextCodeChangeAt($vendor),
         ]);
     }
 
@@ -125,18 +123,18 @@ class AffiliateController extends Controller
 
     public function settings(): View
     {
-        $vendor = $this->affiliate();
-        $membership = app(\App\Services\AffiliateMembershipService::class)->summary($vendor);
-
-        return view('site.affiliate.settings', compact('vendor', 'membership'));
+        return view('site.affiliate.settings', [
+            'vendor' => $this->affiliate(),
+        ]);
     }
 
     public function terms(Request $request): View|RedirectResponse
     {
         $vendor = $this->affiliate();
         $terms = app(\App\Services\AffiliateTermsService::class);
+        $document = app(AffiliatePortalPresenter::class)->agreementDocument($vendor);
 
-        return view('site.affiliate.terms', [
+        return view('site.affiliate.terms', $document + [
             'vendor' => $vendor,
             'rendered' => $terms->render($vendor),
             'accepted' => $terms->latestAcceptance($vendor),
@@ -154,6 +152,13 @@ class AffiliateController extends Controller
 
         if (! $terms->hasAccepted($vendor)) {
             $terms->accept($vendor, $request);
+            $vendor = $vendor->fresh();
+        }
+
+        if ($vendor->isPremiumAffiliate()) {
+            return redirect()
+                ->route('site.affiliate.dashboard')
+                ->with('status', __('site.affiliate_portal.agreement_active'));
         }
 
         return redirect()
@@ -167,6 +172,10 @@ class AffiliateController extends Controller
         $service = app(\App\Services\AffiliateMembershipService::class);
         $cfg = \App\Services\AffiliateMembershipService::config();
 
+        if ($vendor->isPremiumAffiliate() && ! app(AffiliateSettingsService::class)->premiumMembershipRequired()) {
+            return redirect()->route('site.affiliate.agreement');
+        }
+
         if (! $cfg['enabled']) {
             return redirect()->route('site.affiliate.settings');
         }
@@ -175,11 +184,11 @@ class AffiliateController extends Controller
             && ! app(\App\Services\AffiliateTermsService::class)->hasAccepted($vendor)
             && ! $service->isActive($vendor)) {
             return redirect()->route('site.affiliate.terms')
-                ->with('error', __('affiliate_terms.required'));
+                ->with('error', __('affiliate_terms.required_before_membership'));
         }
 
         if ($service->isActive($vendor) && ! $service->withinRenewalWindow($vendor)) {
-            return redirect()->route('site.affiliate.settings')
+            return redirect()->route('site.affiliate.profile', ['section' => 'membership'])
                 ->with('status', __('site.affiliate_portal.membership_active'));
         }
 
@@ -254,7 +263,6 @@ class AffiliateController extends Controller
         if ($faces !== ($meta['face_captures'] ?? [])) {
             $meta['face_captures'] = $faces;
             $data['metadata'] = $meta;
-            // Keep legacy selfie path as the front-facing capture for admin review screens.
             if (filled($faces['front'] ?? null)) {
                 $data['affiliate_selfie_path'] = $faces['front'];
             }
@@ -288,7 +296,7 @@ class AffiliateController extends Controller
         $request->validate(['reason' => ['required', 'string', 'max:500']]);
 
         try {
-            app(AffiliateCommissionWalletService::class)->dispute($payment, $vendor, $request->input('reason'));
+            app(\App\Services\AffiliateCommissionWalletService::class)->dispute($payment, $vendor, $request->input('reason'));
         } catch (\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
         }

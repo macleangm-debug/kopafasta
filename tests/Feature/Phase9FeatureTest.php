@@ -141,11 +141,14 @@ class Phase9FeatureTest extends TestCase
             'affiliate_code'        => 'AFFP9',
             'affiliate_kyc_status'  => 'verified',
             'phone'                 => '255712345691',
+            'membership_status'     => 'active',
+            'membership_started_at' => now()->subMonth(),
+            'membership_expires_at' => now()->addYear(),
         ]);
 
         $this->get(route('site.affiliate.verify', 'AFFP9'))
             ->assertOk()
-            ->assertSee('Verified affiliate partner', false)
+            ->assertSee(__('site.affiliate_portal.verified_badge'), false)
             ->assertSee('create-qr-code', false)
             ->assertSee('AFFP9', false);
     }

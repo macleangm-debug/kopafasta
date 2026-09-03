@@ -45,7 +45,7 @@ class ApplicationFeePaymentService
         }
         $cfg = MembershipService::config();
 
-        [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode);
+        [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
         if ($base <= 0) {
             return [
@@ -131,8 +131,34 @@ class ApplicationFeePaymentService
     /**
      * @return array{0: ?string, 1: ?string} [promoCode, affiliateCode]
      */
-    public function resolvePromoOrAffiliate(?string $promoCode, ?string $affiliateCode = null): array
+    public function resolvePromoOrAffiliate(?string $promoCode, ?string $affiliateCode = null, ?Customer $customer = null): array
     {
+        $settings = app(AffiliateSettingsService::class);
+        $affiliates = app(AffiliateService::class);
+
+        if ($customer && $settings->autoApplyPromo()) {
+            $existing = $affiliates->affiliate($customer);
+            if ($existing) {
+                $locked = app(AffiliateAttributionService::class)->isLocked($customer);
+                $incoming = filled($affiliateCode) ? $affiliateCode : $promoCode;
+                $incoming = filled($incoming) ? strtoupper(trim((string) $incoming)) : null;
+                $incomingAffiliate = $incoming ? $affiliates->findByCode($incoming) : null;
+                $same = $incomingAffiliate && (int) $incomingAffiliate->id === (int) $existing->id;
+
+                if ($locked && ! $settings->allowOverrideAfterLock()) {
+                    return [null, (string) $existing->affiliate_code];
+                }
+                if (! $locked && ! $settings->allowReplacementBeforeLock() && ! $same) {
+                    return [null, (string) $existing->affiliate_code];
+                }
+            } elseif (! filled($promoCode) && ! filled($affiliateCode)) {
+                $pending = app(AffiliateAttributionService::class)->pendingAffiliate();
+                if ($existing = $pending) {
+                    return [null, (string) $existing->affiliate_code];
+                }
+            }
+        }
+
         $code = filled($affiliateCode) ? $affiliateCode : $promoCode;
         if (blank($code)) {
             return [null, null];
@@ -140,7 +166,7 @@ class ApplicationFeePaymentService
 
         $code = strtoupper(trim((string) $code));
 
-        if (app(AffiliateService::class)->findByCode($code)) {
+        if ($affiliates->findByCode($code)) {
             return [null, $code];
         }
 
@@ -228,7 +254,7 @@ class ApplicationFeePaymentService
             app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
         }
 
-        [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode);
+        [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
         $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
         $nextStep = $this->nextStepAfterApplicationFee($customer, $product, is_array($draftPayload) ? $draftPayload : null);
@@ -328,7 +354,7 @@ class ApplicationFeePaymentService
             app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
         }
 
-        [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode);
+        [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
         $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
         $nextStep = $this->nextStepAfterApplicationFee($customer, $product, is_array($draftPayload) ? $draftPayload : null);
