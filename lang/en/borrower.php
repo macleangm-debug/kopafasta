@@ -3512,6 +3512,15 @@ return [
         'wallet_airtel' => 'Airtel Money',
         'wallet_halo' => 'Halo Pesa',
         'wallet_help' => 'If this number was ported, pick the wallet you actually use.',
+        'simulator_initiated' => 'Staging test payment started. No real money will move.',
+        'simulator_failed' => 'Staging simulated :outcome. No real money moved.',
+        'simulator_outcome_disabled' => 'That staging outcome is turned off in Settings → System.',
+        'simulator_heading' => 'Staging / test payment',
+        'simulator_success' => 'Simulate successful payment',
+        'simulator_pending' => 'Simulate pending',
+        'simulator_failed_btn' => 'Simulate failure',
+        'simulator_cancelled' => 'Simulate cancelled',
+        'simulator_reversed' => 'Simulate reversal',
     ],
 
     'payment_types' => [

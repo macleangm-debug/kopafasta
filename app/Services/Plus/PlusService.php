@@ -97,7 +97,12 @@ class PlusService
         $country = strtoupper((string) ($country ?: 'TZ'));
         $plan = $this->config()['plans']['monthly'];
 
-        return $plan['prices'][$country] ?? $plan['prices']['TZ'];
+        $price = $plan['prices'][$country] ?? $plan['prices']['TZ'];
+        $price['canonical_amount'] = $price['amount'];
+        $price['amount'] = app(\App\Services\Staging\StagingPaymentsService::class)
+            ->effective('kopafasta_plus', (float) $price['amount']);
+
+        return $price;
     }
 
     public function billingCycle(): string

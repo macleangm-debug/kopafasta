@@ -422,10 +422,11 @@ class ApplicationFeePaymentService
         $payIn = app(PayInService::class);
         $payInLive = $payIn->isLiveCollectionEnabled();
         $dummyGateway = $this->usesDummyGateway();
+        $stagingPayments = app(\App\Services\Staging\StagingPaymentsService::class);
         $phone = $mobileNumber ?: $customer->phone;
-        $awaitsPsp = $payIn->isConfigured() || $payInLive || ! $dummyGateway;
+        $awaitsPsp = $payIn->isConfigured() || $payInLive || ! $dummyGateway || $stagingPayments->shouldAwaitProvider();
 
-        if (! $dummyGateway && ! $payInLive) {
+        if (! $dummyGateway && ! $payInLive && ! $stagingPayments->isSimulator()) {
             throw ValidationException::withMessages([
                 'payment_method' => [__('borrower.payments.aggregator_required')],
             ]);
@@ -542,7 +543,9 @@ class ApplicationFeePaymentService
         }
 
         // Bank always needs verification unless dummy gateway (sandbox instant).
-        $autoVerify = $this->usesDummyGateway() && ! app(PayInService::class)->isConfigured();
+        $autoVerify = $this->usesDummyGateway()
+            && ! app(PayInService::class)->isConfigured()
+            && ! app(\App\Services\Staging\StagingPaymentsService::class)->shouldAwaitProvider();
 
         if ($autoVerify) {
             app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);

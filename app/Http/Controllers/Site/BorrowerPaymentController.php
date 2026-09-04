@@ -14,6 +14,7 @@ use App\Services\CustomerPaymentService;
 use App\Services\LoyaltyRedemptionService;
 use App\Services\PaymentAccountService;
 use App\Services\PaymentGateService;
+use App\Services\Staging\StagingPaymentSimulator;
 use App\Support\Celebration;
 use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
@@ -264,6 +265,24 @@ class BorrowerPaymentController extends Controller
                 $payment = $payment->fresh(['customer']);
             }
             $payment = $payments->initiateCollection($payment, $mobileNumber, $data['operator'] ?? null);
+        } catch (ValidationException $e) {
+            return $this->paymentCollectFailed($request, $payment, $payments, $e);
+        }
+
+        return $this->paymentSurfaceResponse($request, $payment, $payments);
+    }
+
+    public function simulate(Request $request, CustomerPayment $payment, StagingPaymentSimulator $simulator, CustomerPaymentService $payments): RedirectResponse|JsonResponse
+    {
+        $customer = $this->customer();
+        abort_unless($payment->customer_id === $customer->id, 403);
+
+        $data = $request->validate([
+            'outcome' => ['required', 'in:success,pending,failed,cancelled,reversed'],
+        ]);
+
+        try {
+            $payment = $simulator->applyOutcome($payment, $data['outcome']);
         } catch (ValidationException $e) {
             return $this->paymentCollectFailed($request, $payment, $payments, $e);
         }

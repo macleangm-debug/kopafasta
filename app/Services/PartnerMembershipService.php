@@ -86,6 +86,12 @@ class PartnerMembershipService
         );
     }
 
+    public function customerFacingFee(Partner $partner): float
+    {
+        return app(\App\Services\Staging\StagingPaymentsService::class)
+            ->effective('partner_membership', $this->feeFor($partner));
+    }
+
     public static function resolveCategoryFee(mixed $entry, bool $individual, float $fallback): float
     {
         if (is_array($entry)) {

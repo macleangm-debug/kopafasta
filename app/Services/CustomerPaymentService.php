@@ -303,10 +303,15 @@ class CustomerPaymentService
             $isBank = $method === 'bank_transfer';
             $payIn = app(PayInService::class);
             $liveGateway = ! payment_gateway_is_dummy();
+            $stagingPayments = app(\App\Services\Staging\StagingPaymentsService::class);
             $usePayIn = false;
+            $useSimulator = false;
 
             if ($method === 'mobile_money') {
-                if ($liveGateway) {
+                if ($stagingPayments->isSimulator()) {
+                    $useSimulator = true;
+                    $autoVerify = false;
+                } elseif ($liveGateway) {
                     // Live mode: never accept mobile money without the assigned aggregator.
                     if (! $payIn->isLiveCollectionEnabled()) {
                         throw ValidationException::withMessages([
@@ -341,7 +346,7 @@ class CustomerPaymentService
             // Collateral insurance must never skip the aggregator payment gate.
             if ($type === 'insurance_premium') {
                 $autoVerify = false;
-                if ($method === 'mobile_money' && ! $usePayIn) {
+                if ($method === 'mobile_money' && ! $usePayIn && ! $useSimulator) {
                     if (! filled($data['mobile_number'] ?? null)) {
                         throw ValidationException::withMessages([
                             'mobile_number' => [__('borrower.payments.mobile_number_required')],
@@ -356,15 +361,15 @@ class CustomerPaymentService
                 }
             }
 
-            if ($usePayIn) {
+            if ($usePayIn || $useSimulator) {
                 $autoVerify = false;
             }
 
             // Never mark live mobile-money as paid/verified without aggregator confirmation.
-            // PayIn collections start only when the borrower taps Pay now on the gate.
+            // PayIn / staging simulator collections start only when the borrower taps Pay now on the gate.
             $status = $autoVerify
                 ? 'verified'
-                : ($usePayIn ? 'awaiting_payment' : ($isBank ? 'pending_verification' : ($liveGateway && $method === 'mobile_money' ? 'awaiting_payment' : 'paid')));
+                : ($usePayIn || $useSimulator ? 'awaiting_payment' : ($isBank ? 'pending_verification' : ($liveGateway && $method === 'mobile_money' ? 'awaiting_payment' : 'paid')));
 
             // Plus always uses the shared payment gate — never auto-activate from create().
             if ($type === 'kopafasta_plus') {
@@ -390,7 +395,7 @@ class CustomerPaymentService
                 ]));
                 $instructions = trim(($instructions ?? '')."\n".$extra);
             }
-            if ($usePayIn) {
+            if ($usePayIn || $useSimulator) {
                 $instructions = trim(($instructions ?? '')."\n".__('borrower.payment_waiting.gate_instructions'));
             }
 
@@ -410,24 +415,25 @@ class CustomerPaymentService
                 'proof_original_name' => $proofName,
                 'paid_at' => $type === 'kopafasta_plus' || $type === 'insurance_premium'
                     ? null
-                    : ($autoVerify || (! $isBank && ! $usePayIn && ! $liveGateway) ? now() : null),
+                    : ($autoVerify || (! $isBank && ! $usePayIn && ! $useSimulator && ! $liveGateway) ? now() : null),
                 'payment_date' => $data['payment_date'] ?? ($isBank ? now(app_display_timezone())->toDateString() : null),
                 'source_type' => isset($data['source']) ? $data['source']::class : null,
                 'source_id' => ($data['source'] ?? null)?->getKey(),
                 'loan_id' => $loan?->id,
                 'loan_product_id' => $product?->id,
                 'created_by' => auth()->id(),
-                'provider_meta' => (function () use ($usePayIn, $data) {
+                'provider_meta' => (function () use ($usePayIn, $useSimulator, $data) {
                     $context = array_filter([
                         'apply_context' => $data['apply_context'] ?? null,
                         'membership_context' => $data['membership_context'] ?? null,
                     ], fn ($v) => $v !== null);
 
-                    if ($usePayIn) {
+                    if ($usePayIn || $useSimulator) {
                         return array_filter(array_merge([
                             'awaiting_collection' => true,
                             'description' => $data['description'] ?? null,
                             'operator' => $data['operator'] ?? null,
+                            'simulator' => $useSimulator ?: null,
                         ], $context), fn ($v) => $v !== null);
                     }
 
@@ -442,7 +448,7 @@ class CustomerPaymentService
                 return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
             }
 
-            if ($autoVerify || (! $isBank && ! $usePayIn && ! $liveGateway)) {
+            if ($autoVerify || (! $isBank && ! $usePayIn && ! $useSimulator && ! $liveGateway)) {
                 $this->finalizePayment($payment);
             } elseif ($isBank) {
                 $this->notifyBankStatus($payment->fresh(['customer']), 'bank_payment_pending');
@@ -490,6 +496,12 @@ class CustomerPaymentService
         }
 
         $payIn = app(PayInService::class);
+        $pspPhone = $payIn->normalizePhone((string) $phone);
+        $requestedOperator = $payIn->normalizeOperator($operator);
+        $staging = app(\App\Services\Staging\StagingPaymentsService::class);
+        if ($staging->isSimulator()) {
+            return app(\App\Services\Staging\StagingPaymentSimulator::class)->initiate($payment, $pspPhone, $requestedOperator);
+        }
         if (! $payIn->isConfigured()) {
             throw ValidationException::withMessages([
                 'payment_method' => [__('borrower.payments.aggregator_required')],
@@ -497,10 +509,8 @@ class CustomerPaymentService
         }
 
         // Persist and send only the number entered on the gate (not a stale account/meta value).
-        $pspPhone = $payIn->normalizePhone((string) $phone);
         $meta = (array) ($payment->provider_meta ?? []);
         $description = $meta['description'] ?? null;
-        $requestedOperator = $payIn->normalizeOperator($operator);
         $attempt = (int) ($meta['collect_attempt'] ?? 0) + 1;
         $payInReference = $payment->reference.'-a'.$attempt;
         unset($meta['operator'], $meta['last_collect_error'], $meta['last_collect_error_at']);

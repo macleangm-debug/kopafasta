@@ -269,7 +269,10 @@ class CustomerPayment extends Model
     public function isPayInWaiting(): bool
     {
         return $this->status === 'processing'
-            && ($this->provider === 'payin' || $this->payment_type === 'insurance_premium');
+            && (
+                in_array($this->provider, ['payin', \App\Services\Staging\StagingPaymentsService::PROVIDER], true)
+                || $this->payment_type === 'insurance_premium'
+            );
     }
 
     public function isVerified(): bool

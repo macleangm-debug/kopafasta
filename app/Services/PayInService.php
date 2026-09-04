@@ -17,9 +17,14 @@ class PayInService
     {
         $group = Setting::group('payin');
 
+        $environment = (string) ($group['environment'] ?? config('payin.environment', 'sandbox'));
+        if (app()->environment('staging') && ! app()->isProduction()) {
+            $environment = 'sandbox';
+        }
+
         return [
             'enabled' => (bool) ($group['enabled'] ?? config('payin.enabled', false)),
-            'environment' => (string) ($group['environment'] ?? config('payin.environment', 'sandbox')),
+            'environment' => $environment === 'production' && ! app()->isProduction() ? 'sandbox' : $environment,
             'api_key' => (string) ($group['api_key'] ?? config('payin.api_key', '')),
             'api_secret' => (string) ($group['api_secret'] ?? config('payin.api_secret', '')),
             'webhook_secret' => (string) ($group['webhook_secret'] ?? config('payin.webhook_secret', '')),
@@ -105,6 +110,14 @@ class PayInService
      */
     public function collect(string $phone, float $amount, string $reference, ?string $description = null, ?string $operator = null): array
     {
+        if (app()->environment('staging') && ! app()->isProduction()) {
+            $env = $this->settings()['environment'] ?? 'sandbox';
+            if ($env === 'production') {
+                throw ValidationException::withMessages([
+                    'payment_method' => [__('borrower.payments.aggregator_required')],
+                ]);
+            }
+        }
         app(\App\Services\Marketing\DemoGuard::class)->assertCanMoveMoney('collect via PayIn');
         $this->assertReady();
 

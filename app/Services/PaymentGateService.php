@@ -57,6 +57,10 @@ class PaymentGateService
         $codeKind = null; // promo | affiliate | invalid
 
         $afterPartner = round($baseAmount, 2);
+        $canonicalBase = $afterPartner;
+        $staging = app(\App\Services\Staging\StagingPaymentsService::class);
+        $afterPartner = $staging->effective($feeType, $afterPartner);
+        $baseAmount = $afterPartner;
 
         if ($hasReferrer) {
             $referralQuote = $referrals->quoteFee($customer, $baseAmount, false, $feeType, applyDiscount: true);
@@ -129,6 +133,8 @@ class PaymentGateService
 
         return $this->formatQuote([
             'base' => round($baseAmount, 2),
+            'canonical_base' => round($canonicalBase, 2),
+            'staging_test' => $staging->isEnabled(),
             'referral_discount' => $referralDiscount,
             'affiliate_discount' => $affiliateDiscount,
             'promo_discount' => $promoDiscount,

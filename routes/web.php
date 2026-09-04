@@ -420,6 +420,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/borrower/payments/{payment}/status', [BorrowerPaymentController::class, 'status'])->name('borrower.payments.status');
             Route::post('/borrower/payments/{payment}/adjust', [BorrowerPaymentController::class, 'adjust'])->name('borrower.payments.adjust');
             Route::post('/borrower/payments/{payment}/pay', [BorrowerPaymentController::class, 'pay'])->name('borrower.payments.pay');
+            Route::post('/borrower/payments/{payment}/simulate', [BorrowerPaymentController::class, 'simulate'])->name('borrower.payments.simulate');
             Route::post('/borrower/payments/{payment}/retry', [BorrowerPaymentController::class, 'retry'])->name('borrower.payments.retry');
             Route::post('/borrower/payments/{payment}/gate', [BorrowerPaymentController::class, 'returnToGate'])->name('borrower.payments.gate');
             Route::post('/borrower/payments/{payment}/phone', [BorrowerPaymentController::class, 'updatePhone'])->name('borrower.payments.phone');
@@ -1185,6 +1186,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         // ========== SETTINGS ==========
         Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::get('settings/system', [SystemController::class, 'show'])->name('settings.system');
+        Route::put('settings/system/staging-payments', [SystemController::class, 'saveStagingPayments'])->name('settings.staging-payments.save');
         Route::get('settings/company', [SettingsController::class, 'company'])->name('settings.company');
         Route::put('settings/company', [SettingsController::class, 'saveCompany'])->name('settings.company.save');
         Route::get('settings/seo', [SettingsController::class, 'seo'])->name('settings.seo');

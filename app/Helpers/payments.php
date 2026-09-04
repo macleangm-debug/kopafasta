@@ -86,6 +86,9 @@ if (! function_exists('quoted_application_fee')) {
             return 0;
         }
 
+        $base = app(\App\Services\Staging\StagingPaymentsService::class)
+            ->effective('application_fee', $base, $product);
+
         $after = $base;
 
         if ($customer && app(ReferralService::class)->referrer($customer)) {
@@ -132,6 +135,9 @@ if (! function_exists('quoted_valuation_fee')) {
         if ($base <= 0) {
             return 0;
         }
+
+        $base = app(\App\Services\Staging\StagingPaymentsService::class)
+            ->effective('valuation_fee', $base);
 
         $unit = match (true) {
             (bool) ($customer && app(ReferralService::class)->referrer($customer)) => (int) round(app(ReferralService::class)->quoteFee($customer, $base, false, 'valuation_fee')['after_discount']),

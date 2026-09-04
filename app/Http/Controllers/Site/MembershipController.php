@@ -48,6 +48,8 @@ class MembershipController extends Controller
         $request->session()->put('membership_payment_ref', $paymentReference);
 
         $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
+        $baseFee = app(\App\Services\Staging\StagingPaymentsService::class)
+            ->effective('registration_fee', (float) $baseFee);
         $useWallet = (bool) old('use_wallet', false);
         $promoCode = old('promo_code', $request->query('promo_code'));
         [$resolvedPromo, $resolvedAffiliate] = app(\App\Services\ApplicationFeePaymentService::class)
@@ -104,6 +106,8 @@ class MembershipController extends Controller
         $isFirstTime = ! $customer->hasMembership();
         $cfg = MembershipService::config();
         $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
+        $baseFee = app(\App\Services\Staging\StagingPaymentsService::class)
+            ->effective('registration_fee', (float) $baseFee);
         $useWallet = $isFirstTime && $request->boolean('use_wallet');
         $promoCode = $data['promo_code'] ?? null;
         $gate = app(\App\Services\PaymentGateService::class);

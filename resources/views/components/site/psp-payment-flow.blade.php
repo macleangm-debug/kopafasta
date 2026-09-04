@@ -54,7 +54,15 @@
         'sentTo' => __('borrower.payment_waiting.sent_to'),
         'promoInvalid' => __('borrower.membership.promo_invalid'),
         'promoRequired' => __('borrower.apply.application_fee.promo_label'),
+        'simulatorHeading' => __('borrower.payment_waiting.simulator_heading'),
+        'simulatorSuccess' => __('borrower.payment_waiting.simulator_success'),
+        'simulatorPending' => __('borrower.payment_waiting.simulator_pending'),
+        'simulatorFailed' => __('borrower.payment_waiting.simulator_failed_btn'),
+        'simulatorCancelled' => __('borrower.payment_waiting.simulator_cancelled'),
+        'simulatorReversed' => __('borrower.payment_waiting.simulator_reversed'),
     ];
+    $stagingPayments = app(\App\Services\Staging\StagingPaymentsService::class);
+    $showSimulator = $stagingPayments->isSimulator();
 @endphp
 
 <div
@@ -87,6 +95,8 @@
         quoteLines: @js($quote['lines'] ?? []),
         cashDueLabel: @js(isset($quote['cash_due']) ? format_money((float) $quote['cash_due']) : $amountLabel),
         stackWithPromo: @js((bool) ($quote['stack_with_promo'] ?? false)),
+        simulateUrl: @js($showSimulator ? route('site.borrower.payments.simulate', $payment) : ''),
+        simulatorEnabled: @js($showSimulator),
     })"
 >
     <div class="kf-payment-surface-card">
@@ -94,6 +104,7 @@
             <div class="w-10 h-1 rounded-full bg-gray-300"></div>
         </div>
         <div class="px-5 sm:px-6 pt-2 pb-1">
+            <p x-show="simulatorEnabled" class="mb-2 inline-flex rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1">{{ __('borrower.payment_waiting.simulator_heading') }}</p>
             <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900" x-text="surfaceTitle()"></h2>
         </div>
         <div class="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pb-6">
@@ -139,6 +150,16 @@
                         class="rounded-xl bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 text-sm font-bold px-5 py-2.5 disabled:opacity-60">
                     {{ __('borrower.payment_waiting.change_phone') }}
                 </button>
+                <div x-show="simulatorEnabled" class="pt-2 space-y-2 text-left">
+                    <p class="text-[10px] uppercase tracking-widest font-bold text-amber-800">{{ __('borrower.payment_waiting.simulator_heading') }}</p>
+                    <div class="grid sm:grid-cols-2 gap-2">
+                        <button type="button" @click="simulateOutcome('success')" :disabled="busy" class="rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 disabled:opacity-60">{{ __('borrower.payment_waiting.simulator_success') }}</button>
+                        <button type="button" @click="simulateOutcome('pending')" :disabled="busy" class="rounded-xl bg-white ring-1 ring-gray-200 text-sm font-bold px-4 py-2.5 disabled:opacity-60">{{ __('borrower.payment_waiting.simulator_pending') }}</button>
+                        <button type="button" @click="simulateOutcome('failed')" :disabled="busy" class="rounded-xl bg-white ring-1 ring-gray-200 text-sm font-bold px-4 py-2.5 disabled:opacity-60">{{ __('borrower.payment_waiting.simulator_failed_btn') }}</button>
+                        <button type="button" @click="simulateOutcome('cancelled')" :disabled="busy" class="rounded-xl bg-white ring-1 ring-gray-200 text-sm font-bold px-4 py-2.5 disabled:opacity-60">{{ __('borrower.payment_waiting.simulator_cancelled') }}</button>
+                        <button type="button" @click="simulateOutcome('reversed')" :disabled="busy" class="rounded-xl bg-white ring-1 ring-gray-200 text-sm font-bold px-4 py-2.5 disabled:opacity-60 sm:col-span-2">{{ __('borrower.payment_waiting.simulator_reversed') }}</button>
+                    </div>
+                </div>
             </div>
 
             <div x-show="state === 'paid'" x-cloak class="pt-6 space-y-5 text-center">

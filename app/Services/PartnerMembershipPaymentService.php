@@ -60,11 +60,12 @@ class PartnerMembershipPaymentService
 
     public function feeFor(Vendor $vendor): float
     {
-        if ($vendor->isAffiliate()) {
-            return app(AffiliateMembershipService::class)->feeFor($vendor);
-        }
+        $amount = $vendor->isAffiliate()
+            ? app(AffiliateMembershipService::class)->feeFor($vendor)
+            : $this->membership->feeFor($vendor);
 
-        return $this->membership->feeFor($vendor);
+        return app(\App\Services\Staging\StagingPaymentsService::class)
+            ->effective('partner_membership', (float) $amount);
     }
 
     public function paymentReference(Vendor $vendor): string

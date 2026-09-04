@@ -33,6 +33,8 @@ export function registerPspPaymentFlow(Alpine) {
         promoValid: false,
         quoteLines: cfg.quoteLines || [],
         stackWithPromo: !!cfg.stackWithPromo,
+        simulateUrl: cfg.simulateUrl || '',
+        simulatorEnabled: !!cfg.simulatorEnabled,
         adjusting: false,
 
         formatLineAmount(line) {
@@ -289,6 +291,34 @@ export function registerPspPaymentFlow(Alpine) {
                 if (data.phone_masked) this.phoneMasked = data.phone_masked;
             } catch (e) {
                 this.message = this.copy.retry;
+            } finally {
+                this.busy = false;
+            }
+        },
+
+        async simulateOutcome(outcome) {
+            if (!this.simulatorEnabled || !this.simulateUrl || this.busy) return;
+            this.busy = true;
+            try {
+                const body = new FormData();
+                const token = document.querySelector('meta[name=csrf-token]')?.content;
+                if (token) body.append('_token', token);
+                body.append('outcome', outcome);
+                const res = await fetch(this.simulateUrl, {
+                    method: 'POST',
+                    headers: this.csrfHeaders(),
+                    credentials: 'same-origin',
+                    body,
+                });
+                const data = await this.parseResponse(res);
+                this.applyPayload(data);
+                if (!res.ok && this.state !== 'waiting' && this.state !== 'paid') {
+                    this.state = 'failed';
+                    this.message = data.message || this.copy.retry;
+                }
+            } catch (e) {
+                this.message = this.copy.retry;
+                this.state = 'failed';
             } finally {
                 this.busy = false;
             }
