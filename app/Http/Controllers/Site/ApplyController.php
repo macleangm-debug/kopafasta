@@ -1152,20 +1152,6 @@ class ApplyController extends Controller
             : 1;
 
         $loyaltyRedeemed = false;
-        if ($request->boolean('redeem_loyalty') && filled($data['loyalty_option_key'] ?? null)) {
-            try {
-                app(LoyaltyRedemptionService::class)
-                    ->redeem($customer, (string) $data['loyalty_option_key']);
-                $loyaltyRedeemed = true;
-                $customer->refresh();
-            } catch (\InvalidArgumentException $e) {
-                if ($request->expectsJson()) {
-                    return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
-                }
-
-                return back()->with('error', $e->getMessage());
-            }
-        }
 
         $amount = $groups->isGroupProduct($product)
             ? $groups->quotedApplicationFee($customer, $product, $memberCount)

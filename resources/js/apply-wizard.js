@@ -507,11 +507,11 @@ export function applyWizard(config) {
                         return;
                     }
                     if (onResume && ['processing', 'pending'].includes(this.applicationFeeState?.status || '')) {
+                        this.payApplicationFee();
                         return;
                     }
                     if (this.needsFeeGateBefore(this.stepKey)) {
-                        this.feeGateOpen = true;
-                        this.enterApplicationFeeStep();
+                        this.payApplicationFee();
                     }
                 },
 
@@ -895,8 +895,7 @@ export function applyWizard(config) {
                         if (! this.supplementMode && ! this.isEditHop()
                             && ! this.feeGateSatisfied()
                             && this.needsFeeGateBefore(this.stepKey)) {
-                            this.feeGateOpen = true;
-                            this.enterApplicationFeeStep();
+                            this.payApplicationFee();
                         }
                     }
                 },
@@ -920,17 +919,9 @@ export function applyWizard(config) {
                         // Persist group roster size before opening payments.show so fee × members is locked.
                         await this.persistDraft(true);
                         await this.refreshApplicationFeeQuote();
-                        const feeCode = this.feePromoCode
-                            ? String(this.feePromoCode).trim().toUpperCase()
-                            : null;
                         const body = {
                             loan_product_id: this.form.loan_product_id,
                             payment_phone: this.feePhone || '',
-                            use_wallet: !!this.feeUseWallet,
-                            promo_code: feeCode,
-                            affiliate_code: feeCode,
-                            redeem_loyalty: !!(this.feeRedeemLoyalty && this.feeLoyaltyOption?.can_redeem),
-                            loyalty_option_key: this.feeLoyaltyOption?.key || null,
                             member_count: this.isGroupProduct(this.current)
                                 ? Math.max(1, this.groupTargetCount())
                                 : undefined,
@@ -1103,9 +1094,7 @@ export function applyWizard(config) {
                               }
                               if (data?.step_key && data.step_key !== this.stepKey
                                   && this.needsFeeGateBefore(this.stepKey)) {
-                                  this.goToStepKey(data.step_key);
-                                  this.feeGateOpen = true;
-                                  this.enterApplicationFeeStep();
+                                  this.payApplicationFee();
                               }
                           });
                     };
@@ -3513,13 +3502,11 @@ export function applyWizard(config) {
                             return;
                         }
                         const nextKey = this.steps[this.step + 1]?.key;
-                        // Never leave the last setup step while a required application fee is unpaid.
+                        // Quote Next opens the shared payment.show interruption when the fee is due.
                         if (! this.supplementMode && nextKey && this.needsFeeGateBefore(nextKey)) {
                             await this.refreshApplicationFeeQuote();
                             if (! this.feeGateSatisfied()) {
-                                this.feeGateOpen = true;
-                                this.enterApplicationFeeStep();
-                                this.scrollWizardIntoView();
+                                await this.payApplicationFee();
                                 return;
                             }
                         }

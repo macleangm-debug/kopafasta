@@ -8,6 +8,7 @@
     'walletReward' => null,
     'formAction' => null,
     'defaultPhone' => null,
+    'cancelUrl' => null,
 ])
 
 @php
@@ -41,6 +42,7 @@
     :wallet-reward="$walletReward"
     :show-bank="true"
     :show-mobile="true"
+    :cancel-url="$cancelUrl"
 >
     @if (is_array($groupBreakdown) && (int) ($groupBreakdown['member_count'] ?? 0) > 1)
         <x-slot:amountFooter>

@@ -15,6 +15,9 @@
     'initialState' => 'details',
     'errorMessage' => null,
     'overlay' => true,
+    'cancelUrl' => null,
+    'adjustUrl' => null,
+    'applyReward' => false,
 ])
 
 @php
@@ -49,6 +52,8 @@
         'stayHint' => __('borrower.payment_waiting.stay_hint'),
         'slowHint' => __('borrower.payment_waiting.slow_hint'),
         'sentTo' => __('borrower.payment_waiting.sent_to'),
+        'promoInvalid' => __('borrower.membership.promo_invalid'),
+        'promoRequired' => __('borrower.apply.application_fee.promo_label'),
     ];
 @endphp
 
@@ -71,9 +76,17 @@
         gateUrl: @js($gateUrl),
         copy: @js($copy),
         overlay: @js((bool) $overlay),
+        applyReward: @js((bool) $applyReward),
         rewardDiscountLabel: @js(isset($walletReward['discount']) ? format_money((float) $walletReward['discount']) : ''),
         grossAmountLabel: @js($amountLabel),
         rewardNetLabel: @js($rewardNet !== null ? format_money($rewardNet) : $amountLabel),
+        cancelUrl: @js($cancelUrl),
+        adjustUrl: @js($adjustUrl ?? route('site.borrower.payments.adjust', $payment)),
+        promoCode: @js($promoValue),
+        promoValid: @js((bool) ($quote['promo_valid'] ?? false)),
+        quoteLines: @js($quote['lines'] ?? []),
+        cashDueLabel: @js(isset($quote['cash_due']) ? format_money((float) $quote['cash_due']) : $amountLabel),
+        stackWithPromo: @js((bool) ($quote['stack_with_promo'] ?? false)),
     })"
 >
     <div class="kf-payment-surface-card">
@@ -95,6 +108,7 @@
                     :wallet-reward="$walletReward"
                     :form-action="$formAction"
                     :default-phone="$defaultPhone"
+                    :cancel-url="$cancelUrl"
                 />
             </div>
 

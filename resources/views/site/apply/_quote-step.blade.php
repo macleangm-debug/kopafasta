@@ -172,21 +172,9 @@
                 </div>
             </div>
 
-            <div x-show="canShowQuoteRewards()" x-cloak
-                 class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div class="min-w-0 space-y-1">
-                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">{{ __('borrower.apply.quote.engagement_title') }}</p>
-                    <p class="text-sm text-emerald-900" x-show="hasActiveLoanReward()">
-                        {{ __('borrower.apply.quote.active_reward') }}
-                    </p>
-                    <p class="text-sm text-emerald-900" x-show="!hasActiveLoanReward() && feeLoyaltyOption?.can_redeem">
-                        {{ __('borrower.apply.quote.redeem_hint') }}
-                    </p>
-                </div>
-                <a href="{{ route('site.borrower.engagement', ['tab' => 'rewards']) }}"
-                   class="shrink-0 text-xs font-semibold text-emerald-900 underline">
-                    {{ __('borrower.apply.quote.rewards_cta') }}
-                </a>
+            <div x-show="feeNotice" x-cloak class="rounded-xl px-4 py-3 text-sm"
+                 :class="feeNotice?.tone === 'success' ? 'bg-emerald-50 ring-1 ring-emerald-200 text-emerald-900' : 'bg-rose-50 ring-1 ring-rose-200 text-rose-900'">
+                <p class="font-semibold" x-text="feeNotice?.message"></p>
             </div>
         </div>
     </template>

@@ -5,16 +5,23 @@ namespace App\Services;
 use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\JournalEntry;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Models\MembershipHistory;
+use App\Models\Partner;
 use App\Models\Repayment;
 use App\Models\Setting;
+use App\Models\User;
+use App\Services\Marketing\DemoGuard;
+use App\Services\Plus\PlusService;
 use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CustomerPaymentService
 {
@@ -48,7 +55,7 @@ class CustomerPaymentService
     /**
      * Amount to collect from the PSP. Obligation `amount` stays gross.
      */
-    public static function collectableAmount(\App\Models\CustomerPayment $payment): float
+    public static function collectableAmount(CustomerPayment $payment): float
     {
         $net = data_get($payment->provider_meta, 'pricing.net_payable');
         if ($net !== null && is_numeric($net)) {
@@ -64,7 +71,7 @@ class CustomerPaymentService
      * @return array<string, mixed>
      */
     public function applyCheckoutBenefits(
-        \App\Models\CustomerPayment $payment,
+        CustomerPayment $payment,
         bool $applyReward,
         ?string $promoCode = null,
     ): array {
@@ -73,7 +80,11 @@ class CustomerPaymentService
             return [];
         }
 
-        $gross = (float) (data_get($payment->provider_meta, 'pricing.gross') ?? $payment->amount);
+        $gross = (float) (
+            data_get($payment->provider_meta, 'pricing.gross')
+            ?? data_get($payment->provider_meta, 'apply_context.gross_amount')
+            ?? $payment->amount
+        );
         $quote = app(PaymentGateService::class)->quote(
             $customer,
             $gross,
@@ -86,19 +97,24 @@ class CustomerPaymentService
 
         $meta = (array) ($payment->provider_meta ?? []);
         $meta['pricing'] = [
-            'gross'                 => round($gross, 2),
-            'affiliate_discount'    => (float) ($quote['affiliate_discount'] ?? 0),
-            'referral_discount'     => (float) ($quote['referral_discount'] ?? 0),
-            'promo_discount'        => (float) ($quote['promo_discount'] ?? 0),
-            'loyalty_discount'      => (float) ($quote['loyalty_discount'] ?? 0),
-            'discount_source'       => $this->discountSourceLabel($quote),
-            'discount_amount'       => (float) ($quote['total_discount'] ?? 0),
+            'gross' => round($gross, 2),
+            'affiliate_discount' => (float) ($quote['affiliate_discount'] ?? 0),
+            'referral_discount' => (float) ($quote['referral_discount'] ?? 0),
+            'promo_discount' => (float) ($quote['promo_discount'] ?? 0),
+            'loyalty_discount' => (float) ($quote['loyalty_discount'] ?? 0),
+            'discount_source' => $this->discountSourceLabel($quote),
+            'discount_amount' => (float) ($quote['total_discount'] ?? 0),
             'loyalty_redemption_id' => $quote['loyalty_redemption_id'] ?? null,
-            'points_consumed'       => 0,
-            'net_payable'           => (float) ($quote['cash_due'] ?? $gross),
-            'promo_code'            => $quote['promo_code'] ?? null,
-            'apply_reward'          => $applyReward,
-            'rule_version'          => now()->toIso8601String(),
+            'loyalty_option_key' => $quote['loyalty_option_key'] ?? null,
+            'loyalty_points_cost' => (int) ($quote['loyalty_points_cost'] ?? 0),
+            'points_consumed' => 0,
+            'net_payable' => (float) ($quote['cash_due'] ?? $gross),
+            'promo_code' => $quote['promo_code'] ?? null,
+            'promo_valid' => (bool) ($quote['promo_valid'] ?? false),
+            'code_kind' => $quote['code_kind'] ?? null,
+            'apply_reward' => $applyReward,
+            'lines' => $quote['lines'] ?? [],
+            'rule_version' => now()->toIso8601String(),
         ];
         $payment->update(['provider_meta' => $meta]);
 
@@ -184,16 +200,16 @@ class CustomerPaymentService
      * Staff creates a borrower payment gate for a specific amount on a live loan.
      * Money is not recorded here — the borrower pays on payments.show.
      */
-    public function requestLoanRepayment(Loan $loan, float $amount, \App\Models\User $actor, ?string $note = null): CustomerPayment
+    public function requestLoanRepayment(Loan $loan, float $amount, User $actor, ?string $note = null): CustomerPayment
     {
         $amount = round($amount, 2);
         if ($amount < 100) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'amount' => 'Amount must be at least TZS 100.',
             ]);
         }
         if (! in_array($loan->status, ['active', 'arrears', 'defaulted'], true) || (float) $loan->outstanding_balance <= 0) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'amount' => 'This loan is not open for collection.',
             ]);
         }
@@ -201,7 +217,7 @@ class CustomerPaymentService
         $loan->loadMissing(['customer', 'product']);
         $customer = $loan->customer;
         if (! $customer) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'amount' => 'This loan has no borrower on file.',
             ]);
         }
@@ -211,32 +227,32 @@ class CustomerPaymentService
             $resolved = $this->accounts->resolve('loan_repayment', 'mobile_money', $loan->product);
 
             $repayment = Repayment::create([
-                'loan_id'   => $loan->id,
+                'loan_id' => $loan->id,
                 'reference' => $reference,
-                'channel'   => 'mobile_money',
-                'amount'    => $amount,
-                'status'    => 'pending',
+                'channel' => 'mobile_money',
+                'amount' => $amount,
+                'status' => 'pending',
             ]);
 
             return CustomerPayment::create([
-                'reference'               => $reference,
-                'customer_id'             => $customer->id,
-                'payment_type'            => 'loan_repayment',
-                'payment_method'          => 'mobile_money',
-                'amount'                  => $amount,
-                'currency'                => 'TZS',
-                'status'                  => 'awaiting_payment',
+                'reference' => $reference,
+                'customer_id' => $customer->id,
+                'payment_type' => 'loan_repayment',
+                'payment_method' => 'mobile_money',
+                'amount' => $amount,
+                'currency' => 'TZS',
+                'status' => 'awaiting_payment',
                 'mobile_money_account_id' => $resolved['mobile_money_account']?->id,
-                'payment_instructions'    => $resolved['instructions'],
-                'source_type'             => Repayment::class,
-                'source_id'               => $repayment->id,
-                'loan_id'                 => $loan->id,
-                'loan_product_id'         => $loan->loan_product_id,
-                'created_by'              => $actor->id,
-                'provider_meta'           => array_filter([
+                'payment_instructions' => $resolved['instructions'],
+                'source_type' => Repayment::class,
+                'source_id' => $repayment->id,
+                'loan_id' => $loan->id,
+                'loan_product_id' => $loan->loan_product_id,
+                'created_by' => $actor->id,
+                'provider_meta' => array_filter([
                     'staff_requested' => true,
-                    'requested_by'    => $actor->id,
-                    'note'            => $note,
+                    'requested_by' => $actor->id,
+                    'note' => $note,
                 ]),
             ]);
         });
@@ -262,7 +278,7 @@ class CustomerPaymentService
     public function create(array $data): CustomerPayment
     {
         return DB::transaction(function () use ($data) {
-            app(\App\Services\Marketing\DemoGuard::class)->assertCanMoveMoney('create a customer payment');
+            app(DemoGuard::class)->assertCanMoveMoney('create a customer payment');
             $customer = $data['customer'];
             $loan = $data['loan'] ?? null;
             $product = $data['loan_product'] ?? $loan?->product ?? null;
@@ -293,12 +309,12 @@ class CustomerPaymentService
                 if ($liveGateway) {
                     // Live mode: never accept mobile money without the assigned aggregator.
                     if (! $payIn->isLiveCollectionEnabled()) {
-                        throw \Illuminate\Validation\ValidationException::withMessages([
+                        throw ValidationException::withMessages([
                             'payment_method' => [__('borrower.payments.aggregator_required')],
                         ]);
                     }
                     if (! filled($data['mobile_number'] ?? null)) {
-                        throw \Illuminate\Validation\ValidationException::withMessages([
+                        throw ValidationException::withMessages([
                             'mobile_number' => [__('borrower.payments.mobile_number_required')],
                         ]);
                     }
@@ -327,12 +343,12 @@ class CustomerPaymentService
                 $autoVerify = false;
                 if ($method === 'mobile_money' && ! $usePayIn) {
                     if (! filled($data['mobile_number'] ?? null)) {
-                        throw \Illuminate\Validation\ValidationException::withMessages([
+                        throw ValidationException::withMessages([
                             'mobile_number' => [__('borrower.payments.mobile_number_required')],
                         ]);
                     }
                     if (! $payIn->isConfigured()) {
-                        throw \Illuminate\Validation\ValidationException::withMessages([
+                        throw ValidationException::withMessages([
                             'payment_method' => [__('borrower.payments.aggregator_required')],
                         ]);
                     }
@@ -379,29 +395,29 @@ class CustomerPaymentService
             }
 
             $payment = CustomerPayment::create([
-                'reference'               => $reference,
-                'customer_id'             => $customer->id,
-                'payment_type'            => $type,
-                'payment_method'          => $method,
-                'amount'                  => $amount,
-                'currency'                => $data['currency'] ?? 'TZS',
-                'status'                  => $status,
-                'bank_account_id'         => $resolved['bank_account']?->id,
+                'reference' => $reference,
+                'customer_id' => $customer->id,
+                'payment_type' => $type,
+                'payment_method' => $method,
+                'amount' => $amount,
+                'currency' => $data['currency'] ?? 'TZS',
+                'status' => $status,
+                'bank_account_id' => $resolved['bank_account']?->id,
                 'mobile_money_account_id' => $resolved['mobile_money_account']?->id,
-                'mobile_number'           => $data['mobile_number'] ?? null,
-                'payment_instructions'    => $instructions,
-                'proof_path'              => $proofPath,
-                'proof_original_name'     => $proofName,
-                'paid_at'                 => $type === 'kopafasta_plus' || $type === 'insurance_premium'
+                'mobile_number' => $data['mobile_number'] ?? null,
+                'payment_instructions' => $instructions,
+                'proof_path' => $proofPath,
+                'proof_original_name' => $proofName,
+                'paid_at' => $type === 'kopafasta_plus' || $type === 'insurance_premium'
                     ? null
                     : ($autoVerify || (! $isBank && ! $usePayIn && ! $liveGateway) ? now() : null),
-                'payment_date'            => $data['payment_date'] ?? ($isBank ? now(app_display_timezone())->toDateString() : null),
-                'source_type'             => isset($data['source']) ? $data['source']::class : null,
-                'source_id'               => ($data['source'] ?? null)?->getKey(),
-                'loan_id'                 => $loan?->id,
-                'loan_product_id'         => $product?->id,
-                'created_by'              => auth()->id(),
-                'provider_meta'           => (function () use ($usePayIn, $data) {
+                'payment_date' => $data['payment_date'] ?? ($isBank ? now(app_display_timezone())->toDateString() : null),
+                'source_type' => isset($data['source']) ? $data['source']::class : null,
+                'source_id' => ($data['source'] ?? null)?->getKey(),
+                'loan_id' => $loan?->id,
+                'loan_product_id' => $product?->id,
+                'created_by' => auth()->id(),
+                'provider_meta' => (function () use ($usePayIn, $data) {
                     $context = array_filter([
                         'apply_context' => $data['apply_context'] ?? null,
                         'membership_context' => $data['membership_context'] ?? null,
@@ -444,7 +460,7 @@ class CustomerPaymentService
         $payment = $payment->fresh(['customer']);
 
         if ($payment->payment_method !== 'mobile_money') {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'payment_method' => [__('borrower.payments.aggregator_required')],
             ]);
         }
@@ -454,7 +470,7 @@ class CustomerPaymentService
             if ($payment->status === 'processing' && filled($payment->provider_ref)) {
                 return $payment;
             }
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'payment_method' => [__('borrower.payment_waiting.cannot_retry')],
             ]);
         }
@@ -468,14 +484,14 @@ class CustomerPaymentService
         }
 
         if (! filled($phone)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'mobile_number' => [__('borrower.payments.mobile_number_required')],
             ]);
         }
 
         $payIn = app(PayInService::class);
         if (! $payIn->isConfigured()) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'payment_method' => [__('borrower.payments.aggregator_required')],
             ]);
         }
@@ -499,14 +515,14 @@ class CustomerPaymentService
         ]);
 
         try {
-            $collection =             $payIn->collect(
+            $collection = $payIn->collect(
                 $pspPhone,
                 self::collectableAmount($payment),
                 $payInReference,
                 $this->payInDescription($payment->payment_type, (string) $payment->reference, is_string($description) ? $description : null),
                 $requestedOperator,
             );
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $message = collect($e->errors())->flatten()->first()
                 ?: __('borrower.payments.aggregator_rejected');
             $localized = self::localizeProviderMessage($message, $pspPhone);
@@ -523,7 +539,7 @@ class CustomerPaymentService
                 'provider_meta' => $meta,
             ]);
 
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'payment_phone' => [$localized],
             ]);
         }
@@ -562,7 +578,7 @@ class CustomerPaymentService
                 'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$message),
             ]);
 
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'payment_phone' => [$message],
             ]);
         }
@@ -619,7 +635,7 @@ class CustomerPaymentService
         abort_unless($payment->payment_method === 'mobile_money', 422);
 
         $product = $payment->loan_product_id
-            ? \App\Models\LoanProduct::query()->find($payment->loan_product_id)
+            ? LoanProduct::query()->find($payment->loan_product_id)
             : ($payment->loan_id ? $payment->loan?->product : null);
         $resolved = $this->accounts->resolve($payment->payment_type, 'bank_transfer', $product);
         $bankAccount = $this->accounts->resolveBankAccount($payment->payment_type, $product);
@@ -912,7 +928,7 @@ class CustomerPaymentService
     }
 
     /** @return array{title: string, message: string}|null */
-    private function onTimeStreakCelebrationCopy(?\App\Models\Customer $customer): ?array
+    private function onTimeStreakCelebrationCopy(?Customer $customer): ?array
     {
         if (! $customer) {
             return null;
@@ -957,9 +973,9 @@ class CustomerPaymentService
         $path = $file->store('payment-proofs/'.$payment->customer_id, 'public');
 
         $payment->update([
-            'proof_path'          => $path,
+            'proof_path' => $path,
             'proof_original_name' => $file->getClientOriginalName(),
-            'status'              => $payment->status === 'clarification_requested'
+            'status' => $payment->status === 'clarification_requested'
                 ? 'pending_verification'
                 : $payment->status,
         ]);
@@ -975,10 +991,10 @@ class CustomerPaymentService
 
         return DB::transaction(function () use ($payment, $actorUserId, $notes) {
             $payment->update([
-                'status'             => 'verified',
-                'verified_by'        => $actorUserId,
-                'verified_at'        => now(),
-                'paid_at'            => $payment->paid_at ?? now(),
+                'status' => 'verified',
+                'verified_by' => $actorUserId,
+                'verified_at' => now(),
+                'paid_at' => $payment->paid_at ?? now(),
                 'verification_notes' => $notes ? trim(($payment->verification_notes ?? '')."\nVerified: ".$notes) : $payment->verification_notes,
             ]);
 
@@ -1000,9 +1016,9 @@ class CustomerPaymentService
         }
 
         $payment->update([
-            'status'             => 'rejected',
-            'verified_by'        => $actorUserId,
-            'verified_at'        => now(),
+            'status' => 'rejected',
+            'verified_by' => $actorUserId,
+            'verified_at' => now(),
             'verification_notes' => $notes ? trim(($payment->verification_notes ?? '')."\nRejected: ".$notes) : $payment->verification_notes,
         ]);
 
@@ -1016,15 +1032,15 @@ class CustomerPaymentService
         }
 
         $payment->update([
-            'status'             => 'clarification_requested',
-            'verified_by'        => $actorUserId,
+            'status' => 'clarification_requested',
+            'verified_by' => $actorUserId,
             'verification_notes' => $notes ? trim(($payment->verification_notes ?? '')."\nClarification: ".$notes) : $payment->verification_notes,
         ]);
 
         return $payment->fresh();
     }
 
-    public function postLedger(CustomerPayment $payment): ?\App\Models\JournalEntry
+    public function postLedger(CustomerPayment $payment): ?JournalEntry
     {
         if ($payment->journal_entry_id) {
             return $payment->journalEntry;
@@ -1187,18 +1203,18 @@ class CustomerPaymentService
         }
 
         if ($payment->payment_type === 'partner_membership' && $payment->partner_id) {
-            $partner = \App\Models\Partner::query()->find($payment->partner_id);
+            $partner = Partner::query()->find($payment->partner_id);
             if ($partner) {
                 if ($partner->isAffiliate()) {
-                    $affiliateMembership = app(\App\Services\AffiliateMembershipService::class);
+                    $affiliateMembership = app(AffiliateMembershipService::class);
                     $partner = $partner->membership_started_at
                         ? $affiliateMembership->renew($partner, $payment->reference)
                         : $affiliateMembership->activate($partner, $payment->reference);
                 } else {
-                    $partner = app(\App\Services\PartnerMembershipService::class)->activate($partner, $payment->reference);
+                    $partner = app(PartnerMembershipService::class)->activate($partner, $payment->reference);
                     if ($partner->isValuer()) {
                         try {
-                            app(\App\Services\ValuationPartnerService::class)->assignWaitingJobsCoveredBy($partner);
+                            app(ValuationPartnerService::class)->assignWaitingJobsCoveredBy($partner);
                         } catch (\Throwable $e) {
                             report($e);
                         }
@@ -1209,7 +1225,7 @@ class CustomerPaymentService
 
         if ($payment->payment_type === 'kopafasta_plus' && $payment->customer) {
             $this->settleFromPricing($payment);
-            app(\App\Services\Plus\PlusService::class)->activate($payment->customer, [
+            app(PlusService::class)->activate($payment->customer, [
                 'payment_reference' => $payment->reference,
                 'price_paid' => self::collectableAmount($payment),
             ]);
@@ -1218,7 +1234,7 @@ class CustomerPaymentService
         if ($payment->payment_type === 'registration_fee' && $payment->customer) {
             $this->settleMembershipFeeContext($payment);
 
-            $alreadyApplied = \App\Models\MembershipHistory::query()
+            $alreadyApplied = MembershipHistory::query()
                 ->where('payment_reference', $payment->reference)
                 ->whereIn('event', ['issued', 'renewed'])
                 ->exists();
@@ -1305,12 +1321,12 @@ class CustomerPaymentService
             || ($ctxRef !== '' && $currentRef !== '' && $ctxRef === $currentRef);
 
         $feeState = [
-            'status'     => 'paid',
-            'reference'  => $payment->reference,
+            'status' => 'paid',
+            'reference' => $payment->reference,
             'payment_id' => $payment->id,
-            'channel'    => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
-            'amount'     => (int) round((float) $payment->amount),
-            'paid_at'    => ($payment->paid_at ?? now())->toIso8601String(),
+            'channel' => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
+            'amount' => (int) round((float) $payment->amount),
+            'paid_at' => ($payment->paid_at ?? now())->toIso8601String(),
         ];
 
         if ($belongsToCurrentDraft && ! $drafts->wasDiscarded($productId)) {
@@ -1344,9 +1360,17 @@ class CustomerPaymentService
             $ctx['affiliate_code'] ?? null,
         );
         $quote['loyalty_redemption_id'] = data_get($payment->provider_meta, 'pricing.loyalty_redemption_id') ?? ($quote['loyalty_redemption_id'] ?? null);
+        $quote['loyalty_option_key'] = data_get($payment->provider_meta, 'pricing.loyalty_option_key') ?? ($quote['loyalty_option_key'] ?? null);
         $quote['loyalty_discount'] = (float) (data_get($payment->provider_meta, 'pricing.loyalty_discount') ?? ($quote['loyalty_discount'] ?? 0));
 
-        app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
+        app(PaymentGateService::class)->settle(
+            $customer,
+            $quote,
+            'application_fee',
+            CustomerPayment::class,
+            $payment->id,
+            $useWallet,
+        );
 
         $meta = $payment->provider_meta ?? [];
         $meta['apply_context'] = array_merge($ctx, ['settled' => true]);
@@ -1370,12 +1394,12 @@ class CustomerPaymentService
 
         $customer = $payment->customer->fresh();
         app(LoanApplicationDraftService::class)->saveValuationFee($customer, $productId, [
-            'status'     => 'paid',
-            'reference'  => $payment->reference,
+            'status' => 'paid',
+            'reference' => $payment->reference,
             'payment_id' => $payment->id,
-            'channel'    => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
-            'amount'     => (int) round((float) $payment->amount),
-            'paid_at'    => ($payment->paid_at ?? now())->toIso8601String(),
+            'channel' => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
+            'amount' => (int) round((float) $payment->amount),
+            'paid_at' => ($payment->paid_at ?? now())->toIso8601String(),
         ]);
 
         if (! empty($ctx['settled'])) {
@@ -1426,7 +1450,7 @@ class CustomerPaymentService
                 $baseFee,
                 $useWallet,
                 'registration_fee',
-                \App\Models\MembershipHistory::class,
+                MembershipHistory::class,
                 null,
             );
         } else {
@@ -1434,7 +1458,7 @@ class CustomerPaymentService
                 $customer,
                 $baseFee,
                 'registration_fee',
-                \App\Models\MembershipHistory::class,
+                MembershipHistory::class,
                 null,
             );
             if ($useWallet && is_array($quote) && ($quote['wallet_applied'] ?? 0) > 0) {
@@ -1442,7 +1466,7 @@ class CustomerPaymentService
                     $customer,
                     $quote['wallet_applied'],
                     'Applied to membership fee',
-                    \App\Models\MembershipHistory::class,
+                    MembershipHistory::class,
                     null,
                 );
             }
@@ -1485,9 +1509,9 @@ class CustomerPaymentService
         $alloc = app(RepaymentPostingService::class)->allocate($loan, (float) $repayment->amount);
         $repayment->update([
             'principal_component' => $alloc['principal'],
-            'interest_component'  => $alloc['interest'],
-            'penalty_component'   => $alloc['penalty'],
-            'status'              => 'received',
+            'interest_component' => $alloc['interest'],
+            'penalty_component' => $alloc['penalty'],
+            'status' => 'received',
         ]);
 
         $entry = app(RepaymentPostingService::class)->post($repayment->fresh());
@@ -1534,7 +1558,7 @@ class CustomerPaymentService
     protected function partnerMembershipSuccessUrl(CustomerPayment $payment): string
     {
         $partner = $payment->partner_id
-            ? \App\Models\Partner::query()->find($payment->partner_id)
+            ? Partner::query()->find($payment->partner_id)
             : null;
 
         if ($partner && method_exists($partner, 'isAffiliate') && $partner->isAffiliate()) {

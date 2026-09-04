@@ -21,14 +21,98 @@ export function registerPspPaymentFlow(Alpine) {
         timer: null,
         tickTimer: null,
         copy: cfg.copy || {},
-        applyReward: false,
+        applyReward: cfg.applyReward || false,
         rewardDiscountLabel: cfg.rewardDiscountLabel || '',
         grossAmountLabel: cfg.grossAmountLabel || cfg.amountLabel || '',
         rewardNetLabel: cfg.rewardNetLabel || cfg.amountLabel || '',
+        checkoutStep: 'adjust',
+        cancelUrl: cfg.cancelUrl || '',
+        adjustUrl: cfg.adjustUrl || '',
+        promoCode: cfg.promoCode || '',
+        promoMessage: '',
+        promoValid: false,
+        quoteLines: cfg.quoteLines || [],
+        stackWithPromo: !!cfg.stackWithPromo,
+        adjusting: false,
 
-        toggleReward() {
+        formatLineAmount(line) {
+            const amount = Number(line?.amount || 0);
+            const abs = Math.abs(amount).toLocaleString();
+            if (line?.kind === 'discount') return '− TZS ' + abs;
+            return 'TZS ' + abs;
+        },
+
+        async postAdjust(payload) {
+            if (!this.adjustUrl) {
+                this.promoValid = false;
+                this.promoMessage = this.copy.promoInvalid || this.copy.retry || '';
+                return { res: { ok: false }, data: { ok: false, message: this.promoMessage } };
+            }
+            if (this.adjusting) {
+                return { res: { ok: false }, data: { ok: false, message: this.promoMessage || this.copy.retry || '' } };
+            }
+            this.adjusting = true;
+            try {
+                const body = new FormData();
+                const token = document.querySelector('meta[name=csrf-token]')?.content;
+                if (token) body.append('_token', token);
+                Object.entries(payload).forEach(([key, value]) => {
+                    if (value === null || value === undefined) return;
+                    body.append(key, value === true || value === false ? (value ? '1' : '0') : String(value));
+                });
+                const res = await fetch(this.adjustUrl, {
+                    method: 'POST',
+                    headers: this.csrfHeaders(),
+                    credentials: 'same-origin',
+                    body,
+                });
+                const data = await this.parseResponse(res);
+                if (data.quote?.lines) this.quoteLines = data.quote.lines;
+                if (data.amount_label) this.amountLabel = data.amount_label;
+                if (data.promo_code !== undefined) this.promoCode = data.promo_code || this.promoCode;
+                this.promoValid = !!data.promo_valid;
+                this.promoMessage = data.message || '';
+                return { res, data };
+            } catch (e) {
+                this.promoValid = false;
+                this.promoMessage = this.copy.retry || this.copy.promoInvalid || '';
+                return { res: { ok: false }, data: { ok: false, message: this.promoMessage } };
+            } finally {
+                this.adjusting = false;
+            }
+        },
+
+        async applyPromo() {
+            const code = String(this.promoCode || '').trim().toUpperCase();
+            if (!code) {
+                this.promoValid = false;
+                this.promoMessage = this.copy.promoRequired || '';
+                return;
+            }
+            this.promoCode = code;
+            const result = await this.postAdjust({
+                promo_code: code,
+                apply_reward: this.applyReward ? '1' : '0',
+            });
+            if (!result) {
+                this.promoValid = false;
+                this.promoMessage = this.copy.promoInvalid || this.copy.retry || '';
+                return;
+            }
+            if (!result.res.ok || result.data.ok === false) {
+                this.promoValid = false;
+                this.promoMessage = result.data.message || this.copy.promoInvalid || '';
+            }
+        },
+
+        async toggleReward() {
             this.applyReward = !this.applyReward;
             this.amountLabel = this.applyReward ? this.rewardNetLabel : this.grossAmountLabel;
+            await this.postAdjust({
+                promo_code: this.stackWithPromo ? (this.promoCode || '') : '',
+                apply_reward: this.applyReward ? '1' : '0',
+                clear_promo: (!this.stackWithPromo && this.applyReward) ? '1' : '0',
+            });
         },
 
         surfaceTitle() {
@@ -72,6 +156,11 @@ export function registerPspPaymentFlow(Alpine) {
             }
             if (this.state === 'paid') {
                 this.burstConfetti();
+                if (this.successUrl) {
+                    window.setTimeout(() => {
+                        window.location.href = this.successUrl;
+                    }, 1400);
+                }
             }
         },
 

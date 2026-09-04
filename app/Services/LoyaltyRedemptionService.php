@@ -289,6 +289,155 @@ class LoyaltyRedemptionService
     }
 
     /**
+     * Reward the customer can actually use on this payment.show — enough points, or already unlocked.
+     *
+     * @return array{
+     *   id: int|null,
+     *   key: string,
+     *   label: string,
+     *   discount: float,
+     *   benefit_type: string,
+     *   points: int,
+     *   points_balance: int,
+     *   points_after: int,
+     *   already_unlocked: bool,
+     *   source: string
+     * }|null
+     */
+    public function checkoutRewardForFee(Customer $customer, string $feeType, float $feeBase = 0): ?array
+    {
+        $balance = $this->points->balance($customer);
+        $active = $this->activeForFee($customer, $feeType);
+        if ($active) {
+            $discount = $this->discountAmount($active, $feeBase);
+            if ($discount <= 0) {
+                return null;
+            }
+
+            return [
+                'id' => (int) $active->id,
+                'key' => (string) $active->option_key,
+                'label' => (string) $active->label,
+                'discount' => $discount,
+                'benefit_type' => (string) $active->benefit_type,
+                'points' => 0,
+                'points_balance' => $balance,
+                'points_after' => $balance,
+                'already_unlocked' => true,
+                'source' => 'wallet',
+            ];
+        }
+
+        $option = collect($this->catalog(null, $customer))
+            ->filter(fn (array $row) => in_array(($row['benefit_type'] ?? ''), ['percent_discount', 'fixed_discount', 'fee_waiver'], true))
+            ->filter(fn (array $row) => ($row['fee_type'] ?? null) === $feeType)
+            ->filter(fn (array $row) => ($row['unlocked'] ?? false) && ($row['eligible'] ?? false))
+            ->sortByDesc(fn (array $row) => (float) ($row['benefit_value'] ?? 0))
+            ->first();
+
+        if (! $option) {
+            return null;
+        }
+
+        $discount = $this->optionDiscountAmount($option, $feeBase);
+        if ($discount <= 0) {
+            return null;
+        }
+
+        $cost = (int) ($option['points'] ?? 0);
+
+        return [
+            'id' => null,
+            'key' => (string) ($option['key'] ?? ''),
+            'label' => (string) ($option['label'] ?? ''),
+            'discount' => $discount,
+            'benefit_type' => (string) ($option['benefit_type'] ?? ''),
+            'points' => $cost,
+            'points_balance' => $balance,
+            'points_after' => max(0, $balance - $cost),
+            'already_unlocked' => false,
+            'source' => 'catalog',
+        ];
+    }
+
+    /** @param  array<string, mixed>  $option */
+    public function optionDiscountAmount(array $option, float $baseAmount): float
+    {
+        $benefitType = (string) ($option['benefit_type'] ?? 'percent_discount');
+        $benefitValue = (float) ($option['benefit_value'] ?? 0);
+        $raw = match ($benefitType) {
+            'percent_discount' => round($baseAmount * ($benefitValue / 100), 2),
+            'fixed_discount' => min($baseAmount, $benefitValue),
+            'fee_waiver' => $baseAmount,
+            default => 0.0,
+        };
+        $max = isset($option['max_saving']) && $option['max_saving'] !== null && $option['max_saving'] !== ''
+            ? (float) $option['max_saving']
+            : null;
+        if ($max !== null && $max > 0) {
+            $raw = min($raw, $max);
+        }
+
+        return max(0.0, min($baseAmount, $raw));
+    }
+
+    /**
+     * @return array{discount: float, redemption: LoyaltyRedemption|null, label: string|null, option_key: string|null, points_cost: int}
+     */
+    public function previewDiscountForFee(Customer $customer, string $feeType, float $baseAmount): array
+    {
+        $reward = $this->checkoutRewardForFee($customer, $feeType, $baseAmount);
+        if (! $reward) {
+            return ['discount' => 0.0, 'redemption' => null, 'label' => null, 'option_key' => null, 'points_cost' => 0];
+        }
+
+        $redemption = ! empty($reward['id']) ? LoyaltyRedemption::query()->find($reward['id']) : null;
+
+        return [
+            'discount' => (float) $reward['discount'],
+            'redemption' => $redemption,
+            'label' => $reward['label'],
+            'option_key' => $reward['key'],
+            'points_cost' => (int) $reward['points'],
+        ];
+    }
+
+    public function finalizeCheckoutReward(
+        Customer $customer,
+        string $feeType,
+        ?string $optionKey,
+        ?string $refType = null,
+        ?int $refId = null,
+    ): ?LoyaltyRedemption {
+        if ($refType && $refId) {
+            $already = LoyaltyRedemption::query()
+                ->where('customer_id', $customer->id)
+                ->where('reference_type', $refType)
+                ->where('reference_id', $refId)
+                ->first();
+            if ($already) {
+                return $already;
+            }
+        }
+
+        $existing = $this->activeForFee($customer, $feeType);
+        if ($existing) {
+            $this->markUsed($existing, $refType, $refId);
+
+            return $existing;
+        }
+
+        if (! filled($optionKey)) {
+            return null;
+        }
+
+        $redemption = $this->redeem($customer, $optionKey);
+        $this->markUsed($redemption, $refType, $refId);
+
+        return $redemption;
+    }
+
+    /**
      * Best application-fee redemption the customer can claim inline at checkout.
      *
      * @return array{key: string, label: string, points: int, benefit_type: string, benefit_value: float, can_redeem: bool, save_estimate: float}|null

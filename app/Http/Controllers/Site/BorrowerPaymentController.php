@@ -8,13 +8,19 @@ use App\Models\BorrowerRefund;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Loan;
+use App\Models\Repayment;
+use App\Services\ActiveLoanServicingService;
 use App\Services\CustomerPaymentService;
+use App\Services\LoyaltyRedemptionService;
 use App\Services\PaymentAccountService;
+use App\Services\PaymentGateService;
+use App\Support\Celebration;
 use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class BorrowerPaymentController extends Controller
@@ -67,7 +73,7 @@ class BorrowerPaymentController extends Controller
         }
 
         $suggestedAmount = null;
-        $servicing = app(\App\Services\ActiveLoanServicingService::class)->forLoan($selectedLoan);
+        $servicing = app(ActiveLoanServicingService::class)->forLoan($selectedLoan);
         if ($servicing['in_arrears'] ?? false) {
             $suggestedAmount = (float) ($servicing['amount_in_arrears'] ?: $servicing['next_due_amount'] ?? 0);
         } else {
@@ -96,13 +102,13 @@ class BorrowerPaymentController extends Controller
         $dummyGateway = payment_gateway_is_dummy();
 
         $data = $request->validate([
-            'loan_id'             => ['required', 'exists:loans,id'],
-            'payment_method'      => ['required', 'in:bank_transfer,mobile_money'],
-            'amount'              => ['required', 'numeric', 'min:100'],
-            'mobile_number'       => [$dummyGateway ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
+            'loan_id' => ['required', 'exists:loans,id'],
+            'payment_method' => ['required', 'in:bank_transfer,mobile_money'],
+            'amount' => ['required', 'numeric', 'min:100'],
+            'mobile_number' => [$dummyGateway ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
             'mobile_number_local' => ['nullable', 'string', 'max:20'],
-            'payment_date'        => ['nullable', 'date'],
-            'proof'               => [
+            'payment_date' => ['nullable', 'date'],
+            'proof' => [
                 $request->input('payment_method') === 'bank_transfer' ? 'required' : 'nullable',
                 'file',
                 'mimes:jpg,jpeg,png,pdf',
@@ -130,38 +136,38 @@ class BorrowerPaymentController extends Controller
             }
         }
 
-        $repayment = \App\Models\Repayment::create([
-            'loan_id'   => $loan->id,
+        $repayment = Repayment::create([
+            'loan_id' => $loan->id,
             'reference' => '',
-            'channel'   => $data['payment_method'] === 'bank_transfer' ? 'bank' : 'mobile_money',
-            'amount'    => $data['amount'],
-            'status'    => 'pending',
-            'paid_at'   => now(),
+            'channel' => $data['payment_method'] === 'bank_transfer' ? 'bank' : 'mobile_money',
+            'amount' => $data['amount'],
+            'status' => 'pending',
+            'paid_at' => now(),
         ]);
 
         $paymentReference = $request->session()->pull('repayment_payment_ref')
             ?? $payments->generateReference();
 
         $payment = $payments->create([
-            'customer'       => $customer,
-            'payment_type'   => 'loan_repayment',
+            'customer' => $customer,
+            'payment_type' => 'loan_repayment',
             'payment_method' => $data['payment_method'],
-            'amount'         => $data['amount'],
-            'loan'           => $loan,
-            'mobile_number'  => $mobileNumber,
-            'payment_date'   => $data['payment_date'] ?? null,
-            'proof'          => $request->file('proof'),
-            'source'         => $repayment,
-            'reference'      => $paymentReference,
-            'auto_verify'    => $dummyGateway && $data['payment_method'] === 'mobile_money',
+            'amount' => $data['amount'],
+            'loan' => $loan,
+            'mobile_number' => $mobileNumber,
+            'payment_date' => $data['payment_date'] ?? null,
+            'proof' => $request->file('proof'),
+            'source' => $repayment,
+            'reference' => $paymentReference,
+            'auto_verify' => $dummyGateway && $data['payment_method'] === 'mobile_money',
         ]);
 
         $repayment->update(['reference' => $payment->reference]);
 
         $this->auditBorrower('payment.submitted', $payment, [
-            'loan_id'   => $loan->id,
+            'loan_id' => $loan->id,
             'reference' => $payment->reference,
-            'amount'    => $payment->amount,
+            'amount' => $payment->amount,
         ]);
 
         $message = $data['payment_method'] === 'bank_transfer'
@@ -174,13 +180,13 @@ class BorrowerPaymentController extends Controller
             ->with('status', $message);
 
         if ($payment->isVerified()) {
-            $existing = session(\App\Support\Celebration::SESSION_KEY, []);
+            $existing = session(Celebration::SESSION_KEY, []);
             if (! is_array($existing)) {
                 $existing = [];
             }
 
             $redirect->with(
-                \App\Support\Celebration::SESSION_KEY,
+                Celebration::SESSION_KEY,
                 array_values(array_unique(array_merge($existing, ['payment'])))
             );
         }
@@ -195,7 +201,7 @@ class BorrowerPaymentController extends Controller
 
         return view('site.borrower.payments.refund-show', [
             'customer' => $customer,
-            'refund'   => $borrowerRefund->load('loan'),
+            'refund' => $borrowerRefund->load('loan'),
         ]);
     }
 
@@ -258,7 +264,7 @@ class BorrowerPaymentController extends Controller
                 $payment = $payment->fresh(['customer']);
             }
             $payment = $payments->initiateCollection($payment, $mobileNumber, $data['operator'] ?? null);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return $this->paymentCollectFailed($request, $payment, $payments, $e);
         }
 
@@ -311,7 +317,7 @@ class BorrowerPaymentController extends Controller
 
         try {
             $payment = $payments->initiateCollection($payment, $phone, $data['operator'] ?? null);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return $this->paymentCollectFailed($request, $payment, $payments, $e);
         }
 
@@ -389,7 +395,7 @@ class BorrowerPaymentController extends Controller
             ->with('status', __('borrower.payment_waiting.switched_to_bank'));
     }
 
-    public function status(CustomerPayment $payment, CustomerPaymentService $payments): \Illuminate\Http\JsonResponse
+    public function status(CustomerPayment $payment, CustomerPaymentService $payments): JsonResponse
     {
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
@@ -403,7 +409,7 @@ class BorrowerPaymentController extends Controller
         $payload = $payments->surfaceState($payment);
         if ($payload['state'] === 'paid' && $payment->payment_type === 'registration_fee') {
             session()->flash('show_membership_card', true);
-            session()->flash(\App\Support\Celebration::SESSION_KEY, ['membership']);
+            session()->flash(Celebration::SESSION_KEY, ['membership']);
         }
 
         return response()->json($payload);
@@ -422,7 +428,7 @@ class BorrowerPaymentController extends Controller
         Request $request,
         CustomerPayment $payment,
         CustomerPaymentService $payments,
-        \Illuminate\Validation\ValidationException $e,
+        ValidationException $e,
     ): RedirectResponse|JsonResponse {
         $raw = collect($e->errors())->flatten()->first();
         $fresh = $payment->fresh();
@@ -446,7 +452,7 @@ class BorrowerPaymentController extends Controller
             ->withErrors(['mobile_number' => $message]);
     }
 
-    public function show(CustomerPayment $payment): View
+    public function show(Request $request, CustomerPayment $payment): View
     {
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
@@ -461,7 +467,7 @@ class BorrowerPaymentController extends Controller
                 ->route('site.borrower.dashboard')
                 ->with('status', __('borrower.membership.activated_start_loan'))
                 ->with('show_membership_card', true)
-                ->with(\App\Support\Celebration::SESSION_KEY, ['membership']);
+                ->with(Celebration::SESSION_KEY, ['membership']);
         }
 
         if ($payment->payment_type === 'kopafasta_plus'
@@ -505,21 +511,52 @@ class BorrowerPaymentController extends Controller
 
         $quote = null;
         $walletReward = null;
-        $promoValue = old('promo_code', data_get($payment->provider_meta, 'pricing.promo_code'));
+        $promoValue = $request->query('promo_code')
+            ?? old('promo_code')
+            ?? data_get($payment->provider_meta, 'pricing.promo_code')
+            ?? data_get($payment->provider_meta, 'apply_context.promo_code')
+            ?? data_get($payment->provider_meta, 'apply_context.affiliate_code');
+        $cancelUrl = data_get($payment->provider_meta, 'apply_context.back_url');
+        $applyReward = $request->boolean('apply_reward')
+            || (bool) data_get($payment->provider_meta, 'pricing.apply_reward');
         if ($payment->customer && CustomerPaymentService::supportsCodeDiscounts($payment->payment_type)) {
-            $gross = (float) (data_get($payment->provider_meta, 'pricing.gross') ?? $payment->amount);
-            $quote = app(\App\Services\PaymentGateService::class)->quote(
-                $payment->customer,
-                $gross,
-                $payment->payment_type,
-                false,
-                is_string($promoValue) ? $promoValue : null,
-                null,
-                false,
+            $code = is_string($promoValue) && $promoValue !== '' ? $promoValue : null;
+            if (in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true)) {
+                $quote = app(CustomerPaymentService::class)->applyCheckoutBenefits(
+                    $payment,
+                    $applyReward,
+                    $code,
+                );
+                $payment = $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount', 'loan', 'loanProduct']);
+            } else {
+                $gross = (float) (
+                    data_get($payment->provider_meta, 'pricing.gross')
+                    ?? data_get($payment->provider_meta, 'apply_context.gross_amount')
+                    ?? $payment->amount
+                );
+                $quote = app(PaymentGateService::class)->quote(
+                    $payment->customer,
+                    $gross,
+                    $payment->payment_type,
+                    false,
+                    $code,
+                    null,
+                    $applyReward,
+                );
+            }
+            $gross = (float) (
+                data_get($payment->provider_meta, 'pricing.gross')
+                ?? data_get($payment->provider_meta, 'apply_context.gross_amount')
+                ?? $payment->amount
             );
-            $walletReward = app(\App\Services\LoyaltyRedemptionService::class)
-                ->walletRewardForFee($payment->customer, $payment->payment_type, $gross);
+            $walletReward = app(LoyaltyRedemptionService::class)
+                ->checkoutRewardForFee($payment->customer, $payment->payment_type, $gross);
+            if (blank($promoValue) && filled($quote['promo_code'] ?? null)) {
+                $promoValue = $quote['promo_code'];
+            }
         }
+
+        $adjustUrl = route('site.borrower.payments.adjust', $payment);
 
         return view('site.borrower.payments.show', compact(
             'payment',
@@ -530,7 +567,63 @@ class BorrowerPaymentController extends Controller
             'quote',
             'walletReward',
             'promoValue',
+            'cancelUrl',
+            'adjustUrl',
+            'applyReward',
         ));
+    }
+
+    public function adjust(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): JsonResponse|RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($payment->customer_id === $customer->id, 403);
+        abort_unless($payment->awaitsCollection() || $payment->status === 'awaiting_payment', 422);
+
+        $data = $request->validate([
+            'promo_code' => ['nullable', 'string', 'max:40'],
+            'apply_reward' => ['nullable', 'boolean'],
+            'clear_promo' => ['nullable', 'boolean'],
+        ]);
+
+        $code = $request->boolean('clear_promo')
+            ? null
+            : (filled($data['promo_code'] ?? null) ? strtoupper(trim((string) $data['promo_code'])) : null);
+
+        $quote = $payments->applyCheckoutBenefits(
+            $payment,
+            $request->boolean('apply_reward'),
+            $code,
+        );
+        $payment = $payment->fresh(['customer']);
+        $gross = (float) (data_get($payment->provider_meta, 'pricing.gross') ?? $payment->amount);
+        $walletReward = $payment->customer
+            ? app(LoyaltyRedemptionService::class)
+                ->checkoutRewardForFee($payment->customer, $payment->payment_type, $gross)
+            : null;
+
+        $promoValid = (bool) ($quote['promo_valid'] ?? false);
+        $message = null;
+        if (filled($code) && ! $promoValid) {
+            $message = __('borrower.membership.promo_invalid');
+        } elseif (filled($code) && $promoValid) {
+            $message = __('borrower.membership.promo_applied', ['code' => $quote['promo_code'] ?? $code]);
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => filled($code) ? $promoValid : true,
+                'quote' => $quote,
+                'wallet_reward' => $walletReward,
+                'promo_code' => $quote['promo_code'] ?? $code,
+                'promo_valid' => $promoValid,
+                'message' => $message,
+                'amount_label' => format_money((float) ($quote['cash_due'] ?? $payment->amount)),
+            ], filled($code) && ! $promoValid ? 422 : 200);
+        }
+
+        return redirect()
+            ->route('site.borrower.payments.show', $payment)
+            ->with($promoValid || ! filled($code) ? 'status' : 'error', $message);
     }
 
     public function uploadProof(Request $request, CustomerPayment $payment, CustomerPaymentService $service): RedirectResponse

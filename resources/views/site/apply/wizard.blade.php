@@ -200,7 +200,6 @@
                           'requiredBeforeContinue' => __('borrower.apply.application_fee.required_before_continue'),
                           'celebrate_title' => __('borrower.celebration.application_fee_title'),
                           'pay_title' => __('borrower.apply.application_fee.pay_title'),
-                          'payCta' => __('borrower.apply.application_fee.pay_cta'),
                           'paidBadge' => __('borrower.apply.application_fee.paid_badge'),
                       ],
                       'group' => [

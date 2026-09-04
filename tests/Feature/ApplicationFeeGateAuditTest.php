@@ -11,6 +11,7 @@ use App\Services\ApplicationFeePaymentService;
 use App\Services\GroupLendingService;
 use Database\Seeders\PublicLoanProductsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class ApplicationFeeGateAuditTest extends TestCase
@@ -140,11 +141,10 @@ class ApplicationFeeGateAuditTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString(__('borrower.apply.product_summary.application_fee', [], 'en'), $html);
-        $this->assertStringContainsString(__('borrower.apply.application_fee.pay_cta', [], 'en'), $html);
+        $this->assertStringContainsString(__('borrower.apply.next', [], 'en'), $html);
         $this->assertStringContainsString('applicationFeePayUrl', $html);
-        $this->assertTrue(\Illuminate\Support\Facades\Route::has('site.borrower.apply.application-fee.pay'));
-        $this->assertTrue(\Illuminate\Support\Facades\Route::has('site.borrower.payments.show'));
+        $this->assertTrue(Route::has('site.borrower.apply.application-fee.pay'));
+        $this->assertTrue(Route::has('site.borrower.payments.show'));
 
         $htmlSw = $this->actingAs($customer->user)
             ->withSession(['locale' => 'sw'])
@@ -152,8 +152,7 @@ class ApplicationFeeGateAuditTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString(__('borrower.apply.application_fee.pay_cta', [], 'sw'), $htmlSw);
-        $this->assertStringContainsString(__('borrower.apply.product_summary.application_fee', [], 'sw'), $htmlSw);
+        $this->assertStringContainsString(__('borrower.apply.next', [], 'sw'), $htmlSw);
     }
 
     public function test_save_draft_cannot_advance_past_unpaid_individual_fee(): void
@@ -286,6 +285,45 @@ class ApplicationFeeGateAuditTest extends TestCase
         $this->assertSame(1, CustomerPayment::query()->where('customer_id', $customer->id)->where('payment_type', 'application_fee')->count());
     }
 
+    public function test_outstanding_awaiting_payment_is_resumed_instead_of_duplicated(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->product();
+        $fees = app(ApplicationFeePaymentService::class);
+
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 10_000,
+            'currency' => 'TZS',
+            'status' => 'awaiting_payment',
+            'reference' => 'PAY-APP-FEE-OPEN',
+        ]);
+
+        $payload = array_merge($this->quotePayload($product), [
+            'application_fee' => ['status' => 'processing', 'reference' => $payment->reference, 'payment_id' => $payment->id, 'amount' => 10_000],
+        ]);
+        LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 1,
+            'payload' => $payload,
+            'saved_at' => now(),
+        ]);
+
+        $first = $fees->openSharedGate($customer, $product, 'PAY-APP-FEE-DUP-1');
+        $second = $fees->openSharedGate($customer, $product, 'PAY-APP-FEE-DUP-2');
+
+        $this->assertSame($payment->id, $first['payment_id']);
+        $this->assertSame($payment->id, $second['payment_id']);
+        $this->assertSame('PAY-APP-FEE-OPEN', $first['reference']);
+        $this->assertSame('PAY-APP-FEE-OPEN', $second['reference']);
+        $this->assertSame(1, CustomerPayment::query()->where('customer_id', $customer->id)->where('payment_type', 'application_fee')->count());
+    }
+
     public function test_prior_paid_fee_does_not_satisfy_a_new_draft(): void
     {
         $customer = $this->borrower();
@@ -394,12 +432,14 @@ class ApplicationFeeGateAuditTest extends TestCase
 
     public function test_post_approval_fee_routes_are_unchanged(): void
     {
-        $this->assertTrue(\Illuminate\Support\Facades\Route::has('site.borrower.application.post-approval-fees.pay'));
+        $this->assertTrue(Route::has('site.borrower.application.post-approval-fees.pay'));
         $this->assertStringContainsString('payPostApprovalFees', file_get_contents(app_path('Http/Controllers/Site/BorrowerController.php')));
     }
 
     public function test_pay_cta_translations_exist(): void
     {
+        $this->assertSame('Next', __('borrower.apply.next', [], 'en'));
+        $this->assertSame('Endelea', __('borrower.apply.next', [], 'sw'));
         $this->assertSame('Pay application fee', __('borrower.apply.application_fee.pay_cta', [], 'en'));
         $this->assertSame('Lipa ada ya maombi', __('borrower.apply.application_fee.pay_cta', [], 'sw'));
         $this->assertSame('Application fee paid ✓', __('borrower.apply.application_fee.paid_badge', [], 'en'));

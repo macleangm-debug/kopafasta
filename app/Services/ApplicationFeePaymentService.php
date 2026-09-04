@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use Illuminate\Validation\ValidationException;
 
 class ApplicationFeePaymentService
 {
@@ -36,7 +38,7 @@ class ApplicationFeePaymentService
         Customer $customer,
         LoanProduct $product,
         ?array $draftPayload = null,
-        ?\App\Models\LoanApplication $application = null,
+        ?LoanApplication $application = null,
     ): array {
         $groups = app(GroupLendingService::class);
         $isGroup = $groups->isGroupProduct($product);
@@ -119,7 +121,7 @@ class ApplicationFeePaymentService
         Customer $customer,
         LoanProduct $product,
         ?array $draftPayload = null,
-        ?\App\Models\LoanApplication $application = null,
+        ?LoanApplication $application = null,
     ): bool {
         return in_array($this->obligation($customer, $product, $draftPayload, $application)['status'], ['not_applicable', 'paid'], true);
     }
@@ -138,7 +140,7 @@ class ApplicationFeePaymentService
     private function latestFeePayment(
         Customer $customer,
         LoanProduct $product,
-        ?\App\Models\LoanApplication $application = null,
+        ?LoanApplication $application = null,
         ?array $draftPayload = null,
     ): ?CustomerPayment {
         $query = CustomerPayment::query()
@@ -163,7 +165,7 @@ class ApplicationFeePaymentService
 
         if ($application) {
             $bound = (clone $query)
-                ->where('source_type', \App\Models\LoanApplication::class)
+                ->where('source_type', LoanApplication::class)
                 ->where('source_id', $application->id)
                 ->latest('id')
                 ->first();
@@ -210,16 +212,16 @@ class ApplicationFeePaymentService
 
         if ($base <= 0) {
             return [
-                'base'             => 0,
-                'after_discount'   => 0,
-                'discount'         => 0,
-                'total_discount'   => 0,
-                'wallet_applied'   => 0,
-                'cash_due'         => 0,
-                'wallet_usable'    => 0,
-                'wallet_allowed'   => false,
-                'has_referrer'     => false,
-                'currency'         => $cfg['currency'],
+                'base' => 0,
+                'after_discount' => 0,
+                'discount' => 0,
+                'total_discount' => 0,
+                'wallet_applied' => 0,
+                'cash_due' => 0,
+                'wallet_usable' => 0,
+                'wallet_allowed' => false,
+                'has_referrer' => false,
+                'currency' => $cfg['currency'],
             ];
         }
 
@@ -286,6 +288,17 @@ class ApplicationFeePaymentService
             'product' => $product->id,
             'resume' => 1,
             'step_key' => $next,
+        ]);
+    }
+
+    public function quoteResumeUrl(Customer $customer, LoanProduct $product): string
+    {
+        $setup = app(LoanApplicationDraftService::class)->lastSetupStepKeyForProduct($product);
+
+        return route('site.borrower.apply', [
+            'product' => $product->id,
+            'resume' => 1,
+            'step_key' => $setup ?: 'quote',
         ]);
     }
 
@@ -379,6 +392,10 @@ class ApplicationFeePaymentService
             return $settled;
         }
 
+        if ($resume = $this->resumeOutstandingFeeState($customer, $product)) {
+            return $resume;
+        }
+
         $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $affiliateCode);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
@@ -394,11 +411,11 @@ class ApplicationFeePaymentService
             app(LoanApplicationDraftService::class)->advancePastApplicationFee($customer, $product->id);
 
             return [
-                'status'    => 'waived',
+                'status' => 'waived',
                 'reference' => null,
-                'channel'   => 'waived',
-                'amount'    => 0,
-                'paid_at'   => now()->toIso8601String(),
+                'channel' => 'waived',
+                'amount' => 0,
+                'paid_at' => now()->toIso8601String(),
             ];
         }
 
@@ -409,7 +426,7 @@ class ApplicationFeePaymentService
         $awaitsPsp = $payIn->isConfigured() || $payInLive || ! $dummyGateway;
 
         if (! $dummyGateway && ! $payInLive) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'payment_method' => [__('borrower.payments.aggregator_required')],
             ]);
         }
@@ -441,6 +458,8 @@ class ApplicationFeePaymentService
                 : null,
             'next_step_key' => $nextStep,
             'return_url' => $this->resumeUrlAfterFee($customer, $product, $draftPayload, $nextStep),
+            'back_url' => $this->quoteResumeUrl($customer, $product),
+            'gross_amount' => (float) ($quote['base'] ?? $cashDue),
             'settled' => ! $awaitsPsp,
         ];
 
@@ -473,15 +492,15 @@ class ApplicationFeePaymentService
         }
 
         $payment = app(CustomerPaymentService::class)->create([
-            'customer'       => $customer,
-            'payment_type'   => 'application_fee',
+            'customer' => $customer,
+            'payment_type' => 'application_fee',
             'payment_method' => 'mobile_money',
-            'amount'         => $cashDue,
-            'loan_product'   => $product,
-            'reference'      => $paymentReference,
-            'mobile_number'  => $phone,
-            'auto_verify'    => ! $awaitsPsp,
-            'apply_context'  => $applyContext,
+            'amount' => $cashDue,
+            'loan_product' => $product,
+            'reference' => $paymentReference,
+            'mobile_number' => $phone,
+            'auto_verify' => ! $awaitsPsp,
+            'apply_context' => $applyContext,
         ]);
 
         return $this->feeStateFromPayment($payment, $cashDue, 'mobile_money');
@@ -503,6 +522,10 @@ class ApplicationFeePaymentService
             return $settled;
         }
 
+        if ($resume = $this->resumeOutstandingFeeState($customer, $product)) {
+            return $resume;
+        }
+
         $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $affiliateCode);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
@@ -510,11 +533,11 @@ class ApplicationFeePaymentService
             app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
 
             return [
-                'status'    => 'waived',
+                'status' => 'waived',
                 'reference' => $paymentReference,
-                'channel'   => 'bank',
-                'amount'    => 0,
-                'paid_at'   => now()->toIso8601String(),
+                'channel' => 'bank',
+                'amount' => 0,
+                'paid_at' => now()->toIso8601String(),
             ];
         }
 
@@ -536,14 +559,14 @@ class ApplicationFeePaymentService
             : null;
 
         $payment = app(CustomerPaymentService::class)->create([
-            'customer'       => $customer,
-            'payment_type'   => 'application_fee',
+            'customer' => $customer,
+            'payment_type' => 'application_fee',
             'payment_method' => 'bank_transfer',
-            'amount'         => $cashDue,
-            'loan_product'   => $product,
-            'reference'      => $paymentReference,
-            'auto_verify'    => $autoVerify,
-            'apply_context'  => [
+            'amount' => $cashDue,
+            'loan_product' => $product,
+            'reference' => $paymentReference,
+            'auto_verify' => $autoVerify,
+            'apply_context' => [
                 'loan_product_id' => $product->id,
                 'draft_reference' => $draft?->draft_reference,
                 'use_wallet' => $useWallet,
@@ -555,6 +578,8 @@ class ApplicationFeePaymentService
                     : null,
                 'next_step_key' => $nextStep,
                 'return_url' => $this->resumeUrlAfterFee($customer, $product, $draftPayload, $nextStep),
+                'back_url' => $this->quoteResumeUrl($customer, $product),
+                'gross_amount' => (float) ($quote['base'] ?? $cashDue),
                 'settled' => $autoVerify,
             ],
         ]);
@@ -577,12 +602,12 @@ class ApplicationFeePaymentService
         }
 
         $feeState = [
-            'status'     => 'paid',
-            'reference'  => $payment->reference,
+            'status' => 'paid',
+            'reference' => $payment->reference,
             'payment_id' => $payment->id,
-            'channel'    => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
-            'amount'     => (int) round((float) $payment->amount),
-            'paid_at'    => ($payment->paid_at ?? now())->toIso8601String(),
+            'channel' => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
+            'amount' => (int) round((float) $payment->amount),
+            'paid_at' => ($payment->paid_at ?? now())->toIso8601String(),
         ];
 
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
@@ -619,6 +644,26 @@ class ApplicationFeePaymentService
     }
 
     /**
+     * Resume an unpaid application-fee payment instead of minting a second reference.
+     *
+     * @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null, payment_id?: int, wait_url?: string|null}|null
+     */
+    private function resumeOutstandingFeeState(Customer $customer, LoanProduct $product): ?array
+    {
+        $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
+        $payment = $this->obligation($customer, $product, is_array($draftPayload) ? $draftPayload : null)['payment'] ?? null;
+        if (! $payment || ! in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true)) {
+            return null;
+        }
+
+        return $this->feeStateFromPayment(
+            $payment,
+            (int) round((float) $payment->amount),
+            $payment->payment_method === 'bank_transfer' ? 'bank' : 'mobile_money',
+        );
+    }
+
+    /**
      * @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null, payment_id?: int, wait_url?: string|null}|null
      */
     private function alreadySettledFeeState(Customer $customer, LoanProduct $product): ?array
@@ -628,11 +673,11 @@ class ApplicationFeePaymentService
 
         if ($obligation['status'] === 'not_applicable') {
             return [
-                'status'    => 'waived',
+                'status' => 'waived',
                 'reference' => null,
-                'channel'   => 'waived',
-                'amount'    => 0,
-                'paid_at'   => now()->toIso8601String(),
+                'channel' => 'waived',
+                'amount' => 0,
+                'paid_at' => now()->toIso8601String(),
             ];
         }
 
@@ -644,12 +689,12 @@ class ApplicationFeePaymentService
         $payment = $obligation['payment'];
 
         return [
-            'status'     => 'paid',
-            'reference'  => $payment?->reference,
+            'status' => 'paid',
+            'reference' => $payment?->reference,
             'payment_id' => $payment?->id,
-            'channel'    => $payment?->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
-            'amount'     => (int) ($obligation['amount'] ?? 0),
-            'paid_at'    => optional($payment?->paid_at ?? now())->toIso8601String(),
+            'channel' => $payment?->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
+            'amount' => (int) ($obligation['amount'] ?? 0),
+            'paid_at' => optional($payment?->paid_at ?? now())->toIso8601String(),
         ];
     }
 
@@ -662,16 +707,16 @@ class ApplicationFeePaymentService
         $isBank = $channel === 'bank';
 
         return [
-            'status'     => $pending ? ($isBank ? 'pending' : 'processing') : 'paid',
-            'reference'  => $payment->reference,
+            'status' => $pending ? ($isBank ? 'pending' : 'processing') : 'paid',
+            'reference' => $payment->reference,
             'payment_id' => $payment->id,
-            'channel'    => $this->usesDummyGateway()
+            'channel' => $this->usesDummyGateway()
                 ? ($isBank ? 'dummy_bank' : 'dummy_mobile_money')
                 : ($isBank ? 'bank' : 'mobile_money'),
-            'amount'     => $cashDue,
-            'paid_at'    => $pending ? null : now()->toIso8601String(),
+            'amount' => $cashDue,
+            'paid_at' => $pending ? null : now()->toIso8601String(),
             // Always hand off to the shared payments.show gate.
-            'wait_url'   => route('site.borrower.payments.show', $payment),
+            'wait_url' => route('site.borrower.payments.show', $payment),
         ];
     }
 }

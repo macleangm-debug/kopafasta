@@ -14,6 +14,7 @@ use App\Services\LoanApplicationDraftService;
 use App\Services\SmartLoanApplicationWizardService;
 use Database\Seeders\PublicLoanProductsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class ApplicationFeeProductJourneyTest extends TestCase
@@ -223,7 +224,7 @@ class ApplicationFeeProductJourneyTest extends TestCase
                     ->assertOk()
                     ->getContent();
 
-                $this->assertStringContainsString(__('borrower.apply.application_fee.pay_cta', [], $locale), $html, $code.' '.$locale.' CTA');
+                $this->assertStringContainsString(__('borrower.apply.next', [], $locale), $html, $code.' '.$locale.' CTA');
                 $this->assertStringContainsString(__('borrower.apply.application_fee.paid_badge', [], $locale), $html, $code.' '.$locale.' paid');
                 $this->assertStringContainsString(__('borrower.apply.application_fee.failed', [], $locale), $html, $code.' '.$locale.' failed');
                 $this->assertStringContainsString('applicationFeePayUrl', $html, $code.' shared pay URL wiring');
@@ -514,8 +515,8 @@ class ApplicationFeeProductJourneyTest extends TestCase
 
     public function test_post_approval_and_asset_setup_routes_stay_on_their_own_stages(): void
     {
-        $this->assertTrue(\Illuminate\Support\Facades\Route::has('site.borrower.application.post-approval-fees.pay'));
-        $this->assertTrue(\Illuminate\Support\Facades\Route::has('site.borrower.apply.asset-document'));
+        $this->assertTrue(Route::has('site.borrower.application.post-approval-fees.pay'));
+        $this->assertTrue(Route::has('site.borrower.apply.asset-document'));
         $source = file_get_contents(app_path('Http/Controllers/Site/ApplyController.php'));
         $this->assertNotFalse($source);
         $upload = substr($source, (int) strpos($source, 'function uploadAssetDocument'), 1200);

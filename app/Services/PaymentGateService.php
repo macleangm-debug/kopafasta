@@ -3,9 +3,6 @@
 namespace App\Services;
 
 use App\Models\Customer;
-use App\Services\AffiliateAttributionService;
-use App\Services\AffiliateService;
-use App\Services\AffiliateSettingsService;
 
 class PaymentGateService
 {
@@ -109,47 +106,54 @@ class PaymentGateService
         $loyaltyDiscount = 0.0;
         $loyaltyRedemptionId = null;
         $loyaltyLabel = null;
+        $loyaltyOptionKey = null;
+        $loyaltyPointsCost = 0;
         $stack = app(GrowthPointsService::class)->allowRewardAndPromo();
         $canApplyLoyalty = $applyLoyalty && ! $useWallet;
         if ($canApplyLoyalty && ! $stack && $promoDiscount > 0) {
             $canApplyLoyalty = false;
         }
         if ($canApplyLoyalty) {
-            $loyalty = app(LoyaltyRedemptionService::class)->discountForFee($customer, $feeType, $afterPartner);
+            $loyalty = app(LoyaltyRedemptionService::class)->previewDiscountForFee($customer, $feeType, $afterPartner);
             if (($loyalty['discount'] ?? 0) > 0) {
                 $loyaltyDiscount = (float) $loyalty['discount'];
                 $afterPartner = max(0, round($afterPartner - $loyaltyDiscount, 2));
                 $loyaltyRedemptionId = $loyalty['redemption']?->id;
                 $loyaltyLabel = $loyalty['label'] ?? null;
+                $loyaltyOptionKey = $loyalty['option_key'] ?? null;
+                $loyaltyPointsCost = (int) ($loyalty['points_cost'] ?? 0);
             }
         }
 
         $walletQuote = $referrals->quoteFee($customer, $afterPartner, $useWallet, $feeType, applyDiscount: false);
 
         return $this->formatQuote([
-            'base'                  => round($baseAmount, 2),
-            'referral_discount'     => $referralDiscount,
-            'affiliate_discount'    => $affiliateDiscount,
-            'promo_discount'        => $promoDiscount,
-            'loyalty_discount'      => $loyaltyDiscount,
+            'base' => round($baseAmount, 2),
+            'referral_discount' => $referralDiscount,
+            'affiliate_discount' => $affiliateDiscount,
+            'promo_discount' => $promoDiscount,
+            'loyalty_discount' => $loyaltyDiscount,
             'loyalty_redemption_id' => $loyaltyRedemptionId,
-            'loyalty_label'         => $loyaltyLabel,
-            'total_discount'        => round($referralDiscount + $affiliateDiscount + $promoDiscount + $loyaltyDiscount, 2),
-            'after_discount'        => $afterPartner,
-            'wallet_usable'         => (float) $walletQuote['wallet_usable'],
-            'wallet_applied'        => (float) $walletQuote['wallet_applied'],
-            'cash_due'              => max(0, round($afterPartner - (float) $walletQuote['wallet_applied'], 2)),
-            'commission'            => $commission,
-            'has_referrer'          => $hasReferrer,
-            'has_affiliate'         => $hasAffiliate,
-            'promo_code'            => $appliedPromo,
-            'promo_valid'           => $promoValid,
-            'code_kind'             => $codeKind,
-            'referrer'              => $hasReferrer ? $referrals->referrer($customer) : null,
-            'referred_by'           => $hasAffiliate ? $affiliates->affiliate($customer)?->name : null,
-            'affiliate_auto_applied'=> $hasAffiliate && app(AffiliateSettingsService::class)->autoApplyPromo(),
-            'affiliate_locked'      => $hasAffiliate && app(AffiliateAttributionService::class)->isLocked($customer),
-            'streak_discount'       => 0.0,
+            'loyalty_label' => $loyaltyLabel,
+            'loyalty_option_key' => $loyaltyOptionKey,
+            'loyalty_points_cost' => $loyaltyPointsCost,
+            'stack_with_promo' => $stack,
+            'total_discount' => round($referralDiscount + $affiliateDiscount + $promoDiscount + $loyaltyDiscount, 2),
+            'after_discount' => $afterPartner,
+            'wallet_usable' => (float) $walletQuote['wallet_usable'],
+            'wallet_applied' => (float) $walletQuote['wallet_applied'],
+            'cash_due' => max(0, round($afterPartner - (float) $walletQuote['wallet_applied'], 2)),
+            'commission' => $commission,
+            'has_referrer' => $hasReferrer,
+            'has_affiliate' => $hasAffiliate,
+            'promo_code' => $appliedPromo,
+            'promo_valid' => $promoValid,
+            'code_kind' => $codeKind,
+            'referrer' => $hasReferrer ? $referrals->referrer($customer) : null,
+            'referred_by' => $hasAffiliate ? $affiliates->affiliate($customer)?->name : null,
+            'affiliate_auto_applied' => $hasAffiliate && app(AffiliateSettingsService::class)->autoApplyPromo(),
+            'affiliate_locked' => $hasAffiliate && app(AffiliateAttributionService::class)->isLocked($customer),
+            'streak_discount' => 0.0,
         ], $feeType);
     }
 
@@ -162,10 +166,99 @@ class PaymentGateService
         $referrals = app(ReferralService::class);
 
         return array_merge($quote, [
-            'discount'        => (float) ($quote['total_discount'] ?? $quote['discount'] ?? 0),
-            'currency'        => $currency,
-            'wallet_allowed'  => $referrals->canUseWalletFor($feeType),
+            'discount' => (float) ($quote['total_discount'] ?? $quote['discount'] ?? 0),
+            'currency' => $currency,
+            'wallet_allowed' => $referrals->canUseWalletFor($feeType),
+            'affiliate_percent' => $this->percentOfBase($quote),
+            'lines' => $this->adjustmentLines($quote, $feeType, $currency),
         ]);
+    }
+
+    /** @param  array<string, mixed>  $quote */
+    private function percentOfBase(array $quote): int
+    {
+        $base = (float) ($quote['base'] ?? 0);
+        $discount = (float) ($quote['affiliate_discount'] ?? 0);
+        if ($base <= 0 || $discount <= 0) {
+            return 0;
+        }
+
+        return (int) round(($discount / $base) * 100);
+    }
+
+    /**
+     * Authoritative line items for payment.show. The view must not recompute discounts.
+     *
+     * @param  array<string, mixed>  $quote
+     * @return list<array{key: string, label: string, amount: float, kind: string}>
+     */
+    public function adjustmentLines(array $quote, string $feeType, string $currency = 'TZS'): array
+    {
+        $lines = [];
+        $base = (float) ($quote['base'] ?? 0);
+        $typeKey = "borrower.payment_types.{$feeType}";
+        $typeLabel = __($typeKey);
+        $lines[] = [
+            'key' => 'base',
+            'label' => $typeLabel !== $typeKey ? $typeLabel : __('borrower.payments_page.show.obligation_line'),
+            'amount' => $base,
+            'kind' => 'base',
+            'display' => format_money($base),
+        ];
+
+        $affiliate = (float) ($quote['affiliate_discount'] ?? 0);
+        if ($affiliate > 0) {
+            $code = (string) ($quote['promo_code'] ?? '');
+            $percent = (int) ($quote['affiliate_percent'] ?? $this->percentOfBase($quote));
+            $label = $code !== ''
+                ? __('borrower.payments_page.show.affiliate_discount_code', ['code' => $code, 'percent' => $percent])
+                : __('borrower.payments_page.show.affiliate_discount');
+            $lines[] = ['key' => 'affiliate', 'label' => $label, 'amount' => -$affiliate, 'kind' => 'discount', 'display' => '− '.format_money($affiliate)];
+        }
+
+        $promo = (float) ($quote['promo_discount'] ?? 0);
+        if ($promo > 0) {
+            $code = (string) ($quote['promo_code'] ?? '');
+            $lines[] = [
+                'key' => 'promo',
+                'label' => $code !== ''
+                    ? __('borrower.payments_page.show.promo_discount_code', ['code' => $code])
+                    : __('borrower.payments_page.show.promo_discount'),
+                'amount' => -$promo,
+                'kind' => 'discount',
+                'display' => '− '.format_money($promo),
+            ];
+        }
+
+        $referral = (float) ($quote['referral_discount'] ?? 0);
+        if ($referral > 0) {
+            $lines[] = [
+                'key' => 'referral',
+                'label' => __('borrower.payments_page.show.referral_discount'),
+                'amount' => -$referral,
+                'kind' => 'discount',
+                'display' => '− '.format_money($referral),
+            ];
+        }
+
+        $loyalty = (float) ($quote['loyalty_discount'] ?? 0);
+        if ($loyalty > 0) {
+            $label = filled($quote['loyalty_label'] ?? null)
+                ? __('borrower.payments_page.show.reward_discount_named', ['name' => $quote['loyalty_label']])
+                : __('borrower.payments_page.show.reward_discount');
+            $lines[] = ['key' => 'reward', 'label' => $label, 'amount' => -$loyalty, 'kind' => 'discount', 'display' => '− '.format_money($loyalty)];
+        }
+
+        $payable = (float) ($quote['cash_due'] ?? $base);
+        $lines[] = [
+            'key' => 'payable',
+            'label' => __('borrower.payments_page.show.amount_to_pay'),
+            'amount' => $payable,
+            'kind' => 'total',
+            'display' => format_money($payable),
+        ];
+
+        return $lines;
     }
 
     /**
@@ -190,13 +283,7 @@ class PaymentGateService
 
         if ($quote['has_referrer'] ?? false) {
             $referrals->settleFee($customer, $base, $useWallet, $feeType, $refType, $refId);
-
-            if (! empty($quote['loyalty_redemption_id'])) {
-                $redemption = \App\Models\LoyaltyRedemption::find($quote['loyalty_redemption_id']);
-                if ($redemption && $redemption->isActive()) {
-                    app(LoyaltyRedemptionService::class)->markUsed($redemption, $refType, $refId);
-                }
-            }
+            $this->finalizeLoyaltyFromQuote($customer, $quote, $feeType, $refType, $refId);
 
             return;
         }
@@ -219,11 +306,27 @@ class PaymentGateService
             );
         }
 
-        if (! empty($quote['loyalty_redemption_id'])) {
-            $redemption = \App\Models\LoyaltyRedemption::find($quote['loyalty_redemption_id']);
-            if ($redemption && $redemption->isActive()) {
-                app(LoyaltyRedemptionService::class)->markUsed($redemption, $refType, $refId);
-            }
+        $this->finalizeLoyaltyFromQuote($customer, $quote, $feeType, $refType, $refId);
+    }
+
+    /** @param  array<string, mixed>  $quote */
+    private function finalizeLoyaltyFromQuote(
+        Customer $customer,
+        array $quote,
+        string $feeType,
+        ?string $refType,
+        ?int $refId,
+    ): void {
+        if (($quote['loyalty_discount'] ?? 0) <= 0 && empty($quote['loyalty_option_key']) && empty($quote['loyalty_redemption_id'])) {
+            return;
         }
+
+        app(LoyaltyRedemptionService::class)->finalizeCheckoutReward(
+            $customer,
+            $feeType,
+            $quote['loyalty_option_key'] ?? null,
+            $refType,
+            $refId,
+        );
     }
 }
