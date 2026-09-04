@@ -46,6 +46,7 @@
     'h-[100svh] max-h-[100svh] overflow-hidden' => $auth,
     'min-h-full' => ! $auth,
 ])>
+    <x-site.environment-banner />
 
     <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100">
         <div class="hidden md:block border-b border-gray-100 bg-[#faf8f5]">

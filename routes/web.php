@@ -82,6 +82,7 @@ use App\Http\Controllers\Admin\SignatoryController;
 use App\Http\Controllers\Admin\SupportChatController;
 use App\Http\Controllers\Admin\SupportTicketController;
 use App\Http\Controllers\Admin\SuspiciousActivityController;
+use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\VendorPaymentController;
@@ -1183,6 +1184,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         // ========== SETTINGS ==========
         Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::get('settings/system', [SystemController::class, 'show'])->name('settings.system');
         Route::get('settings/company', [SettingsController::class, 'company'])->name('settings.company');
         Route::put('settings/company', [SettingsController::class, 'saveCompany'])->name('settings.company.save');
         Route::get('settings/seo', [SettingsController::class, 'seo'])->name('settings.seo');

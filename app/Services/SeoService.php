@@ -44,6 +44,10 @@ class SeoService
 
     public function environmentAllowsIndexing(): bool
     {
+        if (app()->environment('staging') || app(ReleaseInfoService::class)->isStaging()) {
+            return false;
+        }
+
         return (bool) config('seo.allow_indexing', false);
     }
 
@@ -261,7 +265,7 @@ class SeoService
 
         $path = $request?->getPathInfo() ?? '';
         foreach (config('seo.private_path_prefixes', []) as $prefix) {
-            if ($prefix !== '' && ($path === $prefix || str_starts_with($path, rtrim($prefix, '/').'/' ) || str_starts_with($path, $prefix))) {
+            if ($prefix !== '' && ($path === $prefix || str_starts_with($path, rtrim($prefix, '/').'/') || str_starts_with($path, $prefix))) {
                 if ($prefix === '/partner/' && str_starts_with($path, '/partners')) {
                     continue;
                 }

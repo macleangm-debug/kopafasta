@@ -65,6 +65,7 @@
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false, profileSheet:false}">
+<x-site.environment-banner />
 <x-site.kopafasta-launcher />
 
 @if (session('status') || session('warning') || session('error'))

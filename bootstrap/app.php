@@ -1,14 +1,27 @@
 <?php
 
-use App\Http\Middleware\EnsureUserRole;
+use App\Http\Middleware\EnsureAccountWelcome;
 use App\Http\Middleware\EnsureActiveMembership;
+use App\Http\Middleware\EnsureBorrowerPin;
+use App\Http\Middleware\EnsureConsoleAccess;
+use App\Http\Middleware\EnsurePartnerPin;
+use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsureStaffUser;
+use App\Http\Middleware\EnsureSupplierPortal;
+use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Http\Middleware\EnsureUserRole;
+use App\Http\Middleware\PreventNonProductionIndexing;
+use App\Http\Middleware\QuietBrowserNotifications;
+use App\Http\Middleware\RestrictConsoleSettings;
 use App\Models\AuditLog;
+use App\Services\BrokenPageRecorder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -24,20 +37,21 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'membership.active' => EnsureActiveMembership::class,
-            'borrower.pin' => \App\Http\Middleware\EnsureBorrowerPin::class,
-            'partner.pin' => \App\Http\Middleware\EnsurePartnerPin::class,
-            'supplier.portal' => \App\Http\Middleware\EnsureSupplierPortal::class,
+            'borrower.pin' => EnsureBorrowerPin::class,
+            'partner.pin' => EnsurePartnerPin::class,
+            'supplier.portal' => EnsureSupplierPortal::class,
             'role' => EnsureUserRole::class,
-            'permission' => \App\Http\Middleware\EnsurePermission::class,
-            'staff' => \App\Http\Middleware\EnsureStaffUser::class,
-            'console' => \App\Http\Middleware\EnsureConsoleAccess::class,
-            'settings.restrict' => \App\Http\Middleware\RestrictConsoleSettings::class,
-            'two_factor' => \App\Http\Middleware\EnsureTwoFactorVerified::class,
-            'account.welcome' => \App\Http\Middleware\EnsureAccountWelcome::class,
+            'permission' => EnsurePermission::class,
+            'staff' => EnsureStaffUser::class,
+            'console' => EnsureConsoleAccess::class,
+            'settings.restrict' => RestrictConsoleSettings::class,
+            'two_factor' => EnsureTwoFactorVerified::class,
+            'account.welcome' => EnsureAccountWelcome::class,
         ]);
 
-        $middleware->appendToGroup('web', \App\Http\Middleware\QuietBrowserNotifications::class);
-        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureAccountWelcome::class);
+        $middleware->appendToGroup('web', QuietBrowserNotifications::class);
+        $middleware->appendToGroup('web', PreventNonProductionIndexing::class);
+        $middleware->appendToGroup('web', EnsureAccountWelcome::class);
 
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->is('staff', 'staff/*')) {
@@ -65,9 +79,9 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($user) {
                 return match ($user->role) {
                     'borrower' => route('site.borrower.dashboard'),
-                    'vendor'   => route('site.partner.dashboard'),
+                    'vendor' => route('site.partner.dashboard'),
                     'investor' => route('site.investor.dashboard'),
-                    default    => route('admin.dashboard'),
+                    default => route('admin.dashboard'),
                 };
             }
 
@@ -79,10 +93,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Status-driven incident log only (403/404/419/429/500/503). Successful
         // routes under the Kopafasta base URL never enter this pipeline.
-        $exceptions->report(function (\Throwable $e): void {
+        $exceptions->report(function (Throwable $e): void {
             try {
-                app(\App\Services\BrokenPageRecorder::class)->record($e);
-            } catch (\Throwable) {
+                app(BrokenPageRecorder::class)->record($e);
+            } catch (Throwable) {
             }
         });
 
@@ -97,10 +111,10 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // HttpExceptions (404/403/…) are not reported by default; record them here.
-        $exceptions->renderable(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request): void {
+        $exceptions->renderable(function (HttpException $e, $request): void {
             try {
-                app(\App\Services\BrokenPageRecorder::class)->record($e, $request);
-            } catch (\Throwable) {
+                app(BrokenPageRecorder::class)->record($e, $request);
+            } catch (Throwable) {
             }
         });
 
@@ -127,7 +141,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'ip_address' => $request->ip(),
                     'user_agent' => substr((string) $request->userAgent(), 0, 1000),
                 ]);
-            } catch (\Throwable $t) {
+            } catch (Throwable $t) {
                 // Never let audit logging break request handling.
             }
         });

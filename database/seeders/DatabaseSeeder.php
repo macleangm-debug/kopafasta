@@ -12,29 +12,37 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
+    /**
+     * Local / first-bootstrap seed. Includes demo users and sample loans.
+     *
+     * Production and staging deploys use SafeConfigurationSeeder instead.
+     * Never run `db:fresh --seed` on production.
+     */
     public function run(): void
     {
         $this->call([
+            // Safe configuration
             BranchSeeder::class,
             DepartmentSeeder::class,
             RoleSeeder::class,
-            UserSeeder::class,
             LoanProductSeeder::class,
             MacLeansCapitalPartnerSeeder::class,
             PublicLoanProductsSeeder::class,
             LoanProductRateTierSeeder::class,
             LoanProductPenaltyDefaultsSeeder::class,
             LoanPolicyDefaultsSeeder::class,
-            CustomerSeeder::class,
-            DemoLoanSeeder::class,
-            VendorSeeder::class,
-            DemoAffiliateSeeder::class,
-            PartnerDemoAccountsSeeder::class,
             ChargesFeeSeeder::class,
             ValuationPricingDefaultsSeeder::class,
             NotificationTemplateSeeder::class,
             PlusLearningSeeder::class,
             PublicHolidaySeeder::class,
+            // Demo / local only — do not run on production
+            UserSeeder::class,
+            CustomerSeeder::class,
+            DemoLoanSeeder::class,
+            VendorSeeder::class,
+            DemoAffiliateSeeder::class,
+            PartnerDemoAccountsSeeder::class,
         ]);
     }
 }

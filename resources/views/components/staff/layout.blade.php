@@ -14,6 +14,7 @@
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="bg-slate-100 text-gray-900 antialiased min-h-screen" x-data>
+    <x-site.environment-banner />
     <x-site.kopafasta-launcher />
     <header class="bg-slate-900 text-white">
         <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">

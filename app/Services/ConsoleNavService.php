@@ -113,7 +113,7 @@ class ConsoleNavService
                     ['Collection cases',    'admin.arrear-cases.index'],
                     ['Write-off requests',  'admin.write-off-requests.index'],
                     ['Loans in arrears',  'admin.loans.arrears'],
-                    ['Restructure requests','admin.restructure-requests.index'],
+                    ['Restructure requests', 'admin.restructure-requests.index'],
                     ['Top-up requests',     'admin.top-up-requests.index'],
                     ['Restructuring',       'admin.loans.restructuring'],
                     ['Closed loans',        'admin.loans.closed'],
@@ -225,9 +225,9 @@ class ConsoleNavService
                     ['Cash Flow',             'admin.reports.cash-flow',           'finance.reports'],
                     ['NPL',                   'admin.reports.npl',                 'finance.reports'],
                     ['— Partners —', '__group__'],
-                    ['Affiliate Performance','admin.reports.partner-performance', 'reports.view'],
-                    ['Marketing attribution','admin.reports.affiliate-marketing-attribution', 'reports.view'],
-                    ['Capital attribution','admin.reports.affiliate-capital-attribution', 'reports.view'],
+                    ['Affiliate Performance', 'admin.reports.partner-performance', 'reports.view'],
+                    ['Marketing attribution', 'admin.reports.affiliate-marketing-attribution', 'reports.view'],
+                    ['Capital attribution', 'admin.reports.affiliate-capital-attribution', 'reports.view'],
                     ['Affiliate fraud',   'admin.reports.affiliate-fraud',    'reports.view'],
                     ['— Regulatory —', '__group__'],
                     ['BOT Reports',         'admin.compliance.bot-reports', 'reports.view'],
@@ -266,6 +266,7 @@ class ConsoleNavService
                 'active_prefixes' => ['admin.settings.'],
                 'items' => [
                     ['Settings hub', 'admin.settings.index', 'settings.manage'],
+                    ['System', 'admin.settings.system', 'settings.manage'],
                 ],
                 'perms' => ['settings.manage'],
                 'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee'],
@@ -343,6 +344,7 @@ class ConsoleNavService
         foreach ($items as $item) {
             if (($item[1] ?? '') === '__group__') {
                 $pendingGroup = $item;
+
                 continue;
             }
 

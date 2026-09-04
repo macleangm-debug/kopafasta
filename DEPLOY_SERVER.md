@@ -1,5 +1,11 @@
 # Deploying Kopafasta to a Linux Server
 
+For the go-live two-Droplet model (staging.kopafasta.com / www.kopafasta.com), see **docs/GO-LIVE.md**.
+Use `scripts/deploy-staging.sh` and `scripts/promote-production.sh`. Do not rsync a dirty working tree to production.
+
+This guide remains the Ubuntu + Nginx + PHP-FPM baseline for a single app directory.
+
+
 This guide uses Ubuntu + Nginx + PHP-FPM and the deploy script in scripts/deploy.sh.
 
 ## 1) Server requirements

@@ -95,6 +95,7 @@
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false, profileSheet:false, plusMoreOpen:false}">
+<x-site.environment-banner />
 <x-site.kopafasta-launcher />
 <script>
     window.addEventListener('pageshow', function (event) {

@@ -1,0 +1,55 @@
+# Production Droplet — Nginx (do not enable until owner cutover)
+#
+# Canonical: https://www.kopafasta.com
+# kopafasta.com → https://www.kopafasta.com
+# SSL via certbot after DNS A records point here.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name kopafasta.com www.kopafasta.com;
+    return 301 https://www.kopafasta.com$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name kopafasta.com;
+    return 301 https://www.kopafasta.com$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name www.kopafasta.com;
+
+    root /var/www/kopafasta/public;
+    index index.php;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    client_max_body_size 25M;
+    charset utf-8;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    error_page 404 /index.php;
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}

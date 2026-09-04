@@ -5,11 +5,12 @@
  * Used by Settings hub + in-page tabs. Keep Ops nav pointing at the hub only.
  *
  * @return array<string, list<array{0: string, 1: string, 2?: string}>>
- *         group => list of [label, routeName, optional tab key]
+ *                                                                      group => list of [label, routeName, optional tab key]
  */
 return [
     'Website' => [
         ['SEO', 'admin.settings.seo', 'seo', 'meta robots sitemap canonical social schema google'],
+        ['System', 'admin.settings.system', 'system', 'environment commit version deploy staging production'],
     ],
     'Organization' => [
         ['Company profile', 'admin.settings.company', 'company'],
