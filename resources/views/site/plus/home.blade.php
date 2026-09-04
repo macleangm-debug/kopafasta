@@ -63,19 +63,29 @@
         </section>
 
         @if ($plusActive)
-            <div class="grid sm:grid-cols-2 gap-3">
-                <a href="{{ route('site.borrower.plus.offers') }}" class="rounded-2xl bg-white ring-1 ring-brand/15 p-4 hover:ring-brand/30">
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">✦ {{ __('plus.home.exclusive_kicker') }}</p>
-                    <p class="mt-2 text-sm font-semibold text-gray-900">{{ __('plus.home.exclusive_offers', ['count' => (int) $offers]) }}</p>
-                    <p class="mt-2 text-sm font-bold text-brand">{{ __('plus.home.see_offers') }} →</p>
+            <div class="grid sm:grid-cols-2 gap-3 items-stretch">
+                <a href="{{ route('site.borrower.plus.offers') }}" class="block h-full overflow-hidden rounded-2xl kf-premium-panel p-4 sm:p-5 hover:brightness-[1.03] transition">
+                    <div class="relative flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">✦ {{ __('plus.home.exclusive_kicker') }}</p>
+                            <p class="mt-2 text-3xl sm:text-4xl font-black tabular-nums text-white leading-none">
+                                {{ (int) $offers }}
+                                <span class="text-sm font-semibold text-white/70">{{ __('plus.home.offers') }}</span>
+                            </p>
+                            <p class="mt-3 text-sm font-bold text-brand-gold">{{ __('plus.home.see_offers') }} →</p>
+                        </div>
+                        <div class="kf-welcome-art kf-welcome-art-rewards shrink-0 opacity-90 hidden sm:block" aria-hidden="true">
+                            @include('components.site.illustrations.product', ['type' => 'offers'])
+                        </div>
+                    </div>
                 </a>
-                <x-site.rewards-summary :dashboard="$rewardsDash ?? []" />
+                <x-site.rewards-summary class="h-full" :dashboard="$rewardsDash ?? []" />
             </div>
         @endif
 
         @if ($plusActive || ($plusExpired ?? false))
             <section>
-                <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.home.rooms_title') }}</p>
+                <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold mb-3">{{ __('plus.home.rooms_title') }}</p>
                 @if ($plusExpired ?? false)
                     <p class="text-sm text-gray-600 mb-3">{{ __('plus.home.locked_rooms') }}</p>
                 @endif
@@ -154,8 +164,8 @@
             </section>
 
             @if (! empty($summary['upcoming']))
-                <section class="rounded-2xl bg-white ring-1 ring-gray-200 p-5">
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold">{{ __('plus.home.up_next') }}</p>
+                <section class="rounded-2xl glass-card ring-1 ring-brand-gold/25 p-5">
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.home.up_next') }}</p>
                     <div class="mt-3 space-y-2">
                         @foreach ($summary['upcoming'] as $item)
                             <a href="{{ $item['url'] ?? '#' }}" class="flex justify-between gap-3 text-sm">

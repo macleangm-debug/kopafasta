@@ -62,6 +62,15 @@ SVG,
   <path d="M60 46v16M52 58h16" stroke="rgba(245,200,66,0.9)" stroke-width="2.5" stroke-linecap="round"/>
 </svg>
 SVG,
+        'offers' => <<<'SVG'
+<svg viewBox="0 0 120 80" fill="none" class="w-full max-w-[140px] h-auto" aria-hidden="true">
+  <path d="M28 36h64v28a6 6 0 0 1-6 6H34a6 6 0 0 1-6-6V36z" stroke="white" stroke-width="2.5"/>
+  <path d="M22 28h76v10H22z" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M60 28v42" stroke="rgba(245,200,66,0.95)" stroke-width="2.5"/>
+  <path d="M48 18c0-6 12-8 12 2 0-10 12-8 12 2-1 8-12 10-12 10S49 26 48 18z" fill="rgba(245,200,66,0.85)" stroke="white" stroke-width="2"/>
+  <path d="M84 18l3 7 7 1-5 5 1 7-6-4-6 4 1-7-5-5 7-1 3-7z" fill="rgba(245,200,66,0.9)"/>
+</svg>
+SVG,
         'rewards' => <<<'SVG'
 <svg viewBox="0 0 120 80" fill="none" class="w-full max-w-[140px] h-auto" aria-hidden="true">
   <rect x="28" y="32" width="64" height="36" rx="6" stroke="white" stroke-width="2.5"/>
