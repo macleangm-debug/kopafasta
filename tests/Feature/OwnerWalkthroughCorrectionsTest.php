@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\CustomerPayment;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 use App\Models\PlusGoal;
 use App\Models\PlusSubscription;
 use App\Models\User;
 use App\Services\AccountWelcomeService;
+use App\Services\ApplicationFeePaymentService;
 use App\Services\BorrowerApplicationsDashboardService;
 use App\Services\KopafastaLaunchService;
 use App\Services\LoanApplicationDraftService;
@@ -128,6 +130,104 @@ class OwnerWalkthroughCorrectionsTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.loan-profile.draft', ['draft' => 999999]))
             ->assertRedirect(route('site.borrower.loans', ['tab' => 'applications']));
+    }
+
+    public function test_discard_and_reapply_opens_a_fresh_apply_with_fee_due(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        $customer = Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-REAPPLY-'.random_int(1000, 9999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Reapply',
+            'last_name' => 'Loan',
+            'phone' => '2557178'.random_int(10000, 99999),
+            'date_of_birth' => now()->subYears(30)->toDateString(),
+            'national_id' => '19900101123'.random_int(100000, 999999),
+            'nida_verification_status' => 'verified',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+            'face_verification_status' => 'verified',
+            'region' => 'Dar es Salaam',
+            'district' => 'Kinondoni',
+            'street' => 'Samora',
+            'activity_type' => 'employed',
+            'income_range' => '500k_1m',
+        ]);
+        $product = LoanProduct::create([
+            'code' => 'IL-REAPPLY-'.random_int(100, 999),
+            'name' => 'Individual Loan',
+            'category' => 'individual',
+            'is_active' => true,
+            'interest_rate' => 0.19,
+            'min_amount' => 500_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 1,
+            'tenure_max_months' => 12,
+            'requires_guarantor' => true,
+            'application_fee_amount' => 10_000,
+        ]);
+        $draft = LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 2,
+            'draft_reference' => 'APP-IL-PAID',
+            'saved_at' => now(),
+            'payload' => [
+                'application_started' => true,
+                'step_key' => 'guarantor',
+                'form' => [
+                    'loan_product_id' => $product->id,
+                    'requested_amount' => 500000,
+                    'requested_tenure_months' => 6,
+                    'purpose' => 'business',
+                ],
+                'application_fee' => [
+                    'status' => 'paid',
+                    'reference' => 'PAY-OLD-IL',
+                    'amount' => 10_000,
+                ],
+            ],
+        ]);
+        CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 10_000,
+            'currency' => 'TZS',
+            'status' => 'paid',
+            'reference' => 'PAY-OLD-IL',
+            'paid_at' => now()->subHour(),
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.draft.discard', $draft), ['reapply' => 1])
+            ->assertRedirect(route('site.borrower.apply', [
+                'product' => $product->id,
+                'intent' => 'apply',
+            ]));
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.apply', [
+                'product' => $product->id,
+                'intent' => 'apply',
+            ]))
+            ->assertOk()
+            ->assertViewHas('savedDraft', function ($saved) {
+                return ! is_array($saved) || ($saved['application_fee']['status'] ?? null) !== 'paid';
+            });
+
+        $this->assertFalse(app(ApplicationFeePaymentService::class)->isSatisfiedFor(
+            $customer->fresh(),
+            $product,
+            [
+                'application_started' => true,
+                'form' => ['loan_product_id' => $product->id, 'requested_amount' => 500000],
+            ],
+        ));
     }
 
     public function test_plus_goal_nudges_are_deduped_by_milestone(): void

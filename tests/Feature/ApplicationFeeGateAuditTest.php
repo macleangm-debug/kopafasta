@@ -286,6 +286,68 @@ class ApplicationFeeGateAuditTest extends TestCase
         $this->assertSame(1, CustomerPayment::query()->where('customer_id', $customer->id)->where('payment_type', 'application_fee')->count());
     }
 
+    public function test_prior_paid_fee_does_not_satisfy_a_new_draft(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->product();
+        $fees = app(ApplicationFeePaymentService::class);
+
+        CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 10_000,
+            'currency' => 'TZS',
+            'status' => 'paid',
+            'reference' => 'PAY-APP-FEE-OLD',
+            'paid_at' => now()->subDay(),
+        ]);
+
+        $payload = $this->quotePayload($product);
+        $this->assertSame('due', $fees->obligation($customer, $product, $payload)['status']);
+        $this->assertFalse($fees->isSatisfiedFor($customer, $product, $payload));
+        $this->assertNull($fees->syncDraftFromVerifiedPayment($customer, $product));
+        $this->assertNull(
+            LoanApplicationDraft::query()
+                ->where('customer_id', $customer->id)
+                ->where('loan_product_id', $product->id)
+                ->first()
+        );
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.apply', ['product' => $product->id, 'intent' => 'apply']))
+            ->assertOk()
+            ->assertViewHas('savedDraft', function ($draft) {
+                return ! is_array($draft) || ($draft['application_fee']['status'] ?? null) !== 'paid';
+            });
+
+        $this->actingAs($customer->user)
+            ->putJson(route('site.borrower.apply.draft.save'), [
+                'phase' => 'application',
+                'step' => 1,
+                'step_key' => 'quote',
+                'loan_product_id' => $product->id,
+                'form' => $payload['form'],
+            ])
+            ->assertOk();
+
+        $pay = $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.apply.application-fee.pay'), [
+                'loan_product_id' => $product->id,
+                'payment_phone' => $customer->phone,
+            ])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $waitUrl = (string) $pay->json('wait_url');
+        $this->assertStringContainsString('/borrower/payments/', $waitUrl);
+        $this->assertNotSame(
+            (int) CustomerPayment::query()->where('reference', 'PAY-APP-FEE-OLD')->value('id'),
+            (int) $pay->json('fee.payment_id'),
+        );
+    }
+
     public function test_failed_payment_cannot_bypass_the_gate(): void
     {
         $customer = $this->borrower();

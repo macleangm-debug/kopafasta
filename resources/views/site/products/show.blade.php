@@ -4,10 +4,10 @@
     $isMarketplaceProduct = is_marketplace_loan_product($product->code);
     $applyUrl = $isMarketplaceProduct
         ? (auth()->check() ? route('site.borrower.marketplace') : route('site.marketplace'))
-        : route('site.borrower.apply', ['product' => $product->id]);
+        : route('site.borrower.apply', ['product' => $product->id, 'intent' => 'apply']);
     $guestApplyUrl = $isMarketplaceProduct
         ? route('site.login', ['redirect' => route('site.marketplace')])
-        : route('site.login', ['redirect' => route('site.borrower.apply', ['product' => $product->id])]);
+        : route('site.login', ['redirect' => route('site.borrower.apply', ['product' => $product->id, 'intent' => 'apply'])]);
     $faqVisible = array_slice($p['faq'], 0, 3);
     $faqExtra = array_slice($p['faq'], 3);
     $cadence = app(\App\Services\GroupLendingService::class)->effectiveRepaymentCadence($product);

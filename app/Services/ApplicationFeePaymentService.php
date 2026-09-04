@@ -70,7 +70,7 @@ class ApplicationFeePaymentService
             return ['status' => 'paid'] + $empty;
         }
 
-        $payment = $this->latestFeePayment($customer, $product, $application);
+        $payment = $this->latestFeePayment($customer, $product, $application, $draftPayload);
         if ($payment && in_array($payment->status, ['paid', 'verified'], true)) {
             return ['status' => 'paid', 'payment' => $payment] + $empty;
         }
@@ -129,28 +129,52 @@ class ApplicationFeePaymentService
         return in_array($stepKey, ['guarantor', 'product_questions', 'review', 'signature', 'submit'], true);
     }
 
+    /**
+     * Resolve the fee payment for this attempt only.
+     * A prior paid application_fee for the same product must not close a new draft's gate.
+     *
+     * @param  array<string, mixed>|null  $draftPayload
+     */
     private function latestFeePayment(
         Customer $customer,
         LoanProduct $product,
         ?\App\Models\LoanApplication $application = null,
+        ?array $draftPayload = null,
     ): ?CustomerPayment {
-        return CustomerPayment::query()
+        $query = CustomerPayment::query()
             ->where('customer_id', $customer->id)
             ->where('payment_type', 'application_fee')
             ->where(function ($q) use ($product) {
                 $q->where('loan_product_id', $product->id)
                     ->orWhere('provider_meta->apply_context->loan_product_id', $product->id);
-            })
-            ->where(function ($q) use ($application) {
-                if ($application) {
-                    $q->where(function ($inner) use ($application) {
-                        $inner->where('source_type', \App\Models\LoanApplication::class)
-                            ->where('source_id', $application->id);
-                    })->orWhereNull('source_id');
-                } else {
-                    $q->whereNull('source_id');
-                }
-            })
+            });
+
+        $fee = is_array($draftPayload['application_fee'] ?? null) ? $draftPayload['application_fee'] : [];
+        $paymentId = (int) ($fee['payment_id'] ?? 0);
+        $reference = trim((string) ($fee['reference'] ?? ''));
+
+        if ($paymentId > 0) {
+            return (clone $query)->where('id', $paymentId)->first();
+        }
+
+        if ($reference !== '') {
+            return (clone $query)->where('reference', $reference)->first();
+        }
+
+        if ($application) {
+            $bound = (clone $query)
+                ->where('source_type', \App\Models\LoanApplication::class)
+                ->where('source_id', $application->id)
+                ->latest('id')
+                ->first();
+            if ($bound) {
+                return $bound;
+            }
+        }
+
+        return (clone $query)
+            ->whereNull('source_id')
+            ->whereIn('status', ['awaiting_payment', 'processing', 'pending_verification', 'failed', 'expired', 'cancelled'])
             ->latest('id')
             ->first();
     }
@@ -397,15 +421,17 @@ class ApplicationFeePaymentService
 
         [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
-        $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
-        $nextStep = $this->nextStepAfterApplicationFee($customer, $product, is_array($draftPayload) ? $draftPayload : null);
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        $draftPayload = is_array($draft?->payload) ? $draft->payload : null;
+        $nextStep = $this->nextStepAfterApplicationFee($customer, $product, $draftPayload);
         $groups = app(GroupLendingService::class);
         $resolvedMemberCount = $groups->isGroupProduct($product)
-            ? max(1, (int) ($groupMemberCount ?: $groups->memberCountFromPayload(is_array($draftPayload) ? ($draftPayload['group'] ?? null) : null)))
+            ? max(1, (int) ($groupMemberCount ?: $groups->memberCountFromPayload(is_array($draftPayload['group'] ?? null) ? $draftPayload['group'] : null)))
             : null;
 
         $applyContext = [
             'loan_product_id' => $product->id,
+            'draft_reference' => $draft?->draft_reference,
             'use_wallet' => $useWallet,
             'promo_code' => $effectivePromo,
             'affiliate_code' => $effectiveAffiliate,
@@ -414,7 +440,7 @@ class ApplicationFeePaymentService
                 ? $groups->applicationFeeBreakdown($customer, $product, $resolvedMemberCount)
                 : null,
             'next_step_key' => $nextStep,
-            'return_url' => $this->resumeUrlAfterFee($customer, $product, is_array($draftPayload) ? $draftPayload : null, $nextStep),
+            'return_url' => $this->resumeUrlAfterFee($customer, $product, $draftPayload, $nextStep),
             'settled' => ! $awaitsPsp,
         ];
 
@@ -501,11 +527,12 @@ class ApplicationFeePaymentService
 
         [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
-        $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
-        $nextStep = $this->nextStepAfterApplicationFee($customer, $product, is_array($draftPayload) ? $draftPayload : null);
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        $draftPayload = is_array($draft?->payload) ? $draft->payload : null;
+        $nextStep = $this->nextStepAfterApplicationFee($customer, $product, $draftPayload);
         $groups = app(GroupLendingService::class);
         $resolvedMemberCount = $groups->isGroupProduct($product)
-            ? max(1, (int) ($groupMemberCount ?: $groups->memberCountFromPayload(is_array($draftPayload) ? ($draftPayload['group'] ?? null) : null)))
+            ? max(1, (int) ($groupMemberCount ?: $groups->memberCountFromPayload(is_array($draftPayload['group'] ?? null) ? $draftPayload['group'] : null)))
             : null;
 
         $payment = app(CustomerPaymentService::class)->create([
@@ -518,6 +545,7 @@ class ApplicationFeePaymentService
             'auto_verify'    => $autoVerify,
             'apply_context'  => [
                 'loan_product_id' => $product->id,
+                'draft_reference' => $draft?->draft_reference,
                 'use_wallet' => $useWallet,
                 'promo_code' => $effectivePromo,
                 'affiliate_code' => $effectiveAffiliate,
@@ -526,7 +554,7 @@ class ApplicationFeePaymentService
                     ? $groups->applicationFeeBreakdown($customer, $product, $resolvedMemberCount)
                     : null,
                 'next_step_key' => $nextStep,
-                'return_url' => $this->resumeUrlAfterFee($customer, $product, is_array($draftPayload) ? $draftPayload : null, $nextStep),
+                'return_url' => $this->resumeUrlAfterFee($customer, $product, $draftPayload, $nextStep),
                 'settled' => $autoVerify,
             ],
         ]);
@@ -539,18 +567,12 @@ class ApplicationFeePaymentService
      */
     public function syncDraftFromVerifiedPayment(Customer $customer, LoanProduct $product): ?array
     {
-        $payment = CustomerPayment::query()
-            ->where('customer_id', $customer->id)
-            ->where('payment_type', 'application_fee')
-            ->where(function ($q) use ($product) {
-                $q->where('loan_product_id', $product->id)
-                    ->orWhere('provider_meta->apply_context->loan_product_id', $product->id);
-            })
-            ->whereIn('status', ['paid', 'verified'])
-            ->latest('id')
-            ->first();
+        $drafts = app(LoanApplicationDraftService::class);
+        $draft = $drafts->find($customer, $product->id);
+        $payload = is_array($draft?->payload) ? $draft->payload : null;
+        $payment = $this->latestFeePayment($customer, $product, null, $payload);
 
-        if (! $payment) {
+        if (! $payment || ! in_array($payment->status, ['paid', 'verified'], true)) {
             return null;
         }
 
@@ -563,7 +585,6 @@ class ApplicationFeePaymentService
             'paid_at'    => ($payment->paid_at ?? now())->toIso8601String(),
         ];
 
-        $drafts = app(LoanApplicationDraftService::class);
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
         if (product_includes_valuation_fee($product)) {
             $drafts->saveValuationFee($customer, $product->id, $feeState);

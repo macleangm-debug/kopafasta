@@ -457,7 +457,7 @@ class BorrowerController extends Controller
         $reapply = $request->boolean('reapply') && $productId > 0;
 
         return $reapply
-            ? redirect()->route('site.borrower.apply', ['product' => $productId])
+            ? redirect()->route('site.borrower.apply', ['product' => $productId, 'intent' => 'apply'])
             : redirect()
                 ->route('site.borrower.loans', ['tab' => 'applications'])
                 ->with('status', __('borrower.policy.draft_discarded', [

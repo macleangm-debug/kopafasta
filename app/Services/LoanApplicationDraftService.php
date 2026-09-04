@@ -483,6 +483,10 @@ class LoanApplicationDraftService
     /** @param array<string, mixed> $feeState */
     public function saveApplicationFee(Customer $customer, int $loanProductId, array $feeState): LoanApplicationDraft
     {
+        if ($blocked = $this->discardedWriteGuard($customer, $loanProductId)) {
+            return $blocked;
+        }
+
         $product = LoanProduct::find($loanProductId);
         $draft = $this->find($customer, $loanProductId)
             ?? new LoanApplicationDraft([
@@ -515,6 +519,10 @@ class LoanApplicationDraftService
      */
     public function advancePastApplicationFee(Customer $customer, int $loanProductId, ?string $stepKey = null): LoanApplicationDraft
     {
+        if ($blocked = $this->discardedWriteGuard($customer, $loanProductId)) {
+            return $blocked;
+        }
+
         $product = LoanProduct::find($loanProductId);
         $draft = $this->find($customer, $loanProductId)
             ?? new LoanApplicationDraft([
@@ -566,6 +574,10 @@ class LoanApplicationDraftService
     /** @param array<string, mixed> $feeState */
     public function saveValuationFee(Customer $customer, int $loanProductId, array $feeState): LoanApplicationDraft
     {
+        if ($blocked = $this->discardedWriteGuard($customer, $loanProductId)) {
+            return $blocked;
+        }
+
         $product = LoanProduct::find($loanProductId);
         $draft = $this->find($customer, $loanProductId)
             ?? new LoanApplicationDraft([
@@ -589,6 +601,26 @@ class LoanApplicationDraftService
         ])->save();
 
         return $draft;
+    }
+
+    /**
+     * Do not resurrect a discarded product as a paid/advanced draft.
+     * Returns an unsaved stand-in when no row remains.
+     */
+    private function discardedWriteGuard(Customer $customer, int $loanProductId): ?LoanApplicationDraft
+    {
+        if (! $this->wasDiscarded($loanProductId)) {
+            return null;
+        }
+
+        return $this->find($customer, $loanProductId)
+            ?? new LoanApplicationDraft([
+                'customer_id' => $customer->id,
+                'loan_product_id' => $loanProductId,
+                'phase' => 'application',
+                'step' => 0,
+                'payload' => [],
+            ]);
     }
 
     public function discard(Customer $customer, ?int $loanProductId = null): void

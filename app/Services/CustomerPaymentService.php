@@ -1296,6 +1296,13 @@ class CustomerPaymentService
         $customer = $payment->customer->fresh();
         $drafts = app(LoanApplicationDraftService::class);
         $fees = app(ApplicationFeePaymentService::class);
+        $draft = $drafts->find($customer, $productId);
+        $ctxRef = trim((string) ($ctx['draft_reference'] ?? ''));
+        $currentRef = trim((string) ($draft?->draft_reference ?? ''));
+        $fee = is_array($draft?->payload['application_fee'] ?? null) ? $draft->payload['application_fee'] : [];
+        $belongsToCurrentDraft = ! $draft
+            || (int) ($fee['payment_id'] ?? 0) === (int) $payment->id
+            || ($ctxRef !== '' && $currentRef !== '' && $ctxRef === $currentRef);
 
         $feeState = [
             'status'     => 'paid',
@@ -1306,18 +1313,20 @@ class CustomerPaymentService
             'paid_at'    => ($payment->paid_at ?? now())->toIso8601String(),
         ];
 
-        $drafts->saveApplicationFee($customer, $productId, $feeState);
-        if ($product && product_includes_valuation_fee($product)) {
-            $drafts->saveValuationFee($customer, $productId, $feeState);
-        }
+        if ($belongsToCurrentDraft && ! $drafts->wasDiscarded($productId)) {
+            $drafts->saveApplicationFee($customer, $productId, $feeState);
+            if ($product && product_includes_valuation_fee($product)) {
+                $drafts->saveValuationFee($customer, $productId, $feeState);
+            }
 
-        $nextStep = (string) ($ctx['next_step_key'] ?? '');
-        if ($product) {
-            $drafts->advancePastApplicationFee(
-                $customer,
-                $productId,
-                filled($nextStep) ? $nextStep : null,
-            );
+            $nextStep = (string) ($ctx['next_step_key'] ?? '');
+            if ($product) {
+                $drafts->advancePastApplicationFee(
+                    $customer,
+                    $productId,
+                    filled($nextStep) ? $nextStep : null,
+                );
+            }
         }
 
         if (! empty($ctx['settled'])) {
