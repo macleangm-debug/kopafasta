@@ -26,15 +26,15 @@ class Phase26FeatureTest extends TestCase
         ]);
 
         return Customer::create([
-            'user_id'                  => $user->id,
-            'customer_number'          => 'CU-P26-'.random_int(100, 999),
-            'type'                     => 'individual',
-            'status'                   => 'active',
-            'first_name'               => 'Complete',
-            'last_name'                => 'Borrower',
-            'phone'                    => '2557123462'.random_int(10, 99),
-            'membership_status'        => 'active',
-            'membership_expires_at'    => now()->addYear(),
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P26-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Complete',
+            'last_name' => 'Borrower',
+            'phone' => '2557123462'.random_int(10, 99),
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
         ]);
     }
 
@@ -49,7 +49,7 @@ class Phase26FeatureTest extends TestCase
             __('borrower.membership.card_title', [], 'sw')
         );
         $this->assertSame(
-            'Kituo cha msaada',
+            'Unahitaji msaada?',
             __('borrower.support_page.title', [], 'sw')
         );
         $this->assertSame(
@@ -99,24 +99,24 @@ class Phase26FeatureTest extends TestCase
             ->assertSee('max-w-7xl', false);
 
         $product = LoanProduct::create([
-            'code'              => 'IL-P26',
-            'name'              => 'Profile Layout Product',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'IL-P26',
+            'name' => 'Profile Layout Product',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
 
         $application = LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $product->id,
-            'application_number'      => 'APP-P26-LAYOUT',
-            'requested_amount'        => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-P26-LAYOUT',
+            'requested_amount' => 500_000,
             'requested_tenure_months' => 12,
-            'status'                  => 'submitted',
-            'current_stage'           => 'submitted',
+            'status' => 'submitted',
+            'current_stage' => 'submitted',
         ]);
 
         $this->actingAs($customer->user)

@@ -20,10 +20,10 @@ class Phase12FeatureTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $partner = Vendor::create([
             'vendor_number' => 'PTR-P12-001',
-            'name'          => 'Phase 12 Partner',
-            'category'      => 'valuer',
-            'status'        => 'active',
-            'phone'         => '255712345695',
+            'name' => 'Phase 12 Partner',
+            'category' => 'valuer',
+            'status' => 'active',
+            'phone' => '255712345695',
         ]);
 
         $this->actingAs($admin, 'admin')
@@ -40,7 +40,11 @@ class Phase12FeatureTest extends TestCase
 
     public function test_borrower_applications_view_mode_persists_in_preferences(): void
     {
-        $user = $this->borrowerWithPin(['preferences' => []]);
+        $user = $this->borrowerWithPin([
+            'preferences' => [
+                'account_welcome_completed_at' => now()->toIso8601String(),
+            ],
+        ]);
 
         $this->actingAs($user)
             ->get(route('site.borrower.loans', ['tab' => 'applications', 'view' => 'cards']))
@@ -59,14 +63,14 @@ class Phase12FeatureTest extends TestCase
         $user = $this->borrowerWithPin();
         $customer = Customer::query()->where('user_id', $user->id)->firstOrFail();
         $customer->update([
-            'region'        => 'Dar es Salaam',
-            'district'      => 'Kinondoni',
-            'street'        => 'Sample Street',
+            'region' => 'Dar es Salaam',
+            'district' => 'Kinondoni',
+            'street' => 'Sample Street',
             'activity_type' => 'trader',
-            'income_range'  => '500k_1m',
+            'income_range' => '500k_1m',
             'activity_details' => ['trade_type' => 'food'],
             'profile_section_confirmed_at' => [
-                'activity'  => now()->subDays(120)->toIso8601String(),
+                'activity' => now()->subDays(120)->toIso8601String(),
                 'residence' => now()->subDays(120)->toIso8601String(),
             ],
         ]);
@@ -85,13 +89,13 @@ class Phase12FeatureTest extends TestCase
         app(PinService::class)->setPin($user, '1234');
 
         Customer::create([
-            'user_id'         => $user->id,
+            'user_id' => $user->id,
             'customer_number' => 'CU-P12-'.strtoupper(substr(md5((string) $user->id), 0, 6)),
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Phase',
-            'last_name'       => 'Twelve',
-            'phone'           => '255712345696',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Phase',
+            'last_name' => 'Twelve',
+            'phone' => '255712345696',
         ]);
 
         return $user;

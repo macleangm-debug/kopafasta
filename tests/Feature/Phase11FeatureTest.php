@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\User;
-use App\Models\Vendor;
 use App\Services\ReferralService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -35,7 +34,7 @@ class Phase11FeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.create', ['category' => 'valuer']))
             ->assertOk()
-            ->assertSee('Valuer rates', false)
+            ->assertSee('Rates', false)
             ->assertSee('value="valuer"', false);
     }
 
@@ -43,12 +42,12 @@ class Phase11FeatureTest extends TestCase
     {
         $customer = Customer::create([
             'customer_number' => 'CU-P11-001',
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Refer',
-            'last_name'       => 'Member',
-            'phone'           => '255712345693',
-            'referral_code'   => 'KPF-REFER001',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Refer',
+            'last_name' => 'Member',
+            'phone' => '255712345693',
+            'referral_code' => 'KPF-REFER001',
         ]);
 
         $message = app(ReferralService::class)->shareMessage($customer);
@@ -61,6 +60,7 @@ class Phase11FeatureTest extends TestCase
     {
         $this->get(route('site.partner.start'))
             ->assertOk()
-            ->assertSee('Partner', false);
+            ->assertSee(__('site.auth.activate_account'), false)
+            ->assertSee(__('site.auth.partner_code_label'), false);
     }
 }

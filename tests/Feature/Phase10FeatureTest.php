@@ -26,9 +26,10 @@ class Phase10FeatureTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.settings.crb'))
-            ->assertOk()
-            ->assertSee('Credit Bureau (CRB)', false)
-            ->assertSee('Run CRB test lookup', false);
+            ->assertRedirect(route('admin.settings.integrations.partner', [
+                'partner' => 'crb',
+                'tab' => 'configuration',
+            ]));
     }
 
     public function test_crb_stub_lookup_succeeds_with_sample_nida(): void
@@ -61,10 +62,10 @@ class Phase10FeatureTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $partner = Vendor::create([
             'vendor_number' => 'PTR-P10-001',
-            'name'          => 'Phase 10 Partner',
-            'category'      => 'valuer',
-            'status'        => 'active',
-            'phone'         => '255712345692',
+            'name' => 'Phase 10 Partner',
+            'category' => 'valuer',
+            'status' => 'active',
+            'phone' => '255712345692',
         ]);
 
         $this->actingAs($admin, 'admin')

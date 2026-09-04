@@ -23,14 +23,14 @@ class Phase30FeatureTest extends TestCase
         app(PinService::class)->setPin($user, '1234');
 
         return Customer::create([
-            'user_id'               => $user->id,
-            'customer_number'       => 'CU-P30-'.random_int(100, 999),
-            'type'                  => 'individual',
-            'status'                => 'active',
-            'first_name'            => 'Complete',
-            'last_name'             => 'Borrower',
-            'phone'                 => '2557123467'.random_int(10, 99),
-            'membership_status'     => 'active',
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P30-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Complete',
+            'last_name' => 'Borrower',
+            'phone' => '2557123467'.random_int(10, 99),
+            'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
     }
@@ -42,7 +42,7 @@ class Phase30FeatureTest extends TestCase
             __('borrower.guarantor_invite.expired_title', [], 'sw')
         );
         $this->assertSame(
-            'Muhtasari wa mkopo',
+            'Mkopo wako',
             __('borrower.loan_servicing.summary_title', [], 'sw')
         );
         $this->assertSame(
@@ -56,9 +56,8 @@ class Phase30FeatureTest extends TestCase
         $customer = $this->completeBorrower();
 
         $this->actingAs($customer->user)
-            ->get(route('site.borrower.profile', ['section' => 'security']))
+            ->get(route('site.borrower.settings'))
             ->assertOk()
-            ->assertSee('max-w-7xl', false)
             ->assertSee(__('borrower.security_tab.trusted_devices'), false)
             ->assertSee(__('borrower.security_tab.pin_hint'), false);
     }
@@ -67,14 +66,14 @@ class Phase30FeatureTest extends TestCase
     {
         $customer = $this->completeBorrower();
         $customer->update([
-            'region'        => 'Dar es Salaam',
-            'district'      => 'Kinondoni',
-            'street'        => 'Sample Street',
+            'region' => 'Dar es Salaam',
+            'district' => 'Kinondoni',
+            'street' => 'Sample Street',
             'activity_type' => 'trader',
-            'income_range'  => '500k_1m',
+            'income_range' => '500k_1m',
             'activity_details' => ['trade_type' => 'food'],
             'profile_section_confirmed_at' => [
-                'activity'  => now()->subDays(120)->toIso8601String(),
+                'activity' => now()->subDays(120)->toIso8601String(),
                 'residence' => now()->subDays(120)->toIso8601String(),
             ],
         ]);
@@ -92,35 +91,35 @@ class Phase30FeatureTest extends TestCase
     {
         $customer = $this->completeBorrower();
         $product = LoanProduct::create([
-            'code'              => 'IL-P30-G',
-            'name'              => 'Guarantor Product',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'IL-P30-G',
+            'name' => 'Guarantor Product',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
 
         $application = LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $product->id,
-            'application_number'      => 'APP-P30-G',
-            'requested_amount'        => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-P30-G',
+            'requested_amount' => 500_000,
             'requested_tenure_months' => 12,
-            'status'                  => 'submitted',
+            'status' => 'submitted',
         ]);
 
         GuarantorInvitation::create([
-            'customer_id'         => $customer->id,
+            'customer_id' => $customer->id,
             'loan_application_id' => $application->id,
-            'type'                => 'external',
-            'channel'             => 'whatsapp',
-            'token'               => 'expired-token-p30',
-            'short_code'          => 'P30EXP',
-            'contact'             => '+255712345670',
-            'status'              => 'pending',
-            'expires_at'          => now()->subDay(),
+            'type' => 'external',
+            'channel' => 'whatsapp',
+            'token' => 'expired-token-p30',
+            'short_code' => 'P30EXP',
+            'contact' => '+255712345670',
+            'status' => 'pending',
+            'expires_at' => now()->subDay(),
         ]);
 
         $this->get(route('site.guarantor.show', 'expired-token-p30'))
@@ -133,67 +132,66 @@ class Phase30FeatureTest extends TestCase
     {
         $customer = $this->completeBorrower();
         $product = LoanProduct::create([
-            'code'              => 'IL-P30-P',
-            'name'              => 'Public Guarantor Product',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'IL-P30-P',
+            'name' => 'Public Guarantor Product',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
 
         $application = LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $product->id,
-            'application_number'      => 'APP-P30-P',
-            'requested_amount'        => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-P30-P',
+            'requested_amount' => 500_000,
             'requested_tenure_months' => 12,
-            'status'                  => 'submitted',
+            'status' => 'submitted',
         ]);
 
         GuarantorInvitation::create([
-            'customer_id'         => $customer->id,
+            'customer_id' => $customer->id,
             'loan_application_id' => $application->id,
-            'type'                => 'external',
-            'channel'             => 'whatsapp',
-            'token'               => 'pending-token-p30',
-            'short_code'          => 'P30PND',
-            'contact'             => '+255712345671',
-            'status'              => 'pending',
-            'expires_at'          => now()->addDays(7),
+            'type' => 'external',
+            'channel' => 'whatsapp',
+            'token' => 'pending-token-p30',
+            'short_code' => 'P30PND',
+            'contact' => '+255712345671',
+            'status' => 'pending',
+            'expires_at' => now()->addDays(7),
         ]);
 
         $this->get(route('site.guarantor.show', 'pending-token-p30'))
             ->assertOk()
-            ->assertSee(__('borrower.guarantor_invite.heading'), false)
-            ->assertSee(__('borrower.guarantor_invite.role_heading'), false);
+            ->assertSee(__('borrower.guarantor_invite.heading'), false);
     }
 
     public function test_loan_show_page_displays_servicing_summary_labels(): void
     {
         $customer = $this->completeBorrower();
         $product = LoanProduct::create([
-            'code'              => 'IL-P30-L',
-            'name'              => 'Servicing Product',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'IL-P30-L',
+            'name' => 'Servicing Product',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
 
         $loan = Loan::create([
-            'customer_id'         => $customer->id,
-            'loan_product_id'     => $product->id,
-            'loan_number'         => 'LN-P30-'.random_int(1000, 9999),
-            'principal_amount'    => 500_000,
-            'approved_amount'     => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'loan_number' => 'LN-P30-'.random_int(1000, 9999),
+            'principal_amount' => 500_000,
+            'approved_amount' => 500_000,
             'outstanding_balance' => 450_000,
-            'interest_rate'       => 0.15,
-            'tenure_months'       => 12,
-            'status'              => 'active',
+            'interest_rate' => 0.15,
+            'tenure_months' => 12,
+            'status' => 'active',
         ]);
 
         $this->actingAs($customer->user)

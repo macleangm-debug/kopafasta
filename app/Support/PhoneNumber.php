@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Services\CountrySettingsService;
+use Illuminate\Http\Request;
 
 class PhoneNumber
 {
@@ -19,8 +20,8 @@ class PhoneNumber
             if ($prefixDigits !== '' && str_starts_with($digits, $prefixDigits)) {
                 return [
                     'prefix' => $country['prefix'],
-                    'local'  => ltrim(substr($digits, strlen($prefixDigits)), '0'),
-                    'full'   => $prefixDigits.ltrim(substr($digits, strlen($prefixDigits)), '0'),
+                    'local' => ltrim(substr($digits, strlen($prefixDigits)), '0'),
+                    'full' => $prefixDigits.ltrim(substr($digits, strlen($prefixDigits)), '0'),
                 ];
             }
         }
@@ -33,8 +34,8 @@ class PhoneNumber
 
             return [
                 'prefix' => $default['phone_prefix'],
-                'local'  => $local,
-                'full'   => $prefixDigits.$local,
+                'local' => $local,
+                'full' => $prefixDigits.$local,
             ];
         }
 
@@ -44,8 +45,8 @@ class PhoneNumber
 
         return [
             'prefix' => $default['phone_prefix'],
-            'local'  => $local,
-            'full'   => $prefixDigits.$local,
+            'local' => $local,
+            'full' => $prefixDigits.$local,
         ];
     }
 
@@ -79,7 +80,7 @@ class PhoneNumber
      * Resolve a phone from a request field, preferring the visible *_local digits
      * (avoids browser autofill overwriting the hidden full MSISDN).
      */
-    public static function fromRequest(\Illuminate\Http\Request $request, string $field, ?string $countryCode = null): ?string
+    public static function fromRequest(Request $request, string $field, ?string $countryCode = null): ?string
     {
         $local = $request->input($field.'_local');
         $full = $request->input($field);
@@ -102,7 +103,10 @@ class PhoneNumber
         $country = app(CountrySettingsService::class)->forCode($countryCode);
         $prefixDigits = preg_replace('/\D+/', '', $country['phone_prefix'] ?? '') ?? '';
 
-        $countries = app(CountrySettingsService::class)->forRegistration();
+        $countries = collect(config('countries', []))
+            ->map(fn (array $row) => ['prefix' => (string) ($row['phone_prefix'] ?? '')])
+            ->values()
+            ->all();
         usort($countries, fn (array $a, array $b) => strlen(preg_replace('/\D+/', '', $b['prefix']) ?? '') <=> strlen(preg_replace('/\D+/', '', $a['prefix']) ?? ''));
 
         // Strip every leading known country prefix (handles autofill / paste of full MSISDNs).

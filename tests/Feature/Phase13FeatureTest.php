@@ -19,20 +19,21 @@ class Phase13FeatureTest extends TestCase
     public function test_homepage_shows_featured_marketplace_section_when_assets_exist(): void
     {
         MarketplaceAsset::create([
-            'slug'                => 'p13-truck',
-            'title'               => 'Phase 13 Truck',
-            'category'            => 'vehicle',
-            'supplier_name'       => 'Phase 13 Supplier',
-            'asset_value'         => 25_000_000,
-            'supplier_deposit'    => 5_000_000,
-            'customer_deposit'    => 5_500_000,
-            'weekly_installment'  => 250_000,
-            'max_tenure_months'   => 24,
-            'is_active'           => true,
+            'slug' => 'p13-truck',
+            'title' => 'Phase 13 Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Phase 13 Supplier',
+            'asset_value' => 25_000_000,
+            'supplier_deposit' => 5_000_000,
+            'customer_deposit' => 5_500_000,
+            'weekly_installment' => 250_000,
+            'max_tenure_months' => 24,
+            'is_active' => true,
             'availability_status' => 'available',
         ]);
 
-        $this->get(route('site.home'))
+        $this->withSession(['locale' => 'en'])
+            ->get(route('site.home'))
             ->assertOk()
             ->assertSee('Asset marketplace', false)
             ->assertSee('Phase 13 Truck', false)
@@ -43,18 +44,18 @@ class Phase13FeatureTest extends TestCase
     {
         $customer = Customer::create([
             'customer_number' => 'CU-P13-001',
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Crb',
-            'last_name'       => 'Billing',
-            'phone'           => '255712345698',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Crb',
+            'last_name' => 'Billing',
+            'phone' => '255712345698',
         ]);
 
         CreditHistory::create([
             'customer_id' => $customer->id,
-            'source'      => 'crb_stub',
-            'payload'     => ['report_type' => 'credit'],
-            'checked_at'  => now(),
+            'source' => 'crb_stub',
+            'payload' => ['report_type' => 'credit'],
+            'checked_at' => now(),
         ]);
 
         $summary = app(CrbBillingService::class)->monthlySummary();
@@ -69,9 +70,10 @@ class Phase13FeatureTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.settings.crb'))
-            ->assertOk()
-            ->assertSee('Monthly usage', false)
-            ->assertSee('Cost per bureau request', false);
+            ->assertRedirect(route('admin.settings.integrations.partner', [
+                'partner' => 'crb',
+                'tab' => 'configuration',
+            ]));
     }
 
     public function test_borrower_kin_profile_page_is_available(): void
@@ -80,16 +82,19 @@ class Phase13FeatureTest extends TestCase
         app(PinService::class)->setPin($user, '1234');
 
         Customer::create([
-            'user_id'         => $user->id,
+            'user_id' => $user->id,
             'customer_number' => 'CU-P13-002',
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Kin',
-            'last_name'       => 'Profile',
-            'phone'           => '255712345699',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Kin',
+            'last_name' => 'Profile',
+            'phone' => '255712345699',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
         ]);
 
         $this->actingAs($user)
+            ->followingRedirects()
             ->get(route('site.borrower.profile', ['section' => 'kin']))
             ->assertOk()
             ->assertSee(__('borrower.profile.kin_title'), false)
@@ -101,10 +106,10 @@ class Phase13FeatureTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $partner = Vendor::create([
             'vendor_number' => 'PTR-P13-001',
-            'name'          => 'Recovery Partner',
-            'category'      => 'debt_collector',
-            'status'        => 'active',
-            'phone'         => '255712345700',
+            'name' => 'Recovery Partner',
+            'category' => 'debt_collector',
+            'status' => 'active',
+            'phone' => '255712345700',
         ]);
 
         $this->actingAs($admin, 'admin')

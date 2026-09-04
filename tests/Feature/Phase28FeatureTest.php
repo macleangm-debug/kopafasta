@@ -21,14 +21,14 @@ class Phase28FeatureTest extends TestCase
         app(PinService::class)->setPin($user, '1234');
 
         return Customer::create([
-            'user_id'               => $user->id,
-            'customer_number'       => 'CU-P28-'.random_int(100, 999),
-            'type'                  => 'individual',
-            'status'                => 'active',
-            'first_name'            => 'Complete',
-            'last_name'             => 'Borrower',
-            'phone'                 => '2557123465'.random_int(10, 99),
-            'membership_status'     => 'active',
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P28-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Complete',
+            'last_name' => 'Borrower',
+            'phone' => '2557123465'.random_int(10, 99),
+            'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
     }
@@ -58,24 +58,24 @@ class Phase28FeatureTest extends TestCase
         $customer = $this->completeBorrower();
 
         $product = LoanProduct::create([
-            'code'              => 'IL-P28',
-            'name'              => 'Phase 28 Product',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'IL-P28',
+            'name' => 'Phase 28 Product',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
 
         $application = LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $product->id,
-            'application_number'      => 'APP-P28-SUCCESS',
-            'requested_amount'        => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-P28-SUCCESS',
+            'requested_amount' => 500_000,
             'requested_tenure_months' => 6,
-            'status'                  => 'submitted',
-            'current_stage'           => 'submitted',
+            'status' => 'submitted',
+            'current_stage' => 'submitted',
         ]);
 
         $this->actingAs($customer->user)
@@ -91,10 +91,7 @@ class Phase28FeatureTest extends TestCase
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.payments'))
-            ->assertOk()
-            ->assertSee('max-w-7xl', false)
-            ->assertSee(__('borrower.payments_page.title'), false)
-            ->assertSee(__('borrower.payments_page.empty_title'), false);
+            ->assertRedirect(route('site.borrower.loans'));
     }
 
     public function test_guarantor_notifications_page_shows_translated_action_labels(): void
@@ -113,19 +110,19 @@ class Phase28FeatureTest extends TestCase
         $this->get(route('site.marketplace'))
             ->assertOk()
             ->assertSee(__('borrower.marketplace.public_login_cta'), false)
-            ->assertSee(__('borrower.marketplace.public_eyebrow', ['brand' => brand_name()]), false);
+            ->assertSee(__('borrower.marketplace.title'), false);
     }
 
     public function test_charges_fee_post_approval_value_persists_on_sqlite(): void
     {
         $fee = ChargesFee::create([
-            'code'        => 'DOC-FEE-P28',
-            'name'        => 'Documentation fee',
-            'type'        => 'processing',
-            'basis'       => 'fixed',
-            'amount'      => 50_000,
+            'code' => 'DOC-FEE-P28',
+            'name' => 'Documentation fee',
+            'type' => 'processing',
+            'basis' => 'fixed',
+            'amount' => 50_000,
             'charge_when' => 'post_approval',
-            'is_active'   => true,
+            'is_active' => true,
         ]);
 
         $this->assertSame('post_approval', $fee->fresh()->charge_when);

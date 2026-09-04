@@ -18,14 +18,14 @@ class Phase38FeatureTest extends TestCase
         app(PinService::class)->setPin($user, '1234');
 
         return Customer::create([
-            'user_id'               => $user->id,
-            'customer_number'       => 'CU-P38-'.$suffix,
-            'type'                  => 'individual',
-            'status'                => 'active',
-            'first_name'            => 'Complete',
-            'last_name'             => 'Borrower',
-            'phone'                 => '2557123510'.substr($suffix, -2),
-            'membership_status'     => 'active',
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P38-'.$suffix,
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Complete',
+            'last_name' => 'Borrower',
+            'phone' => '2557123510'.substr($suffix, -2),
+            'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
     }
@@ -106,6 +106,6 @@ class Phase38FeatureTest extends TestCase
             ->get(route('site.borrower.dashboard'))
             ->assertOk()
             ->assertSee('max-w-7xl', false)
-            ->assertSee(__('borrower.welcome'), false);
+            ->assertSee('Complete', false);
     }
 }

@@ -107,6 +107,10 @@ class PartnerDemoAccountsSeeder extends Seeder
 
         app(PinService::class)->setPin($user, self::PIN);
 
+        $prefs = is_array($user->preferences) ? $user->preferences : [];
+        $prefs['account_welcome_completed_at'] = now()->toIso8601String();
+        $user->forceFill(['preferences' => $prefs])->save();
+
         $vendor = Vendor::query()->updateOrCreate(
             ['partner_number' => $row['code']],
             [
@@ -154,6 +158,10 @@ class PartnerDemoAccountsSeeder extends Seeder
         );
 
         app(PinService::class)->setPin($user, self::PIN);
+
+        $prefs = is_array($user->preferences) ? $user->preferences : [];
+        $prefs['account_welcome_completed_at'] = now()->toIso8601String();
+        $user->forceFill(['preferences' => $prefs])->save();
 
         Lender::query()->updateOrCreate(
             ['code' => 'DEMO-CAP'],

@@ -51,8 +51,8 @@ class DocumentRequestExactJourneyFeatureTest extends TestCase
         $this->assertStringContainsString('Back', $en);
         $this->assertStringContainsString('kf-request-card', $en);
         $this->assertStringContainsString('Take ID photos', $en);
-        $this->assertStringContainsString('Take the FRONT of the national ID', $en);
-        $this->assertStringContainsString('Take the BACK of the national ID', $en);
+        $this->assertStringContainsString(__('borrower.document_upload.nida_front_headline', [], 'en'), $en);
+        $this->assertStringContainsString(__('borrower.document_upload.nida_back_headline', [], 'en'), $en);
         $this->assertStringContainsString('Landscape', $en);
         $this->assertStringContainsString('Portrait', $en);
         $this->assertStringContainsString('valuationCamera', $en);

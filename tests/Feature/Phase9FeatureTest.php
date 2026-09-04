@@ -9,7 +9,9 @@ use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\ConsoleNavService;
 use App\Services\LoanApplicationDraftService;
+use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -24,60 +26,60 @@ class Phase9FeatureTest extends TestCase
 
         $customer = Customer::create([
             'customer_number' => 'CU-P9-001',
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Asset',
-            'last_name'       => 'Borrower',
-            'phone'           => '255712345690',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Asset',
+            'last_name' => 'Borrower',
+            'phone' => '255712345690',
         ]);
 
         $product = LoanProduct::create([
-            'code'              => 'AL-P9',
-            'name'              => 'Asset Loan',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'AL-P9',
+            'name' => 'Asset Loan',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
 
         $photoType = DocumentType::create([
-            'code'       => 'asset_photo_front',
-            'name'       => 'Front photo',
-            'category'   => 'collateral',
+            'code' => 'asset_photo_front',
+            'name' => 'Front photo',
+            'category' => 'collateral',
             'applies_to' => 'individual',
-            'is_active'  => true,
+            'is_active' => true,
         ]);
 
         $path = 'borrower/'.$customer->id.'/collateral/front.jpg';
         Storage::disk('public')->put($path, 'fake-image');
 
         $document = CustomerDocument::create([
-            'customer_id'      => $customer->id,
+            'customer_id' => $customer->id,
             'document_type_id' => $photoType->id,
-            'file_path'        => $path,
-            'status'           => 'pending',
+            'file_path' => $path,
+            'status' => 'pending',
         ]);
 
         $draft = LoanApplicationDraft::create([
-            'customer_id'     => $customer->id,
+            'customer_id' => $customer->id,
             'loan_product_id' => $product->id,
-            'phase'           => 'application',
-            'step'            => 2,
+            'phase' => 'application',
+            'step' => 2,
             'draft_reference' => 'DR-P9-001',
-            'payload'         => [
+            'payload' => [
                 'asset_documents' => [
                     'asset_photo_front' => [
                         'customer_document_id' => $document->id,
-                        'code'                 => 'asset_photo_front',
-                        'label'                => 'Front photo',
+                        'code' => 'asset_photo_front',
+                        'label' => 'Front photo',
                     ],
                     'insurance_certificate' => [
                         'customer_document_id' => null,
-                        'code'                 => 'insurance_certificate',
-                        'label'                => 'Insurance certificate',
-                        'path'                 => 'borrower/'.$customer->id.'/collateral/insurance.pdf',
+                        'code' => 'insurance_certificate',
+                        'label' => 'Insurance certificate',
+                        'path' => 'borrower/'.$customer->id.'/collateral/insurance.pdf',
                     ],
                 ],
             ],
@@ -109,14 +111,14 @@ class Phase9FeatureTest extends TestCase
         $this->actingAs($user)
             ->get('/partner')
             ->assertOk()
-            ->assertSee('Partner dashboard', false);
+            ->assertSee(__('site.partner_portal.dashboard_title'), false);
     }
 
     public function test_campaigns_live_in_growth_workspace_not_settings_hub(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
-        $growthRoutes = collect(app(\App\Services\ConsoleNavService::class)->visibleSections($admin))
+        $growthRoutes = collect(app(ConsoleNavService::class)->visibleSections($admin))
             ->firstWhere('label', 'Growth')['items'] ?? [];
         $this->assertContains('admin.promotions.index', array_column($growthRoutes, 1));
 
@@ -134,14 +136,14 @@ class Phase9FeatureTest extends TestCase
     public function test_affiliate_verification_page_shows_qr_code_for_active_affiliate(): void
     {
         Vendor::create([
-            'vendor_number'         => 'AFF-P9-001',
-            'name'                  => 'Phase 9 Affiliate',
-            'category'              => 'affiliate',
-            'status'                => 'active',
-            'affiliate_code'        => 'AFFP9',
-            'affiliate_kyc_status'  => 'verified',
-            'phone'                 => '255712345691',
-            'membership_status'     => 'active',
+            'vendor_number' => 'AFF-P9-001',
+            'name' => 'Phase 9 Affiliate',
+            'category' => 'affiliate',
+            'status' => 'active',
+            'affiliate_code' => 'AFFP9',
+            'affiliate_kyc_status' => 'verified',
+            'phone' => '255712345691',
+            'membership_status' => 'active',
             'membership_started_at' => now()->subMonth(),
             'membership_expires_at' => now()->addYear(),
         ]);
@@ -157,13 +159,13 @@ class Phase9FeatureTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'vendor']);
         Vendor::create([
-            'user_id'       => $user->id,
+            'user_id' => $user->id,
             'vendor_number' => 'PTR-P9-001',
-            'name'          => 'Phase 9 Partner',
-            'category'      => 'gps',
-            'status'        => 'active',
+            'name' => 'Phase 9 Partner',
+            'category' => 'gps',
+            'status' => 'active',
         ]);
-        app(\App\Services\PinService::class)->setPin($user, '1234');
+        app(PinService::class)->setPin($user, '1234');
 
         return $user;
     }

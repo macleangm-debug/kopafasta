@@ -46,8 +46,7 @@ class Phase8FeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.partner.dashboard'))
             ->assertOk()
-            ->assertSee('Partner portal', false)
-            ->assertSee('Partner dashboard', false);
+            ->assertSee(__('site.partner_portal.dashboard_title'), false);
     }
 
     public function test_legacy_vendor_dashboard_still_loads(): void
@@ -57,7 +56,7 @@ class Phase8FeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.vendor.dashboard'))
             ->assertOk()
-            ->assertSee('Partner dashboard', false);
+            ->assertSee(__('site.partner_portal.dashboard_title'), false);
     }
 
     public function test_register_partner_alias_points_to_vendor_registration(): void
@@ -84,11 +83,11 @@ class Phase8FeatureTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'vendor']);
         Vendor::create([
-            'user_id'       => $user->id,
+            'user_id' => $user->id,
             'vendor_number' => 'PTR-P8-001',
-            'name'          => 'Phase 8 Partner',
-            'category'      => 'gps',
-            'status'        => 'active',
+            'name' => 'Phase 8 Partner',
+            'category' => 'gps',
+            'status' => 'active',
         ]);
 
         return $user;

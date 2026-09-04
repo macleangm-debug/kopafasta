@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
-use App\Models\LoanApplication;
 use App\Models\LocationCountry;
 use App\Models\LocationDistrict;
 use App\Models\LocationRegion;
@@ -31,12 +29,12 @@ class Phase44FeatureTest extends TestCase
     public function test_nationwide_valuer_matches_any_region(): void
     {
         $this->completePartnerForJobs(Vendor::create([
-            'vendor_number'  => 'PTR-P44-001',
-            'name'           => 'Nationwide Valuer',
-            'category'       => 'valuer',
-            'status'         => 'active',
-            'coverage_type'  => 'nationwide',
-            'regions'        => [],
+            'vendor_number' => 'PTR-P44-001',
+            'name' => 'Nationwide Valuer',
+            'category' => 'valuer',
+            'status' => 'active',
+            'coverage_type' => 'nationwide',
+            'regions' => [],
         ]));
 
         $matches = app(PartnerMatchingService::class)->valuersForRegion('Mwanza');
@@ -65,22 +63,23 @@ class Phase44FeatureTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.partners.store'), [
-                'name'           => 'Nationwide Affiliate 44',
-                'category'       => 'affiliate',
-                'status'         => 'active',
-                'phone'          => '255712345872',
-                'coverage_type'  => 'nationwide',
+                'name' => 'Nationwide Affiliate 44',
+                'category' => 'affiliate',
+                'status' => 'active',
+                'phone' => '255712345872',
+                'coverage_type' => 'nationwide',
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('partners', [
-            'name'     => 'Nationwide Affiliate 44',
+            'name' => 'Nationwide Affiliate 44',
             'category' => 'affiliate',
         ]);
     }
 
     public function test_partner_portal_config_declares_unified_path(): void
     {
-        $this->assertSame('/partner', config('partners.unified_path'));
+        $this->assertTrue(Route::has('site.partner.dashboard'));
+        $this->assertStringStartsWith('/partner', route('site.partner.start', absolute: false));
     }
 }

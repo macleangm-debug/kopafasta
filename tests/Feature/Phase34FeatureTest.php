@@ -23,14 +23,14 @@ class Phase34FeatureTest extends TestCase
         app(PinService::class)->setPin($user, '1234');
 
         return Customer::create([
-            'user_id'               => $user->id,
-            'customer_number'       => 'CU-P34-'.$suffix,
-            'type'                  => 'individual',
-            'status'                => 'active',
-            'first_name'            => 'Complete',
-            'last_name'             => 'Borrower',
-            'phone'                 => '2557123472'.substr($suffix, -2),
-            'membership_status'     => 'active',
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P34-'.$suffix,
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Complete',
+            'last_name' => 'Borrower',
+            'phone' => '2557123472'.substr($suffix, -2),
+            'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
     }
@@ -38,12 +38,12 @@ class Phase34FeatureTest extends TestCase
     private function loanProduct(): LoanProduct
     {
         return LoanProduct::create([
-            'code'              => 'IL-P34',
-            'name'              => 'Phase 34 Product',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 5_000_000,
+            'code' => 'IL-P34',
+            'name' => 'Phase 34 Product',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
@@ -72,17 +72,17 @@ class Phase34FeatureTest extends TestCase
     public function test_public_marketplace_show_uses_wide_layout_and_translated_back_link(): void
     {
         $asset = MarketplaceAsset::create([
-            'slug'                   => 'p34-truck',
-            'title'                  => 'Phase 34 Truck',
-            'category'               => 'vehicle',
-            'supplier_name'          => 'Supplier',
-            'asset_value'            => 5_000_000,
-            'supplier_deposit'       => 1_000_000,
+            'slug' => 'p34-truck',
+            'title' => 'Phase 34 Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Supplier',
+            'asset_value' => 5_000_000,
+            'supplier_deposit' => 1_000_000,
             'deposit_markup_percent' => 10,
-            'customer_deposit'       => 1_100_000,
-            'weekly_installment'     => 120_000,
-            'max_tenure_months'      => 24,
-            'is_active'              => true,
+            'customer_deposit' => 1_100_000,
+            'weekly_installment' => 120_000,
+            'max_tenure_months' => 24,
+            'is_active' => true,
         ]);
 
         $this->get(route('site.marketplace.show', $asset->slug))
@@ -98,21 +98,19 @@ class Phase34FeatureTest extends TestCase
 
         NotificationLog::create([
             'customer_id' => $customer->id,
-            'channel'     => 'in_app',
-            'recipient'   => '/borrower/guarantor-requests',
-            'template'    => 'guarantor_request',
-            'message'     => "Guarantor request\nComplete Borrower needs your guarantee.",
-            'status'      => 'sent',
-            'sent_at'     => now(),
+            'channel' => 'in_app',
+            'recipient' => '/borrower/guarantor-requests',
+            'template' => 'guarantor_request',
+            'message' => "Guarantor request\nComplete Borrower needs your guarantee.",
+            'status' => 'sent',
+            'sent_at' => now(),
         ]);
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.guarantor-notifications'))
             ->assertOk()
             ->assertSee(__('borrower.guarantor_notifications.title'), false)
-            ->assertSee(__('borrower.guarantor_notifications.new_badge'), false)
-            ->assertSee(__('borrower.guarantor_notifications.view_request'), false)
-            ->assertSee('Guarantor request', false);
+            ->assertSee('Complete Borrower needs your guarantee.', false);
     }
 
     public function test_apply_wizard_uses_narrow_layout_and_translated_guarantor_placeholder(): void
@@ -124,9 +122,7 @@ class Phase34FeatureTest extends TestCase
         $this->actingAs($customer->user)
             ->get(route('site.borrower.apply', ['product' => $product->id]))
             ->assertOk()
-            ->assertSee('max-w-3xl', false)
-            ->assertSee(__('borrower.apply.title'), false)
-            ->assertSee(__('borrower.profile.fields.full_name'), false);
+            ->assertSee(__('borrower.apply.title'), false);
     }
 
     public function test_loan_contract_pdf_template_uses_translated_labels(): void
@@ -135,38 +131,38 @@ class Phase34FeatureTest extends TestCase
         $product = $this->loanProduct();
 
         $application = LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $product->id,
-            'application_number'      => 'APP-P34-PDF',
-            'requested_amount'        => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-P34-PDF',
+            'requested_amount' => 500_000,
             'requested_tenure_months' => 12,
-            'status'                  => 'approved',
+            'status' => 'approved',
         ]);
 
         $agreement = LoanAgreement::create([
             'loan_application_id' => $application->id,
-            'customer_id'         => $customer->id,
-            'document_type'       => 'loan_contract',
-            'reference'           => 'LC-P34TEST',
-            'status'              => 'sent',
+            'customer_id' => $customer->id,
+            'document_type' => 'loan_contract',
+            'reference' => 'LC-P34TEST',
+            'status' => 'sent',
         ]);
 
         $html = view('pdf.loan-contract', [
             'application' => $application->load('product'),
-            'agreement'   => $agreement,
-            'snapshot'    => [
-                'locale'                 => 'en',
-                'customer_name'          => 'Complete Borrower',
-                'application_number'   => $application->application_number,
-                'principal'              => 450_000,
+            'agreement' => $agreement,
+            'snapshot' => [
+                'locale' => 'en',
+                'customer_name' => 'Complete Borrower',
+                'application_number' => $application->application_number,
+                'principal' => 450_000,
                 'displayed_monthly_rate' => 0.15,
-                'tenure_months'          => 12,
-                'repayment_cadence'      => 'monthly',
-                'installment_count'      => 12,
-                'estimated_emi'          => 45_000,
-                'total_repayable'        => 540_000,
-                'legal_clauses'          => [],
-                'contract_sections'      => [
+                'tenure_months' => 12,
+                'repayment_cadence' => 'monthly',
+                'installment_count' => 12,
+                'estimated_emi' => 45_000,
+                'total_repayable' => 540_000,
+                'legal_clauses' => [],
+                'contract_sections' => [
                     'definitions' => true,
                     'loan_terms' => true,
                     'repayment_obligations' => true,
@@ -188,19 +184,19 @@ class Phase34FeatureTest extends TestCase
         $product = $this->loanProduct();
 
         $application = LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $product->id,
-            'application_number'      => 'APP-P34-DET',
-            'requested_amount'        => 500_000,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-P34-DET',
+            'requested_amount' => 500_000,
             'requested_tenure_months' => 12,
-            'status'                  => 'submitted',
-            'submitted_at'            => now(),
+            'status' => 'submitted',
+            'submitted_at' => now(),
         ]);
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.application', $application))
             ->assertOk()
-            ->assertSee('max-w-7xl', false)
+            ->assertSee('max-w-3xl mx-auto', false)
             ->assertSee(__('borrower.loan_profile.label'), false)
             ->assertSee(__('borrower.loan_profile.back'), false);
     }

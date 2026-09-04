@@ -123,6 +123,6 @@ class PartnerPortalAlignmentFeatureTest extends TestCase
             ->get(route('site.partner.support'))
             ->assertOk()
             ->assertSee(__('site.partner_portal.faq_title'), false)
-            ->assertSee('cover job', false);
+            ->assertSee('Insure It', false);
     }
 }

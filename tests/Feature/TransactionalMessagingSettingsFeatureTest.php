@@ -76,7 +76,7 @@ class TransactionalMessagingSettingsFeatureTest extends TestCase
             'reminder_offsets_days' => '3,1,0',
             'channels' => ['sms' => true, 'email' => true, 'in_app' => true, 'whatsapp' => false, 'push' => false],
             'events' => [
-                'payment_received' => [
+                'repayment_due_soon' => [
                     'enabled' => false,
                     'channels' => ['sms'],
                 ],
@@ -85,12 +85,12 @@ class TransactionalMessagingSettingsFeatureTest extends TestCase
         ]);
 
         NotificationTemplate::updateOrCreate(
-            ['code' => 'payment_received'],
+            ['code' => 'repayment_due_soon'],
             [
-                'name' => 'Payment Received',
+                'name' => 'Repayment due soon',
                 'channel' => 'sms',
-                'subject' => 'Payment',
-                'body' => 'Hi {{ name }}, paid {{ amount }}. Balance {{ balance }}.',
+                'subject' => 'Reminder',
+                'body' => 'Hi {{ name }}, installment of {{ amount }} is due on {{ due_date }}.',
                 'is_active' => true,
             ]
         );
@@ -103,13 +103,13 @@ class TransactionalMessagingSettingsFeatureTest extends TestCase
             'status' => 'active',
         ]);
 
-        app(NotificationService::class)->notifyCustomer($customer, 'payment_received', [
+        app(NotificationService::class)->notifyCustomer($customer, 'repayment_due_soon', [
             'name' => 'Ada',
             'amount' => 'TZS 10,000',
-            'balance' => 'TZS 40,000',
+            'due_date' => '5 Sep',
             'loan_number' => 'LN-1',
         ]);
 
-        $this->assertSame(0, NotificationLog::query()->where('template', 'payment_received')->where('status', 'sent')->count());
+        $this->assertSame(0, NotificationLog::query()->where('template', 'repayment_due_soon')->where('status', 'sent')->count());
     }
 }

@@ -2746,7 +2746,7 @@ class BorrowerController extends Controller
         return $this->redirectToFaceProfile($request)->with('status', $message);
     }
 
-    public function kycReconfirm(KycFreshnessService $freshness): View|RedirectResponse
+    public function kycReconfirm(Request $request, KycFreshnessService $freshness): View|RedirectResponse
     {
         $customer = $this->customer();
 

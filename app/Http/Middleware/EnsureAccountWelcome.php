@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Services\AccountWelcomeService;
+use App\Services\PinRecoveryChallengeService;
+use App\Services\PinService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -33,6 +35,19 @@ class EnsureAccountWelcome
             '*.membership.pay',
             '*.membership.pay.post',
         )) {
+            return $next($request);
+        }
+
+        // PIN / recovery setup must complete before pre-shell welcome.
+        if ($user->role === 'borrower') {
+            $pins = app(PinService::class);
+            $recovery = app(PinRecoveryChallengeService::class);
+            if (! $pins->hasPin($user) || ! $recovery->hasEnrolledAnswers($user)) {
+                return $next($request);
+            }
+        }
+
+        if (in_array($user->role, ['vendor', 'partner'], true) && ! app(PinService::class)->hasPin($user)) {
             return $next($request);
         }
 

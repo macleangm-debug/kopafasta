@@ -31,6 +31,7 @@ use App\Services\LoanQualificationService;
 use App\Services\RepaymentPostingService;
 use Database\Seeders\ValuationPricingDefaultsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class LendingJourneyFeatureTest extends TestCase
@@ -40,7 +41,7 @@ class LendingJourneyFeatureTest extends TestCase
     private function branch(): Branch
     {
         return Branch::create([
-            'code' => 'LJ'.random_int(10, 99),
+            'code' => 'LJ'.bin2hex(random_bytes(4)),
             'name' => 'Lending Journey',
             'region' => 'Dar',
             'is_active' => true,
@@ -517,7 +518,7 @@ class LendingJourneyFeatureTest extends TestCase
         $this->assertFalse($readiness->needsDisbursementDetailsConfirmation($application));
         $this->assertTrue($readiness->disbursementDetailsConfirmed($application));
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         app(CustomerDisbursementDetailsService::class)->deleteAccount(
             $application->customer->fresh(),
             $account->fresh(),

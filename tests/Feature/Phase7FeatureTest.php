@@ -19,33 +19,33 @@ class Phase7FeatureTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'borrower']);
         $customer = Customer::create([
-            'user_id'         => $user->id,
+            'user_id' => $user->id,
             'customer_number' => 'CU-P7-001',
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Draft',
-            'last_name'       => 'Borrower',
-            'phone'           => '255712345688',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Draft',
+            'last_name' => 'Borrower',
+            'phone' => '255712345688',
         ]);
 
         $product = LoanProduct::create([
-            'code'              => 'IL-P7',
-            'name'              => 'Personal Loan',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 2_000_000,
+            'code' => 'IL-P7',
+            'name' => 'Personal Loan',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 2_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
 
         LoanApplicationDraft::create([
-            'customer_id'     => $customer->id,
+            'customer_id' => $customer->id,
             'loan_product_id' => $product->id,
-            'phase'           => 'application',
-            'step'            => 1,
+            'phase' => 'application',
+            'step' => 1,
             'draft_reference' => 'DR-P7-001',
-            'payload'         => ['form' => ['requested_amount' => 500_000, 'requested_tenure_months' => 12]],
+            'payload' => ['form' => ['requested_amount' => 500_000, 'requested_tenure_months' => 12]],
         ]);
 
         $rows = app(BorrowerApplicationsDashboardService::class)->applicationsForCustomer($customer);
@@ -62,33 +62,33 @@ class Phase7FeatureTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'borrower']);
         $customer = Customer::create([
-            'user_id'         => $user->id,
+            'user_id' => $user->id,
             'customer_number' => 'CU-P7-002',
-            'type'            => 'individual',
-            'status'          => 'active',
-            'first_name'      => 'Snapshot',
-            'last_name'       => 'Borrower',
-            'phone'           => '255712345689',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Snapshot',
+            'last_name' => 'Borrower',
+            'phone' => '255712345689',
         ]);
 
         $product = LoanProduct::create([
-            'code'              => 'IL-P7B',
-            'name'              => 'Business Loan',
-            'is_active'         => true,
-            'interest_rate'     => 0.15,
-            'min_amount'        => 100_000,
-            'max_amount'        => 2_000_000,
+            'code' => 'IL-P7B',
+            'name' => 'Business Loan',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 2_000_000,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
         ]);
 
         $draft = LoanApplicationDraft::create([
-            'customer_id'     => $customer->id,
+            'customer_id' => $customer->id,
             'loan_product_id' => $product->id,
-            'phase'           => 'application',
-            'step'            => 1,
+            'phase' => 'application',
+            'step' => 1,
             'draft_reference' => 'DR-P7-002',
-            'payload'         => [],
+            'payload' => [],
         ]);
 
         $profile = app(LoanApplicationProfileService::class)->forDraft($customer, $draft);
@@ -100,7 +100,7 @@ class Phase7FeatureTest extends TestCase
 
     public function test_partner_portal_aliases_redirect(): void
     {
-        $this->get('/partner/login')->assertRedirect('/login?portal=partner');
+        $this->get('/partner/login')->assertRedirect('/login/partner');
 
         $this->get('/partner')->assertRedirect(route('site.partner.start'));
     }

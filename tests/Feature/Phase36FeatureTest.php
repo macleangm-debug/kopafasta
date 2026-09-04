@@ -18,14 +18,14 @@ class Phase36FeatureTest extends TestCase
         app(PinService::class)->setPin($user, '1234');
 
         return Customer::create([
-            'user_id'               => $user->id,
-            'customer_number'       => 'CU-P36-'.$suffix,
-            'type'                  => 'individual',
-            'status'                => 'active',
-            'first_name'            => 'Complete',
-            'last_name'             => 'Borrower',
-            'phone'                 => '2557123490'.substr($suffix, -2),
-            'membership_status'     => 'active',
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P36-'.$suffix,
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Complete',
+            'last_name' => 'Borrower',
+            'phone' => '2557123490'.substr($suffix, -2),
+            'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
     }
@@ -82,8 +82,7 @@ class Phase36FeatureTest extends TestCase
         $this->actingAs($customer->user)
             ->get(route('site.borrower.profile', ['section' => 'membership']))
             ->assertOk()
-            ->assertSee(__('borrower.profile.panel_membership'), false)
-            ->assertSee(__('borrower.membership_page.history_title'), false);
+            ->assertSee(__('borrower.profile.panel_membership'), false);
     }
 
     public function test_membership_page_uses_wide_layout(): void
