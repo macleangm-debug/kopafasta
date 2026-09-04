@@ -41,16 +41,9 @@
         $rewardsDash = app(\App\Services\LoyaltyRedemptionService::class)->dashboard($customer);
     @endphp
     @if (($rewardsDash['balance'] ?? 0) > 0 || ! empty($rewardsDash['claimable']))
-        <a href="{{ route('site.borrower.engagement', ['tab' => 'rewards']) }}" class="mb-8 block rounded-2xl bg-white ring-1 ring-brand/15 p-4 hover:ring-brand/30">
-            <p class="text-[10px] uppercase tracking-widest font-bold text-brand">{{ __('borrower.rewards.title') }}</p>
-            <p class="mt-1 text-2xl font-black tabular-nums">{{ number_format($rewardsDash['balance']) }} <span class="text-sm font-semibold text-gray-500">{{ __('borrower.rewards.points_short') }}</span></p>
-            @if (! empty($rewardsDash['claimable'][0]))
-                <p class="mt-1 text-sm text-gray-700">🎁 {{ $rewardsDash['claimable'][0]['label'] }}</p>
-            @elseif (($rewardsDash['to_next'] ?? 0) > 0)
-                <p class="mt-1 text-sm text-gray-600">{{ __('borrower.rewards.to_next', ['points' => number_format($rewardsDash['to_next'])]) }}</p>
-            @endif
-            <p class="mt-2 text-sm font-bold text-brand">{{ __('borrower.rewards.points_earned_cta') }} →</p>
-        </a>
+        <div class="mb-8">
+            <x-site.rewards-summary :dashboard="$rewardsDash" />
+        </div>
     @endif
 
     <div class="mb-8" id="loan-products">

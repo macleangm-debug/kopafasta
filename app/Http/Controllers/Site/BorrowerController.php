@@ -92,12 +92,14 @@ use App\Services\ProfileWizardService;
 use App\Services\ReferralService;
 use App\Services\StaffNotificationService;
 use App\Support\Celebration;
+use App\Support\HttpCache;
 use App\Support\KinName;
 use App\Support\MoneyFormat;
 use App\Support\NationalIdValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -280,7 +282,7 @@ class BorrowerController extends Controller
     /**
      * Loan profile dashboard for an in-progress draft.
      */
-    public function loanProfileDraft(LoanApplicationDraft $draft): View|RedirectResponse
+    public function loanProfileDraft(LoanApplicationDraft $draft): View|RedirectResponse|Response
     {
         $customer = $this->customer();
         abort_if($draft->customer_id !== $customer->id, 404);
@@ -293,7 +295,7 @@ class BorrowerController extends Controller
                 ->forDraftPayload(($draft->payload ?? [])['group'] ?? null);
         }
 
-        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupProgress'));
+        return HttpCache::preventStore(response()->view('site.borrower.loan-profile', compact('customer', 'profile', 'groupProgress')));
     }
 
     public function updateDraftAmount(Request $request, LoanApplicationDraft $draft): RedirectResponse
@@ -406,7 +408,7 @@ class BorrowerController extends Controller
         // Wipe product draft so a new apply cannot resume the deleted application spine.
         if ($application->loan_product_id) {
             app(LoanApplicationDraftService::class)
-                ->clear($customer, (int) $application->loan_product_id);
+                ->discard($customer, (int) $application->loan_product_id);
         }
 
         $this->auditBorrower('loan_application.withdrawn', $application, [
@@ -450,7 +452,7 @@ class BorrowerController extends Controller
 
         $productId = (int) $draft->loan_product_id;
         $reference = $draft->draft_reference;
-        app(LoanApplicationDraftService::class)->clear($customer, $productId);
+        app(LoanApplicationDraftService::class)->discard($customer, $productId);
 
         $reapply = $request->boolean('reapply') && $productId > 0;
 
@@ -830,7 +832,7 @@ class BorrowerController extends Controller
     /* ---------------------------------------------------------------------
      | 3. My loans
      |---------------------------------------------------------------------*/
-    public function loans(Request $request): View
+    public function loans(Request $request): View|Response
     {
         $customer = $this->customer();
 
@@ -912,7 +914,7 @@ class BorrowerController extends Controller
             && $loans->isEmpty()
             && $guaranteedLinks->isEmpty();
 
-        return view('site.borrower.loans', compact(
+        return HttpCache::preventStore(response()->view('site.borrower.loans', compact(
             'customer',
             'activeTab',
             'applicationRows',
@@ -923,10 +925,10 @@ class BorrowerController extends Controller
             'guaranteedLinks',
             'guarantorExposure',
             'isGuarantorPortal',
-        ))->with([
+        ) + [
             'showGuarantorTab' => in_array('guarantor', $allowedTabs, true),
             'showGuaranteedTab' => in_array('guaranteed', $allowedTabs, true),
-        ]);
+        ]));
     }
 
     public function loanProducts(ApplicationRequirementsService $requirements): View|RedirectResponse
@@ -3438,7 +3440,7 @@ class BorrowerController extends Controller
             'photos' => ['nullable', 'array', 'max:6'],
             'photos.*' => ['nullable', 'image', 'max:5120'],
             'person_photo' => ['required', 'image', 'max:5120'],
-            'ownership_document' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'ownership_document' => ['nullable'],
             'insurance_document' => [
                 $type === 'vehicle' ? 'required' : 'nullable',
                 'file',
@@ -3498,10 +3500,20 @@ class BorrowerController extends Controller
             ->only($allowed)
             ->all();
 
+        $ownership = $request->file('ownership_document');
+        if (is_array($ownership)) {
+            $ownership = collect($ownership)->first(fn ($file) => $file instanceof UploadedFile && $file->isValid());
+        }
+        if (! $ownership instanceof UploadedFile) {
+            throw ValidationException::withMessages([
+                'ownership_document' => [__('borrower.profile.ownership_document').' '.__('validation.required')],
+            ]);
+        }
+
         $saved = app(CustomerAssetService::class)->store($customer, $data, [
             'photos' => $validPhotos,
             'person_photo' => $request->file('person_photo'),
-            'ownership_document' => $request->file('ownership_document'),
+            'ownership_document' => $ownership,
             'insurance_document' => $request->file('insurance_document'),
         ]);
 

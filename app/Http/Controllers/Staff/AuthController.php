@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Services\KopafastaLaunchService;
 use App\Services\RoleService;
+use App\Services\TurnstileService;
 use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,11 +23,11 @@ class AuthController extends Controller
     public function login(Request $request, RoleService $roles, WebTwoFactorAuthService $twoFactor): RedirectResponse
     {
         $credentials = $request->validate([
-            'email'    => ['required', 'email'],
+            'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        app(\App\Services\TurnstileService::class)->assertHuman($request);
+        app(TurnstileService::class)->assertHuman($request);
 
         if (! Auth::guard('admin')->attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([
@@ -78,6 +80,7 @@ class AuthController extends Controller
         Auth::guard('admin')->login($user, $request->boolean('remember'));
         $request->session()->regenerate();
         $twoFactor->markSessionVerified($request);
+        app(KopafastaLaunchService::class)->arm($request);
 
         return redirect()->to($home);
     }
@@ -99,6 +102,7 @@ class AuthController extends Controller
         Auth::guard('admin')->login($user, $request->boolean('remember'));
         $request->session()->regenerate();
         $twoFactor->markSessionVerified($request);
+        app(KopafastaLaunchService::class)->arm($request);
 
         return redirect()->route('staff.dashboard');
     }

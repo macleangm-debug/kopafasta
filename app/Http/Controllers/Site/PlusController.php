@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\PlusBusinessEntry;
 use App\Models\PlusGoal;
 use App\Models\PlusGoalContribution;
@@ -12,18 +13,23 @@ use App\Models\PlusMoneyEntry;
 use App\Models\PlusOffer;
 use App\Models\PlusSubject;
 use App\Services\Grades\GradeBenefitService;
+use App\Services\GrowthPointsService;
+use App\Services\LoyaltyPointsService;
+use App\Services\LoyaltyRedemptionService;
 use App\Services\MemberEngagementService;
 use App\Services\Plus\PlusLearningService;
 use App\Services\Plus\PlusNextBestActionService;
 use App\Services\Plus\PlusNotificationGate;
+use App\Services\Plus\PlusNudgeService;
 use App\Services\Plus\PlusReportService;
 use App\Services\Plus\PlusService;
 use App\Services\Plus\PlusWorkspaceService;
+use App\Support\Celebration;
 use App\Support\MoneyFormat;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class PlusController extends Controller
 {
@@ -69,8 +75,8 @@ class PlusController extends Controller
                 ->where('published_at', '<=', now())
                 ->latest('published_at')
                 ->first(),
-            'loyaltyBalance' => app(\App\Services\LoyaltyPointsService::class)->balance($customer),
-            'rewardsDash' => app(\App\Services\LoyaltyRedemptionService::class)->dashboard($customer),
+            'loyaltyBalance' => app(LoyaltyPointsService::class)->balance($customer),
+            'rewardsDash' => app(LoyaltyRedemptionService::class)->dashboard($customer),
         ]);
     }
 
@@ -206,7 +212,7 @@ class PlusController extends Controller
             'other_label' => $isOther ? trim((string) ($data['category_other'] ?? '')) : null,
         ]);
 
-        app(\App\Services\GrowthPointsService::class)->awardMonthlyMoneyCheckIn($customer);
+        app(GrowthPointsService::class)->awardMonthlyMoneyCheckIn($customer);
 
         return back()->with('status', __('plus.money.saved_here'));
     }
@@ -284,7 +290,7 @@ class PlusController extends Controller
         $title = filled($data['title'] ?? null)
             ? $data['title']
             : ($kinds[$data['kind']][$locale] ?? $data['kind']);
-        PlusGoal::query()->create([
+        $goal = PlusGoal::query()->create([
             'customer_id' => $customer->id,
             'kind' => $data['kind'],
             'title' => $title,
@@ -293,6 +299,7 @@ class PlusController extends Controller
             'target_date' => $data['target_date'] ?? null,
             'status' => 'active',
         ]);
+        app(PlusNudgeService::class)->onGoalCreated($customer, $goal);
 
         return back()->with('status', __('plus.saved'));
     }
@@ -313,6 +320,7 @@ class PlusController extends Controller
             'plus_goal_id' => $goal->id,
             'amount' => $data['amount'],
         ]);
+        app(PlusNudgeService::class)->onGoalProgress($customer, $goal->fresh());
 
         return back()->with('status', __('plus.saved'));
     }
@@ -339,13 +347,14 @@ class PlusController extends Controller
             'completed_at' => $goal->completed_at ?? now(),
         ]);
         if (! $already) {
-            app(\App\Services\GrowthPointsService::class)->awardOwnerAction(
+            app(GrowthPointsService::class)->awardOwnerAction(
                 $customer,
                 'plus_goal',
                 null,
                 PlusGoal::class,
                 (int) $goal->id,
             );
+            app(PlusNudgeService::class)->onGoalProgress($customer, $goal->fresh());
         }
 
         return back()->with('status', __('plus.goals.completed'));
@@ -413,8 +422,8 @@ class PlusController extends Controller
     public function rewards(Request $request, PlusService $plus)
     {
         $customer = $this->requireActivePlus($request, $plus);
-        $redemptions = app(\App\Services\LoyaltyRedemptionService::class);
-        $points = app(\App\Services\LoyaltyPointsService::class);
+        $redemptions = app(LoyaltyRedemptionService::class);
+        $points = app(LoyaltyPointsService::class);
 
         return view('site.plus.rewards', [
             'customer' => $customer,
@@ -433,12 +442,12 @@ class PlusController extends Controller
         ]);
 
         try {
-            app(\App\Services\LoyaltyRedemptionService::class)->redeem($customer, $data['option_key']);
+            app(LoyaltyRedemptionService::class)->redeem($customer, $data['option_key']);
         } catch (\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        \App\Support\Celebration::flashOne('reward_redeemed');
+        Celebration::flashOne('reward_redeemed');
 
         return redirect()->route('site.borrower.plus.rewards')
             ->with('status', __('borrower.rewards.redeemed'));
@@ -471,7 +480,7 @@ class PlusController extends Controller
         $already = $progress->completed_at !== null;
         $progress->update(['completed_at' => $progress->completed_at ?? now()]);
         if (! $already) {
-            app(\App\Services\GrowthPointsService::class)->awardOwnerAction(
+            app(GrowthPointsService::class)->awardOwnerAction(
                 $customer,
                 'plus_learn',
                 null,
@@ -521,7 +530,7 @@ class PlusController extends Controller
     /**
      * Money diary, Learn, Reports, Offers and Rewards stay closed until Plus is paid.
      */
-    private function requireActivePlus(Request $request, PlusService $plus): \App\Models\Customer
+    private function requireActivePlus(Request $request, PlusService $plus): Customer
     {
         $customer = $request->user()->customer;
         if ($plus->isActive($customer)) {

@@ -36,24 +36,57 @@ class LoyaltyRedemptionService
             $balance = $customer ? $this->points->balance($customer) : 0;
 
             return [
-                'key'           => (string) ($option['key'] ?? ''),
-                'label'         => (string) $label,
-                'points'        => $cost,
-                'benefit_type'  => (string) ($option['benefit_type'] ?? 'percent_discount'),
+                'key' => (string) ($option['key'] ?? ''),
+                'label' => (string) $label,
+                'points' => $cost,
+                'benefit_type' => (string) ($option['benefit_type'] ?? 'percent_discount'),
                 'benefit_value' => (float) ($option['benefit_value'] ?? 0),
-                'fee_type'      => $option['fee_type'] ?? null,
-                'audience'      => $audience,
-                'plus_only'     => $plusOnly,
-                'eligible'      => $eligible,
-                'unlocked'      => $eligible && $customer && $balance >= $cost,
-                'shortfall'     => $customer ? max(0, $cost - $balance) : $cost,
-                'max_saving'    => $option['max_saving'] ?? null,
-                'stackable'     => (bool) ($option['stackable'] ?? false),
-                'description'   => $locale === 'sw' && filled($option['description_sw'] ?? null)
+                'fee_type' => $option['fee_type'] ?? null,
+                'audience' => $audience,
+                'plus_only' => $plusOnly,
+                'eligible' => $eligible,
+                'unlocked' => $eligible && $customer && $balance >= $cost,
+                'shortfall' => $customer ? max(0, $cost - $balance) : $cost,
+                'max_saving' => $option['max_saving'] ?? null,
+                'stackable' => (bool) ($option['stackable'] ?? false),
+                'description' => $locale === 'sw' && filled($option['description_sw'] ?? null)
                     ? $option['description_sw']
                     : ($option['description'] ?? null),
             ];
         })->values()->all();
+    }
+
+    /**
+     * Onboarding copy from Rewards Settings. Never invent a fake balance or a hard-coded fee %.
+     */
+    public function onboardingHint(?string $locale = null): string
+    {
+        $locale ??= app()->getLocale();
+        $feeOptions = collect($this->redemptionOptions())
+            ->filter(function (array $option) {
+                $type = (string) ($option['benefit_type'] ?? '');
+                $fee = (string) ($option['fee_type'] ?? '');
+
+                return in_array($type, ['percent_discount', 'fixed_discount', 'fee_waiver'], true)
+                    && ($fee === '' || $fee === 'application_fee');
+            });
+
+        if ($feeOptions->isEmpty()) {
+            return '';
+        }
+
+        $percents = $feeOptions
+            ->filter(fn (array $option) => ($option['benefit_type'] ?? '') === 'percent_discount')
+            ->map(fn (array $option) => (int) ($option['benefit_value'] ?? 0))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($percents->count() === 1) {
+            return __('account_welcome.borrower.points_fee_percent', ['percent' => $percents->first()], $locale);
+        }
+
+        return __('account_welcome.borrower.points_fee_generic', [], $locale);
     }
 
     public function publicCatalog(?string $locale = null): array
@@ -96,16 +129,16 @@ class LoyaltyRedemptionService
         $progress = $nextCost > 0 ? min(100, (int) round(($balance / $nextCost) * 100)) : 100;
 
         return [
-            'balance'    => $balance,
-            'next'       => $next,
-            'to_next'    => (int) ($next['shortfall'] ?? 0),
-            'progress'   => $progress,
-            'claimable'  => $claimable,
-            'locked'     => $locked,
-            'all'        => $catalog,
-            'active'     => $active,
-            'history'    => $this->history($customer, 20),
-            'ledger'     => $this->points->recentTransactions($customer, 20),
+            'balance' => $balance,
+            'next' => $next,
+            'to_next' => (int) ($next['shortfall'] ?? 0),
+            'progress' => $progress,
+            'claimable' => $claimable,
+            'locked' => $locked,
+            'all' => $catalog,
+            'active' => $active,
+            'history' => $this->history($customer, 20),
+            'ledger' => $this->points->recentTransactions($customer, 20),
         ];
     }
 
@@ -147,15 +180,15 @@ class LoyaltyRedemptionService
             $expiresDays = (int) ($option['expires_days'] ?? 90);
 
             $redemption = LoyaltyRedemption::create([
-                'customer_id'   => $customer->id,
-                'option_key'    => $optionKey,
-                'label'         => (string) ($option['label'] ?? $optionKey),
-                'benefit_type'  => $benefitType,
+                'customer_id' => $customer->id,
+                'option_key' => $optionKey,
+                'label' => (string) ($option['label'] ?? $optionKey),
+                'benefit_type' => $benefitType,
                 'benefit_value' => (float) ($option['benefit_value'] ?? 0),
-                'fee_type'      => $option['fee_type'] ?? null,
-                'points_spent'  => $pointsCost,
-                'status'        => 'active',
-                'expires_at'    => now()->addDays(max(1, $expiresDays)),
+                'fee_type' => $option['fee_type'] ?? null,
+                'points_spent' => $pointsCost,
+                'status' => 'active',
+                'expires_at' => now()->addDays(max(1, $expiresDays)),
             ]);
 
             $this->applyImmediateEffect($customer, $redemption, $option);
@@ -179,9 +212,9 @@ class LoyaltyRedemptionService
         $discount = $this->discountAmount($redemption, $baseAmount);
 
         return [
-            'discount'   => max(0.0, $discount),
+            'discount' => max(0.0, $discount),
             'redemption' => $redemption,
-            'label'      => $redemption->label,
+            'label' => $redemption->label,
         ];
     }
 
@@ -189,9 +222,9 @@ class LoyaltyRedemptionService
     {
         $raw = match ($redemption->benefit_type) {
             'percent_discount' => round($baseAmount * ((float) $redemption->benefit_value / 100), 2),
-            'fixed_discount'   => min($baseAmount, (float) $redemption->benefit_value),
-            'fee_waiver'       => $baseAmount,
-            default            => 0.0,
+            'fixed_discount' => min($baseAmount, (float) $redemption->benefit_value),
+            'fee_waiver' => $baseAmount,
+            default => 0.0,
         };
 
         $option = collect($this->redemptionOptions())->firstWhere('key', $redemption->option_key);
@@ -247,10 +280,10 @@ class LoyaltyRedemptionService
         }
 
         return [
-            'id'           => (int) $redemption->id,
-            'key'          => (string) $redemption->option_key,
-            'label'        => (string) $redemption->label,
-            'discount'     => $this->discountAmount($redemption, $feeBase),
+            'id' => (int) $redemption->id,
+            'key' => (string) $redemption->option_key,
+            'label' => (string) $redemption->label,
+            'discount' => $this->discountAmount($redemption, $feeBase),
             'benefit_type' => (string) $redemption->benefit_type,
         ];
     }
@@ -286,12 +319,12 @@ class LoyaltyRedemptionService
         };
 
         return [
-            'key'           => (string) ($option['key'] ?? ''),
-            'label'         => (string) ($option['label'] ?? ''),
-            'points'        => (int) ($option['points'] ?? 0),
-            'benefit_type'  => $benefitType,
+            'key' => (string) ($option['key'] ?? ''),
+            'label' => (string) ($option['label'] ?? ''),
+            'points' => (int) ($option['points'] ?? 0),
+            'benefit_type' => $benefitType,
             'benefit_value' => $benefitValue,
-            'can_redeem'    => true,
+            'can_redeem' => true,
             'save_estimate' => (float) $saveEstimate,
         ];
     }
@@ -326,10 +359,10 @@ class LoyaltyRedemptionService
         }
 
         $redemption->update([
-            'status'         => 'used',
-            'used_at'        => $redemption->used_at ?? now(),
+            'status' => 'used',
+            'used_at' => $redemption->used_at ?? now(),
             'reference_type' => $refType ?? $redemption->reference_type,
-            'reference_id'   => $refId ?? $redemption->reference_id,
+            'reference_id' => $refId ?? $redemption->reference_id,
         ]);
     }
 
@@ -359,12 +392,12 @@ class LoyaltyRedemptionService
         if ($type === 'fulfilment_task' || $type === 'partner_benefit') {
             SupportTicket::create([
                 'ticket_number' => 'RWD-'.now()->format('ymd').'-'.Str::upper(Str::random(4)),
-                'customer_id'   => $customer->id,
-                'subject'       => 'Reward fulfilment: '.$redemption->label,
-                'description'   => 'Customer unlocked "'.$redemption->label.'". Fulfil this reward. Redemption #'.$redemption->id.'.',
-                'priority'      => 'high',
-                'status'        => 'open',
-                'category'      => 'reward_fulfilment',
+                'customer_id' => $customer->id,
+                'subject' => 'Reward fulfilment: '.$redemption->label,
+                'description' => 'Customer unlocked "'.$redemption->label.'". Fulfil this reward. Redemption #'.$redemption->id.'.',
+                'priority' => 'high',
+                'status' => 'open',
+                'category' => 'reward_fulfilment',
             ]);
         }
     }

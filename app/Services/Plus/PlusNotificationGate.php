@@ -24,6 +24,7 @@ class PlusNotificationGate
         'monthly_action_reminder' => 'plus_learn',
         'monthly_action_completed' => 'plus_learn',
         'goal_progress' => 'plus_goals',
+        'goal_created' => 'plus_goals',
         'goal_no_progress' => 'plus_goals',
         'goal_near_target' => 'plus_goals',
         'goal_completed' => 'plus_goals',
@@ -73,6 +74,29 @@ class PlusNotificationGate
         $this->notifications->notifyCustomer($customer, $code, $vars);
 
         return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $vars
+     */
+    public function notifyOnce(
+        Customer $customer,
+        string $code,
+        array $vars,
+        string $fingerprint,
+        int $cooldownHours = 8760,
+    ): bool {
+        if (! $this->prefAllows($customer, $code) || ! $this->triggerEnabled($code)) {
+            return false;
+        }
+
+        return $this->notifications->notifyCustomerOnce(
+            $customer,
+            $code,
+            $vars,
+            $fingerprint,
+            $cooldownHours,
+        );
     }
 
     public function prefAllows(Customer $customer, string $code): bool

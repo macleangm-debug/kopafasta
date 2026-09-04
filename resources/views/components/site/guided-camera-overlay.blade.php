@@ -19,13 +19,16 @@
             </div>
             <div class="px-4 pt-3 pb-2">
                 <div class="kf-cam-guide">
-                    <p x-show="subjectLine || subjectName" x-cloak class="text-sm font-extrabold tracking-tight">
+                    <p x-show="subjectLine || subjectName" x-cloak class="text-xs font-semibold tracking-tight text-white/70">
                         <span x-text="subjectLine || subjectName"></span>
                     </p>
-                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-bold"
-                       :class="(subjectLine || subjectName) ? 'mt-1.5' : ''"
-                       x-text="current() && current().required ? (captureOrdinal() + ' of ' + requiredTotal() + ' — ' + current().label) : (current() ? current().label : '')"></p>
-                    <p class="text-sm font-semibold mt-1 leading-snug text-white/90" x-text="current()?.guidance || ''"></p>
+                    <p class="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-gold"
+                       :class="(subjectLine || subjectName) ? 'mt-2' : ''"
+                       x-show="current() && current().required"
+                       x-text="captureOrdinal() + ' ' + @js(__('site.partner_portal.valuation_shot_of')) + ' ' + requiredTotal()"></p>
+                    <p class="text-2xl sm:text-3xl font-extrabold mt-1.5 leading-tight"
+                       x-text="current()?.headline || current()?.label || ''"></p>
+                    <p class="text-sm font-semibold mt-2 leading-snug text-white/90" x-text="current()?.guidance || ''"></p>
                 </div>
             </div>
         </div>
@@ -39,8 +42,8 @@
             <div class="w-[62%] max-w-xs aspect-[3/4] rounded-[50%] border-[3px] border-brand-gold/90 shadow-[0_0_24px_rgba(251,191,36,0.28)]"></div>
         </div>
         <div x-show="flash" x-cloak class="relative z-[5] mt-auto mb-auto px-6 text-center text-white">
-            <p class="text-xl font-extrabold" x-text="flash ? ('✓ ' + flash.label) : ''"></p>
-            <p class="text-sm font-semibold mt-1" x-show="flash?.next"
+            <p class="text-2xl sm:text-3xl font-extrabold" x-text="flash ? ('✓ ' + flash.label) : ''"></p>
+            <p class="text-base font-semibold mt-2" x-show="flash?.next"
                x-text="flash ? @js(__('site.partner_portal.valuation_next_is', ['label' => '__L__'])).replace('__L__', flash.next) : ''"></p>
         </div>
         <p x-show="cameraNotice" x-cloak class="relative z-[4] mx-4 rounded-xl bg-amber-50 text-amber-950 text-sm font-semibold p-3" x-text="cameraNotice"></p>

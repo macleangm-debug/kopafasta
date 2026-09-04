@@ -16,7 +16,8 @@
         [
             'asset_id' => 0,
             'angle' => 'front',
-            'label' => __('borrower.document_upload.front'),
+            'label' => __('borrower.document_upload.nida_front_headline'),
+            'headline' => __('borrower.document_upload.nida_front_headline'),
             'guidance' => __('borrower.document_upload.nida_front_guide'),
             'required' => true,
             'inputName' => $frontName,
@@ -27,7 +28,8 @@
         [
             'asset_id' => 0,
             'angle' => 'back',
-            'label' => __('borrower.document_upload.back'),
+            'label' => __('borrower.document_upload.nida_back_headline'),
+            'headline' => __('borrower.document_upload.nida_back_headline'),
             'guidance' => __('borrower.document_upload.nida_back_guide'),
             'required' => true,
             'inputName' => $backName,

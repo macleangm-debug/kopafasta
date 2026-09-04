@@ -85,14 +85,18 @@
             {{-- ============ Item 18: type-specific add form ============ --}}
             <x-site.profile-section-card :title="($typeIcons[$selectedType] ?? '📦').'  '.__('borrower.profile.add_asset').': '.__('borrower.profile.asset_types.'.$selectedType)" :allow-overflow="true">
                 @php
-                    $photoSlots = [
-                        ['key' => 0, 'label' => __('borrower.profile.asset_photo_front'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_front_hint')],
-                        ['key' => 1, 'label' => __('borrower.profile.asset_photo_back'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_back_hint')],
-                    ];
                     $isVehicle = $selectedType === 'vehicle';
+                    $ownerLabel = $isVehicle
+                        ? __('borrower.profile.asset_photo_owner')
+                        : __('borrower.profile.asset_photo_owner_generic');
+                    $photoSlots = [
+                        ['key' => 'owner', 'label' => $ownerLabel, 'required' => true, 'hint' => __('borrower.profile.asset_photo_owner_hint'), 'facing' => 'user'],
+                        ['key' => 'front', 'label' => __('borrower.profile.asset_photo_front'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_front_hint'), 'facing' => 'environment'],
+                        ['key' => 'back', 'label' => __('borrower.profile.asset_photo_back'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_back_hint'), 'facing' => 'environment'],
+                    ];
                     if ($isVehicle) {
-                        $photoSlots[] = ['key' => 2, 'label' => __('borrower.profile.asset_photo_left'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_left_hint')];
-                        $photoSlots[] = ['key' => 3, 'label' => __('borrower.profile.asset_photo_right'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_right_hint')];
+                        $photoSlots[] = ['key' => 'left', 'label' => __('borrower.profile.asset_photo_left'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_left_hint'), 'facing' => 'environment'];
+                        $photoSlots[] = ['key' => 'right', 'label' => __('borrower.profile.asset_photo_right'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_right_hint'), 'facing' => 'environment'];
                     }
                 @endphp
                 <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6" novalidate
@@ -101,6 +105,7 @@
                       x-on:input="refreshGates()"
                       x-on:change="refreshGates()"
                       x-on:guided-photos-ready="refreshGates(); next()"
+                      x-on:document-pages-changed="refreshGates()"
                       x-on:submit="saving = true; uploading = true">
                     @csrf
                     <input type="hidden" name="asset_type" value="{{ $selectedType }}">
@@ -238,22 +243,23 @@
                         </div>
                     @endif
 
-                    {{-- One camera session for every required asset angle --}}
+                    {{-- One camera session: owner with asset, then each required angle --}}
                     @php
-                        $angleKeys = \App\Models\CustomerAsset::bodyPhotoAngleKeys($selectedType);
-                        $borrowerPhotoSteps = collect($photoSlots)->map(function ($slot) use ($angleKeys) {
-                            $angle = $angleKeys[$slot['key']] ?? (string) $slot['key'];
+                        $borrowerPhotoSteps = collect($photoSlots)->map(function ($slot) {
+                            $angle = (string) $slot['key'];
 
                             return [
                                 'asset_id' => 0,
                                 'asset_label' => '',
                                 'angle' => $angle,
                                 'label' => $slot['label'],
+                                'headline' => $slot['label'],
                                 'path' => null,
                                 'path_url' => null,
                                 'guidance' => $slot['hint'],
                                 'required' => true,
-                                'inputName' => 'photos['.$angle.']',
+                                'facingMode' => $slot['facing'] ?? 'environment',
+                                'inputName' => $angle === 'owner' ? 'person_photo' : 'photos['.$angle.']',
                             ];
                         })->values()->all();
                     @endphp
@@ -298,7 +304,7 @@
                             <button type="button" x-show="pendingRequired().length === 0 && Object.keys(captures).length"
                                     @click="uploadAll()"
                                     class="w-full rounded-xl bg-brand text-white text-sm font-extrabold py-3">
-                                {{ __('borrower.profile.continue') }}
+                                {{ __('site.partner_portal.valuation_use_photos') }}
                             </button>
                             <button type="button" @click="start()" class="w-full text-sm font-bold text-brand py-2">{{ __('site.partner_portal.valuation_retake') }}</button>
                         </div>
@@ -311,25 +317,17 @@
                     </div>
                     </div>
 
-                    {{-- Person + ownership --}}
+                    {{-- Ownership document (not an asset angle) --}}
                     <div x-show="step === proofStep" x-cloak class="space-y-4" data-collateral-step="proof">
                         <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_proof') }}</p>
-                        <div class="grid sm:grid-cols-2 gap-3">
-                            <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                                <label class="text-xs font-semibold text-gray-700 mb-3 block">
-                                    {{ __('borrower.profile.person_with_asset') }} <span class="text-red-500">*</span>
-                                </label>
-                                <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.person_with_asset_hint') }}</p>
-                                <x-site.single-image-document-upload name="person_photo" :required="true" facing="user" />
-                            </div>
-                            <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                                <label class="text-xs font-semibold text-gray-700 mb-3 block">
-                                    {{ __('borrower.profile.ownership_document') }} <span class="text-red-500">*</span>
-                                </label>
-                                <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.ownership_document_hint') }}</p>
-                                <x-site.single-image-document-upload name="ownership_document" :required="true" facing="environment" />
-                            </div>
-                        </div>
+                        <p class="text-xs text-gray-500">{{ __('borrower.profile.ownership_document_hint') }}</p>
+                        <div id="ownership-pages-host" class="hidden"></div>
+                        <x-site.multi-page-document-upload
+                            name="ownership_document"
+                            input-host-id="ownership-pages-host"
+                            :required="true"
+                            :camera-first="true"
+                        />
                     </div>
 
                     {{-- Insurance certificate (vehicle only) --}}
@@ -343,51 +341,49 @@
                         </div>
                     @endif
 
-                    <div class="flex flex-wrap gap-3 pt-2">
-                        <a href="{{ $typePickerUrl }}"
-                           x-show="step === 1 && photoIndex === 0" x-cloak
-                           class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
-                            {{ __('borrower.profile.back') }}
-                        </a>
-                        <button type="button" x-show="step > 1" x-cloak @click="prev()"
-                                class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
-                            {{ __('borrower.profile.back') }}
-                        </button>
-                        <button type="button"
-                                x-show="step === photoStep && allPhotosReady" x-cloak
-                                @click="next()"
-                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                            {{ __('borrower.profile.continue') }}
-                        </button>
-                        <button type="button"
-                                x-show="step === 1 && step1Ready" x-cloak
-                                @click="next()"
-                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                            {{ __('borrower.profile.continue') }}
-                        </button>
-                        <button type="button"
-                                x-show="isVehicle && step === 2 && step2Ready" x-cloak
-                                @click="next()"
-                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                            {{ __('borrower.profile.continue') }}
-                        </button>
-                        <button type="button"
-                                x-show="isVehicle && step === proofStep && step3Ready" x-cloak
-                                @click="next()"
-                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                            {{ __('borrower.profile.continue') }}
-                        </button>
-                        <button type="submit"
-                                x-show="((step === proofStep && !isVehicle && step3Ready) || (step === 5 && step4Ready))" x-cloak
-                                :disabled="saving"
-                                class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-70">
-                            <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                            </svg>
-                            <span x-text="saving ? @js(__('borrower.profile.saving')) : @js(__('borrower.profile.save_asset'))"></span>
-                        </button>
-                        <a href="{{ route('site.borrower.profile', ['section' => 'assets']) }}" class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">{{ __('borrower.profile.cancel') }}</a>
+                    <div class="flex items-center justify-between gap-3 pt-2">
+                        <div class="flex items-center gap-2">
+                            <a href="{{ $typePickerUrl }}"
+                               x-show="step === 1 && photoIndex === 0" x-cloak
+                               class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
+                                {{ __('borrower.profile.back') }}
+                            </a>
+                            <button type="button" x-show="step > 1" x-cloak @click="prev()"
+                                    class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
+                                {{ __('borrower.profile.back') }}
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <a href="{{ route('site.borrower.profile', ['section' => 'assets']) }}" class="text-sm font-semibold text-gray-500 hover:text-gray-700">{{ __('borrower.profile.cancel') }}</a>
+                            <button type="button"
+                                    x-show="step === 1 && step1Ready" x-cloak
+                                    @click="next()"
+                                    class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.profile.continue') }}
+                            </button>
+                            <button type="button"
+                                    x-show="isVehicle && step === 2 && step2Ready" x-cloak
+                                    @click="next()"
+                                    class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.profile.continue') }}
+                            </button>
+                            <button type="button"
+                                    x-show="isVehicle && step === proofStep && step3Ready" x-cloak
+                                    @click="next()"
+                                    class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.profile.continue') }}
+                            </button>
+                            <button type="submit"
+                                    x-show="((step === proofStep && !isVehicle && step3Ready) || (step === 5 && step4Ready))" x-cloak
+                                    :disabled="saving"
+                                    class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-70">
+                                <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                                <span x-text="saving ? @js(__('borrower.profile.saving')) : @js(__('borrower.profile.save_asset'))"></span>
+                            </button>
+                        </div>
                     </div>
                 </form>
             </x-site.profile-section-card>

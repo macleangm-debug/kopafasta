@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\KopafastaLaunchService;
 use App\Services\RoleService;
+use App\Services\TurnstileService;
 use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,8 +16,7 @@ class AuthController extends Controller
     public function __construct(
         private RoleService $roles,
         private WebTwoFactorAuthService $twoFactor,
-    ) {
-    }
+    ) {}
 
     public function showLogin()
     {
@@ -29,7 +30,7 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        app(\App\Services\TurnstileService::class)->assertHuman($request);
+        app(TurnstileService::class)->assertHuman($request);
 
         if (! Auth::guard('admin')->attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([
@@ -63,6 +64,7 @@ class AuthController extends Controller
         Auth::guard('admin')->login($user, $request->boolean('remember'));
         $request->session()->regenerate();
         $this->twoFactor->markSessionVerified($request);
+        app(KopafastaLaunchService::class)->arm($request);
 
         return redirect()->intended($home);
     }

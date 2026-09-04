@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\NotificationTemplate;
+use App\Services\Messaging\TransactionalMessagingService;
 use Illuminate\Database\Seeder;
 
 class NotificationTemplateSeeder extends Seeder
@@ -762,6 +763,81 @@ class NotificationTemplateSeeder extends Seeder
                     ],
                 ],
             ],
+            [
+                'code' => 'goal_created',
+                'name' => 'Plus goal created',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Goal created',
+                        'body' => 'Hi {{ name }}, your goal “{{ title }}” is set. Add a little on good days. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Lengo limeundwa',
+                        'body' => 'Habari {{ name }}, lengo lako “{{ title }}” limewekwa. Ongeza kidogo siku nzuri. — '.$brand,
+                    ],
+                ],
+            ],
+            [
+                'code' => 'goal_progress',
+                'name' => 'Plus goal progress',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Goal progress',
+                        'body' => 'Great progress — you have reached {{ percent }}% of “{{ title }}”. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Maendeleo ya lengo',
+                        'body' => 'Maendeleo mazuri — umefikia asilimia {{ percent }} ya “{{ title }}”. — '.$brand,
+                    ],
+                ],
+            ],
+            [
+                'code' => 'goal_no_progress',
+                'name' => 'Plus goal waiting',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'Your goal is waiting',
+                        'body' => 'Your goal “{{ title }}” is still waiting for you. Continue when you are ready. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Lengo lako linakusubiri',
+                        'body' => 'Lengo lako “{{ title }}” bado linakusubiri. Endelea utakapokuwa tayari. — '.$brand,
+                    ],
+                ],
+            ],
+            [
+                'code' => 'business_weekly_summary',
+                'name' => 'Plus weekly business summary',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'This week in business',
+                        'body' => 'You have recorded sales {{ days }} day(s) this week. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Biashara wiki hii',
+                        'body' => 'Umeandika mauzo siku {{ days }} wiki hii. — '.$brand,
+                    ],
+                ],
+            ],
+            [
+                'code' => 'money_weekly_summary',
+                'name' => 'Plus weekly money summary',
+                'channel' => 'in_app',
+                'locales' => [
+                    'en' => [
+                        'subject' => 'This week in money',
+                        'body' => 'You have spent less than you brought in so far this week. — '.$brand,
+                    ],
+                    'sw' => [
+                        'subject' => 'Fedha wiki hii',
+                        'body' => 'Umetumia chini ya ulichoingiza wiki hii. — '.$brand,
+                    ],
+                ],
+            ],
         ];
 
         foreach ($templates as $t) {
@@ -779,6 +855,6 @@ class NotificationTemplateSeeder extends Seeder
             }
         }
 
-        app(\App\Services\Messaging\TransactionalMessagingService::class)->ensureDefaults();
+        app(TransactionalMessagingService::class)->ensureDefaults();
     }
 }

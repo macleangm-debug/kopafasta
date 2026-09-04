@@ -6,39 +6,63 @@ use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\ApplicationSignature;
 use App\Models\AssetReservation;
-use App\Models\ChargesFee;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\DocumentType;
+use App\Models\GroupMemberInvitation;
 use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 use App\Rules\MinimumAge;
 use App\Services\AffiliateService;
-use App\Services\ApplicationRequirementsService;
-use App\Services\AssetReservationService;
-use App\Services\FaceVerificationService;
-use App\Services\GuarantorInvitationService;
-use App\Services\KycFreshnessService;
 use App\Services\ApplicationFeePaymentService;
+use App\Services\ApplicationOfferService;
+use App\Services\ApplicationRequirementsService;
 use App\Services\ApplicationTrackingShareService;
 use App\Services\AssetBackedApplyService;
+use App\Services\AssetBackedLoanService;
+use App\Services\AssetReservationService;
+use App\Services\BorrowerCreditLimitService;
+use App\Services\BorrowerSignatureService;
+use App\Services\CapacityAutoRejectService;
 use App\Services\CrbCreditCheckService;
+use App\Services\CustomerAssetService;
+use App\Services\CustomerPaymentService;
 use App\Services\DisplayedRateService;
-use App\Services\GroupApplyService;
+use App\Services\FaceVerificationService;
+use App\Services\Grades\GradeBenefitService;
 use App\Services\GroupApplicationStatusService;
+use App\Services\GroupApplyService;
+use App\Services\GroupLendingService;
 use App\Services\GroupMemberInvitationService;
 use App\Services\GroupMemberProgressService;
-use App\Services\GroupLendingService;
 use App\Services\GroupScoringService;
+use App\Services\GuarantorDeadlineService;
+use App\Services\GuarantorInvitationService;
+use App\Services\GuarantorSupplementService;
+use App\Services\IdentityVerificationPolicyService;
+use App\Services\KycFreshnessService;
 use App\Services\LoanApplicationDraftService;
 use App\Services\LoanPolicyService;
 use App\Services\LoanProductReadinessService;
+use App\Services\LoanQualificationService;
+use App\Services\LoanRateTierService;
+use App\Services\LoyaltyPointsService;
+use App\Services\LoyaltyRedemptionService;
+use App\Services\MemberEngagementRewardService;
+use App\Services\PaymentAccountService;
 use App\Services\ReferenceNumberService;
 use App\Services\ReferralService;
 use App\Services\RepaymentScheduleGenerator;
 use App\Services\SmartLoanApplicationWizardService;
+use App\Services\UnderwritingSettingsService;
 use App\Services\ValuationFeePaymentService;
+use App\Support\Celebration;
+use App\Support\KinName;
+use App\Support\MemberNumberFormatter;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -71,12 +95,22 @@ class ApplyController extends Controller
         $preselect = $request->query('product');
         $preselectedProduct = null;
 
+        if ($preselect && $customer && $drafts->wasDiscarded((int) $preselect)) {
+            if ($request->query('intent') === 'apply') {
+                $drafts->forgetDiscard((int) $preselect);
+            } elseif (! $drafts->find($customer, (int) $preselect)) {
+                return redirect()
+                    ->route('site.borrower.loans', ['tab' => 'applications'])
+                    ->with('error', __('borrower.policy.draft_no_longer_available'));
+            }
+        }
+
         if ($request->filled('from_application') && $customer) {
             $sourceApplication = LoanApplication::query()
                 ->where('customer_id', $customer->id)
                 ->find($request->query('from_application'));
 
-            if ($sourceApplication && app(\App\Services\ApplicationOfferService::class)->pendingAssetConversion($sourceApplication)) {
+            if ($sourceApplication && app(ApplicationOfferService::class)->pendingAssetConversion($sourceApplication)) {
                 return redirect()->route('site.borrower.application.asset-conversion', $sourceApplication);
             }
         }
@@ -88,7 +122,7 @@ class ApplyController extends Controller
                 ->where('customer_id', $customer->id)
                 ->find($request->query('application'));
 
-            if ($supplementApplication && app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($supplementApplication)) {
+            if ($supplementApplication && app(GuarantorSupplementService::class)->hasOpenRequest($supplementApplication)) {
                 $supplementMode = true;
                 $preselect = $supplementApplication->loan_product_id;
                 $request->merge(['resume' => 1, 'step_key' => 'guarantor']);
@@ -108,7 +142,7 @@ class ApplyController extends Controller
             $preselectedProduct = LoanProduct::query()
                 ->where(function ($query) use ($preselect) {
                     $query->where('id', $preselect)
-                          ->orWhere('code', $preselect);
+                        ->orWhere('code', $preselect);
                 })
                 ->when(! $request->boolean('resume') && ! $request->boolean('guarantor_supplement'), function ($query) {
                     $query->where('is_active', true);
@@ -126,7 +160,7 @@ class ApplyController extends Controller
         }
 
         if ($preselectedProduct && ! $request->boolean('resume') && ! $supplementMode) {
-            $policy = app(\App\Services\LoanPolicyService::class);
+            $policy = app(LoanPolicyService::class);
             $blockingApp = $policy->blockingApplicationForProduct($customer, $preselectedProduct);
             if ($blockingApp) {
                 return redirect()
@@ -225,18 +259,18 @@ class ApplyController extends Controller
             $photoUrls = marketplace_photo_urls($asset->photos ?? []);
 
             $assetApplication = [
-                'asset_title'        => $asset->title,
-                'supplier'           => $asset->supplier_name,
-                'asset_value'        => $assetValue,
-                'deposit'            => $deposit,
-                'remaining_loan'     => $remainingLoan,
+                'asset_title' => $asset->title,
+                'supplier' => $asset->supplier_name,
+                'asset_value' => $assetValue,
+                'deposit' => $deposit,
+                'remaining_loan' => $remainingLoan,
                 'weekly_installment' => (float) $asset->weekly_installment,
-                'max_tenure_months'  => $tenure,
-                'min_tenure_months'  => 1,
-                'purpose'            => 'asset_financing',
-                'photo_url'          => $photoUrls[0] ?? null,
-                'photos'             => $photoUrls,
-                'category'           => $asset->category,
+                'max_tenure_months' => $tenure,
+                'min_tenure_months' => 1,
+                'purpose' => 'asset_financing',
+                'photo_url' => $photoUrls[0] ?? null,
+                'photos' => $photoUrls,
+                'category' => $asset->category,
             ];
         }
 
@@ -293,8 +327,8 @@ class ApplyController extends Controller
         }
 
         $applyReturnUrl = route('site.borrower.apply', array_filter([
-            'product'  => $request->filled('product') ? (int) $request->query('product') : ($selectedProduct?->id ?? null),
-            'resume'   => 1,
+            'product' => $request->filled('product') ? (int) $request->query('product') : ($selectedProduct?->id ?? null),
+            'resume' => 1,
             'step_key' => 'submit',
         ]));
         $applyRequirements = $requirements->checklistForApply($customer, $applyReturnUrl);
@@ -395,18 +429,18 @@ class ApplyController extends Controller
             $valuationFeePaymentRef = $request->session()->get('valuation_fee_payment_ref')
                 ?? app(ValuationFeePaymentService::class)->generatePaymentReference();
             $request->session()->put('valuation_fee_payment_ref', $valuationFeePaymentRef);
-            $assetTypeOptions = app(\App\Services\AssetBackedLoanService::class)->assetTypeOptions();
+            $assetTypeOptions = app(AssetBackedLoanService::class)->assetTypeOptions();
             $assetDocumentLabels = app(AssetBackedApplyService::class)->documentLabels();
-            $customerAssets = app(\App\Services\CustomerAssetService::class)->forCustomer($customer);
-            $pointsBalance = app(\App\Services\LoyaltyPointsService::class)->balance($customer);
-            $loyaltyRedemptions = app(\App\Services\LoyaltyRedemptionService::class);
+            $customerAssets = app(CustomerAssetService::class)->forCustomer($customer);
+            $pointsBalance = app(LoyaltyPointsService::class)->balance($customer);
+            $loyaltyRedemptions = app(LoyaltyRedemptionService::class);
             $activeRewards = $loyaltyRedemptions->activeRewards($customer);
             $loyaltyRateDiscount = $loyaltyRedemptions->additionalRateDiscount($customer);
             $feeLoyaltyOption = $loyaltyRedemptions->availableApplicationFeeOption(
                 $customer,
                 (float) ($feeQuote['base'] ?? $applicationFee ?? 0)
             );
-            $repeatJourney = app(\App\Services\Grades\GradeBenefitService::class)->repeatJourney($customer);
+            $repeatJourney = app(GradeBenefitService::class)->repeatJourney($customer);
             $returnTo = $request->query('return_to');
             if (! is_string($returnTo) || $returnTo === '' || strlen($returnTo) > 64) {
                 $returnTo = null;
@@ -479,12 +513,12 @@ class ApplyController extends Controller
             ->with('leaderName', $customer->full_name)
             ->with('leaderPhone', $customer->phone)
             ->with('leaderAvatarUrl', app(FaceVerificationService::class)->avatarUrl($customer))
-            ->with('engagementBoosts', app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer))
-            ->with('qualificationLimit', (int) app(\App\Services\BorrowerCreditLimitService::class)->availableAmount($customer))
-            ->with('processingSla', app(\App\Services\UnderwritingSettingsService::class)->loanReviewSlaLabel($customer));
+            ->with('engagementBoosts', app(MemberEngagementRewardService::class)->underwritingBoosts($customer))
+            ->with('qualificationLimit', (int) app(BorrowerCreditLimitService::class)->availableAmount($customer))
+            ->with('processingSla', app(UnderwritingSettingsService::class)->loanReviewSlaLabel($customer));
     }
 
-    public function productReadiness(LoanProduct $product, LoanProductReadinessService $readiness): \Illuminate\Http\JsonResponse
+    public function productReadiness(LoanProduct $product, LoanProductReadinessService $readiness): JsonResponse
     {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
@@ -494,15 +528,15 @@ class ApplyController extends Controller
         return response()->json($readiness->assess($customer, $product));
     }
 
-    public function lookupGuarantor(Request $request, GuarantorInvitationService $guarantors): \Illuminate\Http\JsonResponse
+    public function lookupGuarantor(Request $request, GuarantorInvitationService $guarantors): JsonResponse
     {
         $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($borrower, 403);
 
         $data = $request->validate([
-            'membership_no'   => ['required', 'string', 'max:32'],
-            'phone'           => ['required', 'string', 'max:20'],
-            'name'            => ['nullable', 'string', 'max:120'],
+            'membership_no' => ['required', 'string', 'max:32'],
+            'phone' => ['required', 'string', 'max:20'],
+            'name' => ['nullable', 'string', 'max:120'],
             'loan_product_id' => ['nullable', 'integer', 'exists:loan_products,id'],
         ]);
 
@@ -517,7 +551,7 @@ class ApplyController extends Controller
 
         if (! $result['ok']) {
             return response()->json([
-                'ok'      => false,
+                'ok' => false,
                 'message' => $result['message'],
             ], 422);
         }
@@ -530,9 +564,9 @@ class ApplyController extends Controller
             ? (int) $draft->payload['form']['requested_tenure_months']
             : null;
 
-        if ($message = app(\App\Services\LoanPolicyService::class)->canAcceptGuarantee($result['member'], $draftAmount > 0 ? $draftAmount : null)) {
+        if ($message = app(LoanPolicyService::class)->canAcceptGuarantee($result['member'], $draftAmount > 0 ? $draftAmount : null)) {
             return response()->json([
-                'ok'      => false,
+                'ok' => false,
                 'message' => $message,
             ], 422);
         }
@@ -553,56 +587,56 @@ class ApplyController extends Controller
                 );
 
                 app(LoanApplicationDraftService::class)->save($borrower, [
-                    'phase'           => $draft?->phase ?? 'application',
-                    'step'            => $draft?->step ?? 0,
+                    'phase' => $draft?->phase ?? 'application',
+                    'step' => $draft?->step ?? 0,
                     'loan_product_id' => (int) $data['loan_product_id'],
-                    'form'            => array_merge($draft?->payload['form'] ?? [], [
-                        'guarantor_mode'           => 'internal',
-                        'internal_member_no'       => $data['membership_no'],
+                    'form' => array_merge($draft?->payload['form'] ?? [], [
+                        'guarantor_mode' => 'internal',
+                        'internal_member_no' => $data['membership_no'],
                         'internal_guarantor_phone' => $data['phone'],
-                        'internal_guarantor_name'  => $result['name'],
+                        'internal_guarantor_name' => $result['name'],
                     ]),
-                    'inputs'             => $draft?->payload['inputs'] ?? [],
+                    'inputs' => $draft?->payload['inputs'] ?? [],
                     'internal_guarantor' => $invite,
                     'external_guarantor' => null,
                 ]);
             } catch (\InvalidArgumentException $e) {
                 return response()->json([
-                    'ok'      => false,
+                    'ok' => false,
                     'message' => $e->getMessage(),
                 ], 422);
             } catch (\Throwable $e) {
                 report($e);
 
                 return response()->json([
-                    'ok'      => false,
+                    'ok' => false,
                     'message' => __('borrower.apply.alerts.guarantor_invite_failed'),
                 ], 500);
             }
         }
 
         return response()->json([
-            'ok'      => true,
-            'name'    => $result['name'],
-            'label'   => $result['label'],
+            'ok' => true,
+            'name' => $result['name'],
+            'label' => $result['label'],
             'message' => $invite
                 ? __('borrower.apply.alerts.guarantor_notified_in_app', ['name' => $result['name']])
                 : ($result['message'] ?? null),
-            'invite'  => $invite,
+            'invite' => $invite,
         ]);
     }
 
-    public function lookupGroupMember(Request $request, GroupApplyService $groups): \Illuminate\Http\JsonResponse
+    public function lookupGroupMember(Request $request, GroupApplyService $groups): JsonResponse
     {
         $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($leader, 403);
 
         $data = $request->validate([
-            'member_no'         => ['required', 'string', 'max:40'],
-            'phone'             => ['required', 'string', 'max:20'],
-            'name'              => ['nullable', 'string', 'max:120'],
-            'loan_product_id'   => ['required', 'integer', 'exists:loan_products,id'],
-            'validate_only'     => ['nullable', 'boolean'],
+            'member_no' => ['required', 'string', 'max:40'],
+            'phone' => ['required', 'string', 'max:20'],
+            'name' => ['nullable', 'string', 'max:120'],
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'validate_only' => ['nullable', 'boolean'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
@@ -617,7 +651,7 @@ class ApplyController extends Controller
 
         if (! $result['ok']) {
             return response()->json([
-                'ok'      => false,
+                'ok' => false,
                 'message' => $result['message'] ?? __('borrower.apply.group.lookup_not_found'),
             ], 422);
         }
@@ -626,13 +660,13 @@ class ApplyController extends Controller
 
         if (! empty($data['validate_only'])) {
             return response()->json([
-                'ok'          => true,
+                'ok' => true,
                 'customer_id' => $member->id,
-                'name'        => $result['label'] ?? $member->full_name,
-                'phone'       => $member->phone,
-                'label'       => $result['label'],
-                'status_key'  => 'profile_incomplete',
-                'avatar_url'  => app(FaceVerificationService::class)->avatarUrl($member),
+                'name' => $result['label'] ?? $member->full_name,
+                'phone' => $member->phone,
+                'label' => $result['label'],
+                'status_key' => 'profile_incomplete',
+                'avatar_url' => app(FaceVerificationService::class)->avatarUrl($member),
             ]);
         }
 
@@ -643,19 +677,19 @@ class ApplyController extends Controller
         }
 
         return response()->json([
-            'ok'            => true,
-            'customer_id'   => $share['customer_id'],
-            'name'          => $share['name'],
-            'phone'         => $share['phone'],
-            'label'         => $result['label'],
+            'ok' => true,
+            'customer_id' => $share['customer_id'],
+            'name' => $share['name'],
+            'phone' => $share['phone'],
+            'label' => $result['label'],
             'invitation_id' => $share['invitation_id'],
-            'status_key'    => $share['status_key'],
-            'share'         => $share,
-            'avatar_url'    => app(FaceVerificationService::class)->avatarUrl($member),
+            'status_key' => $share['status_key'],
+            'share' => $share,
+            'avatar_url' => app(FaceVerificationService::class)->avatarUrl($member),
         ]);
     }
 
-    public function previousGroupMembers(Request $request, GroupMemberInvitationService $invites): \Illuminate\Http\JsonResponse
+    public function previousGroupMembers(Request $request, GroupMemberInvitationService $invites): JsonResponse
     {
         $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($leader, 403);
@@ -674,12 +708,12 @@ class ApplyController extends Controller
     public function selectPreviousGroupMember(
         Request $request,
         GroupMemberInvitationService $invites,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($leader, 403);
 
         $data = $request->validate([
-            'customer_id'     => ['required', 'integer', 'exists:customers,id'],
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
         ]);
 
@@ -690,7 +724,7 @@ class ApplyController extends Controller
 
         if (! ($result['ok'] ?? false)) {
             return response()->json([
-                'ok'      => false,
+                'ok' => false,
                 'message' => $result['message'] ?? __('borrower.apply.group.lookup_not_found'),
             ], 422);
         }
@@ -701,17 +735,17 @@ class ApplyController extends Controller
     public function prepareGroupMemberInvite(
         Request $request,
         GroupMemberInvitationService $invites,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($leader, 403);
 
         $data = $request->validate([
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
-            'first_name'      => ['required', 'string', 'max:60'],
-            'last_name'       => ['required', 'string', 'max:80'],
-            'phone'           => ['required', 'string', 'max:20'],
-            'email'           => ['nullable', 'email', 'max:150'],
-            'group'           => ['nullable', 'array'],
+            'first_name' => ['required', 'string', 'max:60'],
+            'last_name' => ['required', 'string', 'max:80'],
+            'phone' => ['required', 'string', 'max:20'],
+            'email' => ['nullable', 'email', 'max:150'],
+            'group' => ['nullable', 'array'],
             'invitation_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -724,22 +758,22 @@ class ApplyController extends Controller
             $existingName = trim(($existingMember->first_name ?? '').' '.($existingMember->last_name ?? ''));
 
             return response()->json([
-                'ok'      => false,
-                'code'    => 'already_member',
+                'ok' => false,
+                'code' => 'already_member',
                 'message' => __('borrower.apply.group.lookup_is_member', ['name' => $existingName]),
-                'name'    => $existingName,
-                'phone'   => $existingMember->phone ?: $normalizedPhone,
+                'name' => $existingName,
+                'phone' => $existingMember->phone ?: $normalizedPhone,
             ], 422);
         }
 
         $context = [
-            'group_name'              => $group['name'] ?? null,
-            'group_purpose'           => $group['purpose'] ?? null,
-            'amount_per_member'       => $group['amount_per_member'] ?? null,
+            'group_name' => $group['name'] ?? null,
+            'group_purpose' => $group['purpose'] ?? null,
+            'amount_per_member' => $group['amount_per_member'] ?? null,
             'requested_tenure_months' => $group['requested_tenure_months'] ?? ($group['tenure_months'] ?? null),
-            'repayment_cadence'       => $groups->effectiveRepaymentCadence($product),
-            'invitation_reason'       => $data['invitation_reason'] ?? null,
-            'loan_product_id'         => $product->id,
+            'repayment_cadence' => $groups->effectiveRepaymentCadence($product),
+            'invitation_reason' => $data['invitation_reason'] ?? null,
+            'loan_product_id' => $product->id,
         ];
 
         try {
@@ -759,18 +793,18 @@ class ApplyController extends Controller
         }
 
         return response()->json([
-            'ok'            => true,
+            'ok' => true,
             'invitation_id' => $share['invitation_id'],
-            'name'          => $share['name'],
-            'phone'         => $share['phone'],
-            'share'         => $share,
+            'name' => $share['name'],
+            'phone' => $share['phone'],
+            'share' => $share,
         ]);
     }
 
     public function expireGroupMemberInvitation(
         Request $request,
         GroupMemberInvitationService $invitations,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($leader, 403);
 
@@ -783,15 +817,15 @@ class ApplyController extends Controller
         return response()->json(['ok' => $ok]);
     }
 
-    public function refreshGroupMemberStatuses(Request $request): \Illuminate\Http\JsonResponse
+    public function refreshGroupMemberStatuses(Request $request): JsonResponse
     {
         $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($leader, 403);
 
         $data = $request->validate([
-            'members'             => ['required', 'array'],
+            'members' => ['required', 'array'],
             'target_member_count' => ['nullable', 'integer', 'min:1'],
-            'group'               => ['nullable', 'array'],
+            'group' => ['nullable', 'array'],
         ]);
 
         $progress = app(GroupMemberProgressService::class);
@@ -799,7 +833,7 @@ class ApplyController extends Controller
         $members = collect($data['members'])->map(function (array $row) use ($progress, $leader, $invitations) {
             $invitationId = (int) ($row['invitation_id'] ?? 0);
             if ($invitationId > 0) {
-                $invitation = \App\Models\GroupMemberInvitation::query()
+                $invitation = GroupMemberInvitation::query()
                     ->where('id', $invitationId)
                     ->where('leader_customer_id', $leader->id)
                     ->first();
@@ -852,15 +886,15 @@ class ApplyController extends Controller
         $scoring = app(GroupScoringService::class)->scoreFromDraftPayload($groupPayload);
 
         return response()->json([
-            'ok'                 => true,
-            'members'            => $summary['members'] ?? $members->all(),
-            'summary'            => $summary,
+            'ok' => true,
+            'members' => $summary['members'] ?? $members->all(),
+            'summary' => $summary,
             'application_status' => $applicationStatus,
-            'scoring'            => $scoring,
+            'scoring' => $scoring,
         ]);
     }
 
-    public function previousGuarantors(GuarantorInvitationService $guarantors): \Illuminate\Http\JsonResponse
+    public function previousGuarantors(GuarantorInvitationService $guarantors): JsonResponse
     {
         $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($borrower, 403);
@@ -870,7 +904,7 @@ class ApplyController extends Controller
         ]);
     }
 
-    public function selectPreviousGuarantor(Request $request, GuarantorInvitationService $guarantors): \Illuminate\Http\JsonResponse
+    public function selectPreviousGuarantor(Request $request, GuarantorInvitationService $guarantors): JsonResponse
     {
         $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($borrower, 403);
@@ -899,22 +933,22 @@ class ApplyController extends Controller
         Request $request,
         GuarantorInvitationService $guarantors,
         LoanApplicationDraftService $drafts,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($borrower, 403);
 
         $data = $request->validate([
-            'loan_product_id'       => ['required', 'integer', 'exists:loan_products,id'],
-            'external_first_name'   => ['required', 'string', 'max:60'],
-            'external_middle_name'  => ['nullable', 'string', 'max:60'],
-            'external_last_name'    => ['required', 'string', 'max:60'],
-            'external_phone'        => ['required', 'string', 'max:20'],
-            'external_email'        => ['nullable', 'email', 'max:120'],
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'external_first_name' => ['required', 'string', 'max:60'],
+            'external_middle_name' => ['nullable', 'string', 'max:60'],
+            'external_last_name' => ['required', 'string', 'max:60'],
+            'external_phone' => ['required', 'string', 'max:20'],
+            'external_email' => ['nullable', 'email', 'max:120'],
             'external_relationship' => ['required', 'string', 'max:40'],
-            'external_region'       => ['required', 'string', 'max:100'],
-            'external_district'     => ['required', 'string', 'max:100'],
-            'external_channel'      => ['nullable', 'in:whatsapp,sms,email'],
-            'external_invitation_id'=> ['nullable', 'integer'],
+            'external_region' => ['required', 'string', 'max:100'],
+            'external_district' => ['required', 'string', 'max:100'],
+            'external_channel' => ['nullable', 'in:whatsapp,sms,email'],
+            'external_invitation_id' => ['nullable', 'integer'],
         ]);
 
         $this->abortUnlessApplicationFeeAllowsProgress($borrower, (int) $data['loan_product_id']);
@@ -945,24 +979,24 @@ class ApplyController extends Controller
             );
         } catch (\InvalidArgumentException $e) {
             return response()->json([
-                'ok'      => false,
+                'ok' => false,
                 'message' => $e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
             report($e);
 
             return response()->json([
-                'ok'      => false,
+                'ok' => false,
                 'message' => __('borrower.apply.alerts.guarantor_invite_failed'),
             ], 500);
         }
 
         $drafts->save($borrower, [
-            'phase'           => $draft?->phase ?? 'application',
-            'step'            => $draft?->step ?? 0,
+            'phase' => $draft?->phase ?? 'application',
+            'step' => $draft?->step ?? 0,
             'loan_product_id' => (int) $data['loan_product_id'],
-            'form'            => $draft?->payload['form'] ?? [],
-            'inputs'          => $draft?->payload['inputs'] ?? [],
+            'form' => $draft?->payload['form'] ?? [],
+            'inputs' => $draft?->payload['inputs'] ?? [],
             'external_guarantor' => $share,
         ]);
 
@@ -972,7 +1006,7 @@ class ApplyController extends Controller
     public function guarantorInvitationStatus(
         Request $request,
         GuarantorInvitationService $guarantors,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($borrower, 403);
 
@@ -980,7 +1014,7 @@ class ApplyController extends Controller
             'invitation_id' => ['required', 'integer'],
         ]);
 
-        $invitation = \App\Models\GuarantorInvitation::query()
+        $invitation = GuarantorInvitation::query()
             ->where('id', (int) $data['invitation_id'])
             ->where('customer_id', $borrower->id)
             ->first();
@@ -990,7 +1024,7 @@ class ApplyController extends Controller
         }
 
         return response()->json([
-            'ok'    => true,
+            'ok' => true,
             'share' => $guarantors->sharePayload($invitation, $borrower),
         ]);
     }
@@ -999,7 +1033,7 @@ class ApplyController extends Controller
         Request $request,
         LoanPolicyService $policy,
         LoanApplicationDraftService $drafts,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($borrower, 403);
 
@@ -1025,7 +1059,7 @@ class ApplyController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function loadDraft(LoanApplicationDraftService $drafts): \Illuminate\Http\JsonResponse
+    public function loadDraft(LoanApplicationDraftService $drafts): JsonResponse
     {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
@@ -1035,27 +1069,27 @@ class ApplyController extends Controller
         ]);
     }
 
-    public function saveDraft(Request $request, LoanApplicationDraftService $drafts): \Illuminate\Http\JsonResponse
+    public function saveDraft(Request $request, LoanApplicationDraftService $drafts): JsonResponse
     {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
 
         $data = $request->validate([
-            'phase'                => ['required', 'string', 'in:browse,details,application'],
-            'step'                 => ['nullable', 'integer', 'min:0'],
-            'step_key'             => ['nullable', 'string', 'max:64'],
-            'loan_product_id'      => ['nullable', 'integer', 'exists:loan_products,id'],
+            'phase' => ['required', 'string', 'in:browse,details,application'],
+            'step' => ['nullable', 'integer', 'min:0'],
+            'step_key' => ['nullable', 'string', 'max:64'],
+            'loan_product_id' => ['nullable', 'integer', 'exists:loan_products,id'],
             'asset_reservation_id' => ['nullable', 'integer'],
-            'form'                 => ['nullable', 'array'],
-            'inputs'               => ['nullable', 'array'],
-            'guarantor_lookup'     => ['nullable', 'array'],
-            'application_fee'      => ['nullable', 'array'],
-            'valuation_fee'        => ['nullable', 'array'],
-            'asset_documents'      => ['nullable', 'array'],
-            'external_guarantor'   => ['nullable', 'array'],
-            'borrower_signature'   => ['nullable', 'array'],
+            'form' => ['nullable', 'array'],
+            'inputs' => ['nullable', 'array'],
+            'guarantor_lookup' => ['nullable', 'array'],
+            'application_fee' => ['nullable', 'array'],
+            'valuation_fee' => ['nullable', 'array'],
+            'asset_documents' => ['nullable', 'array'],
+            'external_guarantor' => ['nullable', 'array'],
+            'borrower_signature' => ['nullable', 'array'],
             'declaration_accepted' => ['nullable', 'boolean'],
-            'group'                => ['nullable', 'array'],
+            'group' => ['nullable', 'array'],
         ]);
 
         if ($data['phase'] === 'browse' || empty($data['loan_product_id'])) {
@@ -1064,16 +1098,25 @@ class ApplyController extends Controller
             return response()->json(['ok' => true, 'cleared' => true]);
         }
 
+        $productId = (int) $data['loan_product_id'];
+        if ($drafts->wasDiscarded($productId)) {
+            return response()->json([
+                'ok' => false,
+                'discarded' => true,
+                'message' => __('borrower.policy.draft_no_longer_available'),
+            ], 410);
+        }
+
         $drafts->save($customer, $data);
 
         $draft = $drafts->find($customer, (int) ($data['loan_product_id'] ?? 0));
 
         return response()->json([
-            'ok'              => true,
-            'saved_at'        => now()->toIso8601String(),
+            'ok' => true,
+            'saved_at' => now()->toIso8601String(),
             'draft_reference' => $draft?->draft_reference,
-            'step_key'        => $draft?->payload['step_key'] ?? $data['step_key'] ?? null,
-            'step'            => $draft?->step,
+            'step_key' => $draft?->payload['step_key'] ?? $data['step_key'] ?? null,
+            'step' => $draft?->step,
         ]);
     }
 
@@ -1081,21 +1124,21 @@ class ApplyController extends Controller
         Request $request,
         LoanApplicationDraftService $drafts,
         ApplicationFeePaymentService $fees,
-    ): \Illuminate\Http\JsonResponse|RedirectResponse {
+    ): JsonResponse|RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
 
         $dummyGateway = payment_gateway_is_dummy();
         $data = $request->validate([
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
-            'channel'         => ['nullable', 'in:mobile_money,bank'],
-            'payment_phone'   => ['nullable', 'string', 'max:20'],
-            'use_wallet'      => ['nullable', 'boolean'],
-            'promo_code'      => ['nullable', 'string', 'max:40'],
-            'affiliate_code'  => ['nullable', 'string', 'max:40'],
-            'redeem_loyalty'  => ['nullable', 'boolean'],
+            'channel' => ['nullable', 'in:mobile_money,bank'],
+            'payment_phone' => ['nullable', 'string', 'max:20'],
+            'use_wallet' => ['nullable', 'boolean'],
+            'promo_code' => ['nullable', 'string', 'max:40'],
+            'affiliate_code' => ['nullable', 'string', 'max:40'],
+            'redeem_loyalty' => ['nullable', 'boolean'],
             'loyalty_option_key' => ['nullable', 'string', 'max:64'],
-            'member_count'    => ['nullable', 'integer', 'min:1', 'max:50'],
+            'member_count' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
@@ -1111,7 +1154,7 @@ class ApplyController extends Controller
         $loyaltyRedeemed = false;
         if ($request->boolean('redeem_loyalty') && filled($data['loyalty_option_key'] ?? null)) {
             try {
-                app(\App\Services\LoyaltyRedemptionService::class)
+                app(LoyaltyRedemptionService::class)
                     ->redeem($customer, (string) $data['loyalty_option_key']);
                 $loyaltyRedeemed = true;
                 $customer->refresh();
@@ -1218,17 +1261,17 @@ class ApplyController extends Controller
         LoanApplicationDraftService $drafts,
         ValuationFeePaymentService $fees,
         AssetBackedApplyService $assetApply,
-    ): \Illuminate\Http\JsonResponse|RedirectResponse {
+    ): JsonResponse|RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
 
         $dummyGateway = payment_gateway_is_dummy();
         $data = $request->validate([
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
-            'channel'         => ['required', 'in:mobile_money,bank'],
-            'payment_phone'   => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
-            'use_wallet'      => ['nullable', 'boolean'],
-            'asset_type'      => ['nullable', 'string', 'max:40'],
+            'channel' => ['required', 'in:mobile_money,bank'],
+            'payment_phone' => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'use_wallet' => ['nullable', 'boolean'],
+            'asset_type' => ['nullable', 'string', 'max:40'],
             'asset_description' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -1330,10 +1373,10 @@ class ApplyController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'ok'      => true,
-                'fee'     => $feeState,
+                'ok' => true,
+                'fee' => $feeState,
                 'message' => $bankMessage,
-                'dummy'   => $dummyGateway,
+                'dummy' => $dummyGateway,
                 'wait_url' => $feeState['wait_url'] ?? null,
                 'processing' => in_array($feeState['status'] ?? '', ['processing', 'pending'], true),
             ]);
@@ -1348,7 +1391,7 @@ class ApplyController extends Controller
         return back()->with(($feeState['status'] ?? '') === 'paid' ? 'status' : 'warning', $bankMessage);
     }
 
-    public function valuationFeeQuote(Request $request, ValuationFeePaymentService $fees): \Illuminate\Http\JsonResponse
+    public function valuationFeeQuote(Request $request, ValuationFeePaymentService $fees): JsonResponse
     {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
@@ -1359,7 +1402,7 @@ class ApplyController extends Controller
 
         return response()->json([
             'amount' => quoted_valuation_fee($customer),
-            'quote'  => $fees->quote($customer),
+            'quote' => $fees->quote($customer),
         ]);
     }
 
@@ -1367,14 +1410,14 @@ class ApplyController extends Controller
         Request $request,
         LoanApplicationDraftService $drafts,
         AssetBackedApplyService $assetApply,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
 
         $data = $request->validate([
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
-            'document_code'   => ['required', 'string', 'max:60'],
-            'file'            => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'document_code' => ['required', 'string', 'max:60'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
@@ -1382,9 +1425,9 @@ class ApplyController extends Controller
 
         $draft = $drafts->find($customer, $product->id)
             ?? $drafts->save($customer, [
-                'phase'           => 'application',
+                'phase' => 'application',
                 'loan_product_id' => $product->id,
-                'form'            => [],
+                'form' => [],
             ]);
 
         abort_unless($draft, 422);
@@ -1399,14 +1442,14 @@ class ApplyController extends Controller
         $payload = $drafts->payloadForWizard($customer, $product->id);
 
         return response()->json([
-            'ok'              => true,
-            'document_id'     => $document->id,
-            'document_code'   => $data['document_code'],
+            'ok' => true,
+            'document_id' => $document->id,
+            'document_code' => $data['document_code'],
             'asset_documents' => $payload['asset_documents'] ?? [],
         ]);
     }
 
-    public function applicationFeeQuote(Request $request, ApplicationFeePaymentService $fees): \Illuminate\Http\JsonResponse
+    public function applicationFeeQuote(Request $request, ApplicationFeePaymentService $fees): JsonResponse
     {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
@@ -1427,7 +1470,7 @@ class ApplyController extends Controller
 
         return response()->json([
             'amount' => $amount,
-            'quote'  => $fees->quote(
+            'quote' => $fees->quote(
                 $customer,
                 $product,
                 $useWallet,
@@ -1445,12 +1488,12 @@ class ApplyController extends Controller
         Request $request,
         RepaymentScheduleGenerator $schedules,
         SmartLoanApplicationWizardService $wizard,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
 
         $data = $request->validate([
-            'loan_product_id'  => ['required', 'exists:loan_products,id'],
+            'loan_product_id' => ['required', 'exists:loan_products,id'],
             'requested_amount' => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
         ]);
@@ -1461,7 +1504,7 @@ class ApplyController extends Controller
 
         $amount = (float) $data['requested_amount'];
         $tenure = (int) $data['requested_tenure_months'];
-        $rate = app(\App\Services\LoanRateTierService::class)->resolveRate($product, $amount, $customer);
+        $rate = app(LoanRateTierService::class)->resolveRate($product, $amount, $customer);
         $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($product);
         $method = in_array(($product->interest_method ?? 'reducing'), ['flat', 'reducing'], true)
             ? (string) ($product->interest_method ?? 'reducing')
@@ -1477,13 +1520,13 @@ class ApplyController extends Controller
             $interestFromSchedule += (float) $row['interest_due'];
             $totalFromSchedule += (float) $row['total_due'];
             $schedule[] = [
-                'installment_no'      => $row['installment_no'],
-                'due_date'            => null,
-                'principal_due'       => round($row['principal_due'], 2),
-                'interest_due'        => round($row['interest_due'], 2),
-                'total_due'           => round($row['total_due'], 2),
-                'remaining_balance'   => $balance,
-                'label'               => $row['label'],
+                'installment_no' => $row['installment_no'],
+                'due_date' => null,
+                'principal_due' => round($row['principal_due'], 2),
+                'interest_due' => round($row['interest_due'], 2),
+                'total_due' => round($row['total_due'], 2),
+                'remaining_balance' => $balance,
+                'label' => $row['label'],
             ];
         }
 
@@ -1496,35 +1539,35 @@ class ApplyController extends Controller
         $emi = $cadence === 'monthly' ? round((float) $installment, 2) : round($wizard->estimateEmi($amount, $rate, $tenure), 2);
         $weekly = $cadence === 'weekly' ? round((float) $installment, 2) : 0;
         $applicationFee = quoted_application_fee($customer, $product);
-        $boosts = app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer);
-        $qualification = app(\App\Services\LoanQualificationService::class)->calculate($customer);
+        $boosts = app(MemberEngagementRewardService::class)->underwritingBoosts($customer);
+        $qualification = app(LoanQualificationService::class)->calculate($customer);
         $standardRate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
 
         return response()->json([
-            'ok'            => true,
+            'ok' => true,
             'dates_available' => false,
-            'schedule'      => $schedule,
-            'summary'       => [
-                'monthly_rate'        => $rate,
-                'monthly_rate_pct'    => round($rate * 100, 2),
-                'standard_rate_pct'   => round($standardRate * 100, 2),
-                'application_fee'     => $applicationFee,
+            'schedule' => $schedule,
+            'summary' => [
+                'monthly_rate' => $rate,
+                'monthly_rate_pct' => round($rate * 100, 2),
+                'standard_rate_pct' => round($standardRate * 100, 2),
+                'application_fee' => $applicationFee,
                 'monthly_installment' => $emi,
-                'weekly_installment'  => $weekly,
-                'installment_amount'  => round((float) $installment, 2),
-                'repayment_cadence'   => $cadence,
-                'interest_method'     => $method,
-                'interest_total'      => round($interestFromSchedule, 2),
-                'total_repayment'     => round($totalFromSchedule, 2),
-                'periods'             => $periods,
+                'weekly_installment' => $weekly,
+                'installment_amount' => round((float) $installment, 2),
+                'repayment_cadence' => $cadence,
+                'interest_method' => $method,
+                'interest_total' => round($interestFromSchedule, 2),
+                'total_repayment' => round($totalFromSchedule, 2),
+                'periods' => $periods,
             ],
-            'engagement'    => [
-                'limit_amount'          => (int) app(\App\Services\BorrowerCreditLimitService::class)->availableAmount($customer),
-                'limit_multiplier'      => (float) ($boosts['limit_multiplier'] ?? 1),
-                'rate_discount_pct'     => round(((float) ($boosts['rate_discount_fraction'] ?? 0)) * 100, 2),
-                'processing_sla'        => app(\App\Services\UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),
-                'processing_priority'   => (int) ($boosts['processing_priority'] ?? 0),
-                'factors'               => $boosts['factors'] ?? [],
+            'engagement' => [
+                'limit_amount' => (int) app(BorrowerCreditLimitService::class)->availableAmount($customer),
+                'limit_multiplier' => (float) ($boosts['limit_multiplier'] ?? 1),
+                'rate_discount_pct' => round(((float) ($boosts['rate_discount_fraction'] ?? 0)) * 100, 2),
+                'processing_sla' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),
+                'processing_priority' => (int) ($boosts['processing_priority'] ?? 0),
+                'factors' => $boosts['factors'] ?? [],
             ],
         ]);
     }
@@ -1577,8 +1620,8 @@ class ApplyController extends Controller
         }
 
         $returnUrl = route('site.borrower.apply', array_filter([
-            'product'  => (int) $loanProduct->id,
-            'resume'   => 1,
+            'product' => (int) $loanProduct->id,
+            'resume' => 1,
             'step_key' => 'submit',
         ]));
         $checklist = $requirements->checklistForApply($customer, $returnUrl);
@@ -1593,24 +1636,24 @@ class ApplyController extends Controller
             // silently bounce the borrower to the profile page.
             return redirect()
                 ->route('site.borrower.apply', array_filter([
-                    'product'      => (int) $loanProduct->id,
-                    'resume'       => 1,
-                    'step_key'     => 'submit',
+                    'product' => (int) $loanProduct->id,
+                    'resume' => 1,
+                    'step_key' => 'submit',
                     'profile_gate' => 1,
                 ]))
                 ->with('error', $message)
                 ->with('show_profile_gate', true);
         }
 
-        $identityPolicy = app(\App\Services\IdentityVerificationPolicyService::class);
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
         if ($identityPolicy->requiredDuringProfileCreation()
             && $identityPolicy->facialRequired()
             && ! $faces->profileStepComplete($customer)) {
             return redirect()
                 ->route('site.borrower.apply', array_filter([
-                    'product'      => (int) $loanProduct->id,
-                    'resume'       => 1,
-                    'step_key'     => 'submit',
+                    'product' => (int) $loanProduct->id,
+                    'resume' => 1,
+                    'step_key' => 'submit',
                     'profile_gate' => 1,
                 ]))
                 ->with('error', __('borrower.apply.kyc_incomplete_redirect', [
@@ -1622,9 +1665,9 @@ class ApplyController extends Controller
         if (! $freshness->canApply($customer)) {
             return redirect()
                 ->route('site.borrower.apply', array_filter([
-                    'product'      => (int) $loanProduct->id,
-                    'resume'       => 1,
-                    'step_key'     => 'submit',
+                    'product' => (int) $loanProduct->id,
+                    'resume' => 1,
+                    'step_key' => 'submit',
                     'profile_gate' => 1,
                 ]))
                 ->with('error', __('borrower.apply.kyc_incomplete_redirect', [
@@ -1641,7 +1684,7 @@ class ApplyController extends Controller
                 ->with('status', __('borrower.apply.success.already_submitted_message'));
         }
 
-        if ($message = app(\App\Services\LoanPolicyService::class)->canSubmitApplication($customer, $loanProduct)) {
+        if ($message = app(LoanPolicyService::class)->canSubmitApplication($customer, $loanProduct)) {
             return $this->wizardSubmitRedirect($request, $draft)->withInput()->with('error', $message);
         }
 
@@ -1651,16 +1694,16 @@ class ApplyController extends Controller
 
         $draftPayload = $draft?->payload ?? [];
         $storedSignature = $draftPayload['borrower_signature']
-            ?? app(\App\Services\BorrowerSignatureService::class)->profileSignature($customer);
+            ?? app(BorrowerSignatureService::class)->profileSignature($customer);
         $declarationAccepted = (bool) ($draftPayload['declaration_accepted'] ?? false)
             || filled($storedSignature['signature_data'] ?? null);
         $groupData = null;
 
         if ($storedSignature && ! $request->filled('signature_data')) {
             $request->merge([
-                'signer_name'    => $storedSignature['signer_name'] ?? $customer->full_name,
+                'signer_name' => $storedSignature['signer_name'] ?? $customer->full_name,
                 'signature_data' => $storedSignature['signature_data'] ?? '',
-                'consent'        => '1',
+                'consent' => '1',
             ]);
         } elseif ($declarationAccepted && ! $request->boolean('consent')) {
             $request->merge(['consent' => '1']);
@@ -1679,55 +1722,55 @@ class ApplyController extends Controller
 
         try {
             $data = $request->validate([
-            'loan_product_id'         => ['required', 'exists:loan_products,id'],
-            'requested_amount'        => ['required', 'numeric', 'min:1000'],
-            'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
-            'purpose'                 => [$isMarketplaceProduct || $isGroupProduct ? 'nullable' : 'required', 'string', 'max:100'],
-            'purpose_other'           => ['nullable', 'string', 'max:255'],
-            'asset_type'              => [$isAssetBackedProduct ? 'required' : 'nullable', 'string', 'max:40'],
-            'asset_description'       => ['nullable', 'string', 'max:500'],
-            'first_name'              => ['required', 'string', 'max:60'],
-            'last_name'               => ['required', 'string', 'max:60'],
-            'date_of_birth'           => ['required', 'date', new MinimumAge],
-            'gender'                  => ['nullable', 'string', 'in:male,female,other'],
-            'national_id'             => ['required', 'string', 'max:30'],
-            'region'                  => ['required', 'string', 'max:100'],
-            'district'                => ['required', 'string', 'max:100'],
-            'ward'                    => ['nullable', 'string', 'max:100'],
-            'street'                  => ['required', 'string', 'max:255'],
-            'nok_first_name'   => ['nullable', 'string', 'max:80'],
-            'nok_middle_name'  => ['nullable', 'string', 'max:80'],
-            'nok_last_name'    => ['nullable', 'string', 'max:80'],
-            'nok_name'                => ['required', 'string', 'max:120'],
-            'nok_relationship'        => ['required', 'string', 'max:40', 'in:'.implode(',', config('kin.relationships', []))],
-            'nok_phone'               => ['required', 'string', 'max:20'],
-            'nok_region'              => ['required', 'string', 'max:100'],
-            'nok_district'            => ['required', 'string', 'max:100'],
-            'activity_type'           => ['required', 'string', 'max:40'],
-            'activity_details'        => ['nullable', 'array'],
-            'income_range'            => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
-            'guarantor_mode'          => ['nullable', 'in:none,internal,external,previous'],
-            'internal_member_no'      => ['nullable', 'string', 'max:40'],
-            'internal_guarantor_phone'=> ['nullable', 'string', 'max:20'],
-            'internal_guarantor_name' => ['nullable', 'string', 'max:120'],
-            'external_first_name'     => ['nullable', 'string', 'max:60'],
-            'external_middle_name'    => ['nullable', 'string', 'max:60'],
-            'external_last_name'      => ['nullable', 'string', 'max:60'],
-            'external_name'           => ['nullable', 'string', 'max:120'],
-            'external_phone'          => ['nullable', 'string', 'max:20'],
-            'external_email'          => ['nullable', 'email', 'max:120'],
-            'external_relationship'   => ['nullable', 'string', 'max:40'],
-            'external_region'         => ['nullable', 'string', 'max:100'],
-            'external_district'       => ['nullable', 'string', 'max:100'],
-            'external_channel'        => ['nullable', 'in:sms,whatsapp,email'],
-            'external_invitation_id'  => ['nullable', 'integer'],
-            'signer_name'             => ['required', 'string', 'max:120'],
-            'signature_data'          => ['required', 'string', 'starts_with:data:image/png;base64,'],
-            'consent'                 => ['accepted'],
-            'product_question'        => ['nullable', 'array'],
-            'income_document'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'income_document_type'    => ['nullable', 'in:bank,mobile_money'],
-            'asset_reservation_id'    => ['nullable', 'integer', 'exists:asset_reservations,id'],
+                'loan_product_id' => ['required', 'exists:loan_products,id'],
+                'requested_amount' => ['required', 'numeric', 'min:1000'],
+                'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
+                'purpose' => [$isMarketplaceProduct || $isGroupProduct ? 'nullable' : 'required', 'string', 'max:100'],
+                'purpose_other' => ['nullable', 'string', 'max:255'],
+                'asset_type' => [$isAssetBackedProduct ? 'required' : 'nullable', 'string', 'max:40'],
+                'asset_description' => ['nullable', 'string', 'max:500'],
+                'first_name' => ['required', 'string', 'max:60'],
+                'last_name' => ['required', 'string', 'max:60'],
+                'date_of_birth' => ['required', 'date', new MinimumAge],
+                'gender' => ['nullable', 'string', 'in:male,female,other'],
+                'national_id' => ['required', 'string', 'max:30'],
+                'region' => ['required', 'string', 'max:100'],
+                'district' => ['required', 'string', 'max:100'],
+                'ward' => ['nullable', 'string', 'max:100'],
+                'street' => ['required', 'string', 'max:255'],
+                'nok_first_name' => ['nullable', 'string', 'max:80'],
+                'nok_middle_name' => ['nullable', 'string', 'max:80'],
+                'nok_last_name' => ['nullable', 'string', 'max:80'],
+                'nok_name' => ['required', 'string', 'max:120'],
+                'nok_relationship' => ['required', 'string', 'max:40', 'in:'.implode(',', config('kin.relationships', []))],
+                'nok_phone' => ['required', 'string', 'max:20'],
+                'nok_region' => ['required', 'string', 'max:100'],
+                'nok_district' => ['required', 'string', 'max:100'],
+                'activity_type' => ['required', 'string', 'max:40'],
+                'activity_details' => ['nullable', 'array'],
+                'income_range' => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+                'guarantor_mode' => ['nullable', 'in:none,internal,external,previous'],
+                'internal_member_no' => ['nullable', 'string', 'max:40'],
+                'internal_guarantor_phone' => ['nullable', 'string', 'max:20'],
+                'internal_guarantor_name' => ['nullable', 'string', 'max:120'],
+                'external_first_name' => ['nullable', 'string', 'max:60'],
+                'external_middle_name' => ['nullable', 'string', 'max:60'],
+                'external_last_name' => ['nullable', 'string', 'max:60'],
+                'external_name' => ['nullable', 'string', 'max:120'],
+                'external_phone' => ['nullable', 'string', 'max:20'],
+                'external_email' => ['nullable', 'email', 'max:120'],
+                'external_relationship' => ['nullable', 'string', 'max:40'],
+                'external_region' => ['nullable', 'string', 'max:100'],
+                'external_district' => ['nullable', 'string', 'max:100'],
+                'external_channel' => ['nullable', 'in:sms,whatsapp,email'],
+                'external_invitation_id' => ['nullable', 'integer'],
+                'signer_name' => ['required', 'string', 'max:120'],
+                'signature_data' => ['required', 'string', 'starts_with:data:image/png;base64,'],
+                'consent' => ['accepted'],
+                'product_question' => ['nullable', 'array'],
+                'income_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'income_document_type' => ['nullable', 'in:bank,mobile_money'],
+                'asset_reservation_id' => ['nullable', 'integer', 'exists:asset_reservations,id'],
             ]);
         } catch (ValidationException $e) {
             $profileUrl = $requirements->profileActionUrlForValidationErrors($e->errors());
@@ -1869,9 +1912,9 @@ class ApplyController extends Controller
         }
 
         $maxTenure = (int) $loanProduct->tenure_max_months;
-        $gradeCustomer = Auth::user()->customer ?? \App\Models\Customer::where('user_id', Auth::id())->first();
+        $gradeCustomer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         if ($gradeCustomer) {
-            $cap = app(\App\Services\Grades\GradeBenefitService::class)->maxTenureMonths($gradeCustomer);
+            $cap = app(GradeBenefitService::class)->maxTenureMonths($gradeCustomer);
             if ($cap) {
                 $maxTenure = min($maxTenure, $cap);
             }
@@ -1951,45 +1994,45 @@ class ApplyController extends Controller
 
         if (! $customer->identity_locked) {
             $customer->fill([
-                'first_name'    => $data['first_name'],
-                'last_name'     => $data['last_name'],
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
                 'date_of_birth' => $data['date_of_birth'],
-                'gender'        => $data['gender'] ?? null,
-                'national_id'   => $data['national_id'],
+                'gender' => $data['gender'] ?? null,
+                'national_id' => $data['national_id'],
             ]);
         }
 
         $nokName = filled($data['nok_name'] ?? null)
             ? $data['nok_name']
-            : \App\Support\KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null);
+            : KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null);
 
         $customer->fill([
             'customer_number' => $customer->customer_number ?: 'C-'.strtoupper(Str::random(6)),
-            'type'            => 'individual',
-            'status'          => $customer->status ?: 'active',
-            'email'           => $customer->email ?: $user->email,
-            'phone'           => $customer->phone ?: $user->phone,
-            'region'          => $data['region'],
-            'district'        => $data['district'],
-            'ward'            => $data['ward'] ?? null,
-            'street'          => $data['street'],
-            'address'         => $addressLine,
-            'nok_first_name'  => $data['nok_first_name'] ?? $customer->nok_first_name,
+            'type' => 'individual',
+            'status' => $customer->status ?: 'active',
+            'email' => $customer->email ?: $user->email,
+            'phone' => $customer->phone ?: $user->phone,
+            'region' => $data['region'],
+            'district' => $data['district'],
+            'ward' => $data['ward'] ?? null,
+            'street' => $data['street'],
+            'address' => $addressLine,
+            'nok_first_name' => $data['nok_first_name'] ?? $customer->nok_first_name,
             'nok_middle_name' => $data['nok_middle_name'] ?? $customer->nok_middle_name,
-            'nok_last_name'   => $data['nok_last_name'] ?? $customer->nok_last_name,
-            'nok_name'        => $nokName,
-            'nok_relationship'=> $data['nok_relationship'],
-            'nok_phone'       => $data['nok_phone'],
-            'nok_region'      => $data['nok_region'],
-            'nok_district'    => $data['nok_district'],
-            'activity_type'   => $data['activity_type'],
-            'activity_details'=> filled($data['activity_details'] ?? null)
+            'nok_last_name' => $data['nok_last_name'] ?? $customer->nok_last_name,
+            'nok_name' => $nokName,
+            'nok_relationship' => $data['nok_relationship'],
+            'nok_phone' => $data['nok_phone'],
+            'nok_region' => $data['nok_region'],
+            'nok_district' => $data['nok_district'],
+            'activity_type' => $data['activity_type'],
+            'activity_details' => filled($data['activity_details'] ?? null)
                 ? $data['activity_details']
                 : ($customer->activity_details ?? []),
             'employment_type' => $data['activity_type'],
-            'income_range'    => normalize_income_range_key($data['income_range']) ?? $data['income_range'],
-            'monthly_income'  => config('income_ranges.'.(normalize_income_range_key($data['income_range']) ?? $data['income_range']).'.midpoint'),
-            'onboarded_at'    => $customer->onboarded_at ?: now(),
+            'income_range' => normalize_income_range_key($data['income_range']) ?? $data['income_range'],
+            'monthly_income' => config('income_ranges.'.(normalize_income_range_key($data['income_range']) ?? $data['income_range']).'.midpoint'),
+            'onboarded_at' => $customer->onboarded_at ?: now(),
         ])->save();
 
         $status = 'submitted';
@@ -2012,7 +2055,7 @@ class ApplyController extends Controller
         $feeStatus = $appFee <= 0 ? 'waived' : ($feeState['status'] ?? 'unpaid');
         $feeReference = $feeState['reference'] ?? null;
         $feeChannel = $feeState['channel'] ?? null;
-        $feePaidAt = isset($feeState['paid_at']) ? \Carbon\Carbon::parse($feeState['paid_at']) : ($feeStatus === 'paid' ? now() : null);
+        $feePaidAt = isset($feeState['paid_at']) ? Carbon::parse($feeState['paid_at']) : ($feeStatus === 'paid' ? now() : null);
 
         // CRB credit pull happens only after capacity/affordability pass (see below).
 
@@ -2035,36 +2078,36 @@ class ApplyController extends Controller
         }
 
         $applicationNumber = $referenceService->resolveApplicationReference($loanProduct, $draftReference);
-        $engagementBoosts = app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer);
+        $engagementBoosts = app(MemberEngagementRewardService::class)->underwritingBoosts($customer);
 
         $app = LoanApplication::create([
-            'customer_id'                => $customer->id,
-            'loan_product_id'            => $data['loan_product_id'],
-            'application_number'         => $applicationNumber,
-            'requested_amount'           => $data['requested_amount'],
-            'requested_tenure_months'    => $data['requested_tenure_months'],
-            'status'                     => $status,
-            'current_stage'              => 'screening',
-            'purpose'                    => $purposeStored,
-            'screening_payload'          => [
-                'product_code'      => $loanProduct->code,
+            'customer_id' => $customer->id,
+            'loan_product_id' => $data['loan_product_id'],
+            'application_number' => $applicationNumber,
+            'requested_amount' => $data['requested_amount'],
+            'requested_tenure_months' => $data['requested_tenure_months'],
+            'status' => $status,
+            'current_stage' => 'screening',
+            'purpose' => $purposeStored,
+            'screening_payload' => [
+                'product_code' => $loanProduct->code,
                 'product_questions' => array_filter($data['product_question'] ?? []),
-                'engagement'        => $engagementBoosts,
-                'purpose_key'       => $purposeKey !== '' ? $purposeKey : null,
-                'purpose_other'     => (is_loan_purpose_other($purposeKey) && $purposeOther !== '') ? $purposeOther : null,
+                'engagement' => $engagementBoosts,
+                'purpose_key' => $purposeKey !== '' ? $purposeKey : null,
+                'purpose_other' => (is_loan_purpose_other($purposeKey) && $purposeOther !== '') ? $purposeOther : null,
             ],
-            'engagement_priority'        => (int) ($engagementBoosts['processing_priority'] ?? 0),
-            'registration_fee_amount'    => 0,
-            'registration_fee_status'    => 'waived',
-            'registration_fee_channel'   => null,
+            'engagement_priority' => (int) ($engagementBoosts['processing_priority'] ?? 0),
+            'registration_fee_amount' => 0,
+            'registration_fee_status' => 'waived',
+            'registration_fee_channel' => null,
             'registration_fee_reference' => null,
-            'registration_fee_paid_at'   => null,
-            'application_fee_amount'     => $appFee,
-            'application_fee_status'     => $feeStatus === 'pending' ? 'pending' : ($feeStatus === 'paid' || $feeStatus === 'waived' ? 'paid' : 'unpaid'),
-            'application_fee_reference'  => $feeReference,
-            'application_fee_channel'    => $feeChannel,
-            'application_fee_paid_at'    => $feePaidAt,
-            'submitted_at'               => $submittedAt,
+            'registration_fee_paid_at' => null,
+            'application_fee_amount' => $appFee,
+            'application_fee_status' => $feeStatus === 'pending' ? 'pending' : ($feeStatus === 'paid' || $feeStatus === 'waived' ? 'paid' : 'unpaid'),
+            'application_fee_reference' => $feeReference,
+            'application_fee_channel' => $feeChannel,
+            'application_fee_paid_at' => $feePaidAt,
+            'submitted_at' => $submittedAt,
         ]);
 
         if ($request->filled('asset_reservation_id')) {
@@ -2079,11 +2122,11 @@ class ApplyController extends Controller
         if ($isAssetBackedProduct) {
             app(AssetBackedApplyService::class)->persistOnSubmit($app, array_merge($draftPayload, [
                 'form' => array_merge($draftPayload['form'] ?? [], [
-                    'customer_asset_id'       => $data['customer_asset_id'] ?? ($draftPayload['form']['customer_asset_id'] ?? null),
-                    'customer_asset_ids'      => $data['customer_asset_ids'] ?? ($draftPayload['form']['customer_asset_ids'] ?? null),
-                    'asset_type'              => $data['asset_type'] ?? ($draftPayload['form']['asset_type'] ?? null),
-                    'asset_description'       => $data['asset_description'] ?? ($draftPayload['form']['asset_description'] ?? null),
-                    'requested_amount'        => $data['requested_amount'],
+                    'customer_asset_id' => $data['customer_asset_id'] ?? ($draftPayload['form']['customer_asset_id'] ?? null),
+                    'customer_asset_ids' => $data['customer_asset_ids'] ?? ($draftPayload['form']['customer_asset_ids'] ?? null),
+                    'asset_type' => $data['asset_type'] ?? ($draftPayload['form']['asset_type'] ?? null),
+                    'asset_description' => $data['asset_description'] ?? ($draftPayload['form']['asset_description'] ?? null),
+                    'requested_amount' => $data['requested_amount'],
                     'requested_tenure_months' => $data['requested_tenure_months'],
                 ]),
             ]));
@@ -2112,20 +2155,20 @@ class ApplyController extends Controller
 
         ApplicationSignature::create([
             'loan_application_id' => $app->id,
-            'signer_type'         => 'borrower',
-            'signer_name'         => $customer->full_name ?: $data['signer_name'],
-            'signature_data'      => $data['signature_data'],
-            'signed_at'           => now(),
+            'signer_type' => 'borrower',
+            'signer_name' => $customer->full_name ?: $data['signer_name'],
+            'signature_data' => $data['signature_data'],
+            'signed_at' => now(),
         ]);
 
         if ($request->hasFile('income_document')) {
             $incomeType = DocumentType::firstOrCreate(
                 ['code' => 'income_statement'],
                 [
-                    'name'       => 'Income statement (6 months)',
-                    'category'   => 'kyc',
+                    'name' => 'Income statement (6 months)',
+                    'category' => 'kyc',
                     'applies_to' => 'individual',
-                    'is_active'  => true,
+                    'is_active' => true,
                 ]
             );
 
@@ -2135,18 +2178,18 @@ class ApplyController extends Controller
             );
 
             CustomerDocument::create([
-                'customer_id'         => $customer->id,
-                'loan_application_id'   => $app->id,
-                'document_type_id'      => $incomeType->id,
-                'file_path'             => $path,
-                'status'                => 'pending',
+                'customer_id' => $customer->id,
+                'loan_application_id' => $app->id,
+                'document_type_id' => $incomeType->id,
+                'file_path' => $path,
+                'status' => 'pending',
             ]);
         }
 
         if ($guarantorRequired && ($data['guarantor_mode'] ?? 'none') !== 'none') {
             try {
                 if (($data['guarantor_mode'] ?? '') === 'internal') {
-                    $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
+                    $memberKey = MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
                     $inviteId = (int) ($data['internal_invitation_id']
                         ?? ($draft?->payload['internal_guarantor']['invitation_id'] ?? 0));
                     if ($inviteId > 0) {
@@ -2192,12 +2235,12 @@ class ApplyController extends Controller
         $guarantorPending = $guarantorRequired
             && ! $guarantors->hasReadyGuarantor($app);
 
-        if ($guarantorPending && app(\App\Services\UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
+        if ($guarantorPending && app(UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
             // Hold outside credit screening until guarantor accepts + completes profile.
             // CRB pull waits until release + capacity pass.
-            app(\App\Services\GuarantorDeadlineService::class)->markAwaiting($app->fresh());
+            app(GuarantorDeadlineService::class)->markAwaiting($app->fresh());
         } else {
-            app(\App\Services\CapacityAutoRejectService::class)->evaluateAndPark($app->fresh(['customer', 'product']));
+            app(CapacityAutoRejectService::class)->evaluateAndPark($app->fresh(['customer', 'product']));
             $crbCredit->pullAndAttachAfterCapacityPass(
                 $app->fresh(['customer', 'product']),
                 ($isGroupProduct && $groupData) ? $groupData['members'] : null,
@@ -2211,8 +2254,8 @@ class ApplyController extends Controller
 
         $this->auditBorrower('application.submitted', $app, [
             'product_id' => $loanProduct->id,
-            'amount'     => $app->requested_amount,
-            'status'     => $app->status,
+            'amount' => $app->requested_amount,
+            'status' => $app->status,
         ]);
 
         if ($customer) {
@@ -2224,7 +2267,7 @@ class ApplyController extends Controller
             $redirect->with('show_guarantor_remind_modal', 1);
         }
 
-        return \App\Support\Celebration::with($redirect, 'loan_submitted');
+        return Celebration::with($redirect, 'loan_submitted');
     }
 
     public function success(LoanApplication $application): View
@@ -2287,7 +2330,7 @@ class ApplyController extends Controller
             ->where('customer_id', $customer->id)
             ->findOrFail((int) $request->input('supplement_application_id'));
 
-        $supplements = app(\App\Services\GuarantorSupplementService::class);
+        $supplements = app(GuarantorSupplementService::class);
         if (! $supplements->hasOpenRequest($application)) {
             return redirect()
                 ->route('site.borrower.application', $application)
@@ -2303,7 +2346,7 @@ class ApplyController extends Controller
                 ->with('show_profile_gate', true);
         }
 
-        $identityPolicy = app(\App\Services\IdentityVerificationPolicyService::class);
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
         if (($identityPolicy->requiredDuringProfileCreation()
                 && $identityPolicy->facialRequired()
                 && ! $faces->profileStepComplete($customer))
@@ -2319,7 +2362,7 @@ class ApplyController extends Controller
 
         try {
             if ($mode === 'internal' || $mode === 'previous') {
-                $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
+                $memberKey = MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
                 if (! $memberKey || blank($data['internal_guarantor_name'] ?? null)) {
                     throw new \InvalidArgumentException(__('borrower.apply.alerts.select_guarantor'));
                 }
@@ -2378,13 +2421,13 @@ class ApplyController extends Controller
 
     private function paymentBankAccountsForProduct(?LoanProduct $product, ?string $reference): array
     {
-        $ref = $reference ?? app(\App\Services\CustomerPaymentService::class)->generateReference();
+        $ref = $reference ?? app(CustomerPaymentService::class)->generateReference();
 
-        return app(\App\Services\PaymentAccountService::class)
+        return app(PaymentAccountService::class)
             ->bankAccountsForDisplay('application_fee', $ref, $product);
     }
 
-    private function mergeDraftIntoSubmitRequest(Request $request, ?\App\Models\LoanApplicationDraft $draft): void
+    private function mergeDraftIntoSubmitRequest(Request $request, ?LoanApplicationDraft $draft): void
     {
         if (! $draft) {
             return;
@@ -2435,7 +2478,7 @@ class ApplyController extends Controller
         $storedSignature = $payload['borrower_signature'] ?? null;
         if ($storedSignature && ! $request->filled('signature_data')) {
             $request->merge([
-                'signer_name'    => $storedSignature['signer_name'] ?? '',
+                'signer_name' => $storedSignature['signer_name'] ?? '',
                 'signature_data' => $storedSignature['signature_data'] ?? '',
             ]);
         }
@@ -2445,13 +2488,13 @@ class ApplyController extends Controller
         }
     }
 
-    private function wizardSubmitRedirect(Request $request, ?\App\Models\LoanApplicationDraft $draft): RedirectResponse
+    private function wizardSubmitRedirect(Request $request, ?LoanApplicationDraft $draft): RedirectResponse
     {
         $productId = (int) ($request->input('loan_product_id') ?: $draft?->loan_product_id ?: 0);
 
         return redirect()->route('site.borrower.apply', array_filter([
-            'product'  => $productId ?: null,
-            'resume'   => 1,
+            'product' => $productId ?: null,
+            'resume' => 1,
             'step_key' => 'submit',
         ]));
     }
@@ -2459,7 +2502,7 @@ class ApplyController extends Controller
     private function findExistingSubmittedApplication(
         Customer $customer,
         LoanProduct $loanProduct,
-        ?\App\Models\LoanApplicationDraft $draft,
+        ?LoanApplicationDraft $draft,
     ): ?LoanApplication {
         $draftReference = $draft?->draft_reference;
 

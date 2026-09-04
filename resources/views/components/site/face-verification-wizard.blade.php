@@ -106,11 +106,10 @@
             <div class="min-w-0 max-w-md">
                 <x-site.brand-mark size="sm" variant="light" />
                 <div class="mt-3 rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
-                    <p class="text-[11px] uppercase tracking-widest text-brand-gold"
-                       x-text="@js(__('borrower.face_verification_page.step_of', ['current' => '__C__', 'total' => '__T__'])).replace('__C__', String(stepIndex + 1)).replace('__T__', String(steps.length))"></p>
-                    <p class="text-sm font-semibold mt-1" x-text="guideTitle"></p>
-                    <p class="text-xs text-white/80 mt-1">{{ __('borrower.face_verification_page.oval_hint') }}</p>
-                    <p class="text-[11px] text-white/70 mt-2">{{ __('borrower.profile.selfie_front_only') }}</p>
+                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-bold"
+                       x-text="@js(__('borrower.face_verification_page.shot_of', ['current' => '__C__', 'total' => '__T__'])).replace('__C__', String(stepIndex + 1)).replace('__T__', String(steps.length))"></p>
+                    <p class="text-2xl font-extrabold mt-1.5 leading-tight" x-text="guideTitle"></p>
+                    <p class="text-sm text-white/85 mt-2">{{ __('borrower.face_verification_page.oval_hint') }}</p>
                 </div>
             </div>
             <button type="button" @click="cancelScan()" class="shrink-0 text-xs font-semibold text-white/90 bg-white/15 ring-1 ring-white/25 px-3 py-2 rounded-full">{{ __('borrower.face_verification_page.cancel') }}</button>

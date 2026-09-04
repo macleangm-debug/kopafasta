@@ -95,6 +95,14 @@
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false, profileSheet:false, plusMoreOpen:false}">
+<x-site.kopafasta-launcher />
+<script>
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+</script>
 
 @if (session('feedback') || session('status') || session('warning') || session('error'))
     <div class="sr-only" aria-hidden="true"

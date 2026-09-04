@@ -11,7 +11,7 @@
     $ctaUrl = match (true) {
         ! $isAvailable => '#',
         $isMarketplace => route('site.borrower.marketplace'),
-        default => route('site.borrower.apply', ['product' => $product->id]),
+        default => route('site.borrower.apply', ['product' => $product->id, 'intent' => 'apply']),
     };
     $ctaLabel = match ($status) {
         'coming_soon' => __('borrower.dashboard.product_coming_soon'),

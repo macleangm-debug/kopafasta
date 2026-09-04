@@ -3,25 +3,41 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
+use App\Models\CountryWaitlistRequest;
 use App\Models\Customer;
 use App\Models\Lender;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Rules\FourDigitPin;
-use App\Rules\ValidNationalId;
-use App\Support\NationalIdValidator;
-use App\Support\PhoneNumber;
+use App\Services\AffiliateAttributionService;
+use App\Services\AffiliateService;
+use App\Services\BranchService;
+use App\Services\CountrySettingsService;
+use App\Services\GroupMemberOnboardingService;
+use App\Services\GuarantorOnboardingService;
+use App\Services\KopafastaLaunchService;
+use App\Services\MembershipService;
+use App\Services\NidaVerificationService;
 use App\Services\NotificationService;
+use App\Services\PartnerEnrollmentService;
+use App\Services\PartnerPortalRedirectService;
+use App\Services\PartnerWelcomeService;
+use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
+use App\Services\PortalOnboardingResumeService;
 use App\Services\ReferralService;
 use App\Services\TrustedDeviceService;
 use App\Services\TurnstileService;
 use App\Services\WebLoginThrottle;
 use App\Services\WebTwoFactorAuthService;
+use App\Support\Celebration;
+use App\Support\NationalIdValidator;
+use App\Support\NidaNumber;
+use App\Support\PhoneNumber;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -93,11 +109,11 @@ class AuthController extends Controller
     public function loginWithPin(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'phone'        => ['required', 'string', 'max:20'],
-            'phone_local'  => ['nullable', 'string', 'max:20'],
-            'pin'          => ['required', 'string', new FourDigitPin],
+            'phone' => ['required', 'string', 'max:20'],
+            'phone_local' => ['nullable', 'string', 'max:20'],
+            'pin' => ['required', 'string', new FourDigitPin],
             'partner_code' => ['nullable', 'string', 'max:50'],
-            'remember'     => ['nullable', 'boolean'],
+            'remember' => ['nullable', 'boolean'],
             'trust_device' => ['nullable', 'boolean'],
         ]);
 
@@ -154,7 +170,7 @@ class AuthController extends Controller
             $code = strtoupper(trim($data['partner_code']));
 
             if ($user->role === 'investor') {
-                $lender = \App\Models\Lender::query()
+                $lender = Lender::query()
                     ->where('user_id', $user->id)
                     ->where('code', $code)
                     ->first();
@@ -165,7 +181,7 @@ class AuthController extends Controller
                         ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code']]);
                 }
             } else {
-                $vendor = \App\Models\Vendor::query()
+                $vendor = Vendor::query()
                     ->where('user_id', $user->id)
                     ->where('partner_number', $code)
                     ->first();
@@ -182,7 +198,7 @@ class AuthController extends Controller
                 }
             }
         } elseif ($user->role === 'vendor') {
-            $vendor = \App\Models\Vendor::query()->where('user_id', $user->id)->first();
+            $vendor = Vendor::query()->where('user_id', $user->id)->first();
             if ($vendor && ! $vendor->activated_at) {
                 return redirect()->route('site.partner.start')
                     ->with('warning', 'Complete partner activation before signing in.');
@@ -195,9 +211,9 @@ class AuthController extends Controller
     public function loginWithPassword(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'login'        => ['required', 'string'],
-            'password'     => ['required', 'string'],
-            'remember'     => ['nullable', 'boolean'],
+            'login' => ['required', 'string'],
+            'password' => ['required', 'string'],
+            'remember' => ['nullable', 'boolean'],
             'trust_device' => ['nullable', 'boolean'],
         ]);
 
@@ -246,7 +262,7 @@ class AuthController extends Controller
         return $this->completeWebLogin($user, $request, $login, (bool) ($data['trust_device'] ?? false));
     }
 
-    public function showSetupPin(\App\Services\PinRecoveryChallengeService $recovery): View|RedirectResponse
+    public function showSetupPin(PinRecoveryChallengeService $recovery): View|RedirectResponse
     {
         $user = Auth::user();
         if ($user->role !== 'borrower') {
@@ -273,7 +289,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function storeSetupPin(Request $request, \App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
+    public function storeSetupPin(Request $request, PinRecoveryChallengeService $recovery): RedirectResponse
     {
         $user = Auth::user();
         abort_unless($user && $user->role === 'borrower', 403);
@@ -326,19 +342,19 @@ class AuthController extends Controller
 
     private function redirectAfterPinSetup(Request $request, $user): RedirectResponse
     {
-        if ($user->customer && ($guarantorRedirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer))) {
+        if ($user->customer && ($guarantorRedirect = app(PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer))) {
             return $guarantorRedirect;
         }
 
         if ($returnUrl = $request->session()->pull('login_redirect')) {
             return redirect($returnUrl)
                 ->with('status', __('site.auth.pin_recovery.setup_done'))
-                ->with(\App\Support\Celebration::SESSION_KEY, ['registration']);
+                ->with(Celebration::SESSION_KEY, ['registration']);
         }
 
         return redirect()->route('site.borrower.dashboard')
             ->with('status', __('borrower.membership.pin_ready_browse'))
-            ->with(\App\Support\Celebration::SESSION_KEY, ['registration']);
+            ->with(Celebration::SESSION_KEY, ['registration']);
     }
 
     public function showForgotPin(Request $request): View
@@ -368,7 +384,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function startPinRecovery(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
+    public function startPinRecovery(Request $request, PinRecoveryChallengeService $challenge): RedirectResponse
     {
         app(TurnstileService::class)->assertHuman($request);
 
@@ -435,7 +451,7 @@ class AuthController extends Controller
             ->withInput(['phone' => $phone, 'step' => 2, 'mode' => 'kba']);
     }
 
-    public function verifyPinRecoveryAnswers(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
+    public function verifyPinRecoveryAnswers(Request $request, PinRecoveryChallengeService $challenge): RedirectResponse
     {
         $data = $request->validate([
             'token' => ['required', 'string'],
@@ -504,7 +520,7 @@ class AuthController extends Controller
             ]);
     }
 
-    public function resetPinWithChallenge(Request $request, \App\Services\PinRecoveryChallengeService $challenge): RedirectResponse
+    public function resetPinWithChallenge(Request $request, PinRecoveryChallengeService $challenge): RedirectResponse
     {
         $data = $request->validate([
             'token' => ['required', 'string'],
@@ -540,7 +556,7 @@ class AuthController extends Controller
         $user->forceFill(['locked_until' => null])->save();
 
         if ($user->customer) {
-            app(\App\Services\NotificationService::class)->notifyInApp(
+            app(NotificationService::class)->notifyInApp(
                 $user->customer,
                 __('site.auth.pin_recovery.success'),
                 'security',
@@ -571,7 +587,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function swapSetupPinQuestion(Request $request, \App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
+    public function swapSetupPinQuestion(Request $request, PinRecoveryChallengeService $recovery): RedirectResponse
     {
         $user = Auth::user();
         abort_unless($user && $user->role === 'borrower', 403);
@@ -622,6 +638,8 @@ class AuthController extends Controller
 
         $request->session()->forget('login_portal');
 
+        app(KopafastaLaunchService::class)->arm($request);
+
         $trusted = $this->trustedDevices->extractToken($request);
         if ($trusted && ($device = $this->trustedDevices->find($user, $trusted))) {
             $this->trustedDevices->touch($device);
@@ -639,7 +657,7 @@ class AuthController extends Controller
         }
 
         if ($user->role === 'borrower' && $user->customer) {
-            if ($guarantorRedirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer)) {
+            if ($guarantorRedirect = app(PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer)) {
                 return $guarantorRedirect;
             }
         }
@@ -651,7 +669,7 @@ class AuthController extends Controller
         }
 
         if ($user->role === 'vendor') {
-            app(\App\Services\PartnerWelcomeService::class)->sendIfFirstLogin($user);
+            app(PartnerWelcomeService::class)->sendIfFirstLogin($user);
         }
 
         return $response;
@@ -680,7 +698,7 @@ class AuthController extends Controller
         }
 
         $customer = $user->customer;
-        $nida = app(\App\Services\NidaVerificationService::class);
+        $nida = app(NidaVerificationService::class);
 
         if ($customer && $nida->isLocked($customer)) {
             $message = $nida->lockMessage($customer) ?? __('borrower.nida.result.locked_default');
@@ -741,7 +759,7 @@ class AuthController extends Controller
 
         $suffix = substr($digits, -9);
 
-        $partner = \App\Models\Vendor::query()
+        $partner = Vendor::query()
             ->whereNotNull('user_id')
             ->where(function ($query) use ($phone, $digits, $suffix) {
                 $query->where('phone', $phone)
@@ -806,14 +824,14 @@ class AuthController extends Controller
             session(['affiliate_code' => strtoupper(trim($code))]);
         }
 
-        app(\App\Services\AffiliateAttributionService::class)->mergeIntoSession($request);
+        app(AffiliateAttributionService::class)->mergeIntoSession($request);
 
         if ($redirect = $request->query('redirect')) {
             $request->session()->put('login_redirect', $redirect);
         }
 
-        $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
-        $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
+        $guarantorOnboarding = app(GuarantorOnboardingService::class);
+        $groupOnboarding = app(GroupMemberOnboardingService::class);
         $groupOnboarding->seedInvitationFromQuery($request);
 
         $guarantorInvitation = $guarantorOnboarding->invitationFromSession($request);
@@ -823,23 +841,23 @@ class AuthController extends Controller
             ?? $groupOnboarding->registrationPrefill($groupInvitation);
         $isGroupInviteRegistration = $groupInvitation !== null && $guarantorInvitation === null;
 
-        $registrationCountries = app(\App\Services\CountrySettingsService::class)->forRegistration();
-        $defaultCountry = app(\App\Services\CountrySettingsService::class)->defaultCountryCode();
+        $registrationCountries = app(CountrySettingsService::class)->forRegistration();
+        $defaultCountry = app(CountrySettingsService::class)->defaultCountryCode();
         $defaultDialPrefix = collect($registrationCountries)->firstWhere('code', $defaultCountry)['prefix'] ?? '+255';
 
         return view('site.auth.register-borrower', [
-            'referralCode'            => $request->query('ref'),
-            'affiliateCode'           => $request->query('aff') ?? session('affiliate_code'),
-            'guarantorRegistration'   => $guarantorRegistration,
+            'referralCode' => $request->query('ref'),
+            'affiliateCode' => $request->query('aff') ?? session('affiliate_code'),
+            'guarantorRegistration' => $guarantorRegistration,
             'isGuarantorRegistration' => $guarantorRegistration !== null && ! $isGroupInviteRegistration,
             'isGroupInviteRegistration' => $isGroupInviteRegistration,
-            'registrationCountries'   => $registrationCountries,
-            'defaultCountry'          => $defaultCountry,
-            'defaultDialPrefix'       => $defaultDialPrefix,
+            'registrationCountries' => $registrationCountries,
+            'defaultCountry' => $defaultCountry,
+            'defaultDialPrefix' => $defaultDialPrefix,
         ]);
     }
 
-    public function checkBorrowerPhone(Request $request): \Illuminate\Http\JsonResponse
+    public function checkBorrowerPhone(Request $request): JsonResponse
     {
         $data = $request->validate([
             'phone' => ['required', 'string', 'max:20'],
@@ -853,7 +871,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $userTaken = \App\Models\User::query()
+        $userTaken = User::query()
             ->where('role', 'borrower')
             ->where(function ($query) use ($data, $phoneDigits) {
                 $query->where('phone', $data['phone'])
@@ -862,7 +880,7 @@ class AuthController extends Controller
             })
             ->exists();
 
-        $customerTaken = \App\Models\Customer::query()
+        $customerTaken = Customer::query()
             ->where(function ($query) use ($data, $phoneDigits) {
                 $query->where('phone', $data['phone'])
                     ->orWhere('phone', $phoneDigits)
@@ -888,8 +906,8 @@ class AuthController extends Controller
     {
         app(TurnstileService::class)->assertHuman($request);
 
-        $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
-        $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
+        $guarantorOnboarding = app(GuarantorOnboardingService::class);
+        $groupOnboarding = app(GroupMemberOnboardingService::class);
 
         $guarantorInvitation = $guarantorOnboarding->invitationFromSession($request);
         $groupInvitation = $guarantorInvitation ? null : $groupOnboarding->invitationFromSession($request);
@@ -898,27 +916,27 @@ class AuthController extends Controller
             ?? $groupOnboarding->registrationPrefill($groupInvitation);
         $isGuarantorRegistration = $guarantorPrefill !== null;
 
-        $countryService = app(\App\Services\CountrySettingsService::class);
+        $countryService = app(CountrySettingsService::class);
         $activeCountryCodes = collect($countryService->forRegistration())
             ->where('active', true)
             ->pluck('code')
             ->all();
 
         $rules = [
-            'country'       => ['required', 'string', 'in:'.implode(',', $activeCountryCodes)],
-            'first_name'    => ['required', 'string', 'max:60'],
-            'middle_name'   => ['nullable', 'string', 'max:60'],
-            'last_name'     => ['required', 'string', 'max:60'],
-            'gender'        => ['required', 'in:male,female'],
-            'phone'         => [
+            'country' => ['required', 'string', 'in:'.implode(',', $activeCountryCodes)],
+            'first_name' => ['required', 'string', 'max:60'],
+            'middle_name' => ['nullable', 'string', 'max:60'],
+            'last_name' => ['required', 'string', 'max:60'],
+            'gender' => ['required', 'in:male,female'],
+            'phone' => [
                 'required',
                 'string',
                 'max:20',
             ],
-            'password'      => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'referral_code' => ['nullable', 'string', 'max:32'],
-            'affiliate_code'=> ['nullable', 'string', 'max:32'],
-            'promo_code'    => ['nullable', 'string', 'max:40'],
+            'affiliate_code' => ['nullable', 'string', 'max:32'],
+            'promo_code' => ['nullable', 'string', 'max:40'],
         ];
 
         if ($isGuarantorRegistration) {
@@ -928,7 +946,7 @@ class AuthController extends Controller
         $data = $request->validate($rules);
 
         $phoneDigits = preg_replace('/\D/', '', $data['phone']);
-        $phoneTaken = \App\Models\User::query()
+        $phoneTaken = User::query()
             ->where('role', 'borrower')
             ->where(function ($query) use ($data, $phoneDigits) {
                 $query->where('phone', $data['phone'])
@@ -936,7 +954,7 @@ class AuthController extends Controller
                     ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
             })
             ->exists()
-            || \App\Models\Customer::query()
+            || Customer::query()
                 ->where(function ($query) use ($data, $phoneDigits) {
                     $query->where('phone', $data['phone'])
                         ->orWhere('phone', $phoneDigits)
@@ -980,49 +998,49 @@ class AuthController extends Controller
             $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
 
             $user = User::create([
-                'name'      => $fullName,
-                'email'     => $email,
-                'phone'     => $data['phone'],
-                'password'  => Hash::make($data['password']),
-                'role'      => 'borrower',
+                'name' => $fullName,
+                'email' => $email,
+                'phone' => $data['phone'],
+                'password' => Hash::make($data['password']),
+                'role' => 'borrower',
                 'is_active' => true,
             ]);
 
             $customer = Customer::create([
-                'user_id'         => $user->id,
+                'user_id' => $user->id,
                 'customer_number' => 'C-'.strtoupper(Str::random(6)),
-                'type'            => 'individual',
-                'status'          => 'active',
-                'branch_id'       => app(\App\Services\BranchService::class)->headOfficeId(),
-                'country_code'    => strtoupper($data['country']),
-                'first_name'      => $data['first_name'],
-                'middle_name'     => $data['middle_name'] ?? null,
-                'last_name'       => $data['last_name'],
-                'gender'          => $data['gender'],
-                'national_id'     => filled($data['national_id'] ?? null)
-                    ? (NationalIdValidator::format($data['national_id'], $data['country']) ?? \App\Support\NidaNumber::format($data['national_id']))
+                'type' => 'individual',
+                'status' => 'active',
+                'branch_id' => app(BranchService::class)->headOfficeId(),
+                'country_code' => strtoupper($data['country']),
+                'first_name' => $data['first_name'],
+                'middle_name' => $data['middle_name'] ?? null,
+                'last_name' => $data['last_name'],
+                'gender' => $data['gender'],
+                'national_id' => filled($data['national_id'] ?? null)
+                    ? (NationalIdValidator::format($data['national_id'], $data['country']) ?? NidaNumber::format($data['national_id']))
                     : null,
-                'date_of_birth'   => null,
-                'email'           => null,
-                'phone'           => $data['phone'],
-                'onboarded_at'    => now(),
+                'date_of_birth' => null,
+                'email' => null,
+                'phone' => $data['phone'],
+                'onboarded_at' => now(),
             ]);
 
-            app(\App\Services\BranchService::class)->assignDefault($customer);
-            app(\App\Services\MembershipService::class)->ensureMemberNumber($customer);
+            app(BranchService::class)->assignDefault($customer);
+            app(MembershipService::class)->ensureMemberNumber($customer);
 
             $referrals->attachReferrerFromSession($customer, $request);
             if (blank($customer->fresh()->referred_by_customer_id)) {
                 $referrals->attachReferrer($customer, $data['referral_code'] ?? null);
             }
             $referrals->ensureCode($customer);
-            app(\App\Services\AffiliateService::class)->attachAffiliate(
+            app(AffiliateService::class)->attachAffiliate(
                 $customer,
                 $data['affiliate_code'] ?? session('affiliate_code'),
                 $request
             );
 
-            $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
+            $guarantorOnboarding = app(GuarantorOnboardingService::class);
             if ($token = request()->session()->get('guarantor_invite_token')) {
                 $invitation = $guarantorOnboarding->findByToken($token);
                 if ($invitation) {
@@ -1030,7 +1048,7 @@ class AuthController extends Controller
                 }
             }
 
-            $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
+            $groupOnboarding = app(GroupMemberOnboardingService::class);
             if ($token = request()->session()->get('group_member_invite_token')) {
                 $invitation = $groupOnboarding->findByToken($token);
                 if ($invitation) {
@@ -1044,7 +1062,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        $defaultLocale = app(\App\Services\CountrySettingsService::class)->defaultLocale($data['country']);
+        $defaultLocale = app(CountrySettingsService::class)->defaultLocale($data['country']);
         $request->session()->put('locale', $defaultLocale);
         app()->setLocale($defaultLocale);
         $prefs = $user->preferences ?? [];
@@ -1052,8 +1070,8 @@ class AuthController extends Controller
         $user->preferences = $prefs;
         $user->save();
 
-        $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
-        $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
+        $guarantorOnboarding = app(GuarantorOnboardingService::class);
+        $groupOnboarding = app(GroupMemberOnboardingService::class);
         if ($user->customer && ($invitation = $guarantorOnboarding->pendingInvitationForCustomer($user->customer))) {
             $guarantorOnboarding->rememberInvitation($request, $invitation);
         } elseif ($user->customer && ($invitation = $groupOnboarding->pendingInvitationForCustomer($user->customer))) {
@@ -1099,14 +1117,14 @@ class AuthController extends Controller
 
         $data = $request->validate([
             'country' => ['required', 'string', 'in:TZ,KE,UG,RW,BI,SS'],
-            'email'   => ['required', 'email'],
-            'phone'   => ['nullable', 'string', 'max:20'],
-            'step'    => ['nullable', 'integer'],
+            'email' => ['required', 'email'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'step' => ['nullable', 'integer'],
         ]);
 
-        \App\Models\CountryWaitlistRequest::updateOrCreate([
+        CountryWaitlistRequest::updateOrCreate([
             'country_code' => $data['country'],
-            'email'        => strtolower($data['email']),
+            'email' => strtolower($data['email']),
         ], [
             'phone' => $data['phone'] ?? null,
         ]);
@@ -1131,35 +1149,35 @@ class AuthController extends Controller
         app(TurnstileService::class)->assertHuman($request);
 
         $data = $request->validate([
-            'name'       => ['required', 'string', 'max:120'],
-            'category'   => ['required', 'string', 'in:gps_installer,insurance,valuer,yard,debt_collector,supplier,auctioneer,legal_partner,call_center,towing'],
-            'email'      => ['required', 'email', 'unique:users,email'],
-            'phone'      => ['required', 'string', 'max:20'],
-            'address'    => ['nullable', 'string', 'max:255'],
-            'password'   => ['required', 'string', 'min:8', 'confirmed'],
+            'name' => ['required', 'string', 'max:120'],
+            'category' => ['required', 'string', 'in:gps_installer,insurance,valuer,yard,debt_collector,supplier,auctioneer,legal_partner,call_center,towing'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:20'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $data['category'] = app(\App\Services\PartnerEnrollmentService::class)->normalizeCategory($data['category']);
+        $data['category'] = app(PartnerEnrollmentService::class)->normalizeCategory($data['category']);
 
         $user = DB::transaction(function () use ($data) {
             $user = User::create([
-                'name'      => $data['name'],
-                'email'     => $data['email'],
-                'phone'     => $data['phone'],
-                'password'  => Hash::make($data['password']),
-                'role'      => 'vendor',
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'password' => Hash::make($data['password']),
+                'role' => 'vendor',
                 'is_active' => true,
             ]);
 
             Vendor::create([
-                'user_id'       => $user->id,
+                'user_id' => $user->id,
                 'vendor_number' => 'V-'.strtoupper(Str::random(6)),
-                'name'          => $data['name'],
-                'category'      => $data['category'],
-                'phone'         => $data['phone'],
-                'email'         => $data['email'],
-                'address'       => $data['address'] ?? null,
-                'status'        => 'pending',
+                'name' => $data['name'],
+                'category' => $data['category'],
+                'phone' => $data['phone'],
+                'email' => $data['email'],
+                'address' => $data['address'] ?? null,
+                'status' => 'pending',
             ]);
 
             return $user;
@@ -1175,9 +1193,9 @@ class AuthController extends Controller
     {
         return match ($user->role) {
             'borrower' => redirect()->route('site.borrower.dashboard'),
-            'vendor'   => redirect()->to(app(\App\Services\PartnerPortalRedirectService::class)->homeUrl($user)),
+            'vendor' => redirect()->to(app(PartnerPortalRedirectService::class)->homeUrl($user)),
             'investor' => redirect()->route('site.investor.dashboard'),
-            default    => redirect()->route('admin.dashboard'),
+            default => redirect()->route('admin.dashboard'),
         };
     }
 
@@ -1193,7 +1211,7 @@ class AuthController extends Controller
     private function partnerTwoFactorGate(User $user, Request $request): ?RedirectResponse
     {
         $twoFactor = app(WebTwoFactorAuthService::class);
-        $redirectTo = app(\App\Services\PartnerPortalRedirectService::class)->homeUrl($user);
+        $redirectTo = app(PartnerPortalRedirectService::class)->homeUrl($user);
 
         if ($twoFactor->mustEnroll($user, 'partner')) {
             $twoFactor->storePendingLogin($request, $user, 'web', 'partner', $redirectTo, $request->boolean('remember'));
@@ -1220,37 +1238,37 @@ class AuthController extends Controller
         app(TurnstileService::class)->assertHuman($request);
 
         $data = $request->validate([
-            'name'           => ['required', 'string', 'max:120'],
-            'type'           => ['required', 'in:individual,institution,fund'],
-            'email'          => ['required', 'email', 'unique:users,email'],
-            'phone'          => ['required', 'string', 'max:20'],
-            'address'        => ['nullable', 'string', 'max:255'],
-            'password'       => ['required', 'string', 'min:8', 'confirmed'],
+            'name' => ['required', 'string', 'max:120'],
+            'type' => ['required', 'in:individual,institution,fund'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:20'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
         $user = DB::transaction(function () use ($data) {
             $user = User::create([
-                'name'      => $data['name'],
-                'email'     => $data['email'],
-                'phone'     => $data['phone'],
-                'password'  => Hash::make($data['password']),
-                'role'      => 'investor',
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'password' => Hash::make($data['password']),
+                'role' => 'investor',
                 'is_active' => true,
             ]);
 
             Lender::create([
-                'user_id'           => $user->id,
-                'code'              => 'INV-'.strtoupper(Str::random(6)),
-                'name'              => $data['name'],
-                'type'              => $data['type'],
-                'contact_person'    => $data['name'],
-                'email'             => $data['email'],
-                'phone'             => $data['phone'],
-                'address'           => $data['address'] ?? null,
-                'credit_limit'      => 0,
+                'user_id' => $user->id,
+                'code' => 'INV-'.strtoupper(Str::random(6)),
+                'name' => $data['name'],
+                'type' => $data['type'],
+                'contact_person' => $data['name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'address' => $data['address'] ?? null,
+                'credit_limit' => 0,
                 'available_balance' => 0,
-                'risk_preference'   => 'medium',
-                'status'            => 'active',
+                'risk_preference' => 'medium',
+                'status' => 'active',
             ]);
 
             return $user;
@@ -1272,53 +1290,53 @@ class AuthController extends Controller
         app(TurnstileService::class)->assertHuman($request);
 
         $data = $request->validate([
-            'organization'    => ['required', 'string', 'max:160'],
-            'org_type'        => ['required', 'in:bank,mfi,dfi,family_office,asset_manager,other'],
-            'contact_name'    => ['required', 'string', 'max:120'],
-            'contact_role'    => ['nullable', 'string', 'max:80'],
-            'email'           => ['required', 'email', 'unique:users,email'],
-            'phone'           => ['required', 'string', 'max:20'],
-            'country'         => ['required', 'string', 'max:60'],
+            'organization' => ['required', 'string', 'max:160'],
+            'org_type' => ['required', 'in:bank,mfi,dfi,family_office,asset_manager,other'],
+            'contact_name' => ['required', 'string', 'max:120'],
+            'contact_role' => ['nullable', 'string', 'max:80'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:20'],
+            'country' => ['required', 'string', 'max:60'],
             'commitment_band' => ['required', 'in:50k_250k,250k_1m,1m_5m,5m_plus'],
-            'address'         => ['nullable', 'string', 'max:255'],
-            'notes'           => ['nullable', 'string', 'max:1000'],
-            'password'        => ['required', 'string', 'min:8', 'confirmed'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
         $user = DB::transaction(function () use ($data) {
             $user = User::create([
-                'name'      => $data['contact_name'],
-                'email'     => $data['email'],
-                'phone'     => $data['phone'],
-                'password'  => Hash::make($data['password']),
-                'role'      => 'investor',
+                'name' => $data['contact_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'password' => Hash::make($data['password']),
+                'role' => 'investor',
                 'is_active' => true,
             ]);
 
             $lenderAttrs = [
-                'user_id'           => $user->id,
-                'code'              => 'CAP-'.strtoupper(Str::random(6)),
-                'name'              => $data['organization'],
-                'type'              => 'institution',
-                'contact_person'    => $data['contact_name'],
-                'email'             => $data['email'],
-                'phone'             => $data['phone'],
-                'address'           => $data['address'] ?? null,
-                'credit_limit'      => 0,
+                'user_id' => $user->id,
+                'code' => 'CAP-'.strtoupper(Str::random(6)),
+                'name' => $data['organization'],
+                'type' => 'institution',
+                'contact_person' => $data['contact_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'address' => $data['address'] ?? null,
+                'credit_limit' => 0,
                 'available_balance' => 0,
-                'risk_preference'   => 'medium',
-                'status'            => 'pending',
+                'risk_preference' => 'medium',
+                'status' => 'pending',
             ];
 
             // Only set metadata if the column exists.
             if (\Schema::hasColumn('lenders', 'metadata')) {
                 $lenderAttrs['metadata'] = [
-                    'org_type'        => $data['org_type'],
-                    'contact_role'    => $data['contact_role'] ?? null,
-                    'country'         => $data['country'],
+                    'org_type' => $data['org_type'],
+                    'contact_role' => $data['contact_role'] ?? null,
+                    'country' => $data['country'],
                     'commitment_band' => $data['commitment_band'],
-                    'notes'           => $data['notes'] ?? null,
-                    'channel'         => 'capital_partner_signup',
+                    'notes' => $data['notes'] ?? null,
+                    'channel' => 'capital_partner_signup',
                 ];
             }
 

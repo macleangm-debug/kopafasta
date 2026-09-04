@@ -5,9 +5,12 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\NotificationLog;
 use App\Models\NotificationTemplate;
+use App\Models\Partner;
+use App\Services\Marketing\DemoGuard;
 use App\Services\Messaging\TransactionalMessagingService;
 use App\Services\Messaging\WhatsApp\WhatsAppManager;
 use App\Services\Sms\SmsManager;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -27,7 +30,7 @@ class NotificationService
     {
         $message = $this->ensureLicensedSmsIdentity($message);
 
-        if (app(\App\Services\Marketing\DemoGuard::class)->isActive()) {
+        if (app(DemoGuard::class)->isActive()) {
             return $this->skippedLog('sms', $phone, $message, $customer, $templateCode);
         }
 
@@ -38,17 +41,17 @@ class NotificationService
 
         $log = NotificationLog::create([
             'customer_id' => $customer?->id,
-            'channel'     => 'sms',
-            'template'    => $templateCode,
-            'recipient'   => $phone,
-            'message'     => Str::limit($message, 800, ''),
-            'status'      => 'queued',
+            'channel' => 'sms',
+            'template' => $templateCode,
+            'recipient' => $phone,
+            'message' => Str::limit($message, 800, ''),
+            'status' => 'queued',
         ]);
 
         $result = $this->sms->driver()->send($phone, $message);
 
         $log->update([
-            'status'  => $result['ok'] ? 'sent' : 'failed',
+            'status' => $result['ok'] ? 'sent' : 'failed',
             'sent_at' => $result['ok'] ? now() : null,
         ]);
 
@@ -67,11 +70,11 @@ class NotificationService
 
         $log = NotificationLog::create([
             'customer_id' => $customer?->id,
-            'channel'     => 'email',
-            'template'    => $templateCode,
-            'recipient'   => $email,
-            'message'     => "[{$subject}] ".Str::limit($body, 500, ''),
-            'status'      => 'queued',
+            'channel' => 'email',
+            'template' => $templateCode,
+            'recipient' => $email,
+            'message' => "[{$subject}] ".Str::limit($body, 500, ''),
+            'status' => 'queued',
         ]);
 
         try {
@@ -95,17 +98,17 @@ class NotificationService
 
         $log = NotificationLog::create([
             'customer_id' => $customer?->id,
-            'channel'     => 'whatsapp',
-            'template'    => $templateCode,
-            'recipient'   => $phone,
-            'message'     => Str::limit($message, 800, ''),
-            'status'      => 'queued',
+            'channel' => 'whatsapp',
+            'template' => $templateCode,
+            'recipient' => $phone,
+            'message' => Str::limit($message, 800, ''),
+            'status' => 'queued',
         ]);
 
         $result = $this->whatsapp->driver()->send($phone, $message);
 
         $log->update([
-            'status'  => $result['ok'] ? 'sent' : 'failed',
+            'status' => $result['ok'] ? 'sent' : 'failed',
             'sent_at' => $result['ok'] ? now() : null,
         ]);
 
@@ -142,6 +145,8 @@ class NotificationService
         }
 
         $body = $this->ensureLicensedSmsIdentity($body);
+
+        $actionUrl = is_string($vars['_action_url'] ?? null) ? $vars['_action_url'] : null;
 
         $allowed = $this->messaging->allowedChannelsFor($templateCode);
         if ($allowed === []) {
@@ -181,6 +186,7 @@ class NotificationService
                     'loan_updates',
                     $templateCode,
                     $subject,
+                    $actionUrl,
                 );
             }
         }
@@ -200,7 +206,7 @@ class NotificationService
 
     /**
      * @param  array{title_key?: string, body_key?: string, params?: array<string, mixed>}|null  $i18n
-     *        When provided, title/body are re-translated at read time from these keys.
+     *                                                                                                  When provided, title/body are re-translated at read time from these keys.
      */
     public function notifyInApp(
         Customer $customer,
@@ -215,14 +221,14 @@ class NotificationService
         // In-app inbox is always written for the user. Channel kill-switches apply to SMS/email/WhatsApp only.
         $payload = [
             'customer_id' => $customer->id,
-            'channel'     => 'in_app',
-            'category'    => $category,
-            'template'    => $template,
-            'recipient'   => $this->normalizeActionRecipient($actionUrl)
+            'channel' => 'in_app',
+            'category' => $category,
+            'template' => $template,
+            'recipient' => $this->normalizeActionRecipient($actionUrl)
                 ?: (string) ($customer->phone ?: $customer->email ?: 'in_app'),
-            'message'     => Str::limit(trim(($title ? $title."\n" : '').$message), 800, ''),
-            'status'      => 'sent',
-            'sent_at'     => now(),
+            'message' => Str::limit(trim(($title ? $title."\n" : '').$message), 800, ''),
+            'status' => 'sent',
+            'sent_at' => now(),
         ];
 
         if (Schema::hasColumn('notification_logs', 'user_id') && $customer->user_id) {
@@ -232,8 +238,8 @@ class NotificationService
         if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null) || isset($i18n['customer_guarantor_id']) || isset($i18n['loan_application_id']) || isset($i18n['loan_application_document_request_id']) || isset($i18n['due_on']))) {
             $payload['meta'] = array_filter([
                 'title_key' => $i18n['title_key'] ?? null,
-                'body_key'  => $i18n['body_key'] ?? null,
-                'params'    => is_array($i18n['params'] ?? null) ? $i18n['params'] : [],
+                'body_key' => $i18n['body_key'] ?? null,
+                'params' => is_array($i18n['params'] ?? null) ? $i18n['params'] : [],
                 'customer_guarantor_id' => $i18n['customer_guarantor_id'] ?? null,
                 'loan_application_id' => $i18n['loan_application_id'] ?? null,
                 'loan_application_document_request_id' => $i18n['loan_application_document_request_id'] ?? null,
@@ -245,12 +251,47 @@ class NotificationService
     }
 
     /**
+     * Send at most once per fingerprint (and optional cooldown).
+     *
+     * @param  array<string, mixed>  $vars
+     */
+    public function notifyCustomerOnce(
+        Customer $customer,
+        string $templateCode,
+        array $vars = [],
+        ?string $fingerprint = null,
+        int $cooldownHours = 8760,
+    ): bool {
+        $user = $customer->user;
+        $key = $templateCode.':'.($fingerprint ?: 'once');
+        if ($user) {
+            $prefs = is_array($user->preferences) ? $user->preferences : [];
+            $sentAt = data_get($prefs, 'lifecycle_notices.'.$key);
+            if (is_string($sentAt) && $sentAt !== '' && now()->lt(Carbon::parse($sentAt)->addHours($cooldownHours))) {
+                return false;
+            }
+        }
+
+        $this->notifyCustomer($customer, $templateCode, $vars);
+
+        if ($user) {
+            $prefs = is_array($user->preferences) ? $user->preferences : [];
+            $notices = is_array($prefs['lifecycle_notices'] ?? null) ? $prefs['lifecycle_notices'] : [];
+            $notices[$key] = now()->toIso8601String();
+            $prefs['lifecycle_notices'] = $notices;
+            $user->forceFill(['preferences' => $prefs])->save();
+        }
+
+        return true;
+    }
+
+    /**
      * In-app (and optional SMS/email) notice for a partner portal user.
      *
      * @param  array<string, mixed>  $vars
      */
     public function notifyPartner(
-        \App\Models\Partner $partner,
+        Partner $partner,
         string $templateCode,
         array $vars = [],
         ?string $actionUrl = null,
@@ -277,14 +318,14 @@ class NotificationService
         }
 
         $payload = [
-            'channel'   => 'in_app',
-            'category'  => 'partner',
-            'template'  => $templateCode,
+            'channel' => 'in_app',
+            'category' => 'partner',
+            'template' => $templateCode,
             'recipient' => $this->normalizeActionRecipient($actionUrl)
                 ?: (string) ($partner->phone ?: $partner->email ?: $user?->email ?: 'in_app'),
-            'message'   => Str::limit(trim(($subject ? $subject."\n" : '').$body), 800, ''),
-            'status'    => 'sent',
-            'sent_at'   => now(),
+            'message' => Str::limit(trim(($subject ? $subject."\n" : '').$body), 800, ''),
+            'status' => 'sent',
+            'sent_at' => now(),
         ];
 
         if (Schema::hasColumn('notification_logs', 'user_id') && $user?->id) {
@@ -311,7 +352,7 @@ class NotificationService
      * @param  array<string, mixed>  $vars
      */
     public function notifyPartnerOnce(
-        \App\Models\Partner $partner,
+        Partner $partner,
         string $templateCode,
         array $vars = [],
         ?string $actionUrl = null,
@@ -323,7 +364,7 @@ class NotificationService
         if ($user) {
             $prefs = is_array($user->preferences) ? $user->preferences : [];
             $sentAt = data_get($prefs, 'lifecycle_notices.'.$key);
-            if (is_string($sentAt) && $sentAt !== '' && now()->lt(\Illuminate\Support\Carbon::parse($sentAt)->addHours($cooldownHours))) {
+            if (is_string($sentAt) && $sentAt !== '' && now()->lt(Carbon::parse($sentAt)->addHours($cooldownHours))) {
                 return null;
             }
         }
@@ -349,11 +390,11 @@ class NotificationService
     ): NotificationLog {
         return NotificationLog::create([
             'customer_id' => $customer?->id,
-            'channel'     => $channel,
-            'template'    => $templateCode,
-            'recipient'   => $recipient,
-            'message'     => Str::limit('[skipped] '.$message, 800, ''),
-            'status'      => 'skipped',
+            'channel' => $channel,
+            'template' => $templateCode,
+            'recipient' => $recipient,
+            'message' => Str::limit('[skipped] '.$message, 800, ''),
+            'status' => 'skipped',
         ]);
     }
 
@@ -392,7 +433,7 @@ class NotificationService
     }
 
     /** @param  array<string, mixed>  $vars
-     *  @return array<string, mixed>
+     * @return array<string, mixed>
      */
     private function withIdentityVars(array $vars): array
     {

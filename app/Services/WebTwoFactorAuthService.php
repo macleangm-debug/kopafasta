@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -45,11 +46,11 @@ class WebTwoFactorAuthService
     public function storePendingLogin(Request $request, User $user, string $guard, string $context, string $redirectTo, bool $remember = false): void
     {
         $request->session()->put('two_factor.pending', [
-            'user_id'     => $user->id,
-            'guard'       => $guard,
-            'context'     => $context,
+            'user_id' => $user->id,
+            'guard' => $guard,
+            'context' => $context,
             'redirect_to' => $redirectTo,
-            'remember'    => $remember,
+            'remember' => $remember,
         ]);
     }
 
@@ -119,17 +120,17 @@ class WebTwoFactorAuthService
         $codes = collect(range(1, 8))->map(fn () => Str::lower(Str::random(10)))->all();
 
         $user->forceFill([
-            'two_factor_secret'         => $secret,
+            'two_factor_secret' => $secret,
             'two_factor_recovery_codes' => $codes,
-            'two_factor_confirmed_at'   => null,
+            'two_factor_confirmed_at' => null,
         ])->save();
 
         $this->audit($request, 'auth.2fa_enabled', $user);
 
         return [
-            'secret'           => $secret,
+            'secret' => $secret,
             'provisioning_uri' => $totp->provisioningUri($secret, (string) $user->email, config('app.name', 'Kopafasta')),
-            'recovery_codes'   => $codes,
+            'recovery_codes' => $codes,
         ];
     }
 
@@ -176,7 +177,7 @@ class WebTwoFactorAuthService
         return count($user->two_factor_recovery_codes ?? []);
     }
 
-    public function completePendingLogin(Request $request, bool $trustDevice = false): ?\Illuminate\Http\RedirectResponse
+    public function completePendingLogin(Request $request, bool $trustDevice = false): ?RedirectResponse
     {
         $pending = $this->pendingLogin($request);
         if (! $pending) {
@@ -196,10 +197,12 @@ class WebTwoFactorAuthService
         $this->markSessionVerified($request);
         $this->clearPendingLogin($request);
 
+        app(KopafastaLaunchService::class)->arm($request);
+
         // Intentionally ignore $trustDevice for 2FA — every login must use a code.
 
         if ($user->role === 'vendor') {
-            app(\App\Services\PartnerWelcomeService::class)->sendIfFirstLogin($user);
+            app(PartnerWelcomeService::class)->sendIfFirstLogin($user);
         }
 
         return redirect()->to((string) ($pending['redirect_to'] ?? '/'));
@@ -210,14 +213,14 @@ class WebTwoFactorAuthService
     {
         try {
             AuditLog::create([
-                'user_id'        => $user->id,
-                'event'          => $event,
+                'user_id' => $user->id,
+                'event' => $event,
                 'auditable_type' => User::class,
-                'auditable_id'   => $user->id,
-                'old_values'     => null,
-                'new_values'     => $meta === [] ? null : json_encode($meta),
-                'ip_address'     => $request->ip(),
-                'user_agent'     => substr((string) $request->userAgent(), 0, 1000),
+                'auditable_id' => $user->id,
+                'old_values' => null,
+                'new_values' => $meta === [] ? null : json_encode($meta),
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 1000),
             ]);
         } catch (\Throwable) {
         }

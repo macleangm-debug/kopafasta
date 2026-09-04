@@ -69,14 +69,7 @@
                     <p class="mt-2 text-sm font-semibold text-gray-900">{{ __('plus.home.exclusive_offers', ['count' => (int) $offers]) }}</p>
                     <p class="mt-2 text-sm font-bold text-brand">{{ __('plus.home.see_offers') }} →</p>
                 </a>
-                <a href="{{ route('site.borrower.engagement', ['tab' => 'rewards']) }}" class="rounded-2xl bg-white ring-1 ring-brand/15 p-4 hover:ring-brand/30">
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.home.your_rewards') }}</p>
-                    <p class="mt-2 text-2xl font-black tabular-nums text-gray-900">{{ number_format((int) ($rewardsDash['balance'] ?? $loyaltyBalance ?? $rewardBalance ?? 0)) }} <span class="text-sm font-semibold text-gray-500">pts</span></p>
-                    @if (($rewardsDash['to_next'] ?? 0) > 0)
-                        <p class="mt-1 text-sm text-gray-600">{{ __('borrower.rewards.to_next', ['points' => number_format($rewardsDash['to_next'])]) }}</p>
-                    @endif
-                    <p class="mt-2 text-sm font-bold text-brand">{{ __('plus.home.see_rewards') }} →</p>
-                </a>
+                <x-site.rewards-summary :dashboard="$rewardsDash ?? []" />
             </div>
         @endif
 

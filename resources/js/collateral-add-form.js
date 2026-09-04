@@ -47,7 +47,7 @@ export function registerCollateralAddForm(Alpine) {
             this.step3Ready = complete(form.querySelector('[data-collateral-step="proof"]'));
             this.step4Ready = ! this.isVehicle || complete(form.querySelector('[data-collateral-step="cert"]'));
             const photoRoot = form.querySelector('[data-collateral-step="photos"]');
-            const photoInputs = photoRoot ? [...photoRoot.querySelectorAll('input[type="file"][name^="photos"]')] : [];
+            const photoInputs = photoRoot ? [...photoRoot.querySelectorAll('input[type="file"]')] : [];
             this.allPhotosReady = photoInputs.length > 0 && photoInputs.every((input) => input.files && input.files.length > 0);
             this.currentPhotoReady = this.allPhotosReady;
         },

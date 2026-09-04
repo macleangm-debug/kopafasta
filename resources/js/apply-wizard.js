@@ -189,6 +189,7 @@ export function applyWizard(config) {
                 reviewPageCount: 2,
                 assetSubstep: 1,
                 supplementMode: !!config.supplementMode,
+                draftBlocked: false,
                 supplementApplicationId: config.supplementApplicationId || null,
                 stepIcons: {
                     quote: '💰',
@@ -1055,6 +1056,9 @@ export function applyWizard(config) {
                     if (this.supplementMode) {
                         return Promise.resolve();
                     }
+                    if (this.draftBlocked) {
+                        return Promise.resolve();
+                    }
                     if (! this.draftSaveUrl || this.phase === 'browse' || this.resumeLoading) {
                         return Promise.resolve();
                     }
@@ -1085,7 +1089,13 @@ export function applyWizard(config) {
                             headers: this.draftHeaders(),
                             credentials: 'same-origin',
                             body: JSON.stringify(payload),
-                        }).then(res => res.ok ? res.json() : Promise.reject(res))
+                        }).then(res => {
+                            if (res.status === 410) {
+                                this.draftBlocked = true;
+                                return Promise.reject(res);
+                            }
+                            return res.ok ? res.json() : Promise.reject(res);
+                        })
                           .then((data) => {
                               this.draftSavedAt = new Date().toLocaleTimeString();
                               if (data?.draft_reference) {

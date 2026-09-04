@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\KopafastaLaunchService;
+use App\Services\RoleService;
 use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,7 +27,7 @@ class WebTwoFactorController extends Controller
     public function verifyChallenge(Request $request, WebTwoFactorAuthService $twoFactor): RedirectResponse
     {
         $data = $request->validate([
-            'code'    => ['required', 'string'],
+            'code' => ['required', 'string'],
             'context' => ['nullable', 'string'],
         ]);
 
@@ -49,6 +51,8 @@ class WebTwoFactorController extends Controller
         }
 
         $twoFactor->markSessionVerified($request);
+
+        app(KopafastaLaunchService::class)->arm($request);
 
         return redirect()->intended($this->intendedFor($user));
     }
@@ -78,7 +82,7 @@ class WebTwoFactorController extends Controller
     public function confirmSetup(Request $request, WebTwoFactorAuthService $twoFactor): RedirectResponse
     {
         $data = $request->validate([
-            'code'    => ['required', 'string'],
+            'code' => ['required', 'string'],
             'context' => ['nullable', 'string'],
         ]);
 
@@ -114,7 +118,7 @@ class WebTwoFactorController extends Controller
             return route('site.partner.dashboard');
         }
 
-        $roles = app(\App\Services\RoleService::class);
+        $roles = app(RoleService::class);
         if ($roles->hasConsoleAccess($user)) {
             return route($roles->homeRoute($user));
         }
@@ -126,7 +130,7 @@ class WebTwoFactorController extends Controller
     {
         return match ($context) {
             'partner' => route('site.partner.dashboard'),
-            default   => route('admin.settings.account-security'),
+            default => route('admin.settings.account-security'),
         };
     }
 }

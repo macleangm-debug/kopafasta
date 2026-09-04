@@ -141,6 +141,9 @@ export function registerValuationCamera(Alpine) {
 
                 return;
             }
+            if (queue[0]?.facingMode) {
+                this.facingMode = queue[0].facingMode;
+            }
             await this.openCam();
         },
         closeCamera() {
@@ -161,7 +164,7 @@ export function registerValuationCamera(Alpine) {
             try {
                 await this.$nextTick();
                 this.stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: this.facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    video: { facingMode: { ideal: this.current()?.facingMode || this.facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
                     audio: false,
                 });
                 const video = this.$refs.camVideo;
@@ -210,11 +213,17 @@ export function registerValuationCamera(Alpine) {
                 }
                 this.retakeTarget = null;
                 const queue = this.pendingQueue();
-                this.flash = { label: step.label, next: queue[0]?.label || null };
+                this.flash = { label: step.label, next: queue[0]?.headline || queue[0]?.label || null };
                 await new Promise((resolve) => setTimeout(resolve, 700));
                 this.flash = null;
                 if (queue.length) {
                     this.index = 0;
+                    const nextFacing = queue[0]?.facingMode;
+                    if (nextFacing && nextFacing !== this.facingMode) {
+                        this.facingMode = nextFacing;
+                        this.stopStream();
+                        await this.openCam();
+                    }
                 } else {
                     this.stopStream();
                     this.open = false;

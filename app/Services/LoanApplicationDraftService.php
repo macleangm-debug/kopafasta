@@ -8,10 +8,12 @@ use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
-use App\Services\ReferenceNumberService;
+use Illuminate\Support\Collection;
 
 class LoanApplicationDraftService
 {
+    public const DISCARD_SESSION_KEY = 'kf_discarded_drafts';
+
     /** @return array<string, mixed>|null */
     public function payloadForWizard(Customer $customer, ?int $loanProductId = null): ?array
     {
@@ -39,10 +41,10 @@ class LoanApplicationDraftService
 
         if ($draft->phase === 'details' && ! $applicationStarted && ! $stepKey && $step === 0) {
             return [
-                'phase'    => 'details',
+                'phase' => 'details',
                 'step_key' => null,
-                'step'     => 0,
-                'reason'   => 'readiness_review',
+                'step' => 0,
+                'reason' => 'readiness_review',
             ];
         }
 
@@ -57,10 +59,10 @@ class LoanApplicationDraftService
             $submitIndex = $wizardSteps->search(fn (array $step) => $step['key'] === 'submit');
             if ($submitIndex !== false) {
                 return [
-                    'phase'    => 'application',
+                    'phase' => 'application',
                     'step_key' => 'submit',
-                    'step'     => (int) $submitIndex,
-                    'reason'   => null,
+                    'step' => (int) $submitIndex,
+                    'reason' => null,
                 ];
             }
         }
@@ -70,10 +72,10 @@ class LoanApplicationDraftService
         $resumeStep = $wizardSteps[$resumeIndex] ?? null;
 
         return [
-            'phase'    => 'application',
+            'phase' => 'application',
             'step_key' => $resumeStep['key'] ?? $stepKey,
-            'step'     => $resumeIndex,
-            'reason'   => null,
+            'step' => $resumeIndex,
+            'reason' => null,
         ];
     }
 
@@ -81,11 +83,11 @@ class LoanApplicationDraftService
      * Never resume past incomplete product setup (e.g. stale drafts left on guarantor
      * when the application fee was zero / already paid).
      *
-     * @param  \Illuminate\Support\Collection<int, array{key: string}>  $wizardSteps
+     * @param  Collection<int, array{key: string}>  $wizardSteps
      * @param  array<string, mixed>  $payload
      */
     private function clampResumeIndexToIncompleteSetup(
-        \Illuminate\Support\Collection $wizardSteps,
+        Collection $wizardSteps,
         int $resumeIndex,
         array $payload,
         LoanProduct $product,
@@ -176,25 +178,25 @@ class LoanApplicationDraftService
         $payload = $draft->payload ?? [];
 
         return [
-            'phase'                => $draft->phase,
-            'step'                 => (int) $draft->step,
-            'step_key'             => $payload['step_key'] ?? null,
-            'application_started'  => (bool) ($payload['application_started'] ?? $draft->phase === 'application'),
-            'resume_target'        => $this->resumeTarget($customer, $draft),
-            'loan_product_id'      => $draft->loan_product_id,
+            'phase' => $draft->phase,
+            'step' => (int) $draft->step,
+            'step_key' => $payload['step_key'] ?? null,
+            'application_started' => (bool) ($payload['application_started'] ?? $draft->phase === 'application'),
+            'resume_target' => $this->resumeTarget($customer, $draft),
+            'loan_product_id' => $draft->loan_product_id,
             'asset_reservation_id' => $draft->asset_reservation_id,
-            'form'                 => $payload['form'] ?? [],
-            'inputs'               => $payload['inputs'] ?? [],
-            'guarantor_lookup'     => $payload['guarantor_lookup'] ?? null,
-            'application_fee'      => $payload['application_fee'] ?? null,
-            'valuation_fee'        => $payload['valuation_fee'] ?? null,
-            'asset_documents'      => $payload['asset_documents'] ?? [],
-            'external_guarantor'   => $this->refreshExternalGuarantorPayload($customer, $payload['external_guarantor'] ?? null),
-            'internal_guarantor'   => $payload['internal_guarantor'] ?? null,
-            'borrower_signature'   => $payload['borrower_signature'] ?? null,
+            'form' => $payload['form'] ?? [],
+            'inputs' => $payload['inputs'] ?? [],
+            'guarantor_lookup' => $payload['guarantor_lookup'] ?? null,
+            'application_fee' => $payload['application_fee'] ?? null,
+            'valuation_fee' => $payload['valuation_fee'] ?? null,
+            'asset_documents' => $payload['asset_documents'] ?? [],
+            'external_guarantor' => $this->refreshExternalGuarantorPayload($customer, $payload['external_guarantor'] ?? null),
+            'internal_guarantor' => $payload['internal_guarantor'] ?? null,
+            'borrower_signature' => $payload['borrower_signature'] ?? null,
             'declaration_accepted' => (bool) ($payload['declaration_accepted'] ?? false),
-            'group'                => $payload['group'] ?? null,
-            'draft_reference'      => $draft->draft_reference,
+            'group' => $payload['group'] ?? null,
+            'draft_reference' => $draft->draft_reference,
         ];
     }
 
@@ -234,11 +236,11 @@ class LoanApplicationDraftService
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
 
         return [
-            'url'          => $this->applicationsListUrl(),
+            'url' => $this->applicationsListUrl(),
             'product_name' => $product?->name ?? __('borrower.apply.title'),
-            'phase'        => $draft->phase,
-            'step'         => (int) $draft->step,
-            'saved_at'     => optional($draft->saved_at)->diffForHumans(),
+            'phase' => $draft->phase,
+            'step' => (int) $draft->step,
+            'saved_at' => optional($draft->saved_at)->diffForHumans(),
         ];
     }
 
@@ -256,13 +258,13 @@ class LoanApplicationDraftService
     public function wizardApplyUrl(LoanApplicationDraft $draft, array $target = []): string
     {
         $params = array_filter([
-            'product'     => $draft->loan_product_id,
+            'product' => $draft->loan_product_id,
             'reservation' => $draft->asset_reservation_id,
-            'resume'      => 1,
-            'phase'       => $target['phase'] ?? null,
-            'step'        => array_key_exists('step', $target) ? (int) $target['step'] : null,
-            'step_key'    => $target['step_key'] ?? null,
-            'return_to'   => $target['return_to'] ?? null,
+            'resume' => 1,
+            'phase' => $target['phase'] ?? null,
+            'step' => array_key_exists('step', $target) ? (int) $target['step'] : null,
+            'step_key' => $target['step_key'] ?? null,
+            'return_to' => $target['return_to'] ?? null,
         ], fn ($value) => $value !== null && $value !== '');
 
         return route('site.borrower.apply', $params);
@@ -349,21 +351,21 @@ class LoanApplicationDraftService
             );
 
             $items[] = [
-                'type'      => 'wizard_draft',
-                'label'     => $product?->name ?? __('borrower.apply.title'),
-                'detail'    => $feePending
+                'type' => 'wizard_draft',
+                'label' => $product?->name ?? __('borrower.apply.title'),
+                'detail' => $feePending
                     ? __('borrower.applications_list.draft_fee_pending')
                     : __('borrower.applications_list.draft_in_progress'),
-                'url'       => route('site.borrower.loan-profile.draft', $draft),
-                'saved_at'  => optional($draft->saved_at)->diffForHumans(),
+                'url' => route('site.borrower.loan-profile.draft', $draft),
+                'saved_at' => optional($draft->saved_at)->diffForHumans(),
             ];
         }
 
         return $items;
     }
 
-    /** @return \Illuminate\Support\Collection<int, LoanApplicationDraft> */
-    public function listForCustomer(Customer $customer): \Illuminate\Support\Collection
+    /** @return Collection<int, LoanApplicationDraft> */
+    public function listForCustomer(Customer $customer): Collection
     {
         $convertedReferences = LoanApplication::query()
             ->where('customer_id', $customer->id)
@@ -394,6 +396,10 @@ class LoanApplicationDraftService
         $phase = (string) ($data['phase'] ?? 'browse');
         $productId = $data['loan_product_id'] ?? null;
 
+        if ($productId && $this->wasDiscarded((int) $productId) && empty($data['resume_discarded'])) {
+            return null;
+        }
+
         if ($phase === 'browse' || ! $productId) {
             if ($productId) {
                 $this->clear($customer, (int) $productId);
@@ -406,26 +412,26 @@ class LoanApplicationDraftService
 
         $existing = $this->find($customer, (int) $productId);
         $payload = [
-            'form'                 => $data['form'] ?? ($existing?->payload['form'] ?? []),
-            'inputs'               => $data['inputs'] ?? ($existing?->payload['inputs'] ?? []),
-            'step_key'             => $data['step_key'] ?? ($existing?->payload['step_key'] ?? null),
-            'application_started'  => $phase === 'application'
+            'form' => $data['form'] ?? ($existing?->payload['form'] ?? []),
+            'inputs' => $data['inputs'] ?? ($existing?->payload['inputs'] ?? []),
+            'step_key' => $data['step_key'] ?? ($existing?->payload['step_key'] ?? null),
+            'application_started' => $phase === 'application'
                 || (bool) ($data['application_started'] ?? ($existing?->payload['application_started'] ?? false)),
-            'guarantor_lookup'     => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
-            'application_fee'      => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
-            'valuation_fee'      => $data['valuation_fee'] ?? ($existing?->payload['valuation_fee'] ?? null),
-            'asset_documents'      => $data['asset_documents'] ?? ($existing?->payload['asset_documents'] ?? []),
-            'external_guarantor'   => array_key_exists('external_guarantor', $data)
+            'guarantor_lookup' => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
+            'application_fee' => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
+            'valuation_fee' => $data['valuation_fee'] ?? ($existing?->payload['valuation_fee'] ?? null),
+            'asset_documents' => $data['asset_documents'] ?? ($existing?->payload['asset_documents'] ?? []),
+            'external_guarantor' => array_key_exists('external_guarantor', $data)
                 ? $data['external_guarantor']
                 : ($existing?->payload['external_guarantor'] ?? null),
-            'internal_guarantor'   => array_key_exists('internal_guarantor', $data)
+            'internal_guarantor' => array_key_exists('internal_guarantor', $data)
                 ? $data['internal_guarantor']
                 : ($existing?->payload['internal_guarantor'] ?? null),
-            'borrower_signature'   => $data['borrower_signature'] ?? ($existing?->payload['borrower_signature'] ?? null),
+            'borrower_signature' => $data['borrower_signature'] ?? ($existing?->payload['borrower_signature'] ?? null),
             'declaration_accepted' => array_key_exists('declaration_accepted', $data)
                 ? (bool) $data['declaration_accepted']
                 : (bool) ($existing?->payload['declaration_accepted'] ?? false),
-            'group'                => $data['group'] ?? ($existing?->payload['group'] ?? null),
+            'group' => $data['group'] ?? ($existing?->payload['group'] ?? null),
         ];
 
         $product = LoanProduct::find((int) $productId);
@@ -448,16 +454,16 @@ class LoanApplicationDraftService
 
         $draft = LoanApplicationDraft::updateOrCreate(
             [
-                'customer_id'     => $customer->id,
+                'customer_id' => $customer->id,
                 'loan_product_id' => (int) $productId,
             ],
             [
-                'draft_reference'      => $draftReference,
+                'draft_reference' => $draftReference,
                 'asset_reservation_id' => $data['asset_reservation_id'] ?? null,
-                'phase'                => $phase,
-                'step'                 => $step,
-                'payload'              => $payload,
-                'saved_at'             => now(),
+                'phase' => $phase,
+                'step' => $step,
+                'payload' => $payload,
+                'saved_at' => now(),
             ],
         );
 
@@ -480,11 +486,11 @@ class LoanApplicationDraftService
         $product = LoanProduct::find($loanProductId);
         $draft = $this->find($customer, $loanProductId)
             ?? new LoanApplicationDraft([
-                'customer_id'     => $customer->id,
+                'customer_id' => $customer->id,
                 'loan_product_id' => $loanProductId,
-                'phase'           => 'application',
-                'step'            => 0,
-                'payload'         => [],
+                'phase' => 'application',
+                'step' => 0,
+                'payload' => [],
             ]);
 
         if (! $draft->draft_reference && $product) {
@@ -495,8 +501,8 @@ class LoanApplicationDraftService
         $payload['application_fee'] = $feeState;
 
         $draft->fill([
-            'phase'    => 'application',
-            'payload'  => $payload,
+            'phase' => 'application',
+            'payload' => $payload,
             'saved_at' => now(),
         ])->save();
 
@@ -512,11 +518,11 @@ class LoanApplicationDraftService
         $product = LoanProduct::find($loanProductId);
         $draft = $this->find($customer, $loanProductId)
             ?? new LoanApplicationDraft([
-                'customer_id'     => $customer->id,
+                'customer_id' => $customer->id,
                 'loan_product_id' => $loanProductId,
-                'phase'           => 'application',
-                'step'            => 0,
-                'payload'         => [],
+                'phase' => 'application',
+                'step' => 0,
+                'payload' => [],
             ]);
 
         if (! $product) {
@@ -548,9 +554,9 @@ class LoanApplicationDraftService
         }
 
         $draft->fill([
-            'phase'    => 'application',
-            'step'     => (int) $index,
-            'payload'  => $payload,
+            'phase' => 'application',
+            'step' => (int) $index,
+            'payload' => $payload,
             'saved_at' => now(),
         ])->save();
 
@@ -563,11 +569,11 @@ class LoanApplicationDraftService
         $product = LoanProduct::find($loanProductId);
         $draft = $this->find($customer, $loanProductId)
             ?? new LoanApplicationDraft([
-                'customer_id'     => $customer->id,
+                'customer_id' => $customer->id,
                 'loan_product_id' => $loanProductId,
-                'phase'           => 'application',
-                'step'            => 0,
-                'payload'         => [],
+                'phase' => 'application',
+                'step' => 0,
+                'payload' => [],
             ]);
 
         if (! $draft->draft_reference && $product) {
@@ -578,11 +584,49 @@ class LoanApplicationDraftService
         $payload['valuation_fee'] = $feeState;
 
         $draft->fill([
-            'payload'  => $payload,
+            'payload' => $payload,
             'saved_at' => now(),
         ])->save();
 
         return $draft;
+    }
+
+    public function discard(Customer $customer, ?int $loanProductId = null): void
+    {
+        $this->clear($customer, $loanProductId);
+        if ($loanProductId) {
+            $this->rememberDiscard($loanProductId);
+        }
+    }
+
+    public function wasDiscarded(int $loanProductId): bool
+    {
+        return in_array($loanProductId, $this->discardedProductIds(), true);
+    }
+
+    public function forgetDiscard(int $loanProductId): void
+    {
+        $ids = array_values(array_filter(
+            $this->discardedProductIds(),
+            fn (int $id) => $id !== $loanProductId
+        ));
+        session([self::DISCARD_SESSION_KEY => $ids]);
+    }
+
+    public function rememberDiscard(int $loanProductId): void
+    {
+        $ids = $this->discardedProductIds();
+        $ids[] = $loanProductId;
+        session([self::DISCARD_SESSION_KEY => array_values(array_unique($ids))]);
+    }
+
+    /** @return list<int> */
+    public function discardedProductIds(): array
+    {
+        return array_values(array_unique(array_map(
+            'intval',
+            session(self::DISCARD_SESSION_KEY, [])
+        )));
     }
 
     public function clear(Customer $customer, ?int $loanProductId = null): void
@@ -683,8 +727,8 @@ class LoanApplicationDraftService
             ->count();
     }
 
-    /** @param  \Illuminate\Support\Collection<int, array{key: string, label: string}>  $wizardSteps */
-    private function resolveWizardStepIndex(\Illuminate\Support\Collection $wizardSteps, ?string $stepKey, int $fallbackIndex): int
+    /** @param  Collection<int, array{key: string, label: string}>  $wizardSteps */
+    private function resolveWizardStepIndex(Collection $wizardSteps, ?string $stepKey, int $fallbackIndex): int
     {
         if ($stepKey) {
             $byKey = $wizardSteps->search(fn (array $step) => $step['key'] === $stepKey);
@@ -748,42 +792,42 @@ class LoanApplicationDraftService
         }
 
         return [
-            'profile_completion_percent'     => (int) ($profileCompletion['percent'] ?? 0),
+            'profile_completion_percent' => (int) ($profileCompletion['percent'] ?? 0),
             'application_completion_percent' => $applicationPercent,
-            'uploaded_documents'             => $uploadedDocuments,
-            'asset_photos'                   => $assetMedia['asset_photos'],
-            'insurance_documents'            => $assetMedia['insurance_documents'],
-            'ownership_documents'            => $assetMedia['ownership_documents'],
-            'guarantor_status'               => $guarantorStatus,
-            'current_step'                   => $this->progressLabel($draft),
-            'last_activity'                  => $draft->saved_at ?? $draft->updated_at,
-            'personal'                       => [
+            'uploaded_documents' => $uploadedDocuments,
+            'asset_photos' => $assetMedia['asset_photos'],
+            'insurance_documents' => $assetMedia['insurance_documents'],
+            'ownership_documents' => $assetMedia['ownership_documents'],
+            'guarantor_status' => $guarantorStatus,
+            'current_step' => $this->progressLabel($draft),
+            'last_activity' => $draft->saved_at ?? $draft->updated_at,
+            'personal' => [
                 'complete' => (bool) ($profileSections['personal']['complete'] ?? false),
-                'name'     => $customer?->full_name,
-                'phone'    => $customer?->phone,
-                'email'    => $customer?->email,
-                'nida'     => $customer?->national_id,
+                'name' => $customer?->full_name,
+                'phone' => $customer?->phone,
+                'email' => $customer?->email,
+                'nida' => $customer?->national_id,
             ],
             'kyc' => [
                 'complete' => (bool) ($profileSections['face']['complete'] ?? false),
-                'nida'     => $customer?->nida_verification_status,
-                'face'     => $customer?->face_verification_status,
+                'nida' => $customer?->nida_verification_status,
+                'face' => $customer?->face_verification_status,
             ],
             'employment' => [
                 'complete' => (bool) ($profileSections['activity']['complete'] ?? false),
-                'type'     => activity_type_label($customer?->activity_type) ?? $customer?->activity_type,
-                'income'   => income_range_label($customer?->income_range) ?? $customer?->income_range,
+                'type' => activity_type_label($customer?->activity_type) ?? $customer?->activity_type,
+                'income' => income_range_label($customer?->income_range) ?? $customer?->income_range,
                 'employer' => $customer?->business_name,
             ],
             'residence' => [
                 'complete' => (bool) ($profileSections['residence']['complete'] ?? false),
-                'region'   => $customer?->region,
+                'region' => $customer?->region,
                 'district' => $customer?->district,
-                'street'   => $customer?->street,
+                'street' => $customer?->street,
             ],
             'guarantor' => [
                 'status' => $guarantorStatus,
-                'name'   => is_array($guarantor) ? ($guarantor['invitee_name'] ?? null) : null,
+                'name' => is_array($guarantor) ? ($guarantor['invitee_name'] ?? null) : null,
             ],
         ];
     }
@@ -833,23 +877,23 @@ class LoanApplicationDraftService
         foreach ($customerDocuments as $doc) {
             $path = $doc->file_path;
             $uploadedDocuments[] = [
-                'code'     => $doc->documentType?->code,
-                'label'    => $doc->documentType?->name ?? 'Document',
-                'url'      => $path ? asset('storage/'.$path) : null,
+                'code' => $doc->documentType?->code,
+                'label' => $doc->documentType?->name ?? 'Document',
+                'url' => $path ? asset('storage/'.$path) : null,
                 'is_image' => $path ? (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', $path) : false,
             ];
         }
 
         return [
-            'uploaded_documents'    => $uploadedDocuments,
-            'asset_photos'          => $assetPhotos,
-            'insurance_documents'   => $insuranceDocuments,
-            'ownership_documents'   => $ownershipDocuments,
+            'uploaded_documents' => $uploadedDocuments,
+            'asset_photos' => $assetPhotos,
+            'insurance_documents' => $insuranceDocuments,
+            'ownership_documents' => $ownershipDocuments,
         ];
     }
 
     /** @param array<string, string> $labels */
-    /** @param \Illuminate\Support\Collection<int, CustomerDocument> $documentsById */
+    /** @param Collection<int, CustomerDocument> $documentsById */
     /** @param array<string, mixed> $doc */
     /** @return array<string, mixed> */
     private function formatDraftDocumentEntry(string $code, array $doc, array $labels, $documentsById): array
@@ -861,9 +905,9 @@ class LoanApplicationDraftService
         $url = $path ? asset('storage/'.$path) : null;
 
         return [
-            'code'     => $code,
-            'label'    => $doc['label'] ?? $labels[$code] ?? 'Document',
-            'url'      => $url,
+            'code' => $code,
+            'label' => $doc['label'] ?? $labels[$code] ?? 'Document',
+            'url' => $url,
             'is_image' => $url ? (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', (string) $path) : false,
         ];
     }
