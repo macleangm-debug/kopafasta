@@ -183,6 +183,7 @@ rm -f public/hot
 "$PHP_BIN" artisan gl:backfill-disbursements || true
 if [[ "$DEPLOY_ENV" == "staging" ]]; then
   "$PHP_BIN" artisan db:seed --class=MarketplaceAssetSeeder --force || true
+  "$PHP_BIN" artisan db:seed --class=StagingUatSeeder --force || true
   "$PHP_BIN" artisan marketplace:fix-photos || true
 fi
 "$PHP_BIN" artisan storage:link || true

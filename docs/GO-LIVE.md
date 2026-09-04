@@ -21,6 +21,15 @@ The existing DigitalOcean Droplet (`ubuntu-s-4vcpu-8gb-nyc1`, NYC1, `167.99.239.
 
 **Do not** change `www.kopafasta.com` DNS yet. Apex `kopafasta.com` currently resolves to Cloudflare (`172.66.2.113`, `162.159.142.117`), not this Droplet.
 
+## Staging UAT logins (sanitized, not live customers)
+
+After `StagingUatSeeder`:
+
+- Admin: `uat.admin@staging.kopafasta.com` / `StagingUat!2026` / PIN `1234`
+- Borrower: `uat.borrower@staging.kopafasta.com` / `StagingUat!2026` / PIN `1234` (500 loyalty points for reward tests)
+
+Never copy production customer or payment data onto staging.
+
 ## Release process
 
 1. Build locally. Automated tests pass. **Commit.**
