@@ -37,22 +37,22 @@ class ValuationFeeMarkupSplitFeatureTest extends TestCase
         $this->seed(ValuationPricingDefaultsSeeder::class);
     }
 
-    public function test_staging_valuation_payable_is_exact_whole_tzs_10000(): void
+    public function test_staging_valuation_payable_is_exact_whole_tzs_1000(): void
     {
         Setting::setMany([
-            'partner_defaults.valuer.base_cost' => 9091,
+            'partner_defaults.valuer.base_cost' => 909,
             'partner_defaults.valuer.has_markup' => true,
             'partner_defaults.valuer.markup_percent' => 10,
-            'partner_defaults.valuer.borrower_amount' => 10_000,
+            'partner_defaults.valuer.borrower_amount' => 1_000,
         ]);
 
         $quote = app(ValuationPricingService::class)->quote();
 
-        $this->assertSame(10_000, $quote['borrower_amount']);
-        $this->assertSame(9_091, $quote['partner_share']);
-        $this->assertSame(909, $quote['markup_amount']);
-        $this->assertSame(10_000, $quote['partner_share'] + $quote['markup_amount']);
-        $this->assertSame(10_000, quoted_valuation_fee(null));
+        $this->assertSame(1_000, $quote['borrower_amount']);
+        $this->assertSame(909, $quote['partner_share']);
+        $this->assertSame(91, $quote['markup_amount']);
+        $this->assertSame(1_000, $quote['partner_share'] + $quote['markup_amount']);
+        $this->assertSame(1_000, quoted_valuation_fee(null));
         $this->assertIsInt($quote['borrower_amount']);
     }
 

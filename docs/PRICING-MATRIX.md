@@ -22,7 +22,7 @@ These are **two different products**. Do not overwrite one with the other.
 | Asset-backed (AB) application | 1,000 | **25,000** | code `AB` |
 | Asset Lending (AL) application | 1,000 | **50,000** | code `AL` |
 | Other loan products application | 1,000 | **10,000** | |
-| Valuation | **10,000** | **50,000** | Settings-controlled |
+| Valuation | **1,000** | **50,000** | Settings-controlled; whole TZS |
 | Kopafasta Plus | 1,000 | **36,000 / year** | May market as ~3,000/month; payable is annual unless monthly billing is deliberately added |
 | Standard Affiliate **application** fee | 1,000 | **10,000** | **NEW** — gate before submit; separate from membership |
 | Standard Affiliate membership — Individual | 1,000 | **30,000 / year** | Not Premium |

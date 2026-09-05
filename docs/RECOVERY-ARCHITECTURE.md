@@ -19,17 +19,29 @@ Canonical flow:
 
 **Call Center → Debt Collection → Repossession → Auction Preparation → Auction**
 
-## Commercial rates (borrower sees sum of points)
+## Commercial rates (borrower sees partner + platform)
 
-Both rates apply to the **same Recovery Base Amount** (not markup-on-partner-fee for percentage stages):
+**Universal rule:** every recovery/support partner stage has a partner component **and** a Kopafasta markup/platform component. Zero markup is only a Settings value — never a hard-coded permanent exception (including Legal).
 
-| Stage | Partner rate | Platform rate | Borrower sees |
+Borrower-facing recovery charge = partner component + Kopafasta platform component. Platform revenue never enters the partner wallet.
+
+Applies to: **Call Center · Debt Collector · Repossession · Auctioneer · Legal · Towing · Yard/Storage** (and any later priced recovery stage).
+
+Models may differ by stage (percentage, fixed, asset-type matrix, hybrid, daily storage) but each must expose configurable partner rate/fee, Kopafasta markup, calculation basis, borrower total, partner earning, and platform revenue.
+
+| Stage | Partner (current defaults) | Platform (current defaults) | Borrower sees |
 |---|---:|---:|---:|
-| Call Center | 10% | 3% | **13%** |
-| Debt Collector | 15% | 3% | **18%** |
-| Auctioneer | 8% | 2% | **10%** (basis TBD — balance vs realization; not locked) |
-| Legal | TZS 100,000 fixed | 0% | TZS 100,000 |
-| Towing / Yard | Unconfigured | — | Configure later |
+| Call Center | 10% | 3% | **13%** of recovery base |
+| Debt Collector | 15% | 3% | **18%** of recovery base |
+| Auctioneer | 8% | 2% | **10%** (basis TBD — balance vs realization) |
+| Repossession | Asset-class partner cost | Markup % by asset class | Partner + markup |
+| Legal | TZS 100,000 fixed | **0% currently** (configurable) | Partner + markup |
+| Towing | Unconfigured fixed | Markup configurable (default 10% when enabled) | Partner + markup |
+| Yard / storage | Unconfigured **daily** partner rate | Daily markup % or fixed | Daily charge × days in custody |
+
+### Yard / storage ledger fields (prospective accrual)
+
+`partner_daily_rate` · `platform_markup` · `borrower_daily_charge` · `storage_start_at` · `storage_end_at` · `days_charged` · `total_partner_amount` · `total_platform_revenue` · `total_borrower_charge`
 
 Invariant: `partner_amount + platform_amount = borrower_stage_charge`. Platform portion never enters partner wallet.
 

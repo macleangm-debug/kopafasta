@@ -47,6 +47,7 @@ return [
             'default_priority' => 4,
             'default_sla_days' => 21,
             'default_commission_percent' => 0,
+            // 0% is the current Settings value, not a permanent special rule — markup remains configurable.
             'default_markup_percent' => 0,
             'default_fee_type' => 'fixed',
             'default_fixed_amount' => 100_000,
@@ -54,6 +55,36 @@ return [
             'default_loan_types' => 'all',
             'default_collateral_scope' => 'all',
             'default_auto_escalate' => true,
+        ],
+        'towing' => [
+            'label' => 'Towing Partner',
+            'vendor_category' => 'towing',
+            'default_priority' => 6,
+            'default_sla_days' => 3,
+            'default_commission_percent' => 0,
+            'default_markup_percent' => 10,
+            'default_fee_type' => 'fixed',
+            'default_fixed_amount' => null, // unconfigured until owner sets commercial tariff
+            'charges_borrower' => true,
+            'default_loan_types' => 'all',
+            'default_collateral_scope' => 'secured',
+            'default_auto_escalate' => false,
+            'pricing_notes' => 'Partner towing fee + Kopafasta markup = borrower towing charge. May vary by asset class in Settings.',
+        ],
+        'yard' => [
+            'label' => 'Yard / Storage Partner',
+            'vendor_category' => 'yard',
+            'default_priority' => 7,
+            'default_sla_days' => 30,
+            'default_commission_percent' => 0,
+            'default_markup_percent' => 10,
+            'default_fee_type' => 'fixed',
+            'default_fixed_amount' => null, // daily storage uses yard_storage.* below
+            'charges_borrower' => true,
+            'default_loan_types' => 'all',
+            'default_collateral_scope' => 'secured',
+            'default_auto_escalate' => false,
+            'pricing_notes' => 'Daily storage: partner_daily_rate + platform markup = borrower daily yard charge.',
         ],
         'gps_partner' => [
             'label' => 'GPS Partner',
@@ -77,6 +108,30 @@ return [
         'auctioneer',
         'legal_partner',
         'gps_installer',
+        'towing',
+        'yard',
+    ],
+
+    /**
+     * Yard / storage daily commercial model (Settings-owned; accrual engine is backlog).
+     * borrower_daily_charge = partner_daily_rate + platform markup (percent or fixed).
+     */
+    'yard_storage' => [
+        'partner_daily_rate' => null,
+        'markup_type' => 'percent', // percent | fixed
+        'markup_percent' => 10,
+        'markup_fixed' => null,
+        'has_markup' => true,
+    ],
+
+    /**
+     * Towing may optionally use an asset-class matrix later (same pattern as repossession).
+     * Until configured, use recovery.fixed_amount.towing + markup.
+     */
+    'towing_charges' => [
+        'default_partner_fee' => null,
+        'default_markup_percent' => 10,
+        'has_markup' => true,
     ],
 
     /** Ordered recovery workflow — max 30 days total (2 grace + 7 + 10 + 11). Repossession is under debt collector. */

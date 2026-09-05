@@ -1919,6 +1919,10 @@ class SettingsController extends Controller
             'auto_escalate_type'=> [],
             'has_markup'        => [],
             'repossession_charges' => Setting::get('repossession.charges') ?? [],
+            'yard_storage' => array_merge(
+                config('recovery.yard_storage', []),
+                is_array(Setting::get('recovery.yard_storage')) ? Setting::get('recovery.yard_storage') : []
+            ),
             'partner_defaults' => app(\App\Services\PartnerDefaultsService::class)->allDefaults(),
             'auto_assign_recovery' => app(\App\Services\PartnerAutoAssignPolicy::class)->allRecoverySettings(),
             'auto_assign_service' => app(\App\Services\PartnerAutoAssignPolicy::class)->allServiceSettings(),
@@ -1982,6 +1986,12 @@ class SettingsController extends Controller
             $rules["repossession_manual_{$assetType}"] = ['nullable', 'boolean'];
         }
 
+        $rules['yard_partner_daily_rate'] = ['nullable', 'numeric', 'min:0'];
+        $rules['yard_markup_type'] = ['nullable', 'in:percent,fixed'];
+        $rules['yard_markup_percent'] = ['nullable', 'numeric', 'min:0', 'max:100'];
+        $rules['yard_markup_fixed'] = ['nullable', 'numeric', 'min:0'];
+        $rules['yard_has_markup'] = ['nullable', 'boolean'];
+
         foreach ($serviceCategories as $category) {
             $mode = config("partner_defaults.categories.{$category}.pricing_mode");
             $rules["{$category}_has_markup"] = ['nullable', 'boolean'];
@@ -2033,6 +2043,14 @@ class SettingsController extends Controller
             ];
         }
         $settings['repossession.charges'] = $repossession;
+
+        $settings['recovery.yard_storage'] = [
+            'partner_daily_rate' => $data['yard_partner_daily_rate'] ?? null,
+            'markup_type' => $data['yard_markup_type'] ?? 'percent',
+            'markup_percent' => $data['yard_markup_percent'] ?? 10,
+            'markup_fixed' => $data['yard_markup_fixed'] ?? null,
+            'has_markup' => $request->boolean('yard_has_markup'),
+        ];
 
         Setting::setMany($settings);
 

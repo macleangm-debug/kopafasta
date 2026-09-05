@@ -90,10 +90,10 @@ class CommercialPricingProfileService
                 'INS_FEE' => 1.0,
                 'EARLY_FEE' => 0.0,
                 'RESTR_FEE' => 10_000,
-                'VAL_FEE' => 10_000,
-                'VAL_POST_FEE' => 10_000,
+                'VAL_FEE' => 1_000,
+                'VAL_POST_FEE' => 1_000,
             ],
-            'valuation_borrower' => 10_000,
+            'valuation_borrower' => 1_000,
             'gps' => [
                 'base_cost' => 5_000,
                 'monitoring_monthly' => 2_000,

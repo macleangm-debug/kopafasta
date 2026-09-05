@@ -318,6 +318,39 @@
                     </div>
                 @endforeach
             </div>
+
+            <div class="mt-8 border-t border-gray-100 pt-6">
+                <h3 class="text-sm font-semibold text-gray-900 mb-1">Yard / storage daily charge</h3>
+                <p class="text-xs text-gray-500 mb-4">
+                    Borrower daily yard charge = partner daily rate + Kopafasta markup. Accrual while the asset is in custody is prospective; leave partner daily rate blank until owner sets the tariff.
+                    Snapshot fields for the future ledger: storage_start_at, storage_end_at, days_charged, total_partner_amount, total_platform_revenue, total_borrower_charge.
+                </p>
+                @php $yard = $values['yard_storage'] ?? []; @endphp
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" x-data="{ hasMarkup: {{ !empty($yard['has_markup']) ? 'true' : 'false' }}, markupType: @js($yard['markup_type'] ?? 'percent') }">
+                    <x-admin.input name="yard_partner_daily_rate" label="Partner daily rate (TZS)" type="number" step="1" min="0"
+                                   :value="$yard['partner_daily_rate'] ?? ''" />
+                    <label class="inline-flex items-center gap-2 text-sm pb-2 self-end">
+                        <input type="hidden" name="yard_has_markup" value="0">
+                        <input type="checkbox" name="yard_has_markup" value="1" x-model="hasMarkup" class="rounded border-gray-300 text-brand">
+                        Has Kopafasta markup
+                    </label>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Markup type</label>
+                        <select name="yard_markup_type" x-model="markupType" class="w-full rounded-lg border-gray-300 text-sm" :disabled="!hasMarkup">
+                            <option value="percent">Percent</option>
+                            <option value="fixed">Fixed TZS</option>
+                        </select>
+                    </div>
+                    <div x-show="markupType === 'percent'">
+                        <x-admin.input name="yard_markup_percent" label="Markup %" type="number" step="0.1" min="0" max="100"
+                                       :value="$yard['markup_percent'] ?? 10" />
+                    </div>
+                    <div x-show="markupType === 'fixed'" x-cloak>
+                        <x-admin.input name="yard_markup_fixed" label="Markup fixed (TZS)" type="number" step="1" min="0"
+                                       :value="$yard['markup_fixed'] ?? ''" />
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- Tab 4: Service partner rates (insurance, GPS pricing, valuer) --}}

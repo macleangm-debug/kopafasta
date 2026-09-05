@@ -33,7 +33,7 @@ class CommercialPricingPolicyFeatureTest extends TestCase
         $this->assertFalse((bool) Setting::get('country.tz.borrower_membership_allowed'));
 
         $valuation = app(\App\Services\ValuationPricingService::class)->quote();
-        $this->assertSame(10_000, $valuation['borrower_amount']);
+        $this->assertSame(1_000, $valuation['borrower_amount']);
         $this->assertSame($valuation['partner_share'] + $valuation['markup_amount'], $valuation['borrower_amount']);
     }
 
