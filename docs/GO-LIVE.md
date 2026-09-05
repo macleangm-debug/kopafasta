@@ -4,7 +4,7 @@ Three environments. Production only receives a Git commit that already passed St
 
 | | Local | Staging / UAT | Production |
 |---|---|---|---|
-| Domain | `127.0.0.1` | `staging.kopafasta.com` | `https://www.kopafasta.co.tz` |
+| Domain | `127.0.0.1` | `staging.kopafasta.com` | `https://www.kopafasta.com` |
 | Droplet | developer machine | smaller, separate | larger, separate |
 | `APP_ENV` | `local` | `staging` | `production` |
 | Database | local | `kopafasta_staging` | `kopafasta_production` |
@@ -13,13 +13,13 @@ Three environments. Production only receives a Git commit that already passed St
 | SEO | noindex | noindex, nofollow | public pages indexable; private stay noindex |
 | Banner | optional | **STAGING** | none |
 
-`kopafasta.co.tz` redirects to `www.kopafasta.co.tz` after cutover. Do **not** change DNS until the owner approves. Staging remains `staging.kopafasta.com`. One GitHub repository; GitHub `staging` and `production` are deployment environments, not separate codebases.
+`kopafasta.com` redirects to `www.kopafasta.com` after cutover. Do **not** change DNS until the owner approves. Staging remains `staging.kopafasta.com`. One GitHub repository; GitHub `staging` and `production` are deployment environments, not separate codebases.
 
 ## Current live box (do not disturb yet)
 
 The existing DigitalOcean Droplet (`ubuntu-s-4vcpu-8gb-nyc1`, NYC1, `167.99.239.125`) currently serves **`https://kopafasta.triptz.net`**. It is still the live application until staging is proven and the owner approves DNS cutover.
 
-**Do not** change `www.kopafasta.co.tz` or `www.kopafasta.com` DNS yet. The intended production site is **`https://www.kopafasta.co.tz`**. Apex `kopafasta.com` currently resolves to Cloudflare (`172.66.2.113`, `162.159.142.117`), not this Droplet.
+**Do not** change `www.kopafasta.com` DNS yet. The intended production site is **`https://www.kopafasta.com`**. Apex `kopafasta.com` currently resolves to Cloudflare (`172.66.2.113`, `162.159.142.117`), not this Droplet.
 
 ## Staging UAT logins (sanitized, not live customers)
 
@@ -52,7 +52,7 @@ Rollback of application code: redeploy the previous SHA the same way. Database r
 
 Separate on each Droplet: application directory, `.env`, `APP_KEY`, database + user, `storage/app`, cache prefix, session cookie name, queue connection, logs, PayIn keys + webhook URL, mail/SMS.
 
-Session cookies must stay host-only (`SESSION_DOMAIN=null`) so a staging login cannot authenticate `www.kopafasta.co.tz`.
+Session cookies must stay host-only (`SESSION_DOMAIN=null`) so a staging login cannot authenticate `www.kopafasta.com`.
 
 ## DNS (GoDaddy) — after Droplet IPs exist
 
@@ -65,7 +65,7 @@ Type    Name      Value                         TTL
 A       staging   <STAGING_DROPLET_IP>          600
 ```
 
-Production cutover (later, owner-approved) on the **kopafasta.co.tz** zone:
+Production cutover (later, owner-approved) on the **kopafasta.com** zone:
 
 ```
 Type    Name      Value                         TTL
@@ -73,7 +73,7 @@ A       @         <PRODUCTION_DROPLET_IP>       600
 A       www       <PRODUCTION_DROPLET_IP>       600
 ```
 
-Then Certbot HTTPS and apex → `https://www.kopafasta.co.tz`. Do not copy the staging database.
+Then Certbot HTTPS and apex → `https://www.kopafasta.com`. Do not copy the staging database.
 
 ## Backups (production, before cutover)
 

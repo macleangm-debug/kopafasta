@@ -24,7 +24,7 @@ class GoLiveEnvironmentFeatureTest extends TestCase
 
     public function test_production_does_not_show_a_staging_banner(): void
     {
-        config(['app.env' => 'production', 'app.url' => 'https://www.kopafasta.co.tz', 'release.show_banner' => null]);
+        config(['app.env' => 'production', 'app.url' => 'https://www.kopafasta.com', 'release.show_banner' => null]);
         app()->instance('env', 'production');
 
         $this->assertFalse(app(ReleaseInfoService::class)->isStaging());
@@ -90,15 +90,27 @@ class GoLiveEnvironmentFeatureTest extends TestCase
         $this->assertStringContainsString('STAGING_SEED_MARKETPLACE', $script);
     }
 
-    public function test_production_examples_use_the_approved_co_tz_domain(): void
+    public function test_production_examples_use_www_kopafasta_com(): void
     {
+        $files = [
+            base_path('.env.production.example'),
+            base_path('deploy/nginx-production.conf.example'),
+            base_path('docs/GO-LIVE.md'),
+            base_path('scripts/promote-production.sh'),
+            base_path('app/Services/SeoService.php'),
+            resource_path('views/admin/settings/seo.blade.php'),
+            resource_path('views/admin/settings/company.blade.php'),
+        ];
+        foreach ($files as $path) {
+            $contents = file_get_contents($path);
+            $this->assertStringNotContainsString('kopafasta.co.tz', $contents, $path);
+        }
+
         $env = file_get_contents(base_path('.env.production.example'));
         $nginx = file_get_contents(base_path('deploy/nginx-production.conf.example'));
-        $this->assertStringContainsString('https://www.kopafasta.co.tz', $env);
-        $this->assertStringContainsString('https://www.kopafasta.co.tz/webhooks/payin', $env);
-        $this->assertStringNotContainsString('www.kopafasta.com', $env);
-        $this->assertStringContainsString('www.kopafasta.co.tz', $nginx);
-        $this->assertStringNotContainsString('www.kopafasta.com', $nginx);
+        $this->assertStringContainsString('https://www.kopafasta.com', $env);
+        $this->assertStringContainsString('https://www.kopafasta.com/webhooks/payin', $env);
+        $this->assertStringContainsString('www.kopafasta.com', $nginx);
     }
 
     public function test_github_production_workflow_is_manual_only(): void
@@ -110,7 +122,8 @@ class GoLiveEnvironmentFeatureTest extends TestCase
         $this->assertStringNotContainsString("push:", $production);
         $this->assertStringContainsString('environment:', $production);
         $this->assertStringContainsString('name: production', $production);
-        $this->assertStringContainsString('https://www.kopafasta.co.tz', $production);
+        $this->assertStringContainsString('https://www.kopafasta.com', $production);
+        $this->assertStringNotContainsString('kopafasta.co.tz', $production);
         $this->assertStringContainsString('https://staging.kopafasta.com', $staging);
     }
 }

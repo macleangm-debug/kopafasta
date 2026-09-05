@@ -17,7 +17,7 @@ jobs:
     name: Promote approved SHA to production
     environment:
       name: production
-      url: https://www.kopafasta.co.tz
+      url: https://www.kopafasta.com
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
