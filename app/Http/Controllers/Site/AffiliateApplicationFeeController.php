@@ -47,7 +47,68 @@ class AffiliateApplicationFeeController extends Controller
                 'phone' => $application?->phone,
             ]),
             'defaultPhone' => old('mobile_number', $application?->phone),
+            'simulateUrl' => route('site.affiliate.apply.pay.simulate', ['token' => $token]),
         ]);
+    }
+
+    public function simulate(
+        Request $request,
+        string $token,
+        AffiliateApplicationFeePaymentService $fees,
+        \App\Services\Staging\StagingPaymentSimulator $simulator,
+        CustomerPaymentService $payments,
+    ): RedirectResponse|JsonResponse {
+        $payment = $fees->findByToken($token);
+        abort_unless($payment, 404);
+        $fees->authorize($payment, $token);
+
+        $data = $request->validate([
+            'outcome' => ['required', 'in:success,pending,failed,cancelled,reversed'],
+        ]);
+
+        try {
+            if ($payment->awaitsCollection() || $payment->status === 'awaiting_payment') {
+                $phone = $payment->mobile_number
+                    ?: data_get($payment->provider_meta, 'attempted_phone')
+                    ?: $payment->source?->phone
+                    ?: '255700000000';
+                $payments->initiateCollection($payment, $phone);
+                $payment = $payment->fresh();
+            }
+            $payment = $simulator->applyOutcome($payment, $data['outcome']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $raw = collect($e->errors())->flatten()->first();
+
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $raw], 422);
+            }
+
+            return redirect()->route('site.affiliate.apply.pay', ['token' => $token])
+                ->with('collect_error', $raw)
+                ->with('show_collect_failed', true);
+        }
+
+        if ($request->expectsJson()) {
+            $state = match (true) {
+                $payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true) => 'paid',
+                $payment->status === 'rejected' => 'failed',
+                $payment->status === 'processing' => 'waiting',
+                default => 'pending',
+            };
+
+            return response()->json([
+                'ok' => true,
+                'state' => $state,
+                'status' => $payment->status,
+                'redirect' => $state === 'paid'
+                    ? route('site.partners.apply.tracking', ['phone' => $payment->source?->phone])
+                    : null,
+                'title' => $payments->celebrationCopy($payment)['title'] ?? null,
+                'message' => $payments->celebrationCopy($payment)['message'] ?? null,
+            ]);
+        }
+
+        return redirect()->route('site.affiliate.apply.pay', ['token' => $token]);
     }
 
     public function pay(Request $request, string $token, AffiliateApplicationFeePaymentService $fees, CustomerPaymentService $payments): RedirectResponse

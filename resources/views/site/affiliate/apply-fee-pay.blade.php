@@ -20,6 +20,7 @@
                 'successUrl' => $successUrl,
                 'defaultPhone' => $defaultPhone ?? old('mobile_number'),
                 'showPromo' => false,
+                'simulateUrl' => $simulateUrl ?? null,
             ])
         </div>
     </div>

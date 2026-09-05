@@ -18,6 +18,7 @@
     'cancelUrl' => null,
     'adjustUrl' => null,
     'applyReward' => false,
+    'simulateUrl' => null,
 ])
 
 @php
@@ -63,6 +64,8 @@
     ];
     $stagingPayments = app(\App\Services\Staging\StagingPaymentsService::class);
     $showSimulator = $stagingPayments->isSimulator();
+    $resolvedSimulateUrl = $simulateUrl
+        ?? ($showSimulator ? route('site.borrower.payments.simulate', $payment) : '');
 @endphp
 
 <div
@@ -95,7 +98,7 @@
         quoteLines: @js($quote['lines'] ?? []),
         cashDueLabel: @js(isset($quote['cash_due']) ? format_money((float) $quote['cash_due']) : $amountLabel),
         stackWithPromo: @js((bool) ($quote['stack_with_promo'] ?? false)),
-        simulateUrl: @js($showSimulator ? route('site.borrower.payments.simulate', $payment) : ''),
+        simulateUrl: @js($showSimulator ? $resolvedSimulateUrl : ''),
         simulatorEnabled: @js($showSimulator),
     })"
 >

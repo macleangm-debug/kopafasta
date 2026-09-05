@@ -192,6 +192,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/become-affiliate/pay/{token}/status', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'status'])->name('affiliate.apply.pay.status');
     Route::post('/become-affiliate/pay/{token}/retry', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'retry'])->name('affiliate.apply.pay.retry');
     Route::post('/become-affiliate/pay/{token}/gate', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'returnToGate'])->name('affiliate.apply.pay.gate');
+    Route::post('/become-affiliate/pay/{token}/simulate', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'simulate'])->name('affiliate.apply.pay.simulate');
     Route::get('/partners/apply/{category?}', [PartnerApplicationController::class, 'createService'])->name('partners.apply');
     Route::post('/partners/apply', [PartnerApplicationController::class, 'storeService'])->name('partners.apply.post');
     Route::get('/partners/track', [PartnerApplicationController::class, 'tracking'])->name('partners.apply.tracking');

@@ -64,6 +64,7 @@
         :initial-state="$showCollectFailed ? 'failed' : ($isPayInWaiting ? 'waiting' : 'details')"
         :error-message="$showCollectFailed ? $collectError : null"
         :overlay="empty($adminLivePreview ?? false)"
+        :simulate-url="$simulateUrl ?? null"
     />
 @else
     <section class="relative kf-premium-panel rounded-3xl">
