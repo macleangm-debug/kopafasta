@@ -132,8 +132,9 @@ class PostApprovalFeePaymentService
 
         $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
         $dummyGateway = $this->usesDummyGateway();
+        $stagingSimulator = app(\App\Services\Staging\StagingPaymentsService::class)->isSimulator();
 
-        if (! $dummyGateway && ! $payInLive) {
+        if (! $dummyGateway && ! $payInLive && ! $stagingSimulator) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'payment_method' => [__('borrower.payments.aggregator_required')],
             ]);
