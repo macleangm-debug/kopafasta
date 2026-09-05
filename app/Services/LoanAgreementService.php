@@ -890,6 +890,8 @@ class LoanAgreementService
             'total_repayable' => $totalRepayable,
             'repayment_schedule' => $schedule,
             'schedule_is_estimate' => true,
+            // Pre-disbursement contracts must not invent an actual disbursement date.
+            'disbursement_date' => null,
             'repayment_commencement_days' => $offerSettings->repaymentCommencementDays(),
             'customer_name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
             'customer_id' => $customer->national_id ?? null,

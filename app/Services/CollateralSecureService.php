@@ -257,7 +257,7 @@ class CollateralSecureService
 
     public function insuranceBufferMonths(): int
     {
-        return max(0, (int) app(UnderwritingSettingsService::class)->get('insurance_expiry_buffer_months', 2));
+        return max(0, (int) app(UnderwritingSettingsService::class)->get('insurance_expiry_buffer_months', 1));
     }
 
     public function insuranceRenewalDays(): int
@@ -812,8 +812,11 @@ class CollateralSecureService
     /**
      * @return array{ok: bool, expiry: ?string, required_by: ?string, reason: ?string, renewal_days: int}
      */
-    public function insuranceCheck(LoanApplication $application, CustomerAsset $asset): array
-    {
+    public function insuranceCheck(
+        LoanApplication $application,
+        CustomerAsset $asset,
+        ?\DateTimeInterface $asOf = null,
+    ): array {
         $renewalDays = $this->insuranceRenewalDays();
         if ($asset->asset_type !== 'vehicle') {
             return [
@@ -848,11 +851,15 @@ class CollateralSecureService
             ];
         }
 
-        $tenure = max(1, (int) ($application->requested_tenure_months ?? 1));
-        $requiredBy = now()->startOfDay()
+        $asOfDay = \Carbon\Carbon::parse($asOf ?? now())->startOfDay();
+        $tenure = max(1, (int) ($application->offered_tenure_months
+            ?? $application->approved_tenure_months
+            ?? $application->requested_tenure_months
+            ?? 1));
+        $requiredBy = $asOfDay->copy()
             ->addMonthsNoOverflow($tenure + $this->insuranceBufferMonths());
 
-        if ($expiry->lt(now()->startOfDay()->addMonth())) {
+        if ($expiry->lt($asOfDay->copy()->addMonth())) {
             return [
                 'ok' => false,
                 'expiry' => $expiry->toDateString(),
@@ -860,6 +867,7 @@ class CollateralSecureService
                 'reason' => 'expiring_soon',
                 'renewal_days' => $renewalDays,
                 'insurance_type' => $asset->insuranceType(),
+                'as_of' => $asOfDay->toDateString(),
             ];
         }
 
@@ -871,6 +879,7 @@ class CollateralSecureService
                 'reason' => 'buffer',
                 'renewal_days' => $renewalDays,
                 'insurance_type' => $asset->insuranceType(),
+                'as_of' => $asOfDay->toDateString(),
             ];
         }
 
@@ -881,6 +890,7 @@ class CollateralSecureService
             'reason' => null,
             'renewal_days' => $renewalDays,
             'insurance_type' => $asset->insuranceType(),
+            'as_of' => $asOfDay->toDateString(),
         ];
     }
 

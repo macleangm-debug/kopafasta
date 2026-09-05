@@ -220,7 +220,7 @@ class UnderwritingSettingsService
 
     public function insuranceExpiryBufferMonths(): int
     {
-        return max(0, (int) $this->get('insurance_expiry_buffer_months', 2));
+        return max(0, (int) $this->get('insurance_expiry_buffer_months', 1));
     }
 
     public function insuranceRenewalDecisionDays(): int

@@ -41,13 +41,48 @@ class AssetLendingService
         return max(1, (int) ($this->settings()['deposit_deadline_working_days'] ?? 2));
     }
 
-    /** Full asset value used for AL insurance cover (not borrower-entered). */
+    /**
+     * AL comprehensive insurance basis = approved marketplace asset price.
+     * Do not invent a separate valuation or accept borrower-edited insured value for the basis.
+     */
     public function insuredValueForMarketplaceAsset(MarketplaceAsset $asset): int
     {
-        $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
-        $value = (float) ($asset->asset_value ?: max($deposit * 1.4, $deposit));
+        $value = (float) ($asset->asset_value ?? 0);
+        if ($value <= 0) {
+            $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
+            $value = max($deposit, 0);
+        }
 
         return (int) max(0, round($value));
+    }
+
+    /**
+     * AL comprehensive insurance quote from marketplace price (Settings rate).
+     * Snapshots value/rate so later Settings or marketplace edits do not alter an open obligation.
+     *
+     * @return array{
+     *   insured_value: int,
+     *   rate_percent: float,
+     *   markup_percent: float,
+     *   effective_rate_percent: float,
+     *   base_premium: int,
+     *   markup_amount: int,
+     *   premium: int,
+     *   basis: string,
+     *   marketplace_asset_id: int,
+     *   snapshotted_at: string
+     * }
+     */
+    public function comprehensiveInsuranceQuote(MarketplaceAsset $asset, ?\App\Models\Partner $partner = null): array
+    {
+        $insured = $this->insuredValueForMarketplaceAsset($asset);
+        $quote = app(CollateralInsurancePartnerService::class)->quote($insured, $partner);
+
+        return array_merge($quote, [
+            'basis' => 'marketplace_asset_value',
+            'marketplace_asset_id' => (int) $asset->id,
+            'snapshotted_at' => now()->toIso8601String(),
+        ]);
     }
 
     public function insuranceExpiryWarningDays(): int
@@ -70,7 +105,7 @@ class AssetLendingService
                 'status' => 'missing',
                 'label'  => 'Insurance expiry not recorded',
                 'tone'   => 'amber',
-                'detail' => 'Add policy expiry on the marketplace asset before approval.',
+                'detail' => 'Arrange and verify comprehensive cover after approval, before asset handover.',
             ];
         }
 

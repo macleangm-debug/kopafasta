@@ -105,8 +105,32 @@ class LoanDisbursementOrchestrator
                 $fees = $this->disbursement->applyFees($loan->fresh());
                 $installments = $this->scheduler->generate($loan->fresh());
 
+                $releasedAt = now();
+
+                if ($loan->loan_application_id) {
+                    $application = LoanApplication::find($loan->loan_application_id);
+                    if ($application) {
+                        $insuranceBlocks = $this->readiness->comprehensiveInsuranceBlockingMessages(
+                            $application,
+                            $releasedAt,
+                        );
+                        if ($insuranceBlocks !== []) {
+                            throw ValidationException::withMessages([
+                                'disburse' => implode(' ', $insuranceBlocks),
+                            ]);
+                        }
+                    }
+                }
+
+                // Authoritative disbursement date is set only at Released.
+                $loan->update([
+                    'status'            => 'active',
+                    'disbursement_date' => $releasedAt->toDateString(),
+                ]);
+
                 if ($loan->loan_application_id) {
                     app(LoanAgreementService::class)->generateRepaymentScheduleAnnex($loan->fresh());
+                    // Separate final_loan_contract — do not mutate the signed pre-disbursement PDF.
                     app(LoanAgreementService::class)->generateFinalLoanContract($loan->fresh());
                 }
 
@@ -117,14 +141,9 @@ class LoanDisbursementOrchestrator
                     'channel'     => $channel,
                     'amount'      => $netAmount,
                     'status'      => Disbursement::STATUS_RELEASED,
-                    'released_at' => now(),
+                    'released_at' => $releasedAt,
                     'approved_by' => $actor?->id,
                     'notes'       => trim(($record->notes ? $record->notes.' · ' : '').$notes),
-                ]);
-
-                $loan->update([
-                    'status'            => 'active',
-                    'disbursement_date' => $loan->disbursement_date ?? now()->toDateString(),
                 ]);
 
                 if ($loan->loan_application_id) {
@@ -133,7 +152,7 @@ class LoanDisbursementOrchestrator
                         $application->update([
                             'status'        => 'disbursed',
                             'current_stage' => 'disbursement',
-                            'disbursed_at'  => now(),
+                            'disbursed_at'  => $releasedAt,
                         ]);
                         app(AssetReservationService::class)->syncFromApplication($application->fresh());
                     }

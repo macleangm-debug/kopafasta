@@ -295,6 +295,10 @@ class ApplicationDisbursementReadinessService
             $messages[] = 'Complete asset readiness (GPS, insurance) before handover.';
         }
 
+        foreach ($this->comprehensiveInsuranceBlockingMessages($application) as $msg) {
+            $messages[] = $msg;
+        }
+
         if ($this->requiresGuarantorSignature($application) && ! $this->guarantorSigned($application)) {
             $messages[] = 'Guarantor must sign before disbursement.';
         }
@@ -850,6 +854,55 @@ class ApplicationDisbursementReadinessService
         ];
 
         return $checklist;
+    }
+
+    /**
+     * Final comprehensive-cover gate for pledged vehicles (AB and secured cash).
+     * Uses anticipated release date (= now) before disbursement; orchestrator re-checks at Released.
+     *
+     * @return list<string>
+     */
+    public function comprehensiveInsuranceBlockingMessages(
+        LoanApplication $application,
+        ?\DateTimeInterface $asOf = null,
+    ): array {
+        $application->loadMissing(['collateralAssets.customerAsset', 'product']);
+        $secure = app(CollateralSecureService::class);
+        $messages = [];
+
+        $assets = $application->collateralAssets
+            ->map(fn ($link) => $link->customerAsset)
+            ->filter()
+            ->values();
+
+        if ($assets->isEmpty()) {
+            $link = $application->collateralAsset()->with('customerAsset')->first();
+            if ($link?->customerAsset) {
+                $assets = collect([$link->customerAsset]);
+            }
+        }
+
+        foreach ($assets as $asset) {
+            if (($asset->asset_type ?? '') !== 'vehicle') {
+                continue;
+            }
+            $check = $secure->insuranceCheck($application, $asset, $asOf);
+            if ($check['ok'] ?? false) {
+                continue;
+            }
+            $reason = (string) ($check['reason'] ?? 'missing');
+            $messages[] = match ($reason) {
+                'buffer', 'expiring_soon' => sprintf(
+                    'Comprehensive insurance renewal/extension required: valid until %s, required until %s.',
+                    $check['expiry'] ?? '—',
+                    $check['required_by'] ?? '—'
+                ),
+                'invalid' => 'Comprehensive insurance policy dates are invalid. Update policy evidence before release.',
+                default => 'Comprehensive insurance must be verified (policy issued/activated) before disbursement.',
+            };
+        }
+
+        return $messages;
     }
 
     private function isLatched(LoanApplication $application, string $step): bool

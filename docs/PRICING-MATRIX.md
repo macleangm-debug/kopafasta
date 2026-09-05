@@ -31,8 +31,8 @@ These are **two different products**. Do not overwrite one with the other.
 | Disbursement fee | 1,000 | **10,000** | Timing: see Post-Approval audit before moving |
 | Asset registration / transfer | 1,000 | **40,000** | |
 | Origination | **1%** | **2%** | |
-| Loan insurance | test-configurable | **1%** of loan basis | Distinct from comprehensive |
-| Comprehensive asset insurance | test-configurable | **3.5%** of insured asset value | **Collateral lifecycle**, not Post-Approval fee bundle |
+| Loan insurance (`INS_FEE`) | **1%** of principal | **1%** of principal | Post-approval catalog charge. **Not** comprehensive asset cover. |
+| Comprehensive asset insurance | separate condition | **3.5%** of insured asset value | **AFTER approval**, outside Post-Approval fee bundle. AL basis = marketplace asset price. AB may verify existing cover (expiry ≥ maturity + Settings buffer, default **1 month**). Payment ≠ condition complete. |
 | Restructuring | disabled | **Disabled**; future 10,000 | |
 | Top-up | test-configurable | **10,000** when Top-up activated | |
 | Early repayment | **0%** | **0%**, configurable | Collect principal + amounts legitimately due; no automatic early-settlement penalty |

@@ -62,13 +62,8 @@ class AssetBackedApplyService
                 ]);
             }
 
-            if ($type === 'vehicle' && ! $customerAsset->hasComprehensiveInsurance()) {
-                throw ValidationException::withMessages([
-                    'customer_asset_ids' => __('borrower.apply.asset_details.vehicle_insurance_required', [
-                        'label' => $customerAsset->label,
-                    ]),
-                ]);
-            }
+            // Comprehensive insurance is evaluated after credit approval as a
+            // BEFORE_DISBURSEMENT collateral condition — never charged or required at apply.
         }
 
         $purpose = trim((string) ($form['purpose'] ?? ''));

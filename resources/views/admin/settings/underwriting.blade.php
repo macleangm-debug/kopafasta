@@ -193,7 +193,12 @@
                     <x-admin.input name="collateral_secure_decision_days" label="Decision window (days)" type="number"
                                    :value="$values['collateral_secure_decision_days'] ?? 3" required />
                     <x-admin.input name="insurance_expiry_buffer_months" label="Insurance must outlast tenure by (months)" type="number"
-                                   :value="$values['insurance_expiry_buffer_months'] ?? 2" required />
+                                   :value="$values['insurance_expiry_buffer_months'] ?? 1" required />
+                    <p class="text-xs text-gray-500 md:col-span-2 -mt-2">
+                        Default buffer is 1 month (e.g. 3-month loan → cover through month 4 from actual disbursement).
+                        Comprehensive insurance is a separate collateral condition — not part of the ordinary Post-Approval fee bundle.
+                        Asset Lending (AL) uses the marketplace asset price as the insured-value basis; Asset-Backed (AB) may verify existing comprehensive cover.
+                    </p>
                     <x-admin.input name="insurance_renewal_decision_days" label="Insurance renewal window (days)" type="number"
                                    :value="$values['insurance_renewal_decision_days'] ?? 5" required />
                     <x-admin.input name="collateral_secure_grace_days" label="Grace days after window (before close)" type="number"

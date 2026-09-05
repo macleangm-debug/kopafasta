@@ -103,4 +103,73 @@ class CommercialPricingPolicyFeatureTest extends TestCase
         $this->assertSame('awaiting_fee', $application->fresh()->status);
         $this->assertNotEmpty(data_get($application->fresh()->payload, 'application_fee.pay_token'));
     }
+
+    public function test_safe_configuration_redeploy_preserves_staging_product_fees(): void
+    {
+        $this->seed(\Database\Seeders\ChargesFeeSeeder::class);
+        $this->seed(\Database\Seeders\PublicLoanProductsSeeder::class);
+
+        app(CommercialPricingProfileService::class)->apply('staging');
+
+        $before = \App\Models\LoanProduct::query()
+            ->whereIn('code', ['IL', 'GL', 'AB', 'AL'])
+            ->orderBy('code')
+            ->get(['code', 'application_fee_amount', 'interest_rate'])
+            ->mapWithKeys(fn ($p) => [$p->code => [
+                'fee' => (float) $p->application_fee_amount,
+                'rate' => (float) $p->interest_rate,
+            ]])
+            ->all();
+
+        $this->assertSame(1000.0, $before['IL']['fee']);
+        $this->assertSame(1000.0, $before['GL']['fee']);
+
+        // Simulate a normal staging deploy seed pass — must not overwrite commercial amounts.
+        $this->seed(\Database\Seeders\SafeConfigurationSeeder::class);
+        (new \Database\Seeders\PublicLoanProductsSeeder)->run();
+
+        $after = \App\Models\LoanProduct::query()
+            ->whereIn('code', ['IL', 'GL', 'AB', 'AL'])
+            ->orderBy('code')
+            ->get(['code', 'application_fee_amount', 'interest_rate'])
+            ->mapWithKeys(fn ($p) => [$p->code => [
+                'fee' => (float) $p->application_fee_amount,
+                'rate' => (float) $p->interest_rate,
+            ]])
+            ->all();
+
+        $this->assertSame($before, $after);
+        $this->assertSame(1000.0, (float) \App\Models\LoanProduct::query()->where('code', 'GL')->value('application_fee_amount'));
+    }
+
+    public function test_ins_fee_is_loan_insurance_not_comprehensive_asset_cover(): void
+    {
+        $this->seed(\Database\Seeders\ChargesFeeSeeder::class);
+        $fee = \App\Models\ChargesFee::query()->where('code', 'INS_FEE')->first();
+        $this->assertNotNull($fee);
+        $this->assertSame('percentage', $fee->basis);
+        $this->assertSame(1.0, (float) $fee->amount);
+        $this->assertStringContainsString('loan insurance', strtolower((string) $fee->description));
+        $this->assertStringNotContainsString('comprehensive', strtolower((string) $fee->description));
+    }
+
+    public function test_al_insurance_basis_is_marketplace_asset_price(): void
+    {
+        $asset = new \App\Models\MarketplaceAsset([
+            'asset_value' => 10_000_000,
+            'customer_deposit' => 1_000_000,
+        ]);
+
+        Setting::setMany([
+            'partner_defaults.insurance.rate_percent' => 3.5,
+            'partner_defaults.insurance.markup_percent' => 0,
+            'partner_defaults.insurance.has_markup' => false,
+        ]);
+
+        $quote = app(\App\Services\AssetLendingService::class)->comprehensiveInsuranceQuote($asset);
+
+        $this->assertSame(10_000_000, $quote['insured_value']);
+        $this->assertSame('marketplace_asset_value', $quote['basis']);
+        $this->assertSame(350_000, $quote['premium']);
+    }
 }

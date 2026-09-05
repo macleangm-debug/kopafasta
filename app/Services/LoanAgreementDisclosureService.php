@@ -337,7 +337,6 @@ class LoanAgreementDisclosureService
     {
         $application->loadMissing(['product.postApprovalFees', 'collateralAsset']);
         $principal = app(ApplicationOfferService::class)->effectiveAmount($application);
-        $profile = app(LoanAgreementProductProfile::class)->for($application);
         $feeService = app(PostApprovalFeeService::class);
         $defaults = app(PartnerDefaultsService::class);
         $rows = [];
@@ -360,7 +359,8 @@ class LoanAgreementDisclosureService
             }
 
             if ($this->isInsuranceCatalog($fee)) {
-                $rows[] = $this->insuranceChargeRow($application, $principal, $defaults);
+                // INS_FEE = loan/credit insurance (% of principal), not comprehensive asset cover.
+                $rows[] = $this->loanInsuranceChargeRow($fee, $principal, $feeService, $application);
                 continue;
             }
             if ($this->isValuationCatalog($fee)) {
@@ -383,11 +383,8 @@ class LoanAgreementDisclosureService
             ];
         }
 
-        $needsCover = (bool) ($profile['is_asset'] ?? false) || $application->collateralAsset !== null;
-        if ($needsCover && ! isset($seen['INS_FEE']) && ! isset($seen['INSURANCE'])) {
-            $rows[] = $this->insuranceChargeRow($application, $principal, $defaults);
-            $seen['INS_FEE'] = true;
-        }
+        // Comprehensive collateral insurance is a separate BEFORE_DISBURSEMENT condition /
+        // payment journey — never invent it here as INS_FEE for asset products.
         if ($application->collateralAsset && ! isset($seen['VAL_POST_FEE']) && ! isset($seen['VAL_FEE'])) {
             $rows[] = $this->valuationChargeRow($defaults);
         }
@@ -473,33 +470,38 @@ class LoanAgreementDisclosureService
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function insuranceChargeRow(LoanApplication $application, float $principal, PartnerDefaultsService $defaults): array
-    {
-        $rate = $defaults->insuranceRatePercent();
-        $markup = $defaults->insuranceMarkupPercent();
-        $base = (float) ($application->collateralAsset?->market_value ?? $principal);
-        $totalPct = $rate + $markup;
-        $amount = round($base * ($totalPct / 100), 2);
+    /**
+     * Loan / credit insurance from the post-approval catalog (INS_FEE).
+     * Distinct from comprehensive collateral insurance (separate payment/condition).
+     *
+     * @return array<string, mixed>
+     */
+    private function loanInsuranceChargeRow(
+        LoanProductPostApprovalFee $fee,
+        float $principal,
+        PostApprovalFeeService $feeService,
+        LoanApplication $application,
+    ): array {
+        $amount = $feeService->calculateAmount($fee, $principal, $application);
+        $catalog = ChargesFee::query()->where('code', 'INS_FEE')->first();
+        $rate = $fee->fee_type === 'percent'
+            ? (float) $fee->amount
+            : (float) ($catalog?->amount ?? 1.0);
 
         return [
-            'code' => 'INS_FEE',
-            'name' => 'Insurance',
+            'code' => strtoupper(trim((string) $fee->code)) ?: 'INS_FEE',
+            'name' => (string) ($fee->name ?: 'Loan insurance'),
             'amount' => $amount,
             'display_en' => sprintf(
-                '%s%% of insured value (%s), comprising %s%% cover%s, total %s. Taken from Settings at generation.',
-                $this->pct($totalPct),
-                format_money($base),
+                'Loan insurance: %s%% of principal (%s), total %s. Not comprehensive asset cover. Taken from Settings / product fee schedule.',
                 $this->pct($rate),
-                $markup > 0 ? ' and '.$this->pct($markup).'% platform markup' : '',
+                format_money($principal),
                 format_money($amount)
             ),
             'display_sw' => sprintf(
-                '%s%% ya thamani iliyohakikishwa (%s), ikijumuisha %s%% bima%s, jumla %s. Inatokana na Mipangilio wakati wa kutengenezwa.',
-                $this->pct($totalPct),
-                format_money($base),
+                'Bima ya mkopo: %s%% ya msingi (%s), jumla %s. Si bima kamili ya mali. Inatokana na Mipangilio / jedwali la ada.',
                 $this->pct($rate),
-                $markup > 0 ? ' na '.$this->pct($markup).'% ongezeko la jukwaa' : '',
+                format_money($principal),
                 format_money($amount)
             ),
         ];
