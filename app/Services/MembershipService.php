@@ -39,6 +39,19 @@ class MembershipService
     }
 
     /**
+     * Country → Lending → Borrower membership master switch.
+     * Fee amount alone must not enable membership. Tanzania default: OFF.
+     */
+    public static function isRequiredForCountry(?string $countryCode = null): bool
+    {
+        $countries = app(CountrySettingsService::class);
+        $code = strtoupper($countryCode ?: $countries->defaultCountryCode());
+        $profile = $countries->forCode($code);
+
+        return (bool) ($profile['borrower_membership_allowed'] ?? false);
+    }
+
+    /**
      * Issue a brand-new membership for a customer (on registration approval / first payment).
      */
     public function issue(

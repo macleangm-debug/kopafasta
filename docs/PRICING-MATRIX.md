@@ -1,45 +1,92 @@
-# Production pricing comparison (staging snapshot 2026-09-05)
+# Production vs Staging pricing policy (owner decisions 2026-09-05)
 
-Do **not** treat this table as an approved commercial tariff. Staging currently holds the migrated triptz **test** world. Seeder/config defaults are historical/engineering values, not proven production prices.
+Settings Hub remains the **runtime** source of truth. This document records **owner-approved commercial policy**. Do not treat old seeder defaults as commercial tariffs.
 
-Proposed production: **pending owner approval** unless a cell says otherwise.
+**Do not initialize production** until Post-Approval sequence changes (if any) are approved and Settings are aligned.
 
-| Charge | Current staging/test value | Historical/config value | Proposed actual production value | Evidence/source |
-|---|---|---|---|---|
-| Individual application (IL) | TZS 10,000 | Catalog `APP_FEE` TZS 5,000; `config/site.php` default 10,000; seeder does not set IL `application_fee_amount` | Pending owner approval | Staging `loan_products.IL.application_fee_amount` after triptz import |
-| Group application (GL, per member) | TZS 10,000 | `PublicLoanProductsSeeder` GL 10,000 | Pending owner approval | Staging `loan_products.GL.application_fee_amount` |
-| Asset-backed application (AB) | TZS 25,000 | Seeder does not set AB fee; catalog `APP_FEE` 5,000 | Pending owner approval | Staging `loan_products.AB.application_fee_amount` |
-| Other public products (AL, BP, EL, EM, FC, KB, SAL-12, SL, WL) | TZS 5,000 each | Catalog `APP_FEE` 5,000; seeder omits per-product amount so RateTier fills from catalog | Pending owner approval — **unproven as commercial** | Staging `loan_products.application_fee_amount`; catalog `charges_fees.APP_FEE` |
-| Catalog application fee `APP_FEE` | TZS 5,000 | `ChargesFeeSeeder` 5,000 | Pending owner approval — **catalog ≠ IL/GL/AB live product fees** | `charges_fees.APP_FEE` |
-| Membership registration (borrower) | TZS 2,000 | Common engineering default 2,500 in tests; live Settings 2,000 | Pending owner approval — **unproven** | Settings `membership.registration_fee` |
-| Membership renewal (borrower) | TZS 2,000 | Settings/tests often 2,000 | Pending owner approval — **unproven** | Settings `membership.renewal_fee` |
-| Valuation (borrower total) | TZS 1,100 | Valuer base 1,000 + 10% markup (`ValuationPricingDefaultsSeeder`, `config/partner_defaults.php`) | Pending owner approval | Settings `partner_defaults.valuer.*`; `charges_fees.VAL_FEE` / `VAL_POST_FEE` |
-| GPS installation (Settings) | TZS 100,000 + 10% markup | Config default install 50,000, markup off | Pending owner approval — **conflict with catalog** | Settings `partner_defaults.gps_installer.base_cost` + markup |
-| GPS monthly monitoring | TZS 10,000 | Config default 20,000 | Pending owner approval — **unproven** | Settings `partner_defaults.gps_installer.monitoring_monthly` |
-| GPS catalog `GPS_FEE` | TZS 50,000 | `ChargesFeeSeeder` 50,000 | Pending owner approval — **does not match Settings 100,000** | `charges_fees.GPS_FEE` vs Settings |
-| Legal fee `LEGAL_FEE` | TZS 75,000 | `ChargesFeeSeeder` 75,000 | Pending owner approval — **unproven** | `charges_fees.LEGAL_FEE` |
-| Origination `ORIG_FEE` | 2% (min 5,000 / max 500,000 in seeder) | `ChargesFeeSeeder` 2% | Pending owner approval — **unproven** | `charges_fees.ORIG_FEE` |
-| Insurance premium `INS_FEE` | 1% of loan | `ChargesFeeSeeder` 1% | Pending owner approval — **unproven** | `charges_fees.INS_FEE` |
-| Insurance partner cover rate | 3.5% of insured value, markup off | `config/partner_defaults.php` 3.5% | Pending owner approval — **unproven** | Settings `partner_defaults.insurance.rate_percent` |
-| Disbursement processing `DISB_FEE` | TZS 10,000 | `ChargesFeeSeeder` 10,000 | Pending owner approval — **unproven** | `charges_fees.DISB_FEE` |
-| Asset registration / transfer `REG_POST_FEE` | TZS 35,000 | `ChargesFeeSeeder` 35,000 | Pending owner approval — **unproven** | `charges_fees.REG_POST_FEE` |
-| Late penalty `LATE_FEE` | 1% per day | `ChargesFeeSeeder` 1%/day; BoT cap 30% | Pending owner approval — **policy, not a commercial list price** | `charges_fees.LATE_FEE` |
-| Early settlement `EARLY_FEE` | 1% | `ChargesFeeSeeder` 1% | Pending owner approval — **unproven** | `charges_fees.EARLY_FEE` |
-| Restructure `RESTR_FEE` | TZS 10,000 | `ChargesFeeSeeder` 10,000 | Pending owner approval — **unproven** | `charges_fees.RESTR_FEE` |
-| Kopafasta Plus | TZS 35,000 | `config/kopafasta_plus.php` 35,000; no Settings override on staging | Pending owner approval | Config file; Settings `kopafasta_plus.config` is empty |
-| Affiliate membership (individual) | TZS 1,500 | Config default 25,000 | Pending owner approval — **staging is a reduced test value** | Settings `affiliates.membership.fee_amount_individual` |
-| Affiliate membership (company) | TZS 2,000 | Config default 50,000 | Pending owner approval — **staging is a reduced test value** | Settings `affiliates.membership.fee_amount_company` |
-| Valuer membership (individual) | TZS 1,500 | `config/partners.php` 1,500 | Pending owner approval — **config default, not a proven commercial tariff** | `partners.membership` Settings empty → config `category_fees.valuer.individual` |
-| Valuer membership (company) | TZS 2,000 | `config/partners.php` 2,000 | Pending owner approval — **config default, not a proven commercial tariff** | config `category_fees.valuer.company` |
-| Other partner types (GPS, insurance, recovery, yard, supplier, capital) | No activation fee in Settings (`default_fee_amount` 0; only valuer requires payment) | Partner membership page: non-valuer categories are renew-on-expiry unless ticked | Pending owner approval | `PartnerMembershipService::config()` |
-| Affiliate minimum withdrawal / payout | TZS 50,000 minimum balance | `config/affiliates.php` 50,000 | Pending owner approval — **this is a payout floor, not a charge** | Settings `affiliates.minimum_payout_amount` |
-| Partner / affiliate wallet withdrawals | No extra payment-gateway charge found in Settings | No seeder charge | No production charge identified | Code review of membership/wallet payout; flag if ops later add a PSP fee |
-| Staging price overlay (TZS 500 / 1,000) | **Off** (`use_price_overrides=false`, simulator still on) | Config `staging_payments.use_price_overrides` false | Must stay off until a new test-pricing profile is approved | `StagingPaymentsService` + Settings |
+## Asset products (confirmed distinct)
 
-## Preserve on staging
+| Code | Name | Category | Staging app fee now | Owner production |
+|---|---|---|---:|---:|
+| **AB** | Asset-Backed Loan | asset (cash against collateral) | 25,000 | **25,000** |
+| **AL** | Asset Lending | asset (own-the-asset / installment) | 5,000 | **50,000** |
 
-Do not reset IL 10,000 / GL 10,000 / AB 25,000 / valuation 1,100 / reduced affiliate & valuer membership / Plus 35,000. Do not turn on the TZS 500/1,000 overlay.
+These are **two different products**. Do not overwrite one with the other.
 
-## Production
+## Owner commercial matrix
 
-Do not copy this database. Production prices must be written from an **owner-approved** column, not from this staging snapshot.
+| Charge | Staging / UAT | Production | Notes |
+|---|---:|---:|---|
+| Individual (IL) application | 1,000 | **10,000** | |
+| Group (GL) application | 1,000 / member | **10,000 / member** | |
+| Asset-backed (AB) application | 1,000 | **25,000** | code `AB` |
+| Asset Lending (AL) application | 1,000 | **50,000** | code `AL` |
+| Other loan products application | 1,000 | **10,000** | |
+| Valuation | **10,000** | **50,000** | Settings-controlled |
+| Kopafasta Plus | 1,000 | **36,000 / year** | May market as ~3,000/month; payable is annual unless monthly billing is deliberately added |
+| Standard Affiliate **application** fee | 1,000 | **10,000** | **NEW** — gate before submit; separate from membership |
+| Standard Affiliate membership — Individual | 1,000 | **30,000 / year** | Not Premium |
+| Standard Affiliate membership — Company | 1,000 | **50,000 / year** | Not Premium |
+| Operational Partner joining fee | None | **None** | |
+| Disbursement fee | 1,000 | **10,000** | Timing: see Post-Approval audit before moving |
+| Asset registration / transfer | 1,000 | **40,000** | |
+| Origination | **1%** | **2%** | |
+| Loan insurance | test-configurable | **1%** of loan basis | Distinct from comprehensive |
+| Comprehensive asset insurance | test-configurable | **3.5%** of insured asset value | **Collateral lifecycle**, not Post-Approval fee bundle |
+| Restructuring | disabled | **Disabled**; future 10,000 | |
+| Top-up | test-configurable | **10,000** when Top-up activated | |
+| Early repayment | **0%** | **0%**, configurable | Collect principal + amounts legitimately due; no automatic early-settlement penalty |
+| Late charge | configurable | **1%/day, max 30 days / 30% cumulative** | Cite exact regulatory basis before production label |
+
+### Borrower membership
+
+- Capability remains in the platform.
+- **Country → Lending → Borrower Membership** master switch.
+- **Tanzania: OFF** — no requirement, no payment, no renewal, no eligibility dependency.
+- Historical membership records untouched.
+- Configured amount alone must **not** enable membership; country permission is the switch.
+
+### GPS (one calculator)
+
+Production: **partner/base + 10% Kopafasta markup**.
+
+| Component | Base | Markup | Borrower |
+|---|---:|---:|---:|
+| Installation | 50,000 | 10% | **55,000** |
+| Monthly monitoring | 20,000 | 10% | **22,000 / month** |
+
+Staging: reduced bases, **same 10% markup math**. Retire competing standalone `GPS_FEE` formulas; one Settings-controlled GPS pricing service.
+
+### Affiliate Standard journey (target)
+
+Application details → Application Fee → `payment.show` → verified → Submit → Review → Terms → Annual Membership → Activate.
+
+Fee verified **before** submission for review. Payment ≠ approval. Reuse canonical `payment.show`. Premium Affiliate stays separate.
+
+### Post-Approval presentation (target)
+
+Calculate components separately for accounting; present **one** `payment.show` obligation with a transparent breakdown. Comprehensive collateral insurance stays **outside** that bundle.
+
+**Sequence preserved:** Committee → Offer → Customer accepts → Post-Approval bundle → Contract → remaining operational conditions → Disbursement → Released → Active.
+
+Do not move the disbursement fee after contract — it remains a line in the pre-contract Post-Approval payment.
+
+### Recovery commercial model (owner clarification)
+
+Percentage stages: **partner rate + platform rate of the same Recovery Base** (borrower sees the sum). Not markup-on-partner-fee.
+
+| Stage | Partner | Platform | Borrower |
+|---|---:|---:|---:|
+| Call Center | 10% | 3% | **13%** |
+| Debt Collector | 15% | 3% | **18%** |
+| Auctioneer | 8% | 2% | **10%** (basis TBD) |
+
+See `docs/RECOVERY-ARCHITECTURE.md` for live balance vs stage snapshot, SLA failure revenue, PTP, and stage-assignment ownership. Recovery code changes are backlog relative to staging pricing apply.
+
+### Environment indicator
+
+Admin Pricing / Settings: show **STAGING · TEST PRICING** vs production commercial tariff. Same engines; different Settings values.
+
+### Snapshot rule
+
+Every financial obligation snapshots its price/rate when created. Later Settings changes do not rewrite historical obligations.

@@ -210,13 +210,13 @@ class LoanAgreementDisclosureService
             } else {
                 $total = $commission + $markup;
                 $displayEn = $this->pct($total).'% of the '.$baseLabelEn
-                    .' at assignment, comprising '.$this->pct($commission).'% recovery-partner commission'
-                    .($markup > 0 ? ' and '.$this->pct($markup).'% company charge' : '')
-                    .'. Posted only when this stage is actually assigned.';
+                    .' at assignment, comprising '.$this->pct($commission).'% recovery-partner fee'
+                    .($markup > 0 ? ' and '.$this->pct($markup).'% Kopafasta platform fee' : '')
+                    .' (both on the same recovery base; not markup on the partner fee). Posted only when this stage is actually assigned.';
                 $displaySw = $this->pct($total).'% ya '.$baseLabelSw
-                    .' wakati wa kupelekwa, ikijumuisha '.$this->pct($commission).'% kwa mshirika wa urejeshaji'
-                    .($markup > 0 ? ' na '.$this->pct($markup).'% gharama ya kampuni' : '')
-                    .'. Inarekodiwa pale tu hatua inapopelekwa.';
+                    .' wakati wa kupelekwa, ikijumuisha '.$this->pct($commission).'% ada ya mshirika wa urejeshaji'
+                    .($markup > 0 ? ' na '.$this->pct($markup).'% ada ya jukwaa la Kopafasta' : '')
+                    .' (zote kwenye msingi mmoja; si ongezeko juu ya ada ya mshirika). Inarekodiwa pale tu hatua inapopelekwa.';
             }
 
             $stages[] = [

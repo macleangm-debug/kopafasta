@@ -18,9 +18,10 @@ class EnsureActiveMembership
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Compulsory borrower membership is retired. Historical fee records remain;
-        // this middleware must never block credit. Partner/affiliate membership is unchanged.
-        return $next($request);
+        // Country gate: Tanzania OFF. Amount in Settings alone must not enable membership.
+        if (! \App\Services\MembershipService::isRequiredForCountry()) {
+            return $next($request);
+        }
 
         $user = $request->user();
 

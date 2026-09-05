@@ -842,6 +842,10 @@ class CustomerPaymentService
 
         return match ($payment->payment_type) {
             'partner_membership' => $this->partnerMembershipSuccessUrl($payment),
+            'affiliate_application_fee' => route('site.partners.apply.tracking', [
+                'phone' => $payment->source?->phone
+                    ?? data_get($payment->provider_meta, 'applicant_phone'),
+            ]),
             'kopafasta_plus' => route('site.borrower.plus.welcome'),
             'registration_fee' => route('site.borrower.dashboard'),
             'application_fee', 'valuation_fee' => $this->resolveLoanApplicationSource($payment)
@@ -865,6 +869,10 @@ class CustomerPaymentService
             'partner_membership' => [
                 'title' => __('site.partner_portal.membership_paid'),
                 'message' => __('site.partner_portal.membership_paid'),
+            ],
+            'affiliate_application_fee' => [
+                'title' => __('site.affiliate_apply.fee_paid_title'),
+                'message' => __('site.affiliate_apply.fee_paid'),
             ],
             'kopafasta_plus' => [
                 'title' => __('plus.welcome.title'),
@@ -1231,6 +1239,10 @@ class CustomerPaymentService
                     }
                 }
             }
+        }
+
+        if ($payment->payment_type === 'affiliate_application_fee') {
+            app(AffiliateApplicationFeePaymentService::class)->markApplicationSubmitted($payment->fresh());
         }
 
         if ($payment->payment_type === 'kopafasta_plus' && $payment->customer) {

@@ -89,6 +89,13 @@ class PartnerApplicationController extends Controller
             $this->documentUploads($request),
         );
 
+        $feeService = app(\App\Services\AffiliateApplicationFeePaymentService::class);
+        if ($feeService->feeAmount() > 0) {
+            $payment = $feeService->open($application);
+
+            return redirect()->to($feeService->payUrl($payment));
+        }
+
         return redirect()
             ->route('site.partners.apply.tracking', ['phone' => $application->phone])
             ->with('partner_submitted', true);

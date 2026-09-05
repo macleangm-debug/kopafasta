@@ -66,6 +66,11 @@ class PartnerApplication extends Model
         return $query->whereIn('status', ['pending', 'needs_info']);
     }
 
+    public function scopeAwaitingFee($query)
+    {
+        return $query->where('status', 'awaiting_fee');
+    }
+
     public function resolvedCategory(): string
     {
         if (filled($this->partner_category)) {

@@ -72,9 +72,9 @@ class ChargesFeeSeeder extends Seeder
                 'code'        => 'EARLY_FEE',
                 'type'        => 'early_settlement',
                 'basis'       => 'percentage',
-                'amount'      => 1.0000,
+                'amount'      => 0.0000,
                 'charge_when' => 'event',
-                'description' => '1% of outstanding balance on early settlement.',
+                'description' => 'Default 0% early settlement charge (configurable). Collect principal and amounts legitimately due.',
             ],
             [
                 'name'        => 'Restructure fee',

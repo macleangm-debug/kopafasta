@@ -36,6 +36,15 @@
             @endforeach
         </div>
         <div class="flex items-center gap-3 ml-auto">
+            @if (app()->environment('staging') || (bool) \App\Models\Setting::get('staging_payments.enabled', false))
+                <span class="inline-flex items-center rounded-lg bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-900 ring-1 ring-amber-300">
+                    Staging · Test pricing
+                </span>
+            @elseif (app()->environment('production'))
+                <span class="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-800 ring-1 ring-emerald-200">
+                    Production commercial tariff
+                </span>
+            @endif
             <a href="{{ route('admin.settings.index') }}" class="text-xs font-semibold text-brand hover:underline whitespace-nowrap">← Settings hub</a>
             @if ($showHelp)
                 <x-admin.settings-help-drawer :page="$helpPage" />

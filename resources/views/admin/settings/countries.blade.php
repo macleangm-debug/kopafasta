@@ -62,6 +62,12 @@
                         <input type="checkbox" name="guarantor_required" value="1" @checked($selected['guarantor_required']) class="rounded border-gray-300 text-brand">
                         <span>Guarantor required by default</span>
                     </label>
+                    <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
+                        <input type="hidden" name="borrower_membership_allowed" value="0">
+                        <input type="checkbox" name="borrower_membership_allowed" value="1" @checked($selected['borrower_membership_allowed'] ?? false) class="rounded border-gray-300 text-brand">
+                        <span>Borrower membership allowed</span>
+                    </label>
+                    <p class="text-xs text-gray-500 md:col-span-2 -mt-2">Master switch for compulsory borrower membership in this country. Fee amount alone does not enable it. Tanzania: keep OFF.</p>
                 </div>
             </div>
         </x-admin.settings-panel>

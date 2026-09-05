@@ -1464,6 +1464,7 @@ class SettingsController extends Controller
             'fraud_shared_device_threshold'       => ['nullable', 'integer', 'min:1', 'max:100'],
             'fraud_multi_account_threshold'       => ['nullable', 'integer', 'min:1', 'max:100'],
             'minimum_payout_amount'               => ['required', 'numeric', 'min:0'],
+            'application_fee_amount'              => ['nullable', 'numeric', 'min:0'],
             'premium_membership_required'         => ['nullable', 'boolean'],
             'premium_contract_duration_months'    => ['nullable', 'integer', 'min:1', 'max:120'],
             'premium_renewal_window_days'         => ['nullable', 'integer', 'min:1', 'max:180'],
@@ -1572,6 +1573,7 @@ class SettingsController extends Controller
             ],
             'affiliates.commission_calculation_base'         => $data['commission_calculation_base'],
             'affiliates.applies_to'                          => $appliesTo,
+            'affiliates.application_fee_amount'              => (float) ($data['application_fee_amount'] ?? config('affiliates.application_fee_amount', 10000)),
             'affiliates.messages'                            => [
                 'share_template'      => $data['message_share_template'] ?? '',
                 'referral_sms'        => $data['message_referral_sms'] ?? '',
@@ -1822,7 +1824,8 @@ class SettingsController extends Controller
             'repayment_ratio_pct' => ['required', 'numeric', 'min:1', 'max:100'],
             'crb_freshness_days'  => ['required', 'integer', 'min:30', 'max:365'],
             'kyc_freshness_days'  => ['required', 'integer', 'min:30', 'max:365'],
-            'guarantor_required'  => ['nullable', 'boolean'],
+            'guarantor_required' => ['nullable', 'boolean'],
+            'borrower_membership_allowed' => ['nullable', 'boolean'],
             'contract_locale'     => ['required', 'in:en,sw'],
             'contract_template'   => ['nullable', 'string', 'max:200'],
             'loan_policy_notes'   => ['nullable', 'string', 'max:2000'],
@@ -1830,6 +1833,7 @@ class SettingsController extends Controller
 
         $data['active'] = $request->boolean('active');
         $data['guarantor_required'] = $request->boolean('guarantor_required');
+        $data['borrower_membership_allowed'] = $request->boolean('borrower_membership_allowed');
 
         app(\App\Services\CountrySettingsService::class)->save($code, $data);
 

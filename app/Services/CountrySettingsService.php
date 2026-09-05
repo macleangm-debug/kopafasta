@@ -67,6 +67,7 @@ class CountrySettingsService
             'crb_freshness_days'  => max(30, min(365, (int) ($merged['crb_freshness_days'] ?? 90))),
             'kyc_freshness_days'  => max(30, min(365, (int) ($merged['kyc_freshness_days'] ?? 90))),
             'guarantor_required'  => filter_var($merged['guarantor_required'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            'borrower_membership_allowed' => filter_var($merged['borrower_membership_allowed'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'contract_locale'     => in_array($contractLocale, ['en', 'sw'], true) ? $contractLocale : 'en',
             'contract_template'   => $merged['contract_template'] ?? null,
             'loan_policy_notes'   => (string) ($merged['loan_policy_notes'] ?? ''),
@@ -183,6 +184,7 @@ class CountrySettingsService
             'active', 'language', 'currency', 'timezone', 'phone_prefix',
             'national_id_label', 'national_id_format', 'grace_period_days',
             'crb_freshness_days', 'kyc_freshness_days', 'guarantor_required',
+            'borrower_membership_allowed',
             'contract_locale', 'contract_template', 'loan_policy_notes',
         ] as $key) {
             if (array_key_exists($key, $data)) {

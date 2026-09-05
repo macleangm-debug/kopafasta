@@ -229,6 +229,14 @@
         <x-admin.settings-panel id="membership">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
                 <div>
+                    <h3 class="text-sm font-semibold text-gray-900">Affiliate application fee</h3>
+                    <p class="text-xs text-gray-500 mt-1">Paid through payment.show before the application enters Admin review. Separate from annual membership. Snapshotted at payment creation.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <x-admin.input name="application_fee_amount" label="Application fee (TZS)" type="number" step="1000" min="0"
+                                   :value="$values['application_fee_amount'] ?? 10000" money />
+                </div>
+                <div>
                     <h3 class="text-sm font-semibold text-gray-900">Affiliate membership</h3>
                     <p class="text-xs text-gray-500 mt-1">Annual fee paid through the standard payment gate before affiliates can share. Individuals pay {{ format_money(25000) }}; companies pay {{ format_money(50000) }} (defaults). Tick the checkbox to require the fee.</p>
                 </div>

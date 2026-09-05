@@ -20,6 +20,7 @@ return [
         'crb_freshness_days' => 90,
         'kyc_freshness_days' => 90,
         'guarantor_required' => true,
+        'borrower_membership_allowed' => false,
         'contract_locale'    => 'sw',
     ],
     'KE' => [
@@ -38,6 +39,7 @@ return [
         'crb_freshness_days' => 90,
         'kyc_freshness_days' => 90,
         'guarantor_required' => true,
+        'borrower_membership_allowed' => false,
         'contract_locale'    => 'sw',
     ],
     'UG' => [
@@ -56,6 +58,7 @@ return [
         'crb_freshness_days' => 90,
         'kyc_freshness_days' => 90,
         'guarantor_required' => true,
+        'borrower_membership_allowed' => false,
         'contract_locale'    => 'en',
     ],
     'RW' => [
@@ -74,6 +77,7 @@ return [
         'crb_freshness_days' => 90,
         'kyc_freshness_days' => 90,
         'guarantor_required' => true,
+        'borrower_membership_allowed' => false,
         'contract_locale'    => 'en',
     ],
     'BI' => [
@@ -92,6 +96,7 @@ return [
         'crb_freshness_days' => 90,
         'kyc_freshness_days' => 90,
         'guarantor_required' => true,
+        'borrower_membership_allowed' => false,
         'contract_locale'    => 'en',
     ],
     'SS' => [
@@ -110,6 +115,7 @@ return [
         'crb_freshness_days' => 90,
         'kyc_freshness_days' => 90,
         'guarantor_required' => true,
+        'borrower_membership_allowed' => false,
         'contract_locale'    => 'en',
     ],
 ];

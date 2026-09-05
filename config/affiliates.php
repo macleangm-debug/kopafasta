@@ -8,6 +8,9 @@ return [
     'default_plus_discount_percent'         => (float) env('AFFILIATE_PLUS_DISCOUNT', 10),
     'default_commission_percent'          => (float) env('AFFILIATE_COMMISSION_PERCENT', 10),
 
+    /** Paid via payment.show before affiliate application enters review. */
+    'application_fee_amount' => (float) env('AFFILIATE_APPLICATION_FEE', 10000),
+
     /** percentage | fixed | tiered | hybrid */
     'commission_mode' => env('AFFILIATE_COMMISSION_MODE', 'percentage'),
 

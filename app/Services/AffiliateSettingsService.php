@@ -100,6 +100,7 @@ class AffiliateSettingsService
             'message_welcome_partner'             => $messages['welcome_partner'],
             'require_kyc_for_verification'        => $this->requireKycForVerification(),
             'minimum_payout_amount'               => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
+            'application_fee_amount'              => (float) Setting::get('affiliates.application_fee_amount', config('affiliates.application_fee_amount', 10000)),
             'membership'                          => AffiliateMembershipService::config(),
             'premium'                             => $this->premiumSettings(),
             'attribution'                         => $this->attributionSettings(),
