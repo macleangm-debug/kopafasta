@@ -31,6 +31,10 @@ class CommercialPricingPolicyFeatureTest extends TestCase
         $this->assertSame(0.0, (float) \App\Models\ChargesFee::query()->where('code', 'EARLY_FEE')->value('amount'));
         $this->assertSame(1000.0, (float) Setting::get('affiliates.application_fee_amount'));
         $this->assertFalse((bool) Setting::get('country.tz.borrower_membership_allowed'));
+
+        $valuation = app(\App\Services\ValuationPricingService::class)->quote();
+        $this->assertSame(10_000, $valuation['borrower_amount']);
+        $this->assertSame($valuation['partner_share'] + $valuation['markup_amount'], $valuation['borrower_amount']);
     }
 
     public function test_production_profile_refuses_without_confirm(): void

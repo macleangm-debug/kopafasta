@@ -172,11 +172,22 @@ class CommercialPricingProfileService
             'staging_payments.use_price_overrides' => false,
         ]);
 
-        // Valuation: set base so borrower total ≈ valuation_borrower with 10% markup
-        $borrowerVal = (float) $profile['valuation_borrower'];
-        $valuerBase = (int) round($borrowerVal / 1.10);
-        Setting::set('partner_defaults.valuer.base_cost', $valuerBase);
+        // Valuation: exact whole-TZS borrower target + partner base; markup is residual.
+        $borrowerVal = (int) $profile['valuation_borrower'];
+        $markupPct = 10.0;
+        $platformShare = (int) round($borrowerVal * $markupPct / (100 + $markupPct));
+        $valuerBase = $borrowerVal - $platformShare;
+        Setting::setMany([
+            'partner_defaults.valuer.base_cost' => $valuerBase,
+            'partner_defaults.valuer.has_markup' => true,
+            'partner_defaults.valuer.markup_percent' => $markupPct,
+            'partner_defaults.valuer.borrower_amount' => $borrowerVal,
+        ]);
         app(ValuationPricingService::class)->syncChargesFees();
+        $quoted = (int) app(ValuationPricingService::class)->quote()['borrower_amount'];
+        if ($quoted !== $borrowerVal) {
+            throw new \RuntimeException("Valuation quote {$quoted} does not match commercial target {$borrowerVal}.");
+        }
 
         $plusConfig = Setting::get('kopafasta_plus.config');
         $plusConfig = is_array($plusConfig) ? $plusConfig : [];

@@ -508,9 +508,11 @@ class LoanAgreementDisclosureService
     /** @return array<string, mixed> */
     private function valuationChargeRow(PartnerDefaultsService $defaults): array
     {
-        $base = $defaults->valuerBaseCost();
-        $markup = $defaults->valuerMarkupPercent();
-        $amount = round($base * (1 + ($markup / 100)), 2);
+        // Canonical whole-TZS quote (partner base + residual markup). Do not float-multiply.
+        $quote = app(ValuationPricingService::class)->quote();
+        $base = (float) $quote['base_cost'];
+        $markup = (float) $quote['markup_percent'];
+        $amount = (float) $quote['borrower_amount'];
 
         return [
             'code' => 'VAL_POST_FEE',

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ChargesFee;
 use App\Models\Partner;
+use App\Models\Setting;
 
 /**
  * Borrower valuation fee = partner base × (1 + markup%).
@@ -25,13 +26,23 @@ class ValuationPricingService
         $defaults = app(PartnerDefaultsService::class);
         $base = (int) round($defaults->valuerBaseCost($partner));
         $markupPct = max(0, (float) $defaults->valuerMarkupPercent($partner));
-        $markup = (int) round($base * ($markupPct / 100));
+
+        // Optional whole-TZS commercial target (set by pricing profile). When present, it is
+        // the borrower payable; markup is the residual so partner + platform always reconcile.
+        $target = Setting::get('partner_defaults.valuer.borrower_amount');
+        if ($target !== null && $target !== '' && (float) $target > 0) {
+            $borrower = (int) round((float) $target);
+            $markup = $borrower - $base;
+        } else {
+            $markup = (int) round($base * ($markupPct / 100));
+            $borrower = $base + $markup;
+        }
 
         return [
             'base_cost' => $base,
             'markup_percent' => $markupPct,
             'markup_amount' => $markup,
-            'borrower_amount' => $base + $markup,
+            'borrower_amount' => $borrower,
             'partner_share' => $base,
         ];
     }
