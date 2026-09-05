@@ -660,7 +660,9 @@ class LoanAgreementService
 
         if ($application->offered_tenure_months) {
             $updates['requested_tenure_months'] = $application->offered_tenure_months;
-            $updates['approved_tenure_months'] = $application->offered_tenure_months;
+            if (\Illuminate\Support\Facades\Schema::hasColumn('loan_applications', 'approved_tenure_months')) {
+                $updates['approved_tenure_months'] = $application->offered_tenure_months;
+            }
         }
 
         $application->update($updates);
