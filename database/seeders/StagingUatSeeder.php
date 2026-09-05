@@ -107,25 +107,29 @@ class StagingUatSeeder extends Seeder
             ]
         );
 
-        Vendor::query()->updateOrCreate(
-            ['partner_number' => 'AFF-UAT-KITONGA'],
-            [
-                'name' => 'UAT Kitonga Affiliate',
-                'category' => 'affiliate',
-                'status' => 'active',
-                'phone' => '255700000010',
-                'email' => 'uat.kitonga@staging.kopafasta.com',
-                'affiliate_code' => 'KITONGA',
-                'affiliate_kyc_status' => 'verified',
-                'affiliate_lifecycle_status' => 'active',
-                'membership_status' => 'active',
-                'membership_started_at' => now()->subMonth(),
-                'membership_expires_at' => now()->addYear(),
-                'application_discount_percent' => 10,
-                'registration_discount_percent' => 10,
-                'activated_at' => now(),
-            ]
-        );
+        if (Vendor::query()->where('affiliate_code', 'KITONGA')->exists()) {
+            $this->command?->info('KITONGA already present; leaving the migrated affiliate unchanged.');
+        } else {
+            Vendor::query()->updateOrCreate(
+                ['partner_number' => 'AFF-UAT-KITONGA'],
+                [
+                    'name' => 'UAT Kitonga Affiliate',
+                    'category' => 'affiliate',
+                    'status' => 'active',
+                    'phone' => '255700000010',
+                    'email' => 'uat.kitonga@staging.kopafasta.com',
+                    'affiliate_code' => 'KITONGA',
+                    'affiliate_kyc_status' => 'verified',
+                    'affiliate_lifecycle_status' => 'active',
+                    'membership_status' => 'active',
+                    'membership_started_at' => now()->subMonth(),
+                    'membership_expires_at' => now()->addYear(),
+                    'application_discount_percent' => 10,
+                    'registration_discount_percent' => 10,
+                    'activated_at' => now(),
+                ]
+            );
+        }
     }
 
     private function enrollUatRecovery(User $user): void

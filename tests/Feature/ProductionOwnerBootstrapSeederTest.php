@@ -50,4 +50,11 @@ class ProductionOwnerBootstrapSeederTest extends TestCase
         $this->assertStringContainsString('StagingUatSeeder', $script);
         $this->assertStringContainsString('== "staging"', $script);
     }
+
+    public function test_staging_uat_seeder_does_not_duplicate_migrated_kitonga(): void
+    {
+        $source = file_get_contents(database_path('seeders/StagingUatSeeder.php'));
+        $this->assertStringContainsString("where('affiliate_code', 'KITONGA')", $source);
+        $this->assertStringContainsString('leaving the migrated affiliate unchanged', $source);
+    }
 }
