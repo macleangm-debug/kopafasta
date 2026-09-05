@@ -15,7 +15,7 @@ HOST="${PRODUCTION_HOST:-}"
 APP_DIR="${PRODUCTION_APP_DIR:-/var/www/kopafasta}"
 if [[ -z "$HOST" ]]; then
   echo "Set PRODUCTION_HOST=root@<PRODUCTION_DROPLET_IP> before cutover."
-  echo "Do not point www.kopafasta.com until staging UAT has passed."
+  echo "Do not point www.kopafasta.co.tz (or any production DNS) until staging UAT has passed."
   exit 1
 fi
 

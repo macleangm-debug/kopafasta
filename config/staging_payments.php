@@ -6,6 +6,7 @@
  */
 return [
     'mode' => 'simulator', // simulator | psp_sandbox
+    'use_price_overrides' => false, // keep Settings Hub amounts until Admin enables UAT test pricing
     'default_test_fee' => 500,
     'allow_success' => true,
     'allow_pending' => true,

@@ -18,7 +18,10 @@ class StagingPaymentsFeatureTest extends TestCase
 
     private function asStaging(): void
     {
-        config(['staging_payments.testing_enabled' => true]);
+        config([
+            'staging_payments.testing_enabled' => true,
+            'staging_payments.use_price_overrides' => true,
+        ]);
     }
 
     private function asProduction(): void

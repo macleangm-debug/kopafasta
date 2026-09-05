@@ -1,0 +1,37 @@
+name: Promote production
+
+# Never runs on push. Production is a manual promotion of an approved SHA.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Exact SHA already tested and approved on staging
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Promote approved SHA to production
+    environment:
+      name: production
+      url: https://www.kopafasta.co.tz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit }}
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+      - name: Promote exact approved SHA
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          APPROVED_COMMIT: ${{ github.event.inputs.commit }}
+          CONFIRM_PRODUCTION: ${{ secrets.CONFIRM_PRODUCTION }}
+        run: |
+          test -n "$PRODUCTION_HOST"
+          test "$CONFIRM_PRODUCTION" = "1"
+          APPROVED_COMMIT="$APPROVED_COMMIT" CONFIRM_PRODUCTION=1 PRODUCTION_HOST="$PRODUCTION_HOST" ./scripts/promote-production.sh

@@ -33,7 +33,7 @@
         <div class="max-w-3xl mt-10 space-y-4">
             <div>
                 <h2 class="text-lg font-bold text-gray-900">Staging Payments</h2>
-                <p class="mt-1 text-sm text-gray-600">Test money only. Commercial Settings Hub prices stay the source of truth. This section never appears in production.</p>
+                <p class="mt-1 text-sm text-gray-600">Environment: <span class="font-semibold">STAGING</span>. Payment mode is TEST. Pricing profile stays <span class="font-semibold">Settings Hub / migrated test prices</span> until you enable UAT test-price overrides. This section never appears in production.</p>
             </div>
             @if (session('status'))
                 <p class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</p>
@@ -53,6 +53,7 @@
                     </label>
                 </div>
                 <div class="flex flex-wrap gap-4 text-sm">
+                    <label class="inline-flex items-center gap-2"><input type="checkbox" name="use_price_overrides" value="1" @checked($stagingPayments['use_price_overrides'] ?? false)> Use UAT / TEST pricing overrides (off = keep Settings Hub amounts)</label>
                     <label class="inline-flex items-center gap-2"><input type="checkbox" name="allow_success" value="1" @checked($stagingPayments['allow_success'])> Allow success simulation</label>
                     <label class="inline-flex items-center gap-2"><input type="checkbox" name="allow_pending" value="1" @checked($stagingPayments['allow_pending'])> Allow pending</label>
                     <label class="inline-flex items-center gap-2"><input type="checkbox" name="allow_failure" value="1" @checked($stagingPayments['allow_failure'])> Allow pending/failure/cancelled</label>

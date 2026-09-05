@@ -94,12 +94,23 @@ class StagingPaymentsService
         return array_merge(config('staging_payments', []), Setting::group('staging_payments'));
     }
 
+    public function usesPriceOverrides(): bool
+    {
+        if (! $this->isEnabled()) {
+            return false;
+        }
+
+        $stored = $this->settings()['use_price_overrides'] ?? config('staging_payments.use_price_overrides', false);
+
+        return $stored === true || $stored === 1 || $stored === '1' || $stored === 'true';
+    }
+
     /**
-     * Replace the commercial amount with the staging test amount. No-op in production.
+     * Replace the Settings Hub amount with a staging test amount only when that profile is on.
      */
     public function effective(string $kind, float $canonical, ?LoanProduct $product = null): float
     {
-        if (! $this->isEnabled()) {
+        if (! $this->usesPriceOverrides()) {
             return round($canonical, 2);
         }
 
@@ -161,7 +172,7 @@ class StagingPaymentsService
                     ? $this->effective($key, $canonical, $row['product'] ?? null)
                     : $canonical,
                 'source' => (string) ($row['source'] ?? 'settings'),
-                'changed' => $this->isEnabled() && abs($canonical - $this->effective($key, $canonical, $row['product'] ?? null)) > 0.009,
+                'changed' => $this->usesPriceOverrides() && abs($canonical - $this->effective($key, $canonical, $row['product'] ?? null)) > 0.009,
             ];
         }
 

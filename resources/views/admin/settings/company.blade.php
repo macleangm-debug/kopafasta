@@ -34,7 +34,7 @@
                     <x-admin.input name="whatsapp"        label="WhatsApp (digits, e.g. 2557…)" :value="$values['whatsapp'] ?? ''" />
                     <x-admin.input name="hotline_label"   label="Hotline label (e.g. Customer care)" :value="$values['hotline_label'] ?? ''" />
                     <x-admin.input name="website"         label="Website"           :value="$values['website'] ?? ''" />
-                    <x-admin.input name="app_base_url"    label="App base URL"      :value="$values['app_base_url'] ?? ''" placeholder="https://app.kopafasta.com" />
+                    <x-admin.input name="app_base_url"    label="App base URL"      :value="$values['app_base_url'] ?? ''" placeholder="https://www.kopafasta.co.tz" />
                     <x-admin.input name="address"         label="Address"           :value="$values['address'] ?? ''" />
                 </div>
 

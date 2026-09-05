@@ -1,27 +1,28 @@
 # Production Droplet — Nginx (do not enable until owner cutover)
 #
-# Canonical: https://www.kopafasta.com
-# kopafasta.com → https://www.kopafasta.com
+# Canonical: https://www.kopafasta.co.tz
+# kopafasta.co.tz → https://www.kopafasta.co.tz
 # SSL via certbot after DNS A records point here.
+# Do not change DNS in this pass. staging.kopafasta.com stays staging.
 
 server {
     listen 80;
     listen [::]:80;
-    server_name kopafasta.com www.kopafasta.com;
-    return 301 https://www.kopafasta.com$request_uri;
+    server_name kopafasta.co.tz www.kopafasta.co.tz;
+    return 301 https://www.kopafasta.co.tz$request_uri;
 }
 
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name kopafasta.com;
-    return 301 https://www.kopafasta.com$request_uri;
+    server_name kopafasta.co.tz;
+    return 301 https://www.kopafasta.co.tz$request_uri;
 }
 
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name www.kopafasta.com;
+    server_name www.kopafasta.co.tz;
 
     root /var/www/kopafasta/public;
     index index.php;

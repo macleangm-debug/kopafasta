@@ -25,6 +25,7 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 mkdir -p "$APP_DIR" /var/backups/kopafasta-staging
+chmod 755 "$APP_DIR"
 chown -R www-data:www-data "$APP_DIR" || true
 
 # Independent MySQL database + user

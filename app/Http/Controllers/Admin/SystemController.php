@@ -34,6 +34,7 @@ class SystemController extends Controller
         $data = $request->validate([
             'mode' => ['required', 'in:simulator,psp_sandbox'],
             'default_test_fee' => ['required', 'integer', 'min:0', 'max:10000000'],
+            'use_price_overrides' => ['nullable', 'boolean'],
             'allow_success' => ['nullable', 'boolean'],
             'allow_pending' => ['nullable', 'boolean'],
             'allow_failure' => ['nullable', 'boolean'],
@@ -45,6 +46,7 @@ class SystemController extends Controller
         Setting::setMany([
             'staging_payments.mode' => $data['mode'],
             'staging_payments.default_test_fee' => (int) $data['default_test_fee'],
+            'staging_payments.use_price_overrides' => (bool) ($data['use_price_overrides'] ?? false),
             'staging_payments.allow_success' => (bool) ($data['allow_success'] ?? false),
             'staging_payments.allow_pending' => (bool) ($data['allow_pending'] ?? false),
             'staging_payments.allow_failure' => (bool) ($data['allow_failure'] ?? false),
@@ -116,6 +118,7 @@ class SystemController extends Controller
         return [
             'mode' => $staging->mode(),
             'default_test_fee' => $staging->defaultTestFee(),
+            'use_price_overrides' => $staging->usesPriceOverrides(),
             'allow_success' => $staging->allows('success'),
             'allow_pending' => $staging->allows('pending'),
             'allow_failure' => $staging->allows('failed'),

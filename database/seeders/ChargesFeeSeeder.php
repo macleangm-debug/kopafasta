@@ -133,9 +133,11 @@ class ChargesFeeSeeder extends Seeder
         ];
 
         foreach ($fees as $f) {
-            ChargesFee::updateOrCreate(['code' => $f['code']], $f + ['is_active' => true]);
+            ChargesFee::firstOrCreate(['code' => $f['code']], $f + ['is_active' => true]);
         }
 
-        app(ValuationPricingService::class)->syncChargesFees();
+        if (! ChargesFee::query()->whereIn('code', ['VAL_FEE', 'VAL_POST_FEE'])->exists()) {
+            app(ValuationPricingService::class)->syncChargesFees();
+        }
     }
 }

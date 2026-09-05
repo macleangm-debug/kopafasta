@@ -66,7 +66,7 @@ Legacy route `/borrower/guarantor-requests` redirects to `/borrower/loans#guaran
 
 ## 4. External Guarantor Workflow — Partial
 
-**Settings → Company Profile → App base URL** (e.g. `https://app.kopafasta.com`)
+**Settings → Company Profile → App base URL** (e.g. `https://www.kopafasta.co.tz`)
 
 Generated link: `{base_url}/guarantor/{token}` — sent via SMS/email on external invite.
 

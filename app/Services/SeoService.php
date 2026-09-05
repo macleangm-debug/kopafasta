@@ -492,7 +492,7 @@ class SeoService
     {
         $value = trim((string) $value);
         if ($value === '') {
-            $value = (string) config('app.url', 'https://kopafasta.com');
+            $value = (string) config('app.url', 'https://www.kopafasta.co.tz');
         }
         if (! str_starts_with($value, 'http://') && ! str_starts_with($value, 'https://')) {
             $value = 'https://'.$value;

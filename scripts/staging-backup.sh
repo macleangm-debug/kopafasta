@@ -12,7 +12,7 @@ DB_DATABASE="$(awk -F= '/^DB_DATABASE=/{print $2; exit}' .env | tr -d '"' | tr -
 DB_USERNAME="$(awk -F= '/^DB_USERNAME=/{print $2; exit}' .env | tr -d '"' | tr -d "'")"
 DB_PASSWORD="$(awk -F= '/^DB_PASSWORD=/{print $2; exit}' .env | tr -d '"' | tr -d "'")"
 
-mysqldump --single-transaction --routines --triggers \
+mysqldump --single-transaction --routines --triggers --no-tablespaces \
   -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" \
   | gzip > "${DEST}/db-${STAMP}.sql.gz"
 

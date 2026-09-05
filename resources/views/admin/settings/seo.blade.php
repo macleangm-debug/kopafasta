@@ -30,7 +30,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <x-admin.input name="site_name" label="Site / brand name" :value="$values['site_name'] ?? brand_name()" />
                     <x-admin.input name="title_pattern" label="Default title pattern" :value="$values['title_pattern'] ?? '{page} — {site}'" help="Use {page} and {site}. Ignored when a page title already includes the brand name." />
-                    <x-admin.input name="canonical_domain" label="Public canonical domain" :value="$values['canonical_domain'] ?? ''" placeholder="https://kopafasta.com" help="Host only, with https. Canonicals and the sitemap use this instead of a hard-coded domain." />
+                    <x-admin.input name="canonical_domain" label="Public canonical domain" :value="$values['canonical_domain'] ?? ''" placeholder="https://www.kopafasta.co.tz" help="Host only, with https. Canonicals and the sitemap use this instead of a hard-coded domain." />
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Default index behavior</label>
                         <label class="inline-flex items-center gap-2 text-sm">

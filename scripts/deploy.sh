@@ -22,6 +22,7 @@ Environment variables:
   NPM_BIN=npm
   RUN_NPM_BUILD=1
   WEB_GROUP=www-data:www-data
+  STAGING_SEED_MARKETPLACE=1   seed marketplace on staging (default 0; migrated data is preserved)
   DEPLOY_DIRTY=1                  allow uncommitted files (staging only)
 
 Example:
@@ -53,6 +54,7 @@ WEB_GROUP="${WEB_GROUP:-www-data:www-data}"
 DEPLOY_ENV="${DEPLOY_ENV:-staging}"
 RELEASE_VERSION="${RELEASE_VERSION:-dev}"
 DEPLOY_DIRTY="${DEPLOY_DIRTY:-0}"
+STAGING_SEED_MARKETPLACE="${STAGING_SEED_MARKETPLACE:-0}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -131,7 +133,8 @@ ssh -p "${SSH_PORT}" "${SERVER}" bash -s -- \
   "${WEB_GROUP}" \
   "${DEPLOY_ENV}" \
   "${DEPLOY_COMMIT}" \
-  "${RELEASE_VERSION}" <<'REMOTE'
+  "${RELEASE_VERSION}" \
+  "${STAGING_SEED_MARKETPLACE}" <<'REMOTE'
 set -euo pipefail
 
 APP_DIR="$1"
@@ -143,8 +146,18 @@ WEB_GROUP="$6"
 DEPLOY_ENV="$7"
 DEPLOY_COMMIT="$8"
 RELEASE_VERSION="$9"
+STAGING_SEED_MARKETPLACE="${10}"
 
 cd "$APP_DIR"
+
+# rsync -a preserves the sending uid (often a laptop uid). www-data must
+# be able to read the tree or nginx/php-fpm and the queue worker 404/FATAL.
+chmod 755 "$APP_DIR"
+chown -R www-data:www-data "$APP_DIR"
+if [[ -f .env ]]; then
+  chown root:www-data .env
+  chmod 640 .env
+fi
 
 if [[ ! -f .env ]]; then
   echo "Error: .env is missing at $APP_DIR/.env"
@@ -182,9 +195,13 @@ rm -f public/hot
 "$PHP_BIN" artisan db:seed --class=SafeConfigurationSeeder --force || true
 "$PHP_BIN" artisan gl:backfill-disbursements || true
 if [[ "$DEPLOY_ENV" == "staging" ]]; then
-  "$PHP_BIN" artisan db:seed --class=MarketplaceAssetSeeder --force || true
+  # Migrated staging already has the test marketplace. Do not re-seed unless
+  # an operator explicitly requests a fresh catalog.
+  if [[ "${STAGING_SEED_MARKETPLACE}" == "1" ]]; then
+    "$PHP_BIN" artisan db:seed --class=MarketplaceAssetSeeder --force || true
+    "$PHP_BIN" artisan marketplace:fix-photos || true
+  fi
   "$PHP_BIN" artisan db:seed --class=StagingUatSeeder --force || true
-  "$PHP_BIN" artisan marketplace:fix-photos || true
 fi
 "$PHP_BIN" artisan storage:link || true
 
@@ -205,6 +222,10 @@ file_put_contents("storage/app/release.json", json_encode($payload, JSON_PRETTY_
 "$PHP_BIN" artisan queue:restart || true
 systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php-fpm 2>/dev/null || service php8.3-fpm reload 2>/dev/null || true
 
+chown -R www-data:www-data storage bootstrap/cache public
+chown root:www-data .env
+chmod 640 .env
+chmod 755 "$APP_DIR"
 chgrp -R "${WEB_GROUP#*:}" storage bootstrap/cache || true
 chmod -R ug+rwx storage bootstrap/cache
 

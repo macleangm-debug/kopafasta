@@ -1,6 +1,6 @@
 # Kopafasta · BoT Letter of No Objection — presentation guide
 
-**Live platform (go-live domain):** https://kopafasta.com  
+**Live platform (intended production domain):** https://www.kopafasta.co.tz  
 **Source:** Bank of Tanzania · Guidance Note on Digital Lenders (Tier 2) · August 2024  
 **Also reviewed:** Personal Data Protection Act, 2022; Personal Data Collection and Processing Regulations, 2023; Complaints Settlement Procedures Regulations, 2023  
 **Purpose:** Product readiness + **where to click** on presentation day. Not a legal opinion.
@@ -19,12 +19,12 @@ Product-side BoT LNO criteria that can be fixed in code are closed. Camera captu
 
 | Step | Breadcrumb (where to find it) | What to say / show |
 |------|-------------------------------|--------------------|
-| 1. Ownership on landing | https://kopafasta.com/ → hero disclosure card | “This Digital Lending Platform is owned or operated by [legal name].” |
+| 1. Ownership on landing | https://www.kopafasta.co.tz/ → hero disclosure card | “This Digital Lending Platform is owned or operated by [legal name].” |
 | 2. Complaints contacts | Same hero card + **Footer → Complaints & queries** | Phone + email (Admin → Company). |
 | 3. Branded camera | Borrower → **Add picture** / **Capture image** | Kopafasta brand header; **Front camera** / **Back camera**; keep Add picture + Capture. |
-| 4. Privacy / PDPA | https://kopafasta.com/legal/privacy | PDPA basis, biometric consent, residency, PDPC complaint rights. |
-| 5. TZ / TZS only | https://kopafasta.com/register/borrower | Only Tanzania / +255; amounts in TZS. |
-| 6. Pricing + penalties | https://kopafasta.com/loans → product → **Fees** | Fees + late penalty **before** Apply. |
+| 4. Privacy / PDPA | https://www.kopafasta.co.tz/legal/privacy | PDPA basis, biometric consent, residency, PDPC complaint rights. |
+| 5. TZ / TZS only | https://www.kopafasta.co.tz/register/borrower | Only Tanzania / +255; amounts in TZS. |
+| 6. Pricing + penalties | https://www.kopafasta.co.tz/loans → product → **Fees** | Fees + late penalty **before** Apply. |
 | 7. No deposit-taking | `/legal/terms` · marketplace down payment | Membership fee ≠ deposit; asset down payment ≠ savings. |
 | 8. Guarantor liability | Guarantor invite / onboarding | Jointly and severally checkbox + notice. |
 | 9. Partner fair collection | Partner apply / activate · recovery case | Conduct acceptance; no shaming tools. |
@@ -72,7 +72,7 @@ Product-side BoT LNO criteria that can be fixed in code are closed. Camera captu
 | Lending policy | Outside code | Credit / Board | Board PDF |
 | Pricing methodology | Partial | Finance | Memo + Fees screenshots |
 | PDPC registration certificate | Outside code | Compliance | PDPC certificate |
-| Live link | Pass | Ops | https://kopafasta.com/ · `/loans` |
+| Live link | Pass | Ops | https://www.kopafasta.co.tz/ · `/loans` |
 | Annexure 2 questionnaire | Outside code | Board + compliance | Board PDF |
 
 ---

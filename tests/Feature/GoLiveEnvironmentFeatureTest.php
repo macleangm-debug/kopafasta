@@ -24,7 +24,7 @@ class GoLiveEnvironmentFeatureTest extends TestCase
 
     public function test_production_does_not_show_a_staging_banner(): void
     {
-        config(['app.env' => 'production', 'app.url' => 'https://www.kopafasta.com', 'release.show_banner' => null]);
+        config(['app.env' => 'production', 'app.url' => 'https://www.kopafasta.co.tz', 'release.show_banner' => null]);
         app()->instance('env', 'production');
 
         $this->assertFalse(app(ReleaseInfoService::class)->isStaging());
@@ -87,5 +87,30 @@ class GoLiveEnvironmentFeatureTest extends TestCase
         $this->assertStringContainsString('git archive', $script);
         $this->assertStringContainsString('SafeConfigurationSeeder', $script);
         $this->assertStringContainsString('release.json', $script);
+        $this->assertStringContainsString('STAGING_SEED_MARKETPLACE', $script);
+    }
+
+    public function test_production_examples_use_the_approved_co_tz_domain(): void
+    {
+        $env = file_get_contents(base_path('.env.production.example'));
+        $nginx = file_get_contents(base_path('deploy/nginx-production.conf.example'));
+        $this->assertStringContainsString('https://www.kopafasta.co.tz', $env);
+        $this->assertStringContainsString('https://www.kopafasta.co.tz/webhooks/payin', $env);
+        $this->assertStringNotContainsString('www.kopafasta.com', $env);
+        $this->assertStringContainsString('www.kopafasta.co.tz', $nginx);
+        $this->assertStringNotContainsString('www.kopafasta.com', $nginx);
+    }
+
+    public function test_github_production_workflow_is_manual_only(): void
+    {
+        $staging = file_get_contents(base_path('.github/workflows/deploy-staging.yml'));
+        $production = file_get_contents(base_path('.github/workflows/deploy-production.yml'));
+        $this->assertStringContainsString('workflow_dispatch', $staging);
+        $this->assertStringContainsString('workflow_dispatch', $production);
+        $this->assertStringNotContainsString("push:", $production);
+        $this->assertStringContainsString('environment:', $production);
+        $this->assertStringContainsString('name: production', $production);
+        $this->assertStringContainsString('https://www.kopafasta.co.tz', $production);
+        $this->assertStringContainsString('https://staging.kopafasta.com', $staging);
     }
 }
