@@ -150,16 +150,16 @@ class SyncStagingAdminCredentialsCommand extends Command
         if ($verifyFile !== '' && is_readable($verifyFile)) {
             $plain = trim((string) file_get_contents($verifyFile));
             if ($plain !== '') {
-                $authOk = Auth::guard('web')->attempt([
+                $authOk = Auth::guard('admin')->attempt([
                     'email' => $email,
                     'password' => $plain,
                 ], false);
-                Auth::guard('web')->logout();
-                $authDenied = Auth::guard('web')->attempt([
+                Auth::guard('admin')->logout();
+                $authDenied = Auth::guard('admin')->attempt([
                     'email' => $email,
                     'password' => 'definitely-not-the-password-'.bin2hex(random_bytes(8)),
                 ], false);
-                Auth::guard('web')->logout();
+                Auth::guard('admin')->logout();
                 // Confirm hash matches without logging plaintext.
                 if (! Hash::check($plain, $passwordHash)) {
                     $this->error('AUTH_HASH_MISMATCH');
