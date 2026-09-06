@@ -141,8 +141,19 @@ class IntegrationFeedback
         }
 
         $actionRequired = $this->actionRequiredFor($partnerKey, $context);
-        $ready = $actionRequired === null && (bool) ($context['ready'] ?? true);
+        $integrationReady = $actionRequired === null && (bool) ($context['ready'] ?? true);
+        $liveVerified = $this->isLiveVerified($partnerKey, $context);
         $modeLabel = $this->modeLabel($partnerKey, $context);
+
+        $readinessValue = 'Action required';
+        $readinessState = 'warning';
+        if ($liveVerified) {
+            $readinessValue = 'Live Verified';
+            $readinessState = 'success';
+        } elseif ($integrationReady) {
+            $readinessValue = 'Integration Ready';
+            $readinessState = 'success';
+        }
 
         $statuses = $this->baseStatuses(
             environment: $envLabel,
@@ -151,23 +162,36 @@ class IntegrationFeedback
             context: array_merge($context, [
                 'mode_label' => $modeLabel,
                 'mode_state' => $actionRequired ? 'warning' : 'success',
+                'readiness_value' => $readinessValue,
+                'readiness_state' => $readinessState,
             ]),
-            ready: $ready,
+            ready: $integrationReady || $liveVerified,
         );
 
+        // Never include a "Connection: Not tested" row after a probe has run.
+        $statuses = array_values(array_filter(
+            $statuses,
+            fn (array $row) => ! (($row['key'] ?? '') === 'connection' && ($row['value'] ?? '') === 'Not tested')
+        ));
+
+        $softNote = null;
+        if ($integrationReady && ! $liveVerified) {
+            $softNote = 'Integration is ready. A controlled end-to-end rehearsal is still required before Live Verified.';
+        }
+
         $payload = $this->payload(
-            tone: $ready ? 'success' : 'warning',
+            tone: ($integrationReady || $liveVerified) ? 'success' : 'warning',
             title: "{$label} connection successful",
             message: $envLabel !== ''
                 ? "Kopafasta successfully authenticated with {$label} in the {$envLabel} environment."
                 : "Kopafasta successfully authenticated with {$label}.",
             statuses: $statuses,
-            actionRequired: $actionRequired,
+            actionRequired: $actionRequired ?: $softNote,
         );
 
         $this->audit('integration.connection_test', [
             'provider' => $partnerKey,
-            'result' => $ready ? 'connected_ready' : 'connected_action_required',
+            'result' => $liveVerified ? 'live_verified' : ($integrationReady ? 'integration_ready' : 'connected_action_required'),
             'environment' => $envLabel,
         ]);
 
@@ -186,10 +210,11 @@ class IntegrationFeedback
         $env = $environment ?? (string) ($payin['environment'] ?? config('payin.environment', 'sandbox'));
         $configured = app(PayInService::class)->isConfigured();
         $webhookConfigured = filled($payin['webhook_secret'] ?? null);
-        $ready = $configured
+        $integrationReady = $configured
             && $env === 'production'
             && $mode === 'live'
             && $webhookConfigured;
+        $liveVerified = $this->isLiveVerified('payin');
 
         return [
             'configured' => $configured,
@@ -200,8 +225,37 @@ class IntegrationFeedback
             'webhook_state' => $webhookConfigured ? 'success' : 'warning',
             'show_webhook' => true,
             'show_mode' => true,
-            'ready' => $ready,
+            'ready' => $integrationReady,
+            'live_verified' => $liveVerified,
         ];
+    }
+
+    /** @param  array<string, mixed>  $context */
+    public function isLiveVerified(string $partnerKey, array $context = []): bool
+    {
+        if (array_key_exists('live_verified', $context)) {
+            return (bool) $context['live_verified'];
+        }
+
+        $raw = Setting::get("integrations.live_verified.{$partnerKey}");
+        if (is_array($raw)) {
+            return filled($raw['verified_at'] ?? null);
+        }
+
+        return (bool) $raw;
+    }
+
+    public function markLiveVerified(string $partnerKey): void
+    {
+        Setting::set("integrations.live_verified.{$partnerKey}", [
+            'verified_at' => now()->toIso8601String(),
+            'verified_by' => Auth::guard('admin')->id() ?? Auth::id(),
+        ]);
+
+        $this->audit('integration.live_verified', [
+            'provider' => $partnerKey,
+            'result' => 'live_verified',
+        ]);
     }
 
     /**
@@ -220,7 +274,7 @@ class IntegrationFeedback
         if ($unknown) {
             return [
                 'headline' => 'Not tested',
-                'detail' => 'Configured · Connected · Ready are unknown until you test',
+                'detail' => 'Configured · Connected · Integration Ready are unknown until you test',
                 'state' => 'neutral',
                 'last_tested_at' => null,
             ];
@@ -239,14 +293,29 @@ class IntegrationFeedback
         if ($partnerKey === 'payin') {
             $bits[] = $this->environmentLabel((string) ($context['environment'] ?? ''));
             $bits[] = (string) ($context['mode_label'] ?? 'Dummy');
-            if (empty($context['ready'])) {
+            if (! empty($context['live_verified'])) {
                 return [
-                    'headline' => 'Connected · Action required',
+                    'headline' => 'Connected · Live Verified',
                     'detail' => implode(' · ', array_filter($bits)),
-                    'state' => 'warning',
+                    'state' => 'success',
                     'last_tested_at' => $status['checked_at'] ?? null,
                 ];
             }
+            if (! empty($context['ready'])) {
+                return [
+                    'headline' => 'Connected · Integration Ready',
+                    'detail' => implode(' · ', array_filter($bits)),
+                    'state' => 'success',
+                    'last_tested_at' => $status['checked_at'] ?? null,
+                ];
+            }
+
+            return [
+                'headline' => 'Connected · Action required',
+                'detail' => implode(' · ', array_filter($bits)),
+                'state' => 'warning',
+                'last_tested_at' => $status['checked_at'] ?? null,
+            ];
         }
 
         return [
@@ -369,9 +438,13 @@ class IntegrationFeedback
 
         $rows[] = $this->status(
             'readiness',
-            'Production readiness',
-            $ready ? 'Ready' : ($authState === 'error' ? 'Not ready' : 'Action required'),
-            $ready ? 'success' : ($authState === 'error' ? 'error' : 'warning'),
+            'Integration readiness',
+            (string) ($context['readiness_value'] ?? ($ready
+                ? 'Integration Ready'
+                : ($authState === 'error' ? 'Not ready' : 'Action required'))),
+            (string) ($context['readiness_state'] ?? ($ready
+                ? 'success'
+                : ($authState === 'error' ? 'error' : 'warning'))),
         );
 
         return $rows;

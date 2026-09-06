@@ -4,19 +4,25 @@ namespace App\Services\Integrations;
 
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\NotificationLog;
 use App\Services\CrbService;
 use App\Services\CustomerPaymentService;
-use App\Services\NotificationService;
+use App\Services\Mail\GatewayMailConfigurator;
 use App\Services\PayInService;
+use App\Services\Sms\SmsManager;
+use App\Support\NidaNumber;
+use App\Support\PhoneNumber;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class IntegrationLiveTestService
 {
     public function __construct(
         protected PayInService $payIn,
-        protected NotificationService $notifications,
         protected CrbService $crb,
         protected CustomerPaymentService $payments,
+        protected SmsManager $sms,
+        protected GatewayMailConfigurator $mailConfig,
     ) {}
 
     /**
@@ -27,7 +33,7 @@ class IntegrationLiveTestService
      */
     public function testPayment(string $phone, float $amount = 1000): array
     {
-        $phone = trim($phone);
+        $phone = PhoneNumber::normalizeForCountry($phone, 'TZ') ?? trim($phone);
         if ($phone === '') {
             return [
                 'ok' => false,
@@ -46,9 +52,11 @@ class IntegrationLiveTestService
                 'payment_method' => 'mobile_money',
                 'amount' => max(500, round($amount, 2)),
                 'mobile_number' => $phone,
-                'notes' => 'Admin integration live test '.now()->toDateTimeString(),
+                'notes' => 'Integration rehearsal / PayIn live test '.now()->toDateTimeString(),
                 'provider_meta' => [
                     'integration_live_test' => true,
+                    'integration_rehearsal' => true,
+                    'integration_partner' => 'payin',
                     'triggered_by' => auth()->id(),
                 ],
             ]);
@@ -57,7 +65,8 @@ class IntegrationLiveTestService
                 try {
                     $payment = $this->payments->initiateCollection($payment, $phone);
                 } catch (\Throwable $e) {
-                    // Gate URL still useful even if collect fails (dummy / misconfig).
+                    $preview = route('admin.settings.integrations.live-test.payment', $payment);
+
                     return [
                         'ok' => false,
                         'title' => 'Payment created — collect failed',
@@ -68,26 +77,37 @@ class IntegrationLiveTestService
                             'Open the payment gate to inspect the UI.',
                         ],
                         'payment_id' => $payment->id,
-                        'payment_url' => route('site.borrower.payments.show', $payment),
+                        'payment_url' => $preview,
                         'admin_url' => route('admin.payments.show', $payment),
+                        'secondaryLabel' => 'Open payment.show',
+                        'secondaryHref' => $preview,
                     ];
                 }
             }
 
+            $preview = route('admin.settings.integrations.live-test.payment', $payment);
+
             return [
                 'ok' => true,
-                'title' => 'Payment live test ready',
-                'message' => 'Test payment created. Open the payment gate (payments.show) to verify the flow.',
+                'title' => 'PayIn live test ready',
+                'message' => 'Controlled test payment created. Continue on the canonical payment.show journey to complete the rehearsal.',
                 'lines' => [
                     'Payment #'.$payment->id,
                     'Phone: '.$phone,
                     'Amount: '.number_format((float) $payment->amount, 0).' TZS',
                     'Status: '.$payment->status,
-                    'Gateway: '.(payment_gateway_is_dummy() ? 'dummy' : 'live/sandbox'),
+                    'Tagged: integration rehearsal',
+                    'Gateway: '.(payment_gateway_is_dummy() ? 'dummy' : 'live'),
+                ],
+                'statuses' => [
+                    ['key' => 'payment', 'label' => 'Test payment', 'value' => 'Created', 'state' => 'success'],
+                    ['key' => 'gate', 'label' => 'Next step', 'value' => 'Open payment.show', 'state' => 'neutral'],
                 ],
                 'payment_id' => $payment->id,
-                'payment_url' => route('site.borrower.payments.show', $payment),
+                'payment_url' => $preview,
                 'admin_url' => route('admin.payments.show', $payment),
+                'secondaryLabel' => 'Continue to payment.show',
+                'secondaryHref' => $preview,
             ];
         } catch (\Throwable $e) {
             return [
@@ -104,21 +124,56 @@ class IntegrationLiveTestService
      */
     public function testMessaging(string $phone, ?string $message = null): array
     {
-        $phone = trim($phone);
-        $body = trim((string) ($message ?: 'Kopafasta integration live test at '.now()->format('H:i:s').'.'));
+        $phone = PhoneNumber::normalizeForCountry($phone, 'TZ') ?? trim($phone);
+        $body = trim((string) ($message ?: 'Kopafasta Unitxt live test at '.now()->format('H:i:s').'.'));
+
+        if ($phone === '') {
+            return [
+                'ok' => false,
+                'title' => 'Unitxt SMS live test failed',
+                'message' => 'Enter a recipient phone number.',
+                'lines' => [],
+            ];
+        }
 
         try {
-            $log = $this->notifications->sendSms($phone, $body, $this->findCustomerByPhone($phone), null);
+            $log = NotificationLog::create([
+                'channel' => 'sms',
+                'template' => 'integration_live_test',
+                'recipient' => $phone,
+                'message' => Str::limit($body, 800, ''),
+                'status' => 'queued',
+                'category' => 'integration',
+            ]);
+
+            $result = $this->sms->driver()->send($phone, $body);
+            $status = ($result['ok'] ?? false) ? 'sent' : 'failed';
+            $providerRef = $result['provider_id'] ?? null;
+            $log->update([
+                'status' => $status,
+                'sent_at' => ($result['ok'] ?? false) ? now() : null,
+                'meta' => array_filter([
+                    'integration_live_test' => true,
+                    'provider_ref' => $providerRef,
+                    'error' => $result['error'] ?? null,
+                ]),
+            ]);
 
             return [
-                'ok' => in_array($log->status, ['sent', 'queued', 'delivered', 'logged'], true),
-                'title' => 'Messaging live test',
-                'message' => 'SMS dispatch finished with status “'.$log->status.'”.',
-                'lines' => [
+                'ok' => $status === 'sent',
+                'title' => 'Unitxt SMS live test',
+                'message' => $status === 'sent'
+                    ? 'SMS dispatch finished with status “'.$status.'”.'
+                    : (string) ($result['error'] ?? 'SMS dispatch failed.'),
+                'lines' => array_values(array_filter([
                     'Recipient: '.$phone,
                     'Log #'.$log->id,
                     'Channel: sms',
+                    $providerRef ? 'Provider ref: '.$providerRef : null,
                     Str::limit($body, 120),
+                ])),
+                'statuses' => [
+                    ['key' => 'sms', 'label' => 'Delivery', 'value' => ucfirst($status), 'state' => $status === 'sent' ? 'success' : 'error'],
                 ],
             ];
         } catch (\Throwable $e) {
@@ -132,12 +187,101 @@ class IntegrationLiveTestService
     }
 
     /**
+     * @return array{ok: bool, title: string, message: string, lines: list<string>, statuses?: list<array{key?:string,label:string,value:string,state:string}>}
+     */
+    public function testEmail(string $to, ?string $subject = null, ?string $body = null): array
+    {
+        $to = trim($to);
+        if ($to === '' || ! filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return [
+                'ok' => false,
+                'title' => 'Email live test failed',
+                'message' => 'Enter a valid recipient email address.',
+                'lines' => [],
+            ];
+        }
+
+        if (! $this->mailConfig->isConfigured()) {
+            return [
+                'ok' => false,
+                'title' => 'Email live test failed',
+                'message' => 'Configure SMTP host and from address under Email (SMTP) before sending a live test.',
+                'lines' => [],
+                'statuses' => [
+                    ['key' => 'email', 'label' => 'Delivery', 'value' => 'Not configured', 'state' => 'warning'],
+                ],
+            ];
+        }
+
+        $subject = trim((string) ($subject ?: 'Kopafasta integration email live test'));
+        $body = trim((string) ($body ?: 'This is a controlled Kopafasta Email (SMTP) live test at '.now()->toDateTimeString().'.'));
+
+        try {
+            $this->mailConfig->apply();
+
+            Mail::raw($body, function ($message) use ($to, $subject) {
+                $message->to($to)->subject($subject);
+            });
+
+            NotificationLog::create([
+                'channel' => 'email',
+                'template' => 'integration_live_test',
+                'recipient' => $to,
+                'message' => '['.$subject.'] '.Str::limit($body, 500, ''),
+                'status' => 'sent',
+                'sent_at' => now(),
+                'category' => 'integration',
+                'meta' => ['integration_live_test' => true],
+            ]);
+
+            return [
+                'ok' => true,
+                'title' => 'Email live test submitted',
+                'message' => 'Test email was handed to the configured mail provider/SMTP.',
+                'lines' => [
+                    'To: '.$to,
+                    'Subject: '.$subject,
+                    'Mailer: '.(string) config('mail.default'),
+                ],
+                'statuses' => [
+                    ['key' => 'email', 'label' => 'Delivery', 'value' => 'Submitted', 'state' => 'success'],
+                ],
+            ];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [
+                'ok' => false,
+                'title' => 'Email live test failed',
+                'message' => 'The configured mailer could not send the test email.',
+                'lines' => [],
+                'statuses' => [
+                    ['key' => 'email', 'label' => 'Delivery', 'value' => 'Failed', 'state' => 'error'],
+                ],
+            ];
+        }
+    }
+
+    /**
      * @return array{ok: bool, title: string, message: string, lines: list<string>}
      */
     public function testCrb(?string $nida = null, ?string $fullName = null, ?string $dob = null): array
     {
         $sample = config('crb_samples.scenarios.verified', []);
-        $nida = trim((string) ($nida ?: ($sample['nida'] ?? '19810713-00001-23456-78')));
+        $nida = trim((string) ($nida ?: ''));
+
+        if ($nida !== '' && ! NidaNumber::isValid($nida)) {
+            return [
+                'ok' => false,
+                'title' => 'CRB live test failed',
+                'message' => 'Enter a valid NIDA number (XXXXXXXX-XXXXX-XXXXX-XX).',
+                'lines' => [],
+            ];
+        }
+
+        $nida = $nida !== ''
+            ? (NidaNumber::format($nida) ?? $nida)
+            : (string) ($sample['nida'] ?? '19810713-00001-23456-78');
         $fullName = $fullName ?: ($sample['full_name'] ?? null);
         $dob = $dob ?: ($sample['date_of_birth'] ?? null);
 
@@ -149,27 +293,35 @@ class IntegrationLiveTestService
                 return [
                     'ok' => true,
                     'title' => 'CRB live test succeeded',
-                    'message' => ($result->fullName ?: 'Identity matched').' via '.$driver.'.',
+                    'message' => 'CRB enquiry completed via '.$driver.'.',
                     'lines' => array_values(array_filter([
-                        'NIDA: '.$nida,
-                        $result->dateOfBirth ? 'DOB: '.$result->dateOfBirth : null,
-                        $result->gender ? 'Gender: '.$result->gender : null,
-                        $result->message ? 'Note: '.$result->message : null,
+                        'NIDA format validated',
+                        $result->message ? 'Note: '.app(IntegrationFeedback::class)->sanitizeReason((string) $result->message) : null,
                     ])),
+                    'statuses' => [
+                        ['key' => 'crb', 'label' => 'Enquiry', 'value' => 'Matched', 'state' => 'success'],
+                        ['key' => 'driver', 'label' => 'Driver', 'value' => $driver, 'state' => 'neutral'],
+                    ],
                 ];
             }
 
             return [
                 'ok' => false,
                 'title' => 'CRB live test failed',
-                'message' => $result->message ?: 'No match from CRB.',
-                'lines' => ['NIDA: '.$nida, 'Driver: '.$driver],
+                'message' => app(IntegrationFeedback::class)
+                    ->sanitizeReason((string) ($result->message ?: 'No match from CRB.')),
+                'lines' => ['Driver: '.$driver],
+                'statuses' => [
+                    ['key' => 'crb', 'label' => 'Enquiry', 'value' => 'Failed', 'state' => 'error'],
+                ],
             ];
         } catch (\Throwable $e) {
+            report($e);
+
             return [
                 'ok' => false,
                 'title' => 'CRB live test failed',
-                'message' => $e->getMessage(),
+                'message' => 'CRB enquiry could not be completed.',
                 'lines' => [],
             ];
         }

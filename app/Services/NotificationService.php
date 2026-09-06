@@ -9,6 +9,7 @@ use App\Models\Partner;
 use App\Services\Marketing\DemoGuard;
 use App\Services\Messaging\TransactionalMessagingService;
 use App\Services\Messaging\WhatsApp\WhatsAppManager;
+use App\Services\Mail\GatewayMailConfigurator;
 use App\Services\Sms\SmsManager;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
@@ -21,6 +22,7 @@ class NotificationService
         private readonly SmsManager $sms,
         private readonly TransactionalMessagingService $messaging,
         private readonly WhatsAppManager $whatsapp,
+        private readonly GatewayMailConfigurator $mailConfig,
     ) {}
 
     /**
@@ -78,6 +80,7 @@ class NotificationService
         ]);
 
         try {
+            $this->mailConfig->apply();
             Mail::raw($body, function ($m) use ($email, $subject) {
                 $m->to($email)->subject($subject);
             });

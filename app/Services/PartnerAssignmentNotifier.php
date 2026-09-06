@@ -51,6 +51,11 @@ class PartnerAssignmentNotifier
 
     public function notifyStaff(string $title, string $message, ?string $actionUrl = null, string $permission = 'applications.view'): void
     {
+        $delivery = app(\App\Services\Messaging\NotificationDeliverySettings::class);
+        if (! $delivery->operationalEventEnabled('partners') || ! $delivery->operationalChannelEnabled('in_app')) {
+            return;
+        }
+
         $this->writeStaffNotifications(
             User::query()
                 ->whereIn('role', ['admin', 'super_admin', 'staff'])

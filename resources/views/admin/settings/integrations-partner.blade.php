@@ -23,7 +23,7 @@
                     <input type="hidden" name="partner" value="{{ $partnerKey }}">
                     <button type="submit" class="rounded-xl bg-brand text-white text-xs font-semibold px-3 py-2 hover:bg-brand-light">Check health</button>
                 </form>
-                <a href="{{ route('admin.settings.integrations') }}#live-test"
+                <a href="#live-test"
                    class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-semibold px-3 py-2 hover:bg-brand-muted/40">
                     Live test
                 </a>
@@ -89,9 +89,11 @@
                 @include('admin.settings._payin-form', $payin + ['embedded' => true])
             @elseif ($partnerKey === 'crb' && is_array($crb ?? null))
                 @include('admin.settings._crb-form', $crb + ['embedded' => true])
-            @elseif (in_array($partnerKey, ['unitxt', 'email_smtp'], true) || ($partner['category'] ?? '') === 'messaging')
-                <p class="text-sm text-gray-600">SMS / email gateway credentials are managed on the messaging gateways page. Set per-message rates under Usage &amp; billing if this provider charges you.</p>
-                <a href="{{ route('admin.settings.gateways') }}" class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5">Open SMS / Email</a>
+            @elseif ($partnerKey === 'email_smtp')
+                @include('admin.settings._email-smtp-form')
+            @elseif ($partnerKey === 'unitxt' || ($partner['category'] ?? '') === 'messaging')
+                <p class="text-sm text-gray-600">Unitxt SMS credentials are managed on the SMS / Email gateways page. Set per-message rates under Usage &amp; billing if this provider charges you.</p>
+                <a href="{{ route('admin.settings.gateways') }}" class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5">Open SMS / Email gateways</a>
             @elseif (($partner['category'] ?? '') === 'payment')
                 <div>
                     <h3 class="text-sm font-semibold text-gray-900 mb-2">Supported rails</h3>
@@ -124,6 +126,15 @@
                 </div>
             @endif
         </div>
+
+        @if (in_array($partnerKey, ['payin', 'unitxt', 'email_smtp', 'crb'], true))
+            <div class="mt-6">
+                @include('admin.settings._integration-live-test', [
+                    'partnerKey' => $partnerKey,
+                    'partner' => $partner,
+                ])
+            </div>
+        @endif
     @else
         <div class="space-y-6">
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

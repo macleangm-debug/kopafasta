@@ -49,6 +49,12 @@ class IntegrationFeedbackTest extends TestCase
         $this->assertTrue(collect($payload['statuses'])->contains(
             fn ($row) => $row['key'] === 'authentication' && $row['value'] === 'Connected'
         ));
+        $this->assertTrue(collect($payload['statuses'])->contains(
+            fn ($row) => $row['key'] === 'readiness' && in_array($row['value'], ['Action required', 'Integration Ready', 'Live Verified'], true)
+        ));
+        $this->assertFalse(collect($payload['statuses'])->contains(
+            fn ($row) => ($row['key'] ?? '') === 'connection' && ($row['value'] ?? '') === 'Not tested'
+        ));
     }
 
     public function test_not_configured_is_not_connection_failed(): void
@@ -67,6 +73,33 @@ class IntegrationFeedbackTest extends TestCase
         $feedback = app(IntegrationFeedback::class);
         $this->assertSame('Invalid credentials', $feedback->sanitizeReason('401 unauthorized key=sk_live_secret'));
         $this->assertSame('Connection could not be completed', $feedback->sanitizeReason('Exception: stack with secret sk_abc'));
+    }
+
+    public function test_integration_ready_when_live_production_webhook_and_connected(): void
+    {
+        $feedback = app(IntegrationFeedback::class);
+        $payload = $feedback->fromHealth('payin', [
+            'ok' => true,
+            'message' => 'Authenticated with PayIn (production).',
+            'probe_kind' => 'connection',
+        ], [
+            'configured' => true,
+            'environment' => 'production',
+            'gateway_mode' => 'live',
+            'mode_label' => 'Live',
+            'webhook' => 'Configured',
+            'webhook_state' => 'success',
+            'show_webhook' => true,
+            'show_mode' => true,
+            'ready' => true,
+            'live_verified' => false,
+        ]);
+
+        $this->assertSame('success', $payload['tone']);
+        $this->assertTrue(collect($payload['statuses'])->contains(
+            fn ($row) => $row['key'] === 'readiness' && $row['value'] === 'Integration Ready'
+        ));
+        $this->assertStringContainsString('Live Verified', (string) $payload['action_required']);
     }
 
     public function test_services_resolve(): void

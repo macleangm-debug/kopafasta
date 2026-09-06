@@ -1023,6 +1023,16 @@ class CustomerPaymentService
                 $this->notifyBankStatus($verified, 'bank_payment_verified');
             }
 
+            $meta = is_array($verified->provider_meta) ? $verified->provider_meta : [];
+            if (! empty($meta['integration_rehearsal']) || ! empty($meta['integration_live_test'])) {
+                $partner = (string) ($meta['integration_partner'] ?? 'payin');
+                try {
+                    app(\App\Services\Integrations\IntegrationFeedback::class)->markLiveVerified($partner);
+                } catch (\Throwable) {
+                    // Never block payment verification on readiness bookkeeping.
+                }
+            }
+
             return $verified->load(['customer', 'journalEntry']);
         });
     }

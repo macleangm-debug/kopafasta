@@ -291,6 +291,106 @@ class PayInIntegrationSettingsTest extends TestCase
             ->assertSee('Save &amp; test connection', false);
     }
 
+    public function test_save_and_test_live_production_is_integration_ready_not_live_verified(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->mock(\App\Services\Integrations\IntegrationHealthService::class, function ($mock) {
+            $mock->shouldReceive('check')
+                ->once()
+                ->with('payin', true)
+                ->andReturn([
+                    'ok' => true,
+                    'message' => 'Authenticated with PayIn (production).',
+                    'checked_at' => now()->toIso8601String(),
+                    'provider' => 'payin',
+                    'guidance' => [],
+                    'probe_kind' => 'connection',
+                ]);
+        });
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.payin.save'), [
+                'environment' => 'production',
+                'api_key' => 'pk_live',
+                'api_secret' => 'sk_live',
+                'webhook_secret' => 'whsec_live',
+                'default_callback_url' => 'https://www.kopafasta.com/webhooks/payin',
+                'gateway_mode' => 'live',
+                'mobile_money_threshold' => '3000000',
+                'channels' => ['mobile_money'],
+                'intent' => 'save_and_test',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('feedback.title', 'PayIn connection successful')
+            ->assertSessionHas('feedback.tone', 'success');
+
+        $statuses = collect(session('feedback.statuses'));
+        $this->assertTrue($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'authentication' && ($row['value'] ?? '') === 'Connected'));
+        $this->assertTrue($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'readiness' && ($row['value'] ?? '') === 'Integration Ready'));
+        $this->assertFalse($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'connection' && ($row['value'] ?? '') === 'Not tested'));
+        $this->assertFalse($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'readiness' && ($row['value'] ?? '') === 'Live Verified'));
+        $this->assertStringContainsString('end-to-end rehearsal', strtolower((string) session('feedback.action_required')));
+    }
+
+    public function test_payin_partner_page_shows_provider_live_test_controls(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration']))
+            ->assertOk()
+            ->assertSee('id="live-test"', false)
+            ->assertSee('Mobile number')
+            ->assertSee('Amount (TZS)')
+            ->assertSee('Continue to payment.show', false);
+    }
+
+    public function test_notifications_settings_page_saves_delivery_rules(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.notifications'))
+            ->assertOk()
+            ->assertSee('Management digests')
+            ->assertSee('Operational assignments');
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.notifications.save'), [
+                'management' => [
+                    'enabled' => '1',
+                    'cadence' => 'daily',
+                    'events' => ['integration_failures' => '1', 'sla_breaches' => '1'],
+                    'channels' => ['in_app' => '1', 'email' => '1'],
+                ],
+                'operational' => [
+                    'enabled' => '1',
+                    'events' => ['screening' => '1', 'recovery' => '1'],
+                    'channels' => ['in_app' => '1'],
+                ],
+            ])
+            ->assertRedirect(route('admin.settings.notifications'))
+            ->assertSessionHas('feedback');
+
+        $stored = Setting::get('notifications.delivery');
+        $this->assertSame('daily', $stored['management']['cadence'] ?? null);
+        $this->assertTrue((bool) ($stored['management']['events']['integration_failures'] ?? false));
+        $this->assertTrue((bool) ($stored['operational']['events']['recovery'] ?? false));
+    }
+
+    public function test_email_smtp_partner_page_embeds_configuration(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.partner', ['partner' => 'email_smtp']))
+            ->assertOk()
+            ->assertSee('Email (SMTP) configuration')
+            ->assertSee('SMTP host')
+            ->assertSee('Send test email');
+    }
+
     public function test_payin_webhook_rejects_bad_signature(): void
     {
         Setting::setMany([

@@ -532,16 +532,51 @@ class SettingsController extends Controller
     public function runIntegrationLiveTest(
         Request $request,
         \App\Services\Integrations\IntegrationLiveTestService $liveTest,
+        \App\Services\Integrations\IntegrationFeedback $feedback,
     ) {
+        $request->merge([
+            'amount' => $request->filled('amount')
+                ? \App\Support\MoneyFormat::toNumber($request->input('amount'))
+                : null,
+        ]);
+
+        $request->merge([
+            'phone' => \App\Support\PhoneNumber::fromRequest($request, 'phone', 'TZ')
+                ?? $request->input('phone'),
+        ]);
+
         $data = $request->validate([
-            'suite' => ['required', 'in:payment,messaging,crb'],
+            'suite' => ['required', 'in:payment,messaging,email,crb'],
+            'partner' => ['nullable', 'string', 'max:40'],
             'phone' => ['nullable', 'string', 'max:30'],
             'amount' => ['nullable', 'numeric', 'min:500', 'max:100000'],
             'message' => ['nullable', 'string', 'max:320'],
-            'nida' => ['nullable', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:190'],
+            'subject' => ['nullable', 'string', 'max:190'],
+            'nida' => ['nullable', 'string', 'max:40', new \App\Rules\ValidNidaNumber],
             'full_name' => ['nullable', 'string', 'max:120'],
-            'date_of_birth' => ['nullable', 'string', 'max:20'],
+            'date_of_birth' => ['nullable', 'date_format:Y-m-d'],
+            'confirm_production_payment' => ['nullable', 'boolean'],
         ]);
+
+        $partner = (string) ($data['partner'] ?? '');
+        if ($data['suite'] === 'payment' && ($partner === 'payin' || $partner === '')) {
+            $liveGateway = ! payment_gateway_is_dummy()
+                && app()->isProduction()
+                && (Setting::get('payin.environment') === 'production');
+            if ($liveGateway && ! $request->boolean('confirm_production_payment')) {
+                return back()->with('feedback', $feedback->payload(
+                    tone: 'warning',
+                    title: 'Confirmation required',
+                    message: 'This is a real production payment. Confirm that the entered phone may receive a real USSD/payment request and that successful payment will move real money.',
+                    statuses: [
+                        $feedback->status('mode', 'Gateway mode', 'Live', 'warning'),
+                        $feedback->status('risk', 'Money movement', 'Real', 'warning'),
+                    ],
+                    actionRequired: 'Tick the confirmation box, then run Live test again.',
+                ));
+            }
+        }
 
         $result = match ($data['suite']) {
             'payment' => $liveTest->testPayment(
@@ -550,6 +585,11 @@ class SettingsController extends Controller
             ),
             'messaging' => $liveTest->testMessaging(
                 (string) ($data['phone'] ?? ''),
+                $data['message'] ?? null,
+            ),
+            'email' => $liveTest->testEmail(
+                (string) ($data['email'] ?? ''),
+                $data['subject'] ?? null,
                 $data['message'] ?? null,
             ),
             'crb' => $liveTest->testCrb(
@@ -562,15 +602,28 @@ class SettingsController extends Controller
         $lines = $result['lines'] ?? [];
         if (! empty($result['payment_id'])) {
             $lines[] = 'Admin payment: '.route('admin.payments.show', $result['payment_id']);
-            $lines[] = 'Borrower gate preview: '.route('admin.settings.integrations.live-test.payment', $result['payment_id']);
+            $lines[] = 'Borrower gate: '.route('site.borrower.payments.show', $result['payment_id']);
         }
 
-        return back()->with('feedback', [
+        $feedbackPayload = [
             'tone' => ($result['ok'] ?? false) ? 'success' : 'error',
             'title' => $result['title'] ?? 'Live test',
             'message' => $result['message'] ?? '',
             'lines' => $lines,
-        ])->with('live_test_result', $result);
+            'statuses' => $result['statuses'] ?? [],
+            'secondaryLabel' => $result['secondaryLabel'] ?? null,
+            'secondaryHref' => $result['secondaryHref'] ?? null,
+            'okLabel' => 'Got it',
+        ];
+
+        // PayIn rehearsal continues on the canonical payment.show journey (admin preview of the same view).
+        if (($result['ok'] ?? false) && ! empty($result['payment_url']) && ($data['suite'] ?? '') === 'payment') {
+            return redirect($result['payment_url'])
+                ->with('feedback', $feedbackPayload)
+                ->with('live_test_result', $result);
+        }
+
+        return back()->with('feedback', $feedbackPayload)->with('live_test_result', $result);
     }
 
     public function previewIntegrationPaymentGate(\App\Models\CustomerPayment $payment): \Illuminate\View\View|\Illuminate\Http\RedirectResponse
@@ -699,11 +752,14 @@ class SettingsController extends Controller
                 ->with('feedback', $feedback->fromHealth('payin', $result, $context));
         }
 
+        $envLabel = ($data['environment'] ?? '') === 'production' ? 'Production' : 'Sandbox';
+
         return redirect()
             ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
             ->with('feedback', $feedback->settingsSaved('PayIn', [
                 $feedback->status('configuration', 'Configuration', 'Saved', 'success'),
                 $feedback->status('connection', 'Connection', 'Not tested', 'neutral'),
+                $feedback->status('environment', 'Environment', $envLabel, 'neutral'),
                 $feedback->status('mode', 'Gateway mode', $context['mode_label'], $gatewayMode === 'live' ? 'success' : 'warning'),
             ], $gatewayMode === 'live' ? null : 'Gateway Mode is Dummy. Switch to Live before accepting real payments.'));
     }
@@ -723,6 +779,51 @@ class SettingsController extends Controller
     public function messaging(\App\Services\Messaging\TransactionalMessagingService $messaging)
     {
         return view('admin.settings.messaging', $messaging->formValues());
+    }
+
+    public function notifications(\App\Services\Messaging\NotificationDeliverySettings $delivery)
+    {
+        return view('admin.settings.notifications', [
+            'values' => $delivery->all(),
+        ]);
+    }
+
+    public function saveNotifications(Request $request)
+    {
+        $management = (array) $request->input('management', []);
+        $operational = (array) $request->input('operational', []);
+
+        $normalize = function (array $block) {
+            $events = [];
+            foreach ((array) ($block['events'] ?? []) as $key => $value) {
+                $events[$key] = (bool) $value;
+            }
+            $channels = [];
+            foreach ((array) ($block['channels'] ?? []) as $key => $value) {
+                $channels[$key] = (bool) $value;
+            }
+
+            return [
+                'enabled' => (bool) ($block['enabled'] ?? false),
+                'cadence' => (string) ($block['cadence'] ?? 'immediate_summary'),
+                'events' => $events,
+                'channels' => $channels,
+            ];
+        };
+
+        Setting::set('notifications.delivery', [
+            'management' => $normalize($management),
+            'operational' => $normalize($operational),
+        ]);
+
+        $feedback = app(\App\Services\Integrations\IntegrationFeedback::class);
+
+        return redirect()
+            ->route('admin.settings.notifications')
+            ->with('feedback', $feedback->settingsSaved('Notifications', [
+                $feedback->status('configuration', 'Configuration', 'Saved', 'success'),
+                $feedback->status('connection', 'Provider delivery', 'Not tested', 'neutral'),
+            ]));
     }
 
     public function saveMessaging(Request $request, \App\Services\Messaging\TransactionalMessagingService $messaging)

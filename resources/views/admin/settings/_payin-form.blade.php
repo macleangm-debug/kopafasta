@@ -110,9 +110,9 @@
                 </dd>
             </div>
             <div>
-                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Production readiness</dt>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Integration readiness</dt>
                 <dd class="mt-1.5 text-lg font-bold {{ $readinessReady ? 'text-emerald-700' : 'text-amber-700' }}">
-                    {{ $readinessReady ? 'Ready' : 'Action required' }}
+                    {{ $readinessReady ? (app(\App\Services\Integrations\IntegrationFeedback::class)->isLiveVerified('payin') ? 'Live Verified' : 'Integration Ready') : 'Action required' }}
                 </dd>
             </div>
             <div>

@@ -39,18 +39,18 @@
                 <p class="mt-1 text-sm text-gray-500">Sign in with your staff account to continue</p>
             </div>
 
-            <form method="POST" action="{{ route('admin.login') }}" class="space-y-4 form-scroll-lock">
+            <form method="POST" action="{{ route('admin.login') }}" class="space-y-4 form-scroll-lock" autocomplete="off">
                 @csrf
 
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Email</label>
-                    <input type="email" name="email" value="{{ old('email') }}" required autofocus
+                    <input type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username"
                            class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-base px-3.5 py-2.5 bg-white">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Password</label>
-                    <input type="password" name="password" required
+                    <input type="password" name="password" required autocomplete="current-password"
                            class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-base px-3.5 py-2.5 bg-white">
                 </div>
 

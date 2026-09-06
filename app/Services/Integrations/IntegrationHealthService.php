@@ -259,6 +259,11 @@ class IntegrationHealthService
 
     protected function notifyAdmins(array $partner, array $status): void
     {
+        $delivery = app(\App\Services\Messaging\NotificationDeliverySettings::class);
+        if (! $delivery->managementEventEnabled('integration_failures')) {
+            return;
+        }
+
         $label = (string) ($partner['label'] ?? $partner['key']);
         $subject = "Integration unhealthy: {$label}";
         $body = "{$label} failed its health check.\n\n{$status['message']}\n\nOpen Settings → Integrations to review.";
@@ -279,11 +284,13 @@ class IntegrationHealthService
         }
 
         $notify = app(NotificationService::class);
-        $staff->pluck('email')->filter()->unique()->each(function (string $email) use ($notify, $subject, $body): void {
-            $notify->sendEmail($email, $subject, $body, null, 'integration_health');
-        });
+        if ($delivery->managementChannelEnabled('email')) {
+            $staff->pluck('email')->filter()->unique()->each(function (string $email) use ($notify, $subject, $body): void {
+                $notify->sendEmail($email, $subject, $body, null, 'integration_health');
+            });
+        }
 
-        if ((bool) Setting::get('gateway.staff_sms_alerts', true)) {
+        if ($delivery->managementChannelEnabled('sms') && (bool) Setting::get('gateway.staff_sms_alerts', true)) {
             $staff->pluck('phone')->filter()->unique()->each(function (string $phone) use ($notify, $smsBody): void {
                 $notify->sendSms($phone, $smsBody, null, 'integration_health');
             });
