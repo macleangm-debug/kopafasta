@@ -41,11 +41,13 @@ class BrokenPageClassifier
         if ($status === 500 && (
             str_contains($message, '--columns')
             || str_contains($message, 'option does not exist')
+            || str_contains($message, 'Scheduled command')
+            || str_contains($message, 'The MAC is invalid')
             || ($path === '/' && str_contains($ua, 'symfony') && str_contains((string) $exception, 'RuntimeException'))
         )) {
             return [
                 'category' => 'historical',
-                'notes' => 'Console/deploy tooling exception mis-attributed to a web path; not a browser home failure.',
+                'notes' => 'Console/deploy/session-key exception mis-attributed or no longer actionable as a page defect.',
                 'auto_resolve' => true,
             ];
         }
@@ -130,6 +132,14 @@ class BrokenPageClassifier
             return true;
         }
 
+        // Admin/CMS probe files under /admin that are not Kopafasta console routes.
+        if (str_starts_with($lower, '/admin/') && preg_match('/\.(php|asp|aspx|jsp|cgi|env|yml|yaml|sql|bak)(\?|$)/i', $lower) === 1) {
+            return true;
+        }
+        if (str_starts_with($lower, '/admin/') && preg_match('/%2e|\*|upload\/|controller\/extension|moon\.php|bless\.php/i', $lower) === 1) {
+            return true;
+        }
+
         return false;
     }
 
@@ -144,6 +154,32 @@ class BrokenPageClassifier
 
     private function looksLikeBrokenInternalPath(string $path): bool
     {
+        // Scanner probes under /admin/*.php etc. are not internal CTAs.
+        if (preg_match('/\.(php|asp|aspx|jsp|cgi|env|yml|yaml|sql|bak|zip|tar|gz)(\?|$)/i', $path) === 1) {
+            return false;
+        }
+        if (preg_match('/%2e/i', $path) === 1) {
+            return false;
+        }
+        if (preg_match('#^/admin/(index\.php|login\.php|config\.php|core\.php|.*\.php)$#i', $path) === 1) {
+            return false;
+        }
+        if (str_contains($path, '/admin/') && preg_match('#^/admin/[a-z0-9._*/%-]+$#i', $path) === 1) {
+            $known = ['/admin/loan-applications', '/admin/customers', '/admin/partners', '/admin/payments',
+                '/admin/settings', '/admin/broken-pages', '/admin/communications', '/admin/reports',
+                '/admin/growth', '/admin/teams', '/admin/support-tickets', '/admin/login', '/admin/'];
+            $isKnown = false;
+            foreach ($known as $prefix) {
+                if ($path === rtrim($prefix, '/') || str_starts_with($path, $prefix)) {
+                    $isKnown = true;
+                    break;
+                }
+            }
+            if (! $isKnown) {
+                return false;
+            }
+        }
+
         foreach (['/borrower/', '/partner/', '/admin/', '/staff/', '/investor/', '/apply', '/membership'] as $prefix) {
             if (str_starts_with($path, $prefix)) {
                 return true;

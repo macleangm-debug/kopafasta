@@ -118,7 +118,7 @@ class CloseBrokenPagesInventoryCommand extends Command
                 'updated_at' => $now,
             ]);
 
-        // Remaining open rows: classify individually (should be a small set).
+        // Re-classify every still-open row with the current classifier (small remainder after bulks).
         $classified = 0;
         $autoResolved = 0;
         BrokenPage::query()->whereNull('resolved_at')->orderBy('id')->chunkById(200, function ($rows) use ($classifier, $now, &$classified, &$autoResolved): void {
@@ -145,6 +145,26 @@ class CloseBrokenPagesInventoryCommand extends Command
                 $row->update($payload);
             }
         });
+
+        // Force-close admin probe 404s still marked broken_link from older classifier runs.
+        $adminProbeResolved = BrokenPage::query()
+            ->whereNull('resolved_at')
+            ->where('status', 404)
+            ->where('path', 'like', '/admin/%')
+            ->where(function ($q): void {
+                $q->where('path', 'like', '%.php%')
+                    ->orWhere('path', 'like', '%\%2e%')
+                    ->orWhere('path', 'like', '%*%')
+                    ->orWhere('path', 'like', '%controller/%')
+                    ->orWhere('path', 'like', '%upload/%');
+            })
+            ->update([
+                'category' => 'scanner_bot',
+                'classification_notes' => 'Scanner/bot admin probe; retained for security history.',
+                'resolved_at' => $now,
+                'resolution_notes' => 'Reclassified from broken_link to scanner_bot during closure pass.',
+                'updated_at' => $now,
+            ]);
 
         $fixedIds = collect(explode(',', (string) $this->option('resolve-fixed')))
             ->map(fn ($id) => (int) trim($id))
@@ -196,7 +216,7 @@ class CloseBrokenPagesInventoryCommand extends Command
         }
 
         $needsAttention = BrokenPage::query()->needsAttention()->count();
-        $this->info("Bulk scanner≈{$scannerResolved}, security={$securityResolved}, historical={$historicalResolved}, invalid={$invalidResolved}");
+        $this->info("Bulk scanner≈{$scannerResolved}, security={$securityResolved}, historical={$historicalResolved}, invalid={$invalidResolved}, admin-probes={$adminProbeResolved}");
         $this->info("Remainder classified={$classified}, auto-resolved={$autoResolved}, fixed-ids={$fixed}, support={$supportFixed}, setup-pin={$setupPinFixed}");
         $this->info('Needs Attention='.$needsAttention);
 
