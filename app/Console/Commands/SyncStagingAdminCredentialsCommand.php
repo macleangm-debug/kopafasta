@@ -114,11 +114,18 @@ class SyncStagingAdminCredentialsCommand extends Command
                     continue;
                 }
                 if (in_array($other->role, ['admin', 'super_admin'], true)) {
-                    $other->is_active = false;
-                    if (strcasecmp((string) $other->email, $email) === 0) {
-                        $other->email = 'disabled-admin-'.$other->id.'@staging.kopafasta.invalid';
-                    }
-                    $other->save();
+                    $disabledEmail = 'disabled-admin-'.$other->id.'@staging.kopafasta.invalid';
+                    DB::table('users')->where('id', $other->id)->update([
+                        'email' => $disabledEmail,
+                        'role' => 'officer',
+                        'is_active' => false,
+                        'password' => Hash::make(bin2hex(random_bytes(32))),
+                        'pin_hash' => null,
+                        'two_factor_secret' => null,
+                        'two_factor_recovery_codes' => null,
+                        'two_factor_confirmed_at' => null,
+                        'remember_token' => null,
+                    ]);
                 }
             }
         });
