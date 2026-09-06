@@ -27,23 +27,37 @@
                     <x-site.brand-mark size="md" />
                 </a>
 
-                <div class="mb-6 flex rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full" role="tablist" aria-label="{{ __('site.auth.sign_in') }}">
-                    <a href="{{ route('site.login') }}"
-                       role="tab"
-                       aria-selected="{{ ($partnerPortal ?? false) ? 'false' : 'true' }}"
-                       @class([
-                           'flex-1 rounded-lg py-2.5 px-2 text-sm leading-snug text-center transition font-semibold',
-                           'bg-white text-brand shadow-sm' => ! ($partnerPortal ?? false),
-                           'text-gray-600 hover:bg-white/50' => $partnerPortal ?? false,
-                       ])>{{ __('site.auth.account_type_borrower') }}</a>
-                    <a href="{{ route('site.login.partner') }}"
-                       role="tab"
-                       aria-selected="{{ ($partnerPortal ?? false) ? 'true' : 'false' }}"
-                       @class([
-                           'flex-1 rounded-lg py-2.5 px-2 text-sm leading-snug text-center transition font-semibold',
-                           'bg-white text-brand shadow-sm' => $partnerPortal ?? false,
-                           'text-gray-600 hover:bg-white/50' => ! ($partnerPortal ?? false),
-                       ])>{{ __('site.auth.account_type_partner') }}</a>
+                <div class="mb-6 space-y-2" x-data="{ roleOpen: false, methodOpen: false, method: @js($authMethod) }">
+                    <div class="grid grid-cols-2 gap-2">
+                        <a href="{{ route('site.login') }}"
+                           class="inline-flex items-center justify-between rounded-xl ring-1 px-3 py-2.5 text-sm font-semibold {{ ($partnerPortal ?? false) ? 'ring-gray-200 text-gray-700 bg-white' : 'ring-brand/30 bg-brand-muted text-brand' }}">
+                            <span>{{ __('site.auth.account_type_borrower') }}</span>
+                            @unless ($partnerPortal ?? false)<span class="text-brand">▾</span>@endunless
+                        </a>
+                        <a href="{{ route('site.login.partner') }}"
+                           class="inline-flex items-center justify-between rounded-xl ring-1 px-3 py-2.5 text-sm font-semibold {{ ($partnerPortal ?? false) ? 'ring-brand/30 bg-brand-muted text-brand' : 'ring-gray-200 text-gray-700 bg-white' }}">
+                            <span>{{ __('site.auth.account_type_partner') }}</span>
+                            @if ($partnerPortal ?? false)<span class="text-brand">▾</span>@endif
+                        </a>
+                    </div>
+                    <div class="lg:hidden">
+                        <button type="button" @click="methodOpen = true" class="w-full inline-flex items-center justify-between rounded-xl ring-1 ring-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800">
+                            <span x-text="method === 'pin' ? @js(__('site.auth.phone_pin')) : @js(__('site.auth.email_password'))"></span>
+                            <span class="text-brand">▾</span>
+                        </button>
+                        <x-site.action-panel open="methodOpen" :title="__('site.auth.sign_in')" size="md">
+                            <button type="button" class="w-full text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-brand-muted" @click="method = 'pin'; methodOpen = false; document.querySelector('[data-set-method=pin]')?.click()">{{ __('site.auth.phone_pin') }}</button>
+                            <button type="button" class="w-full text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-brand-muted" @click="method = 'password'; methodOpen = false; document.querySelector('[data-set-method=password]')?.click()">{{ __('site.auth.email_password') }}</button>
+                        </x-site.action-panel>
+                    </div>
+                    <div class="hidden lg:flex rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full" role="tablist">
+                        <button type="button" data-set-method="pin" role="tab"
+                                aria-selected="{{ $authMethod === 'pin' ? 'true' : 'false' }}"
+                                class="login-method-tab flex-1 rounded-lg py-2.5 px-2 text-sm text-center transition {{ $authMethod === 'pin' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.phone_pin') }}</button>
+                        <button type="button" data-set-method="password" role="tab"
+                                aria-selected="{{ $authMethod === 'password' ? 'true' : 'false' }}"
+                                class="login-method-tab flex-1 rounded-lg py-2.5 px-2 text-sm text-center transition {{ $authMethod === 'password' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.email_password') }}</button>
+                    </div>
                 </div>
 
                 <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ ($partnerPortal ?? false) ? __('site.auth.partner_sign_in') : __('site.auth.welcome_back') }}</h1>
@@ -60,15 +74,6 @@
                 @if (session('status'))
                     <div class="mt-6 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">{{ session('status') }}</div>
                 @endif
-
-                <div class="mt-6 flex flex-col sm:flex-row rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full" role="tablist" aria-label="{{ __('site.auth.sign_in') }}">
-                    <button type="button" data-set-method="pin" role="tab"
-                            aria-selected="{{ $authMethod === 'pin' ? 'true' : 'false' }}"
-                            class="login-method-tab w-full sm:flex-1 min-w-0 rounded-lg py-2.5 px-2 text-sm leading-snug text-center transition {{ $authMethod === 'pin' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.phone_pin') }}</button>
-                    <button type="button" data-set-method="password" role="tab"
-                            aria-selected="{{ $authMethod === 'password' ? 'true' : 'false' }}"
-                            class="login-method-tab w-full sm:flex-1 min-w-0 rounded-lg py-2.5 px-2 text-sm leading-snug text-center transition {{ $authMethod === 'password' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.email_password') }}</button>
-                </div>
 
                 <form method="POST" action="{{ route('site.login.post') }}" class="mt-6 space-y-5 form-scroll-lock">
                     @csrf
@@ -112,7 +117,7 @@
 
                     <label class="flex items-center gap-2 text-sm text-gray-600">
                         <input type="checkbox" name="trust_device" value="1" class="rounded border-gray-300 text-brand focus:ring-brand">
-                        {{ __('site.auth.trust_device') }}
+                        {{ __('site.auth.trust_device', ['days' => app(\App\Services\TrustedDeviceService::class)->ttlDays()]) }}
                     </label>
 
                     <label class="flex items-center gap-2 text-sm text-gray-600">

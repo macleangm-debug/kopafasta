@@ -1,24 +1,14 @@
 <x-site.layout :title="brand_title(__('site.partners.title'))">
-    <section class="relative overflow-hidden bg-brand text-white">
-        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
-            <p class="text-xs uppercase tracking-widest text-brand-gold mb-2">{{ __('site.partners.title') }}</p>
-            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight max-w-2xl">{{ __('site.partners.hero_title') }}</h1>
-            <p class="mt-4 text-white/80 max-w-xl leading-relaxed">{{ __('site.partners.hero_body') }}</p>
-            <div class="mt-8 flex flex-wrap gap-3">
-                <a href="{{ route('site.partners.apply', 'debt_collector') }}" class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-semibold px-6 py-3 rounded-xl transition">
-                    {{ __('site.partners.cta_enroll') }}
-                </a>
-                <a href="{{ route('site.partners.apply.tracking') }}" class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-3 rounded-xl transition hover:bg-white/10">
-                    {{ __('site.partner_apply.track_title') }}
-                </a>
-                <a href="{{ route('site.login.partner') }}" class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-3 rounded-xl transition hover:bg-white/10">
-                    {{ __('site.partners.cta_login') }}
-                </a>
-            </div>
-            <p class="mt-4 text-sm text-white/60 max-w-lg">{{ __('site.partners.login_hint') }}</p>
-        </div>
-    </section>
+    <x-site.public-hero
+        variant="feature"
+        :eyebrow="__('site.partners.title')"
+        :title="__('site.partners.hero_title')"
+        :body="__('site.partners.hero_body')"
+        :primary-href="route('site.partners.apply', 'debt_collector')"
+        :primary-label="__('site.partners.cta_enroll')"
+        :secondary-href="route('site.login.partner')"
+        :secondary-label="__('site.partners.cta_login')"
+    />
 
     @if (session('status'))
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">

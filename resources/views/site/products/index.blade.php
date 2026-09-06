@@ -1,13 +1,12 @@
 <x-site.layout :title="__('seo.products_title')" :description="__('seo.products_description')">
-    <section class="relative overflow-hidden premium-gradient border-b border-gray-100/80">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-            <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('site.products.featured_title') }}</p>
-            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-brand">{{ __('site.products.all_title') }}</h1>
-            <p class="mt-3 text-gray-600 max-w-2xl text-sm sm:text-base">{{ __('site.products.all_subtitle') }}</p>
-        </div>
-    </section>
+    <x-site.public-hero
+        variant="feature"
+        :eyebrow="__('site.products.featured_title')"
+        :title="__('site.products.all_title')"
+        :body="__('site.products.all_subtitle')"
+    />
 
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
         @if ($products->isEmpty())
             <x-site.empty-state
                 icon="📋"

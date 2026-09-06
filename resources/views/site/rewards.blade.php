@@ -1,17 +1,18 @@
 <x-site.layout :title="brand_name().' — '.__('site.rewards.title')">
-    <section class="relative overflow-hidden premium-gradient">
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-            <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('site.rewards.title') }}</p>
-            <h1 class="mt-3 text-3xl sm:text-5xl font-bold text-brand tracking-tight max-w-2xl">{{ __('site.rewards.kicker') }}</h1>
-            <p class="mt-4 text-lg text-gray-600 max-w-xl">{{ __('site.rewards.intro') }}</p>
-            @if (! empty($catalog[0]))
-                <p class="mt-6 text-xl font-extrabold text-gray-900">
-                    {{ __('site.rewards.example', ['points' => number_format($catalog[0]['points']), 'reward' => $catalog[0]['label']]) }}
-                </p>
-            @endif
-            <a href="{{ route('site.register.borrower') }}" class="mt-8 inline-flex rounded-xl bg-brand text-white font-semibold px-6 py-3.5">{{ __('site.rewards.cta') }}</a>
-        </div>
-    </section>
+    <x-site.public-hero
+        variant="feature"
+        :eyebrow="__('site.rewards.title')"
+        :title="__('site.rewards.kicker')"
+        :body="__('site.rewards.intro')"
+        :primary-href="route('site.register.borrower')"
+        :primary-label="__('site.rewards.cta')"
+    >
+        @if (! empty($catalog[0]))
+            <p class="rounded-2xl bg-white/8 ring-1 ring-white/10 px-4 py-3.5 text-sm font-semibold text-white/95">
+                {{ __('site.rewards.example', ['points' => number_format($catalog[0]['points']), 'reward' => $catalog[0]['label']]) }}
+            </p>
+        @endif
+    </x-site.public-hero>
 
     <section class="py-12 lg:py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-10">

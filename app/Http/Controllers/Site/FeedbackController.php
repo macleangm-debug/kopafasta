@@ -75,7 +75,7 @@ class FeedbackController extends Controller
     }
 
     /** @return array<string, array{label: string, description: string, fields: list<string>}> */
-    private function categories(): array
+    public function categories(): array
     {
         return [
             'complaint' => [

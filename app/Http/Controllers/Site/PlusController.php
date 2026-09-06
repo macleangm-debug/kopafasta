@@ -223,11 +223,39 @@ class PlusController extends Controller
         $period = in_array($request->query('period'), ['today', 'week', 'month'], true)
             ? $request->query('period')
             : 'today';
+        $businessId = $request->integer('business') ?: null;
+        if ($businessId) {
+            $owned = \App\Models\PlusBusiness::query()
+                ->where('customer_id', $customer->id)
+                ->whereKey($businessId)
+                ->exists();
+            if (! $owned) {
+                $businessId = null;
+            }
+        }
 
         return view('site.plus.business', array_merge(
             ['customer' => $customer],
-            $workspace->businessDashboard($customer, $period),
+            $workspace->businessDashboard($customer, $period, $businessId),
         ));
+    }
+
+    public function storeBusinessProfile(Request $request, PlusService $plus)
+    {
+        $customer = $this->requireActivePlus($request, $plus);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'type' => ['required', 'string', 'max:60'],
+        ]);
+
+        \App\Models\PlusBusiness::query()->create([
+            'customer_id' => $customer->id,
+            'name' => $data['name'],
+            'type' => $data['type'],
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', __('plus.business.profile_saved'));
     }
 
     public function saveBusiness(Request $request, PlusService $plus)
@@ -244,16 +272,35 @@ class PlusController extends Controller
             : (float) ($request->input('spent') ?: $request->input('amount') ?: 0);
         $request->merge(['kind' => $kind, 'amount' => $amount]);
 
+        $businesses = \App\Models\PlusBusiness::query()
+            ->where('customer_id', $customer->id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         $data = $request->validate([
             'kind' => ['required', 'in:sale,spend'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'category' => ['required', 'string', 'max:40'],
             'category_other' => [Rule::requiredIf(fn () => $request->input('category') === 'other'), 'nullable', 'string', 'max:80'],
             'note' => ['nullable', 'string', 'max:160'],
+            'plus_business_id' => [
+                Rule::requiredIf(fn () => $businesses->count() > 1),
+                'nullable',
+                'integer',
+                Rule::exists('plus_businesses', 'id')->where(fn ($q) => $q->where('customer_id', $customer->id)),
+            ],
         ]);
+
+        $businessId = $data['plus_business_id'] ?? null;
+        if (! $businessId && $businesses->count() === 1) {
+            $businessId = $businesses->first()->id;
+        }
+
         $isOther = $data['category'] === 'other';
         PlusBusinessEntry::query()->create([
             'customer_id' => $customer->id,
+            'plus_business_id' => $businessId,
             'entry_date' => now()->toDateString(),
             'sold' => $data['kind'] === 'sale' ? $data['amount'] : 0,
             'spent' => $data['kind'] === 'spend' ? $data['amount'] : 0,

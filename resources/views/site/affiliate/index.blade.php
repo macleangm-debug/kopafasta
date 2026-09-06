@@ -1,42 +1,32 @@
 <x-site.layout :title="brand_title(__('site.affiliate.title'))">
-    <section class="relative overflow-hidden bg-brand text-white">
-        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-            <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold mb-3">{{ __('site.affiliate.title') }}</p>
-            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight max-w-2xl">{{ __('site.affiliate.hero_title') }}</h1>
-            <p class="mt-5 text-lg text-white/80 max-w-xl leading-relaxed">{{ __('site.affiliate.hero_body') }}</p>
-            <div class="mt-8 flex flex-wrap gap-3">
-                <a href="{{ route('site.affiliate.apply') }}"
-                   class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-4 rounded-xl shadow-lg transition">
-                    {{ __('site.affiliate.cta_apply') }}
-                </a>
-                <a href="{{ route('site.partners.apply.tracking') }}"
-                   class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-4 rounded-xl transition hover:bg-white/10">
-                    {{ __('site.partner_apply.track_title') }}
-                </a>
-                <a href="{{ route('site.login.partner') }}"
-                   class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-4 rounded-xl transition hover:bg-white/10">
-                    {{ __('site.affiliate.portal_title') }} →
-                </a>
-            </div>
-        </div>
-    </section>
+    <x-site.public-hero
+        variant="feature"
+        :eyebrow="__('site.affiliate.title')"
+        :title="__('site.affiliate.hero_title')"
+        :body="__('site.affiliate.hero_body')"
+        :primary-href="route('site.affiliate.apply')"
+        :primary-label="__('site.affiliate.cta_apply')"
+        :secondary-href="route('site.login.partner')"
+        :secondary-label="__('site.affiliate.portal_title')"
+    >
+        <ul class="space-y-3">
+            @foreach ([
+                __('site.affiliate.benefit_1'),
+                __('site.affiliate.benefit_2'),
+                __('site.affiliate.benefit_3'),
+                __('site.affiliate.benefit_4'),
+            ] as $benefit)
+                <li class="flex items-start gap-3 rounded-2xl bg-white/8 ring-1 ring-white/10 px-4 py-3.5">
+                    <span class="text-brand-gold font-black tracking-[-0.14em]" aria-hidden="true">›››</span>
+                    <span class="text-sm font-semibold text-white/95">{{ $benefit }}</span>
+                </li>
+            @endforeach
+        </ul>
+    </x-site.public-hero>
 
-    <section class="py-14 bg-[#faf8f5] border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                @foreach ([
-                    __('site.affiliate.benefit_1'),
-                    __('site.affiliate.benefit_2'),
-                    __('site.affiliate.benefit_3'),
-                    __('site.affiliate.benefit_4'),
-                ] as $benefit)
-                    <div class="glass-card p-5 flex items-start gap-3">
-                        <span class="size-8 rounded-xl bg-brand text-white grid place-items-center text-sm font-bold shrink-0">✓</span>
-                        <p class="text-sm font-semibold text-gray-800 leading-snug">{{ $benefit }}</p>
-                    </div>
-                @endforeach
-            </div>
+    <section class="py-10 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left">
+            <a href="{{ route('site.partners.apply.tracking') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('site.partner_apply.track_title') }} →</a>
         </div>
     </section>
 

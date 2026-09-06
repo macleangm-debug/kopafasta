@@ -27,6 +27,21 @@
               ">
             @csrf
             <input type="hidden" name="kind" value="{{ $kind }}">
+            @php
+                $bizList = $businesses ?? collect();
+            @endphp
+            @if ($bizList->count() > 1)
+                <x-site.sheet-select
+                    name="plus_business_id"
+                    :label="__('plus.business.which_business')"
+                    :options="$bizList->mapWithKeys(fn ($b) => [$b->id => $b->name])->all()"
+                    :required="true"
+                    :placeholder="__('plus.money.choose')"
+                />
+            @elseif ($bizList->count() === 1)
+                <input type="hidden" name="plus_business_id" value="{{ $bizList->first()->id }}">
+                <p class="text-xs text-gray-500">{{ __('plus.business.for_business', ['name' => $bizList->first()->name]) }}</p>
+            @endif
             <x-site.plus-money-input :name="$amountName" :id="$amountId" :label="$amountLabel" required />
             <x-site.sheet-select
                 name="category"

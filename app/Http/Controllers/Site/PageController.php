@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Site;
 use App\Http\Controllers\Controller;
 use App\Models\LoanProduct;
 use App\Services\DisplayedRateService;
+use App\Services\SmartLoanApplicationWizardService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -82,6 +85,39 @@ class PageController extends Controller
         return view('site.products.show', compact('product', 'presentation', 'otherProducts', 'productSeo'));
     }
 
+    public function productQuote(Request $request, string $code, SmartLoanApplicationWizardService $wizard): JsonResponse
+    {
+        $product = LoanProduct::query()
+            ->where('code', $code)
+            ->whereIn('status', ['active', 'coming_soon'])
+            ->firstOrFail();
+
+        if (is_marketplace_loan_product($product->code)) {
+            abort(404);
+        }
+
+        $amount = (float) $request->input('amount', $product->min_amount);
+        $tenure = (int) $request->input('tenure', $product->tenure_min_months);
+        $min = (float) $product->min_amount;
+        $max = (float) $product->max_amount;
+        $tmin = (int) $product->tenure_min_months;
+        $tmax = (int) $product->tenure_max_months;
+        $amount = max($min, min($max, $amount));
+        $tenure = max($tmin, min($tmax, $tenure));
+
+        $quote = $wizard->loanQuote($product, $amount, $tenure);
+
+        return response()->json([
+            'amount' => $amount,
+            'tenure' => $tenure,
+            'monthly_installment' => $quote['monthly_installment'],
+            'weekly_installment' => $quote['weekly_installment'],
+            'fees' => $quote['fees'],
+            'total_repayment' => $quote['total_repayment'],
+            'illustrative' => true,
+        ]);
+    }
+
     public function affiliate(): View
     {
         return view('site.affiliate.index', [
@@ -128,8 +164,19 @@ class PageController extends Controller
     }
 
     public function faq(): View { return view('site.faq'); }
-    public function invest(): View { return view('site.invest'); }
-    public function capitalPartners(): View { return view('site.capital-partners'); }
+    public function invest(): View
+    {
+        return view('site.invest', [
+            'seo' => [
+                'indexable' => false,
+            ],
+        ]);
+    }
+
+    public function capitalPartners(): RedirectResponse
+    {
+        return redirect()->route('site.invest', [], 301);
+    }
 
     public function legalIndex(): View
     {

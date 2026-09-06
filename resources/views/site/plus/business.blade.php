@@ -16,6 +16,35 @@
     }">
         <x-site.plus-nav />
 
+        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-sm font-semibold text-gray-900">{{ __('plus.business.profiles_title') }}</p>
+                <div class="flex flex-wrap gap-1.5">
+                    <a href="{{ route('site.borrower.plus.business', ['period' => $period]) }}"
+                       class="rounded-full px-3 py-1 text-xs font-semibold {{ empty($business_id) ? 'bg-brand text-white' : 'bg-gray-100 text-gray-700' }}">{{ __('plus.business.all_businesses') }}</a>
+                    @foreach (($businesses ?? []) as $biz)
+                        <a href="{{ route('site.borrower.plus.business', ['period' => $period, 'business' => $biz->id]) }}"
+                           class="rounded-full px-3 py-1 text-xs font-semibold {{ (int) ($business_id ?? 0) === (int) $biz->id ? 'bg-brand text-white' : 'bg-gray-100 text-gray-700' }}">{{ $biz->name }}</a>
+                    @endforeach
+                </div>
+            </div>
+            <form method="post" action="{{ route('site.borrower.plus.business.profile') }}" data-no-draft class="grid sm:grid-cols-[1fr_1fr_auto] gap-2">
+                @csrf
+                <input type="text" name="name" required maxlength="120" placeholder="{{ __('plus.business.name_placeholder') }}"
+                       class="rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                <select name="type" required class="rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    <option value="">{{ __('plus.business.type_placeholder') }}</option>
+                    @foreach (__('plus.business.types') as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">{{ __('plus.business.add_business') }}</button>
+            </form>
+            @if (($businesses ?? collect())->isEmpty())
+                <p class="text-xs text-gray-500">{{ __('plus.business.add_first_hint') }}</p>
+            @endif
+        </div>
+
         <x-site.plus-hero kicker="Kopafasta Plus · {{ $period_label }}" :title="__('plus.business.title')" :body="__('plus.business.hero_body')">
             <div class="flex gap-1 rounded-full bg-white/10 p-1 mb-4">
                 @foreach (['today' => __('plus.business.today'), 'week' => __('plus.business.week'), 'month' => __('plus.business.month')] as $key => $label)

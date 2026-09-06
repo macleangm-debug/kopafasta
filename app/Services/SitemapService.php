@@ -120,8 +120,6 @@ class SitemapService
             '/legal/complaints',
             '/legal/cookies',
             '/support',
-            '/invest',
-            '/capital-partners',
             '/affiliate-program',
             '/service-partners',
             '/marketplace',

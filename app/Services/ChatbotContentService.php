@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\LoanProduct;
 use App\Models\Setting;
 
 class ChatbotContentService
@@ -14,10 +15,50 @@ class ChatbotContentService
         $stored = Setting::get(self::SETTING_KEY);
 
         if (is_array($stored) && $stored !== []) {
-            return $this->normaliseEntries($stored);
+            return $this->normaliseEntries(array_merge($stored, $this->runtimeProductEntries()));
         }
 
-        return $this->normaliseEntries(config('chatbot.default_entries', []));
+        return $this->normaliseEntries(array_merge(config('chatbot.default_entries', []), $this->runtimeProductEntries()));
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function runtimeProductEntries(): array
+    {
+        $products = LoanProduct::query()
+            ->with('rateTiers')
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->limit(12)
+            ->get();
+
+        if ($products->isEmpty()) {
+            return [];
+        }
+
+        $rates = app(DisplayedRateService::class);
+        $linesEn = [];
+        $linesSw = [];
+        foreach ($products as $product) {
+            $name = (string) ($product->name ?? $product->code);
+            $rateLabel = $rates->formatBorrowerRateRange($product);
+            $min = format_money((float) $product->min_amount, false, 0);
+            $max = format_money((float) $product->max_amount, false, 0);
+            $fee = quoted_application_fee(null, $product);
+            $feeLabel = $fee > 0 ? format_money((float) $fee, false, 0) : '—';
+            $linesEn[] = "{$name} ({$product->code}): {$min}–{$max}".($rateLabel !== '' ? ", {$rateLabel}" : '').", application fee {$feeLabel}";
+            $linesSw[] = "{$name} ({$product->code}): {$min}–{$max}".($rateLabel !== '' ? ", {$rateLabel}" : '').", ada ya ombi {$feeLabel}";
+        }
+
+        return [[
+            'key' => 'products_live',
+            'sort' => 1,
+            'active' => true,
+            'keywords' => ['rate', 'amount', 'fee', 'kiwango', 'kiasi', 'ada', 'product', 'bidhaa', 'GL', 'BL'],
+            'question_en' => 'What are current product amounts and rates?',
+            'question_sw' => 'Kiasi na viwango vya sasa vya bidhaa ni vip?',
+            'answer_en' => "Live product settings (illustrative until offer):\n".implode("\n", $linesEn)."\nOpen a product page for full details. I will not invent approval decisions.",
+            'answer_sw' => "Mipangilio hai ya bidhaa (mfano hadi ofa):\n".implode("\n", $linesSw)."\nFungua ukurasa wa bidhaa kwa maelezo kamili. Sitabuni maamuzi ya idhini.",
+        ]];
     }
 
     /** @param list<array<string, mixed>> $entries */

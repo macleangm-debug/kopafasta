@@ -22,8 +22,7 @@
                 <li class="flex items-start gap-3"><span class="text-indigo-300">✓</span> Audited monthly NAV statements</li>
             </ul>
 
-            <p class="relative mt-auto text-xs text-white/40">Looking to invest as an individual? <a href="{{ route('site.register.investor') }}" class="text-indigo-300 hover:underline">Use the standard investor sign-up</a></p>
-        </aside>
+            </aside>
 
         {{-- Form --}}
         <div class="lg:col-span-2 flex items-start lg:items-center justify-center px-4 py-10 sm:px-10">

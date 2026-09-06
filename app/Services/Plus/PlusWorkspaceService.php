@@ -4,6 +4,7 @@ namespace App\Services\Plus;
 
 use App\Models\Customer;
 use App\Models\Loan;
+use App\Models\PlusBusiness;
 use App\Models\PlusBusinessEntry;
 use App\Models\PlusGoal;
 use App\Models\PlusGoalContribution;
@@ -115,14 +116,13 @@ class PlusWorkspaceService
         ];
     }
 
-    public function businessDashboard(Customer $customer, string $period = 'today'): array
+    public function businessDashboard(Customer $customer, string $period = 'today', ?int $businessId = null): array
     {
         $period = in_array($period, ['today', 'week', 'month'], true) ? $period : 'today';
-        $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         [$from, $to, $previousFrom, $previousTo, $periodLabel] = $this->businessPeriodWindow($period);
 
-        $summary = $this->businessTotals($customer, $from->toDateString(), $to->toDateString());
-        $previous = $this->businessTotals($customer, $previousFrom->toDateString(), $previousTo->toDateString());
+        $summary = $this->businessTotals($customer, $from->toDateString(), $to->toDateString(), $businessId);
+        $previous = $this->businessTotals($customer, $previousFrom->toDateString(), $previousTo->toDateString(), $businessId);
         $delta = $summary['sold'] - $previous['sold'];
         $insight = null;
         if ($previous['sold'] > 0 || $summary['sold'] > 0) {
@@ -140,22 +140,32 @@ class PlusWorkspaceService
 
         $history = PlusBusinessEntry::query()
             ->where('customer_id', $customer->id)
+            ->when($businessId, fn ($q) => $q->where('plus_business_id', $businessId))
+            ->with('business')
             ->latest('entry_date')
             ->latest('id')
             ->limit(50)
             ->get();
 
         $chart = $period === 'month'
-            ? $this->businessMonthWeeks($customer, $from)
-            : $this->businessWeekDays($customer, $period === 'today' ? now()->copy()->startOfWeek() : $from);
+            ? $this->businessMonthWeeks($customer, $from, $businessId)
+            : $this->businessWeekDays($customer, $period === 'today' ? now()->copy()->startOfWeek() : $from, $businessId);
 
         $chartReady = collect($chart)->contains(fn (array $point) => ($point['sold'] ?? 0) > 0 || ($point['spent'] ?? 0) > 0);
+
+        $businesses = PlusBusiness::query()
+            ->where('customer_id', $customer->id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return [
             'period' => $period,
             'period_label' => $periodLabel,
-            'today' => $this->businessTotals($customer, now()->toDateString(), now()->toDateString()),
-            'week' => $this->businessTotals($customer, now()->copy()->startOfWeek()->toDateString(), now()->toDateString()),
+            'business_id' => $businessId,
+            'businesses' => $businesses,
+            'today' => $this->businessTotals($customer, now()->toDateString(), now()->toDateString(), $businessId),
+            'week' => $this->businessTotals($customer, now()->copy()->startOfWeek()->toDateString(), now()->toDateString(), $businessId),
             'summary' => $summary,
             'previous' => $previous,
             'week_improved' => $previous['sold'] > 0 && $summary['sold'] > $previous['sold'],
@@ -299,10 +309,11 @@ class PlusWorkspaceService
     }
 
     /** @return array{sold: float, spent: float, difference: float} */
-    public function businessTotals(Customer $customer, string $from, string $to): array
+    public function businessTotals(Customer $customer, string $from, string $to, ?int $businessId = null): array
     {
         $rows = PlusBusinessEntry::query()
             ->where('customer_id', $customer->id)
+            ->when($businessId, fn ($q) => $q->where('plus_business_id', $businessId))
             ->whereBetween('entry_date', [$from, $to])
             ->get();
         $sold = (float) $rows->sum('sold');
@@ -492,13 +503,13 @@ class PlusWorkspaceService
     }
 
     /** @return list<array{label: string, sold: float, spent: float}> */
-    private function businessWeekDays(Customer $customer, Carbon $weekStart): array
+    private function businessWeekDays(Customer $customer, Carbon $weekStart, ?int $businessId = null): array
     {
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $days = [];
         for ($i = 0; $i < 7; $i++) {
             $day = $weekStart->copy()->addDays($i);
-            $totals = $this->businessTotals($customer, $day->toDateString(), $day->toDateString());
+            $totals = $this->businessTotals($customer, $day->toDateString(), $day->toDateString(), $businessId);
             $days[] = [
                 'label' => $day->locale($locale)->isoFormat('dd'),
                 'sold' => $totals['sold'],
@@ -510,7 +521,7 @@ class PlusWorkspaceService
     }
 
     /** @return list<array{label: string, sold: float, spent: float}> */
-    private function businessMonthWeeks(Customer $customer, Carbon $monthStart): array
+    private function businessMonthWeeks(Customer $customer, Carbon $monthStart, ?int $businessId = null): array
     {
         $weeks = [];
         $cursor = $monthStart->copy()->startOfWeek();
@@ -531,7 +542,7 @@ class PlusWorkspaceService
             if ($to->gt($monthEnd)) {
                 $to = $monthEnd->copy();
             }
-            $totals = $this->businessTotals($customer, $from->toDateString(), $to->toDateString());
+            $totals = $this->businessTotals($customer, $from->toDateString(), $to->toDateString(), $businessId);
             $weeks[] = [
                 'label' => __('plus.business.week_n', ['n' => $n]),
                 'sold' => $totals['sold'],

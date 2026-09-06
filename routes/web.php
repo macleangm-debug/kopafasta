@@ -162,6 +162,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/rewards', [PageController::class, 'rewards'])->name('rewards');
     Route::get('/loans', [PageController::class, 'products'])->name('products');
     Route::get('/loans/product/{code}', [PageController::class, 'product'])->name('product');
+    Route::get('/loans/product/{code}/quote', [PageController::class, 'productQuote'])->name('product.quote');
     Route::get('/how-it-works', [PageController::class, 'howItWorks'])->name('how-it-works');
     Route::get('/about', [PageController::class, 'about'])->name('about');
     Route::get('/about/founding-story', [PageController::class, 'aboutFounding'])->name('about.founding');
@@ -180,7 +181,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.post');
     Route::get('/contact', fn () => redirect()->route('site.support'))->name('contact');
     Route::get('/invest', [PageController::class, 'invest'])->name('invest');
-    Route::get('/capital-partners', [PageController::class, 'capitalPartners'])->name('capital-partners');
+    Route::get('/capital-partners', fn () => redirect()->route('site.invest', [], 301))->name('capital-partners');
     Route::get('/affiliate-program', [PageController::class, 'affiliate'])->name('affiliate');
     Route::get('/affiliate', fn () => redirect()->route('site.affiliate'));
     Route::get('/service-partners', [PageController::class, 'partners'])->name('partners');
@@ -333,6 +334,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::post('/borrower/plus/money', [PlusController::class, 'saveMoney'])->name('borrower.plus.money.save');
             Route::get('/borrower/plus/business', [PlusController::class, 'business'])->name('borrower.plus.business');
             Route::post('/borrower/plus/business', [PlusController::class, 'saveBusiness'])->name('borrower.plus.business.save');
+            Route::post('/borrower/plus/business/profiles', [PlusController::class, 'storeBusinessProfile'])->name('borrower.plus.business.profile');
             Route::get('/borrower/plus/goals', [PlusController::class, 'goals'])->name('borrower.plus.goals');
             Route::post('/borrower/plus/goals', [PlusController::class, 'saveGoal'])->name('borrower.plus.goals.save');
             Route::post('/borrower/plus/goals/{goal}/contribute', [PlusController::class, 'contributeGoal'])->name('borrower.plus.goals.contribute');

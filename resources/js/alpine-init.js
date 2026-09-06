@@ -1,6 +1,7 @@
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
 import { registerFormReadyAlpine } from './form-ready';
+import { registerProductCalculator } from './product-calculator';
 import { registerCollateralAddForm } from './collateral-add-form';
 import { registerProfileSectionCard } from './profile-section-card';
 import { registerSavingOverlay } from './saving-overlay';
@@ -20,6 +21,7 @@ registerPartnerCreateConfirm(Alpine);
 registerValuationCamera(Alpine);
 registerPspPaymentFlow(Alpine);
 registerIntegrationLiveTest(Alpine);
+registerProductCalculator(Alpine);
 
 window.campaignWizard = function campaignWizard(cfg) {
     const initial = cfg.initial || {};

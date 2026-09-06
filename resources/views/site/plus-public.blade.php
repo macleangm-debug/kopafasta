@@ -15,43 +15,34 @@
 @endphp
 
 <x-site.layout :title="brand_title(__('site.plus.meta_title'))" :description="__('site.plus.meta_desc')">
-    <section class="relative overflow-hidden premium-gradient py-8 sm:py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-brand via-[#127A5F] to-[#082f27] text-white shadow-[0_24px_60px_rgba(8,47,39,0.24)] ring-1 ring-brand-gold/30">
-                <div class="absolute inset-0 opacity-[0.16] pointer-events-none" style="background-image:url(\"data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.55' stroke-width='2'/%3E%3C/svg%3E\"); background-size:72px 48px;"></div>
-                <div class="relative grid lg:grid-cols-2 gap-8 items-center px-6 sm:px-10 py-8 sm:py-10">
-                    <div class="text-left">
-                        <p class="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-gold">
-                            <span class="text-lg tracking-[-0.18em] leading-none" aria-hidden="true">›››</span>
-                            Kopafasta Plus
-                        </p>
-                        <h1 class="mt-3 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">{{ __('site.plus.hero_title') }}</h1>
-                        <p class="mt-3 text-white/80 max-w-xl leading-relaxed">{{ __('site.plus.hero_body') }}</p>
-                        <div class="mt-6 flex flex-wrap gap-3">
-                            <a href="{{ route('site.borrower.plus.home') }}" class="inline-flex rounded-xl bg-brand-gold text-brand px-5 py-3 font-extrabold">{{ __('site.plus.join') }}</a>
-                            <a href="#benefits" class="inline-flex rounded-xl bg-white/10 ring-1 ring-white/25 px-5 py-3 font-semibold text-white">{{ __('site.plus.see_how') }}</a>
-                        </div>
-                        <p class="mt-4 text-sm text-white/60">{{ __('site.plus.optional') }}</p>
-                    </div>
-                    <ul class="grid sm:grid-cols-2 gap-3">
-                        @foreach ([
-                            __('site.plus.teaser_benefit_1'),
-                            __('site.plus.teaser_benefit_2'),
-                            __('site.plus.teaser_benefit_3'),
-                            __('site.plus.teaser_benefit_4'),
-                        ] as $line)
-                            <li class="rounded-2xl bg-white/10 ring-1 ring-white/15 px-4 py-3.5 text-sm font-semibold">
-                                <span class="text-brand-gold tracking-[-0.12em] font-black" aria-hidden="true">›››</span>
-                                <span class="mt-1.5 block">{{ $line }}</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
+    <x-site.public-hero
+        variant="feature"
+        eyebrow="Kopafasta Plus"
+        :title="__('site.plus.hero_title')"
+        :body="__('site.plus.hero_body')"
+        :primary-href="route('site.borrower.plus.home')"
+        :primary-label="__('site.plus.join')"
+        :secondary-href="'#benefits'"
+        :secondary-label="__('site.plus.see_how')"
+    >
+        <p class="text-sm font-semibold text-brand-gold/95">{{ __('site.plus.distinction') }}</p>
+        <p class="mt-2 text-sm text-white/70">{{ __('site.plus.optional') }}</p>
+        <ul class="mt-4 grid sm:grid-cols-2 gap-3">
+            @foreach ([
+                __('site.plus.teaser_benefit_1'),
+                __('site.plus.teaser_benefit_2'),
+                __('site.plus.teaser_benefit_3'),
+                __('site.plus.teaser_benefit_4'),
+            ] as $line)
+                <li class="rounded-2xl bg-white/10 ring-1 ring-white/15 px-4 py-3.5 text-sm font-semibold">
+                    <span class="text-brand-gold tracking-[-0.12em] font-black" aria-hidden="true">›››</span>
+                    <span class="mt-1.5 block">{{ $line }}</span>
+                </li>
+            @endforeach
+        </ul>
+    </x-site.public-hero>
 
-    <section id="benefits" class="py-10 lg:py-12 bg-white"
+<section id="benefits" class="py-10 lg:py-12 bg-white"
              x-data="{
                 scrollByCard(dir) {
                     const track = this.$refs.track;

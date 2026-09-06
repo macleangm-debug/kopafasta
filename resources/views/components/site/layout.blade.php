@@ -216,10 +216,10 @@
 
     @unless ($auth)
         <footer class="bg-brand text-gray-300 mt-20">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-5">
                 <div class="lg:col-span-2">
                     <x-site.brand-mark variant="light" size="lg" :showSubtitle="true" />
-                    <p class="text-sm text-gray-400 max-w-xs mt-3">{{ brand('tagline') }}. {{ __('site.footer.tagline') }}</p>
+                    <p class="text-sm text-gray-400 max-w-xs mt-3">{{ __('site.footer.tagline') }}</p>
                     <p class="text-sm text-brand-gold/90 max-w-sm mt-3 font-medium leading-snug">
                         {{ __('site.footer.ownership', ['legal_name' => brand('legal_name')]) }}
                     </p>
@@ -243,14 +243,6 @@
                         @foreach ($navProducts->take(4) as $navProduct)
                             <li><a href="{{ route('site.product', $navProduct->code) }}" class="hover:text-brand-gold transition">{{ $navProduct->localizedName() }}</a></li>
                         @endforeach
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.invest') }}</h4>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="{{ route('site.invest') }}" class="hover:text-brand-gold transition">{{ __('site.footer.individual_investor') }}</a></li>
-                        <li><a href="{{ route('site.capital-partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.capital_partner') }}</a></li>
-                        <li><a href="{{ route('site.register.investor') }}" class="hover:text-brand-gold transition">{{ __('site.footer.open_account') }}</a></li>
                     </ul>
                 </div>
                 <div>
@@ -281,7 +273,6 @@
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <span class="text-center sm:text-left">
                         &copy; {{ date('Y') }} {{ brand('legal_name') }}.
-                        <span class="block sm:inline sm:ml-1 text-gray-400">{{ __('site.footer.ownership', ['legal_name' => brand('legal_name')]) }}</span>
                     </span>
                     <span class="flex items-center gap-4">
                         <a href="{{ route('site.legal.terms') }}" class="hover:text-brand-gold transition">{{ __('site.footer.terms') }}</a>

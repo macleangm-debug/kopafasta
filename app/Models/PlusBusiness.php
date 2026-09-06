@@ -4,17 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class PlusBusinessEntry extends Model
+class PlusBusiness extends Model
 {
     protected $guarded = [];
 
     protected function casts(): array
     {
         return [
-            'entry_date' => 'date',
-            'sold' => 'decimal:2',
-            'spent' => 'decimal:2',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -23,8 +22,8 @@ class PlusBusinessEntry extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function business(): BelongsTo
+    public function entries(): HasMany
     {
-        return $this->belongsTo(PlusBusiness::class, 'plus_business_id');
+        return $this->hasMany(PlusBusinessEntry::class);
     }
 }
