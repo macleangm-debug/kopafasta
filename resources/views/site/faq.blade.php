@@ -64,7 +64,7 @@
             <p class="mt-2 text-sm text-gray-600">{{ __('site.support.escalate_body') }}</p>
             <div class="mt-4 flex flex-wrap justify-center gap-3">
                 <a href="{{ route('site.support') }}" class="inline-flex bg-brand text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-light transition">{{ __('site.footer.support') }}</a>
-                <a href="{{ route('site.feedback') }}" class="inline-flex ring-1 ring-brand/30 text-brand font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-muted transition">{{ __('site.footer.feedback') }}</a>
+                <a href="{{ route('site.feedback', ['open' => 1]) }}" class="inline-flex items-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-2.5 text-sm shadow-sm hover:brightness-95 transition">{{ __('site.footer.feedback') }}</a>
             </div>
         </div>
     </section>

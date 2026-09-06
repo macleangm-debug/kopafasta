@@ -223,14 +223,36 @@ class PlusController extends Controller
         $period = in_array($request->query('period'), ['today', 'week', 'month'], true)
             ? $request->query('period')
             : 'today';
-        $businessId = $request->integer('business') ?: null;
-        if ($businessId) {
-            $owned = \App\Models\PlusBusiness::query()
-                ->where('customer_id', $customer->id)
-                ->whereKey($businessId)
-                ->exists();
-            if (! $owned) {
-                $businessId = null;
+
+        $businessId = null;
+        if ($request->query->has('business')) {
+            $raw = $request->query('business');
+            if ($raw === null || $raw === '' || $raw === 'all') {
+                $request->session()->forget('plus.selected_business_id');
+            } else {
+                $candidate = (int) $raw;
+                $owned = \App\Models\PlusBusiness::query()
+                    ->where('customer_id', $customer->id)
+                    ->whereKey($candidate)
+                    ->exists();
+                if ($owned) {
+                    $businessId = $candidate;
+                    $request->session()->put('plus.selected_business_id', $businessId);
+                } else {
+                    $request->session()->forget('plus.selected_business_id');
+                }
+            }
+        } else {
+            $candidate = (int) $request->session()->get('plus.selected_business_id');
+            if ($candidate > 0) {
+                $owned = \App\Models\PlusBusiness::query()
+                    ->where('customer_id', $customer->id)
+                    ->whereKey($candidate)
+                    ->exists();
+                $businessId = $owned ? $candidate : null;
+                if (! $owned) {
+                    $request->session()->forget('plus.selected_business_id');
+                }
             }
         }
 
@@ -246,16 +268,34 @@ class PlusController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'type' => ['required', 'string', 'max:60'],
+            'type_other' => [Rule::requiredIf(fn () => $request->input('type') === 'other'), 'nullable', 'string', 'max:80'],
+            'period' => ['nullable', 'in:today,week,month'],
         ]);
 
         \App\Models\PlusBusiness::query()->create([
             'customer_id' => $customer->id,
             'name' => $data['name'],
-            'type' => $data['type'],
+            'type' => $data['type'] === 'other' && filled($data['type_other'] ?? null)
+                ? trim((string) $data['type_other'])
+                : $data['type'],
             'is_active' => true,
         ]);
 
-        return back()->with('status', __('plus.business.profile_saved'));
+        $created = \App\Models\PlusBusiness::query()
+            ->where('customer_id', $customer->id)
+            ->latest('id')
+            ->first();
+
+        if ($created) {
+            $request->session()->put('plus.selected_business_id', $created->id);
+        }
+
+        return redirect()
+            ->route('site.borrower.plus.business', [
+                'period' => $request->input('period', 'today'),
+                'business' => $created?->id,
+            ])
+            ->with('status', __('plus.business.profile_saved'));
     }
 
     public function saveBusiness(Request $request, PlusService $plus)

@@ -29,8 +29,11 @@
             <input type="hidden" name="kind" value="{{ $kind }}">
             @php
                 $bizList = $businesses ?? collect();
+                $preselectedBusinessId = $selectedBusinessId ?? null;
             @endphp
-            @if ($bizList->count() > 1)
+            @if ($preselectedBusinessId)
+                <input type="hidden" name="plus_business_id" value="{{ $preselectedBusinessId }}">
+            @elseif ($bizList->count() > 1)
                 <x-site.sheet-select
                     name="plus_business_id"
                     :label="__('plus.business.which_business')"

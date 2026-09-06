@@ -900,7 +900,7 @@ return [
             'general' => [
                 'title' => 'General',
                 'items' => [
-                    ['q' => 'What is Kopafasta?', 'a' => 'Kopafasta is a mobile-first microfinance platform offering transparent loans, asset financing, and investment opportunities in Tanzania.'],
+                    ['q' => 'What is Kopafasta?', 'a' => 'Kopafasta is a mobile-first microfinance platform offering transparent loans and asset financing in Tanzania.'],
                     ['q' => 'Which countries do you operate in?', 'a' => 'We are currently live in Tanzania. Use the country selector to check availability in other markets.'],
                     ['q' => 'Is my data secure?', 'a' => 'Yes. We use bank-grade encryption, NIDA verification, and secure PIN authentication to protect your account.'],
                 ],

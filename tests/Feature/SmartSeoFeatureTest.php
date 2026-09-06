@@ -147,7 +147,8 @@ class SmartSeoFeatureTest extends TestCase
         $en->assertOk();
         $en->assertSee('Individual Loan', false);
         $en->assertSee('kopafasta', false);
-        $en->assertSee('750,000', false);
+        $en->assertSee('100,000', false);
+        $en->assertSee('5,000,000', false);
         $en->assertDontSee('200,000', false);
         $en->assertSee('<meta name="robots" content="index, follow">', false);
         $en->assertSee('<link rel="canonical" href="https://seo.example.test/loans/product/IL-SEO">', false);

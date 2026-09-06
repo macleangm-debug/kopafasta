@@ -303,10 +303,11 @@ class AffiliateGovernanceFeatureTest extends TestCase
 
         $application = PartnerApplication::query()->where('email', 'gov-apply@example.com')->first();
         $this->assertNotNull($application);
-        $this->assertSame('pending', $application->status);
+        // Standard affiliate apply opens the application fee payment before review.
+        $this->assertSame('awaiting_fee', $application->status);
         $this->assertSame('Shop owner', $application->payload['occupation'] ?? null);
         $this->assertSame([], $application->coverage_regions ?? []);
-        $this->assertSame(0, CustomerPayment::query()->count());
+        $this->assertSame(1, CustomerPayment::query()->where('payment_type', 'affiliate_application_fee')->count());
     }
 
     public function test_public_apply_does_not_require_region_or_coverage(): void

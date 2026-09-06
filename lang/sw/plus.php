@@ -182,7 +182,11 @@ return [
 
         'profiles_title' => 'Biashara zako',
         'all_businesses' => 'Biashara zote',
-        'add_business' => 'Ongeza',
+        'add_business' => 'Ongeza biashara',
+        'add_new_business' => '+ Ongeza biashara mpya',
+        'choose_business' => 'Biashara',
+        'type_other_label' => 'Eleza aina ya biashara',
+        'save_business' => 'Hifadhi biashara',
         'name_placeholder' => 'Jina la biashara',
         'type_placeholder' => 'Aina ya biashara',
         'add_first_hint' => 'Ongeza biashara kwanza ili mauzo na matumizi yahusishwe.',

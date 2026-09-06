@@ -890,7 +890,7 @@ return [
             'general' => [
                 'title' => 'Jumla',
                 'items' => [
-                    ['q' => 'Kopafasta ni nini?', 'a' => 'Kopafasta ni jukwaa la mikopo ya simu linalotoa mikopo wazi, ufadhili wa mali, na fursa za uwekezaji Tanzania.'],
+                    ['q' => 'Kopafasta ni nini?', 'a' => 'Kopafasta ni jukwaa la mikopo ya simu linalotoa mikopo wazi na ufadhili wa mali Tanzania.'],
                     ['q' => 'Mnafanya kazi nchi gani?', 'a' => 'Tunafanya kazi Tanzania kwa sasa. Tumia kichagua nchi kuangalia upatikanaji katika masoko mengine.'],
                     ['q' => 'Je, data yangu ni salama?', 'a' => 'Ndiyo. Tunatumia usimbaji fiche, uthibitisho wa NIDA, na PIN salama kulinda akaunti yako.'],
                 ],

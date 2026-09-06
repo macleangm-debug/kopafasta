@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Site;
 use App\Http\Controllers\Controller;
 use App\Models\Complaint;
 use App\Models\SupportTicket;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -16,6 +17,7 @@ class FeedbackController extends Controller
     {
         return view('site.feedback.index', [
             'categories' => $this->categories(),
+            'openOnLoad' => request()->boolean('open') || old('category') || session('status'),
         ]);
     }
 
@@ -32,11 +34,14 @@ class FeedbackController extends Controller
             'reference' => ['nullable', 'string', 'max:80'],
         ]);
 
+        $phone = PhoneNumber::fromRequest($request, 'phone', 'TZ');
+        $validated['phone'] = $phone;
+
         $customerId = auth()->user()?->customer?->id;
         $description = trim(collect([
             $validated['message'],
             filled($validated['reference'] ?? null) ? __('site.feedback.reference_label').': '.$validated['reference'] : null,
-            filled($validated['phone'] ?? null) ? __('site.feedback.phone_label').': '.$validated['phone'] : null,
+            filled($phone) ? __('site.feedback.phone_label').': '.$phone : null,
             filled($validated['email'] ?? null) ? __('site.feedback.email_label').': '.$validated['email'] : null,
         ])->filter()->join("\n\n"));
 
@@ -70,7 +75,7 @@ class FeedbackController extends Controller
         }
 
         return redirect()
-            ->route('site.feedback')
+            ->route('site.feedback', ['open' => 1])
             ->with('status', __('site.feedback.success'));
     }
 
@@ -97,11 +102,6 @@ class FeedbackController extends Controller
                 'label' => __('site.feedback.categories.loan_inquiry'),
                 'description' => __('site.feedback.categories.loan_inquiry_desc'),
                 'fields' => ['subject', 'message', 'reference'],
-            ],
-            'investment_inquiry' => [
-                'label' => __('site.feedback.categories.investment_inquiry'),
-                'description' => __('site.feedback.categories.investment_inquiry_desc'),
-                'fields' => ['subject', 'message'],
             ],
             'general' => [
                 'label' => __('site.feedback.categories.general'),
