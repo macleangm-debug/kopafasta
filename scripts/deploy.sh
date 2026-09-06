@@ -110,8 +110,13 @@ echo "==> Exporting Git commit ${SHORT_COMMIT} (${DEPLOY_COMMIT}) for ${DEPLOY_E
 git archive --format=tar "$DEPLOY_COMMIT" | tar -x -C "$STAGEDIR"
 
 echo "==> Syncing ${SHORT_COMMIT} to ${SERVER}:${APP_DIR}"
+SSH_BASE=(ssh -p "${SSH_PORT}")
+if [[ -n "${SSH_IDENTITY_FILE:-}" ]]; then
+  SSH_BASE+=( -i "${SSH_IDENTITY_FILE}" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new )
+fi
+# shellcheck disable=SC2086
 rsync -az --delete \
-  -e "ssh -p ${SSH_PORT}" \
+  -e "${SSH_BASE[*]}" \
   --exclude "/.git/" \
   --exclude "/vendor/" \
   --exclude "/node_modules/" \
@@ -124,7 +129,7 @@ rsync -az --delete \
   "${STAGEDIR}/" "${SERVER}:${APP_DIR}/"
 
 echo "==> Running remote deploy steps"
-ssh -p "${SSH_PORT}" "${SERVER}" bash -s -- \
+"${SSH_BASE[@]}" "${SERVER}" bash -s -- \
   "${APP_DIR}" \
   "${PHP_BIN}" \
   "${COMPOSER_BIN}" \
