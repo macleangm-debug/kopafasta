@@ -141,7 +141,7 @@
     @endunless
 
     <x-site.public-section>
-        <x-site.public-carousel :title="__('site.product_detail.features')" :subtitle="__('site.product_detail.overview_short_hint') ?? null">
+        <x-site.public-carousel :title="__('site.product_detail.features')">
             @foreach ($infoCards as $card)
                 <div data-public-slide class="snap-start shrink-0 w-[min(100%,calc(100vw-3rem))] sm:w-[280px] lg:w-[calc(25%-12px)]">
                     <x-site.public-card :title="$card['title']">
