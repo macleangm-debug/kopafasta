@@ -4,7 +4,8 @@
  */
 const STORAGE_PREFIX = 'kf-form-draft:';
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const SKIP_NAME = /^(?:_token|_method|password|password_confirmation|current_password|pin|pin_confirmation|activation_pin|otp|cvv|card_number|secret)$/i;
+const SKIP_NAME = /^(?:_token|_method|password|password_confirmation|current_password|pin|pin_confirmation|activation_pin|otp|cvv|card_number|secret|api_key|api_secret|webhook_secret|sms_api_key|sms_api_secret|email_smtp_pass|email_smtp_user)$/i;
+
 
 let restoring = false;
 
@@ -22,6 +23,10 @@ function shouldSkipForm(form) {
     if (form.hasAttribute('data-no-draft') || form.closest('[data-no-draft]')) {
         return true;
     }
+    // Integration credential forms must always hydrate from the server, never session drafts.
+    if (form.hasAttribute('data-integration-settings-form') || form.closest('[data-integration-settings]')) {
+        return true;
+    }
     const method = (form.getAttribute('method') || 'get').toLowerCase();
     if (method !== 'post') {
         return true;
@@ -33,6 +38,10 @@ function shouldSkipForm(form) {
         || action.includes('/locale')
         || action.endsWith('/country')
         || action.includes('/country?')
+        || action.includes('/settings/payin')
+        || action.includes('/settings/crb')
+        || action.includes('/settings/gateways')
+        || action.includes('/settings/integrations')
     ) {
         return true;
     }

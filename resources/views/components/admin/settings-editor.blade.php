@@ -82,6 +82,8 @@
         @if ($enctype) enctype="{{ $enctype }}" @endif
         class="{{ $formClass }}"
         novalidate
+        data-no-draft
+        autocomplete="off"
         @submit="if ($refs.activeTab) { $refs.activeTab.value = tab }"
     >
         @csrf

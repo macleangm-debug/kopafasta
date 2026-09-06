@@ -19,8 +19,11 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.payin.save'), [
                 'environment' => 'sandbox',
+                'api_key_replace' => '1',
                 'api_key' => 'pk_test_abc',
+                'api_secret_replace' => '1',
                 'api_secret' => 'sk_test_xyz',
+                'webhook_secret_replace' => '1',
                 'webhook_secret' => 'whsec_test',
                 'default_callback_url' => '',
                 'gateway_mode' => 'live',
@@ -55,8 +58,11 @@ class PayInIntegrationSettingsTest extends TestCase
         $response = $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.payin.save'), [
                 'environment' => 'sandbox',
+                'api_key_replace' => '1',
                 'api_key' => 'pk_keep_me',
+                'api_secret_replace' => '1',
                 'api_secret' => 'sk_keep_me',
+                'webhook_secret_replace' => '1',
                 'webhook_secret' => 'whsec_keep',
                 'default_callback_url' => '',
                 'gateway_mode' => 'live',
@@ -82,8 +88,11 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.payin.save'), [
                 'environment' => 'production',
+                'api_key_replace' => '1',
                 'api_key' => 'pk_plain',
+                'api_secret_replace' => '1',
                 'api_secret' => 'sk_plain',
+                'webhook_secret_replace' => '1',
                 'webhook_secret' => 'whsec_plain',
                 'default_callback_url' => 'https://www.kopafasta.com/webhooks/payin',
                 'gateway_mode' => 'dummy',
@@ -121,8 +130,11 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.payin.save'), [
                 'environment' => 'production',
+                'api_key_replace' => '1',
                 'api_key' => 'pk_live',
+                'api_secret_replace' => '1',
                 'api_secret' => 'sk_live',
+                'webhook_secret_replace' => '1',
                 'webhook_secret' => 'whsec_live',
                 'default_callback_url' => 'https://www.kopafasta.com/webhooks/payin',
                 'gateway_mode' => 'dummy',
@@ -149,8 +161,11 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.payin.save'), [
                 'environment' => 'sandbox',
+                'api_key_replace' => '1',
                 'api_key' => 'pk_bank_only',
+                'api_secret_replace' => '1',
                 'api_secret' => 'sk_bank_only',
+                'webhook_secret_replace' => '1',
                 'webhook_secret' => '',
                 'default_callback_url' => '',
                 'gateway_mode' => 'live',
@@ -312,8 +327,11 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.payin.save'), [
                 'environment' => 'production',
+                'api_key_replace' => '1',
                 'api_key' => 'pk_live',
+                'api_secret_replace' => '1',
                 'api_secret' => 'sk_live',
+                'webhook_secret_replace' => '1',
                 'webhook_secret' => 'whsec_live',
                 'default_callback_url' => 'https://www.kopafasta.com/webhooks/payin',
                 'gateway_mode' => 'live',
@@ -407,5 +425,158 @@ class PayInIntegrationSettingsTest extends TestCase
             'X-Payin-Signature' => 'bad',
             'X-Payin-Timestamp' => (string) time(),
         ])->assertStatus(401);
+    }
+
+    public function test_edit_form_hydrates_persisted_production_live_not_defaults(): void
+    {
+        Setting::setMany([
+            'payin.enabled' => true,
+            'payin.environment' => 'production',
+            'payin.api_key' => 'pk_prod_xxxx',
+            'payin.api_secret' => 'sk_prod_yyyy',
+            'payin.webhook_secret' => 'whsec_prod',
+            'payments.gateway_mode' => 'live',
+            'payments.mobile_money_threshold' => 3000000,
+            'integrations.partner_channels' => ['payin' => ['mobile_money']],
+            'integrations.health.payin' => [
+                'ok' => true,
+                'message' => 'Authenticated',
+                'checked_at' => now()->toIso8601String(),
+                'provider' => 'payin',
+            ],
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration']))
+            ->assertOk()
+            ->assertSee('data-persisted-environment="production"', false)
+            ->assertSee('data-persisted-gateway-mode="live"', false)
+            ->assertSee('data-no-draft', false)
+            ->assertDontSee('sk_prod_yyyy')
+            ->assertDontSee('whsec_prod')
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/name="environment"[\s\S]*?<option[^>]*value="production"[^>]*selected/i',
+            $html
+        );
+        $this->assertMatchesRegularExpression(
+            '/name="gateway_mode"[\s\S]*?<option[^>]*value="live"[^>]*selected/i',
+            $html
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/name="gateway_mode"[\s\S]*?<option[^>]*value="dummy"[^>]*selected/i',
+            $html
+        );
+    }
+
+    public function test_edit_form_hydrates_persisted_sandbox_dummy(): void
+    {
+        Setting::setMany([
+            'payin.enabled' => true,
+            'payin.environment' => 'sandbox',
+            'payin.api_key' => 'pk_sand',
+            'payin.api_secret' => 'sk_sand',
+            'payin.webhook_secret' => 'whsec_sand',
+            'payments.gateway_mode' => 'dummy',
+            'payments.mobile_money_threshold' => 3000000,
+            'integrations.partner_channels' => ['payin' => ['mobile_money']],
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.partner', ['partner' => 'payin']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/name="environment"[\s\S]*?<option[^>]*value="sandbox"[^>]*selected/i',
+            $html
+        );
+        $this->assertMatchesRegularExpression(
+            '/name="gateway_mode"[\s\S]*?<option[^>]*value="dummy"[^>]*selected/i',
+            $html
+        );
+    }
+
+    public function test_save_without_replace_keeps_existing_secrets(): void
+    {
+        Setting::setMany([
+            'payin.enabled' => true,
+            'payin.environment' => 'production',
+            'payin.api_key' => 'pk_keep',
+            'payin.api_secret' => 'sk_keep',
+            'payin.webhook_secret' => 'whsec_keep',
+            'payments.gateway_mode' => 'live',
+            'payments.mobile_money_threshold' => 3000000,
+            'integrations.partner_channels' => ['payin' => ['mobile_money']],
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.payin.save'), [
+                'environment' => 'production',
+                'api_key' => '',
+                'api_secret' => '',
+                'webhook_secret' => '',
+                'default_callback_url' => 'https://www.kopafasta.com/webhooks/payin',
+                'gateway_mode' => 'live',
+                'mobile_money_threshold' => '3000000',
+                'channels' => ['mobile_money'],
+                'intent' => 'save',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('pk_keep', Setting::get('payin.api_key'));
+        $this->assertSame('sk_keep', Setting::get('payin.api_secret'));
+        $this->assertSame('whsec_keep', Setting::get('payin.webhook_secret'));
+        $this->assertSame('production', Setting::get('payin.environment'));
+        $this->assertSame('live', Setting::get('payments.gateway_mode'));
+    }
+
+    public function test_check_health_does_not_mutate_configuration(): void
+    {
+        Setting::setMany([
+            'payin.enabled' => true,
+            'payin.environment' => 'production',
+            'payin.api_key' => 'pk_health',
+            'payin.api_secret' => 'sk_health',
+            'payin.webhook_secret' => 'whsec_health',
+            'payments.gateway_mode' => 'live',
+        ]);
+
+        $this->mock(\App\Services\Integrations\IntegrationHealthService::class, function ($mock) {
+            $mock->shouldReceive('check')->once()->with('payin', true)->andReturn([
+                'ok' => true,
+                'message' => 'Authenticated with PayIn (production).',
+                'checked_at' => now()->toIso8601String(),
+                'provider' => 'payin',
+                'guidance' => [],
+                'probe_kind' => 'connection',
+            ]);
+            $mock->shouldReceive('lastStatus')->andReturn([
+                'ok' => true,
+                'message' => 'Authenticated',
+                'checked_at' => now()->toIso8601String(),
+                'unknown' => false,
+            ]);
+        });
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.payin.health'))
+            ->assertRedirect();
+
+        $this->assertSame('production', Setting::get('payin.environment'));
+        $this->assertSame('live', Setting::get('payments.gateway_mode'));
+        $this->assertSame('pk_health', Setting::get('payin.api_key'));
+        $statuses = collect(session('feedback.statuses'));
+        $this->assertTrue($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'authentication' && ($row['value'] ?? '') === 'Connected'));
+        $this->assertFalse($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'readiness' && ($row['value'] ?? '') === 'Live Verified'));
+        $this->assertFalse($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'connection' && ($row['value'] ?? '') === 'Not tested'));
     }
 }

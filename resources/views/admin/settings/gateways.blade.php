@@ -37,8 +37,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <x-admin.input name="sms_provider" label="Provider" :value="$values['sms_provider'] ?? 'unitxt'" placeholder="unitxt" help="Use unitxt. Leave blank for log-only (development)." />
                     <x-admin.input name="sms_sender_id" label="Sender ID" :value="$values['sms_sender_id'] ?? ''" placeholder="KOPAFASTA" />
-                    <x-admin.input name="sms_api_key" label="API key" :value="$values['sms_api_key'] ?? ''" placeholder="Unitxt API key" />
-                    <x-admin.input name="sms_api_secret" label="API secret (optional)" :value="$values['sms_api_secret'] ?? ''" placeholder="If Unitxt issues a secret" />
+                    <x-admin.input name="sms_api_key" label="API key" :value="''" placeholder="{{ filled($values['sms_api_key'] ?? null) ? 'Saved — leave blank to keep' : 'Unitxt API key' }}" autocomplete="off" />
+                    <x-admin.input name="sms_api_secret" label="API secret (optional)" :value="''" placeholder="{{ filled($values['sms_api_secret'] ?? null) ? 'Saved — leave blank to keep' : 'If Unitxt issues a secret' }}" autocomplete="off" />
                     <div class="md:col-span-2">
                         <x-admin.input name="sms_endpoint" label="Endpoint URL (optional)" :value="$values['sms_endpoint'] ?? ''" placeholder="Leave blank until Unitxt share their API URL" />
                     </div>
@@ -64,8 +64,8 @@
                     <x-admin.input name="email_encryption"    label="Encryption (tls/ssl)" :value="$values['email_encryption'] ?? 'tls'" />
                     <x-admin.input name="email_smtp_host"     label="SMTP host"   :value="$values['email_smtp_host'] ?? ''" />
                     <x-admin.input name="email_smtp_port"     label="SMTP port" type="number" :value="$values['email_smtp_port'] ?? '587'" />
-                    <x-admin.input name="email_smtp_user"     label="SMTP username" :value="$values['email_smtp_user'] ?? ''" />
-                    <x-admin.input name="email_smtp_pass"     label="SMTP password" :value="$values['email_smtp_pass'] ?? ''" />
+                    <x-admin.input name="email_smtp_user"     label="SMTP username" :value="$values['email_smtp_user'] ?? ''" autocomplete="off" />
+                    <x-admin.secret-replace-input name="email_smtp_pass" label="SMTP password" :configured="filled($values['email_smtp_pass'] ?? null)" />
                 </div>
             </div>
         </x-admin.settings-panel>

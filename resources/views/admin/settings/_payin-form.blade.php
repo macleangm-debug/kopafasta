@@ -26,11 +26,43 @@
         ->map(fn ($ch) => $channelOptions[$ch] ?? $ch)
         ->filter()
         ->implode(', ') ?: '—';
+
+    $hasApiKey = filled($values['api_key'] ?? null);
+    $hasApiSecret = filled($values['api_secret'] ?? null);
+    $hasWebhookSecret = filled($values['webhook_secret'] ?? null);
 @endphp
 
 <div
-    x-data="{ editing: {{ $lockedStart ? 'false' : 'true' }} }"
+    x-data="{
+        editing: {{ $lockedStart ? 'false' : 'true' }},
+        openEdit() {
+            this.$refs.form?.reset();
+            this.$refs.form?.querySelectorAll('[data-secret-replace]').forEach((el) => {
+                const data = el._x_dataStack?.[0];
+                if (data && typeof data.replacing !== 'undefined') {
+                    data.replacing = false;
+                }
+            });
+            this.editing = true;
+        },
+        cancelEdit() {
+            this.$refs.form?.reset();
+            this.$refs.form?.querySelectorAll('[data-secret-replace]').forEach((el) => {
+                const data = el._x_dataStack?.[0];
+                if (data && typeof data.replacing !== 'undefined') {
+                    data.replacing = false;
+                }
+            });
+            this.editing = false;
+        },
+        setIntent(value) {
+            if (this.$refs.intent) {
+                this.$refs.intent.value = value;
+            }
+        },
+    }"
     class="{{ $embedded ? '' : 'bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6' }} space-y-6"
+    data-integration-settings="payin"
 >
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
@@ -45,11 +77,11 @@
             @endif
         </div>
         <div class="flex gap-2">
-            <button type="button" x-show="!editing" x-cloak @click="editing = true"
+            <button type="button" x-show="!editing" x-cloak @click="openEdit()"
                     class="shrink-0 rounded-xl bg-brand text-white text-xs font-semibold px-4 py-2.5 hover:bg-brand-light">
                 Edit settings
             </button>
-            <button type="button" x-show="editing && {{ $lockedStart ? 'true' : 'false' }}" x-cloak @click="editing = false"
+            <button type="button" x-show="editing && {{ $lockedStart ? 'true' : 'false' }}" x-cloak @click="cancelEdit()"
                     class="shrink-0 rounded-xl ring-1 ring-gray-200 bg-white text-gray-700 text-xs font-semibold px-4 py-2.5 hover:bg-gray-50">
                 Cancel
             </button>
@@ -61,10 +93,7 @@
         @php
             $envRaw = strtolower((string) ($values['environment'] ?? 'sandbox'));
             $envLabel = $envRaw === 'production' ? 'Production' : 'Sandbox';
-            $hasKeys = filled($values['api_key'] ?? null) && filled($values['api_secret'] ?? null);
-            $webhookConfigured = filled($values['webhook_secret'] ?? null)
-                || filled($values['default_callback_url'] ?? null)
-                || filled($defaultWebhookUrl ?? null);
+            $hasKeys = $hasApiKey && $hasApiSecret;
             $authUnknown = ! empty($health['unknown']);
             $authOk = ! $authUnknown && ! empty($health['ok']);
             $authLabel = $authUnknown ? 'Not tested' : ($authOk ? 'Connected' : 'Failed');
@@ -72,7 +101,7 @@
                 && $authOk
                 && $envRaw === 'production'
                 && $gatewayMode === 'live'
-                && filled($values['webhook_secret'] ?? null);
+                && $hasWebhookSecret;
         @endphp
         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
             <div>
@@ -83,7 +112,7 @@
             </div>
             <div>
                 <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Environment</dt>
-                <dd class="mt-1.5 text-lg font-bold text-gray-900">{{ $envLabel }}</dd>
+                <dd class="mt-1.5 text-lg font-bold text-gray-900" data-persisted-environment="{{ $envRaw }}">{{ $envLabel }}</dd>
             </div>
             <div>
                 <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">API authentication</dt>
@@ -96,8 +125,8 @@
             </div>
             <div>
                 <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Webhook</dt>
-                <dd class="mt-1.5 text-lg font-bold {{ filled($values['webhook_secret'] ?? null) ? 'text-emerald-700' : 'text-amber-700' }}">
-                    {{ filled($values['webhook_secret'] ?? null) ? 'Configured' : 'Not configured' }}
+                <dd class="mt-1.5 text-lg font-bold {{ $hasWebhookSecret ? 'text-emerald-700' : 'text-amber-700' }}">
+                    {{ $hasWebhookSecret ? 'Configured' : 'Not configured' }}
                 </dd>
                 <p class="mt-1 text-xs text-gray-500 break-all">
                     {{ filled($values['default_callback_url'] ?? null) ? $values['default_callback_url'] : $defaultWebhookUrl }}
@@ -105,7 +134,7 @@
             </div>
             <div>
                 <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Gateway mode</dt>
-                <dd class="mt-1.5 text-lg font-bold {{ $gatewayMode === 'live' ? 'text-emerald-700' : 'text-amber-700' }}">
+                <dd class="mt-1.5 text-lg font-bold {{ $gatewayMode === 'live' ? 'text-emerald-700' : 'text-amber-700' }}" data-persisted-gateway-mode="{{ $gatewayMode }}">
                     {{ $gatewayMode === 'live' ? 'Live' : 'Dummy' }}
                 </dd>
             </div>
@@ -139,15 +168,18 @@
         </dl>
     </div>
 
-    {{-- Edit form --}}
-    <form method="POST" action="{{ route('admin.settings.payin.save') }}" class="space-y-6" x-show="editing" x-cloak>
+    {{-- Edit form: authoritative persisted defaults; never draft-restored --}}
+    <form method="POST" action="{{ route('admin.settings.payin.save') }}"
+          class="space-y-6" x-ref="form" x-show="editing" x-cloak
+          data-no-draft data-integration-settings-form="payin" autocomplete="off">
         @csrf @method('PUT')
+        <input type="hidden" name="intent" value="save" x-ref="intent">
         <div class="space-y-6">
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Payment gateway mode</label>
-                <select name="gateway_mode" class="w-full md:w-80 rounded-xl border-gray-200 text-sm">
-                    <option value="dummy" @selected($gatewayMode === 'dummy')>Dummy (instant test, no USSD)</option>
-                    <option value="live" @selected($gatewayMode === 'live')>Live (PayIn USSD / real rails)</option>
+                <select name="gateway_mode" class="w-full md:w-80 rounded-xl border-gray-200 text-sm" data-persisted-field="gateway_mode">
+                    <option value="dummy" @selected(old('gateway_mode', $gatewayMode) === 'dummy')>Dummy (instant test, no USSD)</option>
+                    <option value="live" @selected(old('gateway_mode', $gatewayMode) === 'live')>Live (PayIn USSD / real rails)</option>
                 </select>
             </div>
 
@@ -160,7 +192,7 @@
                     @foreach ($channelOptions as $channelKey => $channelLabel)
                         <label class="inline-flex items-center gap-2 rounded-lg bg-white ring-1 ring-gray-200 px-3 py-2 text-sm">
                             <input type="checkbox" name="channels[]" value="{{ $channelKey }}"
-                                   @checked(in_array($channelKey, $payinChannels, true))
+                                   @checked(in_array($channelKey, old('channels', $payinChannels), true))
                                    class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                             <span>{{ $channelLabel }}</span>
                         </label>
@@ -177,7 +209,7 @@
                     <x-admin.money-input
                         name="mobile_money_threshold"
                         label="Mobile money max (TZS)"
-                        :value="$mobileMoneyThreshold"
+                        :value="old('mobile_money_threshold', $mobileMoneyThreshold)"
                         :decimals="0"
                         help="0 up to this amount: mobile money. Above: bank only."
                     />
@@ -191,27 +223,27 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Environment</label>
-                    <select name="environment" class="w-full rounded-xl border-gray-200 text-sm">
-                        <option value="sandbox" @selected(($values['environment'] ?? 'sandbox') === 'sandbox')>Sandbox</option>
-                        <option value="production" @selected(($values['environment'] ?? '') === 'production')>Production</option>
+                    <select name="environment" class="w-full rounded-xl border-gray-200 text-sm" data-persisted-field="environment">
+                        <option value="sandbox" @selected(old('environment', $values['environment'] ?? 'sandbox') === 'sandbox')>Sandbox</option>
+                        <option value="production" @selected(old('environment', $values['environment'] ?? '') === 'production')>Production</option>
                     </select>
                 </div>
-                <x-admin.input name="api_key" label="API key (X-API-Key)" :value="$values['api_key'] ?? ''" autocomplete="off" />
-                <x-admin.input name="api_secret" label="API secret (X-API-Secret)" :value="$values['api_secret'] ?? ''" autocomplete="off" />
-                <x-admin.input name="webhook_secret" label="Webhook secret (HMAC)" :value="$values['webhook_secret'] ?? ''" autocomplete="off" />
+                <x-admin.secret-replace-input name="api_key" label="API key (X-API-Key)" :configured="$hasApiKey" />
+                <x-admin.secret-replace-input name="api_secret" label="API secret (X-API-Secret)" :configured="$hasApiSecret" />
+                <x-admin.secret-replace-input name="webhook_secret" label="Webhook secret (HMAC)" :configured="$hasWebhookSecret" />
                 <div class="md:col-span-2">
-                    <x-admin.input name="default_callback_url" label="Callback URL (optional override)" :value="$values['default_callback_url'] ?? ''" :placeholder="$defaultWebhookUrl" />
+                    <x-admin.input name="default_callback_url" label="Callback URL (optional override)" :value="old('default_callback_url', $values['default_callback_url'] ?? '')" :placeholder="$defaultWebhookUrl" />
                     <p class="mt-1 text-xs text-gray-500">Default: <code class="text-[11px]">{{ $defaultWebhookUrl }}</code></p>
                 </div>
             </div>
         </div>
 
         <div class="flex flex-wrap justify-end gap-3">
-            <button type="submit" name="intent" value="save"
+            <button type="submit" @click="setIntent('save')"
                     class="rounded-xl ring-1 ring-gray-200 bg-white text-gray-800 font-semibold text-sm px-5 py-2.5 hover:bg-gray-50">
                 Save settings
             </button>
-            <button type="submit" name="intent" value="save_and_test"
+            <button type="submit" @click="setIntent('save_and_test')"
                     class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm">
                 Save &amp; test connection
             </button>

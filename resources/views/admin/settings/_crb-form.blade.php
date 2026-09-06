@@ -10,8 +10,12 @@
 @endphp
 
 <div
-    x-data="{ editing: {{ $lockedStart ? 'false' : 'true' }} }"
+    x-data="{ editing: {{ $lockedStart ? 'false' : 'true' }},
+        openEdit() { this.$refs.form?.reset(); this.editing = true; },
+        cancelEdit() { this.$refs.form?.reset(); this.editing = false; },
+    }"
     class="{{ $embedded ? '' : 'bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6' }} space-y-6"
+    data-integration-settings="crb"
 >
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
@@ -21,11 +25,11 @@
             @endif
         </div>
         <div class="flex gap-2">
-            <button type="button" x-show="!editing" x-cloak @click="editing = true"
+            <button type="button" x-show="!editing" x-cloak @click="openEdit()"
                     class="shrink-0 rounded-xl bg-brand text-white text-xs font-semibold px-4 py-2.5 hover:bg-brand-light">
                 Edit settings
             </button>
-            <button type="button" x-show="editing && {{ $lockedStart ? 'true' : 'false' }}" x-cloak @click="editing = false"
+            <button type="button" x-show="editing && {{ $lockedStart ? 'true' : 'false' }}" x-cloak @click="cancelEdit()"
                     class="shrink-0 rounded-xl ring-1 ring-gray-200 bg-white text-gray-700 text-xs font-semibold px-4 py-2.5 hover:bg-gray-50">
                 Cancel
             </button>
@@ -83,7 +87,8 @@
         </div>
     </div>
 
-    <form method="POST" action="{{ route('admin.settings.crb.save') }}" class="space-y-6" x-show="editing" x-cloak>
+    <form method="POST" action="{{ route('admin.settings.crb.save') }}" class="space-y-6" x-ref="form" x-show="editing" x-cloak
+          data-no-draft data-integration-settings-form="crb" autocomplete="off">
         @csrf @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">

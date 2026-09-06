@@ -1,8 +1,9 @@
 @php
     $values = $values ?? \App\Models\Setting::group('gateway');
+    $hasSmtpPass = filled($values['email_smtp_pass'] ?? null);
 @endphp
 
-<form method="POST" action="{{ route('admin.settings.gateways.save') }}" class="space-y-4" data-no-draft>
+<form method="POST" action="{{ route('admin.settings.gateways.save') }}" class="space-y-4" data-no-draft data-integration-settings-form="email_smtp" autocomplete="off">
     @csrf @method('PUT')
     <div>
         <h3 class="text-sm font-semibold text-gray-900">Email (SMTP) configuration</h3>
@@ -15,8 +16,8 @@
         <x-admin.input name="email_encryption" label="Encryption (tls/ssl)" :value="$values['email_encryption'] ?? 'tls'" />
         <x-admin.input name="email_smtp_host" label="SMTP host" :value="$values['email_smtp_host'] ?? ''" />
         <x-admin.input name="email_smtp_port" label="SMTP port" type="number" :value="$values['email_smtp_port'] ?? '587'" />
-        <x-admin.input name="email_smtp_user" label="SMTP username" :value="$values['email_smtp_user'] ?? ''" />
-        <x-admin.input name="email_smtp_pass" label="SMTP password" type="password" :value="$values['email_smtp_pass'] ?? ''" data-no-draft />
+        <x-admin.input name="email_smtp_user" label="SMTP username" :value="$values['email_smtp_user'] ?? ''" autocomplete="off" />
+        <x-admin.secret-replace-input name="email_smtp_pass" label="SMTP password" :configured="$hasSmtpPass" />
     </div>
     <div class="flex flex-wrap items-center justify-between gap-3">
         <button type="submit" name="intent" value="save" class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5">Save settings</button>

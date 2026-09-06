@@ -277,10 +277,27 @@ class SettingsController extends Controller
             'email_smtp_port' => ['nullable', 'integer'],
             'email_smtp_user' => ['nullable', 'string', 'max:200'],
             'email_smtp_pass' => ['nullable', 'string', 'max:255'],
+            'email_smtp_pass_replace' => ['nullable', 'boolean'],
             'email_encryption'=> ['nullable', 'string', 'max:10'],
         ]);
 
         $data['staff_sms_alerts'] = (bool) ($data['staff_sms_alerts'] ?? false);
+
+        $existing = Setting::group('gateway');
+        foreach (['sms_api_key', 'sms_api_secret', 'email_smtp_pass'] as $secret) {
+            $incoming = trim((string) ($data[$secret] ?? ''));
+            $replace = $secret === 'email_smtp_pass'
+                ? $request->boolean('email_smtp_pass_replace')
+                : $incoming !== '';
+            if ($secret === 'email_smtp_pass') {
+                if (! $replace || $incoming === '') {
+                    unset($data[$secret]);
+                }
+            } elseif ($incoming === '' && filled($existing[$secret] ?? null)) {
+                unset($data[$secret]);
+            }
+        }
+        unset($data['email_smtp_pass_replace']);
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["gateway.$k" => $v])->all());
         \Illuminate\Support\Facades\Cache::forget('sms.settings.v1');
@@ -712,16 +729,36 @@ class SettingsController extends Controller
             'api_key' => ['nullable', 'string', 'max:255'],
             'api_secret' => ['nullable', 'string', 'max:255'],
             'webhook_secret' => ['nullable', 'string', 'max:255'],
+            'api_key_replace' => ['nullable', 'boolean'],
+            'api_secret_replace' => ['nullable', 'boolean'],
+            'webhook_secret_replace' => ['nullable', 'boolean'],
             'default_callback_url' => ['nullable', 'url', 'max:255'],
             'gateway_mode' => ['required', 'in:dummy,live'],
             'mobile_money_threshold' => ['required', 'integer', 'min:0', 'max:100000000'],
             'channels' => ['required', 'array', 'min:1'],
             'channels.*' => ['in:mobile_money,bank'],
-            'intent' => ['nullable', 'in:save,save_and_test'],
+            'intent' => ['required', 'in:save,save_and_test'],
         ]);
 
-        $intent = $data['intent'] ?? 'save';
-        unset($data['intent']);
+        $intent = (string) $data['intent'];
+        unset(
+            $data['intent'],
+            $data['api_key_replace'],
+            $data['api_secret_replace'],
+            $data['webhook_secret_replace'],
+        );
+
+        $existing = Setting::group('payin');
+        foreach (['api_key', 'api_secret', 'webhook_secret'] as $secret) {
+            $replace = $request->boolean($secret.'_replace');
+            $incoming = trim((string) ($data[$secret] ?? ''));
+            if (! $replace || $incoming === '') {
+                // Keep persisted secret — never blank out from an empty edit field.
+                unset($data[$secret]);
+            } else {
+                $data[$secret] = $incoming;
+            }
+        }
 
         $gatewayMode = $data['gateway_mode'];
         $threshold = (int) $data['mobile_money_threshold'];
@@ -741,18 +778,50 @@ class SettingsController extends Controller
         ]);
 
         $feedback = app(\App\Services\Integrations\IntegrationFeedback::class);
-        $context = $feedback->payinContext($gatewayMode, (string) ($data['environment'] ?? 'sandbox'));
+        $context = $feedback->payinContext(
+            $gatewayMode,
+            (string) ($data['environment'] ?? ($existing['environment'] ?? 'sandbox')),
+        );
 
         if ($intent === 'save_and_test') {
-            $result = app(\App\Services\Integrations\IntegrationHealthService::class)
-                ->check('payin', notifyOnFailure: true);
+            try {
+                $result = app(\App\Services\Integrations\IntegrationHealthService::class)
+                    ->check('payin', notifyOnFailure: true);
+            } catch (\Throwable $e) {
+                report($e);
+                $result = [
+                    'ok' => false,
+                    'message' => 'Could not test connection',
+                    'probe_kind' => 'connection',
+                    'checked_at' => now()->toIso8601String(),
+                    'provider' => 'payin',
+                    'guidance' => ['Retry Save & test connection after confirming credentials.'],
+                ];
+            }
+
+            $payload = $feedback->fromHealth('payin', $result, $context);
+            // Belt-and-suspenders: Save & test must never claim "Not tested".
+            $payload['statuses'] = array_values(array_filter(
+                $payload['statuses'] ?? [],
+                fn ($row) => ! (($row['key'] ?? '') === 'connection' && ($row['value'] ?? '') === 'Not tested')
+            ));
+            if (! collect($payload['statuses'])->contains(fn ($r) => ($r['key'] ?? '') === 'authentication')) {
+                $payload['statuses'][] = $feedback->status(
+                    'authentication',
+                    'API authentication',
+                    ! empty($result['ok']) ? 'Connected' : 'Failed',
+                    ! empty($result['ok']) ? 'success' : 'error',
+                );
+            }
 
             return redirect()
                 ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
-                ->with('feedback', $feedback->fromHealth('payin', $result, $context));
+                ->with('feedback', $payload);
         }
 
-        $envLabel = ($data['environment'] ?? '') === 'production' ? 'Production' : 'Sandbox';
+        $envLabel = (($data['environment'] ?? ($existing['environment'] ?? '')) === 'production')
+            ? 'Production'
+            : 'Sandbox';
 
         return redirect()
             ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
