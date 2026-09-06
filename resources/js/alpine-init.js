@@ -8,6 +8,7 @@ import { registerPartnerCreateConfirm } from './partner-create-confirm';
 
 import { registerValuationCamera } from './valuation-camera';
 import { registerPspPaymentFlow } from './psp-payment-flow';
+import { registerIntegrationLiveTest } from './integration-live-test';
 
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
@@ -18,6 +19,7 @@ registerSavingOverlay(Alpine);
 registerPartnerCreateConfirm(Alpine);
 registerValuationCamera(Alpine);
 registerPspPaymentFlow(Alpine);
+registerIntegrationLiveTest(Alpine);
 
 window.campaignWizard = function campaignWizard(cfg) {
     const initial = cfg.initial || {};

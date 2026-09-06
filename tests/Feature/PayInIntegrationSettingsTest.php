@@ -360,10 +360,12 @@ class PayInIntegrationSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('data-live-test-trigger', false)
             ->assertSee('data-integration-live-test-panel', false)
+            ->assertSee('integrationLiveTest(', false)
             ->assertSee('PayIn operational rehearsal')
             ->assertSee('Review test payment')
             ->assertSee('Continue to payment.show', false)
-            ->assertDontSee('id="live-test"', false);
+            ->assertDontSee('id="live-test"', false)
+            ->assertDontSee('name=\\"phone\\"', false);
     }
 
     public function test_sms_email_crb_partner_pages_use_live_test_modal(): void
@@ -380,6 +382,7 @@ class PayInIntegrationSettingsTest extends TestCase
                 ->assertOk()
                 ->assertSee('data-live-test-trigger', false)
                 ->assertSee('data-integration-live-test-panel', false)
+                ->assertSee('integrationLiveTest(', false)
                 ->assertSee($reviewCta);
         }
     }

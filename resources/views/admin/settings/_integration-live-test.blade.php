@@ -14,78 +14,11 @@
 
 @if ($supportsLiveTest)
 <div
-    x-data="{
-        liveTestOpen: {{ $autoOpen ? 'true' : 'false' }},
-        step: 'form',
-        phoneDisplay: '',
-        amountDisplay: '1,000',
-        messagePreview: '',
-        emailTo: '',
-        emailSubject: 'Kopafasta email live test',
-        nidaDisplay: '',
-        riskAck: false,
-        openLiveTest() {
-            this.step = 'form';
-            this.riskAck = false;
-            this.liveTestOpen = true;
-        },
-        closeLiveTest() {
-            this.liveTestOpen = false;
-            this.step = 'form';
-        },
-        formatPhone(raw) {
-            const digits = String(raw || '').replace(/\D/g, '');
-            if (! digits) return '';
-            if (digits.startsWith('255') && digits.length >= 12) {
-                return '+255 ' + digits.slice(3);
-            }
-            return '+255 ' + digits.replace(/^0+/, '');
-        },
-        formatAmount(raw) {
-            const n = Number(String(raw || '').replace(/,/g, ''));
-            if (! Number.isFinite(n) || n <= 0) return '1,000';
-            return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
-        },
-        goReview() {
-            const form = this.$refs.liveTestForm;
-            if (! form) return;
-            if (typeof form.reportValidity === 'function' && ! form.reportValidity()) {
-                return;
-            }
-            @if ($partnerKey === 'payin' && $isProductionLivePayIn)
-            if (! this.riskAck) {
-                return;
-            }
-            @endif
-            const phone = form.querySelector('[name=\"phone\"]')?.value || '';
-            const amount = form.querySelector('[name=\"amount\"]')?.value || '1000';
-            const message = form.querySelector('[name=\"message\"]')?.value || '';
-            const email = form.querySelector('[name=\"email\"]')?.value || '';
-            const subject = form.querySelector('[name=\"subject\"]')?.value || '';
-            const nida = form.querySelector('[name=\"nida\"]')?.value || '';
-            this.phoneDisplay = this.formatPhone(phone);
-            this.amountDisplay = this.formatAmount(amount);
-            this.messagePreview = message;
-            this.emailTo = email;
-            this.emailSubject = subject || 'Kopafasta email live test';
-            this.nidaDisplay = nida;
-            this.step = 'review';
-        },
-        backToForm() {
-            this.step = 'form';
-        },
-        submitLiveTest() {
-            const form = this.$refs.liveTestForm;
-            if (! form) return;
-            @if ($partnerKey === 'payin' && $isProductionLivePayIn)
-            if (this.$refs.riskAckInput) {
-                this.$refs.riskAckInput.checked = true;
-            }
-            @endif
-            form.requestSubmit();
-        },
-    }"
-    x-effect="if (! liveTestOpen) { step = 'form' }"
+    x-data="integrationLiveTest({
+        autoOpen: {{ $autoOpen ? 'true' : 'false' }},
+        requireRiskAck: {{ ($partnerKey === 'payin' && $isProductionLivePayIn) ? 'true' : 'false' }},
+        emailSubject: @js('Kopafasta email live test'),
+    })"
     @keydown.escape.window="if (liveTestOpen) closeLiveTest()"
     data-integration-live-test="{{ $partnerKey }}"
 >
