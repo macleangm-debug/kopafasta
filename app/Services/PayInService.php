@@ -288,6 +288,7 @@ class PayInService
                 'ok' => true,
                 'message' => 'Authenticated with PayIn ('.$environment.').',
                 'balance' => is_array($balance) ? $balance : null,
+                'probe_kind' => 'connection',
             ];
         } catch (\Throwable $e) {
             report($e);
@@ -296,6 +297,8 @@ class PayInService
                 'ok' => false,
                 'message' => 'PayIn authentication failed for the '.$environment.' environment.',
                 'balance' => null,
+                'probe_kind' => 'connection',
+                'reason' => 'Invalid credentials',
             ];
         }
     }

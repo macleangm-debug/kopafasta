@@ -155,14 +155,9 @@
                                     @endforeach
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">{{ $partner['description'] ?? '' }}</p>
-                                <p class="mt-2 text-xs {{ $unknown ? 'text-amber-700' : ($ok ? 'text-emerald-700' : 'text-rose-700') }}">
-                                    @if ($unknown)
-                                        Health not checked yet
-                                    @else
-                                        {{ $ok ? 'Healthy' : 'Unhealthy' }}
-                                        @if (! empty($health['message'])) — {{ $health['message'] }} @endif
-                                    @endif
-                                </p>
+                                <div class="mt-3 max-w-md">
+                                    <x-admin.integration-health-summary :partner-key="$partner['key']" :summary="app(\App\Services\Integrations\IntegrationFeedback::class)->persistentSummary($partner['key'])" />
+                                </div>
                                 @if (! $ok && ! $unknown && ! empty($partner['guidance']))
                                     <ul class="mt-2 text-xs text-rose-700 list-disc pl-4 space-y-0.5">
                                         @foreach (array_slice($partner['guidance'], 0, 2) as $tip)

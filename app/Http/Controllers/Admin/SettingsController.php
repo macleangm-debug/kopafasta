@@ -285,17 +285,28 @@ class SettingsController extends Controller
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["gateway.$k" => $v])->all());
         \Illuminate\Support\Facades\Cache::forget('sms.settings.v1');
 
-        return back()->with('status', 'Gateway settings saved.');
+        $feedback = app(\App\Services\Integrations\IntegrationFeedback::class);
+
+        return back()->with('feedback', $feedback->settingsSaved('SMS / Email gateway'));
     }
 
-    public function smsHealth(\App\Services\Integrations\IntegrationHealthService $health)
-    {
+    public function smsHealth(
+        \App\Services\Integrations\IntegrationHealthService $health,
+        \App\Services\Integrations\IntegrationFeedback $feedback,
+    ) {
         $result = $health->check('unitxt', notifyOnFailure: true);
+        $configured = filled(Setting::get('gateway.sms_api_key')) || filled(Setting::get('gateway.sms_api_secret'));
 
         return redirect()
             ->route('admin.settings.gateways')
-            ->with('sms_health', $result)
-            ->with('status', ($result['ok'] ?? false) ? 'SMS connection check completed.' : 'SMS connection check failed.');
+            ->with('feedback', $feedback->fromHealth('unitxt', $result, [
+                'configured' => $configured || (bool) ($result['ok'] ?? false),
+                'environment' => app()->environment('production') ? 'production' : 'sandbox',
+                'show_mode' => false,
+                'show_webhook' => false,
+                'ready' => (bool) ($result['ok'] ?? false),
+                'probe_kind' => $result['probe_kind'] ?? null,
+            ]));
     }
 
     // ---------------- Integrations hub ----------------
@@ -480,29 +491,42 @@ class SettingsController extends Controller
             'partner' => ['nullable', 'string', 'max:40'],
         ]);
 
-        if (filled($data['partner'] ?? null)) {
-            $result = $health->check($data['partner'], notifyOnFailure: true);
-            $ok = (bool) ($result['ok'] ?? false);
+        $feedback = app(\App\Services\Integrations\IntegrationFeedback::class);
 
-            return back()->with('feedback', [
-                'tone' => $ok ? 'success' : 'error',
-                'title' => $ok ? 'Connection healthy' : 'Connection failed',
-                'message' => (string) ($result['message'] ?? ''),
-                'lines' => $result['guidance'] ?? [],
-            ]);
+        if (filled($data['partner'] ?? null)) {
+            $partnerKey = (string) $data['partner'];
+            $result = $health->check($partnerKey, notifyOnFailure: true);
+            $context = $partnerKey === 'payin'
+                ? $feedback->payinContext()
+                : [
+                    'configured' => true,
+                    'environment' => app()->isProduction() ? 'production' : 'sandbox',
+                    'ready' => (bool) ($result['ok'] ?? false),
+                    'probe_kind' => $result['probe_kind'] ?? null,
+                ];
+
+            return back()->with('feedback', $feedback->fromHealth($partnerKey, $result, $context));
         }
 
         $results = $health->checkAll(notifyOnFailure: true);
         $failed = collect($results)->where('ok', false)->values();
+        $statuses = collect($results)->map(function (array $row) use ($feedback) {
+            return $feedback->status(
+                (string) $row['key'],
+                strtoupper((string) $row['key']),
+                ! empty($row['ok']) ? 'Connected' : 'Failed',
+                ! empty($row['ok']) ? 'success' : 'error',
+            );
+        })->all();
 
-        return back()->with('feedback', [
-            'tone' => $failed->isEmpty() ? 'success' : 'error',
-            'title' => $failed->isEmpty() ? 'All integrations healthy' : 'Some integrations failed',
-            'message' => $failed->isEmpty()
+        return back()->with('feedback', $feedback->payload(
+            tone: $failed->isEmpty() ? 'success' : 'error',
+            title: $failed->isEmpty() ? 'All integrations healthy' : 'Some integrations failed',
+            message: $failed->isEmpty()
                 ? 'All available integrations passed health checks.'
                 : $failed->count().' integration(s) need attention.',
-            'lines' => $failed->map(fn ($row) => strtoupper($row['key']).': '.$row['message'])->all(),
-        ]);
+            statuses: $statuses,
+        ));
     }
 
     public function runIntegrationLiveTest(
@@ -663,112 +687,36 @@ class SettingsController extends Controller
             'payments.mobile_money_threshold' => $threshold,
         ]);
 
+        $feedback = app(\App\Services\Integrations\IntegrationFeedback::class);
+        $context = $feedback->payinContext($gatewayMode, (string) ($data['environment'] ?? 'sandbox'));
+
         if ($intent === 'save_and_test') {
             $result = app(\App\Services\Integrations\IntegrationHealthService::class)
                 ->check('payin', notifyOnFailure: true);
 
-            $ok = (bool) ($result['ok'] ?? false);
-            $environment = (string) ($data['environment'] ?? 'sandbox');
-            $envLabel = $environment === 'production' ? 'Production' : 'Sandbox';
-
-            $lines = [
-                'Configuration: Saved',
-                'Environment: '.$envLabel,
-                'API authentication: '.($ok ? 'Connected' : 'Failed'),
-            ];
-
-            if ($ok) {
-                $lines[] = 'Action required: Gateway mode is currently Dummy. Switch Gateway Mode to Live before accepting real payments.';
-                if ($gatewayMode === 'live') {
-                    // Replace the dummy action line when already live.
-                    array_pop($lines);
-                    $lines[] = 'Gateway mode: Live';
-                    $lines[] = 'Production readiness: Ready';
-                } else {
-                    $lines[] = 'Gateway mode: Dummy';
-                    $lines[] = 'Production readiness: Action required';
-                }
-
-                return redirect()
-                    ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
-                    ->with('feedback', [
-                        'tone' => $gatewayMode === 'live' ? 'success' : 'warning',
-                        'title' => 'PayIn connection successful',
-                        'message' => $envLabel.' credentials authenticated successfully and PayIn is reachable.',
-                        'lines' => $lines,
-                    ]);
-            }
-
-            $lines[] = 'Gateway mode: '.($gatewayMode === 'live' ? 'Live' : 'Dummy');
-            $lines[] = 'Production readiness: Action required';
-
             return redirect()
                 ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
-                ->with('feedback', [
-                    'tone' => 'error',
-                    'title' => 'PayIn connection failed',
-                    'message' => 'Credentials could not be authenticated. Check the API Key, API Secret and selected environment.',
-                    'lines' => $lines,
-                ]);
-        }
-
-        $lines = [
-            'Configuration: Saved',
-            'API authentication: Not tested — use Save & test connection to verify credentials.',
-        ];
-        if ($gatewayMode !== 'live') {
-            $lines[] = 'Action required: Gateway mode is currently Dummy. Switch Gateway Mode to Live before accepting real payments.';
+                ->with('feedback', $feedback->fromHealth('payin', $result, $context));
         }
 
         return redirect()
             ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
-            ->with('feedback', [
-                'tone' => 'info',
-                'title' => 'Settings saved',
-                'message' => 'PayIn settings saved. Fields are locked — click Edit to change. This does not confirm PayIn authentication.',
-                'lines' => $lines,
-            ]);
+            ->with('feedback', $feedback->settingsSaved('PayIn', [
+                $feedback->status('configuration', 'Configuration', 'Saved', 'success'),
+                $feedback->status('connection', 'Connection', 'Not tested', 'neutral'),
+                $feedback->status('mode', 'Gateway mode', $context['mode_label'], $gatewayMode === 'live' ? 'success' : 'warning'),
+            ], $gatewayMode === 'live' ? null : 'Gateway Mode is Dummy. Switch to Live before accepting real payments.'));
     }
 
-    public function payinHealth(\App\Services\Integrations\IntegrationHealthService $health)
-    {
+    public function payinHealth(
+        \App\Services\Integrations\IntegrationHealthService $health,
+        \App\Services\Integrations\IntegrationFeedback $feedback,
+    ) {
         $result = $health->check('payin', notifyOnFailure: true);
-        $ok = (bool) ($result['ok'] ?? false);
-        $gatewayMode = Setting::get('payments.gateway_mode') ?? config('payments.gateway_mode', 'dummy');
-        $environment = (string) (Setting::get('payin.environment') ?? 'sandbox');
-        $envLabel = $environment === 'production' ? 'Production' : 'Sandbox';
-
-        if ($ok) {
-            $lines = [
-                'API authentication: Connected',
-                'Environment: '.$envLabel,
-                'Gateway mode: '.($gatewayMode === 'live' ? 'Live' : 'Dummy'),
-            ];
-            if ($gatewayMode !== 'live') {
-                $lines[] = 'Action required: Gateway mode is currently Dummy. Switch Gateway Mode to Live before accepting real payments.';
-            }
-
-            return redirect()
-                ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
-                ->with('feedback', [
-                    'tone' => $gatewayMode === 'live' ? 'success' : 'warning',
-                    'title' => 'PayIn connection successful',
-                    'message' => $envLabel.' credentials authenticated successfully and PayIn is reachable.',
-                    'lines' => $lines,
-                ]);
-        }
 
         return redirect()
             ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
-            ->with('feedback', [
-                'tone' => 'error',
-                'title' => 'PayIn connection failed',
-                'message' => 'Credentials could not be authenticated. Check the API Key, API Secret and selected environment.',
-                'lines' => [
-                    'API authentication: Failed',
-                    'Environment: '.$envLabel,
-                ],
-            ]);
+            ->with('feedback', $feedback->fromHealth('payin', $result, $feedback->payinContext()));
     }
 
     // ---------------- Transactional messaging ----------------
@@ -913,17 +861,17 @@ class SettingsController extends Controller
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($value, $key) => ["kyc.$key" => $value])->all());
 
+        $feedback = app(\App\Services\Integrations\IntegrationFeedback::class);
+
         return redirect()
             ->route('admin.settings.integrations.partner', ['partner' => 'crb', 'tab' => 'configuration'])
-            ->with('feedback', [
-                'tone' => 'success',
-                'title' => 'CRB settings saved',
-                'message' => 'Fields are locked — click Edit settings to change. Usage & billing tracks requests and package pricing.',
-            ]);
+            ->with('feedback', $feedback->settingsSaved('CRB'));
     }
 
-    public function testCrbConnection()
-    {
+    public function testCrbConnection(
+        \App\Services\Integrations\IntegrationHealthService $health,
+        \App\Services\Integrations\IntegrationFeedback $feedback,
+    ) {
         $sample = config('crb_samples.scenarios.verified', []);
         $nida = (string) ($sample['nida'] ?? '19810713-00001-23456-78');
 
@@ -933,25 +881,34 @@ class SettingsController extends Controller
             $sample['date_of_birth'] ?? null,
         );
 
-        if ($result->success) {
-            $driverLabel = $result->raw['driver'] ?? (app(\App\Services\CrbService::class)->usesStub() ? 'stub' : 'live');
-
-            return redirect()
-                ->route('admin.settings.integrations.partner', ['partner' => 'crb', 'tab' => 'configuration'])
-                ->with('feedback', [
-                    'tone' => 'success',
-                    'title' => 'CRB test succeeded',
-                    'message' => $driverLabel.': '.$result->fullName,
-                ]);
-        }
+        // Persist a sanitized health snapshot without leaking PII into audit/UI.
+        $healthPayload = [
+            'ok' => (bool) $result->success,
+            'message' => $result->success
+                ? (app(\App\Services\CrbService::class)->usesStub()
+                    ? 'CRB stub identity probe succeeded.'
+                    : 'CRB live identity probe succeeded.')
+                : 'CRB identity probe failed.',
+            'probe_kind' => app(\App\Services\CrbService::class)->usesStub() ? 'presence_only' : 'connection',
+            'reason' => $result->success ? '' : $feedback->sanitizeReason((string) ($result->message ?? '')),
+        ];
+        Setting::set('integrations.health.crb', [
+            'ok' => $healthPayload['ok'],
+            'message' => $healthPayload['message'],
+            'checked_at' => now()->toIso8601String(),
+            'provider' => 'crb',
+            'guidance' => $health->guidanceFor('crb', $healthPayload['ok'], $healthPayload['message']),
+            'probe_kind' => $healthPayload['probe_kind'],
+        ]);
 
         return redirect()
             ->route('admin.settings.integrations.partner', ['partner' => 'crb', 'tab' => 'configuration'])
-            ->with('feedback', [
-                'tone' => 'error',
-                'title' => 'CRB test failed',
-                'message' => $result->message ?? 'CRB test failed.',
-            ]);
+            ->with('feedback', $feedback->fromHealth('crb', $healthPayload, [
+                'configured' => true,
+                'environment' => Setting::get('kyc.crb_sandbox') ? 'sandbox' : 'production',
+                'ready' => $healthPayload['ok'] && ! app(\App\Services\CrbService::class)->usesStub(),
+                'probe_kind' => $healthPayload['probe_kind'],
+            ]));
     }
 
     public function identityVerification()

@@ -64,6 +64,7 @@ class IntegrationHealthService
             default => [
                 'ok' => false,
                 'message' => 'No automated health probe yet — open Configure and verify credentials manually.',
+                'probe_kind' => 'none',
             ],
         };
 
@@ -72,6 +73,7 @@ class IntegrationHealthService
             (bool) ($result['ok'] ?? false),
             (string) ($result['message'] ?? 'Health check finished.'),
             $partnerKey,
+            isset($result['probe_kind']) ? (string) $result['probe_kind'] : null,
         );
 
         if ($notifyOnFailure && ! $stored['ok']) {
@@ -124,9 +126,9 @@ class IntegrationHealthService
     }
 
     /**
-     * @return array{ok: bool, message: string, checked_at: string, provider: string, guidance: list<string>}
+     * @return array{ok: bool, message: string, checked_at: string, provider: string, guidance: list<string>, probe_kind?: string}
      */
-    protected function store(string $partnerKey, bool $ok, string $message, ?string $provider = null): array
+    protected function store(string $partnerKey, bool $ok, string $message, ?string $provider = null, ?string $probeKind = null): array
     {
         $payload = [
             'ok' => $ok,
@@ -135,6 +137,9 @@ class IntegrationHealthService
             'provider' => $provider ?: $partnerKey,
             'guidance' => $this->guidanceFor($partnerKey, $ok, $message),
         ];
+        if ($probeKind) {
+            $payload['probe_kind'] = $probeKind;
+        }
 
         Setting::set("integrations.health.{$partnerKey}", $payload);
 
@@ -177,44 +182,79 @@ class IntegrationHealthService
         return array_values(array_unique($tips));
     }
 
-    /** @return array{ok: bool, message: string} */
+    /** @return array{ok: bool, message: string, probe_kind?: string} */
     protected function checkEmail(): array
     {
         $g = Setting::group('gateway');
         $from = (string) ($g['email_from_address'] ?? '');
         $host = (string) ($g['email_smtp_host'] ?? '');
+        $port = (int) ($g['email_smtp_port'] ?? 587);
 
         if ($from === '') {
-            return ['ok' => false, 'message' => 'Email from address is not configured.'];
+            return ['ok' => false, 'message' => 'Email from address is not configured.', 'probe_kind' => 'connection'];
         }
 
         if ($host === '' && config('mail.default') === 'log') {
-            return ['ok' => true, 'message' => 'Email is using the log mailer (dev). Configure SMTP for production.'];
+            return [
+                'ok' => true,
+                'message' => 'Email is using the log mailer (dev). Configure SMTP for production.',
+                'probe_kind' => 'presence_only',
+            ];
         }
 
         if ($host === '') {
-            return ['ok' => false, 'message' => 'SMTP host is missing.'];
+            return ['ok' => false, 'message' => 'SMTP host is missing.', 'probe_kind' => 'connection'];
         }
 
-        return ['ok' => true, 'message' => 'Email gateway credentials look configured.'];
+        // Non-transactional TCP reachability probe — does not send mail.
+        $errno = 0;
+        $errstr = '';
+        $socket = @fsockopen($host, $port > 0 ? $port : 587, $errno, $errstr, 5);
+        if ($socket === false) {
+            return [
+                'ok' => false,
+                'message' => 'SMTP host is unreachable.',
+                'probe_kind' => 'connection',
+                'reason' => 'Provider unavailable',
+            ];
+        }
+        fclose($socket);
+
+        return [
+            'ok' => true,
+            'message' => 'SMTP host is reachable.',
+            'probe_kind' => 'connection',
+        ];
     }
 
-    /** @return array{ok: bool, message: string} */
+    /** @return array{ok: bool, message: string, probe_kind?: string} */
     protected function checkCrb(): array
     {
         $service = app(\App\Services\CrbService::class);
         if ($service->usesStub()) {
-            return ['ok' => true, 'message' => 'CRB stub driver is active (sandbox/dev).'];
+            return [
+                'ok' => true,
+                'message' => 'CRB stub driver is active (sandbox/dev).',
+                'probe_kind' => 'presence_only',
+            ];
         }
 
         $endpoint = Setting::get('kyc.crb_endpoint') ?: config('crb.endpoint');
         $email = Setting::get('kyc.crb_email') ?: config('crb.email');
 
         if (! filled($endpoint) || ! filled($email)) {
-            return ['ok' => false, 'message' => 'CRB live credentials incomplete (endpoint/email).'];
+            return [
+                'ok' => false,
+                'message' => 'CRB live credentials incomplete (endpoint/email).',
+                'probe_kind' => 'connection',
+            ];
         }
 
-        return ['ok' => true, 'message' => 'CRB live credentials are present.'];
+        return [
+            'ok' => true,
+            'message' => 'CRB live credentials are present.',
+            'probe_kind' => 'presence_only',
+        ];
     }
 
     protected function notifyAdmins(array $partner, array $status): void

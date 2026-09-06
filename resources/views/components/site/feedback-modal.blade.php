@@ -16,6 +16,10 @@
         title: @js($defaultTitle),
         message: @js($message),
         lines: [],
+        statuses: [],
+        actionRequired: null,
+        secondaryLabel: null,
+        secondaryHref: null,
         tone: 'error',
         okLabel: @js($defaultOk),
         defaults: {
@@ -28,6 +32,10 @@
             this.title = detail.title ?? this.defaults.title;
             this.message = detail.message ?? this.defaults.message ?? '';
             this.lines = Array.isArray(detail.lines) ? detail.lines : [];
+            this.statuses = Array.isArray(detail.statuses) ? detail.statuses : [];
+            this.actionRequired = detail.action_required || detail.actionRequired || null;
+            this.secondaryLabel = detail.secondaryLabel || null;
+            this.secondaryHref = detail.secondaryHref || null;
             this.tone = detail.tone || 'error';
             this.okLabel = detail.okLabel || this.defaults.okLabel;
             this.eyebrow = detail.eyebrow || null;
@@ -35,6 +43,18 @@
         },
         close() {
             this.open = false;
+        },
+        statusIcon(state) {
+            if (state === 'success') return '✓';
+            if (state === 'warning') return '!';
+            if (state === 'error') return '×';
+            return '•';
+        },
+        statusClass(state) {
+            if (state === 'success') return 'bg-emerald-100 text-emerald-800 ring-emerald-200';
+            if (state === 'warning') return 'bg-amber-100 text-amber-900 ring-amber-200';
+            if (state === 'error') return 'bg-rose-100 text-rose-800 ring-rose-200';
+            return 'bg-slate-100 text-slate-700 ring-slate-200';
         },
         toneMeta() {
             const map = {
@@ -110,15 +130,39 @@
         </div>
         <div class="px-6 py-5">
             <p x-show="message" x-cloak class="text-sm font-semibold text-gray-900 whitespace-pre-line leading-relaxed" x-text="message"></p>
-            <ul x-show="lines.length" x-cloak class="mt-3 space-y-2 text-sm text-gray-700">
+
+            <ul x-show="statuses.length" x-cloak class="mt-4 space-y-2">
+                <template x-for="(row, i) in statuses" :key="row.key || i">
+                    <li class="flex items-center justify-between gap-3 rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2.5">
+                        <span class="text-sm font-medium text-gray-700" x-text="row.label"></span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ring-1"
+                              :class="statusClass(row.state)">
+                            <span aria-hidden="true" x-text="statusIcon(row.state)"></span>
+                            <span x-text="row.value"></span>
+                        </span>
+                    </li>
+                </template>
+            </ul>
+
+            <div x-show="actionRequired" x-cloak class="mt-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3.5 py-3">
+                <p class="text-[10px] uppercase tracking-widest font-bold text-amber-800">Action required</p>
+                <p class="mt-1 text-sm text-amber-950" x-text="actionRequired"></p>
+            </div>
+
+            <ul x-show="!statuses.length && lines.length" x-cloak class="mt-3 space-y-2 text-sm text-gray-700">
                 <template x-for="(line, i) in lines" :key="i">
                     <li class="flex gap-2 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-3 py-2">
-                        <span class="mt-0.5 size-5 shrink-0 rounded-full bg-brand-gold/90 text-brand text-[11px] font-bold grid place-items-center" x-text="i + 1"></span>
+                        <span class="mt-0.5 size-5 shrink-0 rounded-full bg-slate-200 text-slate-700 text-[11px] font-bold grid place-items-center" aria-hidden="true">•</span>
                         <span class="min-w-0" x-text="line"></span>
                     </li>
                 </template>
             </ul>
-            <div class="mt-6 flex justify-end">
+
+            <div class="mt-6 flex flex-wrap justify-end gap-2">
+                <a x-show="secondaryHref && secondaryLabel" x-cloak
+                   :href="secondaryHref"
+                   class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold ring-1 ring-gray-200 bg-white text-gray-800 hover:bg-gray-50"
+                   x-text="secondaryLabel"></a>
                 <button type="button" @click="close()"
                         class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm"
                         x-text="okLabel"></button>

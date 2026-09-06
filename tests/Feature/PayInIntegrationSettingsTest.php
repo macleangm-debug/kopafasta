@@ -71,8 +71,8 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->assertTrue((bool) Setting::get('payin.enabled'));
         $this->assertSame('error', session('feedback.tone'));
         $this->assertSame('PayIn connection failed', session('feedback.title'));
-        $this->assertStringContainsString('authenticated', strtolower((string) session('feedback.message')));
-        $this->assertStringNotContainsString('settings saved and payin responded', strtolower((string) session('feedback.message')));
+        $this->assertStringContainsString('could not authenticate', strtolower((string) session('feedback.message')));
+        $this->assertNotEmpty(session('feedback.statuses'));
     }
 
     public function test_plain_save_does_not_claim_connection_success(): void
@@ -94,8 +94,10 @@ class PayInIntegrationSettingsTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('feedback.title', 'Settings saved');
 
-        $this->assertStringContainsString('does not confirm', strtolower((string) session('feedback.message')));
+        $this->assertStringContainsString('has not been tested', strtolower((string) session('feedback.message')));
         $this->assertSame('info', session('feedback.tone'));
+        $statuses = collect(session('feedback.statuses'));
+        $this->assertTrue($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'connection' && ($row['value'] ?? '') === 'Not tested'));
     }
 
     public function test_save_and_test_success_separates_auth_from_gateway_mode(): void
@@ -112,6 +114,7 @@ class PayInIntegrationSettingsTest extends TestCase
                     'checked_at' => now()->toIso8601String(),
                     'provider' => 'payin',
                     'guidance' => [],
+                    'probe_kind' => 'connection',
                 ]);
         });
 
@@ -132,11 +135,11 @@ class PayInIntegrationSettingsTest extends TestCase
             ->assertSessionHas('feedback.tone', 'warning');
 
         $message = strtolower((string) session('feedback.message'));
-        $this->assertStringContainsString('authenticated successfully', $message);
-        $lines = session('feedback.lines');
-        $this->assertIsArray($lines);
-        $this->assertTrue(collect($lines)->contains(fn ($line) => str_contains((string) $line, 'API authentication: Connected')));
-        $this->assertTrue(collect($lines)->contains(fn ($line) => str_contains((string) $line, 'Gateway mode is currently Dummy')));
+        $this->assertStringContainsString('successfully authenticated', $message);
+        $statuses = collect(session('feedback.statuses'));
+        $this->assertTrue($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'authentication' && ($row['value'] ?? '') === 'Connected'));
+        $this->assertTrue($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'mode' && ($row['value'] ?? '') === 'Dummy'));
+        $this->assertStringContainsString('Gateway Mode is Dummy', (string) session('feedback.action_required'));
     }
 
     public function test_disabling_mobile_money_rail_disables_payin(): void

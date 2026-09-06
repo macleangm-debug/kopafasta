@@ -417,6 +417,11 @@
                 title: @js($feedback['title'] ?? 'Console'),
                 message: @js($feedback['message'] ?? ''),
                 lines: @js($feedback['lines'] ?? []),
+                statuses: @js($feedback['statuses'] ?? []),
+                action_required: @js($feedback['action_required'] ?? null),
+                okLabel: @js($feedback['okLabel'] ?? 'Got it'),
+                secondaryLabel: @js($feedback['secondaryLabel'] ?? null),
+                secondaryHref: @js($feedback['secondaryHref'] ?? null),
             });
         @elseif (session('status'))
             @php

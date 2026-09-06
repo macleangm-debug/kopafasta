@@ -44,12 +44,11 @@
             <p class="text-xs uppercase tracking-widest text-gray-500">Category</p>
             <p class="mt-1 text-lg font-bold text-gray-900">{{ ucfirst($partner['category'] ?? '—') }}</p>
         </div>
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-xs uppercase tracking-widest text-gray-500">Health</p>
-            <p class="mt-1 text-lg font-bold {{ ! empty($health['unknown']) ? 'text-amber-700' : (! empty($health['ok']) ? 'text-emerald-700' : 'text-rose-700') }}">
-                {{ ! empty($health['unknown']) ? 'Not checked' : (! empty($health['ok']) ? 'Healthy' : 'Unhealthy') }}
-            </p>
-        </div>
+        <x-admin.integration-health-summary
+            class="bg-white"
+            :partner-key="$partnerKey"
+            :summary="app(\App\Services\Integrations\IntegrationFeedback::class)->persistentSummary($partnerKey)"
+        />
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
             <p class="text-xs uppercase tracking-widest text-gray-500">
                 {{ ($partner['category'] ?? '') === 'payment' ? 'Rails' : 'Workspace' }}
