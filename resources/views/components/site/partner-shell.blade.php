@@ -226,10 +226,13 @@
                             <a href="{{ route($item['route']) }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ $item['label'] }}</a>
                         @endforeach
                     </nav>
-                    <div class="px-4 pb-4 pt-1 border-t border-gray-100">
+                    <div class="px-4 pb-4 pt-3 mt-1 border-t border-gray-200">
                         <form method="POST" action="{{ route('site.logout') }}">
                             @csrf
-                            <button type="submit" class="w-full rounded-xl bg-red-50 text-red-600 text-sm font-semibold py-3.5">{{ __('borrower.layout.sign_out') }}</button>
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 text-red-700 text-sm font-semibold py-3.5 ring-1 ring-red-100 hover:bg-red-100 transition">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                {{ __('borrower.layout.sign_out') }}
+                            </button>
                         </form>
                     </div>
                 </div>
