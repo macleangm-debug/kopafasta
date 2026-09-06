@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'brand' => [
+        'tagline' => 'Capital that moves at your pace.',
+    ],
+
     'nav' => [
         'home' => 'Home',
         'products' => 'Products',

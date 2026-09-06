@@ -218,7 +218,7 @@
         <footer class="bg-brand text-gray-300 mt-20">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-5">
                 <div class="lg:col-span-2">
-                    <x-site.brand-mark variant="light" size="lg" :showSubtitle="true" />
+                    <x-site.brand-mark variant="light" size="lg" :showSubtitle="false" />
                     <p class="text-sm text-gray-400 max-w-xs mt-3">{{ __('site.footer.tagline') }}</p>
                     <p class="text-sm text-brand-gold/90 max-w-sm mt-3 font-medium leading-snug">
                         {{ __('site.footer.ownership', ['legal_name' => brand('legal_name')]) }}

@@ -48,6 +48,6 @@
             {{ $portal }}
         </span>
     @elseif ($showSubtitle)
-        <span class="mt-1 {{ $s['sub'] }} {{ $subClass }}">{{ brand('tagline') }}</span>
+        <span class="mt-1 {{ $s['sub'] }} {{ $subClass }}">{{ __('site.brand.tagline') }}</span>
     @endif
 </div>

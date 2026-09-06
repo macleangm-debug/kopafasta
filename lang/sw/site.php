@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'brand' => [
+        'tagline' => 'Mtaji unaosogea kwa kasi yako.',
+    ],
+
     'nav' => [
         'home' => 'Nyumbani',
         'products' => 'Bidhaa',
