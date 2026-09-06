@@ -23,12 +23,14 @@
             message: @js($message),
             okLabel: @js($defaultOk),
         },
+        eyebrow: null,
         show(detail = {}) {
             this.title = detail.title ?? this.defaults.title;
             this.message = detail.message ?? this.defaults.message ?? '';
             this.lines = Array.isArray(detail.lines) ? detail.lines : [];
             this.tone = detail.tone || 'error';
             this.okLabel = detail.okLabel || this.defaults.okLabel;
+            this.eyebrow = detail.eyebrow || null;
             this.open = true;
         },
         close() {
@@ -62,7 +64,8 @@
                     eyebrow: @js(__('borrower.feedback.tones.error')),
                 },
             };
-            return map[this.tone] || map.error;
+            const meta = map[this.tone] || map.error;
+            return this.eyebrow ? { ...meta, eyebrow: this.eyebrow } : meta;
         },
     }"
     x-on:open-feedback-{{ $name }}.window="show($event.detail || {})"

@@ -374,12 +374,31 @@
     </main>
 </div>
 
-<x-site.feedback-modal name="admin" title="Console" />
+<x-site.feedback-modal name="admin" title="Console" ok-label="Got it" />
 <x-site.confirm-modal name="admin" />
 <script>
+    window.adminFeedbackChrome = (tone = 'info') => {
+        const eyebrows = {
+            success: 'Success',
+            error: 'Attention needed',
+            warning: 'Please review',
+            info: 'Information',
+            confirm: 'Please confirm',
+        };
+        return {
+            okLabel: 'Got it',
+            eyebrow: eyebrows[tone] || eyebrows.info,
+        };
+    };
     window.showAdminFeedback = (detail = {}) => {
+        const payload = typeof detail === 'string' ? { message: detail } : { ...(detail || {}) };
+        const chrome = window.adminFeedbackChrome(payload.tone || 'info');
         window.dispatchEvent(new CustomEvent('open-feedback-admin', {
-            detail: typeof detail === 'string' ? { message: detail } : detail,
+            detail: {
+                ...payload,
+                okLabel: payload.okLabel || chrome.okLabel,
+                eyebrow: payload.eyebrow || chrome.eyebrow,
+            },
         }));
     };
     window.confirmForm = (form, detail = {}) => {

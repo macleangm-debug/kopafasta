@@ -668,39 +668,64 @@ class SettingsController extends Controller
                 ->check('payin', notifyOnFailure: true);
 
             $ok = (bool) ($result['ok'] ?? false);
-            $lines = array_values(array_filter([
-                $result['message'] ?? null,
-            ]));
-            foreach ($result['guidance'] ?? [] as $tip) {
-                $lines[] = $tip;
+            $environment = (string) ($data['environment'] ?? 'sandbox');
+            $envLabel = $environment === 'production' ? 'Production' : 'Sandbox';
+
+            $lines = [
+                'Configuration: Saved',
+                'Environment: '.$envLabel,
+                'API authentication: '.($ok ? 'Connected' : 'Failed'),
+            ];
+
+            if ($ok) {
+                $lines[] = 'Action required: Gateway mode is currently Dummy. Switch Gateway Mode to Live before accepting real payments.';
+                if ($gatewayMode === 'live') {
+                    // Replace the dummy action line when already live.
+                    array_pop($lines);
+                    $lines[] = 'Gateway mode: Live';
+                    $lines[] = 'Production readiness: Ready';
+                } else {
+                    $lines[] = 'Gateway mode: Dummy';
+                    $lines[] = 'Production readiness: Action required';
+                }
+
+                return redirect()
+                    ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
+                    ->with('feedback', [
+                        'tone' => $gatewayMode === 'live' ? 'success' : 'warning',
+                        'title' => 'PayIn connection successful',
+                        'message' => $envLabel.' credentials authenticated successfully and PayIn is reachable.',
+                        'lines' => $lines,
+                    ]);
             }
-            if ($ok && $gatewayMode !== 'live') {
-                $lines[] = 'Gateway mode is still Dummy — switch to Live and save before real USSD payments.';
-            }
+
+            $lines[] = 'Gateway mode: '.($gatewayMode === 'live' ? 'Live' : 'Dummy');
+            $lines[] = 'Production readiness: Action required';
 
             return redirect()
                 ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
                 ->with('feedback', [
-                    'tone' => $ok ? ($gatewayMode === 'live' ? 'success' : 'warning') : 'error',
-                    'title' => $ok ? 'PayIn connected' : 'PayIn connection failed',
-                    'message' => $ok
-                        ? 'Settings saved and PayIn responded successfully.'
-                        : 'Settings were saved, but the connection check failed.',
+                    'tone' => 'error',
+                    'title' => 'PayIn connection failed',
+                    'message' => 'Credentials could not be authenticated. Check the API Key, API Secret and selected environment.',
                     'lines' => $lines,
                 ]);
         }
 
-        $lines = [];
+        $lines = [
+            'Configuration: Saved',
+            'API authentication: Not tested — use Save & test connection to verify credentials.',
+        ];
         if ($gatewayMode !== 'live') {
-            $lines[] = 'Gateway mode is Dummy — borrowers will not get live USSD. Switch to Live for real payments.';
+            $lines[] = 'Action required: Gateway mode is currently Dummy. Switch Gateway Mode to Live before accepting real payments.';
         }
 
         return redirect()
             ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
             ->with('feedback', [
-                'tone' => $gatewayMode === 'live' ? 'success' : 'warning',
+                'tone' => 'info',
                 'title' => 'Settings saved',
-                'message' => 'PayIn settings saved. Fields are locked — click Edit to change.',
+                'message' => 'PayIn settings saved. Fields are locked — click Edit to change. This does not confirm PayIn authentication.',
                 'lines' => $lines,
             ]);
     }
@@ -709,14 +734,40 @@ class SettingsController extends Controller
     {
         $result = $health->check('payin', notifyOnFailure: true);
         $ok = (bool) ($result['ok'] ?? false);
+        $gatewayMode = Setting::get('payments.gateway_mode') ?? config('payments.gateway_mode', 'dummy');
+        $environment = (string) (Setting::get('payin.environment') ?? 'sandbox');
+        $envLabel = $environment === 'production' ? 'Production' : 'Sandbox';
+
+        if ($ok) {
+            $lines = [
+                'API authentication: Connected',
+                'Environment: '.$envLabel,
+                'Gateway mode: '.($gatewayMode === 'live' ? 'Live' : 'Dummy'),
+            ];
+            if ($gatewayMode !== 'live') {
+                $lines[] = 'Action required: Gateway mode is currently Dummy. Switch Gateway Mode to Live before accepting real payments.';
+            }
+
+            return redirect()
+                ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
+                ->with('feedback', [
+                    'tone' => $gatewayMode === 'live' ? 'success' : 'warning',
+                    'title' => 'PayIn connection successful',
+                    'message' => $envLabel.' credentials authenticated successfully and PayIn is reachable.',
+                    'lines' => $lines,
+                ]);
+        }
 
         return redirect()
             ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
             ->with('feedback', [
-                'tone' => $ok ? 'success' : 'error',
-                'title' => $ok ? 'PayIn connected' : 'PayIn connection failed',
-                'message' => (string) ($result['message'] ?? ($ok ? 'Connection healthy.' : 'Connection failed.')),
-                'lines' => $result['guidance'] ?? [],
+                'tone' => 'error',
+                'title' => 'PayIn connection failed',
+                'message' => 'Credentials could not be authenticated. Check the API Key, API Secret and selected environment.',
+                'lines' => [
+                    'API authentication: Failed',
+                    'Environment: '.$envLabel,
+                ],
             ]);
     }
 

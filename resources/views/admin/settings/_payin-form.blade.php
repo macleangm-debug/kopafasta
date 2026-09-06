@@ -58,16 +58,62 @@
 
     {{-- Read-only summary (not styled as inputs) --}}
     <div x-show="!editing" x-cloak class="space-y-6">
+        @php
+            $envRaw = strtolower((string) ($values['environment'] ?? 'sandbox'));
+            $envLabel = $envRaw === 'production' ? 'Production' : 'Sandbox';
+            $hasKeys = filled($values['api_key'] ?? null) && filled($values['api_secret'] ?? null);
+            $webhookConfigured = filled($values['webhook_secret'] ?? null)
+                || filled($values['default_callback_url'] ?? null)
+                || filled($defaultWebhookUrl ?? null);
+            $authUnknown = ! empty($health['unknown']);
+            $authOk = ! $authUnknown && ! empty($health['ok']);
+            $authLabel = $authUnknown ? 'Not tested' : ($authOk ? 'Connected' : 'Failed');
+            $readinessReady = $hasKeys
+                && $authOk
+                && $envRaw === 'production'
+                && $gatewayMode === 'live'
+                && filled($values['webhook_secret'] ?? null);
+        @endphp
         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
             <div>
-                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Payment gateway mode</dt>
-                <dd class="mt-1.5 text-lg font-bold {{ $gatewayMode === 'live' ? 'text-emerald-700' : 'text-amber-700' }}">
-                    {{ $gatewayMode === 'live' ? 'Live (PayIn USSD / real rails)' : 'Dummy (instant test, no USSD)' }}
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Configuration</dt>
+                <dd class="mt-1.5 text-lg font-bold {{ $hasKeys ? 'text-emerald-700' : 'text-amber-700' }}">
+                    {{ $hasKeys ? 'Saved' : 'Incomplete' }}
                 </dd>
             </div>
             <div>
                 <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Environment</dt>
-                <dd class="mt-1.5 text-lg font-bold text-gray-900">{{ strtoupper($values['environment'] ?? 'sandbox') }}</dd>
+                <dd class="mt-1.5 text-lg font-bold text-gray-900">{{ $envLabel }}</dd>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">API authentication</dt>
+                <dd class="mt-1.5 text-lg font-bold {{ $authUnknown ? 'text-amber-700' : ($authOk ? 'text-emerald-700' : 'text-rose-700') }}">
+                    {{ $authLabel }}
+                </dd>
+                @if (! empty($health['checked_at']))
+                    <p class="mt-1 text-xs text-gray-500">Last checked {{ \Illuminate\Support\Carbon::parse($health['checked_at'])->diffForHumans() }}</p>
+                @endif
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Webhook</dt>
+                <dd class="mt-1.5 text-lg font-bold {{ filled($values['webhook_secret'] ?? null) ? 'text-emerald-700' : 'text-amber-700' }}">
+                    {{ filled($values['webhook_secret'] ?? null) ? 'Configured' : 'Not configured' }}
+                </dd>
+                <p class="mt-1 text-xs text-gray-500 break-all">
+                    {{ filled($values['default_callback_url'] ?? null) ? $values['default_callback_url'] : $defaultWebhookUrl }}
+                </p>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Gateway mode</dt>
+                <dd class="mt-1.5 text-lg font-bold {{ $gatewayMode === 'live' ? 'text-emerald-700' : 'text-amber-700' }}">
+                    {{ $gatewayMode === 'live' ? 'Live' : 'Dummy' }}
+                </dd>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Production readiness</dt>
+                <dd class="mt-1.5 text-lg font-bold {{ $readinessReady ? 'text-emerald-700' : 'text-amber-700' }}">
+                    {{ $readinessReady ? 'Ready' : 'Action required' }}
+                </dd>
             </div>
             <div>
                 <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Supported rails</dt>
@@ -89,12 +135,6 @@
             <div>
                 <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Webhook secret</dt>
                 <dd class="mt-1.5 font-mono text-sm font-semibold text-gray-800 tracking-tight">{{ $maskSecret($values['webhook_secret'] ?? '') }}</dd>
-            </div>
-            <div>
-                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Callback URL</dt>
-                <dd class="mt-1.5 text-sm font-medium text-gray-900 break-all">
-                    {{ filled($values['default_callback_url'] ?? null) ? $values['default_callback_url'] : $defaultWebhookUrl }}
-                </dd>
             </div>
         </dl>
     </div>

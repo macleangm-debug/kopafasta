@@ -278,18 +278,23 @@ class PayInService
             ];
         }
 
+        $environment = $this->settings()['environment'] === 'production' ? 'production' : 'sandbox';
+
         try {
+            // Non-transactional auth probe — no collection/disbursement.
             $balance = $this->http()->get($this->baseUrl().'/balance')->throw()->json();
 
             return [
                 'ok' => true,
-                'message' => 'Connected to PayIn ('.$this->settings()['environment'].').',
+                'message' => 'Authenticated with PayIn ('.$environment.').',
                 'balance' => is_array($balance) ? $balance : null,
             ];
         } catch (\Throwable $e) {
+            report($e);
+
             return [
                 'ok' => false,
-                'message' => 'PayIn connection failed: '.$e->getMessage(),
+                'message' => 'PayIn authentication failed for the '.$environment.' environment.',
                 'balance' => null,
             ];
         }

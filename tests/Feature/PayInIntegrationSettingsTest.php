@@ -70,7 +70,73 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->assertSame('sk_keep_me', Setting::get('payin.api_secret'));
         $this->assertTrue((bool) Setting::get('payin.enabled'));
         $this->assertSame('error', session('feedback.tone'));
-        $this->assertStringContainsString('saved', strtolower((string) session('feedback.message')));
+        $this->assertSame('PayIn connection failed', session('feedback.title'));
+        $this->assertStringContainsString('authenticated', strtolower((string) session('feedback.message')));
+        $this->assertStringNotContainsString('settings saved and payin responded', strtolower((string) session('feedback.message')));
+    }
+
+    public function test_plain_save_does_not_claim_connection_success(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.payin.save'), [
+                'environment' => 'production',
+                'api_key' => 'pk_plain',
+                'api_secret' => 'sk_plain',
+                'webhook_secret' => 'whsec_plain',
+                'default_callback_url' => 'https://www.kopafasta.com/webhooks/payin',
+                'gateway_mode' => 'dummy',
+                'mobile_money_threshold' => '3000000',
+                'channels' => ['mobile_money'],
+                'intent' => 'save',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('feedback.title', 'Settings saved');
+
+        $this->assertStringContainsString('does not confirm', strtolower((string) session('feedback.message')));
+        $this->assertSame('info', session('feedback.tone'));
+    }
+
+    public function test_save_and_test_success_separates_auth_from_gateway_mode(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->mock(\App\Services\Integrations\IntegrationHealthService::class, function ($mock) {
+            $mock->shouldReceive('check')
+                ->once()
+                ->with('payin', true)
+                ->andReturn([
+                    'ok' => true,
+                    'message' => 'Authenticated with PayIn (production).',
+                    'checked_at' => now()->toIso8601String(),
+                    'provider' => 'payin',
+                    'guidance' => [],
+                ]);
+        });
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.payin.save'), [
+                'environment' => 'production',
+                'api_key' => 'pk_live',
+                'api_secret' => 'sk_live',
+                'webhook_secret' => 'whsec_live',
+                'default_callback_url' => 'https://www.kopafasta.com/webhooks/payin',
+                'gateway_mode' => 'dummy',
+                'mobile_money_threshold' => '3000000',
+                'channels' => ['mobile_money'],
+                'intent' => 'save_and_test',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('feedback.title', 'PayIn connection successful')
+            ->assertSessionHas('feedback.tone', 'warning');
+
+        $message = strtolower((string) session('feedback.message'));
+        $this->assertStringContainsString('authenticated successfully', $message);
+        $lines = session('feedback.lines');
+        $this->assertIsArray($lines);
+        $this->assertTrue(collect($lines)->contains(fn ($line) => str_contains((string) $line, 'API authentication: Connected')));
+        $this->assertTrue(collect($lines)->contains(fn ($line) => str_contains((string) $line, 'Gateway mode is currently Dummy')));
     }
 
     public function test_disabling_mobile_money_rail_disables_payin(): void
