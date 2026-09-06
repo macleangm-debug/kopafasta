@@ -37,7 +37,7 @@ class BrokenPage extends Model
         return $this->resolved_at === null;
     }
 
-    public function needsAttention(): bool
+    public function isNeedsAttention(): bool
     {
         if (! $this->isOpen()) {
             return false;

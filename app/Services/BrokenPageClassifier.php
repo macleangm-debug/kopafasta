@@ -155,35 +155,30 @@ class BrokenPageClassifier
     private function looksLikeBrokenInternalPath(string $path): bool
     {
         // Scanner probes under /admin/*.php etc. are not internal CTAs.
-        if (preg_match('/\.(php|asp|aspx|jsp|cgi|env|yml|yaml|sql|bak|zip|tar|gz)(\?|$)/i', $path) === 1) {
+        if (preg_match('/\.(php|asp|aspx|jsp|cgi|env|yml|yaml|sql|bak|zip|tar|gz|json)(\?|$)/i', $path) === 1) {
             return false;
         }
         if (preg_match('/%2e/i', $path) === 1) {
             return false;
         }
-        if (preg_match('#^/admin/(index\.php|login\.php|config\.php|core\.php|.*\.php)$#i', $path) === 1) {
-            return false;
-        }
-        if (str_contains($path, '/admin/') && preg_match('#^/admin/[a-z0-9._*/%-]+$#i', $path) === 1) {
-            $known = ['/admin/loan-applications', '/admin/customers', '/admin/partners', '/admin/payments',
-                '/admin/settings', '/admin/broken-pages', '/admin/communications', '/admin/reports',
-                '/admin/growth', '/admin/teams', '/admin/support-tickets', '/admin/login', '/admin/'];
-            $isKnown = false;
-            foreach ($known as $prefix) {
-                if ($path === rtrim($prefix, '/') || str_starts_with($path, $prefix)) {
-                    $isKnown = true;
-                    break;
-                }
-            }
-            if (! $isKnown) {
-                return false;
+
+        $knownPrefixes = [
+            '/borrower/', '/partner/', '/staff/', '/investor/', '/apply', '/membership',
+            '/admin/loan-applications', '/admin/customers', '/admin/partners', '/admin/payments',
+            '/admin/settings/', '/admin/broken-pages', '/admin/communications', '/admin/reports',
+            '/admin/growth', '/admin/teams', '/admin/support-tickets', '/admin/loans',
+            '/admin/login',
+        ];
+
+        foreach ($knownPrefixes as $prefix) {
+            if ($path === rtrim($prefix, '/') || str_starts_with($path, $prefix)) {
+                return true;
             }
         }
 
-        foreach (['/borrower/', '/partner/', '/admin/', '/staff/', '/investor/', '/apply', '/membership'] as $prefix) {
-            if (str_starts_with($path, $prefix)) {
-                return true;
-            }
+        // Exact console home only — not /admin/doc, /admin/config, etc.
+        if ($path === '/admin' || $path === '/admin/') {
+            return true;
         }
 
         return false;
