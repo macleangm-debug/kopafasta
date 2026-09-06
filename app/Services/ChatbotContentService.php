@@ -47,7 +47,7 @@ class ChatbotContentService
                 return [
                     'code' => (string) $product->code,
                     'name' => $name,
-                    'url' => route('site.products.show', $product->code),
+                    'url' => route('site.product', $product->code),
                     'summary_en' => "{$name}: {$min}–{$max}".($rateLabel !== '' ? ", {$rateLabel}" : '').". Application fee {$feeLabel}. Other charges depend on stage and Settings for this product — open the product page for the live basis.",
                     'summary_sw' => "{$name}: {$min}–{$max}".($rateLabel !== '' ? ", {$rateLabel}" : '').". Ada ya ombi {$feeLabel}. Ada nyingine zinategemea hatua na Mipangilio ya bidhaa hii — fungua ukurasa wa bidhaa kwa msingi hai.",
                 ];
