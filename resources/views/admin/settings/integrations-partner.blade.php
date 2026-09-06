@@ -23,10 +23,10 @@
                     <input type="hidden" name="partner" value="{{ $partnerKey }}">
                     <button type="submit" class="rounded-xl bg-brand text-white text-xs font-semibold px-3 py-2 hover:bg-brand-light">Check health</button>
                 </form>
-                <a href="#live-test"
-                   class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-semibold px-3 py-2 hover:bg-brand-muted/40">
-                    Live test
-                </a>
+                @include('admin.settings._integration-live-test', [
+                    'partnerKey' => $partnerKey,
+                    'partner' => $partner,
+                ])
             @endif
             @if (($partner['category'] ?? '') === 'payment' && empty($partner['is_primary']))
                 <form method="POST" action="{{ route('admin.settings.integrations.primary') }}">
@@ -127,14 +127,6 @@
             @endif
         </div>
 
-        @if (in_array($partnerKey, ['payin', 'unitxt', 'email_smtp', 'crb'], true))
-            <div class="mt-6">
-                @include('admin.settings._integration-live-test', [
-                    'partnerKey' => $partnerKey,
-                    'partner' => $partner,
-                ])
-            </div>
-        @endif
     @else
         <div class="space-y-6">
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

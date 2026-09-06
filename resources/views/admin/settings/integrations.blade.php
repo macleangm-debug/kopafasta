@@ -26,17 +26,7 @@
                 <div>
                     <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">Integration sandbox</p>
                     <h2 class="mt-2 text-2xl font-bold tracking-tight">Live test</h2>
-                    <p class="mt-2 text-sm text-white/75 max-w-xl">Health check proves credentials and reachability. Live test proves the real operational flow and lives on each partner page (PayIn, Unitxt, Email, CRB).</p>
-                </div>
-                <div class="inline-flex rounded-2xl bg-white/10 p-1 ring-1 ring-white/15 backdrop-blur">
-                    <a href="{{ route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration']) }}#live-test"
-                       class="rounded-xl px-3.5 py-2 text-xs font-bold text-white/90 hover:bg-white/10">PayIn</a>
-                    <a href="{{ route('admin.settings.integrations.partner', ['partner' => 'unitxt', 'tab' => 'configuration']) }}"
-                       class="rounded-xl px-3.5 py-2 text-xs font-bold text-white/90 hover:bg-white/10">SMS</a>
-                    <a href="{{ route('admin.settings.integrations.partner', ['partner' => 'email_smtp', 'tab' => 'configuration']) }}"
-                       class="rounded-xl px-3.5 py-2 text-xs font-bold text-white/90 hover:bg-white/10">Email</a>
-                    <a href="{{ route('admin.settings.integrations.partner', ['partner' => 'crb', 'tab' => 'configuration']) }}"
-                       class="rounded-xl px-3.5 py-2 text-xs font-bold text-white/90 hover:bg-white/10">CRB</a>
+                    <p class="mt-2 text-sm text-white/75 max-w-xl">Health check proves credentials. Live test opens a focused modal/sheet on the partner page — never an inline form on the profile.</p>
                 </div>
             </div>
         </div>
@@ -46,26 +36,18 @@
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Action meanings</p>
                 <ul class="space-y-2.5 text-sm text-gray-700">
                     <li><strong>Save settings</strong> — persists configuration only. Connection remains Not tested.</li>
-                    <li><strong>Save &amp; test connection / Check health</strong> — genuine non-transactional auth/reachability probe. Never returns Not tested after the probe runs.</li>
-                    <li><strong>Live test</strong> — real operational flow on that provider’s page (payment.show, SMS, email, CRB enquiry).</li>
+                    <li><strong>Save &amp; test connection / Check health</strong> — genuine non-transactional auth/reachability probe.</li>
+                    <li><strong>Live test</strong> — deliberate operational rehearsal in a modal/sheet (review → confirm → execute).</li>
                 </ul>
             </div>
             <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-5 space-y-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Open provider live test</p>
                 <div class="flex flex-wrap gap-2">
-                    <a href="{{ route('admin.settings.integrations.partner', 'payin') }}" class="rounded-xl bg-brand text-white text-xs font-bold px-4 py-2.5">PayIn live test</a>
-                    <a href="{{ route('admin.settings.integrations.partner', 'unitxt') }}" class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-bold px-4 py-2.5">Unitxt SMS</a>
-                    <a href="{{ route('admin.settings.integrations.partner', 'email_smtp') }}" class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-bold px-4 py-2.5">Email SMTP</a>
-                    <a href="{{ route('admin.settings.integrations.partner', 'crb') }}" class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-bold px-4 py-2.5">CRB</a>
+                    <a href="{{ route('admin.settings.integrations.partner', ['partner' => 'payin', 'live_test' => 1]) }}" class="rounded-xl bg-brand text-white text-xs font-bold px-4 py-2.5">PayIn live test</a>
+                    <a href="{{ route('admin.settings.integrations.partner', ['partner' => 'unitxt', 'live_test' => 1]) }}" class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-bold px-4 py-2.5">Unitxt SMS</a>
+                    <a href="{{ route('admin.settings.integrations.partner', ['partner' => 'email_smtp', 'live_test' => 1]) }}" class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-bold px-4 py-2.5">Email SMTP</a>
+                    <a href="{{ route('admin.settings.integrations.partner', ['partner' => 'crb', 'live_test' => 1]) }}" class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-bold px-4 py-2.5">CRB</a>
                 </div>
-                @if (session('live_test_result.payment_id'))
-                    <div class="mt-4 flex flex-wrap gap-2">
-                        <a href="{{ route('site.borrower.payments.show', session('live_test_result.payment_id')) }}"
-                           class="inline-flex rounded-xl bg-brand-gold text-brand text-xs font-bold px-4 py-2.5 hover:brightness-95">
-                            Continue to payment.show
-                        </a>
-                    </div>
-                @endif
             </div>
         </div>
     </section>

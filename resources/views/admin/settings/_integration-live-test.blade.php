@@ -1,117 +1,250 @@
 @php
     $partnerKey = $partnerKey ?? '';
+    $partnerLabel = $partner['label'] ?? 'Partner';
+    $supportsLiveTest = in_array($partnerKey, ['payin', 'unitxt', 'email_smtp', 'crb'], true);
     $isProductionLivePayIn = $partnerKey === 'payin'
         && app()->isProduction()
         && ! payment_gateway_is_dummy()
         && (\App\Models\Setting::get('payin.environment') === 'production');
+    $payinEnv = \App\Models\Setting::get('payin.environment') === 'production' ? 'Production' : 'Sandbox';
+    $payinMode = payment_gateway_is_dummy() ? 'Dummy' : 'Live';
+    $callbackConfigured = filled(\App\Models\Setting::get('payin.webhook_secret'));
+    $autoOpen = request()->boolean('live_test') && $supportsLiveTest;
 @endphp
 
-<section id="live-test" class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-    <div class="bg-gradient-to-br from-slate-950 via-brand to-brand-light px-5 py-4 text-white">
-        <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-semibold">Live test</p>
-        <h3 class="mt-1 text-lg font-bold">{{ $partner['label'] ?? 'Partner' }} operational rehearsal</h3>
-        <p class="mt-1 text-sm text-white/75">Exercises the real {{ $partner['label'] ?? 'provider' }} rail — not a credentials-only health check.</p>
-    </div>
+@if ($supportsLiveTest)
+<div
+    x-data="{
+        liveTestOpen: {{ $autoOpen ? 'true' : 'false' }},
+        step: 'form',
+        phoneDisplay: '',
+        amountDisplay: '1,000',
+        messagePreview: '',
+        emailTo: '',
+        emailSubject: 'Kopafasta email live test',
+        nidaDisplay: '',
+        riskAck: false,
+        openLiveTest() {
+            this.step = 'form';
+            this.riskAck = false;
+            this.liveTestOpen = true;
+        },
+        closeLiveTest() {
+            this.liveTestOpen = false;
+            this.step = 'form';
+        },
+        formatPhone(raw) {
+            const digits = String(raw || '').replace(/\D/g, '');
+            if (! digits) return '';
+            if (digits.startsWith('255') && digits.length >= 12) {
+                return '+255 ' + digits.slice(3);
+            }
+            return '+255 ' + digits.replace(/^0+/, '');
+        },
+        formatAmount(raw) {
+            const n = Number(String(raw || '').replace(/,/g, ''));
+            if (! Number.isFinite(n) || n <= 0) return '1,000';
+            return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        },
+        goReview() {
+            const form = this.$refs.liveTestForm;
+            if (! form) return;
+            if (typeof form.reportValidity === 'function' && ! form.reportValidity()) {
+                return;
+            }
+            @if ($partnerKey === 'payin' && $isProductionLivePayIn)
+            if (! this.riskAck) {
+                return;
+            }
+            @endif
+            const phone = form.querySelector('[name=\"phone\"]')?.value || '';
+            const amount = form.querySelector('[name=\"amount\"]')?.value || '1000';
+            const message = form.querySelector('[name=\"message\"]')?.value || '';
+            const email = form.querySelector('[name=\"email\"]')?.value || '';
+            const subject = form.querySelector('[name=\"subject\"]')?.value || '';
+            const nida = form.querySelector('[name=\"nida\"]')?.value || '';
+            this.phoneDisplay = this.formatPhone(phone);
+            this.amountDisplay = this.formatAmount(amount);
+            this.messagePreview = message;
+            this.emailTo = email;
+            this.emailSubject = subject || 'Kopafasta email live test';
+            this.nidaDisplay = nida;
+            this.step = 'review';
+        },
+        backToForm() {
+            this.step = 'form';
+        },
+        submitLiveTest() {
+            const form = this.$refs.liveTestForm;
+            if (! form) return;
+            @if ($partnerKey === 'payin' && $isProductionLivePayIn)
+            if (this.$refs.riskAckInput) {
+                this.$refs.riskAckInput.checked = true;
+            }
+            @endif
+            form.requestSubmit();
+        },
+    }"
+    x-effect="if (! liveTestOpen) { step = 'form' }"
+    @keydown.escape.window="if (liveTestOpen) closeLiveTest()"
+    data-integration-live-test="{{ $partnerKey }}"
+>
+    <button type="button"
+            @click="openLiveTest()"
+            data-live-test-trigger
+            class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-semibold px-3 py-2 hover:bg-brand-muted/40">
+        Live test
+    </button>
 
-    <div class="p-5">
-        @if ($partnerKey === 'payin')
-            <form method="POST" action="{{ route('admin.settings.integrations.live-test') }}" class="space-y-4"
-                  @submit.prevent="window.confirmForm($el, {
-                      title: @js($isProductionLivePayIn ? 'Start real PayIn rehearsal' : 'Start PayIn live test'),
-                      message: @js($isProductionLivePayIn
-                          ? 'This is a real production payment. The entered phone may receive a real USSD/payment request and successful payment will move real money. Continue only for a controlled rehearsal.'
-                          : 'Create a controlled test payment and continue through the canonical payment.show journey.'),
-                      confirmLabel: 'Continue to payment.show',
-                      tone: @js($isProductionLivePayIn ? 'warning' : 'confirm'),
-                      confirmClass: @js($isProductionLivePayIn ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-brand hover:bg-brand-light text-white'),
-                  })">
-                @csrf
+    <x-site.action-panel
+        :title="$partnerKey === 'payin' ? 'PayIn operational rehearsal' : ($partnerLabel.' live test')"
+        open="liveTestOpen"
+        size="lg"
+    >
+        <form method="POST"
+              action="{{ route('admin.settings.integrations.live-test') }}"
+              class="space-y-4"
+              x-ref="liveTestForm"
+              data-no-draft
+              autocomplete="off"
+              @submit="if (step !== 'review') { $event.preventDefault(); goReview(); }">
+            @csrf
+            @if ($partnerKey === 'payin')
                 <input type="hidden" name="suite" value="payment">
                 <input type="hidden" name="partner" value="payin">
-                <x-admin.phone-input name="phone" label="Mobile number" :required="true" lockedCountry="TZ" />
-                <x-admin.money-input name="amount" label="Amount (TZS)" :value="1000" :decimals="0" help="Default rehearsal amount is 1,000 TZS." />
-                @if ($isProductionLivePayIn)
-                    <label class="flex items-start gap-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3 text-sm text-amber-950">
-                        <input type="checkbox" name="confirm_production_payment" value="1" class="mt-1 rounded border-amber-300 text-brand focus:ring-brand" required>
-                        <span><strong>I understand this is a real production payment</strong> and may move real money.</span>
-                    </label>
-                @endif
-                <button type="submit" class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 hover:bg-brand-light">
-                    Review test payment → Continue to payment.show
-                </button>
-            </form>
-        @elseif ($partnerKey === 'unitxt')
-            <form method="POST" action="{{ route('admin.settings.integrations.live-test') }}" class="space-y-4"
-                  x-data="{ message: '', segments() { const len = (this.message || '').length; return Math.max(1, Math.ceil(len / 160)); } }"
-                  @submit.prevent="window.confirmForm($el, {
-                      title: 'Send Unitxt test SMS',
-                      message: 'This sends a real SMS through the configured Unitxt gateway.',
-                      confirmLabel: 'Send test SMS',
-                      tone: 'warning',
-                  })">
-                @csrf
+
+                <div x-show="step === 'form'" class="space-y-4">
+                    <p class="text-sm text-gray-600">
+                        This exercises the real PayIn payment rail using the same payment.show journey used by Kopafasta.
+                    </p>
+                    <x-admin.phone-input name="phone" label="Mobile number" :required="true" lockedCountry="TZ" />
+                    <x-admin.money-input name="amount" label="Amount (TZS)" :value="1000" :decimals="0" help="Default rehearsal amount is 1,000 TZS." />
+                    @if ($isProductionLivePayIn)
+                        <label class="flex items-start gap-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3 text-sm text-amber-950">
+                            <input type="checkbox" x-model="riskAck" x-ref="riskAckInput" name="confirm_production_payment" value="1"
+                                   class="mt-1 rounded border-amber-300 text-brand focus:ring-brand" required>
+                            <span>I understand this is a real production payment and may move real money.</span>
+                        </label>
+                    @endif
+                    <button type="button" @click="goReview()"
+                            class="w-full inline-flex justify-center rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 hover:bg-brand-light">
+                        Review test payment
+                    </button>
+                </div>
+
+                <div x-show="step === 'review'" x-cloak class="space-y-4">
+                    <p class="text-sm text-gray-600">Confirm the rehearsal details before opening payment.show.</p>
+                    <dl class="rounded-xl bg-gray-50 ring-1 ring-gray-200 divide-y divide-gray-200 text-sm">
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Provider</dt><dd class="font-semibold text-gray-900">PayIn</dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Environment</dt><dd class="font-semibold text-gray-900">{{ $payinEnv }}</dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Mobile number</dt><dd class="font-semibold text-gray-900" x-text="phoneDisplay"></dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Amount</dt><dd class="font-semibold text-gray-900"><span x-text="amountDisplay"></span> TZS</dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Gateway mode</dt><dd class="font-semibold text-gray-900">{{ $payinMode }}</dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Callback</dt><dd class="font-semibold text-gray-900">{{ $callbackConfigured ? 'Configured' : 'Not configured' }}</dd></div>
+                    </dl>
+                    @if ($isProductionLivePayIn)
+                        <p class="text-xs text-amber-800 rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2">
+                            This will initiate a real production payment request.
+                        </p>
+                    @endif
+                    <div class="flex flex-col-reverse sm:flex-row gap-2">
+                        <button type="button" @click="backToForm()"
+                                class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-gray-800 text-sm font-semibold px-4 py-3 hover:bg-gray-50">
+                            Back
+                        </button>
+                        <button type="button" @click="submitLiveTest()"
+                                class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3 hover:brightness-95">
+                            Continue to payment.show
+                        </button>
+                    </div>
+                </div>
+            @elseif ($partnerKey === 'unitxt')
                 <input type="hidden" name="suite" value="messaging">
                 <input type="hidden" name="partner" value="unitxt">
-                <x-admin.phone-input name="phone" label="Recipient" :required="true" lockedCountry="TZ" />
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Message</label>
-                    <textarea name="message" x-model="message" rows="4" required maxlength="320"
-                              class="w-full rounded-xl border-gray-200 text-sm focus:border-brand focus:ring-brand/20"
-                              placeholder="Kopafasta Unitxt live test"></textarea>
-                    <p class="mt-1 text-xs text-gray-500">
-                        <span x-text="(message || '').length"></span> characters ·
-                        <span x-text="segments()"></span> SMS segment<span x-show="segments() !== 1">s</span>
-                    </p>
+                <div x-show="step === 'form'" class="space-y-4">
+                    <p class="text-sm text-gray-600">Sends a real SMS through the configured Unitxt gateway.</p>
+                    <x-admin.phone-input name="phone" label="Recipient" :required="true" lockedCountry="TZ" />
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Message</label>
+                        <textarea name="message" x-model="messagePreview" rows="4" required maxlength="320"
+                                  class="w-full rounded-xl border-gray-200 text-sm focus:border-brand focus:ring-brand/20"
+                                  placeholder="Kopafasta Unitxt live test"></textarea>
+                        <p class="mt-1 text-xs text-gray-500">
+                            <span x-text="(messagePreview || '').length"></span> characters ·
+                            <span x-text="Math.max(1, Math.ceil((messagePreview || '').length / 160) || 1)"></span> SMS segment(s)
+                        </p>
+                    </div>
+                    <button type="button" @click="goReview()"
+                            class="w-full inline-flex justify-center rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 hover:bg-brand-light">
+                        Review test SMS
+                    </button>
                 </div>
-                <button type="submit" class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 hover:bg-brand-light">
-                    Send test SMS
-                </button>
-            </form>
-        @elseif ($partnerKey === 'email_smtp')
-            <form method="POST" action="{{ route('admin.settings.integrations.live-test') }}" class="space-y-4"
-                  @submit.prevent="window.confirmForm($el, {
-                      title: 'Send Email live test',
-                      message: 'This sends a real email through the configured mail provider/SMTP.',
-                      confirmLabel: 'Send test email',
-                      tone: 'warning',
-                  })">
-                @csrf
+                <div x-show="step === 'review'" x-cloak class="space-y-4">
+                    <dl class="rounded-xl bg-gray-50 ring-1 ring-gray-200 divide-y divide-gray-200 text-sm">
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Provider</dt><dd class="font-semibold text-gray-900">Unitxt SMS</dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Recipient</dt><dd class="font-semibold text-gray-900" x-text="phoneDisplay"></dd></div>
+                        <div class="px-4 py-3"><dt class="text-gray-500 mb-1">Message</dt><dd class="font-medium text-gray-900 whitespace-pre-wrap" x-text="messagePreview"></dd></div>
+                    </dl>
+                    <div class="flex flex-col-reverse sm:flex-row gap-2">
+                        <button type="button" @click="backToForm()" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3">Back</button>
+                        <button type="button" @click="submitLiveTest()" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3">Send test SMS</button>
+                    </div>
+                </div>
+            @elseif ($partnerKey === 'email_smtp')
                 <input type="hidden" name="suite" value="email">
                 <input type="hidden" name="partner" value="email_smtp">
-                <x-admin.input name="email" label="To email" type="email" required />
-                <x-admin.input name="subject" label="Subject" :value="'Kopafasta email live test'" />
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Message</label>
-                    <textarea name="message" rows="4" class="w-full rounded-xl border-gray-200 text-sm" placeholder="Controlled Email (SMTP) live test."></textarea>
+                <div x-show="step === 'form'" class="space-y-4">
+                    <p class="text-sm text-gray-600">Sends a real email through the configured mail provider/SMTP.</p>
+                    <x-admin.input name="email" label="To email" type="email" required />
+                    <x-admin.input name="subject" label="Subject" :value="'Kopafasta email live test'" />
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Message</label>
+                        <textarea name="message" rows="4" class="w-full rounded-xl border-gray-200 text-sm" placeholder="Controlled Email (SMTP) live test."></textarea>
+                    </div>
+                    <button type="button" @click="goReview()"
+                            class="w-full inline-flex justify-center rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 hover:bg-brand-light">
+                        Review test email
+                    </button>
                 </div>
-                <button type="submit" class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 hover:bg-brand-light">
-                    Send test email
-                </button>
-            </form>
-            <p class="mt-3 text-xs text-gray-500">
-                Credentials: <a href="{{ route('admin.settings.gateways') }}" class="font-semibold text-brand hover:underline">SMS / Email gateways</a>.
-                One email delivery engine serves borrowers, affiliates, capital, recovery and other approved recipients.
-            </p>
-        @elseif ($partnerKey === 'crb')
-            <form method="POST" action="{{ route('admin.settings.integrations.live-test') }}" class="space-y-4"
-                  @submit.prevent="window.confirmForm($el, {
-                      title: 'Run CRB enquiry',
-                      message: 'This performs an actual CRB enquiry using the configured driver and may incur a provider charge on live credentials.',
-                      confirmLabel: 'Run CRB live test',
-                      tone: 'warning',
-                  })">
-                @csrf
+                <div x-show="step === 'review'" x-cloak class="space-y-4">
+                    <dl class="rounded-xl bg-gray-50 ring-1 ring-gray-200 divide-y divide-gray-200 text-sm">
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Provider</dt><dd class="font-semibold text-gray-900">Email (SMTP)</dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">To</dt><dd class="font-semibold text-gray-900" x-text="emailTo"></dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Subject</dt><dd class="font-semibold text-gray-900" x-text="emailSubject"></dd></div>
+                    </dl>
+                    <div class="flex flex-col-reverse sm:flex-row gap-2">
+                        <button type="button" @click="backToForm()" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3">Back</button>
+                        <button type="button" @click="submitLiveTest()" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3">Send test email</button>
+                    </div>
+                </div>
+            @elseif ($partnerKey === 'crb')
                 <input type="hidden" name="suite" value="crb">
                 <input type="hidden" name="partner" value="crb">
-                <x-admin.input name="nida" label="NIDA" placeholder="XXXXXXXX-XXXXX-XXXXX-XX" help="Uses the same NIDA format validation as borrower identity." />
-                <x-admin.input name="full_name" label="Full name (optional)" />
-                <x-admin.input name="date_of_birth" label="Date of birth (optional)" placeholder="YYYY-MM-DD" />
-                <button type="submit" class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 hover:bg-brand-light">
-                    Run CRB live test
-                </button>
-            </form>
-        @else
-            <p class="text-sm text-gray-600">Live test for this partner will appear when its operational adapter is ready. Use Check health for credentials/reachability only.</p>
-        @endif
-    </div>
-</section>
+                <div x-show="step === 'form'" class="space-y-4">
+                    <p class="text-sm text-gray-600">Performs an actual CRB enquiry using the configured driver. May incur a provider charge on live credentials.</p>
+                    <x-admin.input name="nida" label="NIDA" placeholder="XXXXXXXX-XXXXX-XXXXX-XX" help="Uses the same NIDA format validation as borrower identity." />
+                    <x-admin.input name="full_name" label="Full name (optional)" />
+                    <x-admin.input name="date_of_birth" label="Date of birth (optional)" placeholder="YYYY-MM-DD" />
+                    <button type="button" @click="goReview()"
+                            class="w-full inline-flex justify-center rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 hover:bg-brand-light">
+                        Review CRB enquiry
+                    </button>
+                </div>
+                <div x-show="step === 'review'" x-cloak class="space-y-4">
+                    <dl class="rounded-xl bg-gray-50 ring-1 ring-gray-200 divide-y divide-gray-200 text-sm">
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Provider</dt><dd class="font-semibold text-gray-900">CRB</dd></div>
+                        <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">NIDA</dt><dd class="font-semibold text-gray-900" x-text="nidaDisplay || 'Sample / stub identity'"></dd></div>
+                    </dl>
+                    <p class="text-xs text-amber-800 rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2">
+                        Confirm only if you intend to run a real permitted CRB enquiry.
+                    </p>
+                    <div class="flex flex-col-reverse sm:flex-row gap-2">
+                        <button type="button" @click="backToForm()" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3">Back</button>
+                        <button type="button" @click="submitLiveTest()" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3">Run CRB live test</button>
+                    </div>
+                </div>
+            @endif
+        </form>
+    </x-site.action-panel>
+</div>
+@endif

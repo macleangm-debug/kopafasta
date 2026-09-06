@@ -1,12 +1,15 @@
 @props([
     'title' => '',
     'open' => 'open',
+    'size' => 'md',
 ])
 
 @php
     $closeExpr = str_contains((string) $open, '===')
         ? trim(explode('===', (string) $open, 2)[0]).' = null'
         : $open.' = false';
+    $panelWidth = $size === 'lg' ? 'lg:max-w-xl' : 'lg:max-w-md';
+    $panelMaxH = $size === 'lg' ? 'max-h-[min(92dvh,760px)]' : 'max-h-[min(90dvh,640px)]';
 @endphp
 
 <template x-teleport="body">
@@ -15,6 +18,7 @@
          class="fixed inset-0 z-[10050]"
          role="dialog"
          aria-modal="true"
+         data-integration-live-test-panel
          x-effect="
             if (typeof document === 'undefined') return;
             document.documentElement.classList.toggle('overflow-hidden', {{ $open }});
@@ -22,7 +26,7 @@
          ">
         <div class="absolute inset-0 bg-black/40" @click="{{ $closeExpr }}" x-transition.opacity></div>
         <div class="absolute inset-x-0 bottom-0 lg:inset-auto lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2
-                    w-full lg:max-w-md max-h-[min(90dvh,640px)] flex flex-col rounded-t-2xl lg:rounded-3xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] lg:shadow-2xl lg:ring-1 lg:ring-gray-200"
+                    w-full {{ $panelWidth }} {{ $panelMaxH }} flex flex-col rounded-t-2xl lg:rounded-3xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] lg:shadow-2xl lg:ring-1 lg:ring-gray-200"
              style="padding-bottom: env(safe-area-inset-bottom, 0px)"
              x-show="{{ $open }}"
              x-transition:enter="transition ease-out duration-300"

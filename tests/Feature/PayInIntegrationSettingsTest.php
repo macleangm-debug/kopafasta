@@ -358,10 +358,30 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration']))
             ->assertOk()
-            ->assertSee('id="live-test"', false)
-            ->assertSee('Mobile number')
-            ->assertSee('Amount (TZS)')
-            ->assertSee('Continue to payment.show', false);
+            ->assertSee('data-live-test-trigger', false)
+            ->assertSee('data-integration-live-test-panel', false)
+            ->assertSee('PayIn operational rehearsal')
+            ->assertSee('Review test payment')
+            ->assertSee('Continue to payment.show', false)
+            ->assertDontSee('id="live-test"', false);
+    }
+
+    public function test_sms_email_crb_partner_pages_use_live_test_modal(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        foreach ([
+            'unitxt' => 'Review test SMS',
+            'email_smtp' => 'Review test email',
+            'crb' => 'Review CRB enquiry',
+        ] as $partner => $reviewCta) {
+            $this->actingAs($admin, 'admin')
+                ->get(route('admin.settings.integrations.partner', ['partner' => $partner]))
+                ->assertOk()
+                ->assertSee('data-live-test-trigger', false)
+                ->assertSee('data-integration-live-test-panel', false)
+                ->assertSee($reviewCta);
+        }
     }
 
     public function test_notifications_settings_page_saves_delivery_rules(): void
