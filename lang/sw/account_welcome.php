@@ -20,7 +20,7 @@ return [
         'grade_title' => 'Jenga Daraja lako la Kopafasta',
         'grade_body' => 'Uhusiano thabiti na Kopafasta unaweza kufungua uzoefu bora kadri muda unavyokwenda.',
         'plus_title' => 'Kopafasta Plus',
-        'plus_body' => 'Zana za hiari za fedha, biashara, malengo na kujifunza — si mkopo.',
+        'plus_body' => 'Kopafasta Plus inasaidia kuelewa hali yako ya kifedha ili kukupa mwongozo na zana muhimu kwa malengo yako. Plus si mkopo na haihakikishi idhini ya mkopo.',
         'ready_title' => 'Uko tayari',
         'ready_body' => 'Anza kutumia Kopafasta. Msaada uko kwenye akaunti yako unapohitaji.',
     ],

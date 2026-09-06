@@ -20,7 +20,7 @@ return [
         'grade_title' => 'Build your Kopafasta Grade',
         'grade_body' => 'A stronger relationship with Kopafasta can unlock a better experience over time.',
         'plus_title' => 'Kopafasta Plus',
-        'plus_body' => 'Optional tools for money, business, goals and learning — separate from a loan.',
+        'plus_body' => 'Kopafasta Plus helps us understand you better so we can give you more useful financial insights, guidance and tools for your goals. Plus is not a loan and does not guarantee loan approval.',
         'ready_title' => "You're ready",
         'ready_body' => 'Start exploring. Help stays in your account whenever you need it.',
     ],

@@ -649,6 +649,8 @@ return [
     ],
     'auth' => [
         'welcome_back' => 'Karibu tena',
+        'account_type_borrower' => 'Mkopaji',
+        'account_type_partner' => 'Mshirika',
         'partner_sign_in' => 'Ingia kama mshirika',
         'new_here' => 'Mgeni hapa?',
         'create_account' => 'Unda akaunti',
@@ -2032,6 +2034,12 @@ return [
         'report_line' => 'Unaendelea upande unaofaa.',
         'per_month' => 'mwezi',
         'per_year' => 'mwaka',
+        'equiv_month' => 'sawa na :amount/mwezi',
+        'benefit_behaviour_title' => 'Maarifa ya tabia',
+        'benefit_behaviour_body' => 'Ona mifumo ya matumizi yako ya fedha ili mwongozo ufanane na hali yako halisi.',
+        'benefit_offers_title' => 'Ofa na zawadi',
+        'benefit_offers_body' => 'Fungua ofa na zawadi za Plus zinazotokana na tabia nzuri za fedha — si kukopa.',
+        'benefit_learning_body' => 'Mafunzo ya vitendo na mwongozo wa Klabu ya Plus ya kila mwezi mahali pamoja.',
         'includes' => [
             'Zana za pesa',
             'Zana za biashara',

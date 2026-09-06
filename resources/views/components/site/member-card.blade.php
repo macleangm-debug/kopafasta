@@ -4,6 +4,7 @@
     use App\Support\MemberNumberFormatter;
     use App\Services\ReferralService;
 
+    $permanent = $customer->usesPermanentIdentityCard();
     $color = $customer->membershipStatusColor();
     $label = $customer->membershipStatusLabel();
 
@@ -11,8 +12,15 @@
         'green'  => 'kf-premium-panel',
         'orange' => 'kf-premium-panel-orange',
         'red'    => 'kf-premium-panel-red',
+        'slate'  => 'kf-premium-panel-slate',
         default  => 'kf-premium-panel-slate',
     };
+    // Permanent identity never uses red as the default issued look.
+    if ($permanent && $customer->hasCustomerIdentity() && ($customer->status ?? '') === 'active') {
+        $panelClass = 'kf-premium-panel';
+        $color = 'green';
+    }
+
     $badgeClass = match ($color) {
         'green'  => 'bg-white text-emerald-800',
         'orange' => 'bg-white text-amber-800',
@@ -20,15 +28,18 @@
         default  => 'bg-white text-slate-800',
     };
 
-    $issued  = optional($customer->membership_issued_at)->format('d M Y') ?? '—';
+    $since = optional($customer->customerSinceDate())->format('d M Y') ?? '—';
+    $issued = optional($customer->membership_issued_at)->format('d M Y') ?? $since;
     $expires = optional($customer->membership_expires_at)->format('d M Y') ?? '—';
     $plusActive = app(\App\Services\Plus\PlusService::class)->isActive($customer);
-    $gradeKey = strtolower((string) ($customer->grade ?: 'bronze'));
-    $gradeBadge = strtoupper($gradeKey).($plusActive ? ' · '.__('plus.card.plus') : '');
-    $cardBadge = (! $customer->hasMembership() || $customer->isMembershipExpired() || $customer->isMembershipInGrace())
-        ? $label
-        : $gradeBadge;
-    $name    = strtoupper(trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')));
+    $gradeKey = strtoupper(strtolower((string) ($customer->grade ?: 'bronze')));
+    $cardBadge = $permanent
+        ? ($plusActive ? $label.' · '.__('plus.card.plus') : $label)
+        : ((! $customer->hasMembership() || $customer->isMembershipExpired() || $customer->isMembershipInGrace())
+            ? $label
+            : ($gradeKey.($plusActive ? ' · '.__('plus.card.plus') : '')));
+
+    $name = strtoupper(trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')));
     $memberNoRaw = MemberNumberFormatter::raw($customer->member_no);
     $memberNoDisplay = MemberNumberFormatter::display($customer->member_no);
     $base = rtrim(app(ReferralService::class)->appBaseUrl(), '/');
@@ -39,10 +50,13 @@
     $whatsappUrl = $shareText !== '' ? 'https://wa.me/?text='.rawurlencode($shareText) : null;
     $photoUrl = app(\App\Services\FaceVerificationService::class)->avatarUrl($customer);
     $initial = strtoupper(substr(trim($customer->first_name ?? ''), 0, 1) ?: '?');
-    $days    = max(0, (int) $customer->membershipDaysRemaining());
+    $days = max(0, (int) $customer->membershipDaysRemaining());
     $duration = (int) (\App\Services\MembershipService::config()['duration_days'] ?? 365);
-    $pct     = $duration > 0 ? max(0, min(100, ($days / $duration) * 100)) : 0;
+    $pct = $duration > 0 ? max(0, min(100, ($days / $duration) * 100)) : 0;
     $logoUrl = brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png';
+    $roleLabel = $permanent
+        ? __('borrower.membership.member_role_customer')
+        : __('borrower.membership.member_role');
 
     $qrDataUri = null;
     if ($verifyUrl) {
@@ -53,6 +67,7 @@
     }
 
     $urgencyLabel = match (true) {
+        $permanent => __('borrower.membership.identity_standing_body'),
         ! $customer->hasMembership() => __('borrower.membership.pay_registration'),
         $customer->isMembershipExpired() => __('borrower.membership.expired_renew'),
         $customer->isMembershipExpiringSoon(30) => __('borrower.membership.expiring_soon'),
@@ -84,7 +99,6 @@
     @endif
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-        {{-- Card face --}}
         <div
             class="relative w-full text-left {{ $panelClass }} rounded-[1.35rem] p-5 sm:p-6 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
             role="button"
@@ -94,6 +108,7 @@
             aria-label="{{ __('borrower.membership.my_card') }}">
             <div class="absolute inset-[1px] rounded-[1.28rem] ring-1 ring-white/10 pointer-events-none"></div>
             <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-gold/10 pointer-events-none"></div>
+            <div class="absolute inset-0 opacity-[0.14] pointer-events-none" style="background-image:url(\"data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.35' stroke-width='2'/%3E%3C/svg%3E\"); background-size:72px 48px;"></div>
 
             <div class="relative flex items-center justify-between gap-3 mb-5">
                 <span class="inline-flex items-center gap-2.5 min-w-0">
@@ -112,7 +127,7 @@
                     <div class="size-16 sm:size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
                 @endif
                 <div class="min-w-0 pt-0.5 flex-1">
-                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ __('borrower.membership.member_role') }}</p>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ $roleLabel }}</p>
                     <h3 class="mt-1 text-lg sm:text-xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
                     <p class="mt-2 font-mono text-sm text-white/90 tracking-wider break-all">{{ $memberNoDisplay }}</p>
                 </div>
@@ -123,96 +138,96 @@
 
             <dl class="mt-4 grid grid-cols-2 gap-3 relative">
                 <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10 min-h-[4.5rem] flex flex-col">
-                    <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.issued_label') }}</dt>
-                    <dd class="mt-1.5 text-sm font-semibold tabular-nums leading-tight">{{ $issued }}</dd>
+                    <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">
+                        {{ $permanent ? __('borrower.membership.customer_since_label') : __('borrower.membership.issued_label') }}
+                    </dt>
+                    <dd class="mt-1.5 text-sm font-semibold tabular-nums leading-tight">{{ $permanent ? $since : $issued }}</dd>
                 </div>
                 <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10 min-h-[4.5rem] flex flex-col">
-                    <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.expires_label') }}</dt>
-                    <dd class="mt-1.5 text-sm font-semibold tabular-nums leading-tight">{{ $expires }}</dd>
+                    <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">
+                        {{ $permanent ? __('borrower.membership.status_title') : __('borrower.membership.expires_label') }}
+                    </dt>
+                    <dd class="mt-1.5 text-sm font-semibold tabular-nums leading-tight">
+                        {{ $permanent ? $label : $expires }}
+                    </dd>
                 </div>
             </dl>
         </div>
 
-        {{-- Days remaining --}}
         <div class="relative overflow-hidden rounded-[1.35rem] bg-white p-6 flex flex-col min-h-[280px] shadow-[0_18px_40px_rgba(8,47,39,0.08)] ring-1 ring-brand/10">
             <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand via-brand-gold to-brand pointer-events-none"></div>
             <div class="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-brand/5 pointer-events-none"></div>
 
-            <div class="relative flex items-center justify-between gap-3">
-                <p class="text-[11px] uppercase tracking-[0.16em] text-brand font-semibold">{{ __('borrower.membership.status_title') }}</p>
-                @if ($customer->isMembershipActive() && ! $customer->isMembershipExpired())
-                    <span class="inline-flex items-center rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
-                        {{ $gradeBadge }}
-                    </span>
-                @endif
-            </div>
-
-            <div class="relative mt-6 flex items-end gap-3">
-                <span class="text-6xl font-black text-brand leading-none tabular-nums tracking-tight">{{ $days }}</span>
-                <div class="pb-1.5">
-                    <p class="text-base font-bold text-gray-900 leading-none">{{ __('borrower.membership.days_unit') }}</p>
-                    <p class="mt-1.5 text-xs text-gray-500 leading-snug">{{ $urgencyLabel }}</p>
+            @if ($permanent)
+                <div class="relative flex items-center justify-between gap-3">
+                    <p class="text-[11px] uppercase tracking-[0.16em] text-brand font-semibold">{{ __('borrower.membership.status_title') }}</p>
+                    @if ($plusActive)
+                        <span class="inline-flex items-center rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
+                            {{ __('plus.card.plus') }}
+                        </span>
+                    @endif
                 </div>
-            </div>
-
-            <div class="relative mt-6">
-                <div class="flex justify-between text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
-                    <span>{{ __('borrower.membership.year_progress') }}</span>
-                    <span class="font-semibold tabular-nums text-brand">{{ format_number($pct, 0) }}%</span>
-                </div>
-                <div class="h-2.5 rounded-full bg-brand-muted overflow-hidden ring-1 ring-brand/5">
-                    <div class="h-full rounded-full {{ $barClass === 'bg-emerald-500' ? 'bg-brand' : $barClass }}" style="width: {{ $pct }}%"></div>
-                </div>
-            </div>
-
-            @if ($customer->isMembershipActive() && ! $customer->isMembershipExpiringSoon(30))
-                <div class="relative mt-5 flex items-center gap-3 rounded-2xl bg-brand/5 px-4 py-3.5 ring-1 ring-brand/10">
+                <div class="relative mt-6 flex items-center gap-3 rounded-2xl bg-brand/5 px-4 py-3.5 ring-1 ring-brand/10">
                     <span class="size-9 rounded-full bg-brand text-brand-gold grid place-items-center shrink-0" aria-hidden="true">
                         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                     </span>
                     <div class="min-w-0">
-                        <p class="text-sm font-bold text-brand leading-tight">{{ __('borrower.membership.standing_title') }}</p>
-                        <p class="mt-0.5 text-xs text-gray-600">{{ __('borrower.membership.standing_body') }}</p>
+                        <p class="text-sm font-bold text-brand leading-tight">{{ __('borrower.membership.identity_standing_title') }}</p>
+                        <p class="mt-0.5 text-xs text-gray-600">{{ __('borrower.membership.identity_standing_body') }}</p>
                     </div>
                 </div>
-            @elseif ($customer->isMembershipExpiringSoon(30) && $customer->isMembershipActive())
-                <div class="relative mt-5 flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-200/80">
-                    <span class="size-9 rounded-full bg-amber-500 text-white grid place-items-center shrink-0" aria-hidden="true">!</span>
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold text-amber-900 leading-tight">{{ __('borrower.membership.expiring_soon') }}</p>
-                        <p class="mt-0.5 text-xs text-amber-800/80">{{ __('borrower.membership.standing_renew_hint') }}</p>
+                <dl class="relative mt-auto pt-5 grid grid-cols-2 gap-3 text-xs">
+                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
+                        <dt class="text-gray-500">{{ __('borrower.membership.grade_label') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5 uppercase tracking-wide">{{ $gradeKey }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
+                        <dt class="text-gray-500">{{ __('borrower.membership.access_label') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ __('borrower.membership.access_ready') }}</dd>
+                    </div>
+                </dl>
+                @unless ($plusActive)
+                    <a href="{{ route('site.borrower.plus.home') }}" class="relative mt-4 inline-flex items-center justify-center bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5 rounded-xl">{{ __('site.plus.join') }}</a>
+                @endunless
+            @else
+                <div class="relative flex items-center justify-between gap-3">
+                    <p class="text-[11px] uppercase tracking-[0.16em] text-brand font-semibold">{{ __('borrower.membership.status_title') }}</p>
+                    @if ($customer->isMembershipActive() && ! $customer->isMembershipExpired())
+                        <span class="inline-flex items-center rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
+                            {{ $gradeKey }}{{ $plusActive ? ' · '.__('plus.card.plus') : '' }}
+                        </span>
+                    @endif
+                </div>
+                <div class="relative mt-6 flex items-end gap-3">
+                    <span class="text-6xl font-black text-brand leading-none tabular-nums tracking-tight">{{ $days }}</span>
+                    <div class="pb-1.5">
+                        <p class="text-base font-bold text-gray-900 leading-none">{{ __('borrower.membership.days_unit') }}</p>
+                        <p class="mt-1.5 text-xs text-gray-500 leading-snug">{{ $urgencyLabel }}</p>
                     </div>
                 </div>
-            @endif
-
-            <dl class="relative mt-auto pt-5 grid grid-cols-2 gap-3 text-xs">
-                <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
-                    <dt class="text-gray-500">{{ __('borrower.membership.grade_label') }}</dt>
-                    <dd class="font-semibold text-gray-900 mt-0.5 uppercase tracking-wide">{{ $gradeBadge }}</dd>
+                <div class="relative mt-6">
+                    <div class="flex justify-between text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                        <span>{{ __('borrower.membership.year_progress') }}</span>
+                        <span class="font-semibold tabular-nums text-brand">{{ format_number($pct, 0) }}%</span>
+                    </div>
+                    <div class="h-2.5 rounded-full bg-brand-muted overflow-hidden ring-1 ring-brand/5">
+                        <div class="h-full rounded-full {{ $barClass === 'bg-emerald-500' ? 'bg-brand' : $barClass }}" style="width: {{ $pct }}%"></div>
+                    </div>
                 </div>
-                <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
-                    <dt class="text-gray-500">{{ __('borrower.membership.access_label') }}</dt>
-                    <dd class="font-semibold text-gray-900 mt-0.5">
-                        {{ $customer->isMembershipActive() && ! $customer->isMembershipExpiringSoon(30)
-                            ? __('borrower.membership.access_ready')
-                            : __('borrower.membership.access_renew') }}
-                    </dd>
-                </div>
-            </dl>
-            @if (! $customer->hasMembership())
-                <a href="{{ route('site.membership.renew') }}" class="relative mt-4 inline-flex items-center justify-center bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5 rounded-xl">{{ __('borrower.membership.pay_registration') }}</a>
-            @elseif ($customer->isMembershipExpired())
-                <a href="{{ route('site.membership.renew') }}" class="relative mt-4 inline-flex items-center justify-center bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">{{ __('borrower.membership.renew_now') }}</a>
-            @elseif ($customer->isMembershipExpiringSoon(30))
-                <a href="{{ route('site.membership.renew') }}" class="relative mt-4 inline-flex items-center justify-center bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5 rounded-xl">{{ __('borrower.membership.renew_early') }}</a>
+                @if (! $customer->hasMembership())
+                    <a href="{{ route('site.membership.renew') }}" class="relative mt-4 inline-flex items-center justify-center bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5 rounded-xl">{{ __('borrower.membership.pay_registration') }}</a>
+                @elseif ($customer->isMembershipExpired())
+                    <a href="{{ route('site.membership.renew') }}" class="relative mt-4 inline-flex items-center justify-center bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">{{ __('borrower.membership.renew_now') }}</a>
+                @elseif ($customer->isMembershipExpiringSoon(30))
+                    <a href="{{ route('site.membership.renew') }}" class="relative mt-4 inline-flex items-center justify-center bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5 rounded-xl">{{ __('borrower.membership.renew_early') }}</a>
+                @endif
             @endif
         </div>
     </div>
 
     @if ($verifyUrl)
         <div class="flex flex-wrap gap-2">
-            <button type="button"
-                    @click="copyVerifyLink()"
+            <button type="button" @click="copyVerifyLink()"
                     class="inline-flex items-center gap-1.5 rounded-xl bg-brand/10 hover:bg-brand/15 text-brand ring-1 ring-brand/20 px-3.5 py-2.5 text-xs font-semibold">
                 {{ __('borrower.membership.copy_verify_link') }}
             </button>
@@ -220,8 +235,7 @@
                class="inline-flex items-center gap-1.5 rounded-xl bg-brand-gold text-brand hover:brightness-95 px-3.5 py-2.5 text-xs font-bold">
                 {{ __('borrower.membership.share_whatsapp') }}
             </a>
-            <button type="button"
-                    @click="shareMembership()"
+            <button type="button" @click="shareMembership()"
                     class="inline-flex items-center gap-1.5 rounded-xl bg-white text-brand ring-1 ring-brand/20 hover:bg-brand/5 px-3.5 py-2.5 text-xs font-semibold">
                 {{ __('borrower.membership.share') }}
             </button>
@@ -229,7 +243,6 @@
         <p x-show="shareCopied" x-cloak class="text-xs font-medium text-brand">{{ __('borrower.membership.link_copied') }}</p>
     @endif
 
-    {{-- Referral prompt --}}
     <section class="rounded-[1.35rem] kf-premium-panel p-5 sm:p-6">
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -245,7 +258,6 @@
         </div>
     </section>
 
-    {{-- Expand --}}
     <div x-show="expanded" x-cloak
          class="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 sm:p-8"
          @keydown.escape.window="expanded = false">
@@ -266,7 +278,7 @@
                         <div class="size-24 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-3xl font-bold">{{ $initial }}</div>
                     @endif
                     <div class="min-w-0 pt-1 flex-1">
-                        <p class="text-[11px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ __('borrower.membership.member_role') }}</p>
+                        <p class="text-[11px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ $roleLabel }}</p>
                         <h3 class="mt-1.5 text-2xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
                         <p class="mt-2 font-mono text-lg font-bold tracking-[0.12em] break-all">{{ $memberNoDisplay }}</p>
                     </div>
@@ -276,12 +288,16 @@
                 </div>
                 <dl class="mt-5 grid grid-cols-2 gap-3">
                     <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
-                        <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.issued_label') }}</dt>
-                        <dd class="mt-1.5 font-semibold tabular-nums">{{ $issued }}</dd>
+                        <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">
+                            {{ $permanent ? __('borrower.membership.customer_since_label') : __('borrower.membership.issued_label') }}
+                        </dt>
+                        <dd class="mt-1.5 font-semibold tabular-nums">{{ $permanent ? $since : $issued }}</dd>
                     </div>
                     <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
-                        <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.expires_label') }}</dt>
-                        <dd class="mt-1.5 font-semibold tabular-nums">{{ $expires }}</dd>
+                        <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">
+                            {{ $permanent ? __('borrower.membership.status_title') : __('borrower.membership.expires_label') }}
+                        </dt>
+                        <dd class="mt-1.5 font-semibold tabular-nums">{{ $permanent ? $label : $expires }}</dd>
                     </div>
                 </dl>
             </div>
@@ -313,7 +329,7 @@
                                 });
                             },
                             shareMembership() {
-                                var title = @js(brand_name().' membership');
+                                var title = @js(brand_name());
                                 if (navigator.share) {
                                     navigator.share({ title: title, text: this.shareText, url: this.verifyUrl }).catch(function () {});
                                     return;

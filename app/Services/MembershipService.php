@@ -229,20 +229,46 @@ class MembershipService
 
     /**
      * Assign a member number as identity, without charging a fee or setting expiry.
+     * Used when borrower membership is OFF (e.g. Tanzania): permanent customer card.
      */
     public function ensureMemberNumber(Customer $customer): Customer
     {
-        if (filled($customer->member_no)) {
-            return $customer;
+        $dirty = false;
+
+        if (blank($customer->member_no)) {
+            $customer->member_no = $this->generateMemberNo();
+            $dirty = true;
         }
 
-        $customer->member_no = $this->generateMemberNo();
-        if (blank($customer->membership_status)) {
-            $customer->membership_status = 'identity';
+        if (blank($customer->membership_issued_at)) {
+            $customer->membership_issued_at = now();
+            $dirty = true;
         }
-        $customer->save();
+
+        if (blank($customer->membership_status) || $customer->membership_status === 'identity') {
+            // Permanent identity — never invent an expiry when membership is not required.
+            if (! self::isRequiredForCountry($customer->country_code ?? null)) {
+                $customer->membership_status = 'identity';
+                $dirty = true;
+            } elseif (blank($customer->membership_status)) {
+                $customer->membership_status = 'identity';
+                $dirty = true;
+            }
+        }
+
+        if ($dirty) {
+            $customer->save();
+        }
 
         return $customer->fresh();
+    }
+
+    /**
+     * Permanent customer identity card (no paid membership expiry).
+     */
+    public static function usesPermanentIdentityCard(?string $countryCode = null): bool
+    {
+        return ! self::isRequiredForCountry($countryCode);
     }
 
     public function generatePaymentReference(Customer $customer): string

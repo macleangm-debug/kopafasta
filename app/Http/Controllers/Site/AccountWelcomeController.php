@@ -33,6 +33,10 @@ class AccountWelcomeController extends Controller
 
         $welcome->complete($user, $request->input('audience'));
 
+        if ($user->customer) {
+            app(\App\Services\MembershipService::class)->ensureMemberNumber($user->customer);
+        }
+
         app(KopafastaLaunchService::class)->arm($request);
 
         return redirect()->to($welcome->homeUrl($user->fresh()));

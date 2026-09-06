@@ -236,14 +236,14 @@
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                     <div class="min-w-0">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.last_name') }} <span class="text-red-500">*</span></label>
-                                        <input name="last_name" x-model="form.last_name" required autocomplete="family-name"
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.middle_name') }} <span class="text-gray-400 font-normal">{{ __('borrower.register.optional') }}</span></label>
+                                        <input name="middle_name" x-model="form.middle_name" autocomplete="additional-name"
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.middle_name') }} <span class="text-gray-400 font-normal">{{ __('borrower.register.optional') }}</span></label>
-                                    <input name="middle_name" x-model="form.middle_name" autocomplete="additional-name"
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.last_name') }} <span class="text-red-500">*</span></label>
+                                    <input name="last_name" x-model="form.last_name" required autocomplete="family-name"
                                            class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                 </div>
                                 <div class="min-w-0">

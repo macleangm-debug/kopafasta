@@ -25,10 +25,14 @@
     $verified = ($partner->status ?? '') === 'active' && $membership->isActive($partner) && $profileComplete;
     $color = $verified ? 'green' : (($partner->status ?? '') === 'active' ? 'orange' : 'slate');
     $panelClass = match ($color) {
-        'green'  => 'kf-premium-panel',
+        'green'  => 'kf-premium-panel-bronze',
         'orange' => 'kf-premium-panel-orange',
         default  => 'kf-premium-panel-slate',
     };
+    // Verified partners use bronze identity family (not borrower green).
+    if ($verified) {
+        $panelClass = 'kf-premium-panel-bronze';
+    }
     $badgeClass = match ($color) {
         'green'  => 'bg-white text-emerald-800',
         'orange' => 'bg-white text-amber-800',

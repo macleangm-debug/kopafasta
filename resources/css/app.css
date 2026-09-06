@@ -121,12 +121,18 @@
         @apply relative overflow-hidden text-white bg-gradient-to-br from-slate-700 via-slate-600 to-slate-800
             shadow-[0_18px_40px_rgba(8,47,39,0.22)] ring-1 ring-brand-gold/20;
     }
+
+    .kf-premium-panel-bronze {
+        @apply relative overflow-hidden text-white bg-gradient-to-br from-[#5c3d1e] via-[#8b5a2b] to-[#3f2a14]
+            shadow-[0_18px_40px_rgba(63,42,20,0.32)] ring-1 ring-brand-gold/35;
+    }
 }
 
 .kf-premium-panel::before,
 .kf-premium-panel-orange::before,
 .kf-premium-panel-red::before,
-.kf-premium-panel-slate::before {
+.kf-premium-panel-slate::before,
+.kf-premium-panel-bronze::before {
     content: '';
     position: absolute;
     inset-inline: 0;

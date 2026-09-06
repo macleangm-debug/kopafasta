@@ -1,4 +1,4 @@
-{{-- Variant B: centered, product-first messaging --}}
+{{-- Variant B: centered, product-first messaging — no device frames --}}
 <div class="max-w-3xl mx-auto text-center animate-fade-up">
     <span class="inline-flex items-center gap-2 rounded-full glass-card px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-gray-600">
         {{ __('site.hero.badge') }}
@@ -19,24 +19,24 @@
         </a>
     </div>
 
-    @include('site.home._lno-disclosure', ['centered' => true])
-
     @guest
         <p class="mt-4 text-sm text-gray-500">
             <a href="{{ route('site.login') }}" class="text-brand font-semibold hover:underline">{{ __('site.nav.log_in') }}</a>
         </p>
     @endguest
 
-    <div class="mt-10 grid grid-cols-3 gap-3 sm:gap-4 max-w-lg mx-auto text-left">
-        @foreach (__('site.hero.variant_b_pills') as $pill)
-            <div class="glass-card px-3 py-3 text-center">
-                <span class="text-xl block mb-1" aria-hidden="true">{{ $pill['icon'] }}</span>
-                <span class="text-[11px] font-semibold text-gray-800 leading-tight">{{ $pill['label'] }}</span>
-            </div>
-        @endforeach
+    <div class="mt-10 max-w-lg mx-auto rounded-3xl bg-gradient-to-br from-brand via-[#127A5F] to-[#082f27] p-8 text-left text-white shadow-[0_20px_48px_rgba(8,47,39,0.22)] ring-1 ring-brand-gold/20">
+        <div class="flex items-center gap-3 text-brand-gold" aria-hidden="true">
+            <span class="text-3xl font-black tracking-[-0.18em] leading-none">›››</span>
+            <span class="text-xl font-bold tracking-tight text-white">{{ brand_name() }}</span>
+        </div>
+        <ul class="mt-6 space-y-3">
+            @foreach (__('site.hero.variant_b_pills') as $pill)
+                <li class="flex items-start gap-3">
+                    <span class="mt-0.5 text-brand-gold font-bold" aria-hidden="true">›</span>
+                    <span class="text-sm font-semibold text-white/95 leading-snug">{{ $pill['label'] }}</span>
+                </li>
+            @endforeach
+        </ul>
     </div>
-</div>
-
-<div class="hidden sm:flex justify-center mt-10 max-w-md mx-auto">
-    <x-site.hero-illustration class="scale-90 opacity-95" />
 </div>

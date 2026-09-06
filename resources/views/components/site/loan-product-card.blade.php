@@ -43,24 +43,14 @@
     </div>
 
     <div class="px-3.5 py-3 flex flex-col flex-1 min-h-0">
-        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2" title="{{ $productName }}">
+        <h3 class="text-base font-extrabold text-brand leading-snug tracking-tight line-clamp-2 min-h-[2.5rem]" title="{{ $productName }}">
             {{ $productName }}
         </h3>
-        <p class="mt-0.5 text-xs text-gray-600 line-clamp-2 leading-snug">
+        <p class="mt-0.5 text-xs text-gray-600 line-clamp-2 min-h-[2rem] leading-snug">
             {{ $description }}
         </p>
 
-        <dl class="mt-2.5 space-y-0 text-xs flex-1">
-            <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
-                <dt class="text-gray-500 shrink-0">{{ loan_product_rate_field_label($product) }}</dt>
-                <dd class="font-semibold text-gray-900 tabular-nums text-right">
-                    @if ($isMarketplace)
-                        {{ __('borrower.marketplace.from_rate', ['rate' => $assetRate]) }}
-                    @else
-                        {{ $rateLabel }}
-                    @endif
-                </dd>
-            </div>
+        <dl class="mt-2.5 space-y-0 text-xs">
             <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
                 <dt class="text-gray-500 shrink-0">{{ __('site.products.amount') }}</dt>
                 <dd class="font-semibold text-gray-900 tabular-nums text-right truncate" title="{{ format_money($product->min_amount, false, 0) }} – {{ format_money($product->max_amount, false, 0) }}">
@@ -68,6 +58,16 @@
                         {{ format_money($product->min_amount ?: $product->max_amount, false, 0) }}+
                     @else
                         {{ format_money($product->min_amount, false, 0) }} – {{ format_money($product->max_amount, false, 0) }}
+                    @endif
+                </dd>
+            </div>
+            <div class="flex justify-between gap-2 py-1 border-b border-gray-100/80">
+                <dt class="text-gray-500 shrink-0">{{ loan_product_rate_field_label($product) }}</dt>
+                <dd class="font-semibold text-gray-900 tabular-nums text-right">
+                    @if ($isMarketplace)
+                        {{ __('borrower.marketplace.from_rate', ['rate' => $assetRate]) }}
+                    @else
+                        {{ $rateLabel }}
                     @endif
                 </dd>
             </div>

@@ -659,6 +659,8 @@ return [
 
     'auth' => [
         'welcome_back' => 'Welcome back',
+        'account_type_borrower' => 'Borrower',
+        'account_type_partner' => 'Partner',
         'partner_sign_in' => 'Partner sign in',
         'new_here' => 'New here?',
         'create_account' => 'Create an account',
@@ -2057,6 +2059,12 @@ return [
         'report_line' => 'You’re moving in the right direction.',
         'per_month' => 'month',
         'per_year' => 'year',
+        'equiv_month' => 'equivalent to :amount/month',
+        'benefit_behaviour_title' => 'Behaviour insights',
+        'benefit_behaviour_body' => 'See patterns in how you use money so guidance fits your real habits.',
+        'benefit_offers_title' => 'Offers & rewards',
+        'benefit_offers_body' => 'Unlock Plus offers and rewards tied to healthy money habits — not borrowing.',
+        'benefit_learning_body' => 'Practical lessons and Monthly Plus Club guidance in one place.',
         'includes' => [
             'Money tools',
             'Business tools',

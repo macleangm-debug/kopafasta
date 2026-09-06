@@ -27,6 +27,25 @@
                     <x-site.brand-mark size="md" />
                 </a>
 
+                <div class="mb-6 flex rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full" role="tablist" aria-label="{{ __('site.auth.sign_in') }}">
+                    <a href="{{ route('site.login') }}"
+                       role="tab"
+                       aria-selected="{{ ($partnerPortal ?? false) ? 'false' : 'true' }}"
+                       @class([
+                           'flex-1 rounded-lg py-2.5 px-2 text-sm leading-snug text-center transition font-semibold',
+                           'bg-white text-brand shadow-sm' => ! ($partnerPortal ?? false),
+                           'text-gray-600 hover:bg-white/50' => $partnerPortal ?? false,
+                       ])>{{ __('site.auth.account_type_borrower') }}</a>
+                    <a href="{{ route('site.login.partner') }}"
+                       role="tab"
+                       aria-selected="{{ ($partnerPortal ?? false) ? 'true' : 'false' }}"
+                       @class([
+                           'flex-1 rounded-lg py-2.5 px-2 text-sm leading-snug text-center transition font-semibold',
+                           'bg-white text-brand shadow-sm' => $partnerPortal ?? false,
+                           'text-gray-600 hover:bg-white/50' => ! ($partnerPortal ?? false),
+                       ])>{{ __('site.auth.account_type_partner') }}</a>
+                </div>
+
                 <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ ($partnerPortal ?? false) ? __('site.auth.partner_sign_in') : __('site.auth.welcome_back') }}</h1>
                 <p class="mt-2 text-sm text-gray-600">
                     @if ($partnerPortal ?? false)
@@ -114,21 +133,7 @@
                         ·
                         <a href="{{ route('site.partners') }}" class="text-brand font-semibold hover:underline">{{ __('site.partners.title') }}</a>
                     </div>
-                    <div class="mt-4 text-center text-sm text-gray-500">
-                        {{ __('site.auth.use_borrower_login') }}
-                        <a href="{{ route('site.login') }}" class="text-brand font-semibold hover:underline">{{ __('site.auth.borrower_login_link') }}</a>
-                    </div>
-                @else
-                    <div class="mt-6 pt-6 border-t border-gray-100 text-center text-sm text-gray-500">
-                        {{ __('site.auth.use_partner_login') }}
-                        <a href="{{ route('site.login.partner') }}" class="text-brand font-semibold hover:underline">{{ __('site.auth.partner_login_link') }}</a>
-                    </div>
                 @endif
-
-                <div class="mt-6 pt-6 border-t border-gray-100 text-center text-xs text-gray-500">
-                    {{ __('site.auth.staff_login') }}
-                    <a href="{{ route('admin.login') }}" class="text-gray-700 font-semibold hover:underline">{{ __('site.auth.admin_console') }} →</a>
-                </div>
             </div>
         </div>
     </section>
