@@ -1,7 +1,8 @@
 @if (! empty($adminLivePreview))
-    <x-admin.layout title="Payment gate preview" heading="Live test — payments.show" :subheading="$payment->reference">
+    <x-admin.layout title="Payment gate preview" heading="Live test — payment.show" :subheading="$payment->reference">
         <div class="mb-4 rounded-2xl bg-brand-muted/50 ring-1 ring-brand/10 px-4 py-3 text-sm text-brand">
-            Admin sandbox preview of the borrower payment gate. Actions that require the borrower session may be limited.
+            <p class="font-semibold">Controlled integration rehearsal</p>
+            <p class="mt-1 text-brand/80">Same payment.show gate borrowers use. Initiate PayIn only with the Pay now CTA below.</p>
         </div>
         @include('site.borrower.payments._show_body')
     </x-admin.layout>

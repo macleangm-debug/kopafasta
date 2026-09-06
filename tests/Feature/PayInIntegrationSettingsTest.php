@@ -364,6 +364,8 @@ class PayInIntegrationSettingsTest extends TestCase
             ->assertSee('PayIn operational rehearsal')
             ->assertSee('Review test payment')
             ->assertSee('Continue to payment.show', false)
+            ->assertSee('data-loading-label="Opening payment…"', false)
+            ->assertSee('data-loading-label="Opening…"', false)
             ->assertDontSee('id="live-test"', false)
             ->assertDontSee('name=\\"phone\\"', false);
     }
@@ -601,5 +603,189 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->assertTrue($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'authentication' && ($row['value'] ?? '') === 'Connected'));
         $this->assertFalse($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'readiness' && ($row['value'] ?? '') === 'Live Verified'));
         $this->assertFalse($statuses->contains(fn ($row) => ($row['key'] ?? '') === 'connection' && ($row['value'] ?? '') === 'Not tested'));
+    }
+
+    public function test_payin_live_test_creates_obligation_without_calling_collect(): void
+    {
+        Setting::setMany([
+            'payin.enabled' => true,
+            'payin.environment' => 'sandbox',
+            'payin.api_key' => 'pk_test',
+            'payin.api_secret' => 'sk_test',
+            'payin.webhook_secret' => 'whsec_test',
+            'payments.gateway_mode' => 'live',
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        \Illuminate\Support\Facades\Http::fake();
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.settings.integrations.live-test'), [
+                'suite' => 'payment',
+                'partner' => 'payin',
+                'phone' => '255715222132',
+                'amount' => 1000,
+            ]);
+
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+
+        $payment = \App\Models\CustomerPayment::query()->latest('id')->first();
+        $this->assertNotNull($payment, 'Feedback: '.json_encode(session('feedback')).' Result: '.json_encode(session('live_test_result')));
+        $this->assertSame('awaiting_payment', $payment->status);
+        $this->assertTrue((bool) data_get($payment->provider_meta, 'integration_live_test'));
+        $this->assertNull($payment->provider_ref);
+        $this->assertNull(Setting::get('integrations.live_verified.payin'));
+
+        $response->assertRedirect(route('admin.settings.integrations.live-test.payment', $payment));
+    }
+
+    public function test_admin_live_test_payment_gate_is_canonical_and_pay_calls_collect(): void
+    {
+        Setting::setMany([
+            'payin.enabled' => true,
+            'payin.environment' => 'sandbox',
+            'payin.api_key' => 'pk_test',
+            'payin.api_secret' => 'sk_test',
+            'payments.gateway_mode' => 'live',
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $customer = \App\Models\Customer::create([
+            'customer_number' => 'CU-LIVE-'.uniqid(),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Live',
+            'last_name' => 'Test',
+            'phone' => '255715222132',
+            'country_code' => 'TZ',
+        ]);
+        $payment = \App\Models\CustomerPayment::create([
+            'reference' => 'PAY-LIVE-GATE-1',
+            'customer_id' => $customer->id,
+            'payment_type' => 'registration_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 1000,
+            'currency' => 'TZS',
+            'status' => 'awaiting_payment',
+            'mobile_number' => '255715222132',
+            'provider_meta' => [
+                'integration_live_test' => true,
+                'integration_rehearsal' => true,
+                'integration_partner' => 'payin',
+                'awaiting_collection' => true,
+            ],
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.live-test.payment', $payment))
+            ->assertOk()
+            ->assertSee('Controlled integration rehearsal', false)
+            ->assertSee('data-payment-surface', false)
+            ->assertSee(route('admin.settings.integrations.live-test.payment.pay', $payment), false);
+
+        $payIn = \Mockery::mock(PayInService::class)->makePartial();
+        $payIn->shouldReceive('isConfigured')->andReturn(true);
+        $payIn->shouldReceive('isLiveCollectionEnabled')->andReturn(true);
+        $payIn->shouldReceive('normalizePhone')->andReturnUsing(fn ($p) => preg_replace('/\D+/', '', (string) $p));
+        $payIn->shouldReceive('normalizeOperator')->andReturn(null);
+        $payIn->shouldReceive('collect')->once()->andReturn([
+            'ok' => true,
+            'request_ref' => 'PAYREF-LIVE-1',
+            'status' => 'processing',
+            'operator' => 'M-Pesa',
+            'message' => 'Collection request sent.',
+            'raw' => [],
+            'idempotency_key' => 'idem-1',
+        ]);
+        $this->app->instance(PayInService::class, $payIn);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.settings.integrations.live-test.payment.pay', $payment), [
+                'payment_method' => 'mobile_money',
+                'mobile_number' => '255715222132',
+            ])
+            ->assertRedirect(route('admin.settings.integrations.live-test.payment', $payment));
+
+        $fresh = $payment->fresh();
+        $this->assertSame('processing', $fresh->status);
+        $this->assertSame('PAYREF-LIVE-1', $fresh->provider_ref);
+        $this->assertNull(Setting::get('integrations.live_verified.payin'));
+    }
+
+    public function test_admin_live_test_pay_operator_failure_stays_on_same_obligation(): void
+    {
+        Setting::setMany([
+            'payin.enabled' => true,
+            'payin.environment' => 'sandbox',
+            'payin.api_key' => 'pk_test',
+            'payin.api_secret' => 'sk_test',
+            'payments.gateway_mode' => 'live',
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $customer = \App\Models\Customer::create([
+            'customer_number' => 'CU-LIVE-OP-'.uniqid(),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Live',
+            'last_name' => 'Operator',
+            'phone' => '255712345678',
+            'country_code' => 'TZ',
+        ]);
+        $payment = \App\Models\CustomerPayment::create([
+            'reference' => 'PAY-LIVE-OP-1',
+            'customer_id' => $customer->id,
+            'payment_type' => 'registration_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 1000,
+            'currency' => 'TZS',
+            'status' => 'awaiting_payment',
+            'mobile_number' => '255712345678',
+            'provider_meta' => [
+                'integration_live_test' => true,
+                'integration_rehearsal' => true,
+                'integration_partner' => 'payin',
+                'awaiting_collection' => true,
+            ],
+        ]);
+
+        $payIn = \Mockery::mock(PayInService::class)->makePartial();
+        $payIn->shouldReceive('isConfigured')->andReturn(true);
+        $payIn->shouldReceive('isLiveCollectionEnabled')->andReturn(true);
+        $payIn->shouldReceive('normalizePhone')->andReturn('255712345678');
+        $payIn->shouldReceive('normalizeOperator')->andReturn(null);
+        $payIn->shouldReceive('collect')->once()->andThrow(
+            \Illuminate\Validation\ValidationException::withMessages([
+                'payment_phone' => ['Could not detect operator from phone number.'],
+            ])
+        );
+        $this->app->instance(PayInService::class, $payIn);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.settings.integrations.live-test.payment', $payment))
+            ->post(route('admin.settings.integrations.live-test.payment.pay', $payment), [
+                'payment_method' => 'mobile_money',
+                'mobile_number' => '255712345678',
+            ])
+            ->assertRedirect(route('admin.settings.integrations.live-test.payment', $payment))
+            ->assertSessionHas('show_collect_failed', true)
+            ->assertSessionHas('collect_error');
+
+        $this->assertSame(1, \App\Models\CustomerPayment::query()->count());
+        $fresh = $payment->fresh();
+        $this->assertSame('awaiting_payment', $fresh->status);
+        $this->assertNull($fresh->provider_ref);
+        $this->assertStringContainsString(
+            'mobile-money network',
+            strtolower((string) data_get($fresh->provider_meta, 'last_collect_error'))
+        );
+        $this->assertNull(Setting::get('integrations.live_verified.payin'));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.live-test.payment', $payment))
+            ->assertOk()
+            ->assertSee(__('borrower.payment_waiting.operator_title'), false)
+            ->assertSee('supported mobile-money network', false);
     }
 }

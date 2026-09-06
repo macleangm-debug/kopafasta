@@ -14,16 +14,35 @@ export function registerIntegrationLiveTest(Alpine) {
         nidaDisplay: '',
         riskAck: false,
         requireRiskAck: Boolean(cfg.requireRiskAck),
+        submitting: false,
 
-        openLiveTest() {
+        markBusy(el, label) {
+            if (el && typeof window.kfMarkBusy === 'function') {
+                window.kfMarkBusy(el, label);
+            }
+        },
+
+        clearBusy(el) {
+            if (el && typeof window.kfClearBusy === 'function') {
+                window.kfClearBusy(el);
+            }
+        },
+
+        openLiveTest(event) {
+            const btn = event?.currentTarget instanceof HTMLElement
+                ? event.currentTarget
+                : this.$el.querySelector('[data-live-test-trigger]');
+            this.markBusy(btn, 'Opening…');
             this.step = 'form';
             this.riskAck = false;
             this.liveTestOpen = true;
+            queueMicrotask(() => this.clearBusy(btn));
         },
 
         closeLiveTest() {
             this.liveTestOpen = false;
             this.step = 'form';
+            this.submitting = false;
         },
 
         formatPhone(raw) {
@@ -71,10 +90,17 @@ export function registerIntegrationLiveTest(Alpine) {
         },
 
         backToForm() {
+            if (this.submitting) {
+                return;
+            }
             this.step = 'form';
         },
 
-        submitLiveTest() {
+        submitLiveTest(event) {
+            if (this.submitting) {
+                return;
+            }
+
             const form = this.$refs.liveTestForm;
             if (! form) {
                 return;
@@ -82,6 +108,13 @@ export function registerIntegrationLiveTest(Alpine) {
             if (this.requireRiskAck && this.$refs.riskAckInput) {
                 this.$refs.riskAckInput.checked = true;
             }
+
+            const btn = event?.currentTarget instanceof HTMLElement
+                ? event.currentTarget
+                : form.querySelector('[data-live-test-continue]');
+            const label = btn?.dataset?.loadingLabel || 'Opening payment…';
+            this.submitting = true;
+            this.markBusy(btn, label);
             form.requestSubmit();
         },
 
@@ -89,6 +122,7 @@ export function registerIntegrationLiveTest(Alpine) {
             this.$watch('liveTestOpen', (open) => {
                 if (! open) {
                     this.step = 'form';
+                    this.submitting = false;
                 }
             });
         },

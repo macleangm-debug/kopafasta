@@ -633,11 +633,10 @@ class SettingsController extends Controller
             'okLabel' => 'Got it',
         ];
 
-        // PayIn rehearsal continues on the canonical payment.show journey (admin preview of the same view).
+        // PayIn rehearsal continues on the canonical payment.show journey.
+        // Do not flash admin feedback on top of the gate — the gate is the surface.
         if (($result['ok'] ?? false) && ! empty($result['payment_url']) && ($data['suite'] ?? '') === 'payment') {
-            return redirect($result['payment_url'])
-                ->with('feedback', $feedbackPayload)
-                ->with('live_test_result', $result);
+            return redirect($result['payment_url']);
         }
 
         return back()->with('feedback', $feedbackPayload)->with('live_test_result', $result);
@@ -678,7 +677,122 @@ class SettingsController extends Controller
             'bankAccounts' => $bankAccounts,
             'canSwitchToBank' => $canSwitchToBank,
             'adminLivePreview' => true,
+            'payUrl' => route('admin.settings.integrations.live-test.payment.pay', $payment),
+            'retryUrl' => route('admin.settings.integrations.live-test.payment.retry', $payment),
+            'statusUrl' => route('admin.settings.integrations.live-test.payment.status', $payment),
+            'gateUrl' => route('admin.settings.integrations.live-test.payment', $payment),
+            'defaultPhone' => $payment->mobile_number,
         ]);
+    }
+
+    public function payIntegrationLiveTestPayment(
+        Request $request,
+        \App\Models\CustomerPayment $payment,
+        \App\Services\CustomerPaymentService $payments,
+    ): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse {
+        abort_unless(data_get($payment->provider_meta, 'integration_live_test'), 404);
+        abort_unless($payment->awaitsCollection() || $payment->status === 'awaiting_payment', 422);
+
+        $data = $request->validate([
+            'payment_method' => ['nullable', 'in:mobile_money,bank_transfer'],
+            'mobile_number' => ['nullable', 'string', 'max:20'],
+            'mobile_number_local' => ['nullable', 'string', 'max:20'],
+            'operator' => ['nullable', 'string', 'in:mpesa,airtel,tigopesa,halopesa'],
+        ]);
+
+        $method = $data['payment_method'] ?? 'mobile_money';
+        if ($method === 'bank_transfer') {
+            try {
+                $payment = $payments->switchToBankTransfer($payment);
+            } catch (\Throwable $e) {
+                return redirect()
+                    ->route('admin.settings.integrations.live-test.payment', $payment)
+                    ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.bank_unavailable'));
+            }
+
+            return redirect()
+                ->route('admin.settings.integrations.live-test.payment', $payment)
+                ->with('status', __('borrower.payment_waiting.switched_to_bank'));
+        }
+
+        $mobileNumber = \App\Support\PhoneNumber::fromRequest($request, 'mobile_number', $payment->customer?->country_code ?? 'TZ')
+            ?: ($data['mobile_number'] ?? $payment->mobile_number);
+
+        if (! filled($mobileNumber) || ! \App\Services\CustomerPaymentService::validateMobileNumber((string) $mobileNumber)) {
+            return redirect()
+                ->route('admin.settings.integrations.live-test.payment', $payment)
+                ->with('collect_error', __('borrower.payments.mobile_number_required'))
+                ->with('show_collect_failed', true);
+        }
+
+        try {
+            $payment = $payments->initiateCollection($payment, $mobileNumber, $data['operator'] ?? null);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $raw = collect($e->errors())->flatten()->first();
+            $message = \App\Services\CustomerPaymentService::localizeProviderMessage($raw, $mobileNumber);
+
+            return redirect()
+                ->route('admin.settings.integrations.live-test.payment', $payment)
+                ->with('collect_error', $message)
+                ->with('show_collect_failed', true);
+        }
+
+        return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+    }
+
+    public function retryIntegrationLiveTestPayment(
+        Request $request,
+        \App\Models\CustomerPayment $payment,
+        \App\Services\CustomerPaymentService $payments,
+    ): \Illuminate\Http\RedirectResponse {
+        abort_unless(data_get($payment->provider_meta, 'integration_live_test'), 404);
+
+        $data = $request->validate([
+            'operator' => ['nullable', 'string', 'in:mpesa,airtel,tigopesa,halopesa'],
+        ]);
+
+        $payment = $payment->fresh();
+        if ($payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true)) {
+            return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+        }
+
+        if ($payment->status === 'processing' && filled($payment->provider_ref)) {
+            $payment = $payments->refreshFromProvider($payment);
+            if ($payment->isVerified() || $payment->status === 'processing') {
+                return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+            }
+        }
+
+        $phone = $payment->mobile_number
+            ?: data_get($payment->provider_meta, 'attempted_phone')
+            ?: data_get($payment->provider_meta, 'phone');
+
+        try {
+            $payment = $payments->initiateCollection($payment, $phone, $data['operator'] ?? null);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $raw = collect($e->errors())->flatten()->first();
+            $message = \App\Services\CustomerPaymentService::localizeProviderMessage($raw, $phone);
+
+            return redirect()
+                ->route('admin.settings.integrations.live-test.payment', $payment)
+                ->with('collect_error', $message)
+                ->with('show_collect_failed', true);
+        }
+
+        return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+    }
+
+    public function statusIntegrationLiveTestPayment(
+        \App\Models\CustomerPayment $payment,
+        \App\Services\CustomerPaymentService $payments,
+    ): \Illuminate\Http\JsonResponse {
+        abort_unless(data_get($payment->provider_meta, 'integration_live_test'), 404);
+
+        if ($payment->status === 'processing' && filled($payment->provider_ref)) {
+            $payment = $payments->refreshFromProvider($payment);
+        }
+
+        return response()->json($payments->surfaceState($payment->fresh()));
     }
 
     // ---------------- PayIn payments ----------------

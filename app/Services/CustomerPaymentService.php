@@ -157,7 +157,11 @@ class CustomerPaymentService
         $hay = mb_strtolower($raw);
         if (str_contains($hay, 'detect operator')
             || str_contains($hay, 'operator from phone')
-            || str_contains($hay, 'kutambua mtandao')) {
+            || str_contains($hay, 'kutambua mtandao')
+            || str_contains($hay, 'identify a supported mobile-money network')
+            || str_contains($hay, 'couldn\'t identify')
+            || str_contains($hay, 'could not detect the mobile network')
+            || str_contains($hay, 'supported mobile-money network')) {
             return filled($phone)
                 ? __('borrower.payment_waiting.operator_error_phone', ['phone' => $phone])
                 : __('borrower.payment_waiting.operator_error');
@@ -428,16 +432,20 @@ class CustomerPaymentService
                         'membership_context' => $data['membership_context'] ?? null,
                     ], fn ($v) => $v !== null);
 
+                    $extra = is_array($data['provider_meta'] ?? null) ? $data['provider_meta'] : [];
+
                     if ($usePayIn || $useSimulator) {
                         return array_filter(array_merge([
                             'awaiting_collection' => true,
                             'description' => $data['description'] ?? null,
                             'operator' => $data['operator'] ?? null,
                             'simulator' => $useSimulator ?: null,
-                        ], $context), fn ($v) => $v !== null);
+                        ], $context, $extra), fn ($v) => $v !== null);
                     }
 
-                    return $context !== [] ? $context : null;
+                    $merged = array_merge($context, $extra);
+
+                    return $merged !== [] ? array_filter($merged, fn ($v) => $v !== null) : null;
                 })(),
             ]);
 

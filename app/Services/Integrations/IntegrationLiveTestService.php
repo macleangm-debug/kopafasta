@@ -26,19 +26,19 @@ class IntegrationLiveTestService
     ) {}
 
     /**
-     * Create a small test collection and open the shared payment gate path.
-     * Phone does not need to belong to an existing member — a sandbox customer is created if needed.
+     * Create a tagged rehearsal payment and hand off to canonical payment.show.
+     * Does not call PayIn — collection starts only from the payment gate CTA.
      *
      * @return array{ok: bool, title: string, message: string, lines: list<string>, payment_url?: string, payment_id?: int}
      */
     public function testPayment(string $phone, float $amount = 1000): array
     {
         $phone = PhoneNumber::normalizeForCountry($phone, 'TZ') ?? trim($phone);
-        if ($phone === '') {
+        if ($phone === '' || ! CustomerPaymentService::validateMobileNumber($phone)) {
             return [
                 'ok' => false,
                 'title' => 'Payment live test',
-                'message' => 'Enter a phone number to charge for the test.',
+                'message' => 'Enter a valid Tanzania mobile number to open the payment gate.',
                 'lines' => [],
             ];
         }
@@ -58,39 +58,16 @@ class IntegrationLiveTestService
                     'integration_rehearsal' => true,
                     'integration_partner' => 'payin',
                     'triggered_by' => auth()->id(),
+                    'awaiting_collection' => true,
                 ],
             ]);
-
-            if ($payment->status === 'awaiting_payment' || $payment->status === 'pending') {
-                try {
-                    $payment = $this->payments->initiateCollection($payment, $phone);
-                } catch (\Throwable $e) {
-                    $preview = route('admin.settings.integrations.live-test.payment', $payment);
-
-                    return [
-                        'ok' => false,
-                        'title' => 'Payment created — collect failed',
-                        'message' => $e->getMessage(),
-                        'lines' => [
-                            'Payment #'.$payment->id,
-                            'Status: '.$payment->status,
-                            'Open the payment gate to inspect the UI.',
-                        ],
-                        'payment_id' => $payment->id,
-                        'payment_url' => $preview,
-                        'admin_url' => route('admin.payments.show', $payment),
-                        'secondaryLabel' => 'Open payment.show',
-                        'secondaryHref' => $preview,
-                    ];
-                }
-            }
 
             $preview = route('admin.settings.integrations.live-test.payment', $payment);
 
             return [
                 'ok' => true,
-                'title' => 'PayIn live test ready',
-                'message' => 'Controlled test payment created. Continue on the canonical payment.show journey to complete the rehearsal.',
+                'title' => 'PayIn rehearsal ready',
+                'message' => 'Test obligation created. Continue on payment.show to initiate the real PayIn collection.',
                 'lines' => [
                     'Payment #'.$payment->id,
                     'Phone: '.$phone,

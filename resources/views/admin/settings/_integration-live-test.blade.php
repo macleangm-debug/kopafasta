@@ -23,8 +23,9 @@
     data-integration-live-test="{{ $partnerKey }}"
 >
     <button type="button"
-            @click="openLiveTest()"
+            @click="openLiveTest($event)"
             data-live-test-trigger
+            data-loading-label="Opening…"
             class="rounded-xl ring-1 ring-brand/20 text-brand text-xs font-semibold px-3 py-2 hover:bg-brand-muted/40">
         Live test
     </button>
@@ -77,16 +78,20 @@
                     </dl>
                     @if ($isProductionLivePayIn)
                         <p class="text-xs text-amber-800 rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2">
-                            This will initiate a real production payment request.
+                            This opens payment.show. Real money moves only after you initiate payment on that page.
                         </p>
                     @endif
                     <div class="flex flex-col-reverse sm:flex-row gap-2">
-                        <button type="button" @click="backToForm()"
-                                class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-gray-800 text-sm font-semibold px-4 py-3 hover:bg-gray-50">
+                        <button type="button" @click="backToForm()" :disabled="submitting"
+                                class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-gray-800 text-sm font-semibold px-4 py-3 hover:bg-gray-50 disabled:opacity-60">
                             Back
                         </button>
-                        <button type="button" @click="submitLiveTest()"
-                                class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3 hover:brightness-95">
+                        <button type="button"
+                                @click="submitLiveTest($event)"
+                                data-live-test-continue
+                                data-loading-label="Opening payment…"
+                                :disabled="submitting"
+                                class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3 hover:brightness-95 disabled:opacity-60">
                             Continue to payment.show
                         </button>
                     </div>
@@ -119,8 +124,8 @@
                         <div class="px-4 py-3"><dt class="text-gray-500 mb-1">Message</dt><dd class="font-medium text-gray-900 whitespace-pre-wrap" x-text="messagePreview"></dd></div>
                     </dl>
                     <div class="flex flex-col-reverse sm:flex-row gap-2">
-                        <button type="button" @click="backToForm()" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3">Back</button>
-                        <button type="button" @click="submitLiveTest()" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3">Send test SMS</button>
+                        <button type="button" @click="backToForm()" :disabled="submitting" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3 disabled:opacity-60">Back</button>
+                        <button type="button" @click="submitLiveTest($event)" data-live-test-continue data-loading-label="Sending…" :disabled="submitting" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3 disabled:opacity-60">Send test SMS</button>
                     </div>
                 </div>
             @elseif ($partnerKey === 'email_smtp')
@@ -146,8 +151,8 @@
                         <div class="flex justify-between gap-3 px-4 py-3"><dt class="text-gray-500">Subject</dt><dd class="font-semibold text-gray-900" x-text="emailSubject"></dd></div>
                     </dl>
                     <div class="flex flex-col-reverse sm:flex-row gap-2">
-                        <button type="button" @click="backToForm()" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3">Back</button>
-                        <button type="button" @click="submitLiveTest()" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3">Send test email</button>
+                        <button type="button" @click="backToForm()" :disabled="submitting" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3 disabled:opacity-60">Back</button>
+                        <button type="button" @click="submitLiveTest($event)" data-live-test-continue data-loading-label="Sending…" :disabled="submitting" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3 disabled:opacity-60">Send test email</button>
                     </div>
                 </div>
             @elseif ($partnerKey === 'crb')
@@ -172,8 +177,8 @@
                         Confirm only if you intend to run a real permitted CRB enquiry.
                     </p>
                     <div class="flex flex-col-reverse sm:flex-row gap-2">
-                        <button type="button" @click="backToForm()" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3">Back</button>
-                        <button type="button" @click="submitLiveTest()" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3">Run CRB live test</button>
+                        <button type="button" @click="backToForm()" :disabled="submitting" class="flex-1 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-semibold px-4 py-3 disabled:opacity-60">Back</button>
+                        <button type="button" @click="submitLiveTest($event)" data-live-test-continue data-loading-label="Running…" :disabled="submitting" class="flex-1 rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-3 disabled:opacity-60">Run CRB live test</button>
                     </div>
                 </div>
             @endif

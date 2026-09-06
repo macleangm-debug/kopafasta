@@ -45,7 +45,14 @@
         'waitingConfirmation' => __('borrower.payment_waiting.waiting_confirmation'),
         'successTitle' => __('borrower.payment_waiting.success_title'),
         'successPaid' => __('borrower.payment_waiting.success_paid', ['amount' => $amountLabel]),
-        'failedTitle' => __('borrower.payment_waiting.failed_title'),
+        'failedTitle' => $initialState === 'failed' && filled($errorMessage) && (
+            str_contains(mb_strtolower((string) $errorMessage), 'mobile-money network')
+            || str_contains(mb_strtolower((string) $errorMessage), 'mtandao wa pesa')
+            || str_contains(mb_strtolower((string) $errorMessage), 'identify')
+            || str_contains(mb_strtolower((string) $errorMessage), 'kutambua mtandao')
+        )
+            ? __('borrower.payment_waiting.operator_title')
+            : __('borrower.payment_waiting.failed_title'),
         'failedUsing' => __('borrower.payment_waiting.failed_using'),
         'timeoutTitle' => __('borrower.payment_waiting.timeout_title'),
         'timeoutBody' => __('borrower.payment_waiting.timeout_body'),
