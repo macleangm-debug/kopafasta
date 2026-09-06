@@ -25,7 +25,7 @@
                         <h1 class="text-2xl font-bold text-gray-900">{{ __('site.auth.pin_recovery.setup_title') }}</h1>
                         <p class="mt-1 text-sm text-gray-600">{{ __('site.auth.pin_recovery.setup_pin_only_body') }}</p>
 
-                        <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off">
+                        <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off" data-no-draft>
                             @csrf
                             <input type="hidden" name="phase" value="pin">
 
@@ -52,7 +52,7 @@
                         <h1 class="text-2xl font-bold text-gray-900">{{ __('site.auth.pin_recovery.recovery_only_title') }}</h1>
                         <p class="mt-1 text-sm text-gray-600">{{ __('site.auth.pin_recovery.recovery_only_body') }}</p>
 
-                        <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off">
+                        <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off" data-no-draft>
                             @csrf
                             <input type="hidden" name="phase" value="questions">
 

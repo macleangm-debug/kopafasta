@@ -78,7 +78,7 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
         $this->assertSame(0, BrokenPage::query()->count());
     }
 
-    public function test_unknown_route_is_404_and_deduplicates(): void
+    public function test_unknown_route_is_404_and_deduplicates_outside_needs_attention(): void
     {
         $this->get('/this-page-should-not-exist-kf')
             ->assertNotFound()
@@ -93,8 +93,9 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
         $this->assertSame(404, (int) $row->status);
         $this->assertSame('/this-page-should-not-exist-kf', $row->path);
         $this->assertSame(2, (int) $row->occurrence_count);
-        $this->assertNotNull($row->first_seen_at);
-        $this->assertNotNull($row->last_seen_at);
+        $this->assertSame('invalid_request', $row->category);
+        $this->assertNotNull($row->resolved_at);
+        $this->assertSame(0, BrokenPage::query()->needsAttention()->count());
         $this->assertNotNull($row->fingerprint);
     }
 
@@ -111,6 +112,8 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
             ->assertDontSee('not allowed', false);
 
         $this->assertSame(2, BrokenPage::query()->where('status', 403)->count());
+        $this->assertSame(0, BrokenPage::query()->needsAttention()->count());
+        $this->assertTrue(BrokenPage::query()->where('status', 403)->where('category', 'expected_security')->exists());
     }
 
     public function test_expired_csrf_is_419_page(): void
@@ -120,6 +123,7 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
             ->assertSee('This session expired', false);
 
         $this->assertSame(1, BrokenPage::query()->where('status', 419)->count());
+        $this->assertNotNull(BrokenPage::query()->where('status', 419)->value('resolved_at'));
     }
 
     public function test_rate_limit_is_429_page(): void
@@ -129,6 +133,7 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
             ->assertSee('Please wait a moment', false);
 
         $this->assertSame(1, BrokenPage::query()->where('status', 429)->count());
+        $this->assertNotNull(BrokenPage::query()->where('status', 429)->value('resolved_at'));
     }
 
     public function test_unhandled_error_is_500_without_leaking_details(): void
@@ -142,7 +147,11 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
             ->assertDontSee('RuntimeException', false);
 
         $this->assertSame(1, BrokenPage::query()->where('status', 500)->count());
-        $this->assertStringContainsString('secret-sql-trace-should-not-leak', (string) BrokenPage::query()->first()->message);
+        $row = BrokenPage::query()->first();
+        $this->assertStringContainsString('secret-sql-trace-should-not-leak', (string) $row->message);
+        $this->assertSame('genuine_defect', $row->category);
+        $this->assertNull($row->resolved_at);
+        $this->assertSame(1, BrokenPage::query()->needsAttention()->count());
     }
 
     public function test_maintenance_is_503_page(): void
@@ -152,6 +161,7 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
             ->assertSee('We are updating the service', false);
 
         $this->assertSame(1, BrokenPage::query()->where('status', 503)->count());
+        $this->assertSame(1, BrokenPage::query()->needsAttention()->count());
     }
 
     public function test_noise_404s_are_not_logged(): void
@@ -160,10 +170,18 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
         $this->get('/robots.txt');
         $this->get('/build/assets/missing.js');
         $this->get('/wp-admin/css/missing.css');
+        $this->get('/wp-content/plugins');
+        $this->get('/wordpress');
+        $this->get('/test');
         $this->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1)'])
             ->get('/random-bot-probe-kf');
 
         $this->assertSame(0, BrokenPage::query()->count());
+    }
+
+    public function test_support_page_renders(): void
+    {
+        $this->get('/support')->assertOk()->assertDontSee('Something went wrong', false);
     }
 
     public function test_support_inventory_shows_incident_fields_not_a_route_catalog(): void
@@ -175,9 +193,9 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
         $incident = BrokenPage::query()->first();
 
         $this->actingAs($admin, 'admin')
-            ->get(route('admin.broken-pages.index'))
+            ->get(route('admin.broken-pages.index', ['status' => 'all']))
             ->assertOk()
-            ->assertSee('Incident inventory', false)
+            ->assertSee('Needs attention', false)
             ->assertSee('/this-page-should-not-exist-kf', false)
             ->assertDontSee('/login', false);
 
@@ -186,6 +204,7 @@ class ExceptionPagesAndBrokenPagesTest extends TestCase
             ->assertOk()
             ->assertSee('First seen', false)
             ->assertSee('Last seen', false)
-            ->assertSee('Hits', false);
+            ->assertSee('Hits', false)
+            ->assertSee('untrusted', false);
     }
 }

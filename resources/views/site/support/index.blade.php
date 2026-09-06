@@ -25,7 +25,7 @@
             @foreach ($emails as $email)
                 <a href="mailto:{{ $email }}" class="glass-card p-5 hover:ring-2 hover:ring-brand/20 transition">
                     <p class="text-2xl mb-2">✉️</p>
-                    <p class="font-semibold text-gray-900">Email@if (count($emails) > 1) {{ $loop->iteration }}@endif</p>
+                    <p class="font-semibold text-gray-900">{{ 'Email' }}@if (count($emails) > 1) {{ $loop->iteration }}@endif</p>
                     <p class="text-sm text-gray-700 mt-1 font-medium break-all">{{ $email }}</p>
                 </a>
             @endforeach

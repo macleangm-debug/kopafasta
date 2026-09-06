@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\PinRecoveryAnswer;
 use App\Models\User;
 use App\Services\PinRecoveryChallengeService;
 use App\Services\PinService;
@@ -52,6 +53,53 @@ class PinRecoveryChallengeFeatureTest extends TestCase
         $user->refresh();
         $this->assertTrue(app(PinService::class)->hasPin($user));
         $this->assertTrue(app(PinRecoveryChallengeService::class)->hasEnrolledAnswers($user));
+    }
+
+    public function test_stale_pin_phase_after_pin_saved_continues_to_questions_not_403(): void
+    {
+        $user = $this->makeBorrowerUser();
+
+        $this->actingAs($user)->get(route('site.borrower.setup-pin'))->assertOk();
+        $keys = session('pin_setup_question_keys');
+        $this->assertIsArray($keys);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.setup-pin.post'), [
+                'phase' => 'pin',
+                'pin' => '1234',
+                'pin_confirmation' => '1234',
+            ])
+            ->assertRedirect(route('site.borrower.setup-pin'));
+
+        // Production failure mode: client still posts phase=pin after PIN exists
+        // (stale draft / back-button). Must not hard-403.
+        $this->actingAs($user)
+            ->post(route('site.borrower.setup-pin.post'), [
+                'phase' => 'pin',
+                'pin' => '1234',
+                'pin_confirmation' => '1234',
+            ])
+            ->assertRedirect(route('site.borrower.setup-pin'))
+            ->assertSessionMissing('errors');
+
+        $answers = [];
+        foreach ($keys as $key) {
+            $answers[$key] = $key === 'nida_middle4' ? '4582' : 'Resume Answer';
+        }
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.setup-pin.post'), [
+                'phase' => 'questions',
+                'answers' => $answers,
+            ])
+            ->assertRedirect(route('site.borrower.dashboard'));
+
+        $this->assertTrue(app(PinRecoveryChallengeService::class)->hasEnrolledAnswers($user->fresh()));
+        $this->assertDatabaseCount('pin_recovery_answers', 3);
+        foreach (PinRecoveryAnswer::query()->get() as $row) {
+            $this->assertNotSame('Resume Answer', $row->answer_hash);
+            $this->assertStringStartsWith('$2y$', (string) $row->answer_hash);
+        }
     }
 
     public function test_forgot_pin_uses_enrolled_answers_not_otp(): void

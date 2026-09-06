@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\BrokenPageClassifier;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -33,5 +35,28 @@ class BrokenPage extends Model
     public function isOpen(): bool
     {
         return $this->resolved_at === null;
+    }
+
+    public function needsAttention(): bool
+    {
+        if (! $this->isOpen()) {
+            return false;
+        }
+
+        $category = $this->category ?: 'genuine_defect';
+
+        return in_array($category, BrokenPageClassifier::NEEDS_ATTENTION, true);
+    }
+
+    public function scopeNeedsAttention(Builder $query): Builder
+    {
+        return $query->whereNull('resolved_at')
+            ->where(function (Builder $inner): void {
+                $inner->whereIn('category', BrokenPageClassifier::NEEDS_ATTENTION)
+                    ->orWhere(function (Builder $uncategorized): void {
+                        $uncategorized->whereNull('category')
+                            ->whereIn('status', [500, 503]);
+                    });
+            });
     }
 }

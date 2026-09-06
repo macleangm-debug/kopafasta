@@ -91,6 +91,7 @@ use App\Http\Controllers\Admin\WriteOffRuleController;
 use App\Http\Controllers\Auth\WebTwoFactorController;
 use App\Http\Controllers\PayInWebhookController;
 use App\Http\Controllers\Site\AccountWelcomeController;
+use App\Http\Controllers\Site\AffiliateApplicationFeeController;
 use App\Http\Controllers\Site\AffiliateController;
 use App\Http\Controllers\Site\AffiliateRedirectController;
 use App\Http\Controllers\Site\AffiliateVerificationController;
@@ -187,12 +188,12 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/country/{code}', [PageController::class, 'country'])->name('country');
     Route::get('/become-affiliate', [PartnerApplicationController::class, 'create'])->name('affiliate.apply');
     Route::post('/become-affiliate', [PartnerApplicationController::class, 'store'])->name('affiliate.apply.post');
-    Route::get('/become-affiliate/pay/{token}', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'show'])->name('affiliate.apply.pay');
-    Route::post('/become-affiliate/pay/{token}', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'pay'])->name('affiliate.apply.pay.post');
-    Route::get('/become-affiliate/pay/{token}/status', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'status'])->name('affiliate.apply.pay.status');
-    Route::post('/become-affiliate/pay/{token}/retry', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'retry'])->name('affiliate.apply.pay.retry');
-    Route::post('/become-affiliate/pay/{token}/gate', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'returnToGate'])->name('affiliate.apply.pay.gate');
-    Route::post('/become-affiliate/pay/{token}/simulate', [\App\Http\Controllers\Site\AffiliateApplicationFeeController::class, 'simulate'])->name('affiliate.apply.pay.simulate');
+    Route::get('/become-affiliate/pay/{token}', [AffiliateApplicationFeeController::class, 'show'])->name('affiliate.apply.pay');
+    Route::post('/become-affiliate/pay/{token}', [AffiliateApplicationFeeController::class, 'pay'])->name('affiliate.apply.pay.post');
+    Route::get('/become-affiliate/pay/{token}/status', [AffiliateApplicationFeeController::class, 'status'])->name('affiliate.apply.pay.status');
+    Route::post('/become-affiliate/pay/{token}/retry', [AffiliateApplicationFeeController::class, 'retry'])->name('affiliate.apply.pay.retry');
+    Route::post('/become-affiliate/pay/{token}/gate', [AffiliateApplicationFeeController::class, 'returnToGate'])->name('affiliate.apply.pay.gate');
+    Route::post('/become-affiliate/pay/{token}/simulate', [AffiliateApplicationFeeController::class, 'simulate'])->name('affiliate.apply.pay.simulate');
     Route::get('/partners/apply/{category?}', [PartnerApplicationController::class, 'createService'])->name('partners.apply');
     Route::post('/partners/apply', [PartnerApplicationController::class, 'storeService'])->name('partners.apply.post');
     Route::get('/partners/track', [PartnerApplicationController::class, 'tracking'])->name('partners.apply.tracking');
@@ -1099,6 +1100,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
         Route::middleware('permission:support.tickets')->group(function (): void {
             Route::get('broken-pages', [BrokenPageController::class, 'index'])->name('broken-pages.index');
+            Route::post('broken-pages/classify-open', [BrokenPageController::class, 'classifyOpen'])->name('broken-pages.classify-open');
+            Route::post('broken-pages/reset-baseline', [BrokenPageController::class, 'resetBaseline'])->name('broken-pages.reset-baseline');
             Route::get('broken-pages/{brokenPage}', [BrokenPageController::class, 'show'])->name('broken-pages.show');
             Route::post('broken-pages/{brokenPage}/resolve', [BrokenPageController::class, 'resolve'])->name('broken-pages.resolve');
         });

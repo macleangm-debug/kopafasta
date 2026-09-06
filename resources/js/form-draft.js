@@ -38,6 +38,7 @@ function shouldSkipForm(form) {
         || action.includes('/locale')
         || action.endsWith('/country')
         || action.includes('/country?')
+        || action.includes('/setup-pin')
         || action.includes('/settings/payin')
         || action.includes('/settings/crb')
         || action.includes('/settings/gateways')

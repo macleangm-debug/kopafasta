@@ -296,10 +296,16 @@ class AuthController extends Controller
 
         $needsPin = ! $this->pins->hasPin($user);
         $needsRecovery = ! $recovery->hasEnrolledAnswers($user);
-        $phase = (string) $request->input('phase', $needsPin ? 'pin' : 'questions');
 
-        if ($phase === 'pin') {
-            abort_unless($needsPin, 403);
+        // Server state wins over client `phase` (stale form-draft / back-button
+        // resubmits previously aborted with a hard 403 after PIN was already set).
+        if (! $needsPin && ! $needsRecovery) {
+            $request->session()->forget('pin_setup_question_keys');
+
+            return $this->redirectAfterPinSetup($request, $user);
+        }
+
+        if ($needsPin) {
             $data = $request->validate([
                 'pin' => ['required', 'string', new FourDigitPin, 'confirmed'],
             ]);
@@ -315,7 +321,12 @@ class AuthController extends Controller
                 ->with('status', __('site.auth.pin_recovery.setup_pin_saved'));
         }
 
-        abort_unless($needsRecovery, 403);
+        // Stale PIN-phase POST after the PIN was already saved (draft/back/resubmit).
+        if ((string) $request->input('phase') === 'pin') {
+            return redirect()->route('site.borrower.setup-pin')
+                ->with('status', __('site.auth.pin_recovery.setup_pin_saved'));
+        }
+
         $keys = session('pin_setup_question_keys', []);
         if (! is_array($keys) || count($keys) < (int) config('pin_recovery.questions_to_ask', 3)) {
             return redirect()->route('site.borrower.setup-pin')
