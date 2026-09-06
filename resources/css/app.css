@@ -189,16 +189,31 @@
     .kf-chrome-sidebar,
     .kf-chrome-topbar-desktop,
     .kf-chrome-topbar-mobile,
-    footer {
+    .kf-mobile-bottom-nav,
+    .kf-staging-banner,
+    [data-staging-banner],
+    header,
+    footer,
+    nav,
+    .fixed.bottom-6,
+    [data-chatbot],
+    .print\\:hidden,
+    .plus-nav,
+    [data-plus-nav] {
         display: none !important;
     }
 
-    body {
+    html, body {
         background: #fff !important;
         color: #111 !important;
     }
 
-    .kf-chrome-page {
+    .kf-chrome-page,
+    main,
+    .max-w-7xl,
+    .max-w-3xl {
+        max-width: none !important;
+        margin: 0 !important;
         padding: 0 !important;
     }
 
@@ -206,6 +221,18 @@
         box-shadow: none !important;
         border: 1px solid #0B3D32;
         break-inside: avoid;
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto !important;
+        display: block !important;
+        visibility: visible !important;
+        background: #fff !important;
+    }
+
+    .kf-print-sheet * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
 

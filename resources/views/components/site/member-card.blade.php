@@ -45,7 +45,11 @@
     $base = rtrim(app(ReferralService::class)->appBaseUrl(), '/');
     $verifyUrl = $memberNoRaw ? $base.'/v/'.rawurlencode($memberNoRaw) : null;
     $shareText = $verifyUrl
-        ? __('borrower.membership.share_message', ['name' => $name ?: brand_name(), 'member' => $memberNoDisplay, 'link' => $verifyUrl])
+        ? __('borrower.membership.share_message', [
+            'member' => $memberNoDisplay,
+            'link' => $verifyUrl,
+            'register' => $referralLink ?: route('site.register.borrower'),
+        ])
         : '';
     $whatsappUrl = $shareText !== '' ? 'https://wa.me/?text='.rawurlencode($shareText) : null;
     $photoUrl = app(\App\Services\FaceVerificationService::class)->avatarUrl($customer);
@@ -228,7 +232,8 @@
     @if ($verifyUrl)
         <div class="flex flex-wrap gap-2">
             <button type="button" @click="copyVerifyLink()"
-                    class="inline-flex items-center gap-1.5 rounded-xl bg-brand/10 hover:bg-brand/15 text-brand ring-1 ring-brand/20 px-3.5 py-2.5 text-xs font-semibold">
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-brand/10 hover:bg-brand/15 text-brand ring-1 ring-brand/20 px-3.5 py-2.5 text-xs font-semibold"
+                    x-text="shareCopied ? @js(__('borrower.membership.link_copied')) : @js(__('borrower.membership.copy_verify_link'))">
                 {{ __('borrower.membership.copy_verify_link') }}
             </button>
             <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener"
@@ -240,7 +245,6 @@
                 {{ __('borrower.membership.share') }}
             </button>
         </div>
-        <p x-show="shareCopied" x-cloak class="text-xs font-medium text-brand">{{ __('borrower.membership.link_copied') }}</p>
     @endif
 
     <section class="rounded-[1.35rem] kf-premium-panel p-5 sm:p-6">

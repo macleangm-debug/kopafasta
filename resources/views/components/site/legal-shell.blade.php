@@ -3,8 +3,10 @@
         ['key' => 'index', 'route' => 'site.legal', 'label' => __('legal.nav.hub')],
         ['key' => 'terms', 'route' => 'site.legal.terms', 'label' => __('legal.nav.terms')],
         ['key' => 'privacy', 'route' => 'site.legal.privacy', 'label' => __('legal.nav.privacy')],
-        ['key' => 'aml', 'route' => 'site.legal.aml', 'label' => __('legal.nav.aml')],
+        ['key' => 'responsible_lending', 'route' => 'site.responsible-lending', 'label' => __('legal.nav.responsible_lending')],
         ['key' => 'complaints', 'route' => 'site.legal.complaints', 'label' => __('legal.nav.complaints')],
+        ['key' => 'aml', 'route' => 'site.legal.aml', 'label' => __('legal.nav.aml')],
+        ['key' => 'kyc', 'route' => 'site.legal.kyc', 'label' => __('legal.nav.kyc')],
         ['key' => 'cookies', 'route' => 'site.legal.cookies', 'label' => __('legal.nav.cookies')],
     ];
     $active = $active ?? 'index';

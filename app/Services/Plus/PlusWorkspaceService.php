@@ -179,7 +179,7 @@ class PlusWorkspaceService
         ];
     }
 
-    public function goalsDashboard(Customer $customer): array
+    public function goalsDashboard(Customer $customer, ?int $goalId = null): array
     {
         $goals = PlusGoal::query()
             ->where('customer_id', $customer->id)
@@ -189,12 +189,23 @@ class PlusWorkspaceService
 
         $active = $goals->filter(fn (PlusGoal $g) => ! $g->isComplete() && ! $g->isPaused());
         $lead = $active->sortByDesc(fn (PlusGoal $g) => $g->progressPercent())->first();
+        $selected = null;
+        if ($goalId) {
+            $selected = $goals->firstWhere('id', $goalId);
+        }
+        $latestContribution = PlusGoalContribution::query()
+            ->whereIn('plus_goal_id', $goals->pluck('id'))
+            ->latest('id')
+            ->first();
 
         return [
             'goals' => $goals,
             'active' => $active,
             'lead' => $lead,
+            'selected' => $selected,
+            'goal_id' => $selected?->id,
             'kinds' => $this->goalKinds(),
+            'latest_contribution' => $latestContribution,
             'contributed_this_month' => (float) PlusGoalContribution::query()
                 ->whereIn('plus_goal_id', $goals->pluck('id'))
                 ->whereBetween('created_at', [now()->copy()->startOfMonth(), now()->copy()->endOfMonth()])
@@ -227,9 +238,20 @@ class PlusWorkspaceService
     public function homeSummary(Customer $customer): array
     {
         $money = $this->moneyDashboard($customer);
-        $business = $this->businessDashboard($customer);
-        $goals = $this->goalsDashboard($customer);
+        $selectedBusinessId = (int) session('plus.selected_business_id');
+        $business = $this->businessDashboard(
+            $customer,
+            'week',
+            $selectedBusinessId > 0 ? $selectedBusinessId : null
+        );
+        $goals = $this->goalsDashboard($customer, session('plus.selected_goal_id') ? (int) session('plus.selected_goal_id') : null);
         $offers = $this->plus->eligibleOffers($customer);
+        $claimedCount = (int) \App\Models\PlusOfferEvent::query()
+            ->where('customer_id', $customer->id)
+            ->where('event', 'claimed')
+            ->pluck('plus_offer_id')
+            ->unique()
+            ->count();
         $lesson = PlusLesson::query()
             ->whereNotNull('published_at')
             ->where('published_at', '<=', now())
@@ -240,16 +262,25 @@ class PlusWorkspaceService
             ->where('plus_lesson_id', $lesson->id)
             ->whereNotNull('completed_at')
             ->exists();
+        $latestReport = \App\Models\PlusMonthlyReport::query()
+            ->where('customer_id', $customer->id)
+            ->latest('period_month')
+            ->first();
+        $reportMonth = $latestReport?->period_month
+            ?? now()->copy()->startOfMonth();
 
         return [
             'money' => $money,
             'business' => $business,
             'goals' => $goals,
             'offers_count' => $offers->count(),
+            'offers_claimed' => $claimedCount,
             'best_offer' => $offers->first(),
             'reward_balance' => $this->plus->rewardBalance($customer),
             'latest_lesson' => $lesson,
             'lesson_watched' => $lessonWatched,
+            'report_month' => $reportMonth,
+            'report_label' => $reportMonth->copy()->locale(app()->getLocale() === 'sw' ? 'sw' : 'en')->translatedFormat('F Y'),
             'upcoming' => $money['upcoming'],
         ];
     }

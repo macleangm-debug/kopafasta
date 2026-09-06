@@ -37,7 +37,7 @@ class PlusReportService
 
     public function monthDashboard(Customer $customer, ?string $month = null): array
     {
-        $selected = $this->resolveMonth($month);
+        $selected = $this->resolveMonth($customer, $month);
         $closed = $selected->copy()->endOfMonth()->lt(now()->copy()->startOfDay());
         $snapshot = PlusMonthlyReport::query()
             ->where('customer_id', $customer->id)
@@ -47,7 +47,8 @@ class PlusReportService
         if ($closed && $snapshot) {
             $payload = $snapshot->payload;
             $payload['from_snapshot'] = true;
-            $payload['months'] = $this->monthChoices();
+            $payload['months'] = $this->monthChoices($customer);
+            $payload['years'] = $this->yearChoices($customer);
             $this->markViewed($snapshot);
 
             return $payload;
@@ -55,7 +56,8 @@ class PlusReportService
 
         $payload = $this->buildMonth($customer, $selected);
         $payload['from_snapshot'] = false;
-        $payload['months'] = $this->monthChoices();
+        $payload['months'] = $this->monthChoices($customer);
+        $payload['years'] = $this->yearChoices($customer);
 
         if ($closed) {
             PlusMonthlyReport::query()->firstOrCreate(
@@ -151,33 +153,66 @@ class PlusReportService
         return $count;
     }
 
-    private function resolveMonth(?string $month): Carbon
+    private function resolveMonth(Customer $customer, ?string $month): Carbon
     {
+        $first = $this->firstPlusMonth($customer);
+        $latest = now()->copy()->startOfMonth();
+        $parsed = null;
         if (is_string($month) && preg_match('/^\d{4}-\d{2}$/', $month)) {
             $parsed = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
-            if ($parsed->lte(now()->copy()->startOfMonth())) {
-                return $parsed;
-            }
+        }
+        if (! $parsed || $parsed->lt($first) || $parsed->gt($latest)) {
+            return $latest->lt($first) ? $first->copy() : $latest;
+        }
+
+        return $parsed;
+    }
+
+    private function firstPlusMonth(Customer $customer): Carbon
+    {
+        $start = PlusSubscription::query()
+            ->where('customer_id', $customer->id)
+            ->orderBy('starts_at')
+            ->value('starts_at');
+
+        if ($start) {
+            return Carbon::parse($start)->startOfMonth();
         }
 
         return now()->copy()->startOfMonth();
     }
 
     /** @return list<array{value: string, label: string}> */
-    private function monthChoices(): array
+    private function monthChoices(Customer $customer): array
     {
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
-        $choices = [];
+        $first = $this->firstPlusMonth($customer);
         $cursor = now()->copy()->startOfMonth();
-        for ($i = 0; $i < 12; $i++) {
+        if ($cursor->lt($first)) {
+            $cursor = $first->copy();
+        }
+        $choices = [];
+        while ($cursor->gte($first)) {
             $choices[] = [
                 'value' => $cursor->format('Y-m'),
                 'label' => $cursor->locale($locale)->translatedFormat('F Y'),
+                'year' => (int) $cursor->year,
+                'month' => (int) $cursor->month,
             ];
             $cursor->subMonth();
         }
 
         return $choices;
+    }
+
+    /** @return list<int> */
+    private function yearChoices(Customer $customer): array
+    {
+        return collect($this->monthChoices($customer))
+            ->pluck('year')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function markViewed(PlusMonthlyReport $row): void
@@ -247,7 +282,8 @@ class PlusReportService
             'label' => $label,
             'prev_label' => $prevLabel,
             'member_name' => trim((string) ($customer->full_name ?: $customer->first_name)),
-            'member_since' => $customer->created_at?->locale($locale)->isoFormat('MMMM YYYY'),
+            'membership_number' => \App\Support\MemberNumberFormatter::display($customer->member_no),
+            'generated_at' => now()->toDateTimeString(),
             'money' => $money + ['left' => $left],
             'prev_money' => $prevMoney + ['left' => $prevLeft],
             'business' => $business,
@@ -420,11 +456,22 @@ class PlusReportService
 
     private function oneSentence(float $left, float $prevLeft, array $business, array $prevBusiness, int $trust): string
     {
+        $keptKey = match (true) {
+            abs($left - $prevLeft) < 0.01 => 'plus.reports.sentence_kept_same',
+            $left > $prevLeft => 'plus.reports.sentence_kept',
+            default => 'plus.reports.sentence_spent',
+        };
+        $bizDiff = (float) ($business['difference'] ?? 0);
+        $prevBizDiff = (float) ($prevBusiness['difference'] ?? 0);
+        $bizKey = match (true) {
+            abs($bizDiff - $prevBizDiff) < 0.01 => 'plus.reports.sentence_biz_same',
+            $bizDiff > $prevBizDiff => 'plus.reports.sentence_biz_up',
+            default => 'plus.reports.sentence_biz_down',
+        };
+
         return __('plus.reports.sentence', [
-            'kept' => $left >= $prevLeft ? __('plus.reports.sentence_kept') : __('plus.reports.sentence_spent'),
-            'biz' => ($business['difference'] ?? 0) >= ($prevBusiness['difference'] ?? 0)
-                ? __('plus.reports.sentence_biz_up')
-                : __('plus.reports.sentence_biz_down'),
+            'kept' => __($keptKey),
+            'biz' => __($bizKey),
             'trust' => $trust,
         ]);
     }

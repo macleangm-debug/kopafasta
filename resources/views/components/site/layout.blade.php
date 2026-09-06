@@ -216,8 +216,8 @@
 
     @unless ($auth)
         <footer class="bg-brand text-gray-300 mt-20">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-5">
-                <div class="lg:col-span-2">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
                     <x-site.brand-mark variant="light" size="lg" :showSubtitle="false" />
                     <p class="text-sm text-white/80 max-w-xs mt-3">{{ __('site.footer.tagline') }}</p>
                     <p class="text-sm text-brand-gold max-w-sm mt-3 font-medium leading-snug">
@@ -274,7 +274,7 @@
                         <li><a href="{{ route('site.learn') }}" class="hover:text-brand-gold transition">{{ __('seo.footer_learn') }}</a></li>
                         <li><a href="{{ route('site.faq') }}" class="hover:text-brand-gold transition">{{ __('site.footer.faq') }}</a></li>
                         <li><a href="{{ route('site.support') }}" class="hover:text-brand-gold transition">{{ __('site.footer.support') }}</a></li>
-                        <li><a href="{{ route('site.feedback') }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>
+                        <li><a href="{{ route('site.feedback', ['open' => 1]) }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>
                     </ul>
                     <h4 class="text-xs uppercase tracking-widest text-gray-300 mt-6 mb-3 font-bold">{{ __('site.footer.legal_policies') }}</h4>
                     <ul class="space-y-2 text-sm">
@@ -282,6 +282,8 @@
                         <li><a href="{{ route('site.legal.privacy') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.privacy') }}</a></li>
                         <li><a href="{{ route('site.responsible-lending') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.responsible_lending') }}</a></li>
                         <li><a href="{{ route('site.legal.complaints') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.complaints_heading') }}</a></li>
+                        <li><a href="{{ route('site.legal.aml') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('legal.nav.aml') }}</a></li>
+                        <li><a href="{{ route('site.legal.kyc') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('legal.nav.kyc') }}</a></li>
                         <li><a href="{{ route('site.legal') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.legal') }}</a></li>
                     </ul>
                 </div>

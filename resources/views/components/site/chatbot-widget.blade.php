@@ -18,7 +18,7 @@
                         <span class="block text-[11px] text-gray-500">{{ __('site.help_hub.ask_question') }}</span>
                     </span>
                 </button>
-                <a href="{{ route('site.feedback') }}"
+                <a href="{{ route('site.feedback', ['open' => 1]) }}"
                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-brand-muted transition">
                     <span class="size-10 rounded-xl bg-brand-gold/20 text-brand grid place-items-center shrink-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 8h10M7 12h6m-6 4h8M5 6a2 2 0 012-2h10a2 2 0 012 2v12l-4-2H7a2 2 0 01-2-2V6z"/></svg>

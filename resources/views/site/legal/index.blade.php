@@ -4,8 +4,10 @@
             @foreach ([
                 ['legal.nav.terms', 'site.legal.terms', 'legal.cards.terms'],
                 ['legal.nav.privacy', 'site.legal.privacy', 'legal.cards.privacy'],
-                ['legal.nav.aml', 'site.legal.aml', 'legal.cards.aml'],
+                ['legal.nav.responsible_lending', 'site.responsible-lending', 'legal.cards.responsible_lending'],
                 ['legal.nav.complaints', 'site.legal.complaints', 'legal.cards.complaints'],
+                ['legal.nav.aml', 'site.legal.aml', 'legal.cards.aml'],
+                ['legal.nav.kyc', 'site.legal.kyc', 'legal.cards.kyc'],
                 ['legal.nav.cookies', 'site.legal.cookies', 'legal.cards.cookies'],
             ] as [$titleKey, $route, $hintKey])
                 <div class="rounded-xl ring-1 ring-gray-200 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

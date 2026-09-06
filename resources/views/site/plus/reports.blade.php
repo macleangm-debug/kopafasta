@@ -30,6 +30,13 @@
             <div class="bg-gradient-to-br from-brand via-brand-light to-emerald-800 text-white px-5 sm:px-8 py-6">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
                 <p class="mt-1 text-sm text-white/80">{{ __('plus.reports.a4_kicker') }}</p>
+                <p class="mt-3 text-center text-sm text-white/90">
+                    {{ $report['member_name'] }}
+                    @if (! empty($report['membership_number']))
+                        · {{ $report['membership_number'] }}
+                    @endif
+                    · {{ $report['grade'] }}
+                </p>
                 <div class="mt-2 flex items-center justify-between gap-3">
                     @if ($older)
                         <a href="{{ route('site.borrower.plus.reports', ['month' => $older['value']]) }}"
@@ -47,19 +54,53 @@
                         <span class="print:hidden size-9"></span>
                     @endif
                 </div>
-                <p class="text-sm text-white/80 mt-1 text-center">{{ $report['member_name'] }} · {{ $report['grade'] }} · {{ $report['trust_percent'] ?? 0 }}</p>
+                <p class="text-sm text-white/80 mt-1 text-center">{{ __('plus.reports.trust_line', ['percent' => $report['trust_percent'] ?? 0, 'label' => $report['trust']['label'] ?? '']) }}</p>
                 @if (count($months) > 1)
-                    <form method="get" action="{{ route('site.borrower.plus.reports') }}" class="print:hidden mt-4">
-                        <label class="sr-only">{{ __('plus.reports.pick_month') }}</label>
-                        <select name="month" onchange="this.form.submit()"
-                                class="w-full rounded-xl bg-white/10 ring-1 ring-white/20 border-0 text-sm text-white py-2.5">
-                            @foreach ($months as $choice)
-                                <option value="{{ $choice['value'] }}" @selected($choice['value'] === $currentMonth) class="text-gray-900">
-                                    {{ $choice['label'] }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </form>
+                    <div class="print:hidden mt-4" x-data="{
+                        yearOpen: false,
+                        monthOpen: false,
+                        year: {{ (int) substr($currentMonth, 0, 4) }},
+                        months: {{ \Illuminate\Support\Js::from($months) }},
+                        years: {{ \Illuminate\Support\Js::from($report['years'] ?? collect($months)->pluck('year')->unique()->values()) }},
+                        monthsForYear() { return this.months.filter(m => Number(String(m.value).slice(0,4)) === Number(this.year)); }
+                    }">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="relative">
+                                <button type="button" class="w-full rounded-xl bg-white/10 ring-1 ring-white/20 px-3 py-2.5 text-sm text-left"
+                                        @click="window.matchMedia('(max-width: 1023px)').matches ? yearOpen = true : yearOpen = !yearOpen">
+                                    <span x-text="year"></span>
+                                </button>
+                                <div class="hidden lg:block absolute z-20 mt-1 w-full rounded-xl bg-white text-gray-900 shadow-xl ring-1 ring-gray-200 py-1"
+                                     x-cloak x-show="yearOpen" @click.outside="yearOpen = false">
+                                    <template x-for="y in years" :key="y">
+                                        <button type="button" class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" @click="year = y; yearOpen = false" x-text="y"></button>
+                                    </template>
+                                </div>
+                                <x-site.bottom-sheet :title="__('plus.reports.pick_year')" open="yearOpen">
+                                    <template x-for="y in years" :key="'y-'+y">
+                                        <button type="button" class="block w-full text-left px-4 py-3 rounded-xl text-sm hover:bg-gray-50" @click="year = y; yearOpen = false" x-text="y"></button>
+                                    </template>
+                                </x-site.bottom-sheet>
+                            </div>
+                            <div class="relative">
+                                <button type="button" class="w-full rounded-xl bg-white/10 ring-1 ring-white/20 px-3 py-2.5 text-sm text-left"
+                                        @click="window.matchMedia('(max-width: 1023px)').matches ? monthOpen = true : monthOpen = !monthOpen">
+                                    {{ $report['label'] }}
+                                </button>
+                                <div class="hidden lg:block absolute z-20 mt-1 w-full rounded-xl bg-white text-gray-900 shadow-xl ring-1 ring-gray-200 py-1 max-h-56 overflow-y-auto"
+                                     x-cloak x-show="monthOpen" @click.outside="monthOpen = false">
+                                    <template x-for="m in monthsForYear()" :key="m.value">
+                                        <a :href="'{{ route('site.borrower.plus.reports') }}?month=' + m.value" class="block px-3 py-2 text-sm hover:bg-gray-50" x-text="m.label"></a>
+                                    </template>
+                                </div>
+                                <x-site.bottom-sheet :title="__('plus.reports.pick_month')" open="monthOpen">
+                                    <template x-for="m in monthsForYear()" :key="'m-'+m.value">
+                                        <a :href="'{{ route('site.borrower.plus.reports') }}?month=' + m.value" class="block px-4 py-3 rounded-xl text-sm hover:bg-gray-50" x-text="m.label"></a>
+                                    </template>
+                                </x-site.bottom-sheet>
+                            </div>
+                        </div>
+                    </div>
                 @endif
             </div>
 
@@ -175,7 +216,7 @@
                     </section>
                 @endif
             </div>
-            <p class="px-5 sm:px-8 pb-5 text-[10px] text-gray-400">{{ __('plus.reports.footer', ['month' => $report['label']]) }}</p>
+            <p class="px-5 sm:px-8 pb-5 text-[10px] text-gray-400">{{ __('plus.reports.footer', ['month' => $report['label']]) }} · {{ __('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]) }}</p>
         </div>
 
         <a href="{{ route('site.borrower.plus.reports', ['month' => $currentMonth, 'print' => 1]) }}"

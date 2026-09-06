@@ -3,6 +3,9 @@
     $saleOptions = collect($sale_types)->mapWithKeys(fn ($row, $key) => [$key => $row[$locale]])->all();
     $spendOptions = collect($spend_types)->mapWithKeys(fn ($row, $key) => [$key => $row[$locale]])->all();
     $selectedBusiness = collect($businesses ?? [])->firstWhere('id', (int) ($business_id ?? 0));
+    $cardTitle = $selectedBusiness
+        ? $selectedBusiness->name
+        : __('plus.business.your_businesses');
     $selectedLabel = $selectedBusiness
         ? $selectedBusiness->name
         : __('plus.business.all_businesses');
@@ -13,6 +16,7 @@
         saleOpen: false,
         spendOpen: false,
         bizPickerOpen: false,
+        desktopOpen: false,
         addOpen: {{ ($errors->has('name') || $errors->has('type') || $errors->has('type_other')) ? 'true' : 'false' }},
         resetAmount(id) {
             const el = document.getElementById(id);
@@ -27,18 +31,15 @@
             <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">{{ session('status') }}</div>
         @endif
 
-        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 space-y-3">
-            <p class="text-sm font-semibold text-gray-900">{{ __('plus.business.profiles_title') }}</p>
-
-            <div class="relative" x-data="{ desktopOpen: false }" @keydown.escape.window="desktopOpen = false; bizPickerOpen = false">
+        <x-site.plus-hero kicker="Kopafasta Plus · {{ $period_label }}" :title="$cardTitle" :body="__('plus.business.hero_body')">
+            <div class="relative mb-4" @keydown.escape.window="desktopOpen = false; bizPickerOpen = false">
                 <button type="button"
-                        class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-900 hover:border-brand/30"
+                        class="w-full inline-flex items-center gap-3 rounded-xl bg-white/10 ring-1 ring-white/20 px-4 py-3 text-sm font-semibold text-white hover:bg-white/15"
                         @click="window.matchMedia('(max-width: 1023px)').matches ? bizPickerOpen = true : desktopOpen = !desktopOpen">
                     <span class="flex-1 text-left truncate">{{ $selectedLabel }}</span>
-                    <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                    <svg class="w-4 h-4 text-white/70 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                 </button>
-
-                <div class="hidden lg:block absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl py-1"
+                <div class="hidden lg:block absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl py-1 text-gray-900"
                      x-cloak x-show="desktopOpen" @click.outside="desktopOpen = false">
                     <a href="{{ route('site.borrower.plus.business', ['period' => $period, 'business' => 'all']) }}"
                        class="block px-4 py-2.5 text-sm {{ empty($business_id) ? 'bg-brand-muted text-brand font-semibold' : 'text-gray-800 hover:bg-gray-50' }}">{{ __('plus.business.all_businesses') }}</a>
@@ -49,7 +50,6 @@
                     <button type="button" @click="desktopOpen = false; addOpen = true"
                             class="w-full text-left px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('plus.business.add_new_business') }}</button>
                 </div>
-
                 <x-site.bottom-sheet :title="__('plus.business.choose_business')" open="bizPickerOpen">
                     <div class="space-y-1">
                         <a href="{{ route('site.borrower.plus.business', ['period' => $period, 'business' => 'all']) }}"
@@ -64,47 +64,6 @@
                 </x-site.bottom-sheet>
             </div>
 
-            @if (($businesses ?? collect())->isEmpty())
-                <p class="text-xs text-gray-500">{{ __('plus.business.add_first_hint') }}</p>
-            @endif
-        </div>
-
-        <x-site.action-panel open="addOpen" :title="__('plus.business.add_business')" size="md">
-            <form method="post" action="{{ route('site.borrower.plus.business.profile') }}" data-no-draft class="space-y-4">
-                @csrf
-                <input type="hidden" name="period" value="{{ $period }}">
-                <div>
-                    <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('plus.business.name_placeholder') }}</label>
-                    <input type="text" name="name" required maxlength="120" value="{{ old('name') }}"
-                           placeholder="{{ __('plus.business.name_placeholder') }}"
-                           class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                </div>
-                <div x-data="{ type: @js(old('type', '')), otherText: @js(old('type_other', '')) }" class="space-y-3">
-                    <label class="block text-sm font-semibold text-gray-800">{{ __('plus.business.type_placeholder') }} <span class="text-rose-500">*</span></label>
-                    <div class="space-y-1 max-h-48 overflow-y-auto rounded-xl ring-1 ring-gray-200 p-1.5">
-                        @foreach ($typeOptions as $key => $label)
-                            <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm cursor-pointer hover:bg-brand-muted/50"
-                                   :class="type === '{{ $key }}' ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800'">
-                                <input type="radio" name="type" value="{{ $key }}" x-model="type" class="text-brand focus:ring-brand" required>
-                                <span>{{ $label }}</span>
-                            </label>
-                        @endforeach
-                    </div>
-                    <div x-show="type === 'other'" x-cloak>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('plus.business.type_other_label') }} <span class="text-rose-500">*</span></label>
-                        <input type="text" name="type_other" x-model="otherText" maxlength="80"
-                               :required="type === 'other'"
-                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                    </div>
-                </div>
-                <button type="submit" class="w-full rounded-xl bg-brand text-white px-4 py-3 text-sm font-bold">{{ __('plus.business.save_business') }}</button>
-            </form>
-        </x-site.action-panel>
-
-        <x-site.plus-hero kicker="Kopafasta Plus · {{ $period_label }}" :title="__('plus.business.title')" :body="__('plus.business.hero_body')">
-            @if ($selectedBusiness)
-                <p class="mb-3 text-sm font-semibold text-brand-gold">{{ __('plus.business.for_business', ['name' => $selectedBusiness->name]) }}</p>
-            @endif
             <div class="flex gap-1 rounded-full bg-white/10 p-1 mb-4">
                 @foreach (['today' => __('plus.business.today'), 'week' => __('plus.business.week'), 'month' => __('plus.business.month')] as $key => $label)
                     <a href="{{ route('site.borrower.plus.business', array_filter(['period' => $key, 'business' => $business_id ?: null])) }}"
@@ -142,6 +101,38 @@
                 @endif
             </div>
         </x-site.plus-hero>
+
+        <x-site.action-panel open="addOpen" :title="__('plus.business.add_business')" size="md">
+            <form method="post" action="{{ route('site.borrower.plus.business.profile') }}" data-no-draft class="space-y-4">
+                @csrf
+                <input type="hidden" name="period" value="{{ $period }}">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('plus.business.name_placeholder') }}</label>
+                    <input type="text" name="name" required maxlength="120" value="{{ old('name') }}"
+                           placeholder="{{ __('plus.business.name_placeholder') }}"
+                           class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                </div>
+                <div x-data="{ type: @js(old('type', '')), otherText: @js(old('type_other', '')) }" class="space-y-3">
+                    <label class="block text-sm font-semibold text-gray-800">{{ __('plus.business.type_placeholder') }} <span class="text-rose-500">*</span></label>
+                    <div class="space-y-1 max-h-48 overflow-y-auto rounded-xl ring-1 ring-gray-200 p-1.5">
+                        @foreach ($typeOptions as $key => $label)
+                            <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm cursor-pointer hover:bg-brand-muted/50"
+                                   :class="type === '{{ $key }}' ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800'">
+                                <input type="radio" name="type" value="{{ $key }}" x-model="type" class="text-brand focus:ring-brand" required>
+                                <span>{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <div x-show="type === 'other'" x-cloak>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('plus.business.type_other_label') }} <span class="text-rose-500">*</span></label>
+                        <input type="text" name="type_other" x-model="otherText" maxlength="80"
+                               :required="type === 'other'"
+                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                </div>
+                <button type="submit" class="w-full rounded-xl bg-brand text-white px-4 py-3 text-sm font-bold">{{ __('plus.business.save_business') }}</button>
+            </form>
+        </x-site.action-panel>
 
         @if (count($history_rows))
             @include('site.plus._history-table', [

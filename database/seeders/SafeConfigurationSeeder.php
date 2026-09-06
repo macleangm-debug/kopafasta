@@ -35,6 +35,7 @@ class SafeConfigurationSeeder extends Seeder
             NotificationTemplateSeeder::class,
             PlusLearningSeeder::class,
             KycDocumentTypeSeeder::class,
+            PublicPolicySeeder::class,
         ]);
     }
 }

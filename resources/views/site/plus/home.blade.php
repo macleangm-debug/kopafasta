@@ -109,9 +109,12 @@
                         :href="$roomLocked ? '#' : route('site.borrower.plus.business')"
                         icon="🏪"
                         :title="__('plus.home.business')"
-                        :stat="format_money_compact((float) ($business['week']['sold'] ?? 0))"
-                        :stat-class="(float) ($business['week']['sold'] ?? 0) > 0 ? 'mt-1.5 text-lg font-bold tabular-nums text-emerald-700' : 'mt-1.5 text-lg font-bold tabular-nums text-gray-900'"
-                        :hint="__('plus.business.sold').' · '.__('plus.business.diff').' '.format_money_compact((float) ($business['week']['difference'] ?? 0))"
+                        :stat="($business['businesses'] ?? collect())->firstWhere('id', (int) ($business['business_id'] ?? 0))?->name
+                            ?? (($business['businesses'] ?? collect())->count() > 1
+                                ? __('plus.business.your_businesses')
+                                : (($business['businesses'] ?? collect())->first()?->name ?? __('plus.home.business')))"
+                        :stat-class="'mt-1.5 text-lg font-bold tabular-nums text-gray-900'"
+                        :hint="__('plus.business.sold').' '.format_money_compact((float) ($business['week']['sold'] ?? $business['sold'] ?? 0)).' · '.__('plus.business.diff').' '.format_money_compact((float) ($business['week']['difference'] ?? $business['difference'] ?? 0))"
                         :cta="$roomCta"
                         :locked="$roomLocked"
                     />
@@ -119,8 +122,8 @@
                         :href="$roomLocked ? '#' : route('site.borrower.plus.goals')"
                         icon="🎯"
                         :title="__('plus.home.goals')"
-                        :stat="$leadGoal ? $leadGoal->title.' · '.$leadGoal->progressPercent().'%' : '—'"
-                        :hint="$leadGoal ? __('plus.goals.remaining', ['amount' => format_money_compact($leadGoal->remaining())]) : __('plus.goals.empty')"
+                        :stat="__('plus.goals.active_count', ['count' => (int) (($summary['goals']['active'] ?? collect())->count())])"
+                        :hint="$leadGoal ? $leadGoal->title.' · '.$leadGoal->progressPercent().'%' : __('plus.goals.empty')"
                         :cta="$roomCta"
                         :locked="$roomLocked"
                     />
@@ -128,7 +131,7 @@
                         :href="$roomLocked ? '#' : route('site.borrower.plus.reports')"
                         icon="📊"
                         :title="__('plus.home.reports')"
-                        :stat="now()->locale(app()->getLocale())->translatedFormat('F')"
+                        :stat="$summary['report_label'] ?? now()->locale(app()->getLocale())->translatedFormat('F Y')"
                         :hint="__('plus.home.reports_hint')"
                         :cta="$roomCta"
                         :locked="$roomLocked"
@@ -137,7 +140,7 @@
                         :href="$roomLocked ? '#' : route('site.borrower.plus.offers')"
                         icon="🎁"
                         :title="__('plus.home.offers')"
-                        :stat="__('plus.home.offers_hint', ['count' => (int) $offers])"
+                        :stat="__('plus.home.offers_split', ['available' => (int) $offers, 'claimed' => (int) ($summary['offers_claimed'] ?? 0)])"
                         :cta="$roomCta"
                         :locked="$roomLocked"
                     />

@@ -356,9 +356,47 @@ class PlusController extends Controller
     {
         $customer = $this->requireActivePlus($request, $plus);
 
+        $goalId = null;
+        if ($request->query->has('goal')) {
+            $raw = $request->query('goal');
+            if ($raw === null || $raw === '' || $raw === 'all') {
+                $request->session()->forget('plus.selected_goal_id');
+            } else {
+                $candidate = (int) $raw;
+                $owned = \App\Models\PlusGoal::query()
+                    ->where('customer_id', $customer->id)
+                    ->whereKey($candidate)
+                    ->exists();
+                if ($owned) {
+                    $goalId = $candidate;
+                    $request->session()->put('plus.selected_goal_id', $goalId);
+                } else {
+                    $request->session()->forget('plus.selected_goal_id');
+                }
+            }
+        } else {
+            $candidate = (int) $request->session()->get('plus.selected_goal_id');
+            if ($candidate > 0) {
+                $owned = \App\Models\PlusGoal::query()
+                    ->where('customer_id', $customer->id)
+                    ->whereKey($candidate)
+                    ->exists();
+                $goalId = $owned ? $candidate : null;
+                if (! $owned) {
+                    $request->session()->forget('plus.selected_goal_id');
+                }
+            }
+        }
+
+        $dash = $workspace->goalsDashboard($customer, $goalId);
+        if ($request->boolean('add') && ($dash['selected'] ?? null)) {
+            // Open add-money panel via Alpine initial state in the view.
+            $dash['open_add'] = true;
+        }
+
         return view('site.plus.goals', array_merge(
             ['customer' => $customer],
-            $workspace->goalsDashboard($customer),
+            $dash,
         ));
     }
 
@@ -408,6 +446,10 @@ class PlusController extends Controller
             'amount' => $data['amount'],
         ]);
         app(PlusNudgeService::class)->onGoalProgress($customer, $goal->fresh());
+
+        if ($saved >= (float) $goal->target_amount) {
+            return back()->with('status', __('plus.goals.completed_congrats', ['title' => $goal->title]));
+        }
 
         return back()->with('status', __('plus.saved'));
     }
@@ -481,11 +523,20 @@ class PlusController extends Controller
         foreach ($offers as $offer) {
             $plus->recordOfferEvent($customer, $offer, 'viewed');
         }
+        $claimedMap = $offers->mapWithKeys(fn ($o) => [$o->id => $plus->hasClaimed($customer, $o)]);
+        $claimedIds = \App\Models\PlusOfferEvent::query()
+            ->where('customer_id', $customer->id)
+            ->where('event', 'claimed')
+            ->pluck('plus_offer_id')
+            ->unique()
+            ->all();
+        $claimedOffers = \App\Models\PlusOffer::query()->whereIn('id', $claimedIds)->get();
 
         return view('site.plus.offers', [
             'customer' => $customer,
             'offers' => $offers,
-            'claimed' => $offers->mapWithKeys(fn ($o) => [$o->id => $plus->hasClaimed($customer, $o)]),
+            'claimed' => $claimedMap,
+            'claimedOffers' => $claimedOffers,
         ]);
     }
 
@@ -494,16 +545,20 @@ class PlusController extends Controller
         $customer = $this->requireActivePlus($request, $plus);
         $plus->recordOfferEvent($customer, $offer, 'opened');
 
-        return back();
+        return redirect()->route('site.borrower.plus.offers', ['view' => $offer->id]);
     }
 
     public function claimOffer(Request $request, PlusService $plus, PlusOffer $offer)
     {
         $customer = $this->requireActivePlus($request, $plus);
-        abort_unless($plus->eligibleOffers($customer)->contains('id', $offer->id), 403);
-        $plus->recordOfferEvent($customer, $offer, 'claimed');
+        if (! $plus->hasClaimed($customer, $offer)) {
+            abort_unless($plus->eligibleOffers($customer)->contains('id', $offer->id), 403);
+            $plus->recordOfferEvent($customer, $offer, 'claimed');
+        }
 
-        return back()->with('status', __('plus.offers.claimed'));
+        return redirect()
+            ->route('site.borrower.plus.offers', ['tab' => 'claimed', 'view' => $offer->id])
+            ->with('status', __('plus.offers.claimed'));
     }
 
     public function rewards(Request $request, PlusService $plus)

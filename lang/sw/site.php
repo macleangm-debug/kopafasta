@@ -2,7 +2,7 @@
 
 return [
     'brand' => [
-        'tagline' => 'Mtaji unaosogea kwa kasi yako.',
+        'tagline' => 'Mtaji unaotembea kwa kasi yako.',
     ],
 
     'nav' => [
@@ -23,7 +23,7 @@ return [
     ],
     'hero' => [
         'badge' => 'Suluhisho za mikopo',
-        'title' => 'Mtaji unaosogea kwa kasi yako.',
+        'title' => 'Mtaji unaotembea kwa kasi yako.',
         'subtitle' => 'Mikopo ya simu kwa biashara, mali, na mahitaji ya kila siku — viwango wazi, omba kwa dakika.',
         'welcome_back' => 'Karibu tena',
         'get_started' => 'Anza sasa',
@@ -664,7 +664,7 @@ return [
         ['value' => '24hrs', 'label' => 'Utoaji wa haraka'],
     ],
     'footer' => [
-        'tagline' => 'Mtaji unaosogea kwa kasi yako.',
+        'tagline' => 'Mtaji unaotembea kwa kasi yako.',
         'invest' => 'Wekeza',
         'individual_investor' => 'Mwekezaji binafsi',
         'capital_partner' => 'Mshirika wa mtaji',
