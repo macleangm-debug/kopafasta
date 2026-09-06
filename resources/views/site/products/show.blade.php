@@ -12,6 +12,8 @@
     $faqExtra = array_slice($p['faq'], 3);
     $cadence = app(\App\Services\GroupLendingService::class)->effectiveRepaymentCadence($product);
     $isMonthlyCadence = $cadence === 'monthly';
+    $applicationFee = (float) ($p['fees']['application'] ?? 0);
+    $postApprovalTotal = (float) ($p['fees']['post_approval_total'] ?? 0);
 @endphp
 <x-site.layout
     :title="$productSeo['title']"
@@ -27,112 +29,119 @@
         ],
     ]"
 >
-    {{-- Hero --}}
-    <section class="relative overflow-hidden bg-brand text-white">
-        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
-        <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-            <a href="{{ route('site.products') }}" class="text-sm text-white/70 hover:text-white inline-flex items-center gap-1 mb-6 transition">
+    <section class="relative overflow-hidden premium-gradient">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+            <a href="{{ route('site.products') }}" class="text-sm text-brand hover:underline inline-flex items-center gap-1 mb-5">
                 ← {{ __('site.nav.all_products') }}
             </a>
-            <div class="grid lg:grid-cols-2 gap-10 items-center">
-                <div>
-                    <div class="flex flex-wrap items-center gap-2 mb-4">
-                        <span class="text-[11px] font-mono font-semibold text-brand-gold">{{ $p['code'] }}</span>
-                        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full {{ $isActive ? 'bg-emerald-500/20 text-emerald-100' : 'bg-white/10 text-white/70' }}">
-                            {{ $isActive ? __('site.products.status_active') : __('site.products.status_coming_soon') }}
-                        </span>
-                    </div>
-                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">{{ $p['name'] }}</h1>
-                    <p class="mt-3 text-lg text-brand-gold font-medium">{{ $p['tagline'] }}</p>
-                    <p class="mt-3 text-white/75 leading-relaxed max-w-lg">{{ $p['overview_short'] }}</p>
-                    @if ($isActive)
-                        <a href="{{ auth()->check() ? $applyUrl : $guestApplyUrl }}"
-                           class="mt-8 inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-4 rounded-xl shadow-lg transition">
-                            {{ $isMarketplaceProduct ? __('site.nav.marketplace') : __('site.products.apply_now') }}
-                        </a>
+            <div class="text-left">
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                    <span class="text-[11px] font-mono font-semibold text-brand/70">{{ $p['code'] }}</span>
+                    <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full {{ $isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600' }}">
+                        {{ $isActive ? __('site.products.status_active') : __('site.products.status_coming_soon') }}
+                    </span>
+                </div>
+                <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-brand">{{ $p['name'] }}</h1>
+                <p class="mt-2 text-lg text-brand/80 font-semibold">{{ $p['tagline'] }}</p>
+                <p class="mt-3 text-gray-600 leading-relaxed max-w-2xl">{{ $p['overview_short'] }}</p>
+                @if ($isActive)
+                    <a href="{{ auth()->check() ? $applyUrl : $guestApplyUrl }}"
+                       class="mt-6 inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-bold px-7 py-3.5 rounded-xl shadow-md transition">
+                        {{ $isMarketplaceProduct ? __('site.nav.marketplace') : __('site.products.apply_now') }}
+                    </a>
+                @endif
+            </div>
+
+            <div class="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 text-left shadow-sm">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('site.products.amount') }}</p>
+                    <p class="mt-1.5 text-sm sm:text-base font-bold text-brand tabular-nums">{{ format_money($p['limits']['min_amount'], false, 0) }} – {{ format_money($p['limits']['max_amount'], false, 0) }}</p>
+                </div>
+                <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 text-left shadow-sm">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ loan_product_rate_field_label($product) }}</p>
+                    <p class="mt-1.5 text-sm sm:text-base font-bold text-brand">{{ $p['rate_label'] }}</p>
+                    <p class="text-[10px] text-gray-500 mt-0.5">{{ $p['repayment_frequency_label'] }}</p>
+                </div>
+                <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 text-left shadow-sm">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('site.products.tenure') }}</p>
+                    <p class="mt-1.5 text-sm sm:text-base font-bold tabular-nums">{{ $p['limits']['tenure_min_months'] }}–{{ $p['limits']['tenure_max_months'] }} {{ __('borrower.apply.details.months') }}</p>
+                </div>
+                <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-4 text-left shadow-sm">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('site.product_detail.application_fee') }}</p>
+                    @if ($applicationFee > 0)
+                        <p class="mt-1.5 text-sm sm:text-base font-bold tabular-nums">{{ format_money($applicationFee, false, 0) }}</p>
+                    @elseif ($postApprovalTotal > 0)
+                        <p class="mt-1.5 text-sm sm:text-base font-bold tabular-nums">{{ format_money($postApprovalTotal, false, 0) }}</p>
+                        <p class="text-[10px] text-gray-500 mt-0.5">{{ __('site.product_detail.post_approval_fees') }}</p>
+                    @else
+                        <p class="mt-1.5 text-sm sm:text-base font-bold">{{ $p['processing_time'] }}</p>
+                        <p class="text-[10px] text-gray-500 mt-0.5">{{ __('site.product_detail.processing_time') }}</p>
                     @endif
                 </div>
-                <div class="hidden sm:flex justify-center lg:justify-end">
-                    <x-site.product-illustration :code="$p['code']" size="hero" class="max-w-sm w-full" />
-                </div>
             </div>
         </div>
     </section>
 
-    {{-- Key metrics --}}
-    <section class="bg-[#faf8f5] border-b border-gray-100">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div class="glass-card p-4 sm:p-5 text-center">
-                    <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.limits') }}</div>
-                    <div class="text-sm sm:text-lg font-bold mt-2 text-brand tabular-nums">{{ format_money($p['limits']['min_amount'], false, 0) }} – {{ format_money($p['limits']['max_amount'], false, 0) }}</div>
-                </div>
-                <div class="glass-card p-4 sm:p-5 text-center">
-                    <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.products.tenure') }}</div>
-                    <div class="text-sm sm:text-lg font-bold mt-2 tabular-nums">{{ $p['limits']['tenure_min_months'] }}–{{ $p['limits']['tenure_max_months'] }} mo</div>
-                </div>
-                <div class="glass-card p-4 sm:p-5 text-center">
-                    <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.total_monthly_rate') }}</div>
-                    <div class="text-sm sm:text-lg font-bold mt-2 text-brand">{{ $p['rate_label'] }} / mo</div>
-                </div>
-                <div class="glass-card p-4 sm:p-5 text-center col-span-2 lg:col-span-1">
-                    <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.processing_time') }}</div>
-                    <div class="text-sm sm:text-lg font-bold mt-2">{{ $p['processing_time'] }}</div>
-                </div>
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
+        <div class="grid lg:grid-cols-2 gap-4">
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
+                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.target_audience') }}</h2>
+                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ $p['target_audience'] ?: $p['overview'] }}</p>
             </div>
-
-            @if (! empty($p['monthly_rate_components']))
-                <div class="glass-card p-4 sm:p-5">
-                    <div class="flex flex-wrap items-end justify-between gap-2 mb-3">
-                        <div>
-                            <p class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.monthly_rates_heading') }}</p>
-                            <p class="text-xs text-gray-500 mt-0.5">{{ __('site.product_detail.monthly_rates_hint') }}</p>
-                        </div>
-                        <p class="text-xs font-semibold text-brand">{{ __('site.product_detail.total_monthly_rate') }}: {{ $p['rate_label'] }} / mo</p>
-                    </div>
-                    <div class="grid grid-cols-2 {{ count($p['monthly_rate_components']) > 3 ? 'lg:grid-cols-4' : 'lg:grid-cols-3' }} gap-3">
-                        @foreach ($p['monthly_rate_components'] as $component)
-                            <div class="rounded-xl bg-white/70 ring-1 ring-gray-100 px-3 py-3 text-center">
-                                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">{{ $component['label'] }}</div>
-                                <div class="text-sm sm:text-base font-bold mt-1.5 text-brand tabular-nums">{{ $component['value'] }} <span class="text-xs font-semibold text-gray-500">/ mo</span></div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            @if (! empty($p['highlights']))
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($p['highlights'] as $highlight)
-                        <span class="inline-flex items-center rounded-full bg-white text-brand text-xs font-semibold px-3 py-1.5 ring-1 ring-brand/15">{{ $highlight }}</span>
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
+                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.features') }}</h2>
+                <ul class="mt-2 space-y-2">
+                    @foreach (($p['benefits'] ?: $p['features']) as $benefit)
+                        <li class="flex gap-2 text-sm text-gray-700"><span class="text-brand font-bold">›</span><span>{{ is_array($benefit) ? ($benefit['title'] ?? $benefit['label'] ?? '') : $benefit }}</span></li>
                     @endforeach
-                </div>
-            @endif
+                </ul>
+            </div>
         </div>
-    </section>
 
-    @include('site.products._details-tabs', ['p' => $p])
-
-    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
         <div class="grid lg:grid-cols-3 gap-4">
-            <div class="glass-card p-5">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('seo.how_it_works') }}</h2>
-                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ $p['overview'] }}</p>
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
+                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.eligibility_heading') }}</h2>
+                <ul class="mt-2 space-y-2">
+                    @foreach (($p['eligibility'] ?? []) as $item)
+                        <li class="text-sm text-gray-700">
+                            <span class="font-semibold">{{ is_array($item) ? ($item['label'] ?? '') : $item }}</span>
+                            @if (is_array($item) && filled($item['detail'] ?? null))
+                                <span class="block text-xs text-gray-500 mt-0.5">{{ $item['detail'] }}</span>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
             </div>
-            <div class="glass-card p-5">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('seo.repayment_heading') }}</h2>
-                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ __('seo.repayment_body', [
-                    'frequency' => $p['repayment_frequency_label'],
-                    'min' => $p['limits']['tenure_min_months'],
-                    'max' => $p['limits']['tenure_max_months'],
-                ]) }}</p>
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
+                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.fees_heading') }}</h2>
+                <dl class="mt-2 space-y-2 text-sm">
+                    @if ($applicationFee > 0)
+                        <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('site.product_detail.application_fee') }}</dt><dd class="font-semibold tabular-nums">{{ format_money($applicationFee) }}</dd></div>
+                    @endif
+                    @foreach (($p['fees']['post_approval_lines'] ?? []) as $line)
+                        <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ $line['name'] ?? '' }}</dt><dd class="font-semibold tabular-nums">{{ isset($line['amount']) ? format_money($line['amount']) : '' }}</dd></div>
+                    @endforeach
+                    @if ($applicationFee <= 0 && empty($p['fees']['post_approval_lines']))
+                        <p class="text-gray-600">{{ $p['processing_time'] }}</p>
+                    @endif
+                </dl>
             </div>
-            <div class="glass-card p-5">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('seo.collateral_heading') }}</h2>
-                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ $p['collateral_policy']['body'] ?? __('seo.collateral_not_required') }}</p>
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
+                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.documents_heading') }}</h2>
+                <ul class="mt-2 space-y-2">
+                    @foreach (($p['documents'] ?? []) as $doc)
+                        <li class="text-sm text-gray-700">
+                            <span class="font-semibold">{{ is_array($doc) ? ($doc['name'] ?? $doc['label'] ?? '') : $doc }}</span>
+                            @if (is_array($doc) && filled($doc['detail'] ?? null))
+                                <span class="block text-xs text-gray-500 mt-0.5">{{ $doc['detail'] }}</span>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
             </div>
         </div>
-        <div class="glass-card p-5 mt-4">
+
+        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
             <h2 class="text-sm font-bold text-gray-900">{{ __('seo.how_to_apply') }}</h2>
             <ol class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 @foreach ($p['apply_steps'] ?? [] as $step)
@@ -142,11 +151,15 @@
                     </li>
                 @endforeach
             </ol>
+            @if ($isActive)
+                <a href="{{ auth()->check() ? $applyUrl : $guestApplyUrl }}"
+                   class="mt-5 inline-flex rounded-xl bg-brand text-white font-bold px-6 py-3">{{ __('site.products.apply_now') }}</a>
+            @endif
         </div>
     </section>
 
-    {{-- Calculator (before FAQ for better flow) --}}
-    <section class="premium-gradient border-y border-gray-100 py-12 lg:py-16"
+    {{-- Calculator --}}
+    <section class="premium-gradient border-y border-gray-100 py-10 lg:py-12"
              x-data="productCalculator(@js([
                 'min' => $p['limits']['min_amount'],
                 'max' => $p['limits']['max_amount'],
@@ -157,15 +170,10 @@
                 'cadence' => $cadence,
              ]))">
         <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="glass-card p-6 sm:p-8 ring-2 ring-brand/10">
-                <div class="flex items-start gap-4 mb-6">
-                    <x-site.product-illustration :code="$p['code']" size="sm" class="hidden sm:block shrink-0" />
-                    <div>
-                        <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('site.product_detail.calculator_eyebrow') }}</p>
-                        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{{ __('site.product_detail.calculator') }}</h2>
-                        <p class="mt-1 text-sm text-gray-600">{{ __('site.product_detail.calculator_hint') }}</p>
-                    </div>
-                </div>
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-6 sm:p-8 shadow-sm text-left">
+                <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('site.product_detail.calculator_eyebrow') }}</p>
+                <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{{ __('site.product_detail.calculator') }}</h2>
+                <p class="mt-1 text-sm text-gray-600">{{ __('site.product_detail.calculator_hint') }}</p>
 
                 <div class="mt-6">
                     <div class="flex justify-between text-sm text-gray-600 mb-2">
@@ -178,7 +186,7 @@
                 <div class="mt-6">
                     <div class="flex justify-between text-sm text-gray-600 mb-2">
                         <span>{{ __('site.products.tenure') }}</span>
-                        <span class="font-semibold"><span x-text="tenure"></span> mo</span>
+                        <span class="font-semibold"><span x-text="tenure"></span> {{ __('borrower.apply.details.months') }}</span>
                     </div>
                     <input type="range" :min="config.tmin" :max="config.tmax" step="1" x-model.number="tenure" class="w-full accent-brand">
                 </div>
@@ -196,10 +204,6 @@
                     </div>
                 </div>
 
-                <p class="mt-4 text-xs text-gray-500 text-center">
-                    {{ __('site.products.rate_at_amount') }}: <span class="font-semibold text-brand" x-text="formatRate(currentRate)"></span>
-                </p>
-
                 @if ($isActive)
                     <a href="{{ auth()->check() ? $applyUrl : $guestApplyUrl }}"
                        class="mt-8 inline-flex w-full sm:w-auto items-center justify-center gap-2 bg-brand hover:bg-brand-light text-white font-bold px-8 py-4 rounded-xl transition shadow-md">
@@ -210,94 +214,34 @@
         </div>
     </section>
 
-    {{-- FAQ --}}
-    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12" x-data="{ open: 0, showAll: false }">
-        <h2 class="text-xl sm:text-2xl font-bold text-center mb-6">{{ __('site.product_detail.faq_heading') }}</h2>
+    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10" x-data="{ open: 0, showAll: false }">
+        <h2 class="text-xl sm:text-2xl font-bold text-left mb-6">{{ __('site.product_detail.faq_heading') }}</h2>
         <div class="space-y-3">
             @foreach ($faqVisible as $i => $item)
-                <div class="glass-card overflow-hidden">
+                <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden text-left">
                     <button type="button" @click="open === {{ $i }} ? open = -1 : open = {{ $i }}"
-                            class="w-full px-5 py-4 flex items-center justify-between text-left font-medium text-sm">
-                        <span>{{ $item['q'] }}</span>
-                        <svg :class="open === {{ $i }} ? 'rotate-180' : ''" class="w-5 h-5 text-gray-400 transition shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                            class="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-gray-900">
+                        <span>{{ $item['q'] ?? $item['question'] ?? '' }}</span>
+                        <span class="text-brand" x-text="open === {{ $i }} ? '−' : '+'"></span>
                     </button>
-                    <div x-show="open === {{ $i }}" x-cloak class="px-5 pb-4 text-sm text-gray-600 border-t border-gray-100/80 pt-3">{{ $item['a'] }}</div>
+                    <div x-show="open === {{ $i }}" x-cloak class="px-4 pb-4 text-sm text-gray-600">{{ $item['a'] ?? $item['answer'] ?? '' }}</div>
                 </div>
             @endforeach
             @if (count($faqExtra) > 0)
-                <div x-show="showAll" x-collapse x-cloak class="space-y-3">
+                <div x-show="showAll" x-cloak class="space-y-3">
                     @foreach ($faqExtra as $j => $item)
-                        @php $idx = $j + 3; @endphp
-                        <div class="glass-card overflow-hidden">
-                            <button type="button" @click="open === {{ $idx }} ? open = -1 : open = {{ $idx }}"
-                                    class="w-full px-5 py-4 flex items-center justify-between text-left font-medium text-sm">
-                                <span>{{ $item['q'] }}</span>
-                                <svg :class="open === {{ $idx }} ? 'rotate-180' : ''" class="w-5 h-5 text-gray-400 transition shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                        <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden text-left">
+                            <button type="button" @click="open === {{ $j + 100 }} ? open = -1 : open = {{ $j + 100 }}"
+                                    class="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-gray-900">
+                                <span>{{ $item['q'] ?? $item['question'] ?? '' }}</span>
+                                <span class="text-brand" x-text="open === {{ $j + 100 }} ? '−' : '+'"></span>
                             </button>
-                            <div x-show="open === {{ $idx }}" x-cloak class="px-5 pb-4 text-sm text-gray-600 border-t border-gray-100/80 pt-3">{{ $item['a'] }}</div>
+                            <div x-show="open === {{ $j + 100 }}" x-cloak class="px-4 pb-4 text-sm text-gray-600">{{ $item['a'] ?? $item['answer'] ?? '' }}</div>
                         </div>
                     @endforeach
                 </div>
-                <button type="button" @click="showAll = !showAll"
-                        class="w-full text-sm font-semibold text-brand hover:underline py-2"
-                        x-text="showAll ? @js(__('site.product_detail.show_less')) : @js(__('site.product_detail.show_all_details'))"></button>
+                <button type="button" @click="showAll = !showAll" class="text-sm font-semibold text-brand" x-text="showAll ? '−' : '+'"></button>
             @endif
         </div>
     </section>
-
-    @include('site.products._related-products', ['products' => $otherProducts ?? collect()])
-
-    <script>
-        function productCalculator(config) {
-            return {
-                config,
-                amount: config.min,
-                tenure: config.tmin,
-                resolveMonthlyRate(amount) {
-                    const tiers = this.config.tiers || [];
-                    if (tiers.length) {
-                        const tier = tiers.find(t => amount >= t.min && amount <= t.max);
-                        if (tier) return tier.rate;
-                    }
-                    return this.config.rate || 0;
-                },
-                get currentRate() {
-                    return this.resolveMonthlyRate(Number(this.amount) || 0);
-                },
-                get monthly() {
-                    const principal = Number(this.amount) || 0;
-                    const months = Number(this.tenure) || 1;
-                    const rate = this.currentRate;
-                    return Math.round((principal / months) + (principal * rate));
-                },
-                get weekly() {
-                    const principal = Number(this.amount) || 0;
-                    const months = Number(this.tenure) || 1;
-                    const rate = this.currentRate;
-                    const periods = Math.max(1, Math.round(months * 4.33));
-                    const periodRate = rate / 4;
-                    return Math.round((principal / periods) + (principal * periodRate));
-                },
-                get installment() {
-                    return (this.config.cadence || 'weekly') === 'monthly' ? this.monthly : this.weekly;
-                },
-                get total() {
-                    const principal = Number(this.amount) || 0;
-                    const months = Number(this.tenure) || 1;
-                    const rate = this.currentRate;
-                    if ((this.config.cadence || 'weekly') === 'monthly') {
-                        return Math.round(this.monthly * months);
-                    }
-                    const periods = Math.max(1, Math.round(months * 4.33));
-                    return Math.round(this.weekly * periods);
-                },
-                formatMoney(value) {
-                    return 'TZS ' + Math.round(value).toLocaleString('en-US');
-                },
-                formatRate(rate) {
-                    return (Number(rate) * 100).toFixed(1) + '% / mo';
-                },
-            };
-        }
-    </script>
 </x-site.layout>

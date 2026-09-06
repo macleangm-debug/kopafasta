@@ -48,13 +48,7 @@
 ])>
     <x-site.environment-banner />
 
-    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100">
-        <div class="hidden md:block border-b border-gray-100 bg-[#faf8f5]">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-end gap-3">
-                <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-            </div>
-        </div>
-
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100" @unless($minimal) x-data="{ menuOpen: false, menuView: 'main' }" @endunless>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 grid grid-cols-[minmax(0,1fr)_auto] {{ $minimal ? '' : 'lg:grid-cols-[auto_1fr_auto]' }} items-center gap-2 sm:gap-4">
             @if ($minimal)
                 <span class="flex items-center min-w-0 max-w-[min(100%,11.5rem)] sm:max-w-none shrink">
@@ -81,8 +75,8 @@
                     </button>
                     <div x-cloak x-show="productsOpen" x-transition.opacity @click.outside="productsOpen = false"
                          class="absolute left-1/2 -translate-x-1/2 top-full pt-2 w-80">
-                        <div class="glass-card p-2 max-h-80 overflow-y-auto bg-white shadow-xl ring-1 ring-gray-200/80">
-                            <a href="{{ route('site.products') }}" class="block px-3 py-2 rounded-lg hover:bg-brand-muted text-sm font-semibold text-brand">{{ __('site.nav.all_products') }}</a>
+                        <div class="glass-card p-2 max-h-[min(70vh,28rem)] overflow-y-auto overscroll-contain bg-white shadow-xl ring-1 ring-gray-200/80">
+                            <a href="{{ route('site.products') }}" class="sticky top-0 z-10 block px-3 py-2 rounded-lg bg-white hover:bg-brand-muted text-sm font-semibold text-brand">{{ __('site.nav.all_products') }}</a>
                             @foreach ($navProducts as $navProduct)
                                 <a href="{{ route('site.product', $navProduct->code) }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">
                                     {{ $navProduct->localizedName() }}
@@ -106,11 +100,12 @@
             </nav>
 
             <div class="hidden lg:flex items-center justify-end gap-2">
+                <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 @auth
                     <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
                        class="text-sm font-medium text-gray-700 hover:text-brand">{{ __('site.auth.welcome_back') }}</a>
                     <form method="POST" action="{{ route('site.logout') }}">@csrf
-                        <button class="text-sm text-gray-500 hover:text-gray-900">{{ __('site.auth.sign_in') === 'Sign in' ? 'Log out' : 'Toka' }}</button>
+                        <button class="text-sm text-gray-500 hover:text-gray-900">{{ app()->getLocale() === 'sw' ? 'Toka' : 'Log out' }}</button>
                     </form>
                 @else
                     <a href="{{ route('site.login') }}" class="text-sm font-semibold text-brand border border-brand/30 hover:border-brand px-4 py-2 rounded-lg transition">{{ __('site.nav.log_in') }}</a>
@@ -141,31 +136,77 @@
                         {{ __('site.auth.welcome_back') }}
                     </a>
                 @endguest
-                <div class="relative" data-mobile-menu>
-                    <button type="button" data-mobile-menu-toggle class="p-2 rounded-md hover:bg-gray-100" aria-label="Menu" aria-expanded="false">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-                    </button>
-                    <div data-mobile-menu-panel hidden
-                         class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] bg-white shadow-xl ring-1 ring-gray-200 max-h-[80vh] overflow-y-auto z-50 rounded-xl">
-                        <div class="px-4 py-4 flex flex-col gap-1 text-sm">
-                            <div class="px-2 py-2 border-b border-gray-100 mb-1">
-                                <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                <button type="button"
+                        @click="menuOpen = true; menuView = 'main'"
+                        class="p-2 rounded-md hover:bg-gray-100"
+                        :aria-expanded="menuOpen ? 'true' : 'false'"
+                        aria-label="{{ __('site.nav.menu') }}">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+
+                <x-site.action-panel open="menuOpen" :title="__('site.nav.menu')" size="md">
+                    <div class="space-y-1">
+                        <div x-show="menuView === 'main'" class="space-y-1">
+                            <div class="pb-3 mb-2 border-b border-gray-100">
+                                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('site.locale.language') }}</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    @foreach (['en' => ['label' => __('site.locale.english'), 'flag' => '🇬🇧'], 'sw' => ['label' => __('site.locale.swahili'), 'flag' => '🇹🇿']] as $code => $meta)
+                                        <form method="POST" action="{{ route('site.locale.update') }}" data-no-draft>
+                                            @csrf
+                                            <input type="hidden" name="locale" value="{{ $code }}">
+                                            <input type="hidden" name="redirect" value="{{ url()->full() }}">
+                                            <button type="submit"
+                                                    class="w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold ring-1 transition {{ $siteLocale === $code ? 'bg-brand-muted text-brand ring-brand/20' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50' }}">
+                                                <span>{{ $meta['flag'] }}</span>
+                                                <span class="uppercase">{{ $code }}</span>
+                                            </button>
+                                        </form>
+                                    @endforeach
+                                </div>
                             </div>
-                            <a href="{{ route('site.products') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.all_products') }}</a>
-                            <a href="{{ route('site.marketplace') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.marketplace') }}</a>
-                            <a href="{{ route('site.plus') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.plus') }}</a>
-                            <a href="{{ route('site.rewards') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.rewards') }}</a>
-                            <a href="{{ route('site.card.verify') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.verify') }}</a>
-                            <a href="{{ route('site.affiliate') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.affiliate') }}</a>
-                            <a href="{{ route('site.how-it-works') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.how_it_works.title') }}</a>
+
+                            <button type="button"
+                                    @click="menuView = 'products'"
+                                    class="w-full flex items-center justify-between px-3 py-3 rounded-xl text-sm font-semibold text-gray-900 hover:bg-brand-muted">
+                                <span>{{ __('site.nav.products') }}</span>
+                                <svg class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M7 5l5 5-5 5"/></svg>
+                            </button>
+                            <a href="{{ route('site.marketplace') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.nav.marketplace') }}</a>
+                            <a href="{{ route('site.plus') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.nav.plus') }}</a>
+                            <a href="{{ route('site.rewards') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.nav.rewards') }}</a>
+                            <a href="{{ route('site.card.verify') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.nav.verify') }}</a>
+                            <a href="{{ route('site.affiliate') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.nav.affiliate') }}</a>
+                            <a href="{{ route('site.how-it-works') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.how_it_works.title') }}</a>
                             @auth
                                 <div class="border-t border-gray-200 pt-3 mt-2">
-                    <form method="POST" action="{{ route('site.logout') }}">@csrf<button class="px-2 py-2 text-left text-gray-500 w-full hover:bg-gray-50 rounded-lg">{{ __('borrower.sign_out') }}</button></form>
+                                    <form method="POST" action="{{ route('site.logout') }}">@csrf
+                                        <button class="w-full text-left px-3 py-3 rounded-xl text-sm text-gray-500 hover:bg-gray-50">{{ __('borrower.sign_out') }}</button>
+                                    </form>
                                 </div>
                             @endauth
                         </div>
+
+                        <div x-show="menuView === 'products'" x-cloak class="space-y-1">
+                            <button type="button"
+                                    @click="menuView = 'main'"
+                                    class="w-full flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold text-brand hover:bg-brand-muted">
+                                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M12 5l-5 5 5 5"/></svg>
+                                {{ __('site.nav.back') }}
+                                <span class="text-gray-400 font-normal">·</span>
+                                <span>{{ __('site.nav.products') }}</span>
+                            </button>
+                            <a href="{{ route('site.products') }}" class="block px-3 py-3 rounded-xl text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('site.nav.all_products') }}</a>
+                            @foreach ($navProducts as $navProduct)
+                                <a href="{{ route('site.product', $navProduct->code) }}" class="block px-3 py-3 rounded-xl text-sm text-gray-800 hover:bg-gray-50">
+                                    {{ $navProduct->localizedName() }}
+                                    @if ($navProduct->status !== 'active')
+                                        <span class="text-[10px] text-gray-400 uppercase">· {{ __('site.products.status_coming_soon') }}</span>
+                                    @endif
+                                </a>
+                            @endforeach
+                        </div>
                     </div>
-                </div>
+                </x-site.action-panel>
                 @endif
             </div>
         </div>
@@ -257,38 +298,6 @@
     <x-site.confirm-modal name="default" />
     <x-site.feedback-modal name="default" />
     @stack('scripts')
-    <script>
-        (function () {
-            const menu = document.querySelector('[data-mobile-menu]');
-            if (!menu) return;
-
-            const toggle = menu.querySelector('[data-mobile-menu-toggle]');
-            const panel = menu.querySelector('[data-mobile-menu-panel]');
-            if (!toggle || !panel) return;
-
-            function setOpen(open) {
-                panel.hidden = !open;
-                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            }
-
-            toggle.addEventListener('click', function (event) {
-                event.stopPropagation();
-                setOpen(panel.hidden);
-            });
-
-            document.addEventListener('click', function (event) {
-                if (!menu.contains(event.target)) {
-                    setOpen(false);
-                }
-            });
-
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape') {
-                    setOpen(false);
-                }
-            });
-        })();
-    </script>
     <script>
         document.addEventListener('alpine:init', () => {
             window.confirmForm = (form, detail = {}) => {

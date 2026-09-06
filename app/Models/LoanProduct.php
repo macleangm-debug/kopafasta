@@ -98,14 +98,17 @@ class LoanProduct extends Model
     }
 
     /**
-     * Card blurb (max ~2 lines). Prefer locale short description, then English short.
+     * Card blurb (max ~2 lines). Prefer locale short description.
+     * Do not fall back to English short copy on Swahili pages (avoids EN leakage).
      */
     public function localizedShortDescription(?string $locale = null): ?string
     {
         $locale = $locale ?? app()->getLocale();
 
-        if ($locale === 'sw' && filled($this->short_description_sw)) {
-            return (string) $this->short_description_sw;
+        if ($locale === 'sw') {
+            return filled($this->short_description_sw)
+                ? (string) $this->short_description_sw
+                : null;
         }
 
         if (filled($this->short_description)) {

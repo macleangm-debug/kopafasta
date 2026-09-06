@@ -26,7 +26,36 @@ class AssetMarketplaceController extends Controller
     /** @return list<array<string, mixed>> */
     public function homepageFeatured(int $limit = 6): array
     {
-        return $this->loadAssets(null, ['sort' => 'title'])->take($limit)->values()->all();
+        $items = $this->loadAssets(null, ['sort' => 'title'])->values()->all();
+        if ($items === []) {
+            return [];
+        }
+
+        // Rotate among eligible published assets so homepage discovery is not a permanent FIFO.
+        // Order is stable within a session+hour bucket (no mid-render reshuffle / duplicates).
+        $seed = crc32((string) session()->getId().'|'.now()->format('Y-m-d-H'));
+        usort($items, function (array $a, array $b) use ($seed): int {
+            $ka = crc32($seed.'|'.(string) ($a['id'] ?? $a['slug'] ?? $a['title'] ?? ''));
+            $kb = crc32($seed.'|'.(string) ($b['id'] ?? $b['slug'] ?? $b['title'] ?? ''));
+
+            return $ka <=> $kb;
+        });
+
+        $unique = [];
+        $seen = [];
+        foreach ($items as $item) {
+            $key = (string) ($item['id'] ?? $item['slug'] ?? spl_object_id((object) $item));
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $unique[] = $item;
+            if (count($unique) >= $limit) {
+                break;
+            }
+        }
+
+        return $unique;
     }
 
     public function index(Request $request): View

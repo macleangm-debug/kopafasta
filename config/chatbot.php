@@ -29,8 +29,8 @@ return [
             'keywords' => ['market', 'asset', 'mali', 'vehicle', 'gari'],
             'question_en' => 'Tell me about the asset marketplace',
             'question_sw' => 'Niambie kuhusu soko la mali',
-            'answer_en'   => 'Our Asset Marketplace lets you finance vehicles and equipment with transparent deposits and weekly instalments.',
-            'answer_sw'   => 'Soko letu la mali linakuwezesha kufadhili magari na vifaa kwa amana na malipo ya kila wiki.',
+            'answer_en'   => 'Our Asset Marketplace lets you finance vehicles and equipment with clear financing terms and flexible instalments.',
+            'answer_sw'   => 'Soko letu la mali linakuwezesha kufadhili magari na vifaa kupitia ufadhili wazi na malipo yanayofaa.',
         ],
         [
             'key'      => 'repayment',

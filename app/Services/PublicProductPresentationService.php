@@ -30,7 +30,7 @@ class PublicProductPresentationService
             'icon' => $theme['icon'] ?? '💼',
             'theme' => $theme['theme'] ?? 'slate',
             'category_label' => loan_product_type_label($product),
-            'tagline' => $theme['label'] ?? loan_product_type_label($product),
+            'tagline' => $this->localizedThemeLabel($theme, $product),
             'description' => (string) ($product->description ?? ''),
             'overview' => $this->overview($product),
             'overview_short' => \Illuminate\Support\Str::limit($this->overview($product), 160),
@@ -64,8 +64,7 @@ class PublicProductPresentationService
             'penalties' => $this->penalties($product),
             'documents' => $this->documents($product),
             'product_specific' => $this->productSpecific($code),
-            'processing_time' => config("loan_product_apply.processing_time.{$code}")
-                ?? config('loan_product_apply.processing_time.default'),
+            'processing_time' => $this->processingTimeLabel($product),
             'faq' => $this->faq($product),
             'requires_collateral' => (bool) $product->requires_collateral,
             'requires_guarantor' => (bool) $product->requires_guarantor,
@@ -74,6 +73,22 @@ class PublicProductPresentationService
             'apply_steps' => __('site.how_it_works.steps'),
             'tiers' => $this->tiers->tiersForProduct($product),
         ];
+    }
+
+    private function processingTimeLabel(LoanProduct $product): string
+    {
+        $code = strtoupper((string) $product->code);
+        $key = 'site.product_detail.processing_time_value.'.$code;
+        if (Lang::has($key)) {
+            return (string) __($key);
+        }
+
+        if (Lang::has('site.product_detail.processing_time_value.default')) {
+            return (string) __('site.product_detail.processing_time_value.default');
+        }
+
+        return (string) (config("loan_product_apply.processing_time.{$code}")
+            ?? config('loan_product_apply.processing_time.default'));
     }
 
     private function repaymentFrequencyLabel(LoanProduct $product): string
@@ -117,7 +132,37 @@ class PublicProductPresentationService
             return (string) __($key);
         }
 
-        return (string) ($product->description ?? '');
+        $short = $product->localizedShortDescription();
+        if (filled($short)) {
+            return (string) $short;
+        }
+
+        $locale = app()->getLocale();
+        if ($locale === 'sw') {
+            // Avoid English description leakage on Swahili pages when no SW short copy exists.
+            return (string) __('site.product_detail.overview.default', [
+                'name' => $product->localizedName(),
+            ]);
+        }
+
+        if (filled($product->description ?? null)) {
+            return (string) $product->description;
+        }
+
+        return (string) __('site.product_detail.overview.default', [
+            'name' => $product->localizedName(),
+        ]);
+    }
+
+    /** @param  array<string, mixed>  $theme */
+    private function localizedThemeLabel(array $theme, LoanProduct $product): string
+    {
+        $locale = app()->getLocale();
+        if ($locale === 'sw' && filled($theme['label_sw'] ?? null)) {
+            return (string) $theme['label_sw'];
+        }
+
+        return (string) ($theme['label'] ?? loan_product_type_label($product));
     }
 
     private function targetAudience(LoanProduct $product): string
