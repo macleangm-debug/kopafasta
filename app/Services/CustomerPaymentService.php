@@ -285,6 +285,40 @@ class CustomerPaymentService
         }
 
         $amount = max(500, round($amount, 2));
+
+        // Reuse an open rehearsal gate instead of minting a new obligation each click.
+        $existing = CustomerPayment::query()
+            ->whereNull('customer_id')
+            ->where('status', 'awaiting_payment')
+            ->whereNull('provider_ref')
+            ->where(function ($q) {
+                $q->where('provider_meta->integration_live_test', true)
+                    ->orWhere('provider_meta->integration_rehearsal', true);
+            })
+            ->orderByDesc('id')
+            ->first();
+
+        if ($existing) {
+            $meta = array_merge((array) ($existing->provider_meta ?? []), [
+                'awaiting_collection' => true,
+                'integration_live_test' => true,
+                'integration_rehearsal' => true,
+                'integration_partner' => 'payin',
+                'triggered_by' => $triggeredBy ?? auth()->id(),
+                'description' => 'Integration rehearsal / PayIn live test',
+                'reused_open_rehearsal_at' => now()->toIso8601String(),
+            ]);
+            unset($meta['last_collect_error'], $meta['last_collect_error_at']);
+            $existing->update([
+                'amount' => $amount,
+                'mobile_number' => $phone,
+                'created_by' => $triggeredBy ?? auth()->id() ?? $existing->created_by,
+                'provider_meta' => $meta,
+            ]);
+
+            return $existing->fresh();
+        }
+
         $reference = $this->generateReference();
         $resolved = $this->accounts->resolve('registration_fee', 'mobile_money', null);
 
@@ -671,7 +705,7 @@ class CustomerPaymentService
         $payment = $payment->fresh(['customer']);
 
         abort_unless($payment->payment_method === 'mobile_money', 422);
-        abort_unless(in_array($payment->status, ['awaiting_payment', 'processing'], true), 422);
+        abort_unless(in_array($payment->status, ['awaiting_payment', 'processing', 'rejected'], true), 422);
 
         if ($payment->isVerified()) {
             return $payment;
@@ -683,6 +717,7 @@ class CustomerPaymentService
         unset($meta['last_collect_error'], $meta['last_collect_error_at'], $meta['initiated_at']);
 
         // Keep the last entered / attempted MSISDN so Insure It can push that number again.
+        // Rejected webhook outcomes must return to the same obligation (no duplicate payment).
         $payment->update([
             'status' => 'awaiting_payment',
             'provider' => null,

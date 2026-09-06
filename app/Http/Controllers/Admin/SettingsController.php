@@ -680,7 +680,7 @@ class SettingsController extends Controller
             'payUrl' => route('admin.settings.integrations.live-test.payment.pay', $payment),
             'retryUrl' => route('admin.settings.integrations.live-test.payment.retry', $payment),
             'statusUrl' => route('admin.settings.integrations.live-test.payment.status', $payment),
-            'gateUrl' => route('admin.settings.integrations.live-test.payment', $payment),
+            'gateUrl' => route('admin.settings.integrations.live-test.payment.gate', $payment),
             'defaultPhone' => $payment->mobile_number,
             'successUrl' => route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration']),
             'showPromo' => false,
@@ -707,24 +707,27 @@ class SettingsController extends Controller
             try {
                 $payment = $payments->switchToBankTransfer($payment);
             } catch (\Throwable $e) {
-                return redirect()
-                    ->route('admin.settings.integrations.live-test.payment', $payment)
-                    ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.bank_unavailable'));
+                return $this->liveTestPaymentRedirectOrJson(
+                    $request,
+                    $payment,
+                    $payments,
+                    error: $e->getMessage() ?: __('borrower.payment_waiting.bank_unavailable'),
+                );
             }
 
-            return redirect()
-                ->route('admin.settings.integrations.live-test.payment', $payment)
-                ->with('status', __('borrower.payment_waiting.switched_to_bank'));
+            return $this->liveTestPaymentSurfaceResponse($request, $payment, $payments);
         }
 
         $mobileNumber = \App\Support\PhoneNumber::fromRequest($request, 'mobile_number', $payment->customer?->country_code ?? 'TZ')
             ?: ($data['mobile_number'] ?? $payment->mobile_number);
 
         if (! filled($mobileNumber) || ! \App\Services\CustomerPaymentService::validateMobileNumber((string) $mobileNumber)) {
-            return redirect()
-                ->route('admin.settings.integrations.live-test.payment', $payment)
-                ->with('collect_error', __('borrower.payments.mobile_number_required'))
-                ->with('show_collect_failed', true);
+            return $this->liveTestPaymentCollectFailed(
+                $request,
+                $payment,
+                $payments,
+                __('borrower.payments.mobile_number_required'),
+            );
         }
 
         try {
@@ -733,20 +736,17 @@ class SettingsController extends Controller
             $raw = collect($e->errors())->flatten()->first();
             $message = \App\Services\CustomerPaymentService::localizeProviderMessage($raw, $mobileNumber);
 
-            return redirect()
-                ->route('admin.settings.integrations.live-test.payment', $payment)
-                ->with('collect_error', $message)
-                ->with('show_collect_failed', true);
+            return $this->liveTestPaymentCollectFailed($request, $payment, $payments, $message);
         }
 
-        return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+        return $this->liveTestPaymentSurfaceResponse($request, $payment, $payments);
     }
 
     public function retryIntegrationLiveTestPayment(
         Request $request,
         \App\Models\CustomerPayment $payment,
         \App\Services\CustomerPaymentService $payments,
-    ): \Illuminate\Http\RedirectResponse {
+    ): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse {
         abort_unless(data_get($payment->provider_meta, 'integration_live_test'), 404);
 
         $data = $request->validate([
@@ -755,13 +755,26 @@ class SettingsController extends Controller
 
         $payment = $payment->fresh();
         if ($payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true)) {
-            return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+            return $this->liveTestPaymentSurfaceResponse($request, $payment, $payments);
+        }
+
+        if ($payment->status === 'rejected') {
+            try {
+                $payment = $payments->returnToPaymentGate($payment);
+            } catch (\Throwable $e) {
+                return $this->liveTestPaymentCollectFailed(
+                    $request,
+                    $payment,
+                    $payments,
+                    $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'),
+                );
+            }
         }
 
         if ($payment->status === 'processing' && filled($payment->provider_ref)) {
             $payment = $payments->refreshFromProvider($payment);
             if ($payment->isVerified() || $payment->status === 'processing') {
-                return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+                return $this->liveTestPaymentSurfaceResponse($request, $payment, $payments);
             }
         }
 
@@ -775,13 +788,34 @@ class SettingsController extends Controller
             $raw = collect($e->errors())->flatten()->first();
             $message = \App\Services\CustomerPaymentService::localizeProviderMessage($raw, $phone);
 
-            return redirect()
-                ->route('admin.settings.integrations.live-test.payment', $payment)
-                ->with('collect_error', $message)
-                ->with('show_collect_failed', true);
+            return $this->liveTestPaymentCollectFailed($request, $payment, $payments, $message);
         }
 
-        return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+        return $this->liveTestPaymentSurfaceResponse($request, $payment, $payments);
+    }
+
+    public function gateIntegrationLiveTestPayment(
+        Request $request,
+        \App\Models\CustomerPayment $payment,
+        \App\Services\CustomerPaymentService $payments,
+    ): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse {
+        abort_unless(data_get($payment->provider_meta, 'integration_live_test'), 404);
+
+        try {
+            if (in_array($payment->status, ['processing', 'rejected'], true)
+                || ($payment->awaitsCollection() && filled(data_get($payment->provider_meta, 'last_collect_error')))) {
+                $payment = $payments->returnToPaymentGate($payment);
+            }
+        } catch (\Throwable $e) {
+            return $this->liveTestPaymentCollectFailed(
+                $request,
+                $payment,
+                $payments,
+                $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'),
+            );
+        }
+
+        return $this->liveTestPaymentSurfaceResponse($request, $payment->fresh(), $payments);
     }
 
     public function statusIntegrationLiveTestPayment(
@@ -795,6 +829,53 @@ class SettingsController extends Controller
         }
 
         return response()->json($payments->surfaceState($payment->fresh()));
+    }
+
+    protected function liveTestPaymentSurfaceResponse(
+        Request $request,
+        \App\Models\CustomerPayment $payment,
+        \App\Services\CustomerPaymentService $payments,
+    ): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse {
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json($payments->surfaceState($payment->fresh()));
+        }
+
+        return redirect()->route('admin.settings.integrations.live-test.payment', $payment);
+    }
+
+    protected function liveTestPaymentCollectFailed(
+        Request $request,
+        \App\Models\CustomerPayment $payment,
+        \App\Services\CustomerPaymentService $payments,
+        string $message,
+    ): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse {
+        $fresh = $payment->fresh();
+        if ($request->wantsJson() || $request->ajax()) {
+            $payload = $payments->surfaceState($fresh);
+            $payload['ok'] = false;
+            $payload['message'] = $message;
+            $payload['state'] = 'failed';
+
+            return response()->json($payload, 422);
+        }
+
+        return redirect()
+            ->route('admin.settings.integrations.live-test.payment', $payment)
+            ->with('collect_error', $message)
+            ->with('show_collect_failed', true);
+    }
+
+    protected function liveTestPaymentRedirectOrJson(
+        Request $request,
+        \App\Models\CustomerPayment $payment,
+        \App\Services\CustomerPaymentService $payments,
+        ?string $error = null,
+    ): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse {
+        if ($error) {
+            return $this->liveTestPaymentCollectFailed($request, $payment, $payments, $error);
+        }
+
+        return $this->liveTestPaymentSurfaceResponse($request, $payment, $payments);
     }
 
     // ---------------- PayIn payments ----------------

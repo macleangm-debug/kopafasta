@@ -73,6 +73,16 @@ class PayInWebhookController extends Controller
 
         if ($isFailed) {
             if ($payment->isPending() || $payment->status === 'processing') {
+                $reason = (string) ($payload['reason'] ?? $payload['error'] ?? $payload['message'] ?? '');
+                if ($reason !== '') {
+                    $meta['last_collect_error'] = CustomerPaymentService::localizeProviderMessage(
+                        $reason,
+                        $payment->mobile_number
+                            ?: data_get($payment->provider_meta, 'attempted_phone')
+                            ?: data_get($payment->provider_meta, 'phone')
+                    );
+                    $meta['last_collect_error_at'] = now()->toIso8601String();
+                }
                 $payment->update([
                     'status' => 'rejected',
                     'provider_meta' => $meta,

@@ -1,17 +1,21 @@
 @php
     $isPayInWaiting = $payment->isPayInWaiting();
     $isReadyToPay = $payment->awaitsCollection();
-    $showCollectFailed = (bool) session('show_collect_failed');
+    $isTerminalFailed = $payment->status === 'rejected';
+    $showCollectFailed = (bool) session('show_collect_failed') || $isTerminalFailed;
     $attemptedPhone = data_get($payment->provider_meta, 'attempted_phone')
         ?: data_get($payment->provider_meta, 'phone')
         ?: $payment->mobile_number;
-    $rawCollectError = session('collect_error') ?: data_get($payment->provider_meta, 'last_collect_error');
+    $rawCollectError = session('collect_error')
+        ?: data_get($payment->provider_meta, 'last_collect_error')
+        ?: data_get($payment->provider_meta, 'last_payload.reason')
+        ?: data_get($payment->provider_meta, 'last_payload.error');
     $collectError = filled($rawCollectError)
         ? \App\Services\CustomerPaymentService::localizeProviderMessage(
             $rawCollectError,
             app(\App\Services\CustomerPaymentService::class)->maskPhoneForDisplay(is_string($attemptedPhone) ? $attemptedPhone : null) ?: $attemptedPhone,
         )
-        : null;
+        : ($isTerminalFailed ? __('borrower.payment_waiting.failed') : null);
     $canSwitchToBank = $canSwitchToBank ?? false;
     $bankAccounts = $bankAccounts ?? [];
     $bankDetails = $bankDetails ?? null;
@@ -43,7 +47,7 @@
 @endif
 
 <div class="max-w-xl mx-auto space-y-5">
-@if ($isPayInWaiting || $isReadyToPay || $showCollectFailed)
+@if ($isPayInWaiting || $isReadyToPay || $showCollectFailed || $isTerminalFailed)
     <x-site.psp-payment-flow
         :payment="$payment"
         :bank-accounts="$bankAccounts"
@@ -61,8 +65,8 @@
         :success-url="$successUrl"
         :gate-url="$gateUrl"
         :retry-url="$retryUrl"
-        :initial-state="$showCollectFailed ? 'failed' : ($isPayInWaiting ? 'waiting' : 'details')"
-        :error-message="$showCollectFailed ? $collectError : null"
+        :initial-state="$showCollectFailed || $isTerminalFailed ? 'failed' : ($isPayInWaiting ? 'waiting' : 'details')"
+        :error-message="($showCollectFailed || $isTerminalFailed) ? $collectError : null"
         :overlay="empty($adminLivePreview ?? false)"
         :simulate-url="$simulateUrl ?? null"
     />

@@ -308,6 +308,23 @@ class BorrowerPaymentController extends Controller
             return $this->paymentSurfaceResponse($request, $payment, $payments);
         }
 
+        if ($payment->status === 'rejected') {
+            try {
+                $payment = $payments->returnToPaymentGate($payment);
+            } catch (\Throwable $e) {
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'),
+                    ], 422);
+                }
+
+                return redirect()
+                    ->route('site.borrower.payments.show', $payment)
+                    ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'));
+            }
+        }
+
         // Still at the PSP: refresh, then do not start a second collection.
         if ($payment->status === 'processing' && filled($payment->provider_ref)) {
             $payment = $payments->refreshFromProvider($payment);
@@ -349,7 +366,10 @@ class BorrowerPaymentController extends Controller
         abort_unless($payment->customer_id === $customer->id, 403);
 
         try {
-            $payment = $payments->returnToPaymentGate($payment);
+            if (in_array($payment->status, ['processing', 'rejected'], true)
+                || ($payment->awaitsCollection() && filled(data_get($payment->provider_meta, 'last_collect_error')))) {
+                $payment = $payments->returnToPaymentGate($payment);
+            }
         } catch (\Throwable $e) {
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([

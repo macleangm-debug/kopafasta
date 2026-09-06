@@ -87,6 +87,7 @@
         paidTitle: @js($surface['title'] ?: $copy['successTitle']),
         amountLabel: @js($amountLabel),
         phoneMasked: @js($phoneMasked),
+        paymentReference: @js($payment->reference),
         successUrl: @js($successUrl),
         payUrl: @js($formAction),
         statusUrl: @js($statusUrl),
@@ -134,8 +135,8 @@
             </div>
 
             <div x-show="state === 'waiting'" x-cloak class="pt-4 space-y-5 text-center">
-                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
-                    <svg class="h-6 w-6 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-muted ring-2 ring-brand/15 animate-pulse">
+                    <svg class="h-7 w-7 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                     </svg>
@@ -144,17 +145,26 @@
                     <p class="text-sm text-gray-600">{{ __('borrower.payment_waiting.sent_to') }}</p>
                     <p class="text-lg font-extrabold tabular-nums" x-text="phoneMasked || @js($phoneMasked ?: '—')"></p>
                 </div>
+                <p class="text-sm text-gray-700 leading-relaxed max-w-sm mx-auto">{{ __('borrower.payment_waiting.prompt') }}</p>
                 <div class="rounded-2xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-left space-y-2">
                     <div class="flex justify-between gap-3 text-sm">
                         <span class="text-gray-500">{{ __('borrower.payment_waiting.amount') }}</span>
                         <span class="font-bold tabular-nums text-brand" x-text="amountLabel">{{ $amountLabel }}</span>
                     </div>
+                    <div class="flex justify-between gap-3 text-sm">
+                        <span class="text-gray-500">{{ __('borrower.payment_waiting.reference') }}</span>
+                        <span class="font-mono font-semibold text-gray-900" x-text="paymentReference || @js($payment->reference)">{{ $payment->reference }}</span>
+                    </div>
                 </div>
-                <p class="text-sm font-semibold text-gray-800">{{ __('borrower.payment_waiting.waiting_confirmation') }}</p>
+                <ol class="text-left text-sm text-gray-700 space-y-2 max-w-sm mx-auto">
+                    <li class="flex gap-2"><span class="text-brand font-bold shrink-0">1.</span> {{ __('borrower.payment_waiting.step_ussd') }}</li>
+                    <li class="flex gap-2"><span class="text-brand font-bold shrink-0">2.</span> {{ __('borrower.payment_waiting.step_pin') }}</li>
+                    <li class="flex gap-2"><span class="text-brand font-bold shrink-0">3.</span> {{ __('borrower.payment_waiting.step_auto') }}</li>
+                </ol>
+                <p class="text-sm font-semibold text-brand">{{ __('borrower.payment_waiting.waiting_confirmation') }}</p>
                 <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden" aria-hidden="true">
                     <div class="h-full w-1/3 rounded-full bg-brand kf-payment-progress"></div>
                 </div>
-                <p class="text-sm text-gray-700">{{ __('borrower.payment_waiting.stay_hint') }}</p>
                 <p class="text-xs text-gray-500">{{ __('borrower.payment_waiting.slow_hint') }}</p>
                 <button type="button" @click="changeNumber()" :disabled="busy"
                         class="rounded-xl bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 text-sm font-bold px-5 py-2.5 disabled:opacity-60">
@@ -179,6 +189,16 @@
                     </svg>
                 </div>
                 <p class="text-sm text-gray-600" x-text="@js($copy['successPaid'])"></p>
+                <div class="rounded-2xl bg-emerald-50/70 ring-1 ring-emerald-100 px-4 py-3 text-left space-y-2">
+                    <div class="flex justify-between gap-3 text-sm">
+                        <span class="text-gray-500">{{ __('borrower.payment_waiting.amount') }}</span>
+                        <span class="font-bold tabular-nums text-brand" x-text="amountLabel">{{ $amountLabel }}</span>
+                    </div>
+                    <div class="flex justify-between gap-3 text-sm">
+                        <span class="text-gray-500">{{ __('borrower.payment_waiting.reference') }}</span>
+                        <span class="font-mono font-semibold text-gray-900" x-text="paymentReference || @js($payment->reference)">{{ $payment->reference }}</span>
+                    </div>
+                </div>
                 <a :href="successUrl" class="inline-flex w-full justify-center rounded-xl bg-brand text-white text-sm font-bold px-5 py-3">
                     {{ __('borrower.celebration.cta_continue') }}
                 </a>

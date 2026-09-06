@@ -1222,6 +1222,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings/integrations/live-test/payments/{payment}', [SettingsController::class, 'previewIntegrationPaymentGate'])->name('settings.integrations.live-test.payment');
         Route::post('settings/integrations/live-test/payments/{payment}/pay', [SettingsController::class, 'payIntegrationLiveTestPayment'])->name('settings.integrations.live-test.payment.pay');
         Route::post('settings/integrations/live-test/payments/{payment}/retry', [SettingsController::class, 'retryIntegrationLiveTestPayment'])->name('settings.integrations.live-test.payment.retry');
+        Route::post('settings/integrations/live-test/payments/{payment}/gate', [SettingsController::class, 'gateIntegrationLiveTestPayment'])->name('settings.integrations.live-test.payment.gate');
         Route::get('settings/integrations/live-test/payments/{payment}/status', [SettingsController::class, 'statusIntegrationLiveTestPayment'])->name('settings.integrations.live-test.payment.status');
         Route::put('settings/integrations/{partner}/billing', [SettingsController::class, 'saveIntegrationBilling'])->name('settings.integrations.billing');
         Route::get('settings/integrations/{partner}', [SettingsController::class, 'showIntegrationPartner'])->name('settings.integrations.partner');

@@ -2,7 +2,7 @@
 
     {{-- HERO --}}
     <section class="relative overflow-hidden premium-gradient">
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-20">
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
             @include($landingHeroPartial ?? 'site.home._hero-a')
         </div>
     </section>
@@ -16,9 +16,12 @@
     @endif
 
     {{-- KOPAFASTA PLUS --}}
-    <section class="py-14 lg:py-18 bg-white">
+    <section class="py-12 lg:py-14 bg-white">
         <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('site.plus.teaser_kicker') }}</p>
+            <p class="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-brand font-bold mb-2">
+                <span class="text-brand-gold tracking-[-0.16em]" aria-hidden="true">›››</span>
+                {{ __('site.plus.teaser_kicker') }}
+            </p>
             <h2 class="text-2xl sm:text-4xl font-bold text-gray-900">{{ __('site.plus.teaser_title') }}</h2>
             <p class="mt-3 text-lg text-gray-600">{{ __('site.plus.hero_title') }}</p>
             <p class="mt-2 text-gray-600">{{ __('site.plus.teaser_body') }}</p>
@@ -27,7 +30,7 @@
     </section>
 
     {{-- MARKETPLACE --}}
-    <section class="premium-gradient py-14 lg:py-18 border-y border-gray-100/80">
+    <section class="premium-gradient py-12 lg:py-14 border-y border-gray-100/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
                 <div>
@@ -61,23 +64,11 @@
         </div>
     </section>
 
-    {{-- STATS --}}
-    <section class="bg-brand text-white py-10 sm:py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 text-center">
-            @foreach (__('site.stats') as $i => $stat)
-                <div class="{{ $i === 3 ? 'hidden lg:block' : '' }}">
-                    <div class="text-xl sm:text-3xl font-bold">{{ $stat['value'] }}</div>
-                    <div class="text-xs sm:text-sm text-white/70 mt-1">{{ $stat['label'] }}</div>
-                </div>
-            @endforeach
-        </div>
-    </section>
-
     {{-- AFFILIATE TEASER --}}
-    <section class="py-14 bg-white">
+    <section class="py-12 bg-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <span class="text-4xl mb-4 block" aria-hidden="true">🤝</span>
-            <h2 class="text-2xl sm:text-3xl font-bold text-brand">{{ __('site.affiliate.hero_title') }}</h2>
+            <p class="inline-flex items-center gap-2 text-brand-gold font-black tracking-[-0.16em] text-2xl" aria-hidden="true">›››</p>
+            <h2 class="mt-2 text-2xl sm:text-3xl font-bold text-brand">{{ __('site.affiliate.hero_title') }}</h2>
             <p class="mt-2 text-gray-600 max-w-md mx-auto text-sm sm:text-base">{{ __('site.affiliate.hero_body') }}</p>
             <a href="{{ route('site.affiliate') }}" class="mt-5 inline-flex items-center gap-2 bg-brand text-white font-semibold px-6 py-3 rounded-xl hover:bg-brand-light transition shadow-md">
                 {{ __('site.affiliate.cta_apply') }}

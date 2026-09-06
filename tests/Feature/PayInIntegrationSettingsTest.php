@@ -709,6 +709,67 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->assertNull(Setting::get('integrations.live_verified.payin'));
     }
 
+    public function test_admin_live_test_pay_ajax_returns_waiting_surface_state(): void
+    {
+        Setting::setMany([
+            'payin.enabled' => true,
+            'payin.environment' => 'sandbox',
+            'payin.api_key' => 'pk_test',
+            'payin.api_secret' => 'sk_test',
+            'payments.gateway_mode' => 'live',
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $payment = \App\Models\CustomerPayment::create([
+            'reference' => 'PAY-LIVE-AJAX-1',
+            'customer_id' => null,
+            'payment_type' => 'registration_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 1000,
+            'currency' => 'TZS',
+            'status' => 'awaiting_payment',
+            'mobile_number' => '255715222132',
+            'provider_meta' => [
+                'integration_live_test' => true,
+                'integration_rehearsal' => true,
+                'integration_partner' => 'payin',
+                'awaiting_collection' => true,
+            ],
+        ]);
+
+        $payIn = \Mockery::mock(PayInService::class)->makePartial();
+        $payIn->shouldReceive('isConfigured')->andReturn(true);
+        $payIn->shouldReceive('isLiveCollectionEnabled')->andReturn(true);
+        $payIn->shouldReceive('normalizePhone')->andReturn('255715222132');
+        $payIn->shouldReceive('normalizeOperator')->andReturn(null);
+        $payIn->shouldReceive('collect')->once()->andReturn([
+            'ok' => true,
+            'request_ref' => 'PAYREF-AJAX-1',
+            'status' => 'processing',
+            'operator' => 'Tigo Pesa',
+            'message' => 'Collection accepted.',
+            'raw' => [],
+            'idempotency_key' => 'idem-ajax-1',
+        ]);
+        $this->app->instance(PayInService::class, $payIn);
+
+        $this->actingAs($admin, 'admin')
+            ->withHeaders([
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])
+            ->post(route('admin.settings.integrations.live-test.payment.pay', $payment), [
+                'payment_method' => 'mobile_money',
+                'mobile_number' => '255715222132',
+            ])
+            ->assertOk()
+            ->assertJsonPath('state', 'waiting')
+            ->assertJsonPath('reference', 'PAY-LIVE-AJAX-1')
+            ->assertJsonPath('status', 'processing');
+
+        $this->assertSame('processing', $payment->fresh()->status);
+    }
+
     public function test_admin_live_test_pay_operator_failure_stays_on_same_obligation(): void
     {
         Setting::setMany([

@@ -7,6 +7,7 @@ export function registerPspPaymentFlow(Alpine) {
         paidTitle: cfg.paidTitle || '',
         amountLabel: cfg.amountLabel || '',
         phoneMasked: cfg.phoneMasked || '',
+        paymentReference: cfg.paymentReference || '',
         successUrl: cfg.successUrl || '',
         payUrl: cfg.payUrl || '',
         statusUrl: cfg.statusUrl || '',
@@ -143,6 +144,7 @@ export function registerPspPaymentFlow(Alpine) {
             if (!data || typeof data !== 'object') return;
             if (data.amount_label) this.amountLabel = data.amount_label;
             if (data.phone_masked) this.phoneMasked = data.phone_masked;
+            if (data.reference) this.paymentReference = data.reference;
             if (data.title) this.paidTitle = data.title;
             if (data.redirect_url) this.successUrl = data.redirect_url;
             if (data.message) this.message = data.message;
