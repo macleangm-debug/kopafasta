@@ -29,8 +29,8 @@ return [
             'keywords' => ['fee', 'fees', 'ada', 'application fee', 'charges'],
             'question_en' => 'What fees apply?',
             'question_sw' => 'Ada zipi zinatumika?',
-            'answer_en' => 'Application and other product fees are shown on each product page from Settings. There is no single public fee for every product — check the product you want.',
-            'answer_sw' => 'Ada za ombi na ada nyingine zinaonyeshwa kwenye ukurasa wa kila bidhaa kutoka Mipangilio. Hakuna ada moja kwa bidhaa zote — angalia bidhaa unayotaka.',
+            'answer_en' => 'Fees depend on the selected product and stage. Choose a loan product for the current Settings-backed summary rather than a full catalogue dump.',
+            'answer_sw' => 'Ada zinategemea bidhaa na hatua. Chagua bidhaa ya mkopo kwa muhtasari wa sasa kutoka Mipangilio badala ya orodha nzima.',
         ],
         [
             'key' => 'guarantor',

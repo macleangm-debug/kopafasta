@@ -119,3 +119,37 @@ if (! function_exists('brand_title')) {
         return $page.' — '.brand_name();
     }
 }
+
+if (! function_exists('social_links')) {
+    /**
+     * Enabled social destinations from company settings.
+     *
+     * @return list<array{platform: string, url: string}>
+     */
+    function social_links(): array
+    {
+        $rows = class_exists(\App\Models\Setting::class)
+            ? (\App\Models\Setting::get('company.social_links') ?: [])
+            : [];
+        if (! is_array($rows) || $rows === []) {
+            $rows = [
+                ['platform' => 'instagram', 'url' => 'https://www.instagram.com/kopafasta/?hl=en', 'enabled' => true, 'sort' => 1],
+                ['platform' => 'facebook', 'url' => 'https://www.facebook.com/kopafasta/', 'enabled' => true, 'sort' => 2],
+            ];
+        }
+
+        return collect($rows)
+            ->filter(fn ($row) => is_array($row)
+                && ! empty($row['enabled'])
+                && filled($row['url'] ?? null)
+                && filter_var($row['url'], FILTER_VALIDATE_URL))
+            ->sortBy(fn ($row) => (int) ($row['sort'] ?? 0))
+            ->map(fn ($row) => [
+                'platform' => strtolower((string) $row['platform']),
+                'url' => (string) $row['url'],
+            ])
+            ->values()
+            ->all();
+    }
+}
+

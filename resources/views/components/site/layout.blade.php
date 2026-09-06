@@ -219,19 +219,30 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-5">
                 <div class="lg:col-span-2">
                     <x-site.brand-mark variant="light" size="lg" :showSubtitle="false" />
-                    <p class="text-sm text-gray-400 max-w-xs mt-3">{{ __('site.footer.tagline') }}</p>
-                    <p class="text-sm text-brand-gold/90 max-w-sm mt-3 font-medium leading-snug">
+                    <p class="text-sm text-white/80 max-w-xs mt-3">{{ __('site.footer.tagline') }}</p>
+                    <p class="text-sm text-brand-gold max-w-sm mt-3 font-medium leading-snug">
                         {{ __('site.footer.ownership', ['legal_name' => brand('legal_name')]) }}
                     </p>
-                    <div class="mt-4 space-y-1 text-sm">
-                        <p class="text-[11px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('site.footer.complaints_heading') }}</p>
+                    <div class="mt-6 rounded-2xl bg-white/8 ring-1 ring-white/15 px-4 py-4 space-y-2">
+                        <p class="text-xs uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('site.footer.complaints_heading') }}</p>
                         @foreach (support_phones() as $phone)
-                            <a href="tel:{{ preg_replace('/\s+/', '', $phone) }}" class="block text-gray-300 hover:text-brand-gold transition">{{ $phone }}</a>
+                            <a href="tel:{{ preg_replace('/\s+/', '', $phone) }}" class="block text-base text-white font-semibold hover:text-brand-gold transition">{{ $phone }}</a>
                         @endforeach
                         @foreach (support_emails() as $email)
-                            <a href="mailto:{{ $email }}" class="block text-gray-300 hover:text-brand-gold transition">{{ $email }}</a>
+                            <a href="mailto:{{ $email }}" class="block text-sm text-white/90 hover:text-brand-gold transition">{{ $email }}</a>
                         @endforeach
                     </div>
+                    @if (count(social_links()) > 0)
+                        <div class="mt-5 flex flex-wrap gap-3">
+                            @foreach (social_links() as $social)
+                                <a href="{{ $social['url'] }}" target="_blank" rel="noopener noreferrer"
+                                   class="inline-flex items-center justify-center size-10 rounded-full bg-white/10 ring-1 ring-white/20 text-white text-xs font-bold uppercase hover:bg-brand-gold hover:text-brand transition"
+                                   aria-label="{{ ucfirst($social['platform']) }}">
+                                    {{ strtoupper(substr($social['platform'], 0, 2)) }}
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
                 <div>
                     <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.nav.products') }}</h4>
@@ -252,7 +263,6 @@
                         <li><a href="{{ route('site.partners.apply', 'debt_collector') }}" class="hover:text-brand-gold transition">{{ __('site.footer.enroll_partner') }}</a></li>
                         <li><a href="{{ route('site.affiliate') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_affiliate') }}</a></li>
                         <li><a href="{{ route('site.card.verify') }}" class="hover:text-brand-gold transition">{{ __('site.footer.verify_card') }}</a></li>
-                        <li><a href="{{ route('site.affiliate.verify.index') }}" class="hover:text-brand-gold transition">{{ __('site.footer.verify_affiliate') }}</a></li>
                         <li><a href="{{ route('site.login.partner') }}" class="hover:text-brand-gold transition">{{ __('site.auth.partner_portal') }}</a></li>
                     </ul>
                 </div>
@@ -265,19 +275,24 @@
                         <li><a href="{{ route('site.faq') }}" class="hover:text-brand-gold transition">{{ __('site.footer.faq') }}</a></li>
                         <li><a href="{{ route('site.support') }}" class="hover:text-brand-gold transition">{{ __('site.footer.support') }}</a></li>
                         <li><a href="{{ route('site.feedback') }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>
-                        <li><a href="mailto:{{ brand('support_email') }}" class="hover:text-brand-gold transition">{{ __('site.nav.contact') }}</a></li>
+                    </ul>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-300 mt-6 mb-3 font-bold">{{ __('site.footer.legal_policies') }}</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="{{ route('site.legal.terms') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.terms') }}</a></li>
+                        <li><a href="{{ route('site.legal.privacy') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.privacy') }}</a></li>
+                        <li><a href="{{ route('site.responsible-lending') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.responsible_lending') }}</a></li>
+                        <li><a href="{{ route('site.legal.complaints') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.complaints_heading') }}</a></li>
+                        <li><a href="{{ route('site.legal') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.legal') }}</a></li>
                     </ul>
                 </div>
             </div>
-            <div class="border-t border-white/10 py-5 text-xs text-gray-500">
+            <div class="border-t border-white/10 py-5 text-sm text-gray-400">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <span class="text-center sm:text-left">
-                        &copy; {{ date('Y') }} {{ brand('legal_name') }}.
-                    </span>
-                    <span class="flex items-center gap-4">
-                        <a href="{{ route('site.legal.terms') }}" class="hover:text-brand-gold transition">{{ __('site.footer.terms') }}</a>
-                        <a href="{{ route('site.legal.privacy') }}" class="hover:text-brand-gold transition">{{ __('site.footer.privacy') }}</a>
-                        <a href="{{ route('site.legal') }}" class="hover:text-brand-gold transition">Legal</a>
+                    <span class="text-center sm:text-left">&copy; {{ date('Y') }} {{ brand('legal_name') }}.</span>
+                    <span class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+                        <a href="{{ route('site.legal.terms') }}" class="text-white/85 hover:text-brand-gold transition font-medium py-1">{{ __('site.footer.terms') }}</a>
+                        <a href="{{ route('site.legal.privacy') }}" class="text-white/85 hover:text-brand-gold transition font-medium py-1">{{ __('site.footer.privacy') }}</a>
+                        <a href="{{ route('site.legal') }}" class="text-white/85 hover:text-brand-gold transition font-medium py-1">{{ __('site.footer.legal') }}</a>
                     </span>
                 </div>
             </div>

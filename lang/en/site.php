@@ -109,6 +109,8 @@ return [
         'tab_contact' => 'Contact',
         'tab_location' => 'Location',
         'tab_documents' => 'Documents',
+        'tab_review' => 'Review',
+        'review_body' => 'Check your details and documents, accept the conduct declaration, then submit. Confirmation stays on this page.',
         'next' => 'Continue',
         'back' => 'Back',
         'partner_type' => 'Partner type',
@@ -286,6 +288,28 @@ return [
     'how_it_works' => [
         'title' => 'How it works',
         'subtitle' => 'From sign-up to disbursement in four clear steps.',
+
+        'journey_title' => 'Your lending journey',
+        'journey_subtitle' => 'The real Kopafasta flow from registration to repayment.',
+        'step_label' => 'Step :num',
+        'journey' => [
+            'register_title' => 'Register',
+            'register_body' => 'Create your borrower account and complete the profile information required for lending.',
+            'product_title' => 'Choose product',
+            'product_body' => 'Pick an eligible loan product with amounts, tenure and rates from live Settings.',
+            'apply_title' => 'Apply',
+            'apply_body' => 'Complete the guided application. Guarantor, collateral or valuation steps appear only when required.',
+            'screening_title' => 'Screening / decision',
+            'screening_body' => 'Affordability, identity, credit and security checks run through the existing screening engines.',
+            'offer_title' => 'Offer',
+            'offer_body' => 'If approved, you receive a clear offer to review and accept before contracting.',
+            'conditions_title' => 'Complete requirements',
+            'conditions_body' => 'Pay applicable post-approval fees and satisfy security, insurance or GPS conditions where configured.',
+            'disburse_title' => 'Disbursement',
+            'disburse_body' => 'Funds move Queued → Processing → Released. Only Released activates the loan.',
+            'repay_title' => 'Repay',
+            'repay_body' => 'Follow your schedule from Payments. Early repayment and arrears follow configured rules.',
+        ],
         'cta' => 'Start your journey',
         'steps' => [
             ['title' => 'Register', 'body' => 'Create your account in under a minute with your phone number and a secure PIN.', 'icon' => '📱'],
@@ -408,8 +432,9 @@ return [
             'roadmap_hint' => 'Tanzania to East & Central Africa',
         ],
         'next_eyebrow' => 'Go deeper',
-        'next_title' => 'Explore the brand story.',
+        'next_title' => 'See how we started',
         'next_body' => 'Founding, trust, impact, and our expansion roadmap live here — so the homepage stays simple while the story stays strong.',
+        'story_cta' => 'See how we started',
         'cta_contact' => 'Talk to us',
         'cta_capital' => 'Partner with us',
 
@@ -641,7 +666,7 @@ return [
     ],
 
     'footer' => [
-        'tagline' => 'Tanzania\'s mobile-first microfinance.',
+        'tagline' => 'Capital that moves at your pace.',
         'invest' => 'Invest',
         'individual_investor' => 'Individual investor',
         'capital_partner' => 'Capital partner',
@@ -659,8 +684,11 @@ return [
         'support' => 'Support center',
         'feedback' => 'Send feedback',
         'terms' => 'Terms',
+        'responsible_lending' => 'Responsible lending',
+        'legal_policies' => 'Legal & Policies',
+        'legal' => 'Legal',
         'privacy' => 'Privacy',
-        'ownership' => 'This Digital Lending Platform is owned or operated by :legal_name',
+        'ownership' => 'This lending platform is owned or operated by :legal_name',
         'complaints_heading' => 'Complaints & queries',
     ],
 
@@ -844,6 +872,8 @@ return [
         'email' => 'Email address',
         'phone' => 'Phone number',
         'submit' => 'Submit feedback',
+        'review_body' => 'Review your message, then confirm to send it to the Kopafasta support team.',
+        'confirm_submit' => 'Confirm and send',
         'success' => 'Thank you — your feedback was received. Our team will review it shortly.',
         'categories' => [
             'complaint' => 'Complaint',
@@ -1007,7 +1037,18 @@ return [
         'optional' => 'Optional supporting document',
         ],
         'fees' => [
+            'of_principal' => 'of principal',
+            'rule_based' => 'Quoted at application from configured rules',
             'post_approval_default' => 'Standard post-approval fees apply based on loan amount.',
+        ],
+        'fee_names' => [
+            'loan_origination_fee' => 'Loan origination fee',
+            'insurance_premium' => 'Insurance premium',
+            'disbursement_processing_fee' => 'Disbursement processing fee',
+            'ORIG_FEE' => 'Loan origination fee',
+            'INS_FEE' => 'Insurance premium',
+            'DISB_FEE' => 'Disbursement processing fee',
+            'GPS' => 'GPS / tracking',
         ],
         'faq' => [
             'default' => [
@@ -1058,6 +1099,21 @@ return [
         'journey_title' => 'Start the capital partner application',
         'journey_body' => 'Continue to the existing capital-partner registration form. Fields and review flow are the same engine used by operations today.',
         'disclosure' => 'Illustrative only until your partnership agreement and activation are completed. This page does not constitute an offer to the public.',
+        'partner_kind' => 'Partner type',
+        'kind_individual' => 'Individual',
+        'kind_organisation' => 'Organisation',
+        'org_name' => 'Legal / organisation name',
+        'org_type' => 'Organisation type',
+        'contact_name' => 'Primary contact name',
+        'contact_role' => 'Role / title',
+        'country' => 'Country',
+        'commitment' => 'Indicative commitment band',
+        'address' => 'Address',
+        'review_submit' => 'Review application',
+        'review_title' => 'Confirm capital partner application',
+        'review_body' => 'We will create a pending capital-partner account for review. Activation is not automatic.',
+        'confirm_submit' => 'Submit application',
+        'pending_status' => 'Your capital partner application is pending review. You can sign in, but funding stays locked until activation.',
     ],
 
     'affiliate' => [
@@ -2145,7 +2201,7 @@ return [
         'benefit_behaviour_title' => 'Behaviour insights',
         'benefit_behaviour_body' => 'See patterns in how you use money so guidance fits your real habits.',
         'benefit_offers_title' => 'Offers & rewards',
-        'benefit_offers_body' => 'Unlock Plus offers and rewards tied to healthy money habits — not borrowing.',
+        'benefit_offers_body' => 'Unlock Plus offers and rewards tied to healthy money habits.',
         'benefit_learning_body' => 'Practical lessons and Monthly Plus Club guidance in one place.',
         'includes' => [
             'Money tools',
@@ -2180,4 +2236,25 @@ return [
         'catalog_title' => 'What points can unlock',
         'cta' => 'Create your account',
     ],
+
+    'responsible_lending' => [
+        'title' => 'Responsible lending',
+        'meta' => 'How Kopafasta assesses affordability, discloses fees, and treats customers fairly.',
+        'intro' => 'We lend only when the product, price and repayment plan are suitable for the customer.',
+        'principles' => [
+            'Transparent pricing and product terms from Settings.',
+            'Affordability assessment before offer.',
+            'Fair treatment, clear disclosures and privacy.',
+            'Complaints channels that are easy to reach.',
+        ],
+        'fees' => 'Application and other charges follow the selected product configuration. Percentage-based charges are shown as rules, not invented fixed amounts.',
+        'repayment' => 'Repay through your borrower Payments area according to your schedule. Early repayment follows product rules.',
+        'arrears' => 'If you miss a payment we communicate clearly and follow configured grace and recovery stages.',
+        'complaints' => 'Use Complaints & Queries in the footer or Support to raise an issue.',
+        'privacy' => 'Customer information is handled under our Privacy Policy and applicable data-protection rules.',
+        'more' => 'Detailed internal Lending Policy is controlled for governance and regulatory use — not published in full on the marketing site.',
+        'cta_products' => 'Browse loan products',
+        'cta_support' => 'Contact support',
+    ],
+
 ];

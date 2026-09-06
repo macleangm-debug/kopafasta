@@ -176,6 +176,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/legal/aml-kyc', [PageController::class, 'aml'])->name('legal.aml');
     Route::get('/legal/complaints', [PageController::class, 'complaints'])->name('legal.complaints');
     Route::get('/legal/cookies', [PageController::class, 'cookies'])->name('legal.cookies');
+    Route::get('/responsible-lending', \App\Http\Controllers\Site\ResponsibleLendingController::class)->name('responsible-lending');
     Route::get('/support', [SupportCenterController::class, 'index'])->name('support');
     Route::get('/feedback', [FeedbackController::class, 'index'])->name('feedback');
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.post');
@@ -208,9 +209,11 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/verify/member/{memberNo}', [MemberVerificationController::class, 'show'])->name('member.verify');
     Route::get('/v/p/{partnerNo}', [CardVerificationController::class, 'showPartner'])->name('short.partner');
     Route::get('/v/{memberNo}', [MemberVerificationController::class, 'show'])->name('short.member');
-    Route::get('/verify/affiliate', [AffiliateVerificationController::class, 'index'])->name('affiliate.verify.index');
-    Route::post('/verify/affiliate', [AffiliateVerificationController::class, 'lookup'])->name('affiliate.verify.lookup');
-    Route::get('/verify/affiliate/{code}', [AffiliateVerificationController::class, 'show'])->name('affiliate.verify');
+    Route::get('/verify/affiliate', fn () => redirect()->route('site.card.verify', ['type' => 'affiliate'], 301))->name('affiliate.verify.index');
+    Route::post('/verify/affiliate', fn () => redirect()->route('site.card.verify.lookup'))->name('affiliate.verify.lookup');
+    Route::get('/verify/affiliate/{code}', function (string $code) {
+        return redirect()->route('site.card.verify', ['type' => 'affiliate', 'number' => $code], 301);
+    })->name('affiliate.verify');
 
     // Public guarantor invitation (guest + logged-in users must both reach this page)
     Route::get('/guarantor-request/{token}', [PublicGuarantorController::class, 'show'])->name('guarantor.show');
@@ -1255,6 +1258,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/underwriting', [SettingsController::class, 'saveUnderwriting'])->name('settings.underwriting.save');
         Route::get('settings/legal', [SettingsController::class, 'legal'])->name('settings.legal');
         Route::put('settings/legal', [SettingsController::class, 'saveLegal'])->name('settings.legal.save');
+        Route::get('settings/governance', [\App\Http\Controllers\Admin\GovernancePolicyController::class, 'index'])->name('settings.governance');
+        Route::get('settings/governance/lending-policy', [\App\Http\Controllers\Admin\GovernancePolicyController::class, 'lendingPolicy'])->name('settings.governance.lending-policy');
+        Route::post('settings/governance/lending-policy/approve', [\App\Http\Controllers\Admin\GovernancePolicyController::class, 'approveLendingPolicy'])->name('settings.governance.lending-policy.approve');
+        Route::put('settings/governance/social', [\App\Http\Controllers\Admin\GovernancePolicyController::class, 'saveSocial'])->name('settings.governance.social.save');
         Route::get('settings/signatories', [SignatoryController::class, 'index'])->name('settings.signatories.index');
         Route::get('settings/signatories/create', [SignatoryController::class, 'create'])->name('settings.signatories.create');
         Route::post('settings/signatories', [SignatoryController::class, 'store'])->name('settings.signatories.store');

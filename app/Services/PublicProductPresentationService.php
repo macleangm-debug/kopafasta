@@ -262,43 +262,86 @@ class PublicProductPresentationService
         return Lang::get('site.product_detail.faq.default', []);
     }
 
-    /** @return array{total: float, detail: string, lines: list<array{name: string, amount: float}>} */
+    /** @return array{total: float|null, detail: string, lines: list<array{name: string, display: string, basis: string}>} */
     private function postApprovalSummary(LoanProduct $product): array
     {
         $fees = $product->postApprovalFees()->where('is_active', true)->orderBy('sort_order')->get();
-        $principal = (float) $product->min_amount;
-        $postApproval = app(PostApprovalFeeService::class);
-
         $lines = [];
-        $total = 0.0;
+
         foreach ($fees as $fee) {
-            $amount = $postApproval->calculateAmount($fee, $principal);
-            $total += $amount;
-            $lines[] = ['name' => $fee->name, 'amount' => $amount];
+            $lines[] = $this->formatFeeLine(
+                (string) $fee->name,
+                (string) ($fee->fee_type ?? 'fixed'),
+                (float) $fee->amount,
+                (string) ($fee->code ?? '')
+            );
         }
 
         if ($lines === []) {
             $catalog = app(FeeCatalogService::class)->postApprovalFees();
             foreach ($catalog as $fee) {
-                $lines[] = [
-                    'name' => $fee->name,
-                    'amount' => $fee->basis === 'percentage'
-                        ? round($principal * ((float) $fee->amount / 100), 2)
-                        : (float) $fee->amount,
-                ];
+                $basis = (string) ($fee->basis ?? 'fixed');
+                $lines[] = $this->formatFeeLine(
+                    (string) $fee->name,
+                    $basis === 'percentage' ? 'percent' : $basis,
+                    (float) $fee->amount,
+                    (string) ($fee->code ?? '')
+                );
             }
-            $total = collect($lines)->sum('amount');
         }
 
         $detail = $lines === []
             ? __('site.product_detail.fees.post_approval_default')
-            : collect($lines)->map(fn (array $l) => $l['name'].' ('.format_money($principal).')')->join(' · ');
+            : collect($lines)->pluck('display')->filter()->join(' · ');
 
         return [
-            'total' => round($total, 2),
+            'total' => null,
             'detail' => $detail,
             'lines' => $lines,
         ];
+    }
+
+    /** @return array{name: string, display: string, basis: string} */
+    private function formatFeeLine(string $name, string $type, float $amount, string $code = ''): array
+    {
+        $label = $this->localizedFeeName($name, $code);
+        $type = strtolower($type);
+        if ($type === 'gps' || in_array(strtoupper($code), ['GPS', 'GPS_BUNDLE', 'GPS_DEVICE'], true)) {
+            return [
+                'name' => $label,
+                'basis' => 'rule',
+                'display' => __('site.product_detail.fees.rule_based'),
+            ];
+        }
+        if (in_array($type, ['percent', 'percentage'], true)) {
+            return [
+                'name' => $label,
+                'basis' => 'percent',
+                'display' => rtrim(rtrim(number_format($amount, 2, '.', ''), '0'), '.').'% '.__('site.product_detail.fees.of_principal'),
+            ];
+        }
+
+        return [
+            'name' => $label,
+            'basis' => 'fixed',
+            'display' => format_money($amount),
+        ];
+    }
+
+    private function localizedFeeName(string $name, string $code = ''): string
+    {
+        $codeKey = 'site.product_detail.fee_names.'.strtoupper($code);
+        if ($code !== '' && Lang::has($codeKey)) {
+            return (string) __($codeKey);
+        }
+
+        $slug = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '_', $name) ?? ''));
+        $nameKey = 'site.product_detail.fee_names.'.$slug;
+        if ($slug !== '' && Lang::has($nameKey)) {
+            return (string) __($nameKey);
+        }
+
+        return $name;
     }
 
     /** @return array{grace_days: int, rate_percent: float, basis: string, basis_label: string, cap_percent: float} */

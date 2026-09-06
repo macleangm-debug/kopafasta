@@ -38,6 +38,7 @@ return [
         ['KYC rules', 'admin.settings.kyc', 'kyc'],
         ['Identity verification', 'admin.settings.identity', 'identity'],
         ['AML thresholds', 'admin.settings.aml', 'aml'],
+        ['Governance & Policies', 'admin.settings.governance', 'governance', 'lending policy responsible lending social links'],
     ],
     'Integrations' => [
         ['Integrations hub', 'admin.settings.integrations', 'integrations'],

@@ -28,19 +28,25 @@
                 </a>
 
                 <div class="mb-6 space-y-2" x-data="{ roleOpen: false, methodOpen: false, method: @js($authMethod) }">
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="hidden lg:grid grid-cols-2 gap-2">
                         <a href="{{ route('site.login') }}"
-                           class="inline-flex items-center justify-between rounded-xl ring-1 px-3 py-2.5 text-sm font-semibold {{ ($partnerPortal ?? false) ? 'ring-gray-200 text-gray-700 bg-white' : 'ring-brand/30 bg-brand-muted text-brand' }}">
-                            <span>{{ __('site.auth.account_type_borrower') }}</span>
-                            @unless ($partnerPortal ?? false)<span class="text-brand">▾</span>@endunless
+                           class="inline-flex items-center justify-center rounded-xl ring-1 px-3 py-2.5 text-sm font-semibold {{ ($partnerPortal ?? false) ? 'ring-gray-200 text-gray-700 bg-white' : 'ring-brand/30 bg-brand-muted text-brand' }}">
+                            {{ __('site.auth.account_type_borrower') }}
                         </a>
                         <a href="{{ route('site.login.partner') }}"
-                           class="inline-flex items-center justify-between rounded-xl ring-1 px-3 py-2.5 text-sm font-semibold {{ ($partnerPortal ?? false) ? 'ring-brand/30 bg-brand-muted text-brand' : 'ring-gray-200 text-gray-700 bg-white' }}">
-                            <span>{{ __('site.auth.account_type_partner') }}</span>
-                            @if ($partnerPortal ?? false)<span class="text-brand">▾</span>@endif
+                           class="inline-flex items-center justify-center rounded-xl ring-1 px-3 py-2.5 text-sm font-semibold {{ ($partnerPortal ?? false) ? 'ring-brand/30 bg-brand-muted text-brand' : 'ring-gray-200 text-gray-700 bg-white' }}">
+                            {{ __('site.auth.account_type_partner') }}
                         </a>
                     </div>
-                    <div class="lg:hidden">
+                    <div class="lg:hidden space-y-2">
+                        <button type="button" @click="roleOpen = true" class="w-full inline-flex items-center justify-between rounded-xl ring-1 ring-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800">
+                            <span>{{ ($partnerPortal ?? false) ? __('site.auth.account_type_partner') : __('site.auth.account_type_borrower') }}</span>
+                            <span class="text-brand">▾</span>
+                        </button>
+                        <x-site.action-panel open="roleOpen" :title="__('site.auth.sign_in')" size="md">
+                            <a href="{{ route('site.login') }}" class="block w-full text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-brand-muted">{{ __('site.auth.account_type_borrower') }}</a>
+                            <a href="{{ route('site.login.partner') }}" class="block w-full text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-brand-muted">{{ __('site.auth.account_type_partner') }}</a>
+                        </x-site.action-panel>
                         <button type="button" @click="methodOpen = true" class="w-full inline-flex items-center justify-between rounded-xl ring-1 ring-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800">
                             <span x-text="method === 'pin' ? @js(__('site.auth.phone_pin')) : @js(__('site.auth.email_password'))"></span>
                             <span class="text-brand">▾</span>

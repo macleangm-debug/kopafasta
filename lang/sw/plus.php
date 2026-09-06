@@ -58,7 +58,7 @@ return [
         'price' => ':amount / mwezi',
         'price_year' => ':amount / mwaka',
         'price_days' => ':amount / siku :days',
-        'optional' => 'Plus ni hiari. Ifungue hata siku usizokopa.',
+        'optional' => 'Plus ni hiari. Ifungue wakati wowote unapotaka tabia bora za fedha na biashara.',
         'summary' => 'Muhtasari wako',
         'rooms' => 'Vyumba',
         'up_next' => 'Kinachofuata',

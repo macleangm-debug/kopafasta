@@ -8,12 +8,32 @@
     $guestApplyUrl = $isMarketplaceProduct
         ? route('site.login', ['redirect' => route('site.marketplace')])
         : route('site.login', ['redirect' => route('site.borrower.apply', ['product' => $product->id, 'intent' => 'apply'])]);
-    $faqVisible = array_slice($p['faq'], 0, 3);
-    $faqExtra = array_slice($p['faq'], 3);
     $cadence = app(\App\Services\GroupLendingService::class)->effectiveRepaymentCadence($product);
     $isMonthlyCadence = $cadence === 'monthly';
     $applicationFee = (float) ($p['fees']['application'] ?? 0);
-    $postApprovalTotal = (float) ($p['fees']['post_approval_total'] ?? 0);
+    $applyHref = $isActive ? (auth()->check() ? $applyUrl : $guestApplyUrl) : null;
+    $infoCards = [
+        [
+            'title' => __('site.product_detail.target_audience'),
+            'body' => $p['target_audience'] ?: $p['overview_short'],
+            'items' => [],
+        ],
+        [
+            'title' => __('site.product_detail.eligibility_heading'),
+            'body' => null,
+            'items' => collect($p['eligibility'] ?? [])->take(5)->map(fn ($item) => is_array($item) ? ($item['label'] ?? '') : $item)->filter()->values()->all(),
+        ],
+        [
+            'title' => __('site.product_detail.documents_heading'),
+            'body' => null,
+            'items' => collect($p['documents'] ?? [])->take(5)->map(fn ($doc) => is_array($doc) ? ($doc['name'] ?? $doc['label'] ?? '') : $doc)->filter()->values()->all(),
+        ],
+        [
+            'title' => __('seo.how_to_apply'),
+            'body' => null,
+            'items' => collect($p['apply_steps'] ?? [])->take(4)->map(fn ($step) => $step['title'] ?? '')->filter()->values()->all(),
+        ],
+    ];
 @endphp
 <x-site.layout
     :title="$productSeo['title']"
@@ -40,19 +60,19 @@
         :eyebrow="$p['code'].' · '.($isActive ? __('site.products.status_active') : __('site.products.status_coming_soon'))"
         :title="$p['name']"
         :body="$p['overview_short']"
-        :primary-href="$isActive ? (auth()->check() ? $applyUrl : $guestApplyUrl) : null"
+        :primary-href="$applyHref"
         :primary-label="$isActive ? ($isMarketplaceProduct ? __('site.nav.marketplace') : __('site.products.apply_now')) : null"
         :facts="[
             ['label' => __('site.products.amount'), 'value' => format_money($p['limits']['min_amount'], false, 0).' – '.format_money($p['limits']['max_amount'], false, 0)],
             ['label' => loan_product_rate_field_label($product), 'value' => $p['rate_label']],
             ['label' => __('site.products.tenure'), 'value' => $p['limits']['tenure_min_months'].'–'.$p['limits']['tenure_max_months'].' '.__('borrower.apply.details.months')],
-            ['label' => __('site.products.repayment') ?? 'Repayment', 'value' => $p['repayment_frequency_label']],
+            ['label' => __('site.products.repayment'), 'value' => $p['repayment_frequency_label']],
         ]"
     />
 
-    {{-- Calculator --}}
     @unless ($isMarketplaceProduct)
-    <section class="premium-gradient border-y border-gray-100 py-10 lg:py-12"
+    <x-site.public-section tone="muted" narrow>
+        <div class="rounded-[1.5rem] bg-white ring-1 ring-brand/10 shadow-[0_16px_40px_rgba(8,47,39,0.08)] overflow-hidden"
              x-data="productCalculator(@js([
                 'min' => $p['limits']['min_amount'],
                 'max' => $p['limits']['max_amount'],
@@ -61,158 +81,96 @@
                 'cadence' => $cadence,
                 'quoteUrl' => route('site.product.quote', $product->code),
              ]))">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-6 sm:p-8 shadow-sm text-left">
-                <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('site.product_detail.calculator_eyebrow') }}</p>
-                <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{{ __('site.product_detail.calculator') }}</h2>
-                <p class="mt-1 text-sm text-gray-600">{{ __('site.product_detail.calculator_hint') }}</p>
-
-                <div class="mt-6">
-                    <div class="flex justify-between text-sm text-gray-600 mb-2">
-                        <span>{{ __('site.products.amount') }}</span>
-                        <span class="font-semibold tabular-nums" x-text="formatMoney(amount)"></span>
+            <div class="grid lg:grid-cols-2 gap-0">
+                <div class="p-5 sm:p-7 space-y-5">
+                    <div>
+                        <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('site.product_detail.calculator_eyebrow') }}</p>
+                        <h2 class="text-xl font-bold text-gray-900 mt-1">{{ __('site.product_detail.calculator') }}</h2>
+                        <p class="mt-1 text-sm text-gray-600">{{ __('site.product_detail.calculator_hint') }}</p>
                     </div>
-                    <input type="range" :min="config.min" :max="config.max" step="50000" x-model.number="amount" class="w-full accent-brand">
-                </div>
-
-                <div class="mt-6">
-                    <div class="flex justify-between text-sm text-gray-600 mb-2">
-                        <span>{{ __('site.products.tenure') }}</span>
-                        <span class="font-semibold"><span x-text="tenure"></span> {{ __('borrower.apply.details.months') }}</span>
-                    </div>
-                    <input type="range" :min="config.tmin" :max="config.tmax" step="1" x-model.number="tenure" class="w-full accent-brand">
-                </div>
-
-                <div class="mt-8 grid sm:grid-cols-2 gap-4">
-                    <div class="rounded-xl bg-brand-muted/50 p-5 text-center">
-                        <div class="text-[11px] uppercase tracking-wider text-gray-500">
-                            {{ $isMonthlyCadence ? __('site.product_detail.monthly_payment') : __('site.product_detail.weekly_payment') }}
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600 mb-2">
+                            <span>{{ __('site.products.amount') }}</span>
+                            <span class="font-semibold tabular-nums" x-text="formatMoney(amount)"></span>
                         </div>
-                        <div class="text-2xl font-bold text-brand mt-2 tabular-nums" x-text="loading ? '…' : formatMoney(installment)"></div>
+                        <input type="range" :min="config.min" :max="config.max" step="50000" x-model.number="amount" class="w-full accent-brand">
                     </div>
-                    <div class="rounded-xl bg-brand-muted/50 p-5 text-center">
-                        <div class="text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.total_repayment') }}</div>
-                        <div class="text-2xl font-bold text-gray-900 mt-2 tabular-nums" x-text="loading ? '…' : formatMoney(total)"></div>
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600 mb-2">
+                            <span>{{ __('site.products.tenure') }}</span>
+                            <span class="font-semibold"><span x-text="tenure"></span> {{ __('borrower.apply.details.months') }}</span>
+                        </div>
+                        <input type="range" :min="config.tmin" :max="config.tmax" step="1" x-model.number="tenure" class="w-full accent-brand">
                     </div>
+                    @if ($applicationFee > 0)
+                        <p class="text-xs text-gray-500">{{ __('site.product_detail.application_fee') }}: <span class="font-semibold text-gray-800">{{ format_money($applicationFee) }}</span></p>
+                    @endif
                 </div>
-                <p class="mt-3 text-xs text-gray-500">{{ __('site.product_detail.calculator_disclaimer') }}</p>
-
-                @if ($isActive)
-                    <a href="{{ auth()->check() ? $applyUrl : $guestApplyUrl }}"
-                       class="mt-8 inline-flex w-full sm:w-auto items-center justify-center gap-2 bg-brand hover:bg-brand-light text-white font-bold px-8 py-4 rounded-xl transition shadow-md">
-                        {{ __('site.products.apply_now') }}
-                    </a>
-                @endif
+                <div class="bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27] text-white p-5 sm:p-7 flex flex-col justify-between gap-5">
+                    <div class="space-y-4">
+                        <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.product_detail.calculator') }}</p>
+                        <div>
+                            <p class="text-xs text-white/70">{{ $isMonthlyCadence ? __('site.product_detail.monthly_payment') : __('site.product_detail.weekly_payment') }}</p>
+                            <p class="mt-1 text-3xl font-black tabular-nums" x-text="loading ? '…' : formatMoney(installment)"></p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-white/70">{{ __('site.product_detail.total_repayment') }}</p>
+                            <p class="mt-1 text-2xl font-bold tabular-nums" x-text="loading ? '…' : formatMoney(total)"></p>
+                        </div>
+                        <p class="text-xs text-white/60">{{ __('site.product_detail.calculator_disclaimer') }}</p>
+                    </div>
+                    @if ($applyHref)
+                        <a href="{{ $applyHref }}" class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-extrabold px-5 py-3.5">
+                            {{ __('site.products.apply_now') }}
+                        </a>
+                    @endif
+                </div>
             </div>
         </div>
-    </section>
+        @if (! empty($p['fees']['post_approval_lines']))
+            <p class="mt-4 text-xs text-gray-500 leading-relaxed">
+                {{ __('site.product_detail.fees_heading') }}:
+                @foreach ($p['fees']['post_approval_lines'] as $line)
+                    <span class="font-medium text-gray-700">{{ $line['name'] ?? '' }}</span>
+                    ({{ $line['display'] ?? '' }})@if (! $loop->last), @endif
+                @endforeach
+                · <a href="{{ route('site.responsible-lending') }}" class="text-brand font-semibold hover:underline">{{ __('site.footer.responsible_lending') }}</a>
+            </p>
+        @endif
+    </x-site.public-section>
     @endunless
 
-    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
-        <div class="grid lg:grid-cols-2 gap-4">
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.target_audience') }}</h2>
-                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ $p['target_audience'] ?: $p['overview'] }}</p>
-            </div>
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.features') }}</h2>
-                <ul class="mt-2 space-y-2">
-                    @foreach (($p['benefits'] ?: $p['features']) as $benefit)
-                        <li class="flex gap-2 text-sm text-gray-700"><span class="text-brand font-bold">›</span><span>{{ is_array($benefit) ? ($benefit['title'] ?? $benefit['label'] ?? '') : $benefit }}</span></li>
-                    @endforeach
-                </ul>
-            </div>
-        </div>
-
-        <div class="grid lg:grid-cols-3 gap-4">
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.eligibility_heading') }}</h2>
-                <ul class="mt-2 space-y-2">
-                    @foreach (($p['eligibility'] ?? []) as $item)
-                        <li class="text-sm text-gray-700">
-                            <span class="font-semibold">{{ is_array($item) ? ($item['label'] ?? '') : $item }}</span>
-                            @if (is_array($item) && filled($item['detail'] ?? null))
-                                <span class="block text-xs text-gray-500 mt-0.5">{{ $item['detail'] }}</span>
-                            @endif
-                        </li>
-                    @endforeach
-                </ul>
-            </div>
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.fees_heading') }}</h2>
-                <dl class="mt-2 space-y-2 text-sm">
-                    @if ($applicationFee > 0)
-                        <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('site.product_detail.application_fee') }}</dt><dd class="font-semibold tabular-nums">{{ format_money($applicationFee) }}</dd></div>
-                    @endif
-                    @foreach (($p['fees']['post_approval_lines'] ?? []) as $line)
-                        <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ $line['name'] ?? '' }}</dt><dd class="font-semibold tabular-nums">{{ isset($line['amount']) ? format_money($line['amount']) : '' }}</dd></div>
-                    @endforeach
-                    @if ($applicationFee <= 0 && empty($p['fees']['post_approval_lines']))
-                        <p class="text-gray-600">{{ $p['processing_time'] }}</p>
-                    @endif
-                </dl>
-            </div>
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
-                <h2 class="text-sm font-bold text-gray-900">{{ __('site.product_detail.documents_heading') }}</h2>
-                <ul class="mt-2 space-y-2">
-                    @foreach (($p['documents'] ?? []) as $doc)
-                        <li class="text-sm text-gray-700">
-                            <span class="font-semibold">{{ is_array($doc) ? ($doc['name'] ?? $doc['label'] ?? '') : $doc }}</span>
-                            @if (is_array($doc) && filled($doc['detail'] ?? null))
-                                <span class="block text-xs text-gray-500 mt-0.5">{{ $doc['detail'] }}</span>
-                            @endif
-                        </li>
-                    @endforeach
-                </ul>
-            </div>
-        </div>
-
-        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-left">
-            <h2 class="text-sm font-bold text-gray-900">{{ __('seo.how_to_apply') }}</h2>
-            <ol class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                @foreach ($p['apply_steps'] ?? [] as $step)
-                    <li class="text-sm text-gray-700">
-                        <span class="font-semibold text-brand">{{ $step['title'] ?? '' }}</span>
-                        <span class="block text-xs text-gray-600 mt-1">{{ $step['body'] ?? '' }}</span>
-                    </li>
-                @endforeach
-            </ol>
-            @if ($isActive)
-                <a href="{{ auth()->check() ? $applyUrl : $guestApplyUrl }}"
-                   class="mt-5 inline-flex rounded-xl bg-brand text-white font-bold px-6 py-3">{{ __('site.products.apply_now') }}</a>
-            @endif
-        </div>
-    </section>
-
-
-    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10" x-data="{ open: 0, showAll: false }">
-        <h2 class="text-xl sm:text-2xl font-bold text-left mb-6">{{ __('site.product_detail.faq_heading') }}</h2>
-        <div class="space-y-3">
-            @foreach ($faqVisible as $i => $item)
-                <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden text-left">
-                    <button type="button" @click="open === {{ $i }} ? open = -1 : open = {{ $i }}"
-                            class="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-gray-900">
-                        <span>{{ $item['q'] ?? $item['question'] ?? '' }}</span>
-                        <span class="text-brand" x-text="open === {{ $i }} ? '−' : '+'"></span>
-                    </button>
-                    <div x-show="open === {{ $i }}" x-cloak class="px-4 pb-4 text-sm text-gray-600">{{ $item['a'] ?? $item['answer'] ?? '' }}</div>
+    <x-site.public-section>
+        <x-site.public-carousel :title="__('site.product_detail.features')" :subtitle="__('site.product_detail.overview_short_hint') ?? null">
+            @foreach ($infoCards as $card)
+                <div data-public-slide class="snap-start shrink-0 w-[min(100%,calc(100vw-3rem))] sm:w-[280px] lg:w-[calc(25%-12px)]">
+                    <x-site.public-card :title="$card['title']">
+                        @if ($card['body'])
+                            <p>{{ \Illuminate\Support\Str::limit(strip_tags((string) $card['body']), 160) }}</p>
+                        @endif
+                        @if (! empty($card['items']))
+                            <ul class="mt-2 space-y-1.5">
+                                @foreach ($card['items'] as $item)
+                                    <li class="flex gap-2"><span class="text-brand font-bold">›</span><span>{{ $item }}</span></li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </x-site.public-card>
                 </div>
             @endforeach
-            @if (count($faqExtra) > 0)
-                <div x-show="showAll" x-cloak class="space-y-3">
-                    @foreach ($faqExtra as $j => $item)
-                        <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden text-left">
-                            <button type="button" @click="open === {{ $j + 100 }} ? open = -1 : open = {{ $j + 100 }}"
-                                    class="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-gray-900">
-                                <span>{{ $item['q'] ?? $item['question'] ?? '' }}</span>
-                                <span class="text-brand" x-text="open === {{ $j + 100 }} ? '−' : '+'"></span>
-                            </button>
-                            <div x-show="open === {{ $j + 100 }}" x-cloak class="px-4 pb-4 text-sm text-gray-600">{{ $item['a'] ?? $item['answer'] ?? '' }}</div>
-                        </div>
-                    @endforeach
-                </div>
-                <button type="button" @click="showAll = !showAll" class="text-sm font-semibold text-brand" x-text="showAll ? '−' : '+'"></button>
-            @endif
-        </div>
-    </section>
+        </x-site.public-carousel>
+
+        @if ($applyHref)
+            <div class="mt-10">
+                <x-site.public-cta-band
+                    :title="__('site.products.apply_now')"
+                    :body="$p['overview_short']"
+                    :primary-href="$applyHref"
+                    :primary-label="__('site.products.apply_now')"
+                    :secondary-href="route('site.responsible-lending')"
+                    :secondary-label="__('site.footer.responsible_lending')"
+                />
+            </div>
+        @endif
+    </x-site.public-section>
 </x-site.layout>

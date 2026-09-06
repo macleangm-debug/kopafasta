@@ -1293,7 +1293,25 @@ class AuthController extends Controller
 
     public function showRegisterCapital(): View
     {
-        return view('site.auth.register-capital');
+        $countryService = app(\App\Services\CountrySettingsService::class);
+        $countries = collect($countryService->codes())
+            ->map(fn (string $code) => $countryService->forCode($code))
+            ->filter(fn (array $country) => (bool) ($country['active'] ?? false))
+            ->map(fn (array $country) => (object) [
+                'code' => $country['code'],
+                'name' => $country['name'],
+            ])
+            ->values();
+
+        if ($countries->isEmpty()) {
+            $fallback = $countryService->forCode($countryService->defaultCountryCode());
+            $countries = collect([(object) ['code' => $fallback['code'], 'name' => $fallback['name']]]);
+        }
+
+        return view('site.auth.register-capital', [
+            'countries' => $countries,
+            'seo' => ['indexable' => false],
+        ]);
     }
 
     public function registerCapital(Request $request): RedirectResponse
@@ -1301,8 +1319,9 @@ class AuthController extends Controller
         app(TurnstileService::class)->assertHuman($request);
 
         $data = $request->validate([
-            'organization' => ['required', 'string', 'max:160'],
-            'org_type' => ['required', 'in:bank,mfi,dfi,family_office,asset_manager,other'],
+            'partner_kind' => ['required', 'in:individual,organisation'],
+            'organization' => ['required_if:partner_kind,organisation', 'nullable', 'string', 'max:160'],
+            'org_type' => ['required_if:partner_kind,organisation', 'nullable', 'in:bank,mfi,dfi,family_office,asset_manager,other'],
             'contact_name' => ['required', 'string', 'max:120'],
             'contact_role' => ['nullable', 'string', 'max:80'],
             'email' => ['required', 'email', 'unique:users,email'],
@@ -1324,11 +1343,12 @@ class AuthController extends Controller
                 'is_active' => true,
             ]);
 
+            $isOrg = ($data['partner_kind'] ?? 'organisation') === 'organisation';
             $lenderAttrs = [
                 'user_id' => $user->id,
                 'code' => 'CAP-'.strtoupper(Str::random(6)),
-                'name' => $data['organization'],
-                'type' => 'institution',
+                'name' => $isOrg ? ($data['organization'] ?? $data['contact_name']) : $data['contact_name'],
+                'type' => $isOrg ? 'institution' : 'individual',
                 'contact_person' => $data['contact_name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'],
@@ -1339,10 +1359,10 @@ class AuthController extends Controller
                 'status' => 'pending',
             ];
 
-            // Only set metadata if the column exists.
             if (\Schema::hasColumn('lenders', 'metadata')) {
                 $lenderAttrs['metadata'] = [
-                    'org_type' => $data['org_type'],
+                    'partner_kind' => $data['partner_kind'],
+                    'org_type' => $data['org_type'] ?? null,
                     'contact_role' => $data['contact_role'] ?? null,
                     'country' => $data['country'],
                     'commitment_band' => $data['commitment_band'],
@@ -1360,6 +1380,6 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         return redirect()->route('site.investor.dashboard')
-            ->with('status', 'Your capital partner application has been received. A relationship manager will be in touch within 24 hours.');
+            ->with('status', __('site.invest.pending_status'));
     }
 }

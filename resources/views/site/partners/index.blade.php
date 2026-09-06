@@ -16,24 +16,19 @@
         </div>
     @endif
 
-    <section class="py-14 bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-2xl font-bold text-center mb-3">{{ __('site.partners.why_title') }}</h2>
-            <p class="text-center text-sm text-gray-600 max-w-2xl mx-auto mb-10">{{ __('site.partners.why_body') }}</p>
-            <div class="grid sm:grid-cols-3 gap-5">
-                @foreach ([
-                    [__('site.partners.why_jobs_title'), __('site.partners.why_jobs_body')],
-                    [__('site.partners.why_pay_title'), __('site.partners.why_pay_body')],
-                    [__('site.partners.why_tools_title'), __('site.partners.why_tools_body')],
-                ] as [$title, $body])
-                    <div class="glass-card p-6">
-                        <h3 class="font-bold text-gray-900">{{ $title }}</h3>
-                        <p class="mt-2 text-sm text-gray-600 leading-relaxed">{{ $body }}</p>
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </section>
+    <x-site.public-section>
+        <x-site.public-carousel :title="__('site.partners.why_title')" :subtitle="__('site.partners.why_body')">
+            @foreach ([
+                [__('site.partners.why_jobs_title'), __('site.partners.why_jobs_body')],
+                [__('site.partners.why_pay_title'), __('site.partners.why_pay_body')],
+                [__('site.partners.why_tools_title'), __('site.partners.why_tools_body')],
+            ] as [$title, $body])
+                <div data-public-slide class="snap-start shrink-0 w-[min(100%,calc(100vw-3rem))] sm:w-[280px] lg:w-[calc(33.333%-11px)]">
+                    <x-site.public-card :title="$title">{{ $body }}</x-site.public-card>
+                </div>
+            @endforeach
+        </x-site.public-carousel>
+    </x-site.public-section>
 
     <section class="py-14 bg-[#faf8f5]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -42,19 +37,19 @@
 
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
                 @foreach ([
-                    ['debt_collector', '💼', __('site.partner_apply.types.debt_collector'), __('site.partners.card_collection')],
-                    ['valuer', '📋', __('site.partner_apply.types.valuer'), __('site.partners.card_valuer')],
-                    ['gps_installer', '📡', __('site.partner_apply.types.gps_installer'), __('site.partners.card_gps')],
-                    ['insurance', '🛡️', __('site.partner_apply.types.insurance'), __('site.partners.card_insurance')],
-                    ['yard', '🏭', __('site.partner_apply.types.yard'), __('site.partners.card_yard')],
-                    ['auctioneer', '🔨', __('site.partner_apply.types.auctioneer'), __('site.partners.card_auctioneer')],
-                    ['legal_partner', '⚖️', __('site.partner_apply.types.legal_partner'), __('site.partners.card_legal')],
-                    ['call_center', '🎧', __('site.partner_apply.types.call_center'), __('site.partners.card_call_center')],
-                ] as [$slug, $icon, $title, $body])
+                    ['debt_collector', __('site.partner_apply.types.debt_collector'), __('site.partners.card_collection')],
+                    ['valuer', __('site.partner_apply.types.valuer'), __('site.partners.card_valuer')],
+                    ['gps_installer', __('site.partner_apply.types.gps_installer'), __('site.partners.card_gps')],
+                    ['insurance', __('site.partner_apply.types.insurance'), __('site.partners.card_insurance')],
+                    ['yard', __('site.partner_apply.types.yard'), __('site.partners.card_yard')],
+                    ['auctioneer', __('site.partner_apply.types.auctioneer'), __('site.partners.card_auctioneer')],
+                    ['legal_partner', __('site.partner_apply.types.legal_partner'), __('site.partners.card_legal')],
+                    ['call_center', __('site.partner_apply.types.call_center'), __('site.partners.card_call_center')],
+                ] as [$slug, $title, $body])
                     <a href="{{ route('site.partners.apply', $slug) }}" class="group relative overflow-hidden rounded-2xl bg-brand text-white p-6 shadow-lg hover:shadow-xl transition block ring-1 ring-brand/20">
                         <div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
                         <div class="relative">
-                            <div class="size-12 grid place-items-center rounded-2xl bg-brand-gold text-brand text-2xl mb-3 shadow-sm">{{ $icon }}</div>
+                            <span class="text-brand-gold font-black tracking-[-0.14em] text-2xl" aria-hidden="true">›››</span>
                             <h3 class="font-bold text-white group-hover:text-brand-gold transition">{{ $title }}</h3>
                             <p class="mt-2 text-sm text-white/75 leading-relaxed">{{ $body }}</p>
                             <span class="mt-4 inline-flex text-sm font-semibold text-brand-gold">{{ __('site.partners.apply_now') }} →</span>
@@ -67,11 +62,6 @@
                 <a href="{{ route('site.affiliate.apply') }}" class="glass-card p-6 hover:shadow-lg transition block">
                     <h3 class="font-bold text-gray-900">{{ __('site.nav.affiliate') }}</h3>
                     <p class="mt-2 text-sm text-gray-600">{{ __('site.partners.card_affiliate') }}</p>
-                    <span class="mt-4 inline-flex text-sm font-semibold text-brand">{{ __('site.partners.apply_now') }} →</span>
-                </a>
-                <a href="{{ route('site.register.capital') }}" class="glass-card p-6 hover:shadow-lg transition block">
-                    <h3 class="font-bold text-gray-900">{{ __('site.footer.capital_partner') }}</h3>
-                    <p class="mt-2 text-sm text-gray-600">{{ __('site.partners.card_capital') }}</p>
                     <span class="mt-4 inline-flex text-sm font-semibold text-brand">{{ __('site.partners.apply_now') }} →</span>
                 </a>
             </div>

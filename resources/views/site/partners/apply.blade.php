@@ -75,10 +75,15 @@
             <input type="hidden" name="partner_category" :value="category">
 
             {{-- Tabs --}}
-            <div class="flex gap-1 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-1 text-sm">
-                @foreach ([1 => __('site.partner_apply.tab_contact'), 2 => __('site.partner_apply.tab_location'), 3 => __('site.partner_apply.tab_documents')] as $n => $label)
+            <div class="flex gap-1 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-1 text-sm overflow-x-auto">
+                @foreach ([
+                    1 => __('site.partner_apply.tab_contact'),
+                    2 => __('site.partner_apply.tab_location'),
+                    3 => __('site.partner_apply.tab_documents'),
+                    4 => __('site.partner_apply.tab_review'),
+                ] as $n => $label)
                     <button type="button" @click="step = {{ $n }}"
-                            class="flex-1 rounded-lg py-2.5 font-semibold transition"
+                            class="flex-1 min-w-[4.5rem] rounded-lg py-2.5 font-semibold transition whitespace-nowrap"
                             :class="step === {{ $n }} ? 'bg-brand text-white shadow-sm' : 'text-gray-600 hover:bg-white'">
                         {{ $n }}. {{ $label }}
                     </button>
@@ -217,62 +222,66 @@
                 <p class="text-xs text-gray-500" x-text="allowsIndividual && applicant === 'individual' ? @js(__('site.partner_apply.documents_hint_individual')) : @js(__('site.partner_apply.documents_hint_company'))"></p>
 
                 <template x-if="!allowsIndividual || applicant === 'company'">
-                    <div class="space-y-3">
+                    <div class="space-y-4">
                         @foreach ([
                             'doc_brela' => ['label' => $docTypes['brela'], 'required' => true],
                             'doc_tin_certificate' => ['label' => $docTypes['tin_certificate'], 'required' => true],
                             'doc_business_licence' => ['label' => $docTypes['business_licence'], 'required' => false],
                         ] as $input => $meta)
-                            <label class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl ring-1 ring-gray-200 bg-gray-50/80 px-4 py-3 cursor-pointer hover:bg-brand-muted/30 transition">
-                                <span class="text-sm font-medium text-gray-800 min-w-[12rem]">
+                            <div class="rounded-2xl ring-1 ring-brand/10 bg-white p-4">
+                                <p class="text-sm font-semibold text-gray-900 mb-3">
                                     {{ $meta['label'] }}
                                     @if ($meta['required']) <span class="text-red-500">*</span> @endif
-                                </span>
-                                <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf"
-                                       class="flex-1 text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
-                            </label>
+                                </p>
+                                <x-site.single-image-document-upload :name="$input" :required="$meta['required']" />
+                            </div>
                         @endforeach
                     </div>
                 </template>
 
-                <div class="space-y-3">
+                <div class="space-y-4">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.registrant_id') }}</p>
                     @foreach ([
                         'doc_national_id_front' => $docTypes['national_id_front'],
                         'doc_national_id_back' => $docTypes['national_id_back'],
                     ] as $input => $label)
-                        <label class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl ring-1 ring-gray-200 bg-gray-50/80 px-4 py-3 cursor-pointer hover:bg-brand-muted/30 transition">
-                            <span class="text-sm font-medium text-gray-800 min-w-[12rem]">{{ $label }} <span class="text-red-500">*</span></span>
-                            <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf"
-                                   class="flex-1 text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
-                        </label>
+                        <div class="rounded-2xl ring-1 ring-brand/10 bg-white p-4">
+                            <p class="text-sm font-semibold text-gray-900 mb-3">{{ $label }} <span class="text-red-500">*</span></p>
+                            <x-site.single-image-document-upload :name="$input" :required="true" />
+                        </div>
                     @endforeach
                 </div>
 
                 <template x-if="!allowsIndividual || applicant === 'company'">
-                    <div class="space-y-3">
-                        <label class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl ring-1 ring-gray-200 bg-gray-50/80 px-4 py-3 cursor-pointer hover:bg-brand-muted/30 transition">
-                            <span class="text-sm font-medium text-gray-800 min-w-[12rem]">{{ $docTypes['other'] }}</span>
-                            <input type="file" name="doc_other" accept=".jpg,.jpeg,.png,.pdf"
-                                   class="flex-1 text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
-                        </label>
+                    <div class="rounded-2xl ring-1 ring-brand/10 bg-white p-4">
+                        <p class="text-sm font-semibold text-gray-900 mb-3">{{ $docTypes['other'] }}</p>
+                        <x-site.single-image-document-upload name="doc_other" :required="false" />
                     </div>
                 </template>
 
                 <div class="flex flex-col gap-3 pt-2">
-                    <label class="flex items-start gap-3 rounded-xl bg-amber-50 ring-1 ring-amber-100 px-3.5 py-3 text-sm text-gray-800 cursor-pointer">
-                        <input type="checkbox" name="collection_conduct_accepted" value="1" required
-                               class="mt-1 size-4 rounded border-gray-300 text-brand focus:ring-brand"
-                               @checked(old('collection_conduct_accepted'))>
-                        <span>
-                            <span class="font-semibold text-gray-900">{{ __('site.partner_apply.conduct_title') }}</span>
-                            <span class="block mt-1 text-xs text-gray-600 leading-relaxed">{{ __('site.partner_apply.conduct_body') }}</span>
-                        </span>
-                    </label>
                     <div class="flex justify-between">
                         <button type="button" @click="step = 2" class="text-sm font-semibold text-gray-600 hover:text-brand">← {{ __('site.partner_apply.back') }}</button>
-                        <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm">{{ __('site.partner_apply.submit') }}</button>
+                        <button type="button" @click="step = 4" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('site.partner_apply.next') }} →</button>
                     </div>
+                </div>
+            </div>
+
+            {{-- Step 4: Review & authorisation --}}
+            <div x-show="step === 4" x-cloak class="space-y-4">
+                <p class="text-sm text-gray-600">{{ __('site.partner_apply.review_body') }}</p>
+                <label class="flex items-start gap-3 rounded-xl bg-amber-50 ring-1 ring-amber-100 px-3.5 py-3 text-sm text-gray-800 cursor-pointer">
+                    <input type="checkbox" name="collection_conduct_accepted" value="1" required
+                           class="mt-1 size-4 rounded border-gray-300 text-brand focus:ring-brand"
+                           @checked(old('collection_conduct_accepted'))>
+                    <span>
+                        <span class="font-semibold text-gray-900">{{ __('site.partner_apply.conduct_title') }}</span>
+                        <span class="block mt-1 text-xs text-gray-600 leading-relaxed">{{ __('site.partner_apply.conduct_body') }}</span>
+                    </span>
+                </label>
+                <div class="flex justify-between">
+                    <button type="button" @click="step = 3" class="text-sm font-semibold text-gray-600 hover:text-brand">← {{ __('site.partner_apply.back') }}</button>
+                    <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm">{{ __('site.partner_apply.submit') }}</button>
                 </div>
             </div>
         </form>

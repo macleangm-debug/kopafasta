@@ -1,145 +1,132 @@
-<x-site.layout title="Capital partner application — Kopafasta">
-    <section class="min-h-screen grid lg:grid-cols-3 bg-slate-50">
-        {{-- Sidebar --}}
-        <aside class="hidden lg:flex lg:col-span-1 relative overflow-hidden bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-900 text-white p-10 flex-col">
-            <div class="absolute -top-32 -right-24 size-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
-
-            <a href="{{ route('site.home') }}" class="relative inline-flex items-center gap-2 font-bold text-lg">
-                <span class="size-9 grid place-items-center rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 text-white font-extrabold">K</span>
-                Kopafasta
-            </a>
-
+@php
+    $kind = old('partner_kind', 'organisation');
+    $countries = $countries ?? collect([(object) ['code' => 'TZ', 'name' => 'Tanzania']]);
+@endphp
+<x-site.layout :title="brand_title(__('site.invest.cta_apply'))" :seo="['indexable' => false]">
+    <section class="min-h-screen grid lg:grid-cols-5 premium-gradient">
+        <aside class="hidden lg:flex lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27] text-white p-10 flex-col">
+            <a href="{{ route('site.invest') }}" class="relative"><x-site.brand-mark variant="light" /></a>
             <div class="relative mt-12">
-                <p class="text-xs uppercase tracking-widest text-indigo-300 font-semibold">Capital partner programme</p>
-                <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">Deploy institutional capital into East Africa's most disciplined credit book.</h2>
-                <p class="mt-3 text-white/70 text-sm">For banks, MFIs, DFIs, family offices and asset managers looking to commit $50,000 or more.</p>
+                <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.invest.eyebrow') }}</p>
+                <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">{{ __('site.invest.hero_title') }}</h2>
+                <p class="mt-3 text-white/75 text-sm">{{ __('site.invest.hero_body') }}</p>
             </div>
-
-            <ul class="relative mt-12 space-y-4 text-sm">
-                <li class="flex items-start gap-3"><span class="text-indigo-300">✓</span> Dedicated relationship manager &amp; quarterly reviews</li>
-                <li class="flex items-start gap-3"><span class="text-indigo-300">✓</span> Custom risk-graded pools and SPV structuring</li>
-                <li class="flex items-start gap-3"><span class="text-indigo-300">✓</span> Loan-level reporting + read-only API access</li>
-                <li class="flex items-start gap-3"><span class="text-indigo-300">✓</span> Audited monthly NAV statements</li>
+            <ul class="relative mt-10 space-y-3 text-sm">
+                @foreach ([__('site.invest.point_1'), __('site.invest.point_2'), __('site.invest.point_3')] as $point)
+                    <li class="flex items-start gap-3"><span class="text-brand-gold font-black tracking-[-0.14em]">›››</span><span>{{ $point }}</span></li>
+                @endforeach
             </ul>
+        </aside>
 
-            </aside>
+        <div class="lg:col-span-3 flex items-start lg:items-center justify-center px-4 py-10 sm:px-10"
+             x-data="{ kind: @js($kind), reviewOpen: false }">
+            <div class="w-full max-w-2xl glass-card p-6 sm:p-10">
+                <a href="{{ route('site.invest') }}" class="lg:hidden mb-6 inline-block"><x-site.brand-mark size="md" /></a>
+                <h1 class="text-2xl font-bold text-gray-900">{{ __('site.invest.cta_apply') }}</h1>
+                <p class="mt-1 text-sm text-gray-600">{{ __('site.invest.journey_body') }}</p>
 
-        {{-- Form --}}
-        <div class="lg:col-span-2 flex items-start lg:items-center justify-center px-4 py-10 sm:px-10">
-            <div class="w-full max-w-2xl">
-                <a href="{{ route('site.home') }}" class="lg:hidden inline-flex items-center gap-2 font-bold text-slate-900 mb-6">
-                    <span class="size-9 grid place-items-center rounded-lg bg-indigo-600 text-white font-extrabold">K</span>
-                    Kopafasta Capital
-                </a>
+                @if ($errors->any())
+                    <div class="mt-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                        <ul class="list-disc ml-5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+                    </div>
+                @endif
 
-                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10">
-                    <h1 class="text-2xl font-bold text-slate-900">Apply as a capital partner</h1>
-                    <p class="mt-1 text-sm text-slate-600">Submit your details — a relationship manager will respond within one business day.</p>
+                <form method="POST" action="{{ route('site.register.capital.post') }}" class="mt-6 space-y-5" @submit.prevent="reviewOpen = true" x-ref="capitalForm">
+                    @csrf
+                    <input type="hidden" name="partner_kind" :value="kind">
 
-                    @if ($errors->any())
-                        <div class="mt-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-                            <ul class="list-disc ml-5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-widest text-brand mb-2">{{ __('site.invest.partner_kind') }}</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" @click="kind = 'individual'" :class="kind === 'individual' ? 'ring-brand bg-brand-muted text-brand' : 'ring-gray-200'" class="rounded-xl ring-1 px-3 py-3 text-sm font-semibold">{{ __('site.invest.kind_individual') }}</button>
+                            <button type="button" @click="kind = 'organisation'" :class="kind === 'organisation' ? 'ring-brand bg-brand-muted text-brand' : 'ring-gray-200'" class="rounded-xl ring-1 px-3 py-3 text-sm font-semibold">{{ __('site.invest.kind_organisation') }}</button>
                         </div>
-                    @endif
+                    </div>
 
-                    <form method="POST" action="{{ route('site.register.capital.post') }}" class="mt-6 space-y-5">
-                        @csrf
-
-                        <fieldset>
-                            <legend class="text-xs font-bold uppercase tracking-widest text-indigo-700 mb-3">Organisation</legend>
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Organisation name <span class="text-red-500">*</span></label>
-                                    <input name="organization" value="{{ old('organization') }}" required class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Organisation type <span class="text-red-500">*</span></label>
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        @foreach (['bank' => 'Bank', 'mfi' => 'MFI', 'dfi' => 'DFI', 'family_office' => 'Family office', 'asset_manager' => 'Asset manager', 'other' => 'Other'] as $v => $label)
-                                            <label class="cursor-pointer">
-                                                <input type="radio" name="org_type" value="{{ $v }}" {{ old('org_type', 'bank') === $v ? 'checked' : '' }} class="sr-only peer" />
-                                                <div class="px-3 py-2.5 rounded-xl border-2 border-slate-200 peer-checked:border-indigo-600 peer-checked:bg-indigo-50 text-sm font-medium text-slate-700 text-center hover:border-slate-400 transition">{{ $label }}</div>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Country <span class="text-red-500">*</span></label>
-                                        <input name="country" value="{{ old('country', 'Tanzania') }}" required class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-1.5">HQ address <span class="text-slate-400 font-normal">(optional)</span></label>
-                                        <input name="address" value="{{ old('address') }}" class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Expected commitment <span class="text-red-500">*</span></label>
-                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                        @foreach (['50k_250k' => '$50K–250K', '250k_1m' => '$250K–1M', '1m_5m' => '$1M–5M', '5m_plus' => '$5M+'] as $v => $label)
-                                            <label class="cursor-pointer">
-                                                <input type="radio" name="commitment_band" value="{{ $v }}" {{ old('commitment_band', '50k_250k') === $v ? 'checked' : '' }} class="sr-only peer" />
-                                                <div class="px-3 py-2.5 rounded-xl border-2 border-slate-200 peer-checked:border-indigo-600 peer-checked:bg-indigo-50 text-sm font-medium text-slate-700 text-center hover:border-slate-400 transition">{{ $label }}</div>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            </div>
-                        </fieldset>
-
-                        <fieldset>
-                            <legend class="text-xs font-bold uppercase tracking-widest text-indigo-700 mb-3">Primary contact</legend>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Full name <span class="text-red-500">*</span></label>
-                                    <input name="contact_name" value="{{ old('contact_name') }}" required class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Role / title</label>
-                                    <input name="contact_role" value="{{ old('contact_role') }}" placeholder="e.g. Head of Credit" class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Work email <span class="text-red-500">*</span></label>
-                                    <input type="email" name="email" value="{{ old('email') }}" required class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none" />
-                                </div>
-                                <div>
-                                    <x-site.phone-input name="phone" label="Phone" :value="old('phone')" variant="rounded" :required="true"
-                                        select-class="w-28 shrink-0 px-3.5 py-3 rounded-xl bg-white border border-slate-300 text-sm outline-none transition focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10"
-                                        input-class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none transition" />
-                                </div>
-                            </div>
-                            <div class="mt-4">
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Anything else we should know? <span class="text-slate-400 font-normal">(optional)</span></label>
-                                <textarea name="notes" rows="3" class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none">{{ old('notes') }}</textarea>
-                            </div>
-                        </fieldset>
-
-                        <fieldset>
-                            <legend class="text-xs font-bold uppercase tracking-widest text-indigo-700 mb-3">Account security</legend>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Password <span class="text-red-500">*</span></label>
-                                    <input type="password" name="password" required minlength="8" class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Confirm password <span class="text-red-500">*</span></label>
-                                    <input type="password" name="password_confirmation" required minlength="8" class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 text-sm outline-none" />
-                                </div>
-                            </div>
-                        </fieldset>
-
-                        <div class="rounded-xl bg-indigo-50 border border-indigo-100 p-4 text-sm text-indigo-900 flex items-start gap-2">
-                            <svg class="w-4 h-4 mt-0.5 flex-shrink-0 text-indigo-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                            Your account is created in <strong>pending</strong> status. A relationship manager will verify your organisation and unlock institutional features within 24 hours.
+                    <div x-show="kind === 'organisation'" x-cloak class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.invest.org_name') }}</label>
+                            <input name="organization" value="{{ old('organization') }}" class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm" :required="kind === 'organisation'">
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('site.invest.org_type') }}</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                @foreach (['bank' => 'Bank', 'mfi' => 'MFI', 'dfi' => 'DFI', 'family_office' => 'Family office', 'asset_manager' => 'Asset manager', 'other' => 'Other'] as $v => $label)
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="org_type" value="{{ $v }}" {{ old('org_type', 'bank') === $v ? 'checked' : '' }} class="sr-only peer">
+                                        <div class="px-3 py-2.5 rounded-xl ring-1 ring-gray-200 peer-checked:ring-brand peer-checked:bg-brand-muted text-sm font-medium text-center">{{ $label }}</div>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
 
-                        <x-site.turnstile action="register-capital" />
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.invest.contact_name') }}</label>
+                            <input name="contact_name" value="{{ old('contact_name') }}" required class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.invest.contact_role') }}</label>
+                            <input name="contact_role" value="{{ old('contact_role') }}" class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm">
+                        </div>
+                    </div>
 
-                        <button class="w-full inline-flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3 px-7 rounded-full transition shadow-sm">
-                            Submit application →
-                        </button>
-                    </form>
-                </div>
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.feedback.email') }}</label>
+                            <input type="email" name="email" value="{{ old('email') }}" required class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm">
+                        </div>
+                        <div>
+                            <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" required />
+                        </div>
+                    </div>
+
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.invest.country') }}</label>
+                            <select name="country" required class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm">
+                                @foreach ($countries as $country)
+                                    <option value="{{ $country->name }}" @selected(old('country', 'Tanzania') === $country->name)>{{ $country->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.invest.commitment') }}</label>
+                            <select name="commitment_band" required class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm">
+                                @foreach (['50k_250k' => '$50K–250K', '250k_1m' => '$250K–1M', '1m_5m' => '$1M–5M', '5m_plus' => '$5M+'] as $v => $label)
+                                    <option value="{{ $v }}" @selected(old('commitment_band') === $v)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.invest.address') }}</label>
+                        <input name="address" value="{{ old('address') }}" class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm">
+                    </div>
+
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.password') ?? 'Password' }}</label>
+                            <input type="password" name="password" required class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.password_confirm') ?? 'Confirm password' }}</label>
+                            <input type="password" name="password_confirmation" required class="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl">{{ __('site.invest.review_submit') }}</button>
+                </form>
+
+                <x-site.action-panel open="reviewOpen" :title="__('site.invest.review_title')" size="md">
+                    <p class="text-sm text-gray-600">{{ __('site.invest.review_body') }}</p>
+                    <div class="mt-4 flex gap-2">
+                        <button type="button" class="flex-1 rounded-xl ring-1 ring-gray-200 py-3 text-sm font-semibold" @click="reviewOpen = false">{{ __('site.partner_apply.back') }}</button>
+                        <button type="button" class="flex-1 rounded-xl bg-brand text-white py-3 text-sm font-bold" @click="reviewOpen = false; $refs.capitalForm.removeAttribute('x-on:submit.prevent'); $refs.capitalForm.submit()">{{ __('site.invest.confirm_submit') }}</button>
+                    </div>
+                </x-site.action-panel>
             </div>
         </div>
     </section>

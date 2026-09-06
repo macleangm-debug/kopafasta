@@ -18,6 +18,8 @@
          'default' => $chat['default'],
          'suggestions' => $chat['suggestions'],
          'rules' => $chat['rules'],
+         'products' => $chat['products'],
+         'chooseProductPrompt' => $chat['choose_product_prompt'],
          'memberMode' => $memberMode,
          'registerPrompt' => $registerPrompt,
          'registerUrl' => $registerUrl,
@@ -52,7 +54,7 @@
         </div>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4">
+    <div class="flex flex-wrap gap-2 mb-4" x-show="!showProductChips">
         <template x-for="suggestion in config.suggestions" :key="suggestion">
             <button type="button" @click="askSuggestion(suggestion)" :disabled="typing"
                     class="text-xs px-3 py-1.5 rounded-full bg-brand-muted/80 text-brand hover:bg-brand/10 transition disabled:opacity-50"
@@ -60,10 +62,21 @@
         </template>
     </div>
 
+    <div class="mb-4 space-y-2" x-show="showProductChips" x-cloak>
+        <p class="text-xs font-semibold text-gray-600" x-text="config.chooseProductPrompt"></p>
+        <div class="flex flex-wrap gap-2">
+            <template x-for="product in config.products" :key="product.code">
+                <button type="button" @click="selectProduct(product)" :disabled="typing"
+                        class="text-xs px-3 py-1.5 rounded-full ring-1 ring-brand/25 bg-white text-brand hover:bg-brand-muted transition disabled:opacity-50"
+                        x-text="product.name"></button>
+            </template>
+        </div>
+    </div>
+
     <form @submit.prevent="ask" class="flex gap-2">
         <input type="text" x-model="input" :disabled="typing"
                placeholder="{{ __('site.support.chat_placeholder') }}"
-               class="flex-1 rounded-xl border-gray-300 text-sm focus:border-brand focus:ring-brand disabled:opacity-60">
+               class="flex-1 rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60">
         <button type="submit" :disabled="typing"
                 class="bg-brand hover:bg-brand-light disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-xl">
             {{ __('site.support.chat_send') }}
@@ -80,13 +93,12 @@
     @once
         <script>
             document.addEventListener('alpine:init', function () {
-                if (Alpine.data('aiSupportChat')) return;
-
                 Alpine.data('aiSupportChat', function (config) {
                     return {
                         config: config,
                         input: '',
                         typing: false,
+                        showProductChips: false,
                         messages: [{ role: 'bot', text: config.greeting }],
                         askSuggestion(text) {
                             this.input = text;
@@ -100,11 +112,28 @@
                                 for (var j = 0; j < keywords.length; j++) {
                                     var kw = String(keywords[j] || '').toLowerCase();
                                     if (kw && lower.indexOf(kw) !== -1) {
-                                        return rules[i].answer || config.default;
+                                        return rules[i];
                                     }
                                 }
                             }
-                            return config.default;
+                            return null;
+                        },
+                        selectProduct(product) {
+                            this.showProductChips = false;
+                            this.messages.push({ role: 'user', text: product.name });
+                            this.typing = true;
+                            var reply = product.summary;
+                            if (product.url) {
+                                reply += '\n' + product.url;
+                            }
+                            if (!config.memberMode) {
+                                reply = reply + '\n\n' + config.registerPrompt;
+                            }
+                            var self = this;
+                            setTimeout(function () {
+                                self.messages.push({ role: 'bot', text: reply });
+                                self.typing = false;
+                            }, 500);
                         },
                         ask() {
                             var q = this.input.trim();
@@ -113,12 +142,15 @@
                             this.input = '';
                             this.typing = true;
 
-                            var reply = this.matchReply(q);
-                            if (!config.memberMode) {
+                            var matched = this.matchReply(q);
+                            var reply = matched ? (matched.answer || config.default) : config.default;
+                            this.showProductChips = !!(matched && matched.follow_up === 'choose_product' && (config.products || []).length);
+
+                            if (!config.memberMode && !this.showProductChips) {
                                 reply = reply + '\n\n' + config.registerPrompt;
                             }
 
-                            var delay = 800 + Math.floor(Math.random() * 1400);
+                            var delay = 600 + Math.floor(Math.random() * 900);
                             var self = this;
                             setTimeout(function () {
                                 self.messages.push({ role: 'bot', text: reply });

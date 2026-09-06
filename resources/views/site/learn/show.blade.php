@@ -1,25 +1,30 @@
 <x-site.layout :title="$seo['title'] ?? $subject->localizedTitle()" :description="$seo['description'] ?? $subject->localizedIntro()" :seo="$seo">
-    <article class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+    <x-site.public-hero
+        variant="compact"
+        :eyebrow="$category->localizedTitle()"
+        :title="$subject->localizedTitle()"
+        :body="$subject->localizedIntro()"
+    />
+
+    <x-site.public-section narrow>
         <a href="{{ route('site.learn.category', $category->slug) }}" class="text-sm text-brand font-semibold hover:underline">← {{ $category->localizedTitle() }}</a>
-        <p class="mt-6 text-xs uppercase tracking-widest text-brand font-semibold">{{ $category->localizedTitle() }}</p>
-        <h1 class="mt-2 text-3xl sm:text-4xl font-bold text-gray-900">{{ $subject->localizedTitle() }}</h1>
-        @if ($subject->localizedIntro())
-            <p class="mt-4 text-lg text-gray-700 leading-relaxed">{{ $subject->localizedIntro() }}</p>
-        @endif
 
         <div class="mt-8 space-y-4 text-gray-700 leading-relaxed">
             @foreach (($editorial['opening'] ?? []) as $paragraph)
                 <p>{{ $paragraph }}</p>
             @endforeach
             @foreach (($editorial['cards'] ?? []) as $card)
-                <p>{{ $card }}</p>
+                <x-site.public-card class="!shadow-none">{{ $card }}</x-site.public-card>
             @endforeach
         </div>
 
-        <div class="mt-10 rounded-2xl bg-brand/5 ring-1 ring-brand/10 p-5">
-            <p class="text-sm font-semibold text-gray-900">{{ __('site.plus.teaser_title') }}</p>
-            <p class="mt-1 text-sm text-gray-600">{{ __('site.plus.optional') }}</p>
-            <a href="{{ route('site.plus') }}" class="mt-4 inline-flex rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">{{ __('site.plus.explore') }}</a>
+        <div class="mt-10">
+            <x-site.public-cta-band
+                :title="__('site.plus.teaser_title')"
+                :body="__('site.plus.optional')"
+                :primary-href="route('site.plus')"
+                :primary-label="__('site.plus.explore')"
+            />
         </div>
-    </article>
+    </x-site.public-section>
 </x-site.layout>
