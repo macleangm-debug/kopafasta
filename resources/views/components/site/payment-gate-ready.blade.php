@@ -13,7 +13,7 @@
 
 @php
     $customer = $payment->customer;
-    $defaultPhone = $defaultPhone ?? old('mobile_number', $customer->phone ?? '');
+    $defaultPhone = $defaultPhone ?? old('mobile_number', $customer?->phone ?? $payment->mobile_number ?? '');
     $formAction = $formAction ?? route('site.borrower.payments.pay', $payment);
 @endphp
 
@@ -35,7 +35,7 @@
     :bank-accounts="$bankAccounts"
     :mobile-details="$mobileDetails"
     :mobile-input-value="$defaultPhone"
-    :country-code="$customer->country_code ?? 'TZ'"
+    :country-code="$customer?->country_code ?? 'TZ'"
     :show-promo="$showPromo"
     :promo-value="$promoValue"
     :quote="$quote"

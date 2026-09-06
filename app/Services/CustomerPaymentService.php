@@ -263,6 +263,56 @@ class CustomerPaymentService
     }
 
     /**
+     * Create a tagged PayIn rehearsal obligation with no Customer row.
+     * Collection still starts only from payment.show Pay now.
+     */
+    public function createIntegrationRehearsal(string $phone, float $amount = 1000, ?int $triggeredBy = null): CustomerPayment
+    {
+        app(DemoGuard::class)->assertCanMoveMoney('create a customer payment');
+
+        $phone = PhoneNumber::normalizeForCountry($phone, 'TZ') ?? trim($phone);
+        if ($phone === '' || ! self::validateMobileNumber($phone)) {
+            throw ValidationException::withMessages([
+                'phone' => ['Enter a valid Tanzania mobile number to open the payment gate.'],
+            ]);
+        }
+
+        $payIn = app(PayInService::class);
+        if (! $payIn->isConfigured() && ! app(\App\Services\Staging\StagingPaymentsService::class)->isSimulator()) {
+            throw ValidationException::withMessages([
+                'payment_method' => [__('borrower.payments.aggregator_required')],
+            ]);
+        }
+
+        $amount = max(500, round($amount, 2));
+        $reference = $this->generateReference();
+        $resolved = $this->accounts->resolve('registration_fee', 'mobile_money', null);
+
+        return CustomerPayment::create([
+            'reference' => $reference,
+            'customer_id' => null,
+            'payment_type' => 'registration_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => $amount,
+            'currency' => 'TZS',
+            'status' => 'awaiting_payment',
+            'bank_account_id' => $resolved['bank_account']?->id,
+            'mobile_money_account_id' => $resolved['mobile_money_account']?->id,
+            'mobile_number' => $phone,
+            'payment_instructions' => trim(($resolved['instructions'] ?? '')."\n".__('borrower.payment_waiting.gate_instructions')),
+            'created_by' => $triggeredBy ?? auth()->id(),
+            'provider_meta' => [
+                'awaiting_collection' => true,
+                'integration_live_test' => true,
+                'integration_rehearsal' => true,
+                'integration_partner' => 'payin',
+                'triggered_by' => $triggeredBy ?? auth()->id(),
+                'description' => 'Integration rehearsal / PayIn live test',
+            ],
+        ]);
+    }
+
+    /**
      * @param  array{
      *   payment_type: string,
      *   payment_method: string,
@@ -813,6 +863,14 @@ class CustomerPaymentService
     /** Where the borrower should go after a successful live payment. */
     public function successRedirectUrl(CustomerPayment $payment, ?string $fallback = null): string
     {
+        if (! empty(data_get($payment->provider_meta, 'integration_live_test'))
+            || ! empty(data_get($payment->provider_meta, 'integration_rehearsal'))) {
+            return route('admin.settings.integrations.partner', [
+                'partner' => 'payin',
+                'tab' => 'configuration',
+            ]);
+        }
+
         if ($payment->payment_type === 'insurance_premium') {
             $return = data_get($payment->provider_meta, 'collateral_insurance.return_url');
             if (filled($return)) {

@@ -359,29 +359,51 @@ body.kf-camera-open .kf-mobile-bottom-nav {
         box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
         padding-bottom: env(safe-area-inset-bottom, 0px);
     }
+
+    /* Flex children need min-height:0 or overflow-y-auto never activates and CTAs clip. */
+    .kf-payment-surface-card > .flex-1 {
+        min-height: 0;
+    }
 }
 
 @media (min-width: 1024px) {
+    /* Let the document grow and scroll — do not clip the card to the viewport. */
     .kf-payment-surface {
-        min-height: 70vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1.5rem 0;
+        min-height: 0;
+        display: block;
+        padding: 1.5rem 0 3rem;
     }
 
     .kf-payment-surface-card {
         width: 100%;
         max-width: 28rem;
+        margin-inline: auto;
         border-radius: 1.5rem;
         background: #fff;
         border: 1px solid rgb(229 231 235);
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        max-height: min(85vh, 720px);
+        overflow: visible;
+        display: block;
+        max-height: none;
     }
+
+    .kf-payment-surface-card > .flex-1 {
+        overflow: visible;
+    }
+}
+
+/* Admin / non-overlay embeds still use the card class — never clip Pay now. */
+.max-w-xl .kf-payment-surface-card,
+[data-payment-surface]:not(.kf-payment-surface) .kf-payment-surface-card {
+    max-height: none;
+    overflow: visible;
+    display: block;
+}
+
+.max-w-xl .kf-payment-surface-card > .flex-1,
+[data-payment-surface]:not(.kf-payment-surface) .kf-payment-surface-card > .flex-1 {
+    overflow: visible;
+    min-height: 0;
 }
 
 .kf-payment-progress {

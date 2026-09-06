@@ -682,6 +682,8 @@ class SettingsController extends Controller
             'statusUrl' => route('admin.settings.integrations.live-test.payment.status', $payment),
             'gateUrl' => route('admin.settings.integrations.live-test.payment', $payment),
             'defaultPhone' => $payment->mobile_number,
+            'successUrl' => route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration']),
+            'showPromo' => false,
         ]);
     }
 

@@ -4,10 +4,14 @@
             <p class="font-semibold">Controlled integration rehearsal</p>
             <p class="mt-1 text-brand/80">Same payment.show gate borrowers use. Initiate PayIn only with the Pay now CTA below.</p>
         </div>
-        @include('site.borrower.payments._show_body')
+        <div class="pb-16 sm:pb-20">
+            @include('site.borrower.payments._show_body')
+        </div>
     </x-admin.layout>
 @else
     <x-site.borrower-layout :title="brand_title($payment->reference)" active="payments">
-        @include('site.borrower.payments._show_body')
+        <div class="pb-16 sm:pb-20">
+            @include('site.borrower.payments._show_body')
+        </div>
     </x-site.borrower-layout>
 @endif

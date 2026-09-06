@@ -620,6 +620,8 @@ class PayInIntegrationSettingsTest extends TestCase
 
         \Illuminate\Support\Facades\Http::fake();
 
+        $customersBefore = \App\Models\Customer::query()->count();
+
         $response = $this->actingAs($admin, 'admin')
             ->post(route('admin.settings.integrations.live-test'), [
                 'suite' => 'payment',
@@ -632,10 +634,13 @@ class PayInIntegrationSettingsTest extends TestCase
 
         $payment = \App\Models\CustomerPayment::query()->latest('id')->first();
         $this->assertNotNull($payment, 'Feedback: '.json_encode(session('feedback')).' Result: '.json_encode(session('live_test_result')));
+        $this->assertNull($payment->customer_id);
         $this->assertSame('awaiting_payment', $payment->status);
         $this->assertTrue((bool) data_get($payment->provider_meta, 'integration_live_test'));
         $this->assertNull($payment->provider_ref);
         $this->assertNull(Setting::get('integrations.live_verified.payin'));
+        $this->assertSame($customersBefore, \App\Models\Customer::query()->count());
+        $this->assertSame(0, \App\Models\Customer::query()->where('last_name', 'LiveTest')->count());
 
         $response->assertRedirect(route('admin.settings.integrations.live-test.payment', $payment));
     }
@@ -651,18 +656,9 @@ class PayInIntegrationSettingsTest extends TestCase
         ]);
 
         $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
-        $customer = \App\Models\Customer::create([
-            'customer_number' => 'CU-LIVE-'.uniqid(),
-            'type' => 'individual',
-            'status' => 'active',
-            'first_name' => 'Live',
-            'last_name' => 'Test',
-            'phone' => '255715222132',
-            'country_code' => 'TZ',
-        ]);
         $payment = \App\Models\CustomerPayment::create([
             'reference' => 'PAY-LIVE-GATE-1',
-            'customer_id' => $customer->id,
+            'customer_id' => null,
             'payment_type' => 'registration_fee',
             'payment_method' => 'mobile_money',
             'amount' => 1000,
@@ -724,18 +720,9 @@ class PayInIntegrationSettingsTest extends TestCase
         ]);
 
         $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
-        $customer = \App\Models\Customer::create([
-            'customer_number' => 'CU-LIVE-OP-'.uniqid(),
-            'type' => 'individual',
-            'status' => 'active',
-            'first_name' => 'Live',
-            'last_name' => 'Operator',
-            'phone' => '255712345678',
-            'country_code' => 'TZ',
-        ]);
         $payment = \App\Models\CustomerPayment::create([
             'reference' => 'PAY-LIVE-OP-1',
-            'customer_id' => $customer->id,
+            'customer_id' => null,
             'payment_type' => 'registration_fee',
             'payment_method' => 'mobile_money',
             'amount' => 1000,

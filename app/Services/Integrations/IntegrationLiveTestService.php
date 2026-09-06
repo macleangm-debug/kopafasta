@@ -2,7 +2,6 @@
 
 namespace App\Services\Integrations;
 
-use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\NotificationLog;
 use App\Services\CrbService;
@@ -27,7 +26,7 @@ class IntegrationLiveTestService
 
     /**
      * Create a tagged rehearsal payment and hand off to canonical payment.show.
-     * Does not call PayIn — collection starts only from the payment gate CTA.
+     * Does not create a Customer and does not call PayIn — collection starts only from the gate CTA.
      *
      * @return array{ok: bool, title: string, message: string, lines: list<string>, payment_url?: string, payment_id?: int}
      */
@@ -44,35 +43,24 @@ class IntegrationLiveTestService
         }
 
         try {
-            $customer = $this->resolveOrCreateTestCustomer($phone);
-
-            $payment = $this->payments->create([
-                'customer' => $customer,
-                'payment_type' => 'registration_fee',
-                'payment_method' => 'mobile_money',
-                'amount' => max(500, round($amount, 2)),
-                'mobile_number' => $phone,
-                'notes' => 'Integration rehearsal / PayIn live test '.now()->toDateTimeString(),
-                'provider_meta' => [
-                    'integration_live_test' => true,
-                    'integration_rehearsal' => true,
-                    'integration_partner' => 'payin',
-                    'triggered_by' => auth()->id(),
-                    'awaiting_collection' => true,
-                ],
-            ]);
+            $payment = $this->payments->createIntegrationRehearsal(
+                $phone,
+                $amount,
+                auth()->id(),
+            );
 
             $preview = route('admin.settings.integrations.live-test.payment', $payment);
 
             return [
                 'ok' => true,
                 'title' => 'PayIn rehearsal ready',
-                'message' => 'Test obligation created. Continue on payment.show to initiate the real PayIn collection.',
+                'message' => 'Test obligation created without a customer record. Continue on payment.show to initiate PayIn.',
                 'lines' => [
                     'Payment #'.$payment->id,
                     'Phone: '.$phone,
                     'Amount: '.number_format((float) $payment->amount, 0).' TZS',
                     'Status: '.$payment->status,
+                    'Customer: none (rehearsal only)',
                     'Tagged: integration rehearsal',
                     'Gateway: '.(payment_gateway_is_dummy() ? 'dummy' : 'live'),
                 ],
@@ -304,45 +292,5 @@ class IntegrationLiveTestService
         }
     }
 
-    protected function resolveOrCreateTestCustomer(string $phone): Customer
-    {
-        $existing = $this->findCustomerByPhone($phone);
-        if ($existing) {
-            return $existing;
-        }
-
-        $digits = preg_replace('/\D/', '', $phone) ?: Str::random(9);
-
-        return Customer::query()->create([
-            'customer_number' => 'TST-'.strtoupper(Str::random(8)),
-            'type' => 'individual',
-            'status' => 'active',
-            'branch_id' => app(\App\Services\BranchService::class)->headOfficeId(),
-            'first_name' => 'Integration',
-            'last_name' => 'LiveTest',
-            'phone' => $digits,
-            'country_code' => 'TZ',
-            'activity_details' => [
-                'integration_live_test' => true,
-                'created_by_admin' => auth()->id(),
-            ],
-        ]);
-    }
-
-    protected function findCustomerByPhone(string $phone): ?Customer
-    {
-        $digits = preg_replace('/\D/', '', $phone) ?? '';
-        if ($digits === '') {
-            return null;
-        }
-        $suffix = substr($digits, -9);
-
-        return Customer::query()
-            ->where(function ($q) use ($phone, $digits, $suffix) {
-                $q->where('phone', $phone)
-                    ->orWhere('phone', $digits)
-                    ->orWhere('phone', 'like', '%'.$suffix);
-            })
-            ->first();
-    }
+    // Intentionally no resolveOrCreateTestCustomer — integration rehearsals must not create Customers.
 }
