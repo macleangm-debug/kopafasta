@@ -19,7 +19,9 @@
         'red'    => 'bg-white text-rose-800',
         default  => 'bg-white text-slate-800',
     };
-    $issued = optional($customer?->membership_issued_at)->format('d M Y') ?? '—';
+    $permanent = (bool) ($customer?->usesPermanentIdentityCard());
+    $since = optional($customer?->customerSinceDate())->format('d M Y') ?? '—';
+    $issued = optional($customer?->membership_issued_at)->format('d M Y') ?? $since;
     $expires = optional($customer?->membership_expires_at)->format('d M Y') ?? '—';
     $days = $customer ? max(0, (int) $customer->membershipDaysRemaining()) : 0;
     $initial = $name ? strtoupper(substr($name, 0, 1)) : '?';
@@ -27,6 +29,9 @@
     if ($customer) {
         $photoUrl = app(\App\Services\FaceVerificationService::class)->avatarUrl($customer);
     }
+    $roleLabel = $permanent
+        ? __('borrower.membership.member_role_customer')
+        : __('borrower.membership.member_role');
     $joinUrl = route('site.register.borrower');
 @endphp
 
@@ -56,7 +61,7 @@
                             <div class="size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
                         @endif
                         <div class="min-w-0 pt-0.5">
-                            <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ __('borrower.membership.member_role') }}</p>
+                            <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ $roleLabel }}</p>
                             <h2 class="mt-1 text-xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h2>
                         </div>
                     </div>
@@ -76,6 +81,18 @@
                         <p class="font-mono text-xl font-bold tracking-[0.12em] break-all">{{ $memberNo }}</p>
                     </div>
 
+                    @if ($permanent)
+                    <div class="relative mt-4 grid grid-cols-2 gap-3">
+                        <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
+                            <p class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.customer_since_label') }}</p>
+                            <p class="mt-1.5 text-sm font-semibold tabular-nums leading-tight">{{ $since }}</p>
+                        </div>
+                        <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
+                            <p class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.identity_standing_title') }}</p>
+                            <p class="mt-1.5 text-xs font-semibold leading-tight">{{ __('borrower.membership.identity_standing_body') }}</p>
+                        </div>
+                    </div>
+                    @else
                     <div class="relative mt-4 grid grid-cols-3 gap-3">
                         <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10">
                             <p class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">{{ __('borrower.membership.issued_label') }}</p>
@@ -90,6 +107,7 @@
                             <p class="mt-1.5 text-sm font-bold tabular-nums leading-tight">{{ $days }}</p>
                         </div>
                     </div>
+                    @endif
                 </div>
 
                 <div class="rounded-[1.35rem] bg-brand text-white p-5 shadow-lg relative overflow-hidden ring-1 ring-brand-gold/25">
