@@ -1139,25 +1139,6 @@ export function applyWizard(config) {
 
                     const target = draft.resume_target || {};
                     this.resumeLoading = true;
-
-                    // After payment success: prefer URL next step and mark fee paid so we do not
-                    // reopen the fee gate / previous wizard step (zero-flicker continuation).
-                    this._postPaymentContinue = false;
-                    try {
-                        const cont = sessionStorage.getItem('kf-post-payment-continue');
-                        if (cont && String(cont).includes(location.pathname)) {
-                            const urlStep = new URLSearchParams(location.search).get('step_key');
-                            if (urlStep) {
-                                target.step_key = urlStep;
-                                target.phase = 'application';
-                            }
-                            this._postPaymentContinue = true;
-                            sessionStorage.removeItem('kf-post-payment-continue');
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-
                     this.current = product;
                     this.form.loan_product_id = product.id;
                     this.phase = target.phase === 'application' ? 'application' : 'details';
@@ -1195,13 +1176,6 @@ export function applyWizard(config) {
                     if (draft.internal_guarantor) this.internalGuarantor = draft.internal_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
                     if (draft.declaration_accepted || draft.borrower_signature) this.declarationAccepted = true;
-                    if (this._postPaymentContinue) {
-                        this.applicationFeeState = {
-                            ...(this.applicationFeeState || {}),
-                            status: 'paid',
-                        };
-                        this._postPaymentContinue = false;
-                    }
                     if (draft.group) {
                         this.group = {
                             name: '',

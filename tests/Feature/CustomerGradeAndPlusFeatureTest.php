@@ -721,8 +721,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee('kf-print-wordmark', false)
             ->assertSee(__('plus.reports.a4_kicker'), false)
             ->assertSee(__('plus.reports.money'), false)
-            ->assertSee('window.print()', false)
-            ->assertSee(__('plus.reports.share'), false)
+            ->assertSee('kfPrintPlusReport', false)
+            ->assertSee('createObjectURL', false)
             ->assertDontSee('name="month"', false)
             ->assertDontSee('kf-print-document', false);
 

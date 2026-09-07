@@ -123,7 +123,7 @@
             <p x-show="simulatorEnabled" class="mb-2 inline-flex rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1">{{ __('borrower.payment_waiting.simulator_heading') }}</p>
         </div>
         <div class="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pb-6">
-            <div x-show="state === 'details' && !navigatingAway" class="pt-3">
+            <div x-show="state === 'details'" class="pt-3">
                 <x-site.payment-gate-ready
                     :payment="$payment"
                     :bank-accounts="$bankAccounts"
@@ -138,7 +138,7 @@
                 />
             </div>
 
-            <div x-show="state === 'waiting' && !navigatingAway" x-cloak class="pt-3 space-y-5">
+            <div x-show="state === 'waiting'" x-cloak class="pt-3 space-y-5">
                 <div class="rounded-3xl kf-premium-panel">
                     <div class="px-6 py-7 text-center sm:text-left">
                         <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ __('borrower.payment_waiting.confirm_title') }}</p>
@@ -181,7 +181,7 @@
                 </div>
             </div>
 
-            <div x-show="state === 'paid' || navigatingAway" x-cloak class="pt-3 space-y-5">
+            <div x-show="state === 'paid'" x-cloak class="pt-3 space-y-5">
                 <div class="rounded-3xl kf-premium-panel">
                     <div class="px-6 py-8 text-center space-y-3">
                         <p class="text-2xl font-extrabold tracking-tight text-white">✓ {{ __('borrower.payment_waiting.success_title') }}</p>
@@ -191,7 +191,7 @@
                 </div>
             </div>
 
-            <div x-show="state === 'failed' && !navigatingAway" x-cloak class="pt-3 space-y-5">
+            <div x-show="state === 'failed'" x-cloak class="pt-3 space-y-5">
                 <div class="rounded-3xl kf-premium-panel-red">
                     <div class="px-6 py-7 text-center sm:text-left">
                         <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ __('borrower.payment_waiting.failed_title') }}</p>

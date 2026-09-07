@@ -192,13 +192,6 @@ export function registerPspPaymentFlow(Alpine) {
 
         applyPayload(data) {
             if (!data || typeof data !== 'object') return;
-            // Once verified, freeze on success — never flash details/waiting again.
-            if (this.navigatingAway || this.state === 'paid') {
-                if (data.redirect_url) this.successUrl = data.redirect_url;
-                if (data.amount_label) this.amountLabel = data.amount_label;
-                if (data.reference) this.paymentReference = data.reference;
-                return;
-            }
             if (data.amount_label) this.amountLabel = data.amount_label;
             if (data.phone_masked) this.phoneMasked = data.phone_masked;
             if (data.reference) this.paymentReference = data.reference;
@@ -215,33 +208,17 @@ export function registerPspPaymentFlow(Alpine) {
             } else {
                 this.stopTimers();
             }
-            // verified → visible success → short pause → direct destination (no intermediate hop)
+            // verified → visible success → short pause → destination (no flicker / no instant jump)
             if (this.state === 'paid') {
-                this.navigatingAway = true;
                 this.burstConfetti();
                 const url = this.successUrl || data.redirect_url || '';
                 if (url) {
                     this.successUrl = url;
-                    this.prepareDirectContinuation(url);
                     window.setTimeout(() => {
+                        this.navigatingAway = true;
                         window.location.replace(this.successUrl);
                     }, 1300);
                 }
-            }
-        },
-
-        prepareDirectContinuation(url) {
-            try {
-                // Drop stale apply-wizard drafts so resume does not flash the fee/quote step.
-                Object.keys(sessionStorage).forEach((key) => {
-                    if (!key.startsWith('kf-form-draft:')) return;
-                    if (key.includes('/borrower/apply') || key.includes('/apply')) {
-                        sessionStorage.removeItem(key);
-                    }
-                });
-                sessionStorage.setItem('kf-post-payment-continue', url);
-            } catch (e) {
-                // private mode — ignore
             }
         },
 
