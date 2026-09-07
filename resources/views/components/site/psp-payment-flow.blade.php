@@ -184,12 +184,8 @@
                         <p class="mt-4 text-4xl font-extrabold tabular-nums tracking-tight text-white" x-text="amountLabel">{{ $amountLabel }}</p>
                         <p class="mt-4 text-xs text-white/70">{{ __('borrower.membership.payment_reference_label') }}</p>
                         <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1.5 rounded-lg text-white" x-text="paymentReference || @js($payment->reference)">{{ $payment->reference }}</p>
+                        <p class="mt-4 text-sm text-white/80">{{ __('borrower.payment_waiting.continuing') }}</p>
                     </div>
-                </div>
-                <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-4">
-                    <a :href="successUrl" class="inline-flex w-full justify-center rounded-xl bg-brand text-white text-sm font-bold px-5 py-3">
-                        {{ __('borrower.celebration.cta_continue') }}
-                    </a>
                 </div>
             </div>
 

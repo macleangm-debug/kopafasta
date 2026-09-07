@@ -37,6 +37,39 @@
 
     <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
 
+    @if (! empty($financialSnapshot['next_payment']) || ! empty($financialSnapshot['outstanding']))
+        <section class="mb-8 rounded-2xl bg-white ring-1 ring-brand/10 p-5 sm:p-6">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('borrower.dashboard.snapshot.repayment_title') }}</p>
+                    @if (! empty($financialSnapshot['next_payment']))
+                        <p class="mt-2 text-2xl font-extrabold tabular-nums text-gray-900">{{ $financialSnapshot['next_payment']['value'] }}</p>
+                        @if (! empty($financialSnapshot['next_payment']['hint']))
+                            <p class="mt-1 text-sm text-gray-600">{{ __('borrower.dashboard.snapshot.next_payment') }} · {{ $financialSnapshot['next_payment']['hint'] }}</p>
+                        @endif
+                    @elseif (! empty($financialSnapshot['outstanding']))
+                        <p class="mt-2 text-2xl font-extrabold tabular-nums text-gray-900">{{ $financialSnapshot['outstanding']['value'] }}</p>
+                        <p class="mt-1 text-sm text-gray-600">{{ __('borrower.dashboard.snapshot.outstanding') }}</p>
+                    @endif
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    @if (! empty($financialSnapshot['next_payment']['url']))
+                        <a href="{{ $financialSnapshot['next_payment']['url'] }}"
+                           class="inline-flex justify-center rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
+                            {{ __('borrower.dashboard.make_payment') }}
+                        </a>
+                    @endif
+                    @if (! empty($financialSnapshot['outstanding']['url']))
+                        <a href="{{ $financialSnapshot['outstanding']['url'] }}"
+                           class="inline-flex justify-center rounded-xl bg-white ring-1 ring-gray-200 text-gray-800 text-sm font-semibold px-5 py-2.5">
+                            {{ __('borrower.dashboard.view_loan') }}
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </section>
+    @endif
+
     @php
         $rewardsDash = app(\App\Services\LoyaltyRedemptionService::class)->dashboard($customer);
     @endphp

@@ -116,7 +116,10 @@ class GrowthRewardsCompletionTest extends TestCase
     public function test_checkout_keeps_gross_obligation_and_records_net_separately(): void
     {
         $customer = $this->makeCustomer(['loyalty_points' => 200]);
+        $before = app(LoyaltyPointsService::class)->balance($customer->fresh());
         $redemption = app(LoyaltyRedemptionService::class)->redeem($customer->fresh(), 'application_fee_10');
+        $this->assertSame(0, (int) $redemption->points_spent);
+        $this->assertSame($before, app(LoyaltyPointsService::class)->balance($customer->fresh()));
 
         $payment = CustomerPayment::create([
             'reference' => 'PAY-GRW-GROSS',
@@ -138,6 +141,7 @@ class GrowthRewardsCompletionTest extends TestCase
         $this->assertSame('loyalty_reward', data_get($payment->provider_meta, 'pricing.discount_source'));
         $this->assertSame($redemption->id, (int) data_get($payment->provider_meta, 'pricing.loyalty_redemption_id'));
         $this->assertSame('active', $redemption->fresh()->status);
+        $this->assertSame($before, app(LoyaltyPointsService::class)->balance($customer->fresh()));
     }
 
     public function test_failed_psp_does_not_consume_the_reward(): void
@@ -194,6 +198,7 @@ class GrowthRewardsCompletionTest extends TestCase
             'loyalty_points' => 200,
         ]);
         $redemption = app(LoyaltyRedemptionService::class)->redeem($invitee->fresh(), 'application_fee_10');
+        $this->assertSame(200, app(LoyaltyPointsService::class)->balance($invitee->fresh()));
 
         $quote = app(PaymentGateService::class)->quote($invitee->fresh(), 10000, 'application_fee', false, null, null, true);
         $this->assertSame($redemption->id, $quote['loyalty_redemption_id']);
@@ -203,6 +208,8 @@ class GrowthRewardsCompletionTest extends TestCase
         $gate->settle($invitee->fresh(), $quote, 'application_fee', CustomerPayment::class, 1);
 
         $this->assertSame('used', $redemption->fresh()->status);
+        $this->assertSame(100, (int) $redemption->fresh()->points_spent);
+        $this->assertSame(100, app(LoyaltyPointsService::class)->balance($invitee->fresh()));
         $this->assertSame(1, LoyaltyRedemption::query()->where('customer_id', $invitee->id)->where('status', 'used')->count());
         $this->assertSame(25, app(LoyaltyPointsService::class)->balance($referrer->fresh()));
     }

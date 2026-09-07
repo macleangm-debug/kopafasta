@@ -15,11 +15,12 @@
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
-                    <th class="px-4 py-3">{{ __('borrower.applications_list.status') }}</th>
+                    <th class="px-4 py-3">{{ __('borrower.applications_list.applicant') }}</th>
                     <th class="px-4 py-3">{{ __('borrower.applications_list.reference') }}</th>
                     <th class="px-4 py-3">{{ __('borrower.applications_list.product') }}</th>
-                    <th class="px-4 py-3">{{ __('borrower.applications_list.profile') }}</th>
-                    <th class="px-4 py-3">{{ __('borrower.applications_list.application') }}</th>
+                    <th class="px-4 py-3">{{ __('borrower.applications_list.amount') }}</th>
+                    <th class="px-4 py-3">{{ __('borrower.applications_list.status') }}</th>
+                    <th class="px-4 py-3">{{ __('borrower.applications_list.updated') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('borrower.applications_list.actions') }}</th>
                 </tr>
             </thead>
@@ -30,28 +31,28 @@
                         $viewUrl = ($row['is_draft'] ?? false)
                             ? ($row['preview_url'] ?? $row['action_url'])
                             : ($row['action_url'] ?? '#');
+                        $updated = $row['last_updated_human']
+                            ?? $row['saved_at_human']
+                            ?? (optional($row['updated_at'] ?? null)->diffForHumans() ?: '—');
                     @endphp
                     <tr class="hover:bg-brand-muted/20 cursor-pointer transition"
                         data-kf-motion="push"
                         data-kf-share="kf-app-{{ $row['id'] }}"
                         onclick="window.location='{{ $viewUrl }}'">
                         <td class="px-4 py-3">
+                            <p class="font-bold text-gray-900 leading-snug">{{ $row['customer_name'] ?? '—' }}</p>
+                        </td>
+                        <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ $row['application_number'] }}</td>
+                        <td class="px-4 py-3 text-gray-800">{{ $row['product_name'] }}</td>
+                        <td class="px-4 py-3 font-semibold tabular-nums whitespace-nowrap">
+                            {{ format_money((float) ($row['requested_amount'] ?? 0)) }}
+                        </td>
+                        <td class="px-4 py-3">
                             <span class="inline-flex text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">
                                 {{ $row['application_status'] ?? $row['status_label'] }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 font-mono text-xs font-semibold">{{ $row['application_number'] }}</td>
-                        <td class="px-4 py-3">{{ $row['product_name'] }}</td>
-                        <td class="px-4 py-3">
-                            @if ($row['profile_complete'] ?? false)
-                                <span class="text-emerald-700 font-semibold text-xs">{{ __('borrower.applications_list.profile_complete_check') }}</span>
-                            @else
-                                <span class="font-semibold text-xs">{{ $row['profile_percent'] ?? 0 }}%</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3">
-                            <span class="font-semibold text-xs text-gray-900">{{ $row['application_percent'] ?? 0 }}%</span>
-                        </td>
+                        <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ $updated }}</td>
                         <td class="px-4 py-3 text-right space-x-2" onclick="event.stopPropagation()">
                             @if ($row['is_draft'] ?? false)
                                 <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>

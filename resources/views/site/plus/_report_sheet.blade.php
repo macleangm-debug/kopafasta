@@ -227,20 +227,14 @@
     </div>
 
     @if ($print)
-        <div class="kf-print-app-footer px-5 sm:px-8 pb-5 flex items-center gap-3 text-[10px] text-gray-500">
-            <x-site.brand-mark size="sm" />
-            <p class="min-w-0 leading-snug">
-                {{ __('plus.reports.footer', ['month' => $report['label']]) }}
-                · {{ brand('legal_name', 'Kopafasta Microfinance Limited') }}
-            </p>
+        <div class="kf-print-app-footer px-5 sm:px-8 pb-5 flex items-center justify-between gap-3 text-[10px] text-gray-500">
+            <x-site.brand-mark size="sm" :mark="true" />
+            <p>{{ __('plus.reports.footer_confidential') }}</p>
         </div>
     @else
-        <div class="px-5 sm:px-8 pb-5 flex items-center gap-3 text-[10px] text-gray-400 print:hidden">
-            <x-site.brand-mark size="sm" />
-            <p>
-                {{ __('plus.reports.footer', ['month' => $report['label']]) }}
-                · {{ brand('legal_name', 'Kopafasta Microfinance Limited') }}
-            </p>
+        <div class="px-5 sm:px-8 pb-5 flex items-center justify-between gap-3 text-[10px] text-gray-400 print:hidden">
+            <x-site.brand-mark size="sm" :mark="true" />
+            <p>{{ __('plus.reports.footer_confidential') }}</p>
         </div>
     @endif
 </div>

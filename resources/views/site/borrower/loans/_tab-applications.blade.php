@@ -21,7 +21,8 @@
         <h2 class="text-lg font-semibold">{{ __('borrower.applications_list.active_title') }}</h2>
         <p class="text-sm text-gray-500">{{ __('borrower.applications_list.active_hint') }}</p>
     </div>
-    <div class="inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
+    {{-- Desktop-only view toggle. Mobile always uses cards. --}}
+    <div class="hidden lg:inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
         <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'cards']) }}"
            data-kf-motion="tab"
            class="px-3 py-1.5 rounded-lg font-semibold {{ $viewMode === 'cards' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
@@ -45,10 +46,17 @@
             :action-url="route('site.borrower.loan-products')"
         />
     </div>
-@elseif ($viewMode === 'table')
-    @include('site.borrower.loans._applications-table', ['rows' => $activeRows])
 @else
-    @include('site.borrower.loans._applications-cards', ['rows' => $activeRows, 'toneClasses' => $toneClasses])
+    <div class="lg:hidden">
+        @include('site.borrower.loans._applications-cards', ['rows' => $activeRows, 'toneClasses' => $toneClasses])
+    </div>
+    <div class="hidden lg:block">
+        @if ($viewMode === 'cards')
+            @include('site.borrower.loans._applications-cards', ['rows' => $activeRows, 'toneClasses' => $toneClasses])
+        @else
+            @include('site.borrower.loans._applications-table', ['rows' => $activeRows])
+        @endif
+    </div>
 @endif
 
 @if ($closedRows !== [])
@@ -68,11 +76,16 @@
             </div>
         </summary>
         <div class="px-5 pb-5 border-t border-gray-100 pt-4">
-            @if ($viewMode === 'table')
-                @include('site.borrower.loans._applications-table', ['rows' => $closedRows])
-            @else
+            <div class="lg:hidden">
                 @include('site.borrower.loans._applications-cards', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
-            @endif
+            </div>
+            <div class="hidden lg:block">
+                @if ($viewMode === 'cards')
+                    @include('site.borrower.loans._applications-cards', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
+                @else
+                    @include('site.borrower.loans._applications-table', ['rows' => $closedRows])
+                @endif
+            </div>
         </div>
     </details>
 @endif

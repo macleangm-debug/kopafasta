@@ -154,14 +154,16 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
         $html = $this->actingAs($customer->user)
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
-            ->assertSee(__('borrower.membership.apply_promo_link'), false)
-            ->assertSee(__('borrower.payments_page.show.you_have_reward'), false)
-            ->assertSee(__('borrower.payments_page.show.apply_reward'), false)
-            ->assertSee(__('borrower.payments_page.show.reward_or_promo'), false)
+            ->assertSee(__('borrower.payments_page.show.save_on_payment'), false)
+            ->assertSee(__('borrower.payments_page.show.reward_available'), false)
+            ->assertSee(__('borrower.payments_page.show.use_reward'), false)
+            ->assertSee(__('borrower.membership.promo_section_title'), false)
+            ->assertSee(__('borrower.membership.apply_promo'), false)
             ->getContent();
 
         $this->assertStringContainsString('toggleReward()', $html);
         $this->assertStringContainsString('applyPromo()', $html);
+        $this->assertStringContainsString('clearPromo()', $html);
         $this->assertStringContainsString('apply_reward', $html);
         $this->assertStringContainsString('promo_code', $html);
     }
@@ -181,12 +183,12 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
         $this->actingAs($rich->user)
             ->get(route('site.borrower.payments.show', $richPayment))
             ->assertOk()
-            ->assertSee(__('borrower.payments_page.show.you_have_reward'), false);
+            ->assertSee(__('borrower.payments_page.show.reward_available'), false);
 
         $this->actingAs($poor->user)
             ->get(route('site.borrower.payments.show', $poorPayment))
             ->assertOk()
-            ->assertDontSee(__('borrower.payments_page.show.you_have_reward'), false);
+            ->assertDontSee(__('borrower.payments_page.show.reward_available'), false);
     }
 
     public function test_reward_points_are_not_consumed_until_settle(): void

@@ -26,6 +26,14 @@
     }
     $profileComplete = $profile->isComplete($partner);
     $completionPercent = $profile->completionPercent($partner);
+    $nextIncompleteSection = collect($profile->sectionsFor($partner))
+        ->first(fn (string $key) => ! ($profile->sectionStatus($partner, $key)['complete'] ?? false));
+    $completionCtaUrl = ($completionPercent < 100 && $nextIncompleteSection)
+        ? route($profileRoute, ['section' => $nextIncompleteSection])
+        : null;
+    $completionCtaLabel = $completionPercent < 100
+        ? __('borrower.profile.hero_completion_cta')
+        : null;
     $verified = ($partner->status ?? '') === 'active' && $membership->isActive($partner) && $profileComplete;
     $badgeLabel = $verified ? $role : __('site.card_verify.status.inactive');
     $hubUrl = route($profileRoute);
@@ -56,6 +64,8 @@
         :show-grade-badge="false"
         :badge-label="$badgeLabel"
         :completion-percent="$completionPercent"
+        :completion-cta-url="$completionCtaUrl"
+        :completion-cta-label="$completionCtaLabel"
         :cta-url="$hubUrl"
         :cta-label="__('borrower.membership.my_card')"
     />

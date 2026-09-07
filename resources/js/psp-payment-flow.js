@@ -118,6 +118,22 @@ export function registerPspPaymentFlow(Alpine) {
             });
         },
 
+        changePromo() {
+            this.promoValid = false;
+            this.promoMessage = '';
+        },
+
+        async clearPromo() {
+            this.promoCode = '';
+            this.promoValid = false;
+            this.promoMessage = '';
+            await this.postAdjust({
+                promo_code: '',
+                clear_promo: '1',
+                apply_reward: this.applyReward ? '1' : '0',
+            });
+        },
+
         surfaceTitle() {
             if (this.state === 'paid') return this.copy.successTitle || this.paidTitle;
             if (this.state === 'failed') return this.copy.failedTitle;

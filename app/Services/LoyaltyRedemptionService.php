@@ -173,8 +173,15 @@ class LoyaltyRedemptionService
         }
 
         return DB::transaction(function () use ($customer, $option, $optionKey, $pointsCost, $benefitType): LoyaltyRedemption {
-            if (! $this->points->redeem($customer, $pointsCost, 'Redeemed: '.($option['label'] ?? $optionKey), 'loyalty_redemption', null)) {
-                throw new InvalidArgumentException(__('borrower.rewards.insufficient_points'));
+            // Fee discounts activate on Rewards without spending points.
+            // Points are consumed only when the verified payment that used the reward settles.
+            $deferSpend = in_array($benefitType, ['percent_discount', 'fixed_discount', 'fee_waiver'], true);
+            $spent = 0;
+            if (! $deferSpend) {
+                if (! $this->points->redeem($customer, $pointsCost, 'Redeemed: '.($option['label'] ?? $optionKey), 'loyalty_redemption', null)) {
+                    throw new InvalidArgumentException(__('borrower.rewards.insufficient_points'));
+                }
+                $spent = $pointsCost;
             }
 
             $expiresDays = (int) ($option['expires_days'] ?? 90);
@@ -186,7 +193,7 @@ class LoyaltyRedemptionService
                 'benefit_type' => $benefitType,
                 'benefit_value' => (float) ($option['benefit_value'] ?? 0),
                 'fee_type' => $option['fee_type'] ?? null,
-                'points_spent' => $pointsCost,
+                'points_spent' => $spent,
                 'status' => 'active',
                 'expires_at' => now()->addDays(max(1, $expiresDays)),
             ]);
@@ -314,15 +321,17 @@ class LoyaltyRedemptionService
                 return null;
             }
 
+            $cost = (int) (collect($this->redemptionOptions())->firstWhere('key', $active->option_key)['points'] ?? 0);
+
             return [
                 'id' => (int) $active->id,
                 'key' => (string) $active->option_key,
                 'label' => (string) $active->label,
                 'discount' => $discount,
                 'benefit_type' => (string) $active->benefit_type,
-                'points' => 0,
+                'points' => $cost,
                 'points_balance' => $balance,
-                'points_after' => $balance,
+                'points_after' => max(0, $balance - $cost),
                 'already_unlocked' => true,
                 'source' => 'wallet',
             ];
@@ -422,9 +431,24 @@ class LoyaltyRedemptionService
 
         $existing = $this->activeForFee($customer, $feeType);
         if ($existing) {
+            if ((int) $existing->points_spent === 0) {
+                $cost = (int) (collect($this->redemptionOptions())->firstWhere('key', $existing->option_key)['points'] ?? 0);
+                if ($cost > 0) {
+                    if (! $this->points->redeem(
+                        $customer,
+                        $cost,
+                        'Redeemed on payment: '.$existing->label,
+                        'loyalty_redemption',
+                        $existing->id,
+                    )) {
+                        return null;
+                    }
+                    $existing->update(['points_spent' => $cost]);
+                }
+            }
             $this->markUsed($existing, $refType, $refId);
 
-            return $existing;
+            return $existing->fresh();
         }
 
         if (! filled($optionKey)) {
@@ -432,9 +456,24 @@ class LoyaltyRedemptionService
         }
 
         $redemption = $this->redeem($customer, $optionKey);
+        if ((int) $redemption->points_spent === 0) {
+            $cost = (int) (collect($this->redemptionOptions())->firstWhere('key', $optionKey)['points'] ?? 0);
+            if ($cost > 0) {
+                if (! $this->points->redeem(
+                    $customer,
+                    $cost,
+                    'Redeemed on payment: '.$redemption->label,
+                    'loyalty_redemption',
+                    $redemption->id,
+                )) {
+                    return null;
+                }
+                $redemption->update(['points_spent' => $cost]);
+            }
+        }
         $this->markUsed($redemption, $refType, $refId);
 
-        return $redemption;
+        return $redemption->fresh();
     }
 
     /**

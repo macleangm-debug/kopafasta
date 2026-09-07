@@ -118,7 +118,7 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         $this->assertStringNotContainsString('<x-site.plus-nav', $offers);
     }
 
-    public function test_plus_print_footer_uses_logo_only_without_url(): void
+    public function test_plus_print_footer_is_logo_and_confidential_only(): void
     {
         $printDoc = file_get_contents(resource_path('views/components/site/print-document.blade.php'));
         $reports = file_get_contents(resource_path('views/site/plus/reports.blade.php'));
@@ -126,13 +126,13 @@ class MicroPassBProfileShellFeatureTest extends TestCase
 
         $this->assertStringContainsString('kf-print-running-footer', $printDoc);
         $this->assertStringContainsString('logoDataUri', $printDoc);
-        $this->assertStringContainsString('brand_name()', $printDoc);
+        $this->assertStringContainsString('footer_confidential', $printDoc);
         $this->assertStringContainsString('https?://', $printDoc); // strip pattern present
         $this->assertStringNotContainsString('print_plus_label', $printDoc);
-        $this->assertStringNotContainsString('truncate', $printDoc);
         $this->assertStringNotContainsString('$website', $reports);
         $this->assertStringNotContainsString('$website', $sheet);
         $this->assertStringNotContainsString('footer-left', $reports);
+        $this->assertStringNotContainsString('plus.reports.footer\'', $reports);
     }
 
     public function test_profile_hero_shows_canonical_completion(): void
@@ -143,10 +143,14 @@ class MicroPassBProfileShellFeatureTest extends TestCase
 
         $this->assertStringContainsString('ProfileCompletionService', $card);
         $this->assertStringContainsString('completion-percent', $card);
+        $this->assertStringContainsString('completion-cta-url', $card);
+        $this->assertStringContainsString('hero_completion_cta', $card);
         $this->assertStringContainsString('hero_completion_percent', $hero);
         $this->assertStringContainsString('hero_completion_done', $hero);
+        $this->assertStringContainsString('completionCtaLabel', $hero);
         $this->assertStringContainsString('completionPercent', $partner);
         $this->assertStringContainsString('completion-percent', $partner);
+        $this->assertStringContainsString('completionCtaUrl', $partner);
     }
 
     public function test_profile_pages_render_completion_in_identity_hero(): void
@@ -158,6 +162,7 @@ class MicroPassBProfileShellFeatureTest extends TestCase
             ->withSession(['locale' => 'en'])
             ->get(route('site.borrower.profile', ['section' => 'personal']))
             ->assertOk()
+            ->assertDontSee(__('borrower.profile.completion_hub_title'), false)
             ->getContent();
 
         if ($percent >= 100) {
@@ -165,6 +170,7 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         } else {
             $this->assertStringContainsString(__('borrower.profile.hero_completion_percent', ['percent' => $percent]), $html);
             $this->assertStringContainsString('role="progressbar"', $html);
+            $this->assertStringContainsString(__('borrower.profile.hero_completion_cta'), $html);
         }
     }
 

@@ -53,12 +53,6 @@
                     <h2 class="text-lg sm:text-xl font-bold text-gray-900 mt-1">{{ __('borrower.loan_profile.draft_summary_title') }}</h2>
                     <p class="text-sm text-gray-600 mt-1">{{ $next['label'] ?? __('borrower.loan_profile.next_actions.continue_form') }}</p>
                 </div>
-                @if ($continueUrl)
-                    <a href="{{ $continueUrl }}"
-                       class="inline-flex items-center justify-center font-bold px-8 py-3.5 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                        {{ $continueLabel }}
-                    </a>
-                @endif
             </div>
 
             <div class="mt-5 rounded-xl bg-white ring-1 ring-gray-200/80 px-4 py-3">
@@ -152,21 +146,32 @@
                 </div>
             @endif
 
-            @if ($canDiscardDraft)
-                <form method="POST" action="{{ route('site.borrower.draft.discard', $draft) }}" class="mt-4"
-                      onsubmit="event.preventDefault(); confirmForm(this, {
-                          title: @js(__('borrower.policy.discard_draft_confirm_title')),
-                          message: @js(__('borrower.policy.discard_draft_confirm_body')),
-                          confirmLabel: @js(__('borrower.policy.discard_draft_confirm_action')),
-                          tone: 'warning',
-                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
-                      }); return false;">
-                    @csrf
-                    <button type="submit" class="inline-flex text-xs font-semibold text-red-700 bg-white ring-1 ring-red-200 hover:bg-red-50 px-3 py-2 rounded-lg">
-                        {{ __('borrower.loan_profile.actions.withdraw') }}
-                    </button>
-                </form>
-            @endif
+            {{-- Bottom action row: Continue primary + Delete destructive secondary --}}
+            <div class="mt-5 pt-4 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
+                @if ($canDiscardDraft)
+                    <form method="POST" action="{{ route('site.borrower.draft.discard', $draft) }}" class="w-full sm:w-auto"
+                          onsubmit="event.preventDefault(); confirmForm(this, {
+                              title: @js(__('borrower.policy.discard_draft_confirm_title')),
+                              message: @js(__('borrower.policy.discard_draft_confirm_body')),
+                              confirmLabel: @js(__('borrower.policy.discard_draft_confirm_action')),
+                              tone: 'warning',
+                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                          }); return false;">
+                        @csrf
+                        <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center text-sm font-semibold text-red-700 bg-white ring-1 ring-red-300 hover:bg-red-50 px-5 py-3 rounded-xl">
+                            {{ __('borrower.loan_profile.actions.withdraw') }}
+                        </button>
+                    </form>
+                @else
+                    <span class="hidden sm:block"></span>
+                @endif
+                @if ($continueUrl)
+                    <a href="{{ $continueUrl }}"
+                       class="w-full sm:w-auto inline-flex items-center justify-center font-bold px-8 py-3.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
+                        {{ $continueLabel }}
+                    </a>
+                @endif
+            </div>
         </div>
 
         @if (! empty($next['ready']) && $profileComplete)

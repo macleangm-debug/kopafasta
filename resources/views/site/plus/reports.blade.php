@@ -12,10 +12,7 @@
         $review = $report['noticed'] ?? [];
     }
     $businessContext = $report['business_context'] ?? __('plus.business.all_businesses');
-    $footerLine = __('plus.reports.footer', ['month' => $report['label'] ?? $currentMonth])
-        .' · '.brand('legal_name', 'Kopafasta Microfinance Limited');
-    $footerLine = trim(preg_replace('#https?://\S+#i', '', $footerLine) ?? $footerLine);
-    $footerLine = trim(preg_replace('/\s{2,}/', ' ', $footerLine) ?? $footerLine, " \t\n\r\0\x0B·");
+    $footerLine = __('plus.reports.footer_confidential');
     $print = (bool) ($print ?? false);
 @endphp
 

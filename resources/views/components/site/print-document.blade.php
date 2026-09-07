@@ -21,10 +21,7 @@
 
         return trim($value, " \t\n\r\0\x0B·");
     };
-    $footerMeta = $stripUrls($footerRight ?: trim(implode(' · ', array_filter([
-        $footerLeft,
-        $footerRight,
-    ], fn ($part) => filled($part)))));
+    $footerMeta = __('plus.reports.footer_confidential');
     $logoPath = public_path(ltrim((string) (brand('logo_mark_url') ?: 'images/brand/kopafasta-mark.png'), '/'));
     if (! is_file($logoPath)) {
         $logoPath = public_path('images/brand/kopafasta-mark.png');
@@ -131,15 +128,12 @@
         {{ $slot }}
     </main>
 
-    {{-- Logo mark + "Kopafasta" wordmark only. Never append "Plus". No application URL. --}}
+    {{-- Logo left · Private & confidential right. No URL, month, company, or Plus wordmark. --}}
     <footer class="kf-print-running-footer" aria-label="{{ brand_name() }}">
-        <div class="shrink-0 inline-flex items-center gap-1.5 pr-2">
-            <img src="{{ $logoDataUri }}" alt="" width="48" height="48" class="object-contain">
-            <span class="font-bold tracking-tight text-[8pt] sm:text-xs text-brand whitespace-nowrap">{{ brand_name() }}</span>
+        <div class="shrink-0 pr-2">
+            <img src="{{ $logoDataUri }}" alt="{{ brand_name() }}" width="48" height="48" class="object-contain">
         </div>
-        @if (filled($footerMeta))
-            <p class="min-w-0 flex-1 leading-snug">{{ $footerMeta }}</p>
-        @endif
+        <p class="min-w-0 flex-1 text-right leading-snug">{{ $footerMeta }}</p>
     </footer>
 </body>
 </html>

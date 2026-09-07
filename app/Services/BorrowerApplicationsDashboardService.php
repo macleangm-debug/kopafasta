@@ -100,6 +100,7 @@ class BorrowerApplicationsDashboardService
         return [
             'is_draft'           => true,
             'id'                 => 'draft-'.$draft->id,
+            'customer_name'      => app(\App\Services\PortalContextService::class)->displayName($customer),
             'loan_type'          => $this->loanTypeLabel($product),
             'application_number' => $draft->draft_reference ?: __('borrower.applications_list.draft_reference'),
             'product_name'       => $product?->localizedName() ?? __('borrower.apply.title'),
@@ -129,6 +130,7 @@ class BorrowerApplicationsDashboardService
             'preview_url'        => $this->drafts->resumeUrl($customer, $draft),
             'preview_label'      => __('borrower.applications_list.view_application'),
             'saved_at_human'     => optional($draft->saved_at)->diffForHumans(),
+            'last_updated_human' => optional($draft->saved_at ?? $draft->updated_at)->diffForHumans(),
         ];
     }
 
@@ -161,6 +163,7 @@ class BorrowerApplicationsDashboardService
         return [
             'is_draft'           => false,
             'id'                 => $application->id,
+            'customer_name'      => app(\App\Services\PortalContextService::class)->displayName($application->customer),
             'loan_type'          => $this->loanTypeLabel($application->product),
             'application_number' => $application->application_number,
             'product_name'       => $application->product?->localizedName() ?? '—',

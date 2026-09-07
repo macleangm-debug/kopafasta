@@ -192,11 +192,20 @@ class Phase31FeatureTest extends TestCase
     public function test_profile_shell_completion_summary_renders_on_hub(): void
     {
         $customer = $this->completeBorrower();
+        $percent = (int) (app(\App\Services\ProfileCompletionService::class)->calculate($customer)['percent'] ?? 0);
 
-        $this->actingAs($customer->user)
+        $response = $this->actingAs($customer->user)
+            ->withSession(['locale' => 'en'])
             ->get(route('site.borrower.profile'))
             ->assertOk()
-            ->assertSee(__('borrower.profile.completion_hub_title'), false)
+            ->assertDontSee(__('borrower.profile.completion_hub_title'), false)
             ->assertSee(__('borrower.profile.personal'), false);
+
+        if ($percent >= 100) {
+            $response->assertSee(__('borrower.profile.hero_completion_done'), false);
+        } else {
+            $response->assertSee(__('borrower.profile.hero_completion_percent', ['percent' => $percent]), false)
+                ->assertSee(__('borrower.profile.hero_completion_cta'), false);
+        }
     }
 }

@@ -2,12 +2,7 @@
 
 @php
     $builder = app(\App\Services\ProfileSectionBuilderService::class);
-    $engagement = app(\App\Services\MemberEngagementService::class);
     $sections = $builder->hubCards($customer);
-    $percent = (int) ($engagement->summary($customer)['profile_completion'] ?? 0);
-    $strength = $engagement->profileStrength($percent);
-    $threshold = (int) (app(\App\Services\ProfileCompletionService::class)->calculate($customer)['threshold'] ?? 60);
-    $meetsThreshold = $percent >= $threshold;
 
     $statusColors = [
         'complete'     => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
@@ -20,29 +15,6 @@
         'not_started'  => 'bg-gray-100 text-gray-600 ring-gray-200',
     ];
 @endphp
-
-<section class="mb-6 glass-card overflow-hidden relative">
-    <div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_rgba(245,200,66,0.35),_transparent_55%)] pointer-events-none"></div>
-    <div class="relative p-5 sm:p-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <div>
-                <h2 class="font-bold text-gray-900 text-lg">{{ __('borrower.profile.completion_hub_title') }}</h2>
-                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.profile.completion_hub_subtitle') }}</p>
-            </div>
-            <div class="text-right shrink-0">
-                <p class="text-3xl font-bold text-brand tabular-nums leading-none">{{ $percent }}%</p>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 mt-1">{{ __('borrower.engagement.profile_strength') }}: {{ $strength['label'] }}</p>
-            </div>
-        </div>
-        <div class="relative h-3 rounded-full bg-gray-200/80 overflow-hidden">
-            <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-500 {{ $percent >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-brand to-brand-gold' }}"
-                 style="width: {{ max(2, $percent) }}%"></div>
-        </div>
-        @unless ($meetsThreshold)
-            <p class="mt-4 text-sm text-amber-800 font-medium">{{ __('borrower.profile.completion_threshold_hint', ['percent' => $threshold]) }}</p>
-        @endunless
-    </div>
-</section>
 
 <section class="mb-6">
     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.hub.sections_title') }}</p>

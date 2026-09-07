@@ -12,6 +12,8 @@
     'ctaUrl' => null,
     'ctaLabel' => null,
     'completionPercent' => null, // identity hero only; canonical ProfileCompletionService percent
+    'completionCtaUrl' => null,
+    'completionCtaLabel' => null,
 ])
 
 {{-- Shared account-shell hero (borrower + partner). Dashboard Hero language. --}}
@@ -59,13 +61,18 @@
                             {{ __('borrower.profile.hero_completion_done') }}
                         </p>
                     @else
-                        <div class="w-full max-w-xs">
-                            <div class="flex items-center justify-between gap-3">
-                                <p class="text-xs font-semibold text-white/90">{{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}</p>
-                            </div>
-                            <div class="mt-1.5 h-1.5 rounded-full bg-white/20 overflow-hidden" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="w-full max-w-sm space-y-2">
+                            <p class="text-xs font-semibold text-white/90">{{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}</p>
+                            <div class="h-1.5 rounded-full bg-white/20 overflow-hidden" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100">
                                 <div class="h-full rounded-full bg-brand-gold" style="width: {{ $pct }}%"></div>
                             </div>
+                            @if ($completionCtaUrl && $completionCtaLabel)
+                                <a href="{{ $completionCtaUrl }}"
+                                   data-loading="click"
+                                   class="inline-flex text-xs font-bold text-brand-gold hover:underline">
+                                    {{ $completionCtaLabel }} →
+                                </a>
+                            @endif
                         </div>
                     @endif
                 @endif
