@@ -433,6 +433,7 @@ class PlusController extends Controller
     {
         $customer = $this->requireActivePlus($request, $plus);
         abort_unless((int) $goal->customer_id === (int) $customer->id, 403);
+        abort_if($goal->isComplete(), 403, __('plus.goals.completed'));
         $this->mergeMoneyFields($request, ['amount']);
         $data = $request->validate(['amount' => ['required', 'numeric', 'min:0.01']]);
         $saved = (float) $goal->saved_amount + (float) $data['amount'];

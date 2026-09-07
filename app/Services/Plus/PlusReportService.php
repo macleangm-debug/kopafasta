@@ -356,8 +356,16 @@ class PlusReportService
             ];
         }
         if ($business['sold'] > 0 || $business['spent'] > 0) {
+            $prevHadBusiness = ((float) ($prevBusiness['sold'] ?? 0) > 0)
+                || ((float) ($prevBusiness['spent'] ?? 0) > 0);
+            $bizTitle = match (true) {
+                ! $prevHadBusiness => __('plus.reports.obs_biz_recorded_title'),
+                ($business['difference'] ?? 0) > ($prevBusiness['difference'] ?? 0) => __('plus.reports.obs_biz_up_title'),
+                ($business['difference'] ?? 0) < ($prevBusiness['difference'] ?? 0) => __('plus.reports.obs_biz_down_title'),
+                default => __('plus.reports.obs_biz_steady_title'),
+            };
             $items[] = [
-                'title' => $business['difference'] >= 0 ? __('plus.reports.obs_biz_up_title') : __('plus.reports.obs_biz_down_title'),
+                'title' => $bizTitle,
                 'body' => __('plus.reports.obs_biz_body', [
                     'sold' => format_money($business['sold']),
                     'diff' => format_money($business['difference']),
@@ -392,10 +400,14 @@ class PlusReportService
             ];
         }
         if ($business['sold'] > 0) {
+            $prevSold = (float) ($prevBusiness['sold'] ?? 0);
             $items[] = [
-                'title' => $business['sold'] >= $prevBusiness['sold']
-                    ? __('plus.reports.noticed_biz_title')
-                    : __('plus.reports.noticed_biz_quiet_title'),
+                'title' => match (true) {
+                    $prevSold <= 0 => __('plus.reports.noticed_biz_recorded_title'),
+                    $business['sold'] > $prevSold => __('plus.reports.noticed_biz_title'),
+                    $business['sold'] < $prevSold => __('plus.reports.noticed_biz_quiet_title'),
+                    default => __('plus.reports.noticed_biz_steady_title'),
+                },
                 'body' => __('plus.reports.noticed_biz_body'),
             ];
         }
