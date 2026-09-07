@@ -50,8 +50,16 @@
                     </p>
                 </div>
 
-                {{-- Purpose: locked after selection; Change to edit (x-show keeps select mounted) --}}
+                {{-- Purpose: locked product purpose, or locked after selection --}}
                 <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 sm:p-5">
+                    <div x-show="current?.purpose_mode === 'fixed' && current?.fixed_purpose" x-cloak class="space-y-2">
+                        <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.purpose') }}</p>
+                        <p class="text-base font-bold text-gray-900"
+                           x-text="purposeLabels[current.fixed_purpose] || current.fixed_purpose"></p>
+                        <p class="text-xs text-gray-500">{{ __('borrower.apply.quote.purpose_locked_hint') }}</p>
+                        <input type="hidden" name="purpose" :value="current.fixed_purpose">
+                    </div>
+                    <div x-show="!(current?.purpose_mode === 'fixed' && current?.fixed_purpose)" x-cloak>
                     <div x-show="(isGroupProduct(current) ? group.purpose : form.purpose) && !purposeEditing && !purposeNeedsDetail()" x-cloak class="space-y-2">
                         <div class="flex items-center justify-between gap-3">
                             <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.purpose') }}</p>
@@ -113,6 +121,7 @@
                                 {{ __('borrower.apply.quote.purpose_other_done') }}
                             </button>
                         </div>
+                    </div>
                     </div>
                 </div>
 
@@ -180,6 +189,7 @@
     </template>
 
     @foreach (($productQuestions ?? []) as $code => $block)
+        @continue(($block['fold_into'] ?? 'quote') !== 'quote')
         <div x-show="stepKey === 'quote' && ! $data.feeGateOpen && current && current.code === @js($code)" x-cloak
              class="mt-5" data-wizard-step="quote">
             <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/10">

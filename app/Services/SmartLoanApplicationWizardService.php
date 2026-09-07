@@ -152,6 +152,16 @@ class SmartLoanApplicationWizardService
             $steps[] = ['key' => 'asset_tenure', 'label' => __('borrower.apply.steps.asset_tenure'), 'skippable' => false, 'skipped' => false];
         }
 
+        // Education Loan: fee gate sits between Quote and Education Details.
+        if ($productCode && strtoupper((string) $productCode) === 'EL') {
+            $steps[] = [
+                'key' => 'education_details',
+                'label' => __('borrower.apply.steps.education_details'),
+                'skippable' => false,
+                'skipped' => false,
+            ];
+        }
+
         // Profile/KYC/income are completed in Profile — never duplicated in the apply wizard.
         // Application fee is a payment gate (not a numbered step) — enforced in the wizard JS.
         // Artisan workshop details live on Profile → Activity (not on the loan spine).

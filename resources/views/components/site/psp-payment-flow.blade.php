@@ -211,6 +211,12 @@
                                 class="w-full rounded-xl bg-white ring-1 ring-gray-200 text-gray-800 text-sm font-bold px-5 py-3 disabled:opacity-60">
                             {{ __('borrower.payment_waiting.change_phone') }}
                         </button>
+                        <template x-if="cancelUrl">
+                            <a :href="cancelUrl"
+                               class="block w-full text-center rounded-xl bg-white ring-1 ring-gray-200 text-gray-600 text-sm font-bold px-5 py-3">
+                                {{ __('borrower.payment_waiting.cancel_back') }}
+                            </a>
+                        </template>
                     </div>
                 </div>
             </div>

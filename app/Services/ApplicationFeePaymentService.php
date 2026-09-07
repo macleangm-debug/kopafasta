@@ -128,12 +128,19 @@ class ApplicationFeePaymentService
 
     public function blocksWizardStep(string $stepKey): bool
     {
-        return in_array($stepKey, ['guarantor', 'product_questions', 'review', 'signature', 'submit'], true);
+        return in_array($stepKey, [
+            'guarantor',
+            'product_questions',
+            'education_details',
+            'review',
+            'signature',
+            'submit',
+        ], true);
     }
 
     /**
-     * Resolve the fee payment for this attempt only.
-     * A prior paid application_fee for the same product must not close a new draft's gate.
+     * Resolve the fee payment for this exact draft/application obligation only.
+     * Never inherit an unbound prior payment by customer + product alone.
      *
      * @param  array<string, mixed>|null  $draftPayload
      */
@@ -154,6 +161,11 @@ class ApplicationFeePaymentService
         $fee = is_array($draftPayload['application_fee'] ?? null) ? $draftPayload['application_fee'] : [];
         $paymentId = (int) ($fee['payment_id'] ?? 0);
         $reference = trim((string) ($fee['reference'] ?? ''));
+        $draftReference = trim((string) (
+            $draftPayload['draft_reference']
+            ?? data_get($draftPayload, 'application_fee.draft_reference')
+            ?? ''
+        ));
 
         if ($paymentId > 0) {
             return (clone $query)->where('id', $paymentId)->first();
@@ -174,11 +186,57 @@ class ApplicationFeePaymentService
             }
         }
 
-        return (clone $query)
-            ->whereNull('source_id')
-            ->whereIn('status', ['awaiting_payment', 'processing', 'pending_verification', 'failed', 'expired', 'cancelled'])
-            ->latest('id')
-            ->first();
+        if ($draftReference !== '') {
+            return (clone $query)
+                ->where('provider_meta->apply_context->draft_reference', $draftReference)
+                ->latest('id')
+                ->first();
+        }
+
+        // No draft/application binding → fresh obligation (do not inherit orphans).
+        return null;
+    }
+
+    /**
+     * Abandon open fee attempts for a discarded draft. Keep rows for audit.
+     */
+    public function abandonOpenFeePaymentsForDraft(
+        Customer $customer,
+        ?int $loanProductId,
+        ?string $draftReference,
+    ): void {
+        if (! $loanProductId && blank($draftReference)) {
+            return;
+        }
+
+        $query = CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'application_fee')
+            ->whereIn('status', ['awaiting_payment', 'processing', 'pending_verification']);
+
+        if ($loanProductId) {
+            $query->where(function ($q) use ($loanProductId) {
+                $q->where('loan_product_id', $loanProductId)
+                    ->orWhere('provider_meta->apply_context->loan_product_id', $loanProductId);
+            });
+        }
+
+        if (filled($draftReference)) {
+            $query->where('provider_meta->apply_context->draft_reference', $draftReference);
+        } else {
+            // Discard without reference: cancel unbound open fees for this product only.
+            $query->whereNull('source_id');
+        }
+
+        $query->each(function (CustomerPayment $payment): void {
+            $meta = (array) ($payment->provider_meta ?? []);
+            $meta['abandoned_at'] = now()->toIso8601String();
+            $meta['abandon_reason'] = 'draft_discarded';
+            $payment->update([
+                'status' => 'cancelled',
+                'provider_meta' => $meta,
+            ]);
+        });
     }
 
     /** @return array<string, mixed> */
@@ -307,32 +365,11 @@ class ApplicationFeePaymentService
      */
     public function resolvePromoOrAffiliate(?string $promoCode, ?string $affiliateCode = null, ?Customer $customer = null): array
     {
-        $settings = app(AffiliateSettingsService::class);
+        // Only resolve codes the borrower explicitly entered. Affiliated customers keep
+        // attribution/commission via affiliate_vendor_id — never inject KITONGA into promo UX.
+        unset($customer);
+
         $affiliates = app(AffiliateService::class);
-
-        if ($customer && $settings->autoApplyPromo()) {
-            $existing = $affiliates->affiliate($customer);
-            if ($existing) {
-                $locked = app(AffiliateAttributionService::class)->isLocked($customer);
-                $incoming = filled($affiliateCode) ? $affiliateCode : $promoCode;
-                $incoming = filled($incoming) ? strtoupper(trim((string) $incoming)) : null;
-                $incomingAffiliate = $incoming ? $affiliates->findByCode($incoming) : null;
-                $same = $incomingAffiliate && (int) $incomingAffiliate->id === (int) $existing->id;
-
-                if ($locked && ! $settings->allowOverrideAfterLock()) {
-                    return [null, (string) $existing->affiliate_code];
-                }
-                if (! $locked && ! $settings->allowReplacementBeforeLock() && ! $same) {
-                    return [null, (string) $existing->affiliate_code];
-                }
-            } elseif (! filled($promoCode) && ! filled($affiliateCode)) {
-                $pending = app(AffiliateAttributionService::class)->pendingAffiliate();
-                if ($existing = $pending) {
-                    return [null, (string) $existing->affiliate_code];
-                }
-            }
-        }
-
         $code = filled($affiliateCode) ? $affiliateCode : $promoCode;
         if (blank($code)) {
             return [null, null];
@@ -464,13 +501,23 @@ class ApplicationFeePaymentService
             'settled' => ! $awaitsPsp,
         ];
 
-        $existing = CustomerPayment::query()
+        $existingQuery = CustomerPayment::query()
             ->where('customer_id', $customer->id)
             ->where('payment_type', 'application_fee')
             ->where('loan_product_id', $product->id)
-            ->whereIn('status', ['awaiting_payment', 'processing', 'pending_verification'])
-            ->latest('id')
-            ->first();
+            ->whereIn('status', ['awaiting_payment', 'processing', 'pending_verification']);
+
+        $draftRef = (string) ($draft?->draft_reference ?? '');
+        if ($draftRef !== '') {
+            $existingQuery->where('provider_meta->apply_context->draft_reference', $draftRef);
+        } else {
+            $existingQuery->where(function ($q): void {
+                $q->whereNull('provider_meta->apply_context->draft_reference')
+                    ->orWhere('provider_meta->apply_context->draft_reference', '');
+            });
+        }
+
+        $existing = $existingQuery->latest('id')->first();
 
         if ($existing) {
             $meta = $existing->provider_meta ?? [];
@@ -597,7 +644,10 @@ class ApplicationFeePaymentService
     {
         $drafts = app(LoanApplicationDraftService::class);
         $draft = $drafts->find($customer, $product->id);
-        $payload = is_array($draft?->payload) ? $draft->payload : null;
+        $payload = is_array($draft?->payload) ? $draft->payload : [];
+        if ($draft?->draft_reference) {
+            $payload['draft_reference'] = $draft->draft_reference;
+        }
         $payment = $this->latestFeePayment($customer, $product, null, $payload);
 
         if (! $payment || ! in_array($payment->status, ['paid', 'verified'], true)) {
@@ -653,8 +703,12 @@ class ApplicationFeePaymentService
      */
     private function resumeOutstandingFeeState(Customer $customer, LoanProduct $product): ?array
     {
-        $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
-        $payment = $this->obligation($customer, $product, is_array($draftPayload) ? $draftPayload : null)['payment'] ?? null;
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        $draftPayload = is_array($draft?->payload) ? $draft->payload : [];
+        if ($draft?->draft_reference) {
+            $draftPayload['draft_reference'] = $draft->draft_reference;
+        }
+        $payment = $this->obligation($customer, $product, $draftPayload)['payment'] ?? null;
         if (! $payment || ! in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true)) {
             return null;
         }
@@ -671,8 +725,12 @@ class ApplicationFeePaymentService
      */
     private function alreadySettledFeeState(Customer $customer, LoanProduct $product): ?array
     {
-        $draftPayload = app(LoanApplicationDraftService::class)->find($customer, $product->id)?->payload;
-        $obligation = $this->obligation($customer, $product, is_array($draftPayload) ? $draftPayload : null);
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        $draftPayload = is_array($draft?->payload) ? $draft->payload : [];
+        if ($draft?->draft_reference) {
+            $draftPayload['draft_reference'] = $draft->draft_reference;
+        }
+        $obligation = $this->obligation($customer, $product, $draftPayload);
 
         if ($obligation['status'] === 'not_applicable') {
             return [

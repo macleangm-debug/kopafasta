@@ -33,7 +33,18 @@ class LoanProduct extends Model
             'eligible_grades' => 'array',
             'status' => 'string',
             'seo_indexable' => 'boolean',
+            'purpose_mode' => 'string',
         ];
+    }
+
+    public function hasFixedPurpose(): bool
+    {
+        return ($this->purpose_mode ?? 'free') === 'fixed' && filled($this->fixed_purpose);
+    }
+
+    public function fixedPurposeKey(): ?string
+    {
+        return $this->hasFixedPurpose() ? (string) $this->fixed_purpose : null;
     }
 
     public function hidesInterest(): bool

@@ -402,9 +402,75 @@ class ApplicationFeeGateAuditTest extends TestCase
             'reference' => 'PAY-APP-FEE-FAIL',
         ]);
 
+        // Unbound failed payment must not be inherited by a new obligation.
         $obligation = app(ApplicationFeePaymentService::class)->obligation($customer, $product, $this->quotePayload($product));
-        $this->assertSame('failed', $obligation['status']);
+        $this->assertSame('due', $obligation['status']);
         $this->assertFalse(app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $this->quotePayload($product)));
+    }
+
+    public function test_discarded_draft_does_not_inherit_awaiting_fee_payment(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->product();
+        $fees = app(ApplicationFeePaymentService::class);
+        $drafts = app(\App\Services\LoanApplicationDraftService::class);
+
+        $draft = LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 1,
+            'draft_reference' => 'APP-ISOLATE-A',
+            'payload' => $this->quotePayload($product),
+            'saved_at' => now(),
+        ]);
+
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'bank_transfer',
+            'amount' => 10_000,
+            'currency' => 'TZS',
+            'status' => 'pending_verification',
+            'reference' => 'PAY-APP-FEE-BANK-A',
+            'provider_meta' => [
+                'apply_context' => [
+                    'loan_product_id' => $product->id,
+                    'draft_reference' => 'APP-ISOLATE-A',
+                ],
+            ],
+        ]);
+
+        $drafts->saveApplicationFee($customer, $product->id, [
+            'status' => 'pending',
+            'reference' => $payment->reference,
+            'payment_id' => $payment->id,
+            'amount' => 10_000,
+        ]);
+
+        $drafts->discard($customer, $product->id);
+
+        $payment->refresh();
+        $this->assertSame('cancelled', $payment->status);
+        $this->assertSame(1, CustomerPayment::query()->where('reference', 'PAY-APP-FEE-BANK-A')->count());
+
+        $newPayload = $this->quotePayload($product);
+        $this->assertSame('due', $fees->obligation($customer, $product, $newPayload)['status']);
+
+        LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 1,
+            'draft_reference' => 'APP-ISOLATE-B',
+            'payload' => $newPayload,
+            'saved_at' => now(),
+        ]);
+
+        $opened = $fees->openSharedGate($customer, $product, 'PAY-APP-FEE-BANK-B');
+        $this->assertNotSame($payment->id, $opened['payment_id'] ?? null);
+        $this->assertNotSame('PAY-APP-FEE-BANK-A', $opened['reference'] ?? null);
     }
 
     public function test_group_fee_uses_settings_amount_times_roster(): void

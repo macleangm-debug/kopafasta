@@ -72,15 +72,14 @@ class PaymentGateService
             $commission = (float) $referralQuote['commission'];
         } elseif ($affiliates->affiliate($customer)) {
             $affiliateQuote = $affiliates->quoteFee($customer, $baseAmount, $feeType);
-            $affiliateDiscount = (float) $affiliateQuote['discount'];
-            $afterPartner = (float) $affiliateQuote['after_discount'];
-            $commission = (float) $affiliateQuote['commission'];
             $hasAffiliate = (bool) $affiliateQuote['has_affiliate'];
-            $linked = $affiliates->affiliate($customer);
-            if ($hasAffiliate && $linked && (filled($resolvedAffiliate) || app(AffiliateSettingsService::class)->autoApplyPromo())) {
-                $promoValid = $affiliateDiscount > 0;
-                $appliedPromo = strtoupper(trim((string) ($linked->affiliate_code ?: $resolvedAffiliate)));
-                $codeKind = $promoValid ? 'affiliate' : 'invalid';
+            // Affiliate attribution earns commission. It must NOT auto-discount the borrower.
+            // Borrower discounts come only from an explicit promo with a configured benefit.
+            $affiliateDiscount = 0.0;
+            $afterPartner = round($baseAmount, 2);
+            if ($hasAffiliate && $affiliateQuote['affiliate']) {
+                $commission = app(AffiliateCommissionCalculatorService::class)
+                    ->calculate($affiliateQuote['affiliate'], $baseAmount, $feeType);
             }
         }
 
@@ -102,11 +101,11 @@ class PaymentGateService
             $appliedPromo = strtoupper(trim((string) $promoCode));
             $promoValid = false;
             $codeKind = 'invalid';
-        } elseif (filled($resolvedAffiliate) && ! $promoValid) {
-            // Affiliate code provided but could not attach / no discount yet.
-            $appliedPromo = strtoupper(trim((string) $resolvedAffiliate));
-            $promoValid = $hasAffiliate;
-            $codeKind = $hasAffiliate ? 'affiliate' : 'invalid';
+        } elseif (filled($resolvedAffiliate)) {
+            // Explicit affiliate code: attribution only — never a borrower promo discount.
+            $appliedPromo = null;
+            $promoValid = false;
+            $codeKind = 'affiliate';
         }
         // Promo / campaign discounts apply only when a code is entered — no silent auto-discount.
 
@@ -160,7 +159,7 @@ class PaymentGateService
             'code_kind' => $codeKind,
             'referrer' => $hasReferrer ? $referrals->referrer($customer) : null,
             'referred_by' => $hasAffiliate ? $affiliates->affiliate($customer)?->name : null,
-            'affiliate_auto_applied' => $hasAffiliate && app(AffiliateSettingsService::class)->autoApplyPromo(),
+            'affiliate_auto_applied' => false,
             'affiliate_locked' => $hasAffiliate && app(AffiliateAttributionService::class)->isLocked($customer),
             'streak_discount' => 0.0,
         ], $feeType);

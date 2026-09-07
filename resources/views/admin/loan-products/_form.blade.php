@@ -38,8 +38,20 @@
                                 'agriculture'   => 'Agriculture',
                                 'asset_finance' => 'Asset finance',
                                 'emergency'     => 'Emergency',
+                                'education'     => 'Education',
+                                'group'         => 'Group',
+                                'individual'    => 'Individual',
                             ]"
                             :value="$r?->category" />
+            <x-admin.select name="purpose_mode" label="Purpose mode"
+                            :options="[
+                                'free' => 'Borrower chooses',
+                                'fixed' => 'Fixed purpose',
+                            ]"
+                            :value="old('purpose_mode', $r?->purpose_mode ?? 'free')" />
+            <x-admin.select name="fixed_purpose" label="Fixed purpose (when mode is fixed)"
+                            :options="array_merge(['' => '—'], config('loan_purposes', []))"
+                            :value="old('fixed_purpose', $r?->fixed_purpose)" />
             <x-admin.select name="status"              label="Visibility"          :options="['active' => 'Active', 'coming_soon' => 'Coming soon', 'inactive' => 'Inactive']" :value="$r?->status ?? 'active'" required />
             <x-admin.textarea name="description" label="Long description (English)" :value="$r?->description" rows="3" />
             <div class="grid sm:grid-cols-2 gap-4 mt-4">

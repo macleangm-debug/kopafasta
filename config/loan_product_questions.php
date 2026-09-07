@@ -3,6 +3,7 @@
 return [
     'EM' => [
         'title' => 'Emergency details',
+        'fold_into' => 'quote',
         'fields' => [
             ['key' => 'emergency_type', 'label' => 'Emergency type', 'type' => 'select', 'required' => true, 'options' => [
                 'medical'   => 'Medical emergency',
@@ -15,10 +16,22 @@ return [
         ],
     ],
     'EL' => [
-        'title' => 'Education details',
+        'title_key' => 'borrower.apply.education_details.title',
+        'fold_into' => 'education_details',
         'fields' => [
-            ['key' => 'school_name', 'label' => 'School / institution name', 'type' => 'text', 'required' => true],
-            ['key' => 'admission_letter', 'label' => 'Admission or fee letter reference', 'type' => 'text', 'required' => true, 'placeholder' => 'Letter number or summary'],
+            [
+                'key' => 'school_name',
+                'label_key' => 'borrower.apply.education_details.institution',
+                'type' => 'text',
+                'required' => true,
+            ],
+            [
+                'key' => 'admission_letter',
+                'label_key' => 'borrower.apply.education_details.admission_letter',
+                'type' => 'document',
+                'document_code' => 'admission_fee_letter',
+                'required' => true,
+            ],
         ],
     ],
     // FC (Artisans) details live on Profile → Activity (activity_type = artisan).

@@ -311,6 +311,8 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/borrower/apply/application-fee/quote', [ApplyController::class, 'applicationFeeQuote'])->name('borrower.apply.application-fee.quote');
             Route::get('/borrower/apply/valuation-fee/quote', [ApplyController::class, 'valuationFeeQuote'])->name('borrower.apply.valuation-fee.quote');
             Route::post('/borrower/apply/asset-document', [ApplyController::class, 'uploadAssetDocument'])->name('borrower.apply.asset-document');
+            Route::post('/borrower/apply/education-document', [ApplyController::class, 'uploadEducationDocument'])->name('borrower.apply.education-document');
+            Route::delete('/borrower/apply/education-document', [ApplyController::class, 'removeEducationDocument'])->name('borrower.apply.education-document.remove');
             Route::get('/borrower/apply/repayment-preview', [ApplyController::class, 'repaymentPreview'])->name('borrower.apply.repayment-preview');
             Route::get('/apply', fn () => redirect()->route('site.borrower.loan-products'))->name('apply.show');
 

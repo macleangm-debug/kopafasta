@@ -77,29 +77,8 @@
                     class="inline-flex justify-center rounded-xl bg-brand text-white px-5 py-3 font-semibold">
                 {{ __('plus.reports.print') }}
             </button>
-            <button type="button"
-                    @click="openShare()"
-                    class="inline-flex justify-center rounded-xl bg-white text-brand ring-1 ring-brand/20 hover:bg-brand/5 px-5 py-3 font-semibold">
-                {{ __('plus.reports.share') }}
-            </button>
             <p class="text-xs text-gray-500">{{ __('plus.reports.print_goes') }}</p>
         </div>
-
-        <x-site.kopafasta-share-sheet
-            :title="__('plus.reports.share')"
-            :hint="__('plus.reports.share_hint')"
-            :show-facebook="$showFacebook"
-            :show-download="true"
-            open="shareOpen"
-            :whatsapp-label="__('plus.reports.share_whatsapp')"
-            :facebook-label="__('plus.reports.share_facebook')"
-            :messages-label="__('plus.reports.share_messages')"
-            :email-label="__('plus.reports.share_email')"
-            :copy-label="__('plus.reports.share_copy')"
-            :copied-label="__('plus.reports.share_copied')"
-            :more-label="__('plus.reports.share_more')"
-            :download-label="__('plus.reports.share_download')"
-        />
     </div>
 
     {{-- Application print footer only. Logo left · Confidential/Faragha right. No URL. --}}

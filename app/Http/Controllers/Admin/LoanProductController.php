@@ -59,6 +59,8 @@ class LoanProductController extends ResourceController
             'name'                => ['required', 'string', 'max:150'],
             'name_sw'             => ['nullable', 'string', 'max:150'],
             'category'            => ['nullable', 'string', 'max:50'],
+            'purpose_mode'        => ['nullable', 'in:free,fixed'],
+            'fixed_purpose'       => ['nullable', 'string', 'max:40'],
             'description'         => ['nullable', 'string', 'max:1000'],
             'short_description'   => ['nullable', 'string', 'max:90'],
             'short_description_sw'=> ['nullable', 'string', 'max:90'],
@@ -133,6 +135,12 @@ class LoanProductController extends ResourceController
         $data['status']              = $data['status'] ?? 'inactive';
         $data['is_active']           = $data['status'] === 'active';
         $data['hides_interest']      = (bool) ($data['hides_interest'] ?? false);
+        $data['purpose_mode']        = in_array(($data['purpose_mode'] ?? 'free'), ['free', 'fixed'], true)
+            ? ($data['purpose_mode'] ?? 'free')
+            : 'free';
+        $data['fixed_purpose']       = $data['purpose_mode'] === 'fixed'
+            ? (filled($data['fixed_purpose'] ?? null) ? (string) $data['fixed_purpose'] : null)
+            : null;
         $data['eligible_grades']     = array_values(array_filter((array) ($data['eligible_grades'] ?? [])));
         if ($data['eligible_grades'] === []) {
             $data['eligible_grades'] = null;
@@ -336,6 +344,7 @@ class LoanProductController extends ResourceController
     {
         foreach ([
             'category', 'description', 'short_description', 'short_description_sw',
+            'purpose_mode', 'fixed_purpose',
             'interest_rate', 'interest_method', 'application_fee_amount',
             'offer_letter_template_id', 'loan_contract_template_id',
             'guarantor_agreement_template_id', 'asset_lending_agreement_template_id',

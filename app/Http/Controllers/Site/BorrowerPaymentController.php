@@ -550,15 +550,18 @@ class BorrowerPaymentController extends Controller
 
         $quote = null;
         $walletReward = null;
-        // Prefill only when this payment already has a code attached (or explicit query/old).
-        // Never inherit a prior payment's typed draft, and never permanently seed KITONGA.
+        // Prefill only when THIS payment already has an explicit borrower promo with benefit.
+        // Never seed affiliate codes (KITONGA) from attribution alone.
         $promoValue = $request->query('promo_code')
-            ?? old('promo_code')
-            ?? data_get($payment->provider_meta, 'pricing.promo_code')
-            ?? data_get($payment->provider_meta, 'pricing.affiliate_code')
-            ?? data_get($payment->provider_meta, 'apply_context.promo_code')
-            ?? data_get($payment->provider_meta, 'apply_context.affiliate_code');
-        $cancelUrl = data_get($payment->provider_meta, 'apply_context.back_url');
+            ?? old('promo_code');
+        if (blank($promoValue)
+            && (float) data_get($payment->provider_meta, 'pricing.promo_discount', 0) > 0
+            && filled(data_get($payment->provider_meta, 'pricing.promo_code'))) {
+            $promoValue = data_get($payment->provider_meta, 'pricing.promo_code');
+        }
+        $cancelUrl = data_get($payment->provider_meta, 'apply_context.back_url')
+            ?? data_get($payment->provider_meta, 'apply_context.cancel_url')
+            ?? data_get($payment->provider_meta, 'return_url');
         $applyReward = $request->boolean('apply_reward')
             || (bool) data_get($payment->provider_meta, 'pricing.apply_reward');
         if ($payment->customer && CustomerPaymentService::supportsCodeDiscounts($payment->payment_type)) {
@@ -593,10 +596,12 @@ class BorrowerPaymentController extends Controller
             );
             $walletReward = app(LoyaltyRedemptionService::class)
                 ->checkoutRewardForFee($payment->customer, $payment->payment_type, $gross);
-            // After canonical engine attach, show the code already on THIS payment only.
-            $promoValue = data_get($payment->provider_meta, 'pricing.promo_code')
-                ?? data_get($payment->provider_meta, 'pricing.affiliate_code')
-                ?? $promoValue;
+            // After engine run, only keep a promo that actually discounted this payment.
+            if ((float) data_get($payment->provider_meta, 'pricing.promo_discount', 0) > 0) {
+                $promoValue = data_get($payment->provider_meta, 'pricing.promo_code') ?? $promoValue;
+            } else {
+                $promoValue = $request->query('promo_code') ?? old('promo_code');
+            }
         }
 
         $adjustUrl = route('site.borrower.payments.adjust', $payment);

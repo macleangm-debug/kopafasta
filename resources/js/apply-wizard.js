@@ -22,6 +22,8 @@ export function applyWizard(config) {
                 valuationFeePayUrl: config.valuationFeePayUrl || '',
                 valuationFeeQuoteUrl: config.valuationFeeQuoteUrl || '',
                 assetDocumentUploadUrl: config.assetDocumentUploadUrl || '',
+                educationDocumentUploadUrl: config.educationDocumentUploadUrl || '',
+                educationDocumentRemoveUrl: config.educationDocumentRemoveUrl || '',
                 assetTypeOptions: config.assetTypeOptions || {},
                 assetDocumentLabels: config.assetDocumentLabels || {},
                 customerAssets: config.customerAssets || [],
@@ -33,7 +35,9 @@ export function applyWizard(config) {
                 valuationFeePaying: false,
                 valuationFeePaymentReference: config.valuationFeePaymentReference ?? null,
                 assetDocuments: config.savedDraft?.asset_documents || {},
+                educationDocuments: config.savedDraft?.education_documents || {},
                 assetDocumentUploading: false,
+                educationDocumentUploading: false,
                 feeChannel: 'mobile_money',
                 feePhone: config.paymentPhone || '',
                 feeUseWallet: false,
@@ -201,6 +205,7 @@ export function applyWizard(config) {
                     application_fee: '💳',
                     guarantor: '🤝',
                     product_questions: '📄',
+                    education_details: '🎓',
                     review: '✅',
                     signature: '✍️',
                     submit: '📤',
@@ -414,6 +419,7 @@ export function applyWizard(config) {
                             : this.applicationFeeState,
                         valuation_fee: this.valuationFeeState,
                         asset_documents: this.assetDocuments,
+                        education_documents: this.educationDocuments,
                         external_guarantor: this.externalGuarantor,
                         internal_guarantor: this.internalGuarantor,
                         borrower_signature: this.borrowerSignature,
@@ -477,7 +483,7 @@ export function applyWizard(config) {
                 needsFeeGateBefore(nextKey) {
                     if (this.supplementMode || this.feeGateSatisfied()) return false;
                     if (this.effectiveFeeAmount() <= 0) return false;
-                    return ['guarantor', 'product_questions', 'review', 'signature', 'submit'].includes(nextKey);
+                    return ['guarantor', 'product_questions', 'education_details', 'review', 'signature', 'submit'].includes(nextKey);
                 },
 
                 quoteFeeCtaVisible() {
@@ -850,6 +856,67 @@ export function applyWizard(config) {
                     }
                 },
 
+                async uploadEducationDocument(code, event) {
+                    const file = event.target?.files?.[0];
+                    if (! file || ! this.educationDocumentUploadUrl || ! this.form.loan_product_id) return;
+                    this.educationDocumentUploading = true;
+                    try {
+                        const formData = new FormData();
+                        formData.append('loan_product_id', this.form.loan_product_id);
+                        formData.append('document_code', code);
+                        formData.append('file', file);
+                        const res = await fetch(this.educationDocumentUploadUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: formData,
+                        });
+                        const data = await res.json();
+                        if (! res.ok || ! data.ok) {
+                            throw new Error(data.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed');
+                        }
+                        this.educationDocuments = data.education_documents || {};
+                        await this.persistDraft(true);
+                    } catch (e) {
+                        showWizardFeedback(e?.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed');
+                    } finally {
+                        this.educationDocumentUploading = false;
+                        if (event.target) event.target.value = '';
+                    }
+                },
+
+                async removeEducationDocument(code) {
+                    if (! this.form.loan_product_id || ! this.educationDocumentRemoveUrl) return;
+                    try {
+                        const res = await fetch(this.educationDocumentRemoveUrl, {
+                            method: 'DELETE',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                loan_product_id: this.form.loan_product_id,
+                                document_code: code,
+                            }),
+                        });
+                        const data = await res.json();
+                        if (! res.ok || ! data.ok) {
+                            throw new Error(data.message || 'Could not remove document');
+                        }
+                        this.educationDocuments = data.education_documents || {};
+                        await this.persistDraft(true);
+                    } catch (e) {
+                        showWizardFeedback(e?.message || 'Could not remove document');
+                    }
+                },
+
                 async refreshApplicationFeeQuote() {
                     if (! this.form.loan_product_id) return;
                     if (this.current?.application_fee > 0) {
@@ -1204,6 +1271,7 @@ export function applyWizard(config) {
                     if (draft.application_fee) this.applicationFeeState = draft.application_fee;
                     if (draft.valuation_fee) this.valuationFeeState = draft.valuation_fee;
                     if (draft.asset_documents) this.assetDocuments = draft.asset_documents;
+                    if (draft.education_documents) this.educationDocuments = draft.education_documents;
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     if (draft.internal_guarantor) this.internalGuarantor = draft.internal_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
@@ -1254,7 +1322,7 @@ export function applyWizard(config) {
                         this.updateQuote();
                         this.syncStepKey();
                         // After fee payment, resume lands on guarantor/review/… — do not clamp back to quote.
-                        if (! ['guarantor', 'review', 'signature', 'submit', 'product_questions'].includes(resumeKey)) {
+                        if (! ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'].includes(resumeKey)) {
                             this.clampToIncompleteSetup();
                         }
                         this.enforceStepRequirements(this.isResume);
@@ -2136,13 +2204,20 @@ export function applyWizard(config) {
                             steps.push({ key: 'asset_details', label: stepLabels.asset_details || this.i18n.steps.asset_details });
                         } else if (! this.isMarketplaceProduct(this.current)) {
                             steps.push({ key: 'quote', label: stepLabels.quote });
+                            if (String(this.current?.code || '').toUpperCase() === 'EL') {
+                                steps.push({
+                                    key: 'education_details',
+                                    label: stepLabels.education_details || this.i18n.steps.education_details || 'Education details',
+                                });
+                            }
                         } else {
                             steps.push({ key: 'asset_tenure', label: stepLabels.asset_tenure || stepLabels.quote });
                         }
                         if (this.requiresGuarantor()) {
                             steps.push({ key: 'guarantor', label: this.i18n.steps.guarantor });
                         }
-                        // product_questions fold into quote (same spine as Individual)
+                        // Education details are supplied by the server step plan for EL (post-fee).
+                        // product_questions for EM still fold into quote.
                         steps.push({ key: 'review', label: this.i18n.steps.review });
                         steps.push({ key: 'submit', label: this.i18n.steps.submit });
                         this.steps = steps.map(s => this.withStepIcon(s));
@@ -2150,6 +2225,7 @@ export function applyWizard(config) {
 
                     // Application fee / in-wizard signature / product_questions are never numbered steps —
                     // fee is a payment gate; artisan details live on Amount; signature on profile.
+                    // education_details stays as a real post-fee step when present in the plan.
                     this.syncFeePaidState();
                     this.steps = this.steps.filter(s => !['application_fee', 'signature', 'product_questions'].includes(s.key));
                     if (['confirm', 'welcome_back', 'prefill'].includes(this.repeatJourney)) {
@@ -2174,6 +2250,11 @@ export function applyWizard(config) {
 
                 selectProduct(p, rebuild = true) {
                     this.current = p;
+                    if (p?.purpose_mode === 'fixed' && p?.fixed_purpose) {
+                        this.form.purpose = p.fixed_purpose;
+                        this.form.purpose_other = '';
+                        this.purposeEditing = false;
+                    }
                     this.form.loan_product_id = p.id;
                     if (typeof p.application_fee === 'number') {
                         this.applicationFee = p.application_fee;
@@ -2508,6 +2589,10 @@ export function applyWizard(config) {
                         return true;
                     }
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
+                        if (this.current?.purpose_mode === 'fixed' && this.current?.fixed_purpose) {
+                            this.form.purpose = this.current.fixed_purpose;
+                            this.form.purpose_other = '';
+                        }
                         if (this.isGroupProduct(this.current)) {
                             if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) return false;
                             if (! this.group.purpose) return false;
@@ -2519,6 +2604,11 @@ export function applyWizard(config) {
                         if (this.purposeNeedsDetail()) return false;
                         if (! this.quoteProductQuestionsReady()) return false;
                         return true;
+                    }
+                    if (this.stepKey === 'education_details') {
+                        const school = (this.formRoot()?.querySelector('[name="product_question[school_name]"]')?.value || '').trim();
+                        const docId = this.educationDocuments?.admission_fee_letter?.customer_document_id;
+                        return !! school && !! docId;
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         const count = this.groupTargetCount();

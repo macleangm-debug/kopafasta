@@ -165,6 +165,8 @@ if (! function_exists('loan_product_wizard_payload')) {
                 : 'reducing',
             'group_cadence_label' => $groups->groupRepaymentCadenceLabel($product),
             'is_group'          => is_group_loan_product($product),
+            'purpose_mode'      => (string) ($product->purpose_mode ?? 'free'),
+            'fixed_purpose'     => $product->fixedPurposeKey(),
         ];
     }
 }

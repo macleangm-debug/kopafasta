@@ -1438,6 +1438,111 @@ class ApplyController extends Controller
         ]);
     }
 
+    public function uploadEducationDocument(
+        Request $request,
+        LoanApplicationDraftService $drafts,
+    ): JsonResponse {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $data = $request->validate([
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'document_code' => ['required', 'string', 'max:60'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        abort_unless(strtoupper((string) $product->code) === 'EL', 422);
+
+        $code = (string) $data['document_code'];
+        abort_unless($code === 'admission_fee_letter', 422);
+
+        $draft = $drafts->find($customer, $product->id)
+            ?? $drafts->save($customer, [
+                'phase' => 'application',
+                'loan_product_id' => $product->id,
+                'form' => [],
+            ]);
+        abort_unless($draft, 422);
+
+        $label = __('borrower.apply.education_details.admission_letter');
+        $docType = \App\Models\DocumentType::firstOrCreate(
+            ['code' => $code],
+            [
+                'name' => $label,
+                'category' => 'application',
+                'applies_to' => 'individual',
+                'is_active' => true,
+            ],
+        );
+
+        $path = $request->file('file')->store("borrower/{$customer->id}/education", 'public');
+        $document = CustomerDocument::create([
+            'customer_id' => $customer->id,
+            'document_type_id' => $docType->id,
+            'file_path' => $path,
+            'status' => 'pending',
+        ]);
+
+        $payload = $draft->payload ?? [];
+        $educationDocuments = $payload['education_documents'] ?? [];
+        $educationDocuments[$code] = [
+            'customer_document_id' => $document->id,
+            'code' => $code,
+            'label' => $label,
+            'view_url' => asset('storage/'.$path),
+        ];
+        $payload['education_documents'] = $educationDocuments;
+        $draft->update(['payload' => $payload, 'saved_at' => now()]);
+
+        return response()->json([
+            'ok' => true,
+            'document_id' => $document->id,
+            'document_code' => $code,
+            'education_documents' => $educationDocuments,
+        ]);
+    }
+
+    public function removeEducationDocument(
+        Request $request,
+        LoanApplicationDraftService $drafts,
+    ): JsonResponse {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $data = $request->validate([
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'document_code' => ['required', 'string', 'max:60'],
+        ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        abort_unless(strtoupper((string) $product->code) === 'EL', 422);
+
+        $draft = $drafts->find($customer, $product->id);
+        abort_unless($draft, 422);
+
+        $code = (string) $data['document_code'];
+        $payload = $draft->payload ?? [];
+        $educationDocuments = $payload['education_documents'] ?? [];
+        $removedId = (int) ($educationDocuments[$code]['customer_document_id'] ?? 0);
+        unset($educationDocuments[$code]);
+        $payload['education_documents'] = $educationDocuments;
+        $draft->update(['payload' => $payload, 'saved_at' => now()]);
+
+        if ($removedId > 0) {
+            CustomerDocument::query()
+                ->where('customer_id', $customer->id)
+                ->where('id', $removedId)
+                ->whereNull('loan_application_id')
+                ->delete();
+        }
+
+        return response()->json([
+            'ok' => true,
+            'education_documents' => $educationDocuments,
+        ]);
+    }
+
     public function applicationFeeQuote(Request $request, ApplicationFeePaymentService $fees): JsonResponse
     {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
@@ -1780,6 +1885,11 @@ class ApplyController extends Controller
             $data['purpose'] = 'asset_financing';
         }
 
+        if ($loanProduct->hasFixedPurpose()) {
+            $data['purpose'] = $loanProduct->fixedPurposeKey();
+            $data['purpose_other'] = '';
+        }
+
         $purposeOther = trim((string) ($data['purpose_other'] ?? ''));
         $purposeKey = normalize_loan_purpose_key($data['purpose'] ?? null) ?? (string) ($data['purpose'] ?? '');
         $data['purpose'] = $purposeKey;
@@ -2081,6 +2191,7 @@ class ApplyController extends Controller
             'screening_payload' => [
                 'product_code' => $loanProduct->code,
                 'product_questions' => array_filter($data['product_question'] ?? []),
+                'education_documents' => array_values($draftPayload['education_documents'] ?? []),
                 'engagement' => $engagementBoosts,
                 'purpose_key' => $purposeKey !== '' ? $purposeKey : null,
                 'purpose_other' => (is_loan_purpose_other($purposeKey) && $purposeOther !== '') ? $purposeOther : null,
@@ -2119,6 +2230,16 @@ class ApplyController extends Controller
                     'requested_tenure_months' => $data['requested_tenure_months'],
                 ]),
             ]));
+        }
+
+        foreach (($draftPayload['education_documents'] ?? []) as $doc) {
+            $docId = (int) ($doc['customer_document_id'] ?? 0);
+            if ($docId > 0) {
+                CustomerDocument::query()
+                    ->where('customer_id', $customer->id)
+                    ->where('id', $docId)
+                    ->update(['loan_application_id' => $app->id]);
+            }
         }
 
         if ($isGroupProduct) {

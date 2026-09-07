@@ -90,6 +90,8 @@
                   valuationFeePayUrl: @js(route('site.borrower.apply.valuation-fee.pay')),
                   valuationFeeQuoteUrl: @js(route('site.borrower.apply.valuation-fee.quote')),
                   assetDocumentUploadUrl: @js(route('site.borrower.apply.asset-document')),
+                  educationDocumentUploadUrl: @js(route('site.borrower.apply.education-document')),
+                  educationDocumentRemoveUrl: @js(route('site.borrower.apply.education-document.remove')),
                   assetTypeOptions: @js($assetTypeOptions ?? []),
                   assetDocumentLabels: @js($assetDocumentLabels ?? []),
                   customerAssets: @js(($customerAssets ?? collect())->map(fn ($a) => [
@@ -168,6 +170,7 @@
                           'activity' => __('borrower.apply.steps.activity'),
                           'income' => __('borrower.apply.steps.income'),
                           'product_questions' => __('borrower.apply.steps.product_questions'),
+                          'education_details' => __('borrower.apply.steps.education_details'),
                           'asset_tenure' => __('borrower.apply.steps.asset_tenure'),
                           'asset_details' => __('borrower.apply.steps.asset_details'),
                           'valuation_fee' => __('borrower.apply.steps.valuation_fee'),
@@ -417,6 +420,8 @@
                 @include('site.apply._guarantor-step')
 
                 @include('site.apply._product-questions-step')
+
+                @include('site.apply._education-details-step')
 
                 @include('site.apply._review-step')
 

@@ -191,6 +191,7 @@ class LoanApplicationDraftService
             'application_fee' => $payload['application_fee'] ?? null,
             'valuation_fee' => $payload['valuation_fee'] ?? null,
             'asset_documents' => $payload['asset_documents'] ?? [],
+            'education_documents' => $payload['education_documents'] ?? [],
             'external_guarantor' => $this->refreshExternalGuarantorPayload($customer, $payload['external_guarantor'] ?? null),
             'internal_guarantor' => $payload['internal_guarantor'] ?? null,
             'borrower_signature' => $payload['borrower_signature'] ?? null,
@@ -421,6 +422,7 @@ class LoanApplicationDraftService
             'application_fee' => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
             'valuation_fee' => $data['valuation_fee'] ?? ($existing?->payload['valuation_fee'] ?? null),
             'asset_documents' => $data['asset_documents'] ?? ($existing?->payload['asset_documents'] ?? []),
+            'education_documents' => $data['education_documents'] ?? ($existing?->payload['education_documents'] ?? []),
             'external_guarantor' => array_key_exists('external_guarantor', $data)
                 ? $data['external_guarantor']
                 : ($existing?->payload['external_guarantor'] ?? null),
@@ -625,6 +627,21 @@ class LoanApplicationDraftService
 
     public function discard(Customer $customer, ?int $loanProductId = null): void
     {
+        $draft = $this->find($customer, $loanProductId);
+        if ($draft) {
+            app(ApplicationFeePaymentService::class)->abandonOpenFeePaymentsForDraft(
+                $customer,
+                $draft->loan_product_id ? (int) $draft->loan_product_id : $loanProductId,
+                $draft->draft_reference,
+            );
+        } elseif ($loanProductId) {
+            app(ApplicationFeePaymentService::class)->abandonOpenFeePaymentsForDraft(
+                $customer,
+                $loanProductId,
+                null,
+            );
+        }
+
         $this->clear($customer, $loanProductId);
         if ($loanProductId) {
             $this->rememberDiscard($loanProductId);

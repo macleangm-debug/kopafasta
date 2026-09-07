@@ -150,8 +150,15 @@
                                 <p class="mt-0.5 text-xs text-amber-900" x-text="promoBody"></p>
                             </div>
 
-                            <div x-show="!promoValid || promoStatus === 'invalid' || promoStatus === 'expired' || !promoCode" class="space-y-2">
-                                <div class="flex gap-2">
+                            <div x-show="!promoValid || promoStatus === 'invalid' || promoStatus === 'expired' || !promoCode" class="space-y-2"
+                                 x-data="{ promoOpen: false }">
+                                <button type="button"
+                                        @click="promoOpen = !promoOpen"
+                                        class="text-sm font-semibold text-brand hover:underline inline-flex items-center gap-1.5">
+                                    <span x-text="promoOpen ? @js(__('borrower.membership.hide_promo')) : @js(__('borrower.membership.apply_promo_link'))"></span>
+                                    <svg class="w-3.5 h-3.5 transition" :class="promoOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                </button>
+                                <div x-show="promoOpen || promoStatus === 'invalid' || promoStatus === 'expired'" x-cloak class="flex gap-2">
                                     <input type="text"
                                            x-model="promoCode"
                                            @keydown.enter.prevent="applyPromo()"
