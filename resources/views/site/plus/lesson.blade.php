@@ -5,9 +5,12 @@
         $editorial = $lesson->localizedEditorial();
     @endphp
     <div class="space-y-5">
-        <x-site.plus-nav :back-url="route('site.borrower.plus.learn')" :back-label="__('plus.nav.learn')" />
-
-        <x-site.plus-hero kicker="✦ {{ __('plus.learn.club') }} · {{ $lesson->month }}" :title="$title">
+        <x-site.plus-hero
+            kicker="✦ {{ __('plus.learn.club') }} · {{ $lesson->month }}"
+            :title="$title"
+            :back-url="route('site.borrower.plus.learn')"
+            :back-label="__('plus.nav.learn')"
+        >
             <p class="text-sm text-white/80">{{ __('plus.learn.minutes', ['minutes' => $lesson->duration_minutes ?? 7]) }}</p>
         </x-site.plus-hero>
 

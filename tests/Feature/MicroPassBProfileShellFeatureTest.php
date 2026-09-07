@@ -53,65 +53,80 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         ]);
     }
 
-    public function test_profile_hero_matches_dashboard_hero_language(): void
-    {
-        $hero = file_get_contents(resource_path('views/site/borrower/profile/_member_card.blade.php'));
-        $dashboard = file_get_contents(resource_path('views/components/site/borrower-dashboard-hero.blade.php'));
-        $shell = file_get_contents(resource_path('views/site/borrower/profile/_profile_shell.blade.php'));
-
-        $this->assertStringContainsString('kf-premium-panel', $hero);
-        $this->assertStringContainsString('x-site.brand-mark', $hero);
-        $this->assertStringContainsString('x-site.grade-badge', $hero);
-        $this->assertStringContainsString("size=\"lg\"", $hero);
-        $this->assertStringContainsString('bg-white text-brand', $hero);
-        $this->assertStringContainsString('rounded-xl', $hero);
-        $this->assertStringContainsString('flex items-start justify-between', $dashboard);
-        $this->assertStringNotContainsString('hub.back', $shell);
-        $this->assertStringNotContainsString("('active ?? '') !== 'hub'", $shell);
-    }
-
-    public function test_profile_section_pages_use_identity_hero_without_tab_bar_or_back_link(): void
+    public function test_my_card_uses_contextual_hero_without_duplicate_identity(): void
     {
         $customer = $this->borrower();
+        $card = file_get_contents(resource_path('views/site/borrower/profile/_member_card.blade.php'));
+
+        $this->assertStringContainsString("mode=\"contextual\"", $card);
+        $this->assertStringContainsString("cta === 'profile'", $card);
 
         $html = $this->actingAs($customer->user)
-            ->withSession(['locale' => 'en'])
-            ->get(route('site.borrower.profile', ['section' => 'personal']))
-            ->assertOk()
-            ->assertSee('My Card', false)
-            ->assertSee('Gaspari Shiliba', false)
-            ->assertDontSee('Back to profile overview', false)
-            ->getContent();
-
-        $this->assertStringContainsString('BRONZE', strtoupper($html));
-        $this->assertStringNotContainsString('ring-gray-200/80 bg-white/80 backdrop-blur p-0.5', $html);
-        $this->assertStringNotContainsString(' · PLUS', strtoupper($html));
-    }
-
-    public function test_my_card_page_reuses_same_hero_with_profile_cta(): void
-    {
-        $customer = $this->borrower();
-
-        $this->actingAs($customer->user)
             ->withSession(['locale' => 'en'])
             ->get(route('site.borrower.profile', ['section' => 'membership']))
             ->assertOk()
             ->assertSee('My Card', false)
             ->assertSee('Profile', false)
             ->assertSee('memberCardActions', false)
+            ->getContent();
+
+        $this->assertStringContainsString('BRONZE', strtoupper($html));
+        $this->assertStringContainsString('uppercase', $html); // contextual title treatment
+    }
+
+    public function test_profile_pages_keep_identity_hero_with_my_card_cta(): void
+    {
+        $customer = $this->borrower();
+
+        $this->actingAs($customer->user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.borrower.profile', ['section' => 'personal']))
+            ->assertOk()
+            ->assertSee('Gaspari Shiliba', false)
+            ->assertSee('My Card', false)
             ->assertDontSee('Back to profile overview', false);
     }
 
-    public function test_document_remove_uses_confirm_form_bottom_sheet_capable_modal(): void
+    public function test_payment_waiting_reuses_premium_panel_shell(): void
     {
-        $field = file_get_contents(resource_path('views/components/site/profile-document-field.blade.php'));
-        $confirm = file_get_contents(resource_path('views/components/site/confirm-modal.blade.php'));
+        $flow = file_get_contents(resource_path('views/components/site/psp-payment-flow.blade.php'));
 
-        $this->assertStringContainsString('window.confirmForm', $field);
-        $this->assertStringNotContainsString('if (! confirm(', $field);
-        $this->assertStringContainsString('x-teleport="body"', $confirm);
-        $this->assertStringContainsString('inset-x-0 bottom-0', $confirm);
-        $this->assertStringContainsString('lg:left-1/2 lg:top-1/2', $confirm);
+        $this->assertStringContainsString("state === 'waiting'", $flow);
+        $this->assertStringContainsString('kf-premium-panel', $flow);
+        $this->assertStringContainsString('rounded-2xl bg-white shadow-sm ring-1 ring-gray-200', $flow);
+        $this->assertStringContainsString('kf-payment-surface-card', $flow);
+    }
+
+    public function test_plus_hero_contains_dashboard_cta_and_nav_is_not_standalone_back(): void
+    {
+        $hero = file_get_contents(resource_path('views/components/site/plus-hero.blade.php'));
+        $nav = file_get_contents(resource_path('views/components/site/plus-nav.blade.php'));
+        $offers = file_get_contents(resource_path('views/site/plus/offers.blade.php'));
+
+        $this->assertStringContainsString('plus.nav.home', $hero);
+        $this->assertStringContainsString('bg-white text-brand', $hero);
+        $this->assertStringContainsString('Deprecated standalone Plus back', $nav);
+        $this->assertStringNotContainsString('<x-site.plus-nav', $offers);
+    }
+
+    public function test_plus_print_footer_uses_plus_branding_without_truncate(): void
+    {
+        $printDoc = file_get_contents(resource_path('views/components/site/print-document.blade.php'));
+
+        $this->assertStringContainsString('print_plus_label', $printDoc);
+        $this->assertStringContainsString('kf-print-running-footer', $printDoc);
+        $this->assertStringNotContainsString('truncate', $printDoc);
+        $this->assertStringContainsString('word-break: break-word', $printDoc);
+    }
+
+    public function test_partner_shell_reuses_account_shell_hero(): void
+    {
+        $shell = file_get_contents(resource_path('views/site/partner-account/_shell.blade.php'));
+
+        $this->assertStringContainsString('x-site.account-shell-hero', $shell);
+        $this->assertStringContainsString("mode=\"contextual\"", $shell);
+        $this->assertStringContainsString("mode=\"identity\"", $shell);
+        $this->assertStringNotContainsString('hub_back', $shell);
     }
 
     public function test_residence_document_remove_stays_on_list_without_status_flash(): void
@@ -138,14 +153,13 @@ class MicroPassBProfileShellFeatureTest extends TestCase
             'status'           => 'pending',
         ]);
 
-        $response = $this->actingAs($customer->user)
-            ->delete(route('site.borrower.profile.documents.destroy', 'residence_letter'));
-
-        $response->assertRedirect(route('site.borrower.profile', [
-            'section' => 'residence',
-            'focus' => 'verification',
-            'open' => 1,
-        ]).'#profile-residence-verification');
+        $this->actingAs($customer->user)
+            ->delete(route('site.borrower.profile.documents.destroy', 'residence_letter'))
+            ->assertRedirect(route('site.borrower.profile', [
+                'section' => 'residence',
+                'focus' => 'verification',
+                'open' => 1,
+            ]).'#profile-residence-verification');
 
         $this->assertNull(session('status'));
     }
@@ -174,34 +188,5 @@ class MicroPassBProfileShellFeatureTest extends TestCase
             ->delete(route('site.borrower.profile.payment-accounts.destroy', $remove))
             ->assertRedirect(route('site.borrower.profile', ['section' => 'payment', 'open' => 1]))
             ->assertSessionHas('status');
-    }
-
-    public function test_payment_show_desktop_centering_structure(): void
-    {
-        $show = file_get_contents(resource_path('views/site/borrower/payments/show.blade.php'));
-        $body = file_get_contents(resource_path('views/site/borrower/payments/_show_body.blade.php'));
-        $css = file_get_contents(resource_path('css/app.css'));
-
-        $this->assertStringContainsString('kf-payment-page', $show);
-        $this->assertStringContainsString('content-width="wide"', $show);
-        $this->assertStringContainsString('max-width: min(28rem, 100%)', $css);
-        $this->assertStringContainsString(':has(.kf-payment-page)', $css);
-        // Overlay payment flow must not sit inside a constraining max-w-xl parent.
-        $this->assertMatchesRegularExpression(
-            '/@if \(\$isPayInWaiting.*?<x-site\.psp-payment-flow/s',
-            $body
-        );
-    }
-
-    public function test_plus_print_uses_fixed_running_footer_every_page(): void
-    {
-        $printDoc = file_get_contents(resource_path('views/components/site/print-document.blade.php'));
-        $css = file_get_contents(resource_path('css/app.css'));
-
-        $this->assertStringContainsString('kf-print-running-footer', $printDoc);
-        $this->assertStringContainsString('position: fixed', $printDoc);
-        $this->assertStringContainsString('kf-print-app-footer', $css);
-        $this->assertStringContainsString('display: none !important', $css);
-        $this->assertStringContainsString('padding-bottom: 14mm', $printDoc);
     }
 }

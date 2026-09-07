@@ -15,8 +15,6 @@
             el.dispatchEvent(new Event('input', { bubbles: true }));
         }
     }">
-        <x-site.plus-nav />
-
         <x-site.plus-hero kicker="Kopafasta Plus · {{ $month_label }}" :title="__('plus.money.title')" :body="__('plus.money.hero_body')">
             <div class="grid grid-cols-3 gap-3">
                 <div>

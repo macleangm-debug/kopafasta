@@ -17,7 +17,7 @@
         $browseCats = $categories->slice(4)->values();
     @endphp
     <div class="space-y-8">
-        <x-site.plus-nav />
+        <x-site.plus-hero kicker="Kopafasta Plus" :title="__('plus.learn.title')" :body="__('plus.learn.hero_body')" />
 
         @if ($featuredLesson && ! $search && ! $category)
             @php

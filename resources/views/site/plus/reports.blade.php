@@ -15,7 +15,8 @@
     $website = \App\Models\Setting::get('company.website')
         ?: \App\Models\Setting::get('company.app_base_url')
         ?: config('app.url');
-    $footerLine = __('plus.reports.footer', ['month' => $report['label'] ?? $currentMonth])
+    $footerLine = ($report['label'] ?? $currentMonth)
+        .' · '.__('plus.reports.footer_confidential')
         .' · '.brand('legal_name', 'Kopafasta Microfinance Limited')
         .' · '.$website
         .' · '.__('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]);
@@ -25,7 +26,7 @@
 @if ($print)
     <x-site.print-document
         :title="brand_title(__('plus.home.reports'))"
-        :footer-left="null"
+        :footer-left="__('plus.reports.print_plus_label')"
         :footer-right="$footerLine"
     >
         @include('site.plus._report_sheet', [
@@ -46,9 +47,12 @@
 @else
     <x-site.borrower-layout :title="brand_title(__('plus.home.reports'))" active="plus">
         <div class="space-y-5">
-            <div class="print:hidden">
-                <x-site.plus-nav />
-            </div>
+            <x-site.plus-hero
+                kicker="Kopafasta Plus"
+                :title="__('plus.home.reports')"
+                :body="__('plus.reports.hero_body')"
+                class="print:hidden"
+            />
 
             @if ($report['thin'] ?? false)
                 <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-100 p-4 print:hidden">

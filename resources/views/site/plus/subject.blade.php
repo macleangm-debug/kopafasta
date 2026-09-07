@@ -4,11 +4,14 @@
         $related = $related ?? collect();
     @endphp
     <div class="space-y-5">
-        <x-site.plus-nav :back-url="route('site.borrower.plus.learn')" :back-label="__('plus.nav.learn')" />
-
         <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-6 lg:items-start">
             <article class="space-y-5 min-w-0">
-                <x-site.plus-hero kicker="{{ $subject->category?->localizedTitle() }} · {{ __('plus.learn.minutes', ['minutes' => $subject->duration_minutes]) }}" :title="$subject->localizedTitle()" />
+                <x-site.plus-hero
+                    kicker="{{ $subject->category?->localizedTitle() }} · {{ __('plus.learn.minutes', ['minutes' => $subject->duration_minutes]) }}"
+                    :title="$subject->localizedTitle()"
+                    :back-url="route('site.borrower.plus.learn')"
+                    :back-label="__('plus.nav.learn')"
+                />
 
                 <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 sm:p-6 space-y-4 w-full">
                     <x-site.plus-article-steps

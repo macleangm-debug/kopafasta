@@ -23,7 +23,7 @@
     <style>
         @page {
             size: A4;
-            margin: 12mm 12mm 18mm;
+            margin: 12mm 12mm 22mm;
         }
         @media print {
             html, body {
@@ -32,24 +32,32 @@
                 padding: 0 !important;
             }
             .kf-print-chrome { display: none !important; }
-            /* Fixed application footer on every printed page (not Chrome browser chrome). */
+            /* Fixed application footer on every printed page (Chrome headers/footers OFF in UAT). */
             .kf-print-running-footer {
                 position: fixed !important;
                 left: 0 !important;
                 right: 0 !important;
                 bottom: 0 !important;
                 display: flex !important;
-                align-items: center;
+                align-items: flex-start;
                 gap: 8px;
                 padding: 3mm 0 0;
                 border-top: 0.4pt solid #d1d5db;
                 background: #fff !important;
-                font-size: 8pt;
+                font-size: 7.5pt;
+                line-height: 1.35;
                 color: #4b5563;
                 z-index: 50;
+                box-sizing: border-box;
+            }
+            .kf-print-running-footer p {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                word-break: break-word;
             }
             .kf-print-root {
-                padding-bottom: 14mm !important;
+                padding-bottom: 18mm !important;
             }
             .kf-print-app-footer { display: none !important; }
         }
@@ -75,10 +83,14 @@
         {{ $slot }}
     </main>
 
+    {{-- Matches accepted in-app footer: Plus branding left + full uncut details. --}}
     <div class="kf-print-running-footer" aria-hidden="true">
-        <img src="{{ asset(ltrim((string) (brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png'), '/')) }}"
-             alt="" class="h-3.5 w-auto object-contain shrink-0">
-        <p class="min-w-0 leading-snug truncate">{{ $footerLine !== '' ? $footerLine : 'Kopafasta Plus Report' }}</p>
+        <div class="shrink-0 inline-flex items-center gap-1.5 pr-2">
+            <img src="{{ asset(ltrim((string) (brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png'), '/')) }}"
+                 alt="" class="h-3.5 w-auto object-contain">
+            <span class="font-bold tracking-tight text-[8pt] text-brand whitespace-nowrap">{{ $footerLeft ?: __('plus.reports.print_plus_label') }}</span>
+        </div>
+        <p class="min-w-0 flex-1 leading-snug">{{ $footerRight ?: $footerLine }}</p>
     </div>
 </body>
 </html>

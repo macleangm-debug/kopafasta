@@ -26,7 +26,6 @@
             this.viewOpen = true;
         }
     }">
-        <x-site.plus-nav />
         <x-site.plus-hero kicker="Kopafasta Plus" :title="__('plus.offers.title')" :body="__('plus.offers.hero_body')" />
 
         @if (session('status'))

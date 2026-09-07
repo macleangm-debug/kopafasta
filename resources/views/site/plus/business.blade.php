@@ -28,8 +28,6 @@
             el.dispatchEvent(new Event('input', { bubbles: true }));
         }
     }">
-        <x-site.plus-nav />
-
         @if (session('status'))
             <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">{{ session('status') }}</div>
         @endif

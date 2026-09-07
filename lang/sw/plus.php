@@ -335,6 +335,7 @@ return [
         'previous' => 'Ripoti zilizopita',
         'a4_kicker' => 'Ripoti ya maendeleo ya mwezi',
         'footer' => 'Kopafasta Plus · :month · Faragha',
+        'footer_confidential' => 'Faragha',
         'print_footer_title' => 'Ripoti ya Kopafasta Plus',
         'print_plus_label' => 'Kopafasta Plus',
         'business_context' => 'Biashara: :name',

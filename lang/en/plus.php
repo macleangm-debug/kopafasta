@@ -335,6 +335,7 @@ return [
         'previous' => 'Previous reports',
         'a4_kicker' => 'Monthly progress report',
         'footer' => 'Kopafasta Plus · :month · Private & confidential',
+        'footer_confidential' => 'Private & confidential',
         'print_footer_title' => 'Kopafasta Plus Report',
         'print_plus_label' => 'Kopafasta Plus',
         'print_plus_label' => 'Kopafasta Plus',
