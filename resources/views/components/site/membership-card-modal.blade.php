@@ -34,7 +34,15 @@
         </div>
 
         <div class="px-5 pb-4">
-            <x-site.member-card :customer="$customer" />
+            <div class="mx-auto w-full max-w-[22rem] sm:max-w-md">
+                <div class="w-full overflow-x-hidden overflow-y-auto max-h-[min(58vh,28rem)]">
+                    <div class="aspect-[1.586/1] w-full">
+                        <div class="h-full w-full [&_.md\:grid-cols-2]:grid-cols-1">
+                            <x-site.member-card :customer="$customer" />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="sticky bottom-0 px-5 pb-5 pt-2 bg-gradient-to-t from-[#faf8f5] via-[#faf8f5] to-transparent space-y-2">

@@ -123,7 +123,7 @@ export function registerPspPaymentFlow(Alpine) {
             if (this.state === 'failed') return this.copy.failedTitle;
             if (this.state === 'timeout') return this.copy.timeoutTitle;
             if (this.state === 'waiting') return this.copy.waitingTitle;
-            return this.copy.payAmount || this.amountLabel;
+            return this.copy.detailsTitle || this.copy.typeLabel || this.paidTitle || 'Payment';
         },
 
         elapsedLabel() {

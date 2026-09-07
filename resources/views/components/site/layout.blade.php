@@ -235,10 +235,23 @@
                     @if (count(social_links()) > 0)
                         <div class="mt-5 flex flex-wrap gap-3">
                             @foreach (social_links() as $social)
+                                @php $platform = strtolower((string) ($social['platform'] ?? '')); @endphp
                                 <a href="{{ $social['url'] }}" target="_blank" rel="noopener noreferrer"
-                                   class="inline-flex items-center justify-center size-10 rounded-full bg-white/10 ring-1 ring-white/20 text-white text-xs font-bold uppercase hover:bg-brand-gold hover:text-brand transition"
-                                   aria-label="{{ ucfirst($social['platform']) }}">
-                                    {{ strtoupper(substr($social['platform'], 0, 2)) }}
+                                   class="inline-flex items-center justify-center size-10 rounded-full bg-white/10 ring-1 ring-white/20 text-white hover:bg-brand-gold hover:text-brand transition"
+                                   aria-label="{{ ucfirst($platform) }}">
+                                    @if ($platform === 'instagram')
+                                        <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm6.5-.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zM12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/></svg>
+                                    @elseif ($platform === 'facebook')
+                                        <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H7v3h3v7h3v-7h3l1-3h-4v-2c0-.6.4-1 1-1z"/></svg>
+                                    @elseif ($platform === 'youtube')
+                                        <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 12.2s0-3.2-.4-4.7c-.2-.9-.9-1.6-1.8-1.8C18.4 5.2 12 5.2 12 5.2s-6.4 0-8.8.5c-.9.2-1.6.9-1.8 1.8C1 9 1 12.2 1 12.2s0 3.2.4 4.7c.2.9.9 1.6 1.8 1.8 2.4.5 8.8.5 8.8.5s6.4 0 8.8-.5c.9-.2 1.6-.9 1.8-1.8.4-1.5.4-4.7.4-4.7zM9.8 15.5v-6.6l5.7 3.3-5.7 3.3z"/></svg>
+                                    @elseif (in_array($platform, ['x', 'twitter'], true))
+                                        <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23 22h-6.5l-5.1-6.7L5.7 22H2.6l7.3-8.3L1 2h6.6l4.6 6.1L18.9 2zm-1.1 18h1.8L6.3 3.9H4.4L17.8 20z"/></svg>
+                                    @elseif ($platform === 'linkedin')
+                                        <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.5 8.5H3.7V21h2.8V8.5zM5.1 3a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM20.3 21h-2.8v-6.1c0-1.5-.5-2.5-1.8-2.5-1 0-1.5.7-1.8 1.3-.1.2-.1.5-.1.8V21h-2.8s0-10.4 0-11.5h2.8v1.6c.4-.6 1.1-1.8 2.9-1.8 2.1 0 3.6 1.4 3.6 4.3V21z"/></svg>
+                                    @else
+                                        <span class="text-xs font-bold uppercase">{{ strtoupper(substr($platform, 0, 2)) }}</span>
+                                    @endif
                                 </a>
                             @endforeach
                         </div>
@@ -284,6 +297,7 @@
                         <li><a href="{{ route('site.legal.complaints') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.complaints_heading') }}</a></li>
                         <li><a href="{{ route('site.legal.aml') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('legal.nav.aml') }}</a></li>
                         <li><a href="{{ route('site.legal.kyc') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('legal.nav.kyc') }}</a></li>
+                        <li><a href="{{ route('site.legal.cookies') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('legal.nav.cookies') }}</a></li>
                         <li><a href="{{ route('site.legal') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.legal') }}</a></li>
                     </ul>
                 </div>

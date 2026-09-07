@@ -186,14 +186,20 @@
 }
 
 @media print {
+    @page {
+        size: A4;
+        margin: 14mm 12mm 20mm;
+    }
+
     .kf-chrome-sidebar,
     .kf-chrome-topbar-desktop,
     .kf-chrome-topbar-mobile,
     .kf-mobile-bottom-nav,
     .kf-staging-banner,
     [data-staging-banner],
+    .kf-print-chrome,
     header,
-    footer,
+    footer:not(.kf-print-running-footer),
     nav,
     .fixed.bottom-6,
     [data-chatbot],
@@ -208,24 +214,29 @@
     }
 
     .kf-chrome-page,
-    main,
-    .max-w-7xl,
-    .max-w-3xl {
+    .kf-print-root,
+    main {
         max-width: none !important;
         margin: 0 !important;
         padding: 0 !important;
+        box-shadow: none !important;
     }
 
+    /* Flow naturally across pages — never force a full blank first page. */
     .kf-print-sheet {
         box-shadow: none !important;
-        border: 1px solid #0B3D32;
-        break-inside: avoid;
-        width: 210mm;
-        min-height: 297mm;
-        margin: 0 auto !important;
+        border: none !important;
+        border-radius: 0 !important;
+        width: auto !important;
+        min-height: 0 !important;
+        max-width: none !important;
+        margin: 0 !important;
         display: block !important;
         visibility: visible !important;
         background: #fff !important;
+        break-inside: auto;
+        page-break-inside: auto;
+        overflow: visible !important;
     }
 
     .kf-print-sheet * {
@@ -233,6 +244,48 @@
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
+
+    .kf-print-avoid {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .kf-print-keep-with-next {
+        break-after: avoid;
+        page-break-after: avoid;
+    }
+
+    .kf-print-section {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 4mm;
+    }
+
+    .kf-print-goal-row {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .kf-print-running-footer {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        display: block !important;
+        background: #fff !important;
+        z-index: 50;
+    }
+}
+
+.kf-mobile-bottom-nav {
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    transform: translate3d(0, 0, 0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
 }
 
 body.kf-camera-open {

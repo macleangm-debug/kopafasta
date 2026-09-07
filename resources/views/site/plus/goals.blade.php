@@ -3,9 +3,10 @@
     $kindOptions = collect($kinds)->mapWithKeys(fn ($meta, $key) => [$key => ($meta['icon'] ?? '').' '.$meta[$locale]])->all();
     $minDate = now()->addDay()->toDateString();
     $selectedGoal = $selected ?? null;
+    $hasGoals = ($goals ?? collect())->isNotEmpty();
     $cardTitle = $selectedGoal
         ? $selectedGoal->title
-        : __('plus.goals.your_goals');
+        : ($hasGoals ? __('plus.goals.all_goals') : __('plus.goals.your_goals'));
     $selectedLabel = $selectedGoal
         ? $selectedGoal->title
         : __('plus.goals.all_goals');
@@ -28,37 +29,41 @@
         @endif
 
         <x-site.plus-hero kicker="Kopafasta Plus" :title="$cardTitle" :body="__('plus.goals.hero_body')">
-            <div class="relative mb-4" @keydown.escape.window="desktopOpen = false; goalPickerOpen = false">
-                <button type="button"
-                        class="w-full inline-flex items-center gap-3 rounded-xl bg-white/10 ring-1 ring-white/20 px-4 py-3 text-sm font-semibold text-white hover:bg-white/15"
-                        @click="window.matchMedia('(max-width: 1023px)').matches ? goalPickerOpen = true : desktopOpen = !desktopOpen">
-                    <span class="flex-1 text-left truncate">{{ $selectedLabel }}</span>
-                    <svg class="w-4 h-4 text-white/70 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                </button>
-                <div class="hidden lg:block absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl py-1 text-gray-900"
-                     x-cloak x-show="desktopOpen" @click.outside="desktopOpen = false">
+            <x-site.plus-card-picker
+                :title="__('plus.goals.choose_goal')"
+                :selected-label="$selectedLabel"
+                desktop-open="desktopOpen"
+                sheet-open="goalPickerOpen"
+            >
+                <x-slot:desktop>
                     <a href="{{ route('site.borrower.plus.goals', ['goal' => 'all']) }}"
                        class="block px-4 py-2.5 text-sm {{ empty($goal_id) ? 'bg-brand-muted text-brand font-semibold' : 'text-gray-800 hover:bg-gray-50' }}">{{ __('plus.goals.all_goals') }}</a>
                     @foreach ($openGoals as $g)
                         <a href="{{ route('site.borrower.plus.goals', ['goal' => $g->id]) }}"
                            class="block px-4 py-2.5 text-sm {{ (int) ($goal_id ?? 0) === (int) $g->id ? 'bg-brand-muted text-brand font-semibold' : 'text-gray-800 hover:bg-gray-50' }}">{{ $g->kindIcon() }} {{ $g->title }}</a>
                     @endforeach
+                    @foreach ($completed as $g)
+                        <a href="{{ route('site.borrower.plus.goals', ['goal' => $g->id]) }}"
+                           class="block px-4 py-2.5 text-sm text-gray-600 {{ (int) ($goal_id ?? 0) === (int) $g->id ? 'bg-brand-muted text-brand font-semibold' : 'hover:bg-gray-50' }}">{{ $g->kindIcon() }} {{ $g->title }} · {{ __('plus.goals.completed') }}</a>
+                    @endforeach
                     <button type="button" @click="desktopOpen = false; newOpen = true"
                             class="w-full text-left px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('plus.goals.add_new_goal') }}</button>
-                </div>
-                <x-site.bottom-sheet :title="__('plus.goals.choose_goal')" open="goalPickerOpen">
-                    <div class="space-y-1">
-                        <a href="{{ route('site.borrower.plus.goals', ['goal' => 'all']) }}"
-                           class="block px-4 py-3 rounded-xl text-sm {{ empty($goal_id) ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">{{ __('plus.goals.all_goals') }}</a>
-                        @foreach ($openGoals as $g)
-                            <a href="{{ route('site.borrower.plus.goals', ['goal' => $g->id]) }}"
-                               class="block px-4 py-3 rounded-xl text-sm {{ (int) ($goal_id ?? 0) === (int) $g->id ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">{{ $g->kindIcon() }} {{ $g->title }}</a>
-                        @endforeach
-                        <button type="button" @click="goalPickerOpen = false; newOpen = true"
-                                class="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('plus.goals.add_new_goal') }}</button>
-                    </div>
-                </x-site.bottom-sheet>
-            </div>
+                </x-slot:desktop>
+                <x-slot:sheet>
+                    <a href="{{ route('site.borrower.plus.goals', ['goal' => 'all']) }}"
+                       class="block px-4 py-3 rounded-xl text-sm {{ empty($goal_id) ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">{{ __('plus.goals.all_goals') }}</a>
+                    @foreach ($openGoals as $g)
+                        <a href="{{ route('site.borrower.plus.goals', ['goal' => $g->id]) }}"
+                           class="block px-4 py-3 rounded-xl text-sm {{ (int) ($goal_id ?? 0) === (int) $g->id ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">{{ $g->kindIcon() }} {{ $g->title }}</a>
+                    @endforeach
+                    @foreach ($completed as $g)
+                        <a href="{{ route('site.borrower.plus.goals', ['goal' => $g->id]) }}"
+                           class="block px-4 py-3 rounded-xl text-sm text-gray-600 {{ (int) ($goal_id ?? 0) === (int) $g->id ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'hover:bg-gray-50' }}">{{ $g->kindIcon() }} {{ $g->title }} · {{ __('plus.goals.completed') }}</a>
+                    @endforeach
+                    <button type="button" @click="goalPickerOpen = false; newOpen = true"
+                            class="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('plus.goals.add_new_goal') }}</button>
+                </x-slot:sheet>
+            </x-site.plus-card-picker>
 
             <p class="text-sm text-white/80">{{ __('plus.goals.active_count', ['count' => $active->count()]) }}</p>
 
@@ -131,7 +136,7 @@
                         <div class="mt-2 max-h-[13.75rem] overflow-y-auto overscroll-contain space-y-2 pr-1" x-show="histOpen" x-cloak>
                             @foreach ($goal->contributions as $row)
                                 <div class="rounded-xl bg-gray-50 px-3 py-2 text-sm flex justify-between">
-                                    <span>{{ $row->created_at->locale(app()->getLocale())->isoFormat('D MMM') }}</span>
+                                    <span>{{ $row->created_at->locale(app()->getLocale())->isoFormat('D MMM YYYY') }}</span>
                                     <span class="font-semibold tabular-nums">+ {{ format_money($row->amount) }}</span>
                                 </div>
                             @endforeach
@@ -160,7 +165,9 @@
                 </x-site.action-panel>
             </div>
         @empty
-            <x-site.empty-state compact icon="🎯" :title="__('plus.goals.empty')" />
+            @unless ($hasGoals)
+                <x-site.empty-state compact icon="🎯" :title="__('plus.goals.empty')" />
+            @endunless
         @endforelse
 
         @if ($completed->isNotEmpty() && ! $selectedGoal)

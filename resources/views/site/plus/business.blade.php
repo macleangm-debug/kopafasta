@@ -3,9 +3,12 @@
     $saleOptions = collect($sale_types)->mapWithKeys(fn ($row, $key) => [$key => $row[$locale]])->all();
     $spendOptions = collect($spend_types)->mapWithKeys(fn ($row, $key) => [$key => $row[$locale]])->all();
     $selectedBusiness = collect($businesses ?? [])->firstWhere('id', (int) ($business_id ?? 0));
+    $hasBusinesses = collect($businesses ?? [])->isNotEmpty();
     $cardTitle = $selectedBusiness
         ? $selectedBusiness->name
-        : __('plus.business.your_businesses');
+        : ($hasBusinesses
+            ? __('plus.business.all_businesses')
+            : __('plus.business.your_businesses'));
     $selectedLabel = $selectedBusiness
         ? $selectedBusiness->name
         : __('plus.business.all_businesses');
@@ -32,15 +35,13 @@
         @endif
 
         <x-site.plus-hero kicker="Kopafasta Plus · {{ $period_label }}" :title="$cardTitle" :body="__('plus.business.hero_body')">
-            <div class="relative mb-4" @keydown.escape.window="desktopOpen = false; bizPickerOpen = false">
-                <button type="button"
-                        class="w-full inline-flex items-center gap-3 rounded-xl bg-white/10 ring-1 ring-white/20 px-4 py-3 text-sm font-semibold text-white hover:bg-white/15"
-                        @click="window.matchMedia('(max-width: 1023px)').matches ? bizPickerOpen = true : desktopOpen = !desktopOpen">
-                    <span class="flex-1 text-left truncate">{{ $selectedLabel }}</span>
-                    <svg class="w-4 h-4 text-white/70 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                </button>
-                <div class="hidden lg:block absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl py-1 text-gray-900"
-                     x-cloak x-show="desktopOpen" @click.outside="desktopOpen = false">
+            <x-site.plus-card-picker
+                :title="__('plus.business.choose_business')"
+                :selected-label="$selectedLabel"
+                desktop-open="desktopOpen"
+                sheet-open="bizPickerOpen"
+            >
+                <x-slot:desktop>
                     <a href="{{ route('site.borrower.plus.business', ['period' => $period, 'business' => 'all']) }}"
                        class="block px-4 py-2.5 text-sm {{ empty($business_id) ? 'bg-brand-muted text-brand font-semibold' : 'text-gray-800 hover:bg-gray-50' }}">{{ __('plus.business.all_businesses') }}</a>
                     @foreach (($businesses ?? []) as $biz)
@@ -49,20 +50,18 @@
                     @endforeach
                     <button type="button" @click="desktopOpen = false; addOpen = true"
                             class="w-full text-left px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('plus.business.add_new_business') }}</button>
-                </div>
-                <x-site.bottom-sheet :title="__('plus.business.choose_business')" open="bizPickerOpen">
-                    <div class="space-y-1">
-                        <a href="{{ route('site.borrower.plus.business', ['period' => $period, 'business' => 'all']) }}"
-                           class="block px-4 py-3 rounded-xl text-sm {{ empty($business_id) ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">{{ __('plus.business.all_businesses') }}</a>
-                        @foreach (($businesses ?? []) as $biz)
-                            <a href="{{ route('site.borrower.plus.business', ['period' => $period, 'business' => $biz->id]) }}"
-                               class="block px-4 py-3 rounded-xl text-sm {{ (int) ($business_id ?? 0) === (int) $biz->id ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">{{ $biz->name }}</a>
-                        @endforeach
-                        <button type="button" @click="bizPickerOpen = false; addOpen = true"
-                                class="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('plus.business.add_new_business') }}</button>
-                    </div>
-                </x-site.bottom-sheet>
-            </div>
+                </x-slot:desktop>
+                <x-slot:sheet>
+                    <a href="{{ route('site.borrower.plus.business', ['period' => $period, 'business' => 'all']) }}"
+                       class="block px-4 py-3 rounded-xl text-sm {{ empty($business_id) ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">{{ __('plus.business.all_businesses') }}</a>
+                    @foreach (($businesses ?? []) as $biz)
+                        <a href="{{ route('site.borrower.plus.business', ['period' => $period, 'business' => $biz->id]) }}"
+                           class="block px-4 py-3 rounded-xl text-sm {{ (int) ($business_id ?? 0) === (int) $biz->id ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">{{ $biz->name }}</a>
+                    @endforeach
+                    <button type="button" @click="bizPickerOpen = false; addOpen = true"
+                            class="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('plus.business.add_new_business') }}</button>
+                </x-slot:sheet>
+            </x-site.plus-card-picker>
 
             <div class="flex gap-1 rounded-full bg-white/10 p-1 mb-4">
                 @foreach (['today' => __('plus.business.today'), 'week' => __('plus.business.week'), 'month' => __('plus.business.month')] as $key => $label)

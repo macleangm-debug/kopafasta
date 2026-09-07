@@ -3452,6 +3452,7 @@ return [
     ],
 
     'payment_waiting' => [
+        'details_title' => 'Payment',
         'eyebrow' => 'Mobile money',
         'title' => 'Confirm on your phone',
         'prompt' => 'Check your phone for the payment prompt and enter your PIN. This page updates automatically.',

@@ -43,6 +43,7 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->assertSame(['mobile_money', 'bank'], Setting::get('integrations.partner_channels')['payin'] ?? null);
         $channels = payment_channels_for_amount(2_500_000);
         $this->assertTrue($channels['mobile_money_allowed']);
+        $this->assertTrue(payment_channels_for_amount(3_000_000)['mobile_money_allowed']);
         $this->assertFalse(payment_channels_for_amount(3_000_001)['mobile_money_allowed']);
 
         $service = app(PayInService::class);

@@ -35,7 +35,7 @@ class PlusReportService
         ], $config['reports'] ?? []);
     }
 
-    public function monthDashboard(Customer $customer, ?string $month = null): array
+    public function monthDashboard(Customer $customer, ?string $month = null, ?int $businessId = null): array
     {
         $selected = $this->resolveMonth($customer, $month);
         $closed = $selected->copy()->endOfMonth()->lt(now()->copy()->startOfDay());
@@ -49,15 +49,17 @@ class PlusReportService
             $payload['from_snapshot'] = true;
             $payload['months'] = $this->monthChoices($customer);
             $payload['years'] = $this->yearChoices($customer);
+            $payload = $this->withBusinessContext($customer, $payload, $businessId);
             $this->markViewed($snapshot);
 
             return $payload;
         }
 
-        $payload = $this->buildMonth($customer, $selected);
+        $payload = $this->buildMonth($customer, $selected, $businessId);
         $payload['from_snapshot'] = false;
         $payload['months'] = $this->monthChoices($customer);
         $payload['years'] = $this->yearChoices($customer);
+        $payload = $this->withBusinessContext($customer, $payload, $businessId);
 
         if ($closed) {
             PlusMonthlyReport::query()->firstOrCreate(
@@ -222,7 +224,7 @@ class PlusReportService
         }
     }
 
-    private function buildMonth(Customer $customer, Carbon $month): array
+    private function buildMonth(Customer $customer, Carbon $month, ?int $businessId = null): array
     {
         $locale = app()->getLocale() === 'sw' ? 'sw' : 'en';
         $start = $month->copy()->startOfMonth();
@@ -230,12 +232,12 @@ class PlusReportService
         $prevStart = $start->copy()->subMonth();
         $prevEnd = $start->copy()->subDay();
         $label = $start->locale($locale)->translatedFormat('F Y');
-        $prevLabel = $prevStart->locale($locale)->translatedFormat('F');
+        $prevLabel = $prevStart->locale($locale)->translatedFormat('F Y');
 
         $money = $this->workspace->moneyTotals($customer, $start, $end);
         $prevMoney = $this->workspace->moneyTotals($customer, $prevStart, $prevEnd);
-        $business = $this->workspace->businessTotals($customer, $start->toDateString(), $end->toDateString());
-        $prevBusiness = $this->workspace->businessTotals($customer, $prevStart->toDateString(), $prevEnd->toDateString());
+        $business = $this->workspace->businessTotals($customer, $start->toDateString(), $end->toDateString(), $businessId);
+        $prevBusiness = $this->workspace->businessTotals($customer, $prevStart->toDateString(), $prevEnd->toDateString(), $businessId);
         $left = $money['in'] - $money['out'];
         $prevLeft = $prevMoney['in'] - $prevMoney['out'];
 
@@ -283,11 +285,13 @@ class PlusReportService
             'prev_label' => $prevLabel,
             'member_name' => trim((string) ($customer->full_name ?: $customer->first_name)),
             'membership_number' => \App\Support\MemberNumberFormatter::display($customer->member_no),
-            'generated_at' => now()->toDateTimeString(),
+            'generated_at' => now()->locale($locale)->isoFormat('D MMM YYYY, HH:mm'),
+            'generated_at_iso' => now()->toDateTimeString(),
             'money' => $money + ['left' => $left],
             'prev_money' => $prevMoney + ['left' => $prevLeft],
             'business' => $business,
             'prev_business' => $prevBusiness,
+            'business_id' => $businessId,
             'where' => $where,
             'goals_added' => $added,
             'goals_moved' => collect($goalCards)->where('added', '>', 0)->count(),
@@ -314,6 +318,40 @@ class PlusReportService
                 'trust' => data_get($row->payload, 'trust_percent'),
             ])->all(),
         ];
+    }
+
+    private function withBusinessContext(Customer $customer, array $payload, ?int $businessId): array
+    {
+        $business = null;
+        if ($businessId) {
+            $business = \App\Models\PlusBusiness::query()
+                ->where('customer_id', $customer->id)
+                ->whereKey($businessId)
+                ->first();
+        }
+
+        $payload['business_id'] = $business?->id;
+        $payload['business_context'] = $business
+            ? $business->name
+            : __('plus.business.all_businesses');
+        $payload['business_context_compact'] = $business
+            ? $business->name
+            : __('plus.business.all_businesses');
+
+        if ($business) {
+            $start = \Carbon\Carbon::createFromFormat('Y-m', (string) ($payload['month'] ?? now()->format('Y-m')))->startOfMonth();
+            $end = $start->copy()->endOfMonth();
+            $payload['business'] = $this->workspace->businessTotals(
+                $customer,
+                $start->toDateString(),
+                $end->toDateString(),
+                $business->id
+            );
+            $payload['has_business'] = ($payload['business']['sold'] ?? 0) > 0 || ($payload['business']['spent'] ?? 0) > 0
+                || $this->workspace->hasAnyBusiness($customer);
+        }
+
+        return $payload;
     }
 
     /** @return list<array{label: string, amount: float, pct: int}> */

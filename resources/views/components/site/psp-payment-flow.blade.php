@@ -41,6 +41,8 @@
     }
     $copy = [
         'payAmount' => __('borrower.payment_waiting.pay_amount', ['amount' => $amountLabel]),
+        'detailsTitle' => $surface['title'] ?? __('borrower.payment_waiting.details_title'),
+        'typeLabel' => $surface['title'] ?? __('borrower.payments_page.show.pay'),
         'waitingTitle' => __('borrower.payment_waiting.title'),
         'waitingConfirmation' => __('borrower.payment_waiting.waiting_confirmation'),
         'successTitle' => __('borrower.payment_waiting.success_title'),

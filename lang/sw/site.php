@@ -426,7 +426,7 @@ return [
             'founding_hint' => 'TACIP, mafundi, na jinsi jina lilivyozaliwa',
             'trust' => 'Uaminifu',
             'trust_hint' => 'Jinsi tunavyoeka mikopo kuwa salama na yenye haki',
-            'impact' => 'Athari',
+            'impact' => 'Matokeo',
             'impact_hint' => 'Watu waliowafikia na yajayo',
             'roadmap' => 'Ramani',
             'roadmap_hint' => 'Tanzania hadi Afrika Mashariki na Kati',
@@ -554,11 +554,11 @@ return [
         ],
 
         'impact' => [
-            'title' => 'Athari',
+            'title' => 'Matokeo',
             'meta' => 'Kutoka mafundi 100,000+ wa TACIP hadi jukwaa la mikopo — jinsi kopafasta inavyopima ufikiaji na uwajibikaji.',
-            'eyebrow' => 'Athari',
+            'eyebrow' => 'Matokeo',
             'hero_title' => 'Ufikiaji ulioanza na watengenezaji — na unaendelea kupanuka.',
-            'hero_body' => 'Athari kwetu si bango. Ni iwapo utambulisho unageuka ufikiaji, na ufikiaji unageuka maisha yanayoweza kulipa kwa heshima.',
+            'hero_body' => 'Matokeo kwetu si bango. Ni iwapo utambulisho unageuka ufikiaji, na ufikiaji unageuka maisha yanayoweza kulipa kwa heshima.',
             'stats' => [
                 [
                     'value' => '100k+',
@@ -589,7 +589,7 @@ return [
                 ],
                 [
                     'tag' => 'Leo',
-                    'title' => 'Wakopaji, vikundi, na washirika kwenye stack moja',
+                    'title' => 'Wakopaji, vikundi, na washirika kwenye jukwaa moja',
                     'body' => 'Mikopo binafsi na ya vikundi, njia za mali, na programu za washirika zinashiriki utambulisho, bei, na nidhamu ile ile ya malipo.',
                 ],
                 [
@@ -2211,11 +2211,19 @@ return [
         'example' => 'Pointi :points → :reward',
         'see' => 'Angalia zawadi',
         'qualify_title' => 'Shughuli zinazostahili sasa',
+        'how_title' => 'Pointi zinavyofanya kazi',
+        'how_body' => 'Pointi zinatokana na tabia yenye uwajibikaji iliyowashwa katika Mipangilio: marejesho ya wakati wa deni lililopo, kukamilisha wasifu/KYC, rufaa halali, na malengo ya Plus yaliyowekwa. Pointi hufungua zawadi zilizochapishwa. “Kulipa zaidi” inamaanisha kutimiza ahadi kwa wakati — si kukopa zaidi au mikopo mikubwa.',
+        'signin_note' => 'Mtu yeyote anaweza kusoma ukurasa huu. Kuingia kunahitajika ili kupata pointi, kuona salio, na kukomboa.',
+        'redeem_how' => 'Fungua Zawadi katika akaunti yako, chagua ofa inayostahili, na thibitisha. Ustahiki, pointi, manufaa na muda vinatokana na Mipangilio.',
+        'earn_empty' => 'Hakuna shughuli za kupata pointi zilizochapishwa sasa.',
+        'catalog_empty' => 'Hakuna zawadi zilizochapishwa sasa.',
         'earn_register' => 'Rafiki anajiunga kwa mwaliko wako',
         'earn_apply' => 'Anawasilisha ombi la kwanza na kulipa ada ya maombi',
         'earn_profile' => 'Unakamilisha wasifu / KYC inayohitajika',
-        'not_every' => 'Si kila shughuli inatoa pointi. Kukopa na kiasi cha mkopo havitoi pointi.',
-        'catalog_title' => 'Pointi zinaweza kufungua nini',
+        'earn_repay' => 'Unarejesha awamu ya mkopo iliyopo kwa wakati',
+        'earn_goal' => 'Unakamilisha lengo la Plus linalostahili',
+        'not_every' => 'Si kila shughuli inatoa pointi. Kukopa zaidi, mikopo mikubwa na kukopa mara kwa mara havitoi pointi.',
+        'catalog_title' => 'Zawadi na ofa',
         'cta' => 'Fungua akaunti',
     ],
 

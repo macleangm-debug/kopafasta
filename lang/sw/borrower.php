@@ -3153,6 +3153,7 @@ return [
         'pay_confirm_message' => 'Unakaribia kulipa :label. Tutathibitisha malipo yako dhidi ya rekodi zetu.',
     ],
     'payment_waiting' => [
+        'details_title' => 'Malipo',
         'eyebrow' => 'Pesa kwa simu',
         'title' => 'Thibitisha kwenye simu yako',
         'prompt' => 'Angalia simu yako kwa ombi la malipo, kisha weka PIN. Ukurasa huu unasasishwa kiotomatiki.',

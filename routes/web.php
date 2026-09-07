@@ -177,7 +177,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/legal/kyc', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('kyc'))->name('legal.kyc');
     Route::get('/legal/aml-kyc', fn () => redirect()->route('site.legal.aml', [], 301));
     Route::get('/legal/complaints', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('complaints'))->name('legal.complaints');
-    Route::get('/legal/cookies', [PageController::class, 'cookies'])->name('legal.cookies');
+    Route::get('/legal/cookies', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('cookies'))->name('legal.cookies');
     Route::get('/responsible-lending', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('responsible_lending'))->name('responsible-lending');
     Route::get('/support', [SupportCenterController::class, 'index'])->name('support');
     Route::get('/feedback', [FeedbackController::class, 'index'])->name('feedback');

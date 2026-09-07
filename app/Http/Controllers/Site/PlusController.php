@@ -106,8 +106,15 @@ class PlusController extends Controller
         $customer = $this->requireActivePlus($request, $plus);
         abort_unless($subject->status === 'published', 404);
         $progress = $learning->markViewed($customer, $subject);
+        $related = PlusSubject::query()
+            ->published()
+            ->when($subject->plus_category_id, fn ($q) => $q->where('plus_category_id', $subject->plus_category_id))
+            ->whereKeyNot($subject->id)
+            ->orderBy('sort_order')
+            ->limit(8)
+            ->get();
 
-        return view('site.plus.subject', compact('customer', 'subject', 'progress'));
+        return view('site.plus.subject', compact('customer', 'subject', 'progress', 'related'));
     }
 
     public function completeSubject(Request $request, PlusService $plus, PlusLearningService $learning, PlusSubject $subject)
@@ -508,7 +515,16 @@ class PlusController extends Controller
     public function reports(Request $request, PlusService $plus, PlusReportService $reports)
     {
         $customer = $this->requireActivePlus($request, $plus);
-        $report = $reports->monthDashboard($customer, $request->query('month'));
+        $businessId = null;
+        $candidate = (int) $request->session()->get('plus.selected_business_id');
+        if ($candidate > 0) {
+            $owned = \App\Models\PlusBusiness::query()
+                ->where('customer_id', $customer->id)
+                ->whereKey($candidate)
+                ->exists();
+            $businessId = $owned ? $candidate : null;
+        }
+        $report = $reports->monthDashboard($customer, $request->query('month'), $businessId);
 
         return view('site.plus.reports', [
             'customer' => $customer,

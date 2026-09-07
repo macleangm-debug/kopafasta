@@ -307,6 +307,9 @@
                             if (res.redirected) window.location.href = res.url;
                             else window.location.reload();
                         }).catch(() => {
+                            if (typeof window.kfHideSaving === 'function') {
+                                window.kfHideSaving();
+                            }
                             if (btn && typeof window.kfClearBusy === 'function') {
                                 window.kfClearBusy(btn);
                             }

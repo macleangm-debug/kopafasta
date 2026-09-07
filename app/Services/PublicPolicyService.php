@@ -13,6 +13,7 @@ class PublicPolicyService
         'complaints',
         'aml',
         'kyc',
+        'cookies',
     ];
 
     /** @return array<string, mixed>|null */

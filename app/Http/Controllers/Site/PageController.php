@@ -49,13 +49,45 @@ class PageController extends Controller
 
     public function rewards(): View
     {
+        $actions = (array) config('gamification.loyalty_points.actions', []);
+        $earn = collect($actions)
+            ->filter(fn ($row, $key) => (int) ($row['points'] ?? 0) > 0 && ! in_array($key, ['borrow', 'increase_loan', 'repeat_borrow'], true))
+            ->map(fn ($row, $key) => [
+                'key' => $key,
+                'label' => match ($key) {
+                    'repay_on_time' => __('site.rewards.earn_repay'),
+                    'complete_profile' => __('site.rewards.earn_profile'),
+                    'complete_goal' => __('site.rewards.earn_goal'),
+                    default => (string) ($row['label'] ?? ucwords(str_replace('_', ' ', (string) $key))),
+                },
+                'points' => (int) $row['points'],
+            ])
+            ->values()
+            ->all();
+
+        $earn = array_values(array_filter(array_merge([
+            ['label' => __('site.rewards.earn_register'), 'points' => (int) config('referrals.register_points', 5)],
+            ['label' => __('site.rewards.earn_apply'), 'points' => (int) config('referrals.application_points', 25)],
+            ['label' => __('site.rewards.earn_repay'), 'points' => (int) data_get($actions, 'repay_on_time.points', 0)],
+            ['label' => __('site.rewards.earn_profile'), 'points' => (int) data_get($actions, 'complete_profile.points', 10)],
+            ['label' => __('site.rewards.earn_goal'), 'points' => (int) data_get($actions, 'complete_goal.points', 0)],
+        ], $earn), fn ($row) => (int) ($row['points'] ?? 0) > 0));
+
+        // De-duplicate by label while preserving order.
+        $seen = [];
+        $earn = array_values(array_filter($earn, function ($row) use (&$seen) {
+            $key = mb_strtolower($row['label']);
+            if (isset($seen[$key])) {
+                return false;
+            }
+            $seen[$key] = true;
+
+            return true;
+        }));
+
         return view('site.rewards', [
             'catalog' => app(\App\Services\LoyaltyRedemptionService::class)->publicCatalog(),
-            'earn' => [
-                ['label' => __('site.rewards.earn_register'), 'points' => (int) config('referrals.register_points', 5)],
-                ['label' => __('site.rewards.earn_apply'), 'points' => (int) config('referrals.application_points', 25)],
-                ['label' => __('site.rewards.earn_profile'), 'points' => (int) (config('gamification.loyalty_points.actions.complete_profile.points', 10))],
-            ],
+            'earn' => $earn,
         ]);
     }
 

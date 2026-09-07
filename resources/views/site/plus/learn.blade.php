@@ -44,10 +44,10 @@
         @if ($categories->isNotEmpty() && ! $search && ! $category)
             <section>
                 <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold mb-3">{{ __('plus.learn.browse') }}</p>
-                <div class="grid sm:grid-cols-2 gap-3">
+                <div class="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0">
                     @foreach ($categories as $cat)
                         <a href="{{ route('site.borrower.plus.learn', ['category' => $cat->slug]) }}"
-                           class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-3 flex items-center gap-3 hover:ring-brand/30 shadow-sm">
+                           class="snap-start shrink-0 w-[min(78vw,16rem)] lg:w-auto rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-3 flex items-center gap-3 hover:ring-brand/30 shadow-sm">
                             <span class="size-11 shrink-0 rounded-2xl bg-brand/10 text-2xl grid place-items-center">{{ $icons[$cat->slug] ?? '📘' }}</span>
                             <span class="font-semibold text-gray-900">{{ $cat->localizedTitle() }}</span>
                         </a>

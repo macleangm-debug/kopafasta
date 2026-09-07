@@ -12,8 +12,6 @@
         </article>
         <div class="mt-10 pt-6 border-t border-gray-100 flex flex-wrap gap-4 text-sm">
             <a href="{{ route('site.legal') }}" class="font-semibold text-gray-500 hover:underline">{{ __('legal.nav.hub') }}</a>
-            <a href="{{ route('site.legal.complaints') }}" class="font-semibold text-brand hover:underline">{{ __('legal.nav.complaints') }}</a>
-            <a href="{{ route('site.responsible-lending') }}" class="font-semibold text-brand hover:underline">{{ __('site.footer.responsible_lending') }}</a>
         </div>
     </x-site.legal-shell>
 </x-site.layout>

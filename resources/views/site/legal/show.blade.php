@@ -29,12 +29,6 @@
             @endforeach
         </div>
         <div class="mt-10 pt-6 border-t border-gray-100 flex flex-wrap gap-4 text-sm">
-            @if ($document !== 'terms')
-                <a href="{{ route('site.legal.terms') }}" class="font-semibold text-brand hover:underline">{{ __('legal.nav.terms') }} →</a>
-            @endif
-            @if ($document !== 'privacy')
-                <a href="{{ route('site.legal.privacy') }}" class="font-semibold text-brand hover:underline">{{ __('legal.nav.privacy') }} →</a>
-            @endif
             <a href="{{ route('site.legal') }}" class="font-semibold text-gray-500 hover:underline">{{ __('legal.nav.hub') }}</a>
         </div>
     </x-site.legal-shell>
