@@ -42,7 +42,8 @@
         @endphp
 
         <div class="glass-card overflow-hidden" x-data="{
-            expanded: @js(request()->boolean('add') || request()->boolean('edit') || $errors->any() || (bool) ($wizardMode ?? false) || ! $paymentComplete),
+            // Always start expanded so saved accounts (and Edit) are visible in the list.
+            expanded: true,
             showEditAction: @js(! $paymentComplete || $showAdd),
             adding: @js($showAdd),
             editingId: @js((int) old('account_id', 0)),
@@ -65,10 +66,10 @@
                 this.adding = true;
                 this.expanded = true;
                 this.showEditAction = true;
-                this.$nextTick(() => this.clearPhoneInput());
+                this.$nextTick(() => this.$nextTick(() => this.clearPhoneInput()));
             },
             openEdit(account) {
-                this.editingId = account.id;
+                this.editingId = Number(account.id) || 0;
                 this.type = account.type || '';
                 this.mobileProvider = account.mobile_provider || '';
                 this.mobileNumber = account.mobile_number || '';
@@ -79,17 +80,22 @@
                 this.adding = true;
                 this.expanded = true;
                 this.showEditAction = true;
-                this.$nextTick(() => this.applyPhoneInput(this.mobileNumber));
+                this.$nextTick(() => this.$nextTick(() => this.applyPhoneInput(this.mobileNumber)));
+            },
+            phoneRoot() {
+                // action-panel teleports to body — do not search only inside this.$root
+                return document.querySelector('[data-integration-live-test-panel] [data-phone-input]')
+                    || document.querySelector('[data-phone-input]');
             },
             clearPhoneInput() {
-                const root = this.$root?.querySelector?.('[data-phone-input]');
+                const root = this.phoneRoot();
                 if (! root || ! window.Alpine?.\$data) return;
                 const data = window.Alpine.\$data(root);
                 data.local = '';
                 if (typeof data.syncHidden === 'function') data.syncHidden();
             },
             applyPhoneInput(full) {
-                const root = this.$root?.querySelector?.('[data-phone-input]');
+                const root = this.phoneRoot();
                 if (! root || ! window.Alpine?.\$data) return;
                 const data = window.Alpine.\$data(root);
                 const digits = String(full || '').replace(/\\D/g, '');
@@ -98,10 +104,11 @@
                 local = local.replace(/^0+/, '');
                 data.local = local;
                 if (typeof data.syncHidden === 'function') data.syncHidden();
-                this.mobileNumber = data.full ? data.full() : digits;
+                this.mobileNumber = (typeof data.full === 'function' ? data.full() : '') || digits;
             },
             syncMobileNumber() {
-                const input = this.$root?.querySelector?.('input[name=\"mobile_number\"][data-phone-hidden], input[name=\"mobile_number\"]');
+                const input = this.phoneRoot()?.querySelector?.('input[name=\"mobile_number\"][data-phone-hidden], input[name=\"mobile_number\"]')
+                    || document.querySelector('input[name=\"mobile_number\"][data-phone-hidden], input[name=\"mobile_number\"]');
                 if (input?.value) this.mobileNumber = input.value;
             },
             get showCompleteTick() { return @js($paymentComplete) && ! this.showEditAction && ! this.expanded; },
@@ -188,8 +195,9 @@
                                                 </div>
                                                 <p class="text-xs text-gray-500 mt-0.5">{{ $account->account_name }}</p>
                                             </div>
-                                            <div class="flex items-center gap-3 shrink-0">
+                                            <div class="flex items-center gap-2 shrink-0 flex-wrap">
                                                 <button type="button"
+                                                        data-payment-account-edit="{{ $account->id }}"
                                                         @click="openEdit(@js([
                                                             'id' => $account->id,
                                                             'type' => $account->type,
@@ -199,7 +207,7 @@
                                                             'account_number' => $account->account_number,
                                                             'bank_branch' => $account->bank_branch,
                                                         ]))"
-                                                        class="text-xs font-semibold text-brand hover:text-brand-light">
+                                                        class="inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
                                                     {{ __('borrower.payment_details.edit_account') }}
                                                 </button>
                                                 @unless ($account->is_default)

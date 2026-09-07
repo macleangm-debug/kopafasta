@@ -211,7 +211,7 @@ class PaymentAccountProfileFeatureTest extends TestCase
     public function test_payment_profile_page_shows_edit_for_existing_accounts(): void
     {
         $customer = $this->borrower();
-        CustomerDisbursementAccount::create([
+        $account = CustomerDisbursementAccount::create([
             'customer_id'     => $customer->id,
             'type'            => 'mobile_money',
             'account_name'    => 'Payment Borrower',
@@ -224,6 +224,8 @@ class PaymentAccountProfileFeatureTest extends TestCase
             ->get(route('site.borrower.profile', ['section' => 'payment']))
             ->assertOk()
             ->assertSee(__('borrower.payment_details.edit_account'), false)
-            ->assertSee('openEdit', false);
+            ->assertSee('data-payment-account-edit="'.$account->id.'"', false)
+            ->assertSee('openEdit', false)
+            ->assertSee('expanded: true', false);
     }
 }
