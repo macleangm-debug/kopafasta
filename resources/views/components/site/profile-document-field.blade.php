@@ -11,34 +11,36 @@
     'documentCode' => null,
     'readOnly' => false,
     'nested' => false,
+    'allowRemove' => true,
+    'allowReplace' => true,
+    /** When true, Replace opens the parent profile-section-card edit surface (`open = true`) instead of inline replaceMode. */
+    'replaceOpensEdit' => false,
 ])
 
 @php
+    $docService = app(\App\Services\ProfileDocumentService::class);
     $pagesName = $pagesFieldName ?? ($fieldName.'_pages');
     $hostId = $inputHostId ?? ($fieldName.'-upload');
     $documentCode = $documentCode ?? $fieldName;
-    $removeUrl = $removeUrl ?? ($document ? route('site.borrower.profile.documents.destroy', ['code' => $documentCode]) : null);
+    $removeUrl = $removeUrl ?? ($document && $allowRemove ? route('site.borrower.profile.documents.destroy', ['code' => $documentCode]) : null);
     $isPdf = $document && $document->file_path && str_ends_with(strtolower($document->file_path), '.pdf');
     $isImage = $document && $document->file_path && ! $isPdf;
-    $meta = $document ? app(\App\Services\ProfileDocumentService::class)->metadata($document) : [];
+    $meta = $document ? $docService->metadata($document) : [];
     $pageCount = (int) ($meta['page_count'] ?? 1);
     $fileName = (string) ($meta['original_name'] ?? ($document?->file_path ? basename($document->file_path) : ''));
-    $statusLabel = $document ? app(\App\Services\ProfileDocumentService::class)->statusLabel($document) : '';
+    $statusLabel = $document ? $docService->statusLabel($document) : '';
     $previewUrl = ($document && $document->file_path) ? asset('storage/'.$document->file_path) : null;
     $fileExt = strtoupper(pathinfo($fileName !== '' ? $fileName : (string) ($document?->file_path ?? ''), PATHINFO_EXTENSION) ?: 'FILE');
+    $type = $document?->documentType
+        ?? \App\Models\DocumentType::query()->where('code', $documentCode)->first();
+    $requiresExpiry = $docService->typeRequiresExpiry($type, $documentCode);
+    $expiresAt = $document ? $docService->expiryDate($document) : null;
+    $needsUpdate = $document ? $docService->isExpired($document) : false;
+    $expiresField = $fieldName.'_expires_at';
 @endphp
 
 <div x-data="{ replaceMode: false }" class="space-y-3">
     @if ($document)
-        @php
-            $docCode = (string) ($document->documentType?->code ?? $documentCode ?? '');
-            $expirable = in_array($docCode, ['passport', 'driving_license', 'voter_id'], true);
-            $metaIssued = $meta['issued_at'] ?? $meta['issued_on'] ?? null;
-            $metaExpires = $meta['expires_at'] ?? $meta['expires_on'] ?? $meta['valid_until'] ?? null;
-            $expiresAt = filled($metaExpires) ? \Illuminate\Support\Carbon::parse($metaExpires) : null;
-            $isExpired = $expiresAt && $expiresAt->isPast();
-            $needsUpdate = $isExpired;
-        @endphp
         <div @class([
             'rounded-xl p-4 ring-1',
             'bg-amber-50 ring-amber-200' => $needsUpdate,
@@ -74,8 +76,8 @@
                         <p class="mt-1 sm:hidden text-xs text-emerald-800">
                             <span class="font-semibold">{{ $statusLabel }}</span>
                             <span class="text-emerald-700/80"> · {{ $document->created_at?->format('d M Y') ?? '—' }}</span>
-                            @if ($mode === 'multi' && $pageCount > 1)
-                                <span class="text-emerald-700/80"> · {{ $pageCount }} {{ __('borrower.profile.document_page_count') }}</span>
+                            @if ($requiresExpiry && $expiresAt)
+                                <span class="text-emerald-700/80"> · {{ $expiresAt->format('d M Y') }}</span>
                             @endif
                         </p>
                         <dl class="hidden sm:block mt-2 space-y-1 text-xs text-emerald-800">
@@ -90,11 +92,11 @@
                                 <div><span class="font-medium">{{ __('borrower.profile.document_page_count') }}:</span> {{ $pageCount }}</div>
                             @endif
                             <div><span class="font-medium">{{ __('borrower.profile.document_status_label') }}:</span> {{ $statusLabel }}</div>
-                            @if (filled($metaIssued))
-                                <div><span class="font-medium">{{ __('borrower.profile.issued_on') }}</span> {{ \Illuminate\Support\Carbon::parse($metaIssued)->format('d M Y') }}</div>
-                            @endif
-                            @if ($expiresAt)
-                                <div><span class="font-medium">{{ __('borrower.profile.expires_on') }}</span> {{ $expiresAt->format('d M Y') }}</div>
+                            @if ($requiresExpiry && $expiresAt)
+                                <div>
+                                    <span class="font-medium">{{ __('borrower.profile.valid_until') }}</span>
+                                    {{ $expiresAt->format('d M Y') }}
+                                </div>
                             @endif
                             @if ($needsUpdate)
                                 <div class="font-bold text-amber-900">{{ __('borrower.documents_page.status_expired') }}</div>
@@ -108,40 +110,40 @@
                         @if ($previewUrl)
                             <button type="button"
                                     onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), @js($isPdf ? 'pdf' : 'image'))"
-                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
+                                    class="inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
                                 {{ __('borrower.profile.view_document') }}
                             </button>
                         @endif
-                        @unless ($readOnly)
-                            <button type="button" @click="replaceMode = true"
-                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50">
+                        @if ($allowReplace && ($replaceOpensEdit || ! $readOnly))
+                            <button type="button"
+                                    @click="{{ $replaceOpensEdit ? 'open = true' : 'replaceMode = true' }}"
+                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
                                 {{ __('borrower.profile.replace_document') }}
                             </button>
-                            @if ($removeUrl ?? null)
-                                {{-- Must not nest <form> inside profile edit forms — browsers close the parent early and hide Save. --}}
-                                <button type="button"
-                                        class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
-                                        @click="
-                                            if (! confirm(@js(__('borrower.profile.remove_document_confirm')))) return;
-                                            const f = document.createElement('form');
-                                            f.method = 'POST';
-                                            f.action = @js($removeUrl);
-                                            f.style.display = 'none';
-                                            const token = document.createElement('input');
-                                            token.name = '_token';
-                                            token.value = @js(csrf_token());
-                                            f.appendChild(token);
-                                            const method = document.createElement('input');
-                                            method.name = '_method';
-                                            method.value = 'DELETE';
-                                            f.appendChild(method);
-                                            document.body.appendChild(f);
-                                            f.submit();
-                                        ">
-                                    {{ __('borrower.profile.remove_document') }}
-                                </button>
-                            @endif
-                        @endunless
+                        @endif
+                        @if ($allowRemove && ($removeUrl ?? null))
+                            <button type="button"
+                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                    @click="
+                                        if (! confirm(@js(__('borrower.profile.remove_document_confirm')))) return;
+                                        const f = document.createElement('form');
+                                        f.method = 'POST';
+                                        f.action = @js($removeUrl);
+                                        f.style.display = 'none';
+                                        const token = document.createElement('input');
+                                        token.name = '_token';
+                                        token.value = @js(csrf_token());
+                                        f.appendChild(token);
+                                        const method = document.createElement('input');
+                                        method.name = '_method';
+                                        method.value = 'DELETE';
+                                        f.appendChild(method);
+                                        document.body.appendChild(f);
+                                        f.submit();
+                                    ">
+                                {{ __('borrower.profile.remove_document') }}
+                            </button>
+                        @endif
                     </div>
                 @endif
             </div>
@@ -150,11 +152,17 @@
         <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
             <p class="text-sm font-semibold text-gray-900">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>
             <p class="text-sm font-semibold text-amber-700 mt-1">{{ __('borrower.profile.missing') }}</p>
+            @if ($allowReplace && $replaceOpensEdit)
+                <button type="button" @click="open = true"
+                        class="mt-3 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
+                    {{ __('borrower.documents_page.add_document') }}
+                </button>
+            @endif
         </div>
     @endif
 
-    @unless ($readOnly)
-    <div @if($document) x-show="replaceMode" x-cloak @endif>
+    @unless ($readOnly || $replaceOpensEdit)
+    <div @if($document) x-show="replaceMode" x-cloak @endif class="space-y-3">
         @if ($mode === 'single')
             <x-site.single-image-document-upload
                 :name="$fieldName"
@@ -171,8 +179,18 @@
                 :required="$required"
             />
         @endif
+
+        @if ($requiresExpiry)
+            <div>
+                <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.expiry_date') }} <span class="text-red-500">*</span></label>
+                <input type="date" name="{{ $expiresField }}" value="{{ old($expiresField, $expiresAt?->format('Y-m-d')) }}"
+                       class="kf-field max-w-xs" @if($required || $document) required @endif>
+                @error($expiresField)<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+            </div>
+        @endif
+
         @if ($document)
-            <button type="button" @click="replaceMode = false" class="mt-3 text-sm font-semibold text-gray-500 hover:text-gray-700">
+            <button type="button" @click="replaceMode = false" class="text-sm font-semibold text-gray-500 hover:text-gray-700">
                 {{ __('borrower.profile.cancel_update') }}
             </button>
         @endif

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\CustomerDocument;
+use App\Models\DocumentType;
 use Illuminate\Support\Collection;
 
 class ProfileDocumentService
@@ -95,6 +96,47 @@ class ProfileDocumentService
             'rejected'             => __('borrower.profile.document_status.rejected'),
             default                => __('borrower.profile.document_status.pending'),
         };
+    }
+
+    public function typeRequiresExpiry(?DocumentType $type = null, ?string $code = null): bool
+    {
+        if ($type) {
+            return $type->requiresExpiry();
+        }
+
+        if (! filled($code)) {
+            return false;
+        }
+
+        return (bool) DocumentType::query()
+            ->where('code', $this->canonicalCode((string) $code))
+            ->value('expires');
+    }
+
+    public function expiryDate(CustomerDocument $document): ?\Illuminate\Support\Carbon
+    {
+        if (! $this->typeRequiresExpiry($document->documentType, $document->documentType?->code)) {
+            return null;
+        }
+
+        $meta = $this->metadata($document);
+        $raw = $meta['expires_at'] ?? $meta['expires_on'] ?? $meta['valid_until'] ?? null;
+        if (! filled($raw)) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse($raw);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function isExpired(CustomerDocument $document): bool
+    {
+        $expiresAt = $this->expiryDate($document);
+
+        return $expiresAt !== null && $expiresAt->isPast();
     }
 
     /** @return array<string, mixed> */

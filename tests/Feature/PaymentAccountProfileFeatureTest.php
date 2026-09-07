@@ -120,7 +120,9 @@ class PaymentAccountProfileFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('borrower.payment_details.choose_type_title'), false)
             ->assertSee(__('borrower.payment_details.method_mobile'), false)
-            ->assertSee(__('borrower.payment_details.method_bank'), false);
+            ->assertSee(__('borrower.payment_details.method_bank'), false)
+            ->assertSee(__('borrower.payment_details.step_of', ['current' => 1, 'total' => 3]), false)
+            ->assertSee('+255', false);
     }
 
     public function test_borrower_can_add_mobile_money_payment_account_with_return_url(): void

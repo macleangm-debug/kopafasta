@@ -85,15 +85,39 @@
         @else
             <ul class="divide-y divide-gray-100">
                 @foreach ($documents as $doc)
-                    <li class="py-3.5 flex items-center justify-between gap-3 text-sm">
+                    @php
+                        $previewUrl = asset('storage/'.$doc->file_path);
+                        $isPdf = str_ends_with(strtolower((string) $doc->file_path), '.pdf');
+                        $docTypeKey = (string) ($doc->doc_type ?? '');
+                    @endphp
+                    <li class="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
                         <div class="min-w-0">
                             <p class="font-semibold text-gray-900 truncate">{{ $doc->label }}</p>
                             <p class="text-xs text-gray-500 truncate">
                                 @if ($doc->task ?? null){{ __('site.partner_account.task_ref', ['id' => $doc->task->id]) }} · @endif
-                                {{ $doc->created_at?->diffForHumans() }}
+                                {{ $doc->created_at?->format('d M Y') ?? $doc->created_at?->diffForHumans() }}
                             </p>
                         </div>
-                        <x-site.document-view-button :url="asset('storage/'.$doc->file_path)" :label="__('site.partner_account.view')" class="text-brand hover:underline text-xs font-semibold shrink-0" />
+                        <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                            <button type="button"
+                                    onclick="window.kfSiteOpenDocumentPreview?.(@js($previewUrl), @js($doc->label), @js($isPdf ? 'pdf' : 'image'))"
+                                    class="inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
+                                {{ __('site.partner_account.view') }}
+                            </button>
+                            @if ($canUpload && $docTypeKey !== '')
+                                <button type="button"
+                                        @click="
+                                            const root = $el.closest('.grid')?.querySelector('[x-data]');
+                                            if (root && window.Alpine?.\$data) {
+                                                window.Alpine.\$data(root).docType = @js($docTypeKey);
+                                            }
+                                            root?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        "
+                                        class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
+                                    {{ __('borrower.profile.replace_document') }}
+                                </button>
+                            @endif
+                        </div>
                     </li>
                 @endforeach
             </ul>

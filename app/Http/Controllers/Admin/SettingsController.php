@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\DocumentType;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
@@ -1140,6 +1142,7 @@ class SettingsController extends Controller
     {
         return view('admin.settings.kyc', [
             'values' => Setting::group('kyc'),
+            'documentTypes' => DocumentType::query()->orderBy('name')->get(),
         ]);
     }
 
@@ -1162,6 +1165,8 @@ class SettingsController extends Controller
             'crb_freshness_days'    => ['nullable', 'integer', 'min:30', 'max:365'],
             'freshness_section_days' => ['nullable', 'array'],
             'freshness_section_days.*' => ['nullable'],
+            'document_type_expires' => ['nullable', 'array'],
+            'document_type_expires.*' => ['nullable', 'boolean'],
         ]);
 
         foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','require_marriage_certificate','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
@@ -1184,7 +1189,19 @@ class SettingsController extends Controller
         $data['crb_freshness_days'] = (int) ($data['crb_freshness_days'] ?? 90);
         $data['require_residence_letter'] = (bool) ($data['require_address_proof'] ?? false);
 
+        $expiresFlags = $data['document_type_expires'] ?? [];
+        unset($data['document_type_expires']);
+
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());
+
+        if (Schema::hasColumn('document_types', 'expires')) {
+            foreach (DocumentType::query()->pluck('id') as $typeId) {
+                DocumentType::whereKey($typeId)->update([
+                    'expires' => (bool) ($expiresFlags[$typeId] ?? false),
+                ]);
+            }
+        }
+
         return back()->with('status', 'KYC settings saved.');
     }
 

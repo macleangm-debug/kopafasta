@@ -1322,6 +1322,8 @@ return [
         'status_expired' => 'Expired / Update required',
         'replace' => 'Replace',
         'view' => 'View',
+        'uploaded_status' => 'Document uploaded — pending review.',
+        'add_document' => 'Add document',
     ],
 
     'marketplace' => [
@@ -2272,6 +2274,9 @@ return [
         'uploaded_on' => 'Uploaded on',
         'issued_on' => 'Issued on',
         'expires_on' => 'Expires on',
+        'valid_until' => 'Valid until',
+        'expiry_date' => 'Expiry date',
+        'expiry_date_required' => 'Enter the expiry date for this document.',
         'document_status' => [
             'approved' => 'Approved',
             'rejected' => 'Rejected',
@@ -4929,6 +4934,7 @@ return [
         'change_type' => 'Change type',
         'review_continue' => 'Review',
         'review_title' => 'Review & save',
+        'step_of' => 'Step :current of :total',
         'make_default' => 'Make this my default account',
         'set_default' => 'Set as default',
         'default_updated' => 'Default payment account updated.',

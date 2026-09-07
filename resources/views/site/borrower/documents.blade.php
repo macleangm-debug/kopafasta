@@ -33,38 +33,33 @@
     </div>
 
     <div class="space-y-4 mb-8">
-        <div class="flex items-center justify-between gap-3">
-            <div>
-                <h2 class="font-semibold text-gray-900">{{ __('borrower.documents_page.uploaded_title') }}</h2>
-                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.documents_page.uploaded_count', ['count' => $documents->count()]) }}</p>
-            </div>
+        <div>
+            <h2 class="font-semibold text-gray-900">{{ __('borrower.documents_page.uploaded_title') }}</h2>
+            <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.documents_page.uploaded_count', ['count' => $documents->count()]) }}</p>
         </div>
 
         @php
-            $documentsStale = in_array('documents', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $docService = app(\App\Services\ProfileDocumentService::class);
-            $expirableCodes = ['passport', 'driving_license', 'voter_id'];
         @endphp
         @forelse ($types as $type)
             @php
-                $typeDocs = $documents->where('document_type_id', $type->id)->values();
+                $typeDocs = $documents->where('document_type_id', $type->id)
+                    ->filter(fn ($doc) => ! in_array($doc->status, ['replaced', 'archived'], true))
+                    ->values();
                 $latest = $typeDocs->first();
                 $hasUpload = $typeDocs->isNotEmpty();
                 $code = (string) ($type->code ?? '');
-                $meta = $latest ? $docService->metadata($latest) : [];
-                $expiresRaw = $meta['expires_at'] ?? $meta['expires_on'] ?? $meta['valid_until'] ?? null;
-                $expiresAt = filled($expiresRaw) ? \Illuminate\Support\Carbon::parse($expiresRaw) : null;
-                $isExpired = $expiresAt && $expiresAt->isPast();
-                $needsUpdate = $isExpired || ($documentsStale && in_array($code, $expirableCodes, true));
+                $needsUpdate = $latest ? $docService->isExpired($latest) : false;
             @endphp
             <x-site.profile-section-card
                 :section-id="'doc-type-'.$type->id"
                 :title="$type->localizedName()"
-                :complete="$hasUpload && in_array($latest?->status, ['verified', 'approved'], true) && ! $needsUpdate"
+                :complete="$hasUpload && in_array($latest?->status, ['verified', 'approved', 'pending', 'pending_review'], true) && ! $needsUpdate"
                 :stale="$needsUpdate"
                 :empty="! $hasUpload"
-                :add-label="__('borrower.documents_page.upload_button')"
-                :default-open="false">
+                :add-label="__('borrower.documents_page.add_document')"
+                :default-open="$errors->has('file') && (int) old('document_type_id') === (int) $type->id"
+                :default-edit="$errors->has('file') && (int) old('document_type_id') === (int) $type->id">
                 <x-slot:view>
                     @if ($hasUpload)
                         <div class="space-y-3">
@@ -77,21 +72,19 @@
                                     :input-host-id="'doc-holder-'.$doc->id"
                                     :document-code="$code ?: null"
                                     :read-only="true"
+                                    :replace-opens-edit="true"
+                                    :allow-remove="true"
                                 />
                             @endforeach
                             @if ($needsUpdate)
                                 <p class="text-xs font-bold text-amber-900">{{ __('borrower.documents_page.status_expired') }}</p>
                             @endif
-                            <button type="button" @click="open = true"
-                                    class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
-                                {{ __('borrower.documents_page.replace') }}
-                            </button>
                         </div>
                     @else
                         <p class="text-sm text-gray-600">{{ __('borrower.documents_page.empty_type') }}</p>
                         <button type="button" @click="open = true"
                                 class="mt-3 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
-                            {{ __('borrower.documents_page.upload_button') }}
+                            {{ __('borrower.documents_page.add_document') }}
                         </button>
                     @endif
                 </x-slot:view>
@@ -100,11 +93,17 @@
                     @error('file')
                         <p class="mb-3 text-sm text-red-800 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2" role="alert">{{ $message }}</p>
                     @enderror
-                    @error('document_type_id')
+                    @error('expires_at')
                         <p class="mb-3 text-sm text-red-800 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2" role="alert">{{ $message }}</p>
                     @enderror
                     <x-site.document-upload :action="route('site.borrower.documents.store')" :multiple="false">
                         <input type="hidden" name="document_type_id" value="{{ $type->id }}">
+                        @if ($type->expires)
+                            <div class="mb-3">
+                                <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.expiry_date') }} <span class="text-red-500">*</span></label>
+                                <input type="date" name="expires_at" value="{{ old('expires_at') }}" required class="kf-field max-w-xs">
+                            </div>
+                        @endif
                     </x-site.document-upload>
                 </x-slot:form>
             </x-site.profile-section-card>

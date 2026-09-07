@@ -32,16 +32,19 @@
                             :label="$item['label']"
                             :input-host-id="'additional-view-'.$item['key']"
                             :read-only="true"
+                            :replace-opens-edit="true"
                         />
                     @endforeach
-                    <button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">
-                        {{ __('borrower.profile.add_another_document') }}
+                    <button type="button" @click="open = true"
+                            class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
+                        {{ __('borrower.documents_page.add_document') }}
                     </button>
                 </div>
             @else
                 <p class="text-sm text-gray-600">{{ __('borrower.profile.additional_documents_hint') }}</p>
-                <button type="button" @click="open = true" class="mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
-                    {{ __('borrower.profile.add_details') }}
+                <button type="button" @click="open = true"
+                        class="mt-3 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
+                    {{ __('borrower.documents_page.add_document') }}
                 </button>
             @endif
         </x-slot:view>
@@ -127,10 +130,10 @@
                                         mode="multi"
                                         :label="$item['label']"
                                         :input-host-id="'additional-existing-'.$item['key']"
-                                        :read-only="true"
+                                        :read-only="false"
                                     />
                                 </div>
-                            @endif
+                            @else
                             <x-site.profile-document-field
                                 :document="null"
                                 :field-name="$item['key']"
@@ -144,6 +147,7 @@
                                     'capturePage' => __('borrower.profile.capture_pages'),
                                 ]"
                             />
+                            @endif
                         </div>
                     @endforeach
                 </div>

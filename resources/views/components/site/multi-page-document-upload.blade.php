@@ -275,11 +275,29 @@
                 addFiles(event) {
                     const files = event.target.files;
                     if (!files?.length) return;
+                    this.cameraNotice = null;
+                    const maxBytes = 5120 * 1024;
                     for (const file of files) {
                         if (this.pages.length >= this.maxPages) {
                             this.cameraNotice = this.labels.maxPages;
                             break;
                         }
+                        const type = (file.type || '').toLowerCase();
+                        const name = (file.name || '').toLowerCase();
+                        const allowed = type.startsWith('image/') || type === 'application/pdf' || /\.pdf$/i.test(name) || /\.(jpe?g|png|webp|gif)$/i.test(name);
+                        if (!allowed) {
+                            this.cameraNotice = @js(__('borrower.document_upload.file_invalid_type'));
+                            continue;
+                        }
+                        if ((file.size || 0) > maxBytes) {
+                            this.cameraNotice = @js(__('borrower.document_upload.file_too_large'));
+                            continue;
+                        }
+                        if ((file.size || 0) <= 0) {
+                            this.cameraNotice = @js(__('borrower.document_upload.file_invalid_type'));
+                            continue;
+                        }
+                        this.fromCamera = false;
                         this.addBlob(file, file.name);
                     }
                     event.target.value = '';

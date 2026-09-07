@@ -264,6 +264,21 @@
                 setFile(event) {
                     const file = event.target.files?.[0];
                     if (!file) return;
+                    this.cameraNotice = null;
+                    const maxBytes = 5120 * 1024;
+                    const type = (file.type || '').toLowerCase();
+                    const name = (file.name || '').toLowerCase();
+                    const allowed = type.startsWith('image/') || type === 'application/pdf' || /\.pdf$/i.test(name) || /\.(jpe?g|png|webp|gif)$/i.test(name);
+                    if (!allowed || (file.size || 0) <= 0) {
+                        this.cameraNotice = @js(__('borrower.document_upload.file_invalid_type'));
+                        event.target.value = '';
+                        return;
+                    }
+                    if ((file.size || 0) > maxBytes) {
+                        this.cameraNotice = @js(__('borrower.document_upload.file_too_large'));
+                        event.target.value = '';
+                        return;
+                    }
                     this.syncFile(this.normalizeFile(file));
                     event.target.value = '';
                 },

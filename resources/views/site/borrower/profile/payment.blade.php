@@ -53,6 +53,10 @@
             accountNumber: @js(old('account_number', '')),
             bankBranch: @js(old('bank_branch', '')),
             openAdd() { this.adding = true; if (!this.type) this.step = 1; this.expanded = true; this.showEditAction = true; },
+            syncMobileNumber() {
+                const input = this.$root?.querySelector?.('input[name=\"mobile_number\"][data-phone-hidden], input[name=\"mobile_number\"]');
+                if (input?.value) this.mobileNumber = input.value;
+            },
             get showCompleteTick() { return @js($paymentComplete) && ! this.showEditAction && ! this.expanded; }
         }">
             <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3">
@@ -169,8 +173,9 @@
                 <x-site.action-panel :title="__('borrower.payment_details.add_account')" open="adding" size="lg">
                     <p class="text-xs text-gray-500 mb-4">{{ __('borrower.payment_details.name_must_match', ['name' => $legalName]) }}</p>
                     <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-4">
-                        {{ __('borrower.apply.step_of', ['current' => '', 'total' => 3]) }}
-                        <span x-text="step"></span>/3
+                        <span x-show="step === 1">{{ __('borrower.payment_details.step_of', ['current' => 1, 'total' => 3]) }}</span>
+                        <span x-show="step === 2" x-cloak>{{ __('borrower.payment_details.step_of', ['current' => 2, 'total' => 3]) }}</span>
+                        <span x-show="step === 3" x-cloak>{{ __('borrower.payment_details.step_of', ['current' => 3, 'total' => 3]) }}</span>
                     </p>
 
                     <form method="POST"
@@ -186,7 +191,6 @@
                         <input type="hidden" name="type" :value="type">
                         <input type="hidden" name="account_name" value="{{ old('account_name', $legalName) }}">
                         <input type="hidden" name="mobile_provider" :value="mobileProvider">
-                        <input type="hidden" name="mobile_number" :value="mobileNumber">
                         <input type="hidden" name="bank_name" :value="bankName">
                         <input type="hidden" name="account_number" :value="accountNumber">
                         <input type="hidden" name="bank_branch" :value="bankBranch">
@@ -243,11 +247,14 @@
                                     @error('mobile_provider')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </fieldset>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.phone_number') }} <span class="text-red-500">*</span></label>
-                                    <input type="text" x-model="mobileNumber" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="kf-field"
-                                           x-bind:required="type === 'mobile_money' && step === 2">
-                                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.payment_details.mobile_prefix_hint') }}</p>
-                                    @error('mobile_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                    <x-site.phone-input
+                                        name="mobile_number"
+                                        :label="__('borrower.payment_details.phone_number')"
+                                        :value="old('mobile_number')"
+                                        :required="false"
+                                        variant="rounded"
+                                        :help="__('borrower.payment_details.mobile_prefix_hint')"
+                                    />
                                 </div>
                             </div>
 
@@ -271,7 +278,7 @@
                             </div>
 
                             <div class="flex justify-end gap-3 pt-2">
-                                <button type="button" @click="step = 3"
+                                <button type="button" @click="syncMobileNumber(); step = 3"
                                         class="bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-2.5 rounded-full text-sm">
                                     {{ __('borrower.payment_details.review_continue') }}
                                 </button>

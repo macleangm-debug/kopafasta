@@ -70,7 +70,8 @@
                             mode="multi"
                             :label="$item['label']"
                             :input-host-id="'income-view-'.($item['key'] ?? $loop->index)"
-                            :read-only="false"
+                            :read-only="true"
+                            :replace-opens-edit="true"
                             :nested="true"
                         />
                     </div>

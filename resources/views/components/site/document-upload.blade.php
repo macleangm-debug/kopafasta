@@ -175,6 +175,10 @@
                                 this.validationError = this.labels.fileInvalidType || '';
                                 continue;
                             }
+                            if ((file.size || 0) <= 0) {
+                                this.validationError = this.labels.fileInvalidType || '';
+                                continue;
+                            }
                             if ((file.size || 0) > this.maxBytes) {
                                 this.validationError = this.labels.fileTooLarge || '';
                                 continue;

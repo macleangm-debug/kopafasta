@@ -73,7 +73,9 @@
 
         <x-site.action-panel :title="__('borrower.payment_details.add_account')" open="adding" size="lg">
             <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-4">
-                {{ __('borrower.payment_details.review_title') }} · <span x-text="step"></span>/3
+                <span x-show="step === 1">{{ __('borrower.payment_details.step_of', ['current' => 1, 'total' => 3]) }}</span>
+                <span x-show="step === 2" x-cloak>{{ __('borrower.payment_details.step_of', ['current' => 2, 'total' => 3]) }}</span>
+                <span x-show="step === 3" x-cloak>{{ __('borrower.payment_details.step_of', ['current' => 3, 'total' => 3]) }}</span>
             </p>
             <form method="POST" action="{{ route($updateRoute, ['section' => 'payment']) }}" class="space-y-4"
                   @submit="if (!type || step < 3) { $event.preventDefault(); if (!type) step = 1; }">
@@ -81,7 +83,6 @@
                 <input type="hidden" name="payout_type" :value="type">
                 <input type="hidden" name="payout_account_name" value="{{ $lockedName }}">
                 <input type="hidden" name="payout_mobile_provider" :value="mobileProvider">
-                <input type="hidden" name="payout_mobile_number" :value="mobileNumber">
                 <input type="hidden" name="payout_bank_name" :value="bankName">
                 <input type="hidden" name="payout_account_number" :value="accountNumber">
 
@@ -123,8 +124,14 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.payment_details.phone_number') }}</label>
-                            <input type="text" x-model="mobileNumber" class="w-full h-12 rounded-xl bg-white border border-gray-300 px-3.5 text-base outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10">
+                            <x-site.phone-input
+                                name="payout_mobile_number"
+                                :label="__('borrower.payment_details.phone_number')"
+                                :value="old('payout_mobile_number', $payout['mobile_number'] ?? $partner->phone)"
+                                :required="false"
+                                variant="rounded"
+                                :help="__('borrower.payment_details.mobile_prefix_hint')"
+                            />
                         </div>
                     </div>
                     <div x-show="type === 'bank'" class="space-y-4">
@@ -137,7 +144,7 @@
                             <input type="text" x-model="accountNumber" class="w-full h-12 rounded-xl bg-white border border-gray-300 px-3.5 text-base outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10">
                         </div>
                     </div>
-                    <button type="button" @click="step = 3"
+                    <button type="button" @click="mobileNumber = ($root.querySelector('input[name=payout_mobile_number]')?.value || mobileNumber); step = 3"
                             class="w-full rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand text-sm font-bold px-5 py-3">
                         {{ __('borrower.payment_details.review_continue') }}
                     </button>

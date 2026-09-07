@@ -207,6 +207,9 @@
                                         input-host-id="nida-front-view"
                                         document-code="national_id_front"
                                         :read-only="true"
+                                        :replace-opens-edit="! $idPhotosLocked"
+                                        :allow-replace="! $idPhotosLocked"
+                                        :allow-remove="false"
                                     />
                                     <x-site.profile-document-field
                                         :document="$nidaBack"
@@ -216,6 +219,9 @@
                                         input-host-id="nida-back-view"
                                         document-code="national_id_back"
                                         :read-only="true"
+                                        :replace-opens-edit="! $idPhotosLocked"
+                                        :allow-replace="! $idPhotosLocked"
+                                        :allow-remove="false"
                                     />
                                 </div>
                                 @unless ($uploadsComplete)

@@ -124,6 +124,8 @@
                                 mode="multi"
                                 :label="__('borrower.profile.residence_letter')"
                                 input-host-id="residence-letter-view"
+                                :read-only="true"
+                                :replace-opens-edit="true"
                             />
                         @else
                             <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.missing') }}</p>

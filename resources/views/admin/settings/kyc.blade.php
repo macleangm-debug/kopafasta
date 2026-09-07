@@ -6,6 +6,7 @@
         form-class="space-y-6"
         :tabs="[
             'documents' => 'Documents',
+            'document_types' => 'Document types',
             'freshness' => 'Freshness',
             'crb' => 'Credit bureau',
         ]"
@@ -38,6 +39,34 @@
                     <x-admin.input name="min_age" label="Minimum age" type="number" :value="$values['min_age'] ?? '18'" required />
                     <x-admin.input name="max_age" label="Maximum age" type="number" :value="$values['max_age'] ?? '75'" required />
                     <x-admin.input name="crb_freshness_days" label="CRB freshness (days)" type="number" :value="$values['crb_freshness_days'] ?? '90'" required />
+                </div>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="document_types">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900">Document types — Expires</h3>
+                    <p class="text-xs text-gray-500 mt-1">When Expires is checked, borrowers must enter an expiry date during upload/replace. Business licence is the only type that expires by default.</p>
+                </div>
+                <div class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-200 overflow-hidden">
+                    @forelse (($documentTypes ?? collect()) as $type)
+                        <label class="flex items-center justify-between gap-3 px-4 py-3 text-sm bg-white hover:bg-gray-50">
+                            <span class="min-w-0">
+                                <span class="font-medium text-gray-900">{{ $type->name }}</span>
+                                <span class="block text-xs text-gray-500 font-mono">{{ $type->code }}</span>
+                            </span>
+                            <span class="inline-flex items-center gap-2 shrink-0">
+                                <input type="hidden" name="document_type_expires[{{ $type->id }}]" value="0">
+                                <input type="checkbox" name="document_type_expires[{{ $type->id }}]" value="1"
+                                       @checked((bool) $type->expires)
+                                       class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                                <span class="text-xs font-semibold text-gray-600">Expires</span>
+                            </span>
+                        </label>
+                    @empty
+                        <p class="px-4 py-6 text-sm text-gray-500">No document types found. Run the KYC document type seeder.</p>
+                    @endforelse
                 </div>
             </div>
         </x-admin.settings-panel>

@@ -1247,7 +1247,18 @@ class BorrowerController extends Controller
         $data = $request->validate([
             'document_type_id' => ['required', 'exists:document_types,id'],
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'expires_at' => ['nullable', 'date'],
         ]);
+
+        $type = DocumentType::query()->findOrFail($data['document_type_id']);
+        if ($type->requiresExpiry() && blank($data['expires_at'] ?? null)) {
+            throw ValidationException::withMessages([
+                'expires_at' => [__('borrower.profile.expiry_date_required')],
+            ]);
+        }
+
+        // Archive prior file for this type to preserve history.
+        app(ProfileDocumentService::class)->archiveProfileDocument($customer, (string) $type->code);
 
         $path = $request->file('file')->store(
             "borrower/{$customer->id}/documents", 'public'
@@ -1258,6 +1269,10 @@ class BorrowerController extends Controller
             'document_type_id' => $data['document_type_id'],
             'file_path' => $path,
             'status' => 'pending',
+            'notes' => json_encode(array_filter([
+                'original_name' => $request->file('file')->getClientOriginalName(),
+                'expires_at' => $type->requiresExpiry() ? $data['expires_at'] : null,
+            ], fn ($value) => $value !== null && $value !== '')),
         ]);
 
         $this->auditBorrower('document.uploaded', $document, [
@@ -1277,7 +1292,7 @@ class BorrowerController extends Controller
         }
 
         return redirect()->route('site.borrower.documents')
-            ->with('status', 'Document uploaded — pending review.');
+            ->with('status', __('borrower.documents_page.uploaded_status'));
     }
 
     /* ---------------------------------------------------------------------
@@ -2149,6 +2164,7 @@ class BorrowerController extends Controller
                 $rules[$code] = ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'];
                 $rules[$code.'_pages'] = $pageRules;
                 $rules[$code.'_pages.*'] = $pageItemRules;
+                $rules[$code.'_expires_at'] = ['nullable', 'date'];
             }
             $request->validate($rules);
 
@@ -2204,6 +2220,7 @@ class BorrowerController extends Controller
                     $code,
                     $request->file($code),
                     $request->file($code.'_pages', []) ?? [],
+                    $request->input($code.'_expires_at'),
                 );
             }
 
@@ -3323,6 +3340,7 @@ class BorrowerController extends Controller
         string $documentCode,
         ?UploadedFile $single,
         array $pageFiles,
+        ?string $expiresAt = null,
     ): void {
         $pageFiles = array_values(array_filter($pageFiles));
         if (! $single && $pageFiles === []) {
@@ -3335,6 +3353,23 @@ class BorrowerController extends Controller
             throw ValidationException::withMessages([
                 $documentCode => [__('borrower.profile.document_type_unavailable')],
             ]);
+        }
+
+        if ($type->requiresExpiry()) {
+            if (! filled($expiresAt)) {
+                throw ValidationException::withMessages([
+                    $documentCode.'_expires_at' => [__('borrower.profile.expiry_date_required')],
+                ]);
+            }
+            try {
+                $parsedExpiry = \Illuminate\Support\Carbon::parse($expiresAt)->startOfDay();
+            } catch (\Throwable) {
+                throw ValidationException::withMessages([
+                    $documentCode.'_expires_at' => [__('borrower.profile.expiry_date_required')],
+                ]);
+            }
+        } else {
+            $parsedExpiry = null;
         }
 
         // Archive prior profile file (keep for screening compare) then store the new one.
@@ -3378,7 +3413,8 @@ class BorrowerController extends Controller
                 'page_count' => max(1, $pageCount),
                 'original_name' => $originalName,
                 'replaces_document_id' => $existing?->id,
-            ])),
+                'expires_at' => $parsedExpiry?->toDateString(),
+            ], fn ($value) => $value !== null && $value !== '')),
         ]);
 
         try {

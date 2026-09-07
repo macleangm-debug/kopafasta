@@ -43,6 +43,7 @@ class KycDocumentTypeSeeder extends Seeder
                     'category'   => 'kyc',
                     'applies_to' => 'individual',
                     'is_active'  => true,
+                    'expires'    => ($t['code'] === 'business_license'),
                 ]
             );
         }
