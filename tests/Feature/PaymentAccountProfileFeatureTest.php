@@ -177,4 +177,53 @@ class PaymentAccountProfileFeatureTest extends TestCase
             'is_default'     => true,
         ]);
     }
+
+    public function test_payment_account_edit_updates_existing_without_duplicate(): void
+    {
+        $customer = $this->borrower();
+        $account = CustomerDisbursementAccount::create([
+            'customer_id'     => $customer->id,
+            'type'            => 'mobile_money',
+            'account_name'    => 'Payment Borrower',
+            'mobile_provider' => 'mpesa',
+            'mobile_number'   => '255712345678',
+            'is_default'      => true,
+        ]);
+
+        $this->actingAs($customer->user)
+            ->put(route('site.borrower.profile.update', ['section' => 'payment']), [
+                'account_id'      => $account->id,
+                'type'            => 'mobile_money',
+                'mobile_provider' => 'airtel',
+                'mobile_number'   => '0712345699',
+                'account_name'    => 'Payment Borrower',
+            ])
+            ->assertRedirect(route('site.borrower.profile', ['section' => 'payment']));
+
+        $this->assertSame(1, CustomerDisbursementAccount::query()->where('customer_id', $customer->id)->count());
+        $this->assertDatabaseHas('customer_disbursement_accounts', [
+            'id'              => $account->id,
+            'mobile_provider' => 'airtel',
+            'mobile_number'   => '255712345699',
+        ]);
+    }
+
+    public function test_payment_profile_page_shows_edit_for_existing_accounts(): void
+    {
+        $customer = $this->borrower();
+        CustomerDisbursementAccount::create([
+            'customer_id'     => $customer->id,
+            'type'            => 'mobile_money',
+            'account_name'    => 'Payment Borrower',
+            'mobile_provider' => 'mpesa',
+            'mobile_number'   => '255712345678',
+            'is_default'      => true,
+        ]);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'payment']))
+            ->assertOk()
+            ->assertSee(__('borrower.payment_details.edit_account'), false)
+            ->assertSee('openEdit', false);
+    }
 }

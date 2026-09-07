@@ -45,6 +45,7 @@
             expanded: @js(request()->boolean('add') || request()->boolean('edit') || $errors->any() || (bool) ($wizardMode ?? false) || ! $paymentComplete),
             showEditAction: @js(! $paymentComplete || $showAdd),
             adding: @js($showAdd),
+            editingId: @js((int) old('account_id', 0)),
             step: @js($addType !== '' ? 2 : 1),
             type: @js($addType),
             mobileProvider: @js(old('mobile_provider', '')),
@@ -52,12 +53,63 @@
             bankName: @js(old('bank_name', '')),
             accountNumber: @js(old('account_number', '')),
             bankBranch: @js(old('bank_branch', '')),
-            openAdd() { this.adding = true; if (!this.type) this.step = 1; this.expanded = true; this.showEditAction = true; },
+            openAdd() {
+                this.editingId = 0;
+                this.type = '';
+                this.mobileProvider = '';
+                this.mobileNumber = '';
+                this.bankName = '';
+                this.accountNumber = '';
+                this.bankBranch = '';
+                this.step = 1;
+                this.adding = true;
+                this.expanded = true;
+                this.showEditAction = true;
+                this.$nextTick(() => this.clearPhoneInput());
+            },
+            openEdit(account) {
+                this.editingId = account.id;
+                this.type = account.type || '';
+                this.mobileProvider = account.mobile_provider || '';
+                this.mobileNumber = account.mobile_number || '';
+                this.bankName = account.bank_name || '';
+                this.accountNumber = account.account_number || '';
+                this.bankBranch = account.bank_branch || '';
+                this.step = 2;
+                this.adding = true;
+                this.expanded = true;
+                this.showEditAction = true;
+                this.$nextTick(() => this.applyPhoneInput(this.mobileNumber));
+            },
+            clearPhoneInput() {
+                const root = this.$root?.querySelector?.('[data-phone-input]');
+                if (! root || ! window.Alpine?.\$data) return;
+                const data = window.Alpine.\$data(root);
+                data.local = '';
+                if (typeof data.syncHidden === 'function') data.syncHidden();
+            },
+            applyPhoneInput(full) {
+                const root = this.$root?.querySelector?.('[data-phone-input]');
+                if (! root || ! window.Alpine?.\$data) return;
+                const data = window.Alpine.\$data(root);
+                const digits = String(full || '').replace(/\\D/g, '');
+                let local = digits;
+                if (local.startsWith('255')) local = local.slice(3);
+                local = local.replace(/^0+/, '');
+                data.local = local;
+                if (typeof data.syncHidden === 'function') data.syncHidden();
+                this.mobileNumber = data.full ? data.full() : digits;
+            },
             syncMobileNumber() {
                 const input = this.$root?.querySelector?.('input[name=\"mobile_number\"][data-phone-hidden], input[name=\"mobile_number\"]');
                 if (input?.value) this.mobileNumber = input.value;
             },
-            get showCompleteTick() { return @js($paymentComplete) && ! this.showEditAction && ! this.expanded; }
+            get showCompleteTick() { return @js($paymentComplete) && ! this.showEditAction && ! this.expanded; },
+            get panelTitle() {
+                return this.editingId
+                    ? @js(__('borrower.payment_details.edit_account_title'))
+                    : @js(__('borrower.payment_details.add_account'));
+            }
         }">
             <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3">
                 <button type="button" @click="expanded = !expanded" class="flex items-start gap-3 min-w-0 text-left flex-1">
@@ -137,6 +189,19 @@
                                                 <p class="text-xs text-gray-500 mt-0.5">{{ $account->account_name }}</p>
                                             </div>
                                             <div class="flex items-center gap-3 shrink-0">
+                                                <button type="button"
+                                                        @click="openEdit(@js([
+                                                            'id' => $account->id,
+                                                            'type' => $account->type,
+                                                            'mobile_provider' => $account->mobile_provider,
+                                                            'mobile_number' => $account->mobile_number,
+                                                            'bank_name' => $account->bank_name,
+                                                            'account_number' => $account->account_number,
+                                                            'bank_branch' => $account->bank_branch,
+                                                        ]))"
+                                                        class="text-xs font-semibold text-brand hover:text-brand-light">
+                                                    {{ __('borrower.payment_details.edit_account') }}
+                                                </button>
                                                 @unless ($account->is_default)
                                                     <form method="POST" action="{{ route('site.borrower.profile.payment-accounts.default', $account) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}">
                                                         @csrf
@@ -171,6 +236,7 @@
                 @endif
 
                 <x-site.action-panel :title="__('borrower.payment_details.add_account')" open="adding" size="lg">
+                    <p class="text-sm font-bold text-gray-900 mb-2" x-text="panelTitle"></p>
                     <p class="text-xs text-gray-500 mb-4">{{ __('borrower.payment_details.name_must_match', ['name' => $legalName]) }}</p>
                     <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-4">
                         <span x-show="step === 1">{{ __('borrower.payment_details.step_of', ['current' => 1, 'total' => 3]) }}</span>
@@ -188,6 +254,7 @@
                         @if (! empty($returnUrl))
                             <input type="hidden" name="return" value="{{ $returnUrl }}">
                         @endif
+                        <input type="hidden" name="account_id" :value="editingId || ''">
                         <input type="hidden" name="type" :value="type">
                         <input type="hidden" name="account_name" value="{{ old('account_name', $legalName) }}">
                         <input type="hidden" name="mobile_provider" :value="mobileProvider">

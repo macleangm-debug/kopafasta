@@ -132,12 +132,24 @@ export function registerProfileSectionCard(Alpine) {
                 }
             };
             window.addEventListener('profile-accordion', this._onAccordion);
+            this._onCloseEdit = () => {
+                this.open = false;
+                this.showEditAction = false;
+                this.expanded = true;
+            };
+            this.$el.addEventListener('profile-section-close-edit', this._onCloseEdit);
+            window.addEventListener('profile-section-close-edit', this._onCloseEdit);
         },
 
         destroy() {
             if (this._onAccordion) {
                 window.removeEventListener('profile-accordion', this._onAccordion);
                 this._onAccordion = null;
+            }
+            if (this._onCloseEdit) {
+                this.$el.removeEventListener('profile-section-close-edit', this._onCloseEdit);
+                window.removeEventListener('profile-section-close-edit', this._onCloseEdit);
+                this._onCloseEdit = null;
             }
         },
     }));

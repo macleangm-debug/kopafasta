@@ -133,4 +133,30 @@ class DocumentTypeExpiresMicroPassATest extends TestCase
             ->assertSee(__('borrower.profile.view_document'), false)
             ->assertDontSee('Ongeza hati nyingine', false);
     }
+
+    public function test_documents_page_uses_premium_date_input_for_expiring_types(): void
+    {
+        $customer = $this->borrower();
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.documents'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('data-date-trigger', $html);
+        $this->assertStringNotContainsString('type="date" name="expires_at"', $html);
+        $this->assertStringContainsString('name="expires_at"', $html);
+    }
+
+    public function test_income_verification_uses_standardized_add_statement_cta(): void
+    {
+        $customer = $this->borrower();
+        $customer->update(['activity_type' => 'trader']);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'activity']))
+            ->assertOk()
+            ->assertSee(__('borrower.profile.income_add_statement'), false)
+            ->assertDontSee(__('borrower.profile.income_add_another_statement'), false);
+    }
 }

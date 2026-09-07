@@ -182,10 +182,16 @@
 
         @if ($requiresExpiry)
             <div>
-                <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.expiry_date') }} <span class="text-red-500">*</span></label>
-                <input type="date" name="{{ $expiresField }}" value="{{ old($expiresField, $expiresAt?->format('Y-m-d')) }}"
-                       class="kf-field max-w-xs" @if($required || $document) required @endif>
-                @error($expiresField)<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                <x-site.date-input
+                    :name="$expiresField"
+                    :label="__('borrower.profile.expiry_date')"
+                    :value="old($expiresField, $expiresAt?->format('Y-m-d'))"
+                    :required="$required || (bool) $document"
+                    :min="now()->toDateString()"
+                    :max="now()->addYears(20)->format('Y-m-d')"
+                    :default="now()->addYear()->format('Y-m-d')"
+                    input-class="kf-field max-w-xs inline-flex items-center justify-between gap-3 text-left"
+                />
             </div>
         @endif
 

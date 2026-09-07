@@ -2376,21 +2376,44 @@ class BorrowerController extends Controller
         $data = $request->validate($detailsService->validationRules($type, $customer));
         $data['is_default'] = $request->boolean('is_default');
 
+        $editingId = (int) $request->input('account_id', 0);
+        $editing = null;
+        if ($editingId > 0) {
+            $editing = CustomerDisbursementAccount::query()
+                ->where('customer_id', $customer->id)
+                ->where('id', $editingId)
+                ->first();
+            if (! $editing) {
+                throw ValidationException::withMessages([
+                    'account_id' => __('borrower.payment_details.incomplete'),
+                ]);
+            }
+        }
+
         try {
-            $detailsService->createAccount($customer, $data);
+            if ($editing) {
+                $detailsService->updateAccount($customer, $editing, $data);
+                $status = __('borrower.payment_details.account_updated');
+                $this->auditBorrower('profile.payment_account_updated', $customer, [
+                    'type' => $type,
+                    'account_id' => $editing->id,
+                ]);
+            } else {
+                $detailsService->createAccount($customer, $data);
+                $status = __('borrower.payment_details.account_saved');
+                $this->auditBorrower('profile.payment_account_added', $customer, ['type' => $type]);
+            }
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
 
-        $this->auditBorrower('profile.payment_account_added', $customer, ['type' => $type]);
-
-        if ($redirect = $this->redirectForApplyProfileReturn($request, $customer, __('borrower.payment_details.account_saved'))) {
+        if ($redirect = $this->redirectForApplyProfileReturn($request, $customer, $status)) {
             return $redirect;
         }
 
         return redirect()
             ->route('site.borrower.profile', ['section' => 'payment'])
-            ->with('status', __('borrower.payment_details.account_saved'));
+            ->with('status', $status);
     }
 
     public function destroyPaymentAccount(Request $request, CustomerDisbursementAccount $account): RedirectResponse

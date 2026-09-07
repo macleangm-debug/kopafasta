@@ -19,7 +19,7 @@
         :complete="$uploadedOptional->isNotEmpty()"
         :empty="$uploadedOptional->isEmpty()"
         :default-open="$focusOpen"
-        :default-edit="$focusOpen">
+        :default-edit="$errors->hasAny($optionalItems->pluck('key')->all()) || ($errors->any() && request()->query('focus') === 'additional')">
         <x-slot:view>
             @if ($uploadedOptional->isNotEmpty())
                 <div class="space-y-4">

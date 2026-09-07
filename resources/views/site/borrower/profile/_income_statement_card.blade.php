@@ -80,18 +80,17 @@
                     <div class="flex flex-wrap gap-3">
                         <button type="button"
                                 @click="open = true; $dispatch('income-statement-reset')"
-                                class="text-sm font-semibold text-brand hover:underline">
-                            {{ $canAddAnotherStatement
-                                ? __('borrower.profile.income_add_another_statement')
-                                : __('borrower.profile.income_add_or_update_statement') }}
+                                class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
+                            {{ __('borrower.profile.income_add_statement') }}
                         </button>
                     </div>
                 @endunless
             </div>
         @else
             <p class="text-sm text-gray-600">{{ __('borrower.profile.income_statement_card_hint') }}</p>
-            <button type="button" @click="open = true; $dispatch('income-statement-reset')" class="mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
-                {{ __('borrower.profile.add_details') }}
+            <button type="button" @click="open = true; $dispatch('income-statement-reset')"
+                    class="mt-3 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
+                {{ __('borrower.profile.income_add_statement') }}
             </button>
         @endif
     </x-slot:view>

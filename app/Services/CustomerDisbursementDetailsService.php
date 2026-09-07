@@ -218,6 +218,42 @@ class CustomerDisbursementDetailsService
         return $account;
     }
 
+    public function updateAccount(Customer $customer, CustomerDisbursementAccount $account, array $data): CustomerDisbursementAccount
+    {
+        abort_unless((int) $account->customer_id === (int) $customer->id, 403);
+
+        if (($data['type'] ?? '') === self::METHOD_MOBILE && filled($data['mobile_number'] ?? null)) {
+            $data['mobile_number'] = $this->assertValidMobileNumber(
+                $this->normalizeMobileNumber((string) $data['mobile_number'], $customer)
+            );
+        }
+
+        if (! $this->accountNameMatchesBorrower(
+            new CustomerDisbursementAccount(['account_name' => $data['account_name'] ?? $account->account_name]),
+            $customer,
+        )) {
+            throw ValidationException::withMessages([
+                'account_name' => __('borrower.payment_details.name_mismatch'),
+            ]);
+        }
+
+        $type = (string) ($data['type'] ?? $account->type);
+        $account->update([
+            'type'            => $type,
+            'account_name'    => $data['account_name'] ?? $account->account_name,
+            'mobile_provider' => $type === self::METHOD_MOBILE ? ($data['mobile_provider'] ?? null) : null,
+            'mobile_number'   => $type === self::METHOD_MOBILE ? ($data['mobile_number'] ?? null) : null,
+            'bank_name'       => $type === self::METHOD_BANK ? ($data['bank_name'] ?? null) : null,
+            'account_number'  => $type === self::METHOD_BANK ? ($data['account_number'] ?? null) : null,
+            'bank_branch'     => $type === self::METHOD_BANK ? ($data['bank_branch'] ?? null) : null,
+        ]);
+
+        $this->syncLegacyCustomerFields($customer->fresh());
+        $this->clearUnlatchedConfirmationsForCustomer($customer->fresh());
+
+        return $account->fresh();
+    }
+
     public function deleteAccount(Customer $customer, CustomerDisbursementAccount $account): void
     {
         abort_unless((int) $account->customer_id === (int) $customer->id, 403);
