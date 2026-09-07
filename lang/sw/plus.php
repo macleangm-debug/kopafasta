@@ -336,6 +336,7 @@ return [
         'a4_kicker' => 'Ripoti ya maendeleo ya mwezi',
         'footer' => 'Kopafasta Plus · :month · Faragha',
         'print_footer_title' => 'Ripoti ya Kopafasta Plus',
+        'print_plus_label' => 'Kopafasta Plus',
         'business_context' => 'Biashara: :name',
         'three_things' => 'Mambo matatu kwa mwezi ujao',
         'three_goal' => 'Endelea kuchangia kwenye :goal.',

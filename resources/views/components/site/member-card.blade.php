@@ -21,24 +21,12 @@
         $color = 'green';
     }
 
-    $badgeClass = match ($color) {
-        'green'  => 'bg-white text-emerald-800',
-        'orange' => 'bg-white text-amber-800',
-        'red'    => 'bg-white text-rose-800',
-        default  => 'bg-white text-slate-800',
-    };
-
     $since = optional($customer->customerSinceDate())->format('d M Y') ?? '—';
     $issued = optional($customer->membership_issued_at)->format('d M Y') ?? $since;
     $expires = optional($customer->membership_expires_at)->format('d M Y') ?? '—';
     $plusActive = app(\App\Services\Plus\PlusService::class)->isActive($customer);
-    $gradeKey = strtoupper(strtolower((string) ($customer->grade ?: 'bronze')));
-    $cardBadge = $permanent
-        ? ($gradeKey.($plusActive ? ' · '.__('plus.card.plus') : ''))
-        : ((! $customer->hasMembership() || $customer->isMembershipExpired() || $customer->isMembershipInGrace())
-            ? $label
-            : ($gradeKey.($plusActive ? ' · '.__('plus.card.plus') : '')));
-
+    $grade = strtolower((string) ($customer->grade ?: 'bronze'));
+    $gradeKey = strtoupper($grade);
     $name = strtoupper(trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')));
     $memberNoRaw = MemberNumberFormatter::raw($customer->member_no);
     $memberNoDisplay = MemberNumberFormatter::display($customer->member_no);
@@ -105,9 +93,7 @@
                     <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" aria-hidden="true" class="h-10 sm:h-11 w-auto object-contain shrink-0">
                     <span class="text-xl sm:text-2xl font-bold tracking-tight text-white leading-none truncate">{{ brand_name() }}</span>
                 </span>
-                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] {{ $badgeClass }} shrink-0 ring-1 ring-brand-gold/30">
-                    {{ $cardBadge }}
-                </span>
+                <x-site.grade-badge :grade="$grade" :plus="$plusActive" size="sm" class="shrink-0" />
             </div>
 
             <div class="relative flex items-start gap-3 sm:gap-4">
@@ -269,9 +255,7 @@
                         <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" aria-hidden="true" class="h-10 sm:h-11 w-auto object-contain shrink-0">
                         <span class="text-xl sm:text-2xl font-bold tracking-tight text-white leading-none truncate">{{ brand_name() }}</span>
                     </span>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] {{ $badgeClass }} shrink-0 ring-1 ring-brand-gold/30">
-                        {{ $cardBadge }}
-                    </span>
+                    <x-site.grade-badge :grade="$grade" :plus="$plusActive" size="sm" class="shrink-0" />
                 </div>
                 <div class="relative flex items-start gap-4 sm:gap-5">
                     @if ($photoUrl)

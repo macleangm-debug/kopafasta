@@ -245,6 +245,13 @@
         print-color-adjust: exact;
     }
 
+    /* Keep premium rounded header/cards in print (do not flatten to browser boxes). */
+    .kf-print-header {
+        border-radius: 12pt !important;
+        overflow: hidden;
+        margin-bottom: 4mm;
+    }
+
     .kf-print-avoid {
         break-inside: avoid;
         page-break-inside: avoid;
@@ -259,11 +266,21 @@
         break-inside: avoid;
         page-break-inside: avoid;
         margin-bottom: 4mm;
+        border-radius: 10pt !important;
     }
 
     .kf-print-goal-row {
         break-inside: avoid;
         page-break-inside: avoid;
+    }
+
+    .kf-print-app-footer {
+        display: flex !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-top: 6mm;
+        padding-top: 3mm;
+        border-top: 0.4pt solid #d1d5db;
     }
 
     .kf-print-running-footer {
@@ -456,13 +473,15 @@ body.kf-camera-open .kf-mobile-bottom-nav {
 }
 
 @media (min-width: 1024px) {
-    /* Center the payment surface; let the document scroll — do not clip the card. */
+    /* Center the payment surface in the full usable content column. */
     .kf-payment-surface {
+        width: 100%;
         min-height: 0;
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        padding: 1.5rem 1rem 3rem;
+        padding: 1.5rem 0 3rem;
+        box-sizing: border-box;
     }
 
     .kf-payment-surface-card {

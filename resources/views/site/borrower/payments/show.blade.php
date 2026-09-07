@@ -9,8 +9,8 @@
         </div>
     </x-admin.layout>
 @else
-    <x-site.borrower-layout :title="brand_title($payment->reference)" active="payments">
-        <div class="pb-16 sm:pb-20">
+    <x-site.borrower-layout :title="brand_title($payment->reference)" active="payments" content-width="narrow">
+        <div class="w-full pb-16 sm:pb-20">
             @include('site.borrower.payments._show_body')
         </div>
     </x-site.borrower-layout>

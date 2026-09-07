@@ -5,8 +5,8 @@
     $seoDocument = app(\App\Services\SeoService::class)->privateDocument(request(), $pageTitle);
     $contentMax = match ($contentWidth) {
         'narrow' => 'max-w-3xl mx-auto',
-        'wide'   => 'max-w-7xl',
-        default  => 'max-w-7xl',
+        'wide'   => 'max-w-7xl mx-auto',
+        default  => 'max-w-7xl mx-auto',
     };
     $siteLocale = $siteLocale ?? app()->getLocale();
     $siteCountry = $siteCountry ?? strtoupper((string) session('country', 'TZ'));

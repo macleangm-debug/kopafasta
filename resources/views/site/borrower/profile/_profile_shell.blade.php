@@ -17,7 +17,7 @@
             </a>
         </div>
     @endif
-@elseif (! $wizardMode && ($active ?? '') !== 'hub')
+@elseif (! $wizardMode && ($active ?? '') !== 'hub' && ($accountPanel ?? 'profile') !== 'membership')
     <div class="mb-4">
         <a href="{{ route('site.borrower.profile') }}" data-kf-motion="pop" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
             ← {{ __('borrower.profile.hub.back') }}
@@ -32,9 +32,17 @@
 ])
 
 @if (! $wizardMode && ! request()->boolean('solo'))
-    @include('site.borrower.profile._account_segments', ['activePanel' => $accountPanel])
-    @if ($accountPanel === 'profile' && ($active ?? '') === 'hub')
-        @include('site.borrower.profile._member_card', ['customer' => $customer])
+    @if (($accountPanel ?? 'profile') === 'membership')
+        {{-- My Card: Profile CTA only — no duplicate mini identity card --}}
+        <div class="mb-5 flex justify-end">
+            <a href="{{ route('site.borrower.profile') }}"
+               data-kf-motion="pop"
+               class="inline-flex items-center justify-center rounded-full bg-brand text-white hover:bg-brand-light font-bold px-4 py-2.5 text-sm shadow-sm">
+                {{ __('borrower.profile.panel_profile') }} →
+            </a>
+        </div>
+    @else
+        @include('site.borrower.profile._member_card', ['customer' => $customer, 'cta' => 'card'])
     @endif
 @endif
 
@@ -45,8 +53,8 @@
         'wizardMode' => true,
         'wizardKey' => $wizardKey,
     ])
-@elseif ($accountPanel === 'profile' && ($active ?? '') === 'hub')
+@elseif (($accountPanel ?? 'profile') === 'profile' && ($active ?? '') === 'hub')
     @include('site.borrower.profile._profile_overview', ['customer' => $customer])
-@elseif ($accountPanel === 'profile' && ($active ?? '') !== 'hub' && ! request()->boolean('solo'))
+@elseif (($accountPanel ?? 'profile') === 'profile' && ($active ?? '') !== 'hub' && ! request()->boolean('solo'))
     @include('site.borrower.profile._tabs', ['active' => $active ?? 'personal', 'customer' => $customer])
 @endif

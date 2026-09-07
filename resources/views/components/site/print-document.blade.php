@@ -19,10 +19,7 @@
     <style>
         @page {
             size: A4;
-            margin: 14mm 12mm 20mm;
-            @bottom-center {
-                content: counter(page);
-            }
+            margin: 14mm 12mm 18mm;
         }
         @media print {
             html, body {
@@ -31,17 +28,8 @@
                 padding: 0 !important;
             }
             .kf-print-chrome { display: none !important; }
-            .kf-print-running-footer {
-                position: fixed;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                padding: 4mm 0 2mm;
-                font-size: 8pt;
-                color: #4b5563;
-                border-top: 0.4pt solid #d1d5db;
-                background: #fff;
-            }
+            /* Application footer lives in the report sheet; avoid a second fixed chrome footer colliding with content. */
+            .kf-print-running-footer { display: none !important; }
         }
         @media screen {
             body { background: #f3f4f6; }
@@ -64,22 +52,5 @@
     <main class="kf-print-root mx-auto my-4 sm:my-8 max-w-[210mm] bg-white shadow-sm ring-1 ring-brand/10 print:shadow-none print:ring-0 print:my-0 print:max-w-none">
         {{ $slot }}
     </main>
-
-    <div class="kf-print-running-footer" aria-hidden="true">
-        <div class="flex items-center justify-between gap-3 text-[8pt] leading-snug">
-            <div class="inline-flex items-center gap-2 min-w-0">
-                <img src="{{ asset(ltrim((string) (brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png'), '/')) }}"
-                     alt="" class="h-4 w-auto object-contain shrink-0">
-                <div class="min-w-0">
-                    <p class="font-semibold text-gray-700">{{ $footerLeft ?? 'Kopafasta Plus Report' }}</p>
-                    <p>{{ brand('legal_name', 'Kopafasta Microfinance Limited') }}</p>
-                </div>
-            </div>
-            <div class="text-right shrink-0">
-                <p>{{ $footerRight }}</p>
-                <p>{{ \App\Models\Setting::get('company.website') ?: \App\Models\Setting::get('company.app_base_url') ?: config('app.url') }}</p>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

@@ -1,4 +1,26 @@
-<div class="kf-print-sheet mx-auto rounded-2xl bg-white ring-1 ring-brand/15 overflow-hidden print:rounded-none print:ring-0">
+<div class="kf-print-sheet mx-auto rounded-2xl bg-white ring-1 ring-brand/15 overflow-hidden print:rounded-none print:ring-0 print:overflow-visible">
+    @if ($print)
+        <div class="kf-print-header kf-print-avoid bg-gradient-to-br from-brand via-brand-light to-emerald-800 text-white px-5 sm:px-8 py-5 rounded-2xl">
+            <div class="flex items-center justify-between gap-3">
+                <x-site.brand-mark size="sm" variant="light" />
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold shrink-0">{{ __('plus.reports.print_plus_label') }}</p>
+            </div>
+            <p class="mt-2 text-sm text-white/80">{{ __('plus.reports.a4_kicker') }}</p>
+            <p class="mt-2 text-center text-sm text-white/90">
+                {{ $report['member_name'] }}
+                @if (! empty($report['membership_number']))
+                    · {{ $report['membership_number'] }}
+                @endif
+                · {{ $report['grade'] }}
+            </p>
+            <h2 class="mt-1 text-xl sm:text-2xl font-extrabold text-center">{{ $report['label'] }}</h2>
+            <p class="text-sm text-white/80 mt-1 text-center">{{ __('plus.reports.trust_line', ['percent' => $report['trust_percent'] ?? 0, 'label' => $report['trust']['label'] ?? '']) }}</p>
+            <p class="mt-2 text-center text-xs sm:text-sm text-white/85 truncate px-2" title="{{ $businessContext }}">
+                {{ __('plus.reports.business_context', ['name' => $businessContext]) }}
+            </p>
+            <p class="mt-1 text-center text-[11px] text-white/70">{{ __('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]) }}</p>
+        </div>
+    @else
     <div class="kf-print-avoid bg-gradient-to-br from-brand via-brand-light to-emerald-800 text-white px-5 sm:px-8 py-4">
         <div class="flex items-center justify-between gap-3">
             <div class="inline-flex items-center gap-2 min-w-0">
@@ -16,7 +38,7 @@
             · {{ $report['grade'] }}
         </p>
         <div class="mt-1 flex items-center justify-between gap-3">
-            @if ($older && ! $print)
+            @if ($older)
                 <a href="{{ route('site.borrower.plus.reports', ['month' => $older['value']]) }}"
                    class="print:hidden size-9 grid place-items-center rounded-full bg-white/10 ring-1 ring-white/20 text-lg font-bold hover:bg-white/20"
                    aria-label="{{ $older['label'] }}">‹</a>
@@ -24,7 +46,7 @@
                 <span class="print:hidden size-9"></span>
             @endif
             <h2 class="text-xl sm:text-2xl font-extrabold text-center flex-1">{{ $report['label'] }}</h2>
-            @if ($newer && ! $print)
+            @if ($newer)
                 <a href="{{ route('site.borrower.plus.reports', ['month' => $newer['value']]) }}"
                    class="print:hidden size-9 grid place-items-center rounded-full bg-white/10 ring-1 ring-white/20 text-lg font-bold hover:bg-white/20"
                    aria-label="{{ $newer['label'] }}">›</a>
@@ -38,7 +60,7 @@
         </p>
         <p class="mt-1 text-center text-[11px] text-white/70">{{ __('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]) }}</p>
 
-        @if (! $print && count($months) > 1)
+        @if (count($months) > 1)
             <div class="print:hidden mt-4" x-data="{
                 yearOpen: false,
                 monthOpen: false,
@@ -86,22 +108,23 @@
             </div>
         @endif
     </div>
+    @endif
 
     <div class="p-5 sm:p-8 space-y-6 pb-16 print:pb-20">
         <div class="kf-print-avoid grid grid-cols-2 gap-3">
-            <div class="rounded-xl bg-brand/5 p-3">
+            <div class="kf-print-section rounded-xl bg-brand/5 p-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.money.in') }}</p>
                 <p class="mt-1 text-lg font-extrabold tabular-nums text-brand">{{ format_money_compact($money['in'] ?? 0) }}</p>
             </div>
-            <div class="rounded-xl bg-brand/5 p-3">
+            <div class="kf-print-section rounded-xl bg-brand/5 p-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.money.out') }}</p>
                 <p class="mt-1 text-lg font-extrabold tabular-nums text-gray-900">{{ format_money_compact($money['out'] ?? 0) }}</p>
             </div>
-            <div class="rounded-xl bg-brand/5 p-3">
+            <div class="kf-print-section rounded-xl bg-brand/5 p-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_left') }}</p>
                 <p class="mt-1 text-lg font-extrabold tabular-nums {{ $left < 0 ? 'text-red-700' : 'text-brand' }}">{{ format_money_compact($left) }}</p>
             </div>
-            <div class="rounded-xl bg-brand/5 p-3">
+            <div class="kf-print-section rounded-xl bg-brand/5 p-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{{ __('plus.reports.kpi_goals') }}</p>
                 <p class="mt-1 text-lg font-extrabold tabular-nums">+{{ format_money_compact($report['goals_added'] ?? 0) }}</p>
             </div>
@@ -161,7 +184,7 @@
             @endif
         </section>
 
-        <section class="rounded-2xl bg-brand-gold/10 ring-1 ring-brand-gold/25 p-4 sm:p-5">
+        <section class="kf-print-section rounded-2xl bg-brand-gold/10 ring-1 ring-brand-gold/25 p-4 sm:p-5">
             <p class="kf-print-keep-with-next text-[10px] uppercase tracking-[0.16em] text-brand font-bold mb-3">{{ __('plus.reports.goals') }}</p>
             @forelse ($report['goal_cards'] ?? [] as $card)
                 <div class="kf-print-goal-row mb-3">
@@ -203,13 +226,25 @@
         @endif
     </div>
 
-    <div class="px-5 sm:px-8 pb-5 flex items-center gap-3 text-[10px] text-gray-400 print:hidden">
-        <x-site.brand-mark size="sm" />
-        <p>
-            {{ __('plus.reports.footer', ['month' => $report['label']]) }}
-            · {{ brand('legal_name', 'Kopafasta Microfinance Limited') }}
-            · {{ $website }}
-            · {{ __('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]) }}
-        </p>
-    </div>
+    @if ($print)
+        <div class="kf-print-app-footer px-5 sm:px-8 pb-5 flex items-center gap-3 text-[10px] text-gray-500">
+            <x-site.brand-mark size="sm" />
+            <p class="min-w-0 leading-snug">
+                {{ __('plus.reports.footer', ['month' => $report['label']]) }}
+                · {{ brand('legal_name', 'Kopafasta Microfinance Limited') }}
+                · {{ $website }}
+                · {{ __('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]) }}
+            </p>
+        </div>
+    @else
+        <div class="px-5 sm:px-8 pb-5 flex items-center gap-3 text-[10px] text-gray-400 print:hidden">
+            <x-site.brand-mark size="sm" />
+            <p>
+                {{ __('plus.reports.footer', ['month' => $report['label']]) }}
+                · {{ brand('legal_name', 'Kopafasta Microfinance Limited') }}
+                · {{ $website }}
+                · {{ __('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]) }}
+            </p>
+        </div>
+    @endif
 </div>

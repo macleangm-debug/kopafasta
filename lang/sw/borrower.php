@@ -2346,6 +2346,9 @@ return [
         'on_file' => 'Ipo kwenye faili',
         'remove_document' => 'Ondoa',
         'remove_document_confirm' => 'Ondoa waraka huu? Unaweza kupakia mpya wakati wowote.',
+        'remove_document_confirm_title' => 'Ondoa waraka?',
+        'remove_document_confirm_named' => 'Hii itaondoa :document kutoka kwenye wasifu wako. Unaweza kupakia waraka mwingine baadaye.',
+        'remove_document_confirm_cta' => 'Ondoa waraka',
         'document_removed' => 'Waraka umeondolewa.',
     ],
     'nida' => [

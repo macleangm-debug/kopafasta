@@ -16,7 +16,7 @@
         ?: \App\Models\Setting::get('company.app_base_url')
         ?: config('app.url');
     $footerLeft = __('plus.reports.print_footer_title');
-    $footerRight = $report['label'] ?? $currentMonth;
+    $footerRight = __('plus.reports.footer', ['month' => $report['label'] ?? $currentMonth]);
     $print = (bool) ($print ?? false);
 @endphp
 
@@ -24,7 +24,7 @@
     <x-site.print-document
         :title="brand_title(__('plus.home.reports'))"
         :footer-left="$footerLeft"
-        :footer-right="$footerRight.' · '.$website"
+        :footer-right="$footerRight"
     >
         @include('site.plus._report_sheet', [
             'report' => $report,
