@@ -137,44 +137,26 @@
             </div>
 
             <div x-show="state === 'waiting'" x-cloak class="pt-3 space-y-5">
-                {{-- Same green amount shell as Details / Review (psp-payment-gate). --}}
                 <div class="rounded-3xl kf-premium-panel">
                     <div class="px-6 py-7">
-                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold" x-text="copy.waitingTitle || @js($copy['waitingTitle'])"></p>
+                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ __('borrower.payment_waiting.confirm_title') }}</p>
                         <p class="mt-4 text-4xl font-extrabold tabular-nums tracking-tight text-white" x-text="amountLabel">{{ $amountLabel }}</p>
                         <p class="mt-4 text-xs text-white/70">{{ __('borrower.membership.payment_reference_label') }}</p>
                         <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1.5 rounded-lg text-white" x-text="paymentReference || @js($payment->reference)">{{ $payment->reference }}</p>
                     </div>
                 </div>
 
-                <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-5">
-                    <div class="flex items-start gap-3">
-                        <div class="shrink-0 flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-muted ring-1 ring-brand/15">
-                            <svg class="h-5 w-5 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                            </svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-sm text-gray-600">{{ __('borrower.payment_waiting.sent_to') }}</p>
-                            <p class="text-lg font-extrabold tabular-nums text-gray-900 mt-0.5" x-text="phoneMasked || @js($phoneMasked ?: '—')"></p>
-                        </div>
+                <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-600">{{ __('borrower.payment_waiting.sent_to') }}</p>
+                        <p class="mt-1 text-xl font-extrabold tabular-nums text-gray-900" x-text="phoneMasked || @js($phoneMasked ?: '—')"></p>
                     </div>
 
-                    <p class="text-sm text-gray-700 leading-relaxed">{{ __('borrower.payment_waiting.prompt') }}</p>
+                    <p class="text-sm font-semibold text-brand">{{ __('borrower.payment_waiting.waiting_confirmation') }}</p>
+                    <p class="text-sm text-gray-600">{{ __('borrower.payment_waiting.prompt_short') }}</p>
 
-                    <ol class="text-sm text-gray-700 space-y-2">
-                        <li class="flex gap-2"><span class="text-brand font-bold shrink-0">1.</span> {{ __('borrower.payment_waiting.step_ussd') }}</li>
-                        <li class="flex gap-2"><span class="text-brand font-bold shrink-0">2.</span> {{ __('borrower.payment_waiting.step_pin') }}</li>
-                        <li class="flex gap-2"><span class="text-brand font-bold shrink-0">3.</span> {{ __('borrower.payment_waiting.step_auto') }}</li>
-                    </ol>
-
-                    <div>
-                        <p class="text-sm font-semibold text-brand">{{ __('borrower.payment_waiting.waiting_confirmation') }}</p>
-                        <div class="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden" aria-hidden="true">
-                            <div class="h-full w-1/3 rounded-full bg-brand kf-payment-progress"></div>
-                        </div>
-                        <p class="mt-2 text-xs text-gray-500">{{ __('borrower.payment_waiting.slow_hint') }}</p>
+                    <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden" aria-hidden="true">
+                        <div class="h-full w-1/3 rounded-full bg-brand kf-payment-progress"></div>
                     </div>
 
                     <button type="button" @click="changeNumber()" :disabled="busy"
@@ -182,7 +164,7 @@
                         {{ __('borrower.payment_waiting.change_phone') }}
                     </button>
 
-                    <div x-show="simulatorEnabled" class="pt-1 space-y-2">
+                    <div x-show="simulatorEnabled" class="pt-2 space-y-2 border-t border-gray-100">
                         <p class="text-[10px] uppercase tracking-widest font-bold text-amber-800">{{ __('borrower.payment_waiting.simulator_heading') }}</p>
                         <div class="grid sm:grid-cols-2 gap-2">
                             <button type="button" @click="simulateOutcome('success')" :disabled="busy" class="rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 disabled:opacity-60">{{ __('borrower.payment_waiting.simulator_success') }}</button>
@@ -195,42 +177,49 @@
                 </div>
             </div>
 
-            <div x-show="state === 'paid'" x-cloak class="pt-6 space-y-5 text-center">
-                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 ring-1 ring-emerald-200">
-                    <svg class="h-7 w-7 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                    </svg>
-                </div>
-                <p class="text-lg font-extrabold text-gray-900">{{ __('borrower.payment_waiting.success_title') }}</p>
-                <p class="text-sm text-gray-600" x-text="@js($copy['successPaid'])"></p>
-                <div class="rounded-2xl bg-emerald-50/70 ring-1 ring-emerald-100 px-4 py-3 text-left space-y-2">
-                    <div class="flex justify-between gap-3 text-sm">
-                        <span class="text-gray-500">{{ __('borrower.payment_waiting.amount') }}</span>
-                        <span class="font-bold tabular-nums text-brand whitespace-nowrap" x-text="amountLabel">{{ $amountLabel }}</span>
-                    </div>
-                    <div class="flex justify-between gap-3 text-sm">
-                        <span class="text-gray-500">{{ __('borrower.payment_waiting.reference') }}</span>
-                        <span class="font-mono font-semibold text-gray-900" x-text="paymentReference || @js($payment->reference)">{{ $payment->reference }}</span>
+            <div x-show="state === 'paid'" x-cloak class="pt-3 space-y-5">
+                <div class="rounded-3xl kf-premium-panel">
+                    <div class="px-6 py-7">
+                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ __('borrower.payment_waiting.success_title') }}</p>
+                        <p class="mt-4 text-4xl font-extrabold tabular-nums tracking-tight text-white" x-text="amountLabel">{{ $amountLabel }}</p>
+                        <p class="mt-4 text-xs text-white/70">{{ __('borrower.membership.payment_reference_label') }}</p>
+                        <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1.5 rounded-lg text-white" x-text="paymentReference || @js($payment->reference)">{{ $payment->reference }}</p>
                     </div>
                 </div>
-                <a :href="successUrl" class="inline-flex w-full justify-center rounded-xl bg-brand text-white text-sm font-bold px-5 py-3">
-                    {{ __('borrower.celebration.cta_continue') }}
-                </a>
+                <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <span class="size-10 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 grid place-items-center text-emerald-700 shrink-0">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </span>
+                        <p class="text-sm text-gray-600" x-text="@js($copy['successPaid'])"></p>
+                    </div>
+                    <a :href="successUrl" class="inline-flex w-full justify-center rounded-xl bg-brand text-white text-sm font-bold px-5 py-3">
+                        {{ __('borrower.celebration.cta_continue') }}
+                    </a>
+                </div>
             </div>
 
-            <div x-show="state === 'failed'" x-cloak class="pt-6 space-y-5 text-center">
-                <p class="text-sm text-gray-600">{{ __('borrower.payment_waiting.failed_using') }}</p>
-                <p class="text-lg font-extrabold tabular-nums" x-text="phoneMasked || @js($phoneMasked ?: '—')"></p>
-                <p class="text-sm text-rose-800" x-show="message" x-text="message"></p>
-                <div class="flex flex-col gap-2">
-                    <button type="button" @click="tryAgain()" :disabled="busy"
-                            class="w-full rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 disabled:opacity-60">
-                        {{ __('borrower.payment_waiting.try_again') }}
-                    </button>
-                    <button type="button" @click="changeNumber()" :disabled="busy"
-                            class="w-full rounded-xl bg-white ring-1 ring-gray-200 text-gray-800 text-sm font-bold px-5 py-3 disabled:opacity-60">
-                        {{ __('borrower.payment_waiting.change_phone') }}
-                    </button>
+            <div x-show="state === 'failed'" x-cloak class="pt-3 space-y-5">
+                <div class="rounded-3xl kf-premium-panel-red">
+                    <div class="px-6 py-7">
+                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ __('borrower.payment_waiting.failed_title') }}</p>
+                        <p class="mt-4 text-4xl font-extrabold tabular-nums tracking-tight text-white" x-text="amountLabel">{{ $amountLabel }}</p>
+                        <p class="mt-4 text-xs text-white/70">{{ __('borrower.payment_waiting.failed_using') }}</p>
+                        <p class="mt-1 text-lg font-extrabold tabular-nums text-white" x-text="phoneMasked || @js($phoneMasked ?: '—')"></p>
+                    </div>
+                </div>
+                <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-4">
+                    <p class="text-sm text-rose-800" x-show="message" x-text="message"></p>
+                    <div class="flex flex-col gap-2">
+                        <button type="button" @click="tryAgain()" :disabled="busy"
+                                class="w-full rounded-xl bg-brand text-white text-sm font-bold px-5 py-3 disabled:opacity-60">
+                            {{ __('borrower.payment_waiting.try_again') }}
+                        </button>
+                        <button type="button" @click="changeNumber()" :disabled="busy"
+                                class="w-full rounded-xl bg-white ring-1 ring-gray-200 text-gray-800 text-sm font-bold px-5 py-3 disabled:opacity-60">
+                            {{ __('borrower.payment_waiting.change_phone') }}
+                        </button>
+                    </div>
                 </div>
             </div>
 

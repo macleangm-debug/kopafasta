@@ -65,7 +65,7 @@ return [
         'up_next' => 'Coming up',
         'continue' => 'Continue',
         'open_room' => 'Open',
-        'rooms_title' => 'Your Plus rooms',
+        'rooms_title' => '',
     ],
     'today' => [
         'title' => 'Today',
@@ -337,7 +337,6 @@ return [
         'footer' => 'Kopafasta Plus · :month · Private & confidential',
         'footer_confidential' => 'Private & confidential',
         'print_footer_title' => 'Kopafasta Plus Report',
-        'print_plus_label' => 'Kopafasta Plus',
         'print_plus_label' => 'Kopafasta Plus',
         'business_context' => 'Business: :name',
         'three_things' => 'Three things for next month',

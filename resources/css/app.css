@@ -536,8 +536,9 @@ body.kf-camera-open .kf-mobile-bottom-nav {
 
 @media (max-width: 1023px) {
     .kf-payment-surface-card {
-        max-width: min(100%, 24.375rem); /* 390px */
-        margin-inline: auto;
+        width: 100%;
+        max-width: 100%;
+        margin-inline: 0;
     }
 }
 

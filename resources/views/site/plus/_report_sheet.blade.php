@@ -232,7 +232,6 @@
             <p class="min-w-0 leading-snug">
                 {{ __('plus.reports.footer', ['month' => $report['label']]) }}
                 · {{ brand('legal_name', 'Kopafasta Microfinance Limited') }}
-                · {{ $website }}
                 · {{ __('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]) }}
             </p>
         </div>
@@ -242,7 +241,6 @@
             <p>
                 {{ __('plus.reports.footer', ['month' => $report['label']]) }}
                 · {{ brand('legal_name', 'Kopafasta Microfinance Limited') }}
-                · {{ $website }}
                 · {{ __('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]) }}
             </p>
         </div>

@@ -65,13 +65,14 @@ class MicroPassBProfileShellFeatureTest extends TestCase
             ->withSession(['locale' => 'en'])
             ->get(route('site.borrower.profile', ['section' => 'membership']))
             ->assertOk()
-            ->assertSee('My Card', false)
+            ->assertSee('Kopafasta Card', false)
             ->assertSee('Profile', false)
             ->assertSee('memberCardActions', false)
             ->getContent();
 
         $this->assertStringContainsString('BRONZE', strtoupper($html));
-        $this->assertStringContainsString('uppercase', $html); // contextual title treatment
+        $hero = file_get_contents(resource_path('views/components/site/account-shell-hero.blade.php'));
+        $this->assertStringNotContainsString('text-white uppercase', $hero);
     }
 
     public function test_profile_pages_keep_identity_hero_with_my_card_cta(): void
@@ -83,7 +84,7 @@ class MicroPassBProfileShellFeatureTest extends TestCase
             ->get(route('site.borrower.profile', ['section' => 'personal']))
             ->assertOk()
             ->assertSee('Gaspari Shiliba', false)
-            ->assertSee('My Card', false)
+            ->assertSee('Kopafasta Card', false)
             ->assertDontSee('Back to profile overview', false);
     }
 
@@ -93,6 +94,10 @@ class MicroPassBProfileShellFeatureTest extends TestCase
 
         $this->assertStringContainsString("state === 'waiting'", $flow);
         $this->assertStringContainsString('kf-premium-panel', $flow);
+        $this->assertStringContainsString("state === 'failed'", $flow);
+        $this->assertStringContainsString('kf-premium-panel-red', $flow);
+        $this->assertStringContainsString('prompt_short', $flow);
+        $this->assertStringNotContainsString('step_ussd', $flow);
         $this->assertStringContainsString('rounded-2xl bg-white shadow-sm ring-1 ring-gray-200', $flow);
         $this->assertStringContainsString('kf-payment-surface-card', $flow);
     }
@@ -109,14 +114,31 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         $this->assertStringNotContainsString('<x-site.plus-nav', $offers);
     }
 
-    public function test_plus_print_footer_uses_plus_branding_without_truncate(): void
+    public function test_plus_print_footer_uses_logo_only_without_url(): void
     {
         $printDoc = file_get_contents(resource_path('views/components/site/print-document.blade.php'));
+        $reports = file_get_contents(resource_path('views/site/plus/reports.blade.php'));
+        $sheet = file_get_contents(resource_path('views/site/plus/_report_sheet.blade.php'));
 
-        $this->assertStringContainsString('print_plus_label', $printDoc);
         $this->assertStringContainsString('kf-print-running-footer', $printDoc);
+        $this->assertStringContainsString('logo_mark_url', $printDoc);
+        $this->assertStringNotContainsString('print_plus_label', $printDoc);
         $this->assertStringNotContainsString('truncate', $printDoc);
         $this->assertStringContainsString('word-break: break-word', $printDoc);
+        $this->assertStringNotContainsString('$website', $reports);
+        $this->assertStringNotContainsString('$website', $sheet);
+        $this->assertStringNotContainsString('footer-left', $reports);
+    }
+
+    public function test_profile_hero_shows_canonical_completion(): void
+    {
+        $card = file_get_contents(resource_path('views/site/borrower/profile/_member_card.blade.php'));
+        $hero = file_get_contents(resource_path('views/components/site/account-shell-hero.blade.php'));
+
+        $this->assertStringContainsString('ProfileCompletionService', $card);
+        $this->assertStringContainsString('completion-percent', $card);
+        $this->assertStringContainsString('hero_completion_percent', $hero);
+        $this->assertStringContainsString('hero_completion_done', $hero);
     }
 
     public function test_partner_shell_reuses_account_shell_hero(): void

@@ -12,13 +12,8 @@
         $review = $report['noticed'] ?? [];
     }
     $businessContext = $report['business_context'] ?? __('plus.business.all_businesses');
-    $website = \App\Models\Setting::get('company.website')
-        ?: \App\Models\Setting::get('company.app_base_url')
-        ?: config('app.url');
-    $footerLine = ($report['label'] ?? $currentMonth)
-        .' · '.__('plus.reports.footer_confidential')
+    $footerLine = __('plus.reports.footer', ['month' => $report['label'] ?? $currentMonth])
         .' · '.brand('legal_name', 'Kopafasta Microfinance Limited')
-        .' · '.$website
         .' · '.__('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]);
     $print = (bool) ($print ?? false);
 @endphp
@@ -26,7 +21,6 @@
 @if ($print)
     <x-site.print-document
         :title="brand_title(__('plus.home.reports'))"
-        :footer-left="__('plus.reports.print_plus_label')"
         :footer-right="$footerLine"
     >
         @include('site.plus._report_sheet', [
@@ -41,7 +35,6 @@
             'review' => $review,
             'businessContext' => $businessContext,
             'print' => true,
-            'website' => $website,
         ])
     </x-site.print-document>
 @else
@@ -74,7 +67,6 @@
                 'review' => $review,
                 'businessContext' => $businessContext,
                 'print' => false,
-                'website' => $website,
             ])
 
             <a href="{{ route('site.borrower.plus.reports', ['month' => $currentMonth, 'print' => 1]) }}"

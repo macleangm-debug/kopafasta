@@ -11,6 +11,7 @@
     'badgeLabel' => null, // optional partner/status label instead of grade
     'ctaUrl' => null,
     'ctaLabel' => null,
+    'completionPercent' => null, // identity hero only; canonical ProfileCompletionService percent
 ])
 
 {{-- Shared account-shell hero (borrower + partner). Dashboard Hero language. --}}
@@ -32,7 +33,7 @@
 
         <div class="mt-5 space-y-4 max-w-2xl">
             @if ($mode === 'contextual')
-                <p class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight text-white uppercase">
+                <p class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight text-white">
                     {{ $title ?: __('borrower.membership.my_card') }}
                 </p>
             @else
@@ -48,6 +49,19 @@
                         <p class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight text-white break-words">{{ $displayName }}</p>
                         @if (filled($memberNo))
                             <p class="text-sm font-mono mt-1.5 text-white/75 break-all">{{ $memberNo }}</p>
+                        @endif
+                        @if ($completionPercent !== null)
+                            @php $pct = max(0, min(100, (int) $completionPercent)); @endphp
+                            @if ($pct >= 100)
+                                <p class="mt-2 text-xs font-semibold text-brand-gold">{{ __('borrower.profile.hero_completion_done') }}</p>
+                            @else
+                                <div class="mt-2 max-w-[11rem]">
+                                    <p class="text-xs font-semibold text-white/85">{{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}</p>
+                                    <div class="mt-1.5 h-1.5 rounded-full bg-white/15 overflow-hidden" aria-hidden="true">
+                                        <div class="h-full rounded-full bg-brand-gold" style="width: {{ $pct }}%"></div>
+                                    </div>
+                                </div>
+                            @endif
                         @endif
                     </div>
                 </div>

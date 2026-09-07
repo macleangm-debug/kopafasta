@@ -14,6 +14,7 @@
         ?: (string) ($customer->customer_number ?? '');
     $plusActive = app(\App\Services\Plus\PlusService::class)->isActive($customer);
     $grade = $customer->grade ?? 'bronze';
+    $completionPercent = (int) (app(\App\Services\ProfileCompletionService::class)->calculate($customer)['percent'] ?? 0);
     $myCardUrl = route('site.borrower.profile', ['section' => 'membership']);
     $profileUrl = route('site.borrower.profile');
 @endphp
@@ -34,6 +35,7 @@
         :initial="$initial"
         :grade="$grade"
         :plus="$plusActive"
+        :completion-percent="$completionPercent"
         :cta-url="$cta === 'card' ? $myCardUrl : null"
         :cta-label="$cta === 'card' ? __('borrower.membership.my_card') : null"
     />

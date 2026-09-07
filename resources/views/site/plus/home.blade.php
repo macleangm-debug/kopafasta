@@ -85,7 +85,6 @@
 
         @if ($plusActive || ($plusExpired ?? false))
             <section>
-                <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold mb-3">{{ __('plus.home.rooms_title') }}</p>
                 @if ($plusExpired ?? false)
                     <p class="text-sm text-gray-600 mb-3">{{ __('plus.home.locked_rooms') }}</p>
                 @endif

@@ -23,7 +23,7 @@
     <style>
         @page {
             size: A4;
-            margin: 12mm 12mm 22mm;
+            margin: 12mm 12mm 14mm;
         }
         @media print {
             html, body {
@@ -39,13 +39,13 @@
                 right: 0 !important;
                 bottom: 0 !important;
                 display: flex !important;
-                align-items: flex-start;
+                align-items: center;
                 gap: 8px;
-                padding: 3mm 0 0;
+                padding: 2mm 0 0;
                 border-top: 0.4pt solid #d1d5db;
                 background: #fff !important;
                 font-size: 7.5pt;
-                line-height: 1.35;
+                line-height: 1.3;
                 color: #4b5563;
                 z-index: 50;
                 box-sizing: border-box;
@@ -57,7 +57,7 @@
                 word-break: break-word;
             }
             .kf-print-root {
-                padding-bottom: 18mm !important;
+                padding-bottom: 12mm !important;
             }
             .kf-print-app-footer { display: none !important; }
         }
@@ -83,12 +83,11 @@
         {{ $slot }}
     </main>
 
-    {{-- Matches accepted in-app footer: Plus branding left + full uncut details. --}}
+    {{-- Brand mark only (no "Plus" wordmark). Document text may still say Plus report. --}}
     <div class="kf-print-running-footer" aria-hidden="true">
-        <div class="shrink-0 inline-flex items-center gap-1.5 pr-2">
+        <div class="shrink-0 pr-2">
             <img src="{{ asset(ltrim((string) (brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png'), '/')) }}"
-                 alt="" class="h-3.5 w-auto object-contain">
-            <span class="font-bold tracking-tight text-[8pt] text-brand whitespace-nowrap">{{ $footerLeft ?: __('plus.reports.print_plus_label') }}</span>
+                 alt="Kopafasta" class="h-3.5 w-auto object-contain">
         </div>
         <p class="min-w-0 flex-1 leading-snug">{{ $footerRight ?: $footerLine }}</p>
     </div>

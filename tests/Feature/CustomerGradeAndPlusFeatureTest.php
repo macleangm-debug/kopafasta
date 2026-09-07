@@ -538,7 +538,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('plus.today.title'), false)
             ->assertSee(__('plus.home.money'), false)
-            ->assertSee(__('plus.home.rooms_title'), false)
+            ->assertDontSee('Your Plus rooms', false)
             ->assertSee(__('plus.home.open_room'), false)
             ->assertSee(__('plus.home.exclusive_kicker'), false)
             ->assertDontSee(__('plus.home.renew_title'), false)

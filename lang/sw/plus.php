@@ -65,7 +65,7 @@ return [
         'up_next' => 'Kinachofuata',
         'continue' => 'Endelea',
         'open_room' => 'Angalia',
-        'rooms_title' => 'Vyumba vyako vya Plus',
+        'rooms_title' => '',
     ],
     'today' => [
         'title' => 'Leo',
