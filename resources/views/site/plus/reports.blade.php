@@ -72,8 +72,7 @@
             ])
 
             <a href="{{ route('site.borrower.plus.reports', ['month' => $currentMonth, 'print' => 1]) }}"
-               class="inline-flex rounded-xl bg-brand text-white px-5 py-3 font-semibold print:hidden"
-               target="_blank" rel="noopener">{{ __('plus.reports.print') }}</a>
+               class="inline-flex rounded-xl bg-brand text-white px-5 py-3 font-semibold print:hidden">{{ __('plus.reports.print') }}</a>
             <p class="text-xs text-gray-500 print:hidden">{{ __('plus.reports.print_goes') }}</p>
         </div>
     </x-site.borrower-layout>

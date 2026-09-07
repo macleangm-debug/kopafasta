@@ -108,9 +108,10 @@ class PlusController extends Controller
         $progress = $learning->markViewed($customer, $subject);
         $related = PlusSubject::query()
             ->published()
-            ->when($subject->plus_category_id, fn ($q) => $q->where('plus_category_id', $subject->plus_category_id))
+            ->when($subject->plus_subject_category_id, fn ($q) => $q->where('plus_subject_category_id', $subject->plus_subject_category_id))
             ->whereKeyNot($subject->id)
-            ->orderBy('sort_order')
+            ->orderByDesc('published_at')
+            ->orderBy('id')
             ->limit(8)
             ->get();
 

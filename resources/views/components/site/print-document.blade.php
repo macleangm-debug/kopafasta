@@ -14,12 +14,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <title>{{ $seoDocument['title'] ?? $pageTitle }}</title>
+    <title>{{ $seoDocument->title ?: $pageTitle }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @page {
             size: A4;
             margin: 14mm 12mm 20mm;
+            @bottom-center {
+                content: counter(page);
+            }
         }
         @media print {
             html, body {

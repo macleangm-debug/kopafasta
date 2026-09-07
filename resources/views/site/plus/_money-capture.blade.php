@@ -43,6 +43,7 @@
                 :options="$options"
                 :required="true"
                 :placeholder="__('plus.money.choose')"
+                :inline="true"
             />
             <button type="submit" class="w-full rounded-xl bg-brand text-white py-3 font-semibold" x-text="cta || {{ \Illuminate\Support\Js::from($saveLabel ?? __('plus.money.save')) }}"></button>
         </form>

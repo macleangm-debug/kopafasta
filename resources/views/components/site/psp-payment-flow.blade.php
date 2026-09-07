@@ -118,7 +118,7 @@
         </div>
         <div class="px-5 sm:px-6 pt-2 pb-1">
             <p x-show="simulatorEnabled" class="mb-2 inline-flex rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1">{{ __('borrower.payment_waiting.simulator_heading') }}</p>
-            <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900" x-text="surfaceTitle()"></h2>
+            <h2 x-show="state !== 'details'" x-cloak class="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900" x-text="surfaceTitle()"></h2>
         </div>
         <div class="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pb-6">
             <div x-show="state === 'details'" class="pt-3">

@@ -216,7 +216,7 @@
 
     @unless ($auth)
         <footer class="bg-brand text-gray-300 mt-20">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
                 <div>
                     <x-site.brand-mark variant="light" size="lg" :showSubtitle="false" />
                     <p class="text-sm text-white/80 max-w-xs mt-3">{{ __('site.footer.tagline') }}</p>
@@ -289,16 +289,18 @@
                         <li><a href="{{ route('site.support') }}" class="hover:text-brand-gold transition">{{ __('site.footer.support') }}</a></li>
                         <li><a href="{{ route('site.feedback', ['open' => 1]) }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>
                     </ul>
-                    <h4 class="text-xs uppercase tracking-widest text-gray-300 mt-6 mb-3 font-bold">{{ __('site.footer.legal_policies') }}</h4>
+                </div>
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.legal_policies') }}</h4>
                     <ul class="space-y-2 text-sm">
-                        <li><a href="{{ route('site.legal.terms') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.terms') }}</a></li>
-                        <li><a href="{{ route('site.legal.privacy') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.privacy') }}</a></li>
-                        <li><a href="{{ route('site.responsible-lending') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.responsible_lending') }}</a></li>
-                        <li><a href="{{ route('site.legal.complaints') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.complaints_heading') }}</a></li>
-                        <li><a href="{{ route('site.legal.aml') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('legal.nav.aml') }}</a></li>
-                        <li><a href="{{ route('site.legal.kyc') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('legal.nav.kyc') }}</a></li>
-                        <li><a href="{{ route('site.legal.cookies') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('legal.nav.cookies') }}</a></li>
-                        <li><a href="{{ route('site.legal') }}" class="text-white/90 hover:text-brand-gold transition font-medium">{{ __('site.footer.legal') }}</a></li>
+                        <li><a href="{{ route('site.legal.terms') }}" class="text-white/80 hover:text-brand-gold transition">{{ __('site.footer.terms') }}</a></li>
+                        <li><a href="{{ route('site.legal.privacy') }}" class="text-white/80 hover:text-brand-gold transition">{{ __('site.footer.privacy') }}</a></li>
+                        <li><a href="{{ route('site.responsible-lending') }}" class="text-white/80 hover:text-brand-gold transition">{{ __('site.footer.responsible_lending') }}</a></li>
+                        <li><a href="{{ route('site.legal.complaints') }}" class="text-white/80 hover:text-brand-gold transition">{{ __('site.footer.complaints_heading') }}</a></li>
+                        <li><a href="{{ route('site.legal.aml') }}" class="text-white/80 hover:text-brand-gold transition">{{ __('legal.nav.aml') }}</a></li>
+                        <li><a href="{{ route('site.legal.kyc') }}" class="text-white/80 hover:text-brand-gold transition">{{ __('legal.nav.kyc') }}</a></li>
+                        <li><a href="{{ route('site.legal.cookies') }}" class="text-white/80 hover:text-brand-gold transition">{{ __('legal.nav.cookies') }}</a></li>
+                        <li><a href="{{ route('site.legal') }}" class="text-white/80 hover:text-brand-gold transition">{{ __('site.footer.legal') }}</a></li>
                     </ul>
                 </div>
             </div>

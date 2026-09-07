@@ -20,7 +20,8 @@
         goalPickerOpen: false,
         desktopOpen: false,
         menuId: null,
-        editId: null
+        editId: null,
+        goalFilter: @js(request('filter', 'ongoing'))
     }">
         <x-site.plus-nav />
 
@@ -89,109 +90,138 @@
             @endif
         </x-site.plus-hero>
 
-        @php $list = $selectedGoal ? collect([$selectedGoal]) : $openGoals; @endphp
-        @forelse ($list as $goal)
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 shadow-sm relative z-0">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <p class="font-bold text-gray-900 text-lg">{{ $goal->kindIcon() }} {{ $goal->title }}</p>
-                        @if ($goal->target_date)
-                            <p class="text-xs text-brand font-semibold mt-1">{{ __('plus.goals.by', ['date' => $goal->target_date->locale(app()->getLocale())->isoFormat('D MMM YYYY')]) }}</p>
-                        @endif
-                    </div>
-                    @unless ($goal->isComplete())
-                        <div class="relative">
-                            <button type="button" class="p-2 rounded-lg text-gray-500 hover:bg-gray-50" @click="menuId = menuId === {{ $goal->id }} ? null : {{ $goal->id }}" aria-label="{{ __('plus.goals.more') }}">•••</button>
-                            <div x-cloak x-show="menuId === {{ $goal->id }}" @click.outside="if (window.matchMedia('(min-width: 1024px)').matches) menuId = null" class="hidden lg:block absolute right-0 mt-1 w-44 rounded-xl bg-white shadow-lg ring-1 ring-gray-200 py-1 z-30">
-                                <button type="button" class="block w-full text-left px-3 py-2 text-sm" @click="editId = {{ $goal->id }}; menuId = null">{{ __('plus.goals.edit') }}</button>
-                                <form method="post" action="{{ route('site.borrower.plus.goals.pause', $goal) }}">
-                                    @csrf
-                                    <button class="block w-full text-left px-3 py-2 text-sm">{{ $goal->isPaused() ? __('plus.goals.resume') : __('plus.goals.pause') }}</button>
-                                </form>
-                            </div>
-                        </div>
-                    @endunless
-                </div>
-                <p class="text-sm text-gray-600 mt-3 tabular-nums">
-                    <span class="font-bold text-gray-900">{{ format_money_compact($goal->saved_amount) }}</span>
-                    / {{ format_money_compact($goal->target_amount) }}
-                </p>
-                <div class="mt-2 h-2.5 rounded-full bg-gray-100 overflow-hidden">
-                    <div class="h-full bg-brand rounded-full transition-all duration-700" style="width: {{ $goal->progressPercent() }}%"></div>
-                </div>
-                <p class="text-sm font-semibold mt-2">{{ $goal->progressPercent() }}% · {{ __('plus.goals.remaining', ['amount' => format_money_compact($goal->remaining())]) }}</p>
-                @if ($goal->isComplete())
-                    <p class="text-sm text-emerald-700 font-medium mt-2">{{ __('plus.goals.completed') }}</p>
-                @elseif ($goal->isPaused())
-                    <p class="text-sm text-gray-500 mt-2">{{ __('plus.goals.paused') }}</p>
-                @else
-                    <a href="{{ route('site.borrower.plus.goals', ['goal' => $goal->id, 'add' => 1]) }}" class="mt-3 inline-flex rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold">+ {{ __('plus.goals.add_money') }}</a>
-                @endif
-
-                @if ($goal->contributions->isNotEmpty())
-                    <div class="mt-4 pt-4 border-t border-gray-100" x-data="{ histOpen: true }">
-                        <button type="button" class="w-full flex items-center justify-between text-left" @click="histOpen = !histOpen">
-                            <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold">{{ __('plus.money.history') }}</p>
-                        </button>
-                        <div class="mt-2 max-h-[13.75rem] overflow-y-auto overscroll-contain space-y-2 pr-1" x-show="histOpen" x-cloak>
-                            @foreach ($goal->contributions as $row)
-                                <div class="rounded-xl bg-gray-50 px-3 py-2 text-sm flex justify-between">
-                                    <span>{{ $row->created_at->locale(app()->getLocale())->isoFormat('D MMM YYYY') }}</span>
-                                    <span class="font-semibold tabular-nums">+ {{ format_money($row->amount) }}</span>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                <x-site.action-panel title="{{ __('plus.goals.edit') }}" open="editId === {{ $goal->id }}">
-                    <form method="post" action="{{ route('site.borrower.plus.goals.update', $goal) }}" class="space-y-4">
-                        @csrf
-                        <label class="block text-xs font-medium text-gray-600">{{ __('plus.goals.name') }}
-                            <input name="title" value="{{ $goal->title }}" required class="mt-1 w-full rounded-xl ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                        </label>
-                        <x-site.plus-money-input name="target_amount" :id="'goal-edit-'.$goal->id" :label="__('plus.goals.target')" :value="$goal->target_amount" required />
-                        <x-site.date-input
-                            name="target_date"
-                            :label="__('plus.goals.date')"
-                            :help="__('plus.goals.date_help')"
-                            :min="$minDate"
-                            :max="now()->addYears(10)->toDateString()"
-                            :value="$goal->target_date?->toDateString()"
-                            :default="$goal->target_date?->toDateString() ?: now()->addMonths(3)->toDateString()"
-                        />
-                        <button class="w-full rounded-xl bg-brand text-white py-3 font-semibold">{{ __('plus.goals.save') }}</button>
-                    </form>
-                </x-site.action-panel>
+        @unless ($selectedGoal)
+            <div class="flex gap-1 rounded-full bg-white ring-1 ring-gray-200 p-1">
+                <button type="button" @click="goalFilter = 'ongoing'"
+                        class="flex-1 rounded-full px-3 py-2 text-xs font-semibold"
+                        :class="goalFilter === 'ongoing' ? 'bg-brand text-white' : 'text-gray-600'">{{ __('plus.goals.filter_ongoing') }}</button>
+                <button type="button" @click="goalFilter = 'completed'"
+                        class="flex-1 rounded-full px-3 py-2 text-xs font-semibold"
+                        :class="goalFilter === 'completed' ? 'bg-brand text-white' : 'text-gray-600'">{{ __('plus.goals.filter_completed') }}</button>
+                <button type="button" @click="goalFilter = 'all'"
+                        class="flex-1 rounded-full px-3 py-2 text-xs font-semibold"
+                        :class="goalFilter === 'all' ? 'bg-brand text-white' : 'text-gray-600'">{{ __('plus.goals.filter_all') }}</button>
             </div>
-        @empty
-            @unless ($hasGoals)
-                <x-site.empty-state compact icon="🎯" :title="__('plus.goals.empty')" />
-            @endunless
-        @endforelse
+        @endunless
 
-        @if ($completed->isNotEmpty() && ! $selectedGoal)
-            <section class="space-y-3">
-                <p class="text-[10px] uppercase tracking-[0.16em] text-brand font-bold">{{ __('plus.goals.archived_title') }}</p>
-                @foreach ($completed as $goal)
-                    <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-5 opacity-95">
-                        <p class="font-bold text-gray-900">{{ $goal->kindIcon() }} {{ $goal->title }}</p>
-                        <p class="text-sm text-emerald-700 font-medium mt-1">{{ __('plus.goals.completed') }} · 100%</p>
-                        <p class="text-sm text-gray-600 mt-2 tabular-nums">{{ format_money_compact($goal->saved_amount) }} / {{ format_money_compact($goal->target_amount) }}</p>
-                        @if ($goal->contributions->isNotEmpty())
-                            <div class="mt-3 space-y-1 max-h-40 overflow-y-auto">
+        @php
+            $listOngoing = $selectedGoal
+                ? ($selectedGoal->isComplete() ? collect() : collect([$selectedGoal]))
+                : $openGoals;
+            $listCompleted = $selectedGoal
+                ? ($selectedGoal->isComplete() ? collect([$selectedGoal]) : collect())
+                : $completed;
+        @endphp
+
+        <div class="space-y-4" x-show="goalFilter === 'ongoing' || goalFilter === 'all' || @js((bool) $selectedGoal)" x-cloak>
+            @forelse ($listOngoing as $goal)
+                <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 shadow-sm relative z-0">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="font-bold text-gray-900 text-lg">{{ $goal->kindIcon() }} {{ $goal->title }}</p>
+                            @if ($goal->target_date)
+                                <p class="text-xs text-brand font-semibold mt-1">{{ __('plus.goals.by', ['date' => $goal->target_date->locale(app()->getLocale())->isoFormat('D MMM YYYY')]) }}</p>
+                            @endif
+                            <p class="text-[10px] uppercase tracking-widest text-brand font-bold mt-2">{{ __('plus.goals.status_ongoing') }}</p>
+                        </div>
+                        @unless ($goal->isComplete())
+                            <div class="relative">
+                                <button type="button" class="p-2 rounded-lg text-gray-500 hover:bg-gray-50" @click="menuId = menuId === {{ $goal->id }} ? null : {{ $goal->id }}" aria-label="{{ __('plus.goals.more') }}">•••</button>
+                                <div x-cloak x-show="menuId === {{ $goal->id }}" @click.outside="if (window.matchMedia('(min-width: 1024px)').matches) menuId = null" class="hidden lg:block absolute right-0 mt-1 w-44 rounded-xl bg-white shadow-lg ring-1 ring-gray-200 py-1 z-30">
+                                    <button type="button" class="block w-full text-left px-3 py-2 text-sm" @click="editId = {{ $goal->id }}; menuId = null">{{ __('plus.goals.edit') }}</button>
+                                    <form method="post" action="{{ route('site.borrower.plus.goals.pause', $goal) }}">
+                                        @csrf
+                                        <button class="block w-full text-left px-3 py-2 text-sm">{{ $goal->isPaused() ? __('plus.goals.resume') : __('plus.goals.pause') }}</button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endunless
+                    </div>
+                    <p class="text-sm text-gray-600 mt-3 tabular-nums">
+                        <span class="font-bold text-gray-900">{{ format_money_compact($goal->saved_amount) }}</span>
+                        / {{ format_money_compact($goal->target_amount) }}
+                    </p>
+                    <div class="mt-2 h-2.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div class="h-full bg-brand rounded-full transition-all duration-700" style="width: {{ $goal->progressPercent() }}%"></div>
+                    </div>
+                    <p class="text-sm font-semibold mt-2">{{ $goal->progressPercent() }}% · {{ __('plus.goals.remaining', ['amount' => format_money_compact($goal->remaining())]) }}</p>
+                    @if ($goal->isPaused())
+                        <p class="text-sm text-gray-500 mt-2">{{ __('plus.goals.paused') }}</p>
+                    @else
+                        <a href="{{ route('site.borrower.plus.goals', ['goal' => $goal->id, 'add' => 1]) }}" class="mt-3 inline-flex rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold">+ {{ __('plus.goals.add_money') }}</a>
+                    @endif
+
+                    @if ($goal->contributions->isNotEmpty())
+                        <div class="mt-4 pt-4 border-t border-gray-100" x-data="{ histOpen: true }">
+                            <button type="button" class="w-full flex items-center justify-between text-left" @click="histOpen = !histOpen">
+                                <p class="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-bold">{{ __('plus.money.history') }}</p>
+                            </button>
+                            <div class="mt-2 max-h-[13.75rem] overflow-y-auto overscroll-contain space-y-2 pr-1" x-show="histOpen" x-cloak>
                                 @foreach ($goal->contributions as $row)
-                                    <div class="text-xs flex justify-between text-gray-600">
+                                    <div class="rounded-xl bg-gray-50 px-3 py-2 text-sm flex justify-between">
                                         <span>{{ $row->created_at->locale(app()->getLocale())->isoFormat('D MMM YYYY') }}</span>
-                                        <span>+ {{ format_money($row->amount) }}</span>
+                                        <span class="font-semibold tabular-nums">+ {{ format_money($row->amount) }}</span>
                                     </div>
                                 @endforeach
                             </div>
-                        @endif
-                    </div>
-                @endforeach
-            </section>
-        @endif
+                        </div>
+                    @endif
+
+                    <x-site.action-panel title="{{ __('plus.goals.edit') }}" open="editId === {{ $goal->id }}">
+                        <form method="post" action="{{ route('site.borrower.plus.goals.update', $goal) }}" class="space-y-4">
+                            @csrf
+                            <label class="block text-xs font-medium text-gray-600">{{ __('plus.goals.name') }}
+                                <input name="title" value="{{ $goal->title }}" required class="mt-1 w-full rounded-xl ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </label>
+                            <x-site.plus-money-input name="target_amount" :id="'goal-edit-'.$goal->id" :label="__('plus.goals.target')" :value="$goal->target_amount" required />
+                            <x-site.date-input
+                                name="target_date"
+                                :label="__('plus.goals.date')"
+                                :help="__('plus.goals.date_help')"
+                                :min="$minDate"
+                                :max="now()->addYears(10)->toDateString()"
+                                :value="$goal->target_date?->toDateString()"
+                                :default="$goal->target_date?->toDateString() ?: now()->addMonths(3)->toDateString()"
+                            />
+                            <button class="w-full rounded-xl bg-brand text-white py-3 font-semibold">{{ __('plus.goals.save') }}</button>
+                        </form>
+                    </x-site.action-panel>
+                </div>
+            @empty
+                <div x-show="goalFilter === 'ongoing'" x-cloak>
+                    @if (! $hasGoals || $openGoals->isEmpty())
+                        <x-site.empty-state compact icon="🎯" :title="__('plus.goals.empty')">
+                            <button type="button" @click="newOpen = true" class="inline-flex rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">{{ __('plus.goals.add_new_goal') }}</button>
+                        </x-site.empty-state>
+                    @endif
+                </div>
+            @endforelse
+        </div>
+
+        <div class="space-y-3 max-h-[28rem] overflow-y-auto overscroll-contain" x-show="(goalFilter === 'completed' || goalFilter === 'all') && ! @js((bool) $selectedGoal && ! $selectedGoal->isComplete())" x-cloak>
+            @forelse ($listCompleted as $goal)
+                <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-5 opacity-95">
+                    <p class="font-bold text-gray-900">{{ $goal->kindIcon() }} {{ $goal->title }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-700 font-bold mt-2">{{ __('plus.goals.status_completed') }}</p>
+                    <p class="text-sm text-emerald-700 font-medium mt-1">{{ __('plus.goals.completed') }} · 100%</p>
+                    <p class="text-sm text-gray-600 mt-2 tabular-nums">{{ format_money_compact($goal->saved_amount) }} / {{ format_money_compact($goal->target_amount) }}</p>
+                    @if ($goal->contributions->isNotEmpty())
+                        <div class="mt-3 space-y-1 max-h-40 overflow-y-auto">
+                            @foreach ($goal->contributions as $row)
+                                <div class="text-xs flex justify-between text-gray-600">
+                                    <span>{{ $row->created_at->locale(app()->getLocale())->isoFormat('D MMM YYYY') }}</span>
+                                    <span>+ {{ format_money($row->amount) }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @empty
+                <div x-show="goalFilter === 'completed'" class="rounded-2xl bg-white ring-1 ring-gray-200 p-6 text-center text-sm text-gray-500" x-cloak>
+                    {{ __('plus.goals.archived_title') }}
+                </div>
+            @endforelse
+        </div>
 
         @php $addTarget = $selectedGoal && ! $selectedGoal->isComplete() ? $selectedGoal : $lead; @endphp
         @if ($addTarget && ! $addTarget->isComplete())
@@ -233,6 +263,7 @@
                     :placeholder="__('plus.money.choose')"
                     other-name="title"
                     :other-label="__('plus.goals.other_name')"
+                    :inline="true"
                 />
                 <x-site.plus-money-input name="target_amount" :label="__('plus.goals.target')" required />
                 <x-site.date-input

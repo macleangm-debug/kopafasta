@@ -432,9 +432,13 @@ body.kf-camera-open .kf-mobile-bottom-nav {
         justify-content: flex-end;
         background: rgba(0, 0, 0, 0.4);
         padding-top: env(safe-area-inset-top, 0px);
+        padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+        padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
     }
 
     .kf-payment-surface-card {
+        width: 100%;
+        max-width: 100%;
         max-height: min(92dvh, 720px);
         overflow: hidden;
         display: flex;
@@ -452,11 +456,12 @@ body.kf-camera-open .kf-mobile-bottom-nav {
 }
 
 @media (min-width: 1024px) {
-    /* Let the document grow and scroll — do not clip the card to the viewport. */
+    /* Center the payment surface; let the document scroll — do not clip the card. */
     .kf-payment-surface {
         min-height: 0;
-        display: block;
-        padding: 1.5rem 0 3rem;
+        display: flex;
+        justify-content: center;
+        padding: 1.5rem 1rem 3rem;
     }
 
     .kf-payment-surface-card {

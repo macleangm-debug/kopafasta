@@ -11,17 +11,16 @@
             <div @class(['mt-10' => ! $loop->first])>
                 <div class="flex items-center justify-between gap-3 mb-4">
                     <h2 class="text-xl font-bold text-gray-900">{{ $category->localizedTitle() }}</h2>
-                    <a href="{{ route('site.learn.category', $category->slug) }}" class="text-sm font-semibold text-brand hover:underline">{{ __('site.products.learn_more') }}</a>
+                    <a href="{{ route('site.learn.category', $category->slug) }}" class="text-sm font-semibold text-brand hover:underline shrink-0">{{ __('borrower.dashboard.view_all') }}</a>
                 </div>
-                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 lg:gap-4">
                     @foreach ($category->subjects as $subject)
-                        <x-site.public-card
-                            :title="$subject->localizedTitle()"
-                            :href="route('site.learn.show', [$category->slug, $subject->slug])"
-                            :cta="__('site.products.learn_more')"
-                        >
-                            {{ \Illuminate\Support\Str::limit($subject->localizedIntro(), 140) }}
-                        </x-site.public-card>
+                        <a href="{{ route('site.learn.show', [$category->slug, $subject->slug]) }}"
+                           class="snap-start shrink-0 w-[min(91vw,22rem)] lg:w-auto h-full rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 flex flex-col hover:ring-brand/30 transition">
+                            <p class="font-bold text-gray-900 line-clamp-2 min-h-[2.75rem]">{{ $subject->localizedTitle() }}</p>
+                            <p class="mt-2 text-sm text-gray-600 line-clamp-3 flex-1">{{ \Illuminate\Support\Str::limit($subject->localizedIntro(), 140) }}</p>
+                            <span class="mt-4 text-sm font-semibold text-brand">{{ __('site.products.learn_more') }} →</span>
+                        </a>
                     @endforeach
                 </div>
             </div>

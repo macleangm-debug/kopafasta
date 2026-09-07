@@ -48,9 +48,9 @@
                 <template x-if="(quoteLines || []).length">
                     <div class="space-y-2">
                         <template x-for="line in quoteLines" :key="line.key">
-                            <div class="flex justify-between gap-3" :class="line.kind === 'total' ? 'pt-2 mt-1 border-t border-white/15' : ''">
-                                <span class="text-white/80" x-text="line.label"></span>
-                                <span class="font-bold tabular-nums"
+                            <div class="flex items-start justify-between gap-3" :class="line.kind === 'total' ? 'pt-2 mt-1 border-t border-white/15' : ''">
+                                <span class="text-white/80 min-w-0 pr-2" x-text="line.label"></span>
+                                <span class="font-bold tabular-nums whitespace-nowrap shrink-0"
                                       :class="line.kind === 'total' ? 'text-brand-gold text-xl' : (line.kind === 'discount' ? 'text-brand-gold' : '')"
                                       x-text="line.display || formatLineAmount(line)"></span>
                             </div>

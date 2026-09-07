@@ -90,13 +90,13 @@
                             @endforeach
                         </ul>
                         <button type="button" @click="open = true"
-                                class="mt-4 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                                class="mt-4 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
                             {{ __('borrower.documents_page.upload_another') }}
                         </button>
                     @else
                         <p class="text-sm text-gray-600">{{ __('borrower.documents_page.empty_type') }}</p>
                         <button type="button" @click="open = true"
-                                class="mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                                class="mt-3 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
                             {{ __('borrower.documents_page.upload_button') }}
                         </button>
                     @endif

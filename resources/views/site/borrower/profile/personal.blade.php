@@ -34,11 +34,10 @@
             $nidaBack = $nidaDocs->get('national_id_back');
             $altDocs = $nidaDocs;
             $uploadsComplete = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
-            $idPhotosLocked = $locked || (
-                $uploadsComplete
+            $idPhotosLocked = (bool) $locked;
+            $idPhotosReviewHint = ! $locked && $uploadsComplete
                 && ! app(\App\Services\ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs')
-                && ! app(\App\Services\ProfileRevisionService::class)->hasOpenRevision($customer, 'nida')
-            );
+                && ! app(\App\Services\ProfileRevisionService::class)->hasOpenRevision($customer, 'nida');
             $noPhysicalCard = (bool) old('no_physical_nida_card', $customer->no_physical_nida_card);
             $hasIdentity = $nidaSaved && (
                 ! $requireIdentityDuringProfile || $uploadsComplete
@@ -276,6 +275,10 @@
                                 @if ($idPhotosLocked)
                                     <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-3 text-sm text-slate-700">
                                         {{ __('borrower.profile.id_photos_locked_hint') }}
+                                    </div>
+                                @elseif ($idPhotosReviewHint)
+                                    <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3 text-sm text-amber-950">
+                                        {{ __('borrower.profile.id_photos_replace_hint') }}
                                     </div>
                                 @endif
                                 @unless ($locked || $idPhotosLocked)

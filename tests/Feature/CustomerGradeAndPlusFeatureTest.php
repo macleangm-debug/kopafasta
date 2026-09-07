@@ -719,7 +719,14 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee('kf-print-sheet', false)
             ->assertSee(__('plus.reports.a4_kicker'), false)
             ->assertSee(__('plus.reports.money'), false)
-            ->assertDontSee('name="month"', false);
+            ->assertDontSee('name="month"', false)
+            ->assertDontSee('target="_blank"', false);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.reports', ['month' => now()->format('Y-m'), 'print' => 1]))
+            ->assertOk()
+            ->assertSee('kf-print-document', false)
+            ->assertDontSee('SeoDocument', false);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.business'))

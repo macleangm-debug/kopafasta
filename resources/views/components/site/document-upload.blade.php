@@ -3,6 +3,7 @@
     'multiple' => true,
     'showClarification' => false,
     'disabled' => false,
+    'maxKb' => 5120,
 ])
 
 @php
@@ -23,15 +24,21 @@
         'submitConfirmBody' => __('borrower.document_upload.submit_confirm_body'),
         'submitConfirmLabel' => __('borrower.document_upload.submit'),
         'savingMessage' => __('borrower.profile.uploading_documents'),
+        'fileTooLarge' => __('borrower.document_upload.file_too_large'),
+        'fileInvalidType' => __('borrower.document_upload.file_invalid_type'),
+        'uploadFailed' => __('borrower.document_upload.upload_failed'),
+        'successTitle' => __('borrower.feedback.saved_title'),
+        'successBody' => __('borrower.document_upload.submitted_body'),
+        'continueLabel' => __('borrower.celebration.cta_continue'),
     ];
 @endphp
 
-<div class="space-y-3" x-data="documentUpload(@js($disabled), @js($multiple), @js($cameraLabels))">
+<div class="space-y-3" x-data="documentUpload(@js($disabled), @js($multiple), @js($cameraLabels), @js((int) $maxKb))">
     @unless($disabled)
         <div class="flex flex-wrap items-center gap-3">
             <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
                 <span>{{ __('borrower.profile.upload') }}</span>
-                <input type="file" accept="image/*,application/pdf" :multiple="allowMultiple" class="sr-only" @change="addFiles($event.target.files); mode='gallery'">
+                <input type="file" accept="image/*,application/pdf" :multiple="allowMultiple" class="sr-only" @change="addFiles($event.target.files); $event.target.value = ''; mode='gallery'">
             </label>
             <button type="button" @click="openCamera()"
                     class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand shadow-sm ring-1 ring-brand/20 hover:bg-brand-muted/40">
@@ -39,7 +46,8 @@
             </button>
         </div>
 
-        <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2" x-text="cameraNotice"></p>
+        <p x-show="validationError" x-cloak class="text-sm text-red-800 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2" x-text="validationError" role="alert"></p>
+        <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 px-3 py-2 rounded-lg" x-text="cameraNotice"></p>
 
         <template x-teleport="body">
             <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-brand flex flex-col">
@@ -107,7 +115,7 @@
                     <textarea name="response" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('borrower.document_upload.response_placeholder') }}"></textarea>
                 </div>
             @endif
-            <button type="submit" :disabled="!canSubmit"
+            <button type="submit" :disabled="!canSubmit || submitting"
                     class="w-full bg-brand hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-4 py-2.5 rounded-xl text-sm inline-flex items-center justify-center gap-2">
                 {{ __('borrower.document_upload.submit') }}
             </button>
@@ -132,29 +140,47 @@
     @push('scripts')
         <script>
             document.addEventListener('alpine:init', () => {
-                Alpine.data('documentUpload', (disabled = false, allowMultiple = true, labels = {}) => ({
+                Alpine.data('documentUpload', (disabled = false, allowMultiple = true, labels = {}, maxKb = 5120) => ({
                     mode: 'gallery',
                     queued: [],
                     stream: null,
                     allowMultiple,
+                    maxBytes: Math.max(1, Number(maxKb) || 5120) * 1024,
                     expandedUrl: null,
                     cameraOpen: false,
                     cameraNotice: null,
+                    validationError: null,
+                    submitting: false,
                     facingMode: 'environment',
                     labels: labels || {},
 
                     get canSubmit() {
-                        return this.queued.length > 0 || (this.$refs.form?.querySelector('[name=response]')?.value?.trim()?.length > 0);
+                        return !this.submitting && (this.queued.length > 0 || (this.$refs.form?.querySelector('[name=response]')?.value?.trim()?.length > 0));
+                    },
+
+                    isAllowedType(file) {
+                        const type = (file.type || '').toLowerCase();
+                        const name = (file.name || '').toLowerCase();
+                        return type.startsWith('image/') || type === 'application/pdf' || /\.pdf$/i.test(name) || /\.(jpe?g|png|webp|gif)$/i.test(name);
                     },
 
                     addFiles(fileList) {
                         if (!fileList?.length) return;
+                        this.validationError = null;
                         for (const file of fileList) {
+                            if (!this.isAllowedType(file)) {
+                                this.validationError = this.labels.fileInvalidType || '';
+                                continue;
+                            }
+                            if ((file.size || 0) > this.maxBytes) {
+                                this.validationError = this.labels.fileTooLarge || '';
+                                continue;
+                            }
                             if (!this.allowMultiple && this.queued.length >= 1) {
                                 this.revokeQueued();
                                 this.queued = [];
                             }
-                            const isImage = (file.type || '').startsWith('image/');
+                            const isImage = (file.type || '').startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(file.name || '');
                             const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
                             this.queued.push({
                                 file,
@@ -178,6 +204,7 @@
 
                     async openCamera() {
                         this.cameraNotice = null;
+                        this.validationError = null;
                         if (!window.isSecureContext) {
                             this.cameraNotice = this.labels.cameraInsecure;
                             return;
@@ -269,6 +296,8 @@
                     },
 
                     submitForm() {
+                        if (this.submitting) return;
+                        this.validationError = null;
                         if (typeof window.confirmForm === 'function') {
                             window.confirmForm(null, {
                                 title: this.labels.submitConfirmTitle || '',
@@ -281,9 +310,20 @@
                         this.performSubmit();
                     },
 
+                    humanizeError(raw) {
+                        const text = String(raw || '').trim();
+                        if (!text) return this.labels.uploadFailed || '';
+                        if (/files\.|file\.|document_type|max\.|mimes|uploaded/i.test(text) && /[_\[\]]/.test(text)) {
+                            return this.labels.uploadFailed || text;
+                        }
+                        return text;
+                    },
+
                     performSubmit() {
+                        if (this.submitting) return;
                         const form = this.$refs.form;
                         const btn = form?.querySelector('button[type=submit]');
+                        this.submitting = true;
                         if (btn && typeof window.kfMarkBusy === 'function') {
                             window.kfMarkBusy(btn);
                         }
@@ -294,25 +334,55 @@
                             fd.append(this.allowMultiple ? 'files[]' : 'file', item.file || item);
                         });
                         this.closeCamera();
-                        this.revokeQueued();
                         if (typeof window.kfShowSaving === 'function') {
                             window.kfShowSaving(this.labels.savingMessage || '');
                         }
                         fetch(form.action, {
                             method: 'POST',
                             body: fd,
-                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json, text/html;q=0.9',
+                            },
                             credentials: 'same-origin',
-                        }).then((res) => {
-                            if (res.redirected) window.location.href = res.url;
-                            else window.location.reload();
+                            redirect: 'follow',
+                        }).then(async (res) => {
+                            if (res.ok || res.redirected) {
+                                this.revokeQueued();
+                                this.queued = [];
+                                if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
+                                try { if (typeof open !== 'undefined') open = false; } catch (e) {}
+                                this.$dispatch('profile-section-close-edit');
+                                if (typeof window.showBorrowerFeedback === 'function') {
+                                    window.showBorrowerFeedback({
+                                        title: this.labels.successTitle || '',
+                                        message: this.labels.successBody || '',
+                                        tone: 'success',
+                                        okLabel: this.labels.continueLabel || '',
+                                    });
+                                }
+                                window.location.href = res.redirected ? res.url : window.location.href;
+                                return;
+                            }
+                            if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
+                            this.submitting = false;
+                            if (btn && typeof window.kfClearBusy === 'function') window.kfClearBusy(btn);
+                            let message = this.labels.uploadFailed || '';
+                            try {
+                                const data = await res.json();
+                                const first = data?.message || Object.values(data?.errors || {}).flat()?.[0];
+                                message = this.humanizeError(first);
+                            } catch (e) {
+                                message = this.labels.uploadFailed || '';
+                            }
+                            this.validationError = message;
+                            this.revokeQueued();
+                            this.queued = [];
                         }).catch(() => {
-                            if (typeof window.kfHideSaving === 'function') {
-                                window.kfHideSaving();
-                            }
-                            if (btn && typeof window.kfClearBusy === 'function') {
-                                window.kfClearBusy(btn);
-                            }
+                            if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
+                            this.submitting = false;
+                            if (btn && typeof window.kfClearBusy === 'function') window.kfClearBusy(btn);
+                            this.validationError = this.labels.uploadFailed || '';
                         });
                     },
                 }));

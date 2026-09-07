@@ -40,6 +40,7 @@
                     :options="$bizList->mapWithKeys(fn ($b) => [$b->id => $b->name])->all()"
                     :required="true"
                     :placeholder="__('plus.money.choose')"
+                    :inline="true"
                 />
             @elseif ($bizList->count() === 1)
                 <input type="hidden" name="plus_business_id" value="{{ $bizList->first()->id }}">
@@ -52,6 +53,7 @@
                 :options="$options"
                 :required="true"
                 :placeholder="__('plus.money.choose')"
+                :inline="true"
             />
             <label class="block text-xs font-medium text-gray-600">
                 {{ $noteLabel }}
