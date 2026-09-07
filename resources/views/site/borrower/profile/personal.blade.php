@@ -199,38 +199,24 @@
                                 @endforelse
                             @else
                                 <div class="grid sm:grid-cols-2 gap-3">
-                                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                        <p class="text-xs text-gray-500">{{ __('borrower.profile.nida_front') }}</p>
-                                        <div class="mt-2">
-                                            @if ($nidaFront?->file_path)
-                                                @php $frontUrl = asset('storage/'.$nidaFront->file_path); @endphp
-                                                <button type="button" @click="expandedUrl = @js($frontUrl)"
-                                                        class="h-28 w-full max-w-[8rem] rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
-                                                        title="{{ __('borrower.profile.view_document') }}">
-                                                    <img src="{{ $frontUrl }}" alt="" class="h-full w-full object-cover object-center">
-                                                </button>
-                                                <p class="text-[11px] text-gray-500 mt-1.5">{{ __('borrower.profile.tap_to_enlarge') }}</p>
-                                            @else
-                                                <span class="font-semibold text-amber-700 text-sm">{{ __('borrower.profile.missing') }}</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                        <p class="text-xs text-gray-500">{{ __('borrower.profile.nida_back') }}</p>
-                                        <div class="mt-2">
-                                            @if ($nidaBack?->file_path)
-                                                @php $backUrl = asset('storage/'.$nidaBack->file_path); @endphp
-                                                <button type="button" @click="expandedUrl = @js($backUrl)"
-                                                        class="h-28 w-full max-w-[8rem] rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
-                                                        title="{{ __('borrower.profile.view_document') }}">
-                                                    <img src="{{ $backUrl }}" alt="" class="h-full w-full object-cover object-center">
-                                                </button>
-                                                <p class="text-[11px] text-gray-500 mt-1.5">{{ __('borrower.profile.tap_to_enlarge') }}</p>
-                                            @else
-                                                <span class="font-semibold text-amber-700 text-sm">{{ __('borrower.profile.missing') }}</span>
-                                            @endif
-                                        </div>
-                                    </div>
+                                    <x-site.profile-document-field
+                                        :document="$nidaFront"
+                                        field-name="national_id_front"
+                                        mode="single"
+                                        :label="__('borrower.profile.nida_front')"
+                                        input-host-id="nida-front-view"
+                                        document-code="national_id_front"
+                                        :read-only="true"
+                                    />
+                                    <x-site.profile-document-field
+                                        :document="$nidaBack"
+                                        field-name="national_id_back"
+                                        mode="single"
+                                        :label="__('borrower.profile.nida_back')"
+                                        input-host-id="nida-back-view"
+                                        document-code="national_id_back"
+                                        :read-only="true"
+                                    />
                                 </div>
                                 @unless ($uploadsComplete)
                                     <button type="button" @click="$dispatch('profile-card-open-edit', 'profile-id-images')" class="mt-1 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
@@ -258,20 +244,7 @@
                             <div class="space-y-4" x-data="{
                                 noCard: @js($noPhysicalCard),
                                 altTypes: @js(array_values(old('alternate_id_types', $customer->alternate_id_types ?? []))),
-                                startIdCam() {
-                                    if (this.noCard) return;
-                                    this.$nextTick(() => this.$refs.nidaCam?.querySelector('[data-kf-cam-start]')?.click());
-                                },
-                                onIdSectionEdit(e) {
-                                    if (e.detail === 'profile-id-images') this.startIdCam();
-                                },
-                            }"
-                            x-init="
-                                const onEdit = (e) => onIdSectionEdit(e);
-                                window.addEventListener('profile-section-edit', onEdit);
-                                if (@js($startIdCamera)) startIdCam();
-                                $cleanup(() => window.removeEventListener('profile-section-edit', onEdit));
-                            ">
+                            }">
                                 @if ($idPhotosLocked)
                                     <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-3 text-sm text-slate-700">
                                         {{ __('borrower.profile.id_photos_locked_hint') }}
@@ -294,15 +267,32 @@
                                 @endunless
                                 @unless ($idPhotosLocked)
                                 <div x-show="!noCard" x-cloak class="space-y-4" x-ref="nidaCam">
-                                    <x-site.nida-card-camera
-                                        front-name="national_id_front"
-                                        back-name="national_id_back"
-                                        front-host-id="nida-front-upload"
-                                        back-host-id="nida-back-upload"
-                                        db-name="kf-nida-profile"
-                                        :subject-name="$customer->full_name"
-                                        :required="false"
-                                    />
+                                    <div class="grid sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.profile.nida_front') }}</p>
+                                            <x-site.profile-document-field
+                                                :document="$nidaFront"
+                                                field-name="national_id_front"
+                                                mode="single"
+                                                :label="__('borrower.profile.nida_front')"
+                                                input-host-id="nida-front-upload"
+                                                document-code="national_id_front"
+                                                :read-only="$idPhotosLocked"
+                                            />
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.profile.nida_back') }}</p>
+                                            <x-site.profile-document-field
+                                                :document="$nidaBack"
+                                                field-name="national_id_back"
+                                                mode="single"
+                                                :label="__('borrower.profile.nida_back')"
+                                                input-host-id="nida-back-upload"
+                                                document-code="national_id_back"
+                                                :read-only="$idPhotosLocked"
+                                            />
+                                        </div>
+                                    </div>
                                     @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                     @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>

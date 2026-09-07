@@ -42,9 +42,17 @@
         @endphp
 
         <div class="glass-card overflow-hidden" x-data="{
-            expanded: @js(request()->boolean('add') || request()->boolean('edit') || $errors->any() || (bool) ($wizardMode ?? false)),
+            expanded: @js(request()->boolean('add') || request()->boolean('edit') || $errors->any() || (bool) ($wizardMode ?? false) || ! $paymentComplete),
             showEditAction: @js(! $paymentComplete || $showAdd),
             adding: @js($showAdd),
+            step: @js($addType !== '' ? 2 : 1),
+            type: @js($addType),
+            mobileProvider: @js(old('mobile_provider', '')),
+            mobileNumber: @js(old('mobile_number', '')),
+            bankName: @js(old('bank_name', '')),
+            accountNumber: @js(old('account_number', '')),
+            bankBranch: @js(old('bank_branch', '')),
+            openAdd() { this.adding = true; if (!this.type) this.step = 1; this.expanded = true; this.showEditAction = true; },
             get showCompleteTick() { return @js($paymentComplete) && ! this.showEditAction && ! this.expanded; }
         }">
             <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3">
@@ -62,7 +70,7 @@
                 <div class="shrink-0 relative min-h-9 min-w-9 flex items-center justify-end gap-2">
                     @if ($paymentComplete)
                         <button type="button"
-                                @click.stop="showEditAction = true; expanded = true; adding = true"
+                                @click.stop="openAdd()"
                                 x-show="showCompleteTick"
                                 class="size-9 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 hover:ring-brand-gold/70 transition"
                                 title="{{ __('borrower.profile.section_complete_tap') }}"
@@ -72,17 +80,17 @@
                             </svg>
                         </button>
                         <button type="button"
-                                @click.stop="expanded = true; showEditAction = true; adding = true"
+                                @click.stop="openAdd()"
                                 x-show="!showCompleteTick"
                                 x-cloak
-                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:bg-yellow-400 px-3.5 py-1.5 rounded-full shadow-sm">
                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                             {{ __('borrower.payment_details.add_account') }}
                         </button>
                     @else
                         <button type="button"
-                                @click="expanded = true; adding = true"
-                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
+                                @click="openAdd()"
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:bg-yellow-400 px-3.5 py-1.5 rounded-full shadow-sm">
                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                             {{ __('borrower.profile.add_details') }}
                         </button>
@@ -158,134 +166,177 @@
                     </div>
                 @endif
 
-                <div x-show="adding" x-cloak class="{{ $paymentComplete ? 'border-t border-gray-100 pt-6' : '' }}"
-                         x-data="{ step: @js($addType !== '' ? 2 : 1), type: @js($addType) }">
-                        <h3 class="text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.add_account') }}</h3>
-                        <p class="text-xs text-gray-500 mb-5">{{ __('borrower.payment_details.name_must_match', ['name' => $legalName]) }}</p>
+                <x-site.action-panel :title="__('borrower.payment_details.add_account')" open="adding" size="lg">
+                    <p class="text-xs text-gray-500 mb-4">{{ __('borrower.payment_details.name_must_match', ['name' => $legalName]) }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-4">
+                        {{ __('borrower.apply.step_of', ['current' => '', 'total' => 3]) }}
+                        <span x-text="step"></span>/3
+                    </p>
 
-                        <form method="POST"
-                              action="{{ route('site.borrower.profile.update', ['section' => 'payment']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
-                              @submit="if (!type) { $event.preventDefault(); step = 1; }">
-                            @csrf @method('PUT')
-                            @if ($wizardMode ?? false)
-                                <input type="hidden" name="wizard" value="1">
-                            @endif
-                            @if (! empty($returnUrl))
-                                <input type="hidden" name="return" value="{{ $returnUrl }}">
-                            @endif
-                            <input type="hidden" name="type" :value="type">
-                            <input type="hidden" name="account_name" value="{{ old('account_name', $legalName) }}">
+                    <form method="POST"
+                          action="{{ route('site.borrower.profile.update', ['section' => 'payment']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
+                          @submit="if (!type || step < 3) { $event.preventDefault(); if (!type) step = 1; }">
+                        @csrf @method('PUT')
+                        @if ($wizardMode ?? false)
+                            <input type="hidden" name="wizard" value="1">
+                        @endif
+                        @if (! empty($returnUrl))
+                            <input type="hidden" name="return" value="{{ $returnUrl }}">
+                        @endif
+                        <input type="hidden" name="type" :value="type">
+                        <input type="hidden" name="account_name" value="{{ old('account_name', $legalName) }}">
+                        <input type="hidden" name="mobile_provider" :value="mobileProvider">
+                        <input type="hidden" name="mobile_number" :value="mobileNumber">
+                        <input type="hidden" name="bank_name" :value="bankName">
+                        <input type="hidden" name="account_number" :value="accountNumber">
+                        <input type="hidden" name="bank_branch" :value="bankBranch">
 
-                            {{-- Step 1: choose type --}}
-                            <div x-show="step === 1" class="space-y-4">
-                                <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('borrower.payment_details.choose_type_title') }}</p>
-                                <div class="grid sm:grid-cols-2 gap-4">
-                                    <button type="button"
-                                            @click="type = 'mobile_money'; step = 2"
-                                            class="rounded-3xl ring-2 px-6 py-7 text-left transition shadow-sm"
-                                            :class="type === 'mobile_money' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 bg-gradient-to-br from-white to-gray-50 hover:ring-brand/40'">
-                                        <span class="text-3xl" aria-hidden="true">📱</span>
-                                        <p class="text-base font-bold text-gray-900 mt-3">{{ __('borrower.payment_details.method_mobile') }}</p>
-                                        <p class="text-sm text-gray-500 mt-1.5 leading-relaxed">{{ __('borrower.payment_details.choose_mobile_hint') }}</p>
-                                    </button>
-                                    <button type="button"
-                                            @click="type = 'bank'; step = 2"
-                                            class="rounded-3xl ring-2 px-6 py-7 text-left transition shadow-sm"
-                                            :class="type === 'bank' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 bg-gradient-to-br from-white to-gray-50 hover:ring-brand/40'">
-                                        <span class="text-3xl" aria-hidden="true">🏦</span>
-                                        <p class="text-base font-bold text-gray-900 mt-3">{{ __('borrower.payment_details.method_bank') }}</p>
-                                        <p class="text-sm text-gray-500 mt-1.5 leading-relaxed">{{ __('borrower.payment_details.choose_bank_hint') }}</p>
-                                    </button>
+                        <div x-show="step === 1" class="space-y-4">
+                            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('borrower.payment_details.choose_type_title') }}</p>
+                            <div class="grid gap-3">
+                                <button type="button"
+                                        @click="type = 'mobile_money'; step = 2"
+                                        class="rounded-2xl ring-2 px-5 py-5 text-left transition"
+                                        :class="type === 'mobile_money' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 bg-gradient-to-br from-white to-gray-50 hover:ring-brand/40'">
+                                    <span class="text-2xl" aria-hidden="true">📱</span>
+                                    <p class="text-base font-bold text-gray-900 mt-2">{{ __('borrower.payment_details.method_mobile') }}</p>
+                                    <p class="text-sm text-gray-500 mt-1">{{ __('borrower.payment_details.choose_mobile_hint') }}</p>
+                                </button>
+                                <button type="button"
+                                        @click="type = 'bank'; step = 2"
+                                        class="rounded-2xl ring-2 px-5 py-5 text-left transition"
+                                        :class="type === 'bank' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 bg-gradient-to-br from-white to-gray-50 hover:ring-brand/40'">
+                                    <span class="text-2xl" aria-hidden="true">🏦</span>
+                                    <p class="text-base font-bold text-gray-900 mt-2">{{ __('borrower.payment_details.method_bank') }}</p>
+                                    <p class="text-sm text-gray-500 mt-1">{{ __('borrower.payment_details.choose_bank_hint') }}</p>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div x-show="step === 2" x-cloak class="space-y-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-sm font-semibold text-gray-900"
+                                   x-text="type === 'bank' ? @js(__('borrower.payment_details.bank_section')) : @js(__('borrower.payment_details.mobile_section'))"></p>
+                                <button type="button" @click="step = 1" class="text-xs font-semibold text-gray-600 hover:text-gray-900">
+                                    {{ __('borrower.payment_details.change_type') }}
+                                </button>
+                            </div>
+
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
+                                <p class="text-xs text-gray-500">{{ __('borrower.payment_details.account_name') }}</p>
+                                <p class="text-sm font-semibold text-gray-900 mt-0.5">{{ $legalName }}</p>
+                            </div>
+
+                            <div x-show="type === 'mobile_money'" class="space-y-4">
+                                <fieldset>
+                                    <legend class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.payment_details.provider') }} <span class="text-red-500">*</span></legend>
+                                    <div class="grid gap-2">
+                                        @foreach ($providers as $key => $label)
+                                            <label class="inline-flex items-center gap-2 cursor-pointer text-sm rounded-xl ring-1 ring-gray-200 px-3 py-2.5 hover:bg-gray-50 has-[:checked]:ring-brand has-[:checked]:bg-brand-muted/30">
+                                                <input type="radio" value="{{ $key }}" x-model="mobileProvider"
+                                                       class="text-amber-600"
+                                                       x-bind:required="type === 'mobile_money' && step === 2">
+                                                <span>{{ $label }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('mobile_provider')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                </fieldset>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.phone_number') }} <span class="text-red-500">*</span></label>
+                                    <input type="text" x-model="mobileNumber" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="kf-field"
+                                           x-bind:required="type === 'mobile_money' && step === 2">
+                                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.payment_details.mobile_prefix_hint') }}</p>
+                                    @error('mobile_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
                             </div>
 
-                            {{-- Step 2: details --}}
-                            <div x-show="step === 2" x-cloak class="space-y-5">
-                                <div class="flex items-center justify-between gap-3">
-                                    <p class="text-sm font-semibold text-gray-900"
-                                       x-text="type === 'bank' ? @js(__('borrower.payment_details.bank_section')) : @js(__('borrower.payment_details.mobile_section'))"></p>
-                                    <button type="button" @click="step = 1; type = ''" class="text-xs font-semibold text-gray-600 hover:text-gray-900">
-                                        {{ __('borrower.payment_details.change_type') }}
-                                    </button>
+                            <div x-show="type === 'bank'" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.bank_name') }} <span class="text-red-500">*</span></label>
+                                    <input type="text" x-model="bankName" placeholder="{{ __('borrower.payment_details.bank_name_placeholder') }}" autocomplete="off" class="kf-field"
+                                           x-bind:required="type === 'bank' && step === 2">
+                                    @error('bank_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
-
-                                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
-                                    <p class="text-xs text-gray-500">{{ __('borrower.payment_details.account_name') }}</p>
-                                    <p class="text-sm font-semibold text-gray-900 mt-0.5">{{ $legalName }}</p>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_number') }} <span class="text-red-500">*</span></label>
+                                    <input type="text" x-model="accountNumber" placeholder="{{ __('borrower.payment_details.account_number_placeholder') }}" autocomplete="off" class="kf-field"
+                                           x-bind:required="type === 'bank' && step === 2">
+                                    @error('account_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.branch') }} <span class="text-gray-400 font-normal">({{ __('borrower.payment_details.optional') }})</span></label>
+                                    <input type="text" x-model="bankBranch" placeholder="{{ __('borrower.payment_details.branch_placeholder') }}" autocomplete="off" class="kf-field">
+                                </div>
+                            </div>
 
-                                <div x-show="type === 'mobile_money'" class="space-y-4">
-                                    <fieldset>
-                                        <legend class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.payment_details.provider') }} <span class="text-red-500">*</span></legend>
-                                        <div class="grid sm:grid-cols-2 gap-3">
-                                            @foreach ($providers as $key => $label)
-                                                <label class="inline-flex items-center gap-2 cursor-pointer text-sm rounded-xl ring-1 ring-gray-200 px-3 py-2.5 hover:bg-gray-50 has-[:checked]:ring-brand has-[:checked]:bg-brand-muted/30">
-                                                    <input type="radio" name="mobile_provider" value="{{ $key }}" @checked(old('mobile_provider') === $key)
-                                                           class="text-amber-600"
-                                                           x-bind:required="type === 'mobile_money'"
-                                                           x-bind:disabled="type !== 'mobile_money'">
-                                                    <span>{{ $label }}</span>
-                                                </label>
-                                            @endforeach
+                            <div class="flex justify-end gap-3 pt-2">
+                                <button type="button" @click="step = 3"
+                                        class="bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-2.5 rounded-full text-sm">
+                                    {{ __('borrower.payment_details.review_continue') }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div x-show="step === 3" x-cloak class="space-y-4">
+                            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('borrower.payment_details.review_title') }}</p>
+                            <div class="rounded-2xl bg-brand/5 ring-1 ring-brand/15 px-4 py-4 space-y-2 text-sm">
+                                <div class="flex justify-between gap-3">
+                                    <span class="text-gray-500">{{ __('borrower.payment_details.account_type') }}</span>
+                                    <span class="font-semibold text-gray-900" x-text="type === 'bank' ? @js(__('borrower.payment_details.method_bank')) : @js(__('borrower.payment_details.method_mobile'))"></span>
+                                </div>
+                                <div class="flex justify-between gap-3">
+                                    <span class="text-gray-500">{{ __('borrower.payment_details.account_name') }}</span>
+                                    <span class="font-semibold text-gray-900">{{ $legalName }}</span>
+                                </div>
+                                <template x-if="type === 'mobile_money'">
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-gray-500">{{ __('borrower.payment_details.provider') }}</span>
+                                            <span class="font-semibold text-gray-900" x-text="mobileProvider"></span>
                                         </div>
-                                        @error('mobile_provider')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                                    </fieldset>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.phone_number') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="mobile_number" value="{{ old('mobile_number') }}" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="kf-field"
-                                               x-bind:required="type === 'mobile_money'"
-                                               x-bind:disabled="type !== 'mobile_money'">
-                                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.payment_details.mobile_prefix_hint') }}</p>
-                                        @error('mobile_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-gray-500">{{ __('borrower.payment_details.phone_number') }}</span>
+                                            <span class="font-semibold text-gray-900" x-text="mobileNumber"></span>
+                                        </div>
                                     </div>
-                                </div>
-
-                                <div x-show="type === 'bank'" class="space-y-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.bank_name') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="bank_name" value="{{ old('bank_name') }}" placeholder="{{ __('borrower.payment_details.bank_name_placeholder') }}" autocomplete="off" class="kf-field"
-                                               x-bind:required="type === 'bank'"
-                                               x-bind:disabled="type !== 'bank'">
-                                        @error('bank_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                </template>
+                                <template x-if="type === 'bank'">
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-gray-500">{{ __('borrower.payment_details.bank_name') }}</span>
+                                            <span class="font-semibold text-gray-900" x-text="bankName"></span>
+                                        </div>
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-gray-500">{{ __('borrower.payment_details.account_number') }}</span>
+                                            <span class="font-semibold text-gray-900" x-text="accountNumber"></span>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_number') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="account_number" value="{{ old('account_number') }}" placeholder="{{ __('borrower.payment_details.account_number_placeholder') }}" autocomplete="off" class="kf-field"
-                                               x-bind:required="type === 'bank'"
-                                               x-bind:disabled="type !== 'bank'">
-                                        @error('account_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.branch') }} <span class="text-gray-400 font-normal">({{ __('borrower.payment_details.optional') }})</span></label>
-                                        <input type="text" name="bank_branch" value="{{ old('bank_branch') }}" placeholder="{{ __('borrower.payment_details.branch_placeholder') }}" autocomplete="off" class="kf-field" x-bind:disabled="type !== 'bank'">
-                                    </div>
-                                </div>
-
-                                @if ($paymentComplete)
-                                    <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-                                        <input type="checkbox" name="is_default" value="1" @checked(old('is_default')) class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
-                                        <span>{{ __('borrower.payment_details.make_default') }}</span>
-                                    </label>
-                                @endif
-
-                                <div class="flex flex-wrap justify-end gap-3 pt-2">
-                                    @if ($paymentComplete)
-                                        <a href="{{ route('site.borrower.profile', array_filter(['section' => 'payment'] + $returnQuery)) }}"
-                                           class="inline-flex items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50">
-                                            {{ __('borrower.profile.cancel_edit') }}
-                                        </a>
-                                    @endif
-                                    <button type="submit"
-                                            x-data="kfGatedSubmit()"
-                                            x-show="ready"
-                                            x-cloak
-                                            class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
-                                        {{ __('borrower.payment_details.save_account') }}
-                                    </button>
-                                </div>
+                                </template>
                             </div>
-                        </form>
-                    </div>
+
+                            @if ($paymentComplete)
+                                <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="is_default" value="1" @checked(old('is_default')) class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                                    <span>{{ __('borrower.payment_details.make_default') }}</span>
+                                </label>
+                            @endif
+
+                            <div class="flex flex-wrap justify-between gap-3 pt-2">
+                                <button type="button" @click="step = 2" class="text-sm font-semibold text-gray-600 hover:text-gray-900">
+                                    ← {{ __('borrower.apply.back') }}
+                                </button>
+                                <button type="submit"
+                                        x-data="kfGatedSubmit()"
+                                        x-show="ready"
+                                        x-cloak
+                                        class="bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-2.5 rounded-full text-sm">
+                                    {{ __('borrower.payment_details.save_account') }}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </x-site.action-panel>
             </div>
         </div>
     </div>

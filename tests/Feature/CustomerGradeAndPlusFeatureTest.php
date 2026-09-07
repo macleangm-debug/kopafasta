@@ -641,8 +641,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $editorial = \App\Support\PlusArticleSteps::openingAndCards($subject->localizedIntro(), $subject->localizedBody());
         $this->assertNotEmpty($editorial['opening']);
         $this->assertNotEmpty($editorial['slides']);
-        $this->assertLessThanOrEqual(5, count($editorial['slides']));
-        $this->assertLessThanOrEqual(4, count($editorial['cards']));
+        $this->assertLessThanOrEqual(12, count($editorial['slides']));
+        $this->assertGreaterThanOrEqual(1, count($editorial['slides']));
         $this->actingAs($user)
             ->get(route('site.borrower.plus.subject', $subject))
             ->assertOk()

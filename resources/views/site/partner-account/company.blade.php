@@ -12,8 +12,6 @@
 
 <x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile">
 
-    <x-site.borrower-page-header :eyebrow="$eyebrow" :title="$title" :subtitle="$subtitle" share="kf-psec-company" />
-
     <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
 
     @if (session('status'))

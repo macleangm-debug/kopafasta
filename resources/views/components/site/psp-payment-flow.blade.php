@@ -190,11 +190,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                     </svg>
                 </div>
+                <p class="text-lg font-extrabold text-gray-900">{{ __('borrower.payment_waiting.success_title') }}</p>
                 <p class="text-sm text-gray-600" x-text="@js($copy['successPaid'])"></p>
                 <div class="rounded-2xl bg-emerald-50/70 ring-1 ring-emerald-100 px-4 py-3 text-left space-y-2">
                     <div class="flex justify-between gap-3 text-sm">
                         <span class="text-gray-500">{{ __('borrower.payment_waiting.amount') }}</span>
-                        <span class="font-bold tabular-nums text-brand" x-text="amountLabel">{{ $amountLabel }}</span>
+                        <span class="font-bold tabular-nums text-brand whitespace-nowrap" x-text="amountLabel">{{ $amountLabel }}</span>
                     </div>
                     <div class="flex justify-between gap-3 text-sm">
                         <span class="text-gray-500">{{ __('borrower.payment_waiting.reference') }}</span>

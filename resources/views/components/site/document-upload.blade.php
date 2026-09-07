@@ -33,9 +33,9 @@
     ];
 @endphp
 
-<div class="space-y-3" x-data="documentUpload(@js($disabled), @js($multiple), @js($cameraLabels), @js((int) $maxKb))">
+<div class="space-y-3" x-data="documentUpload(@js($disabled), @js($multiple), @js($cameraLabels), @js((int) $maxKb), @js(! (bool) $showClarification && ! (bool) $multiple))">
     @unless($disabled)
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3" x-show="queued.length === 0" x-cloak>
             <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
                 <span>{{ __('borrower.profile.upload') }}</span>
                 <input type="file" accept="image/*,application/pdf" :multiple="allowMultiple" class="sr-only" @change="addFiles($event.target.files); $event.target.value = ''; mode='gallery'">
@@ -115,10 +115,11 @@
                     <textarea name="response" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('borrower.document_upload.response_placeholder') }}"></textarea>
                 </div>
             @endif
-            <button type="submit" :disabled="!canSubmit || submitting"
+            <button type="submit" x-show="!autoStart || allowMultiple" x-cloak :disabled="!canSubmit || submitting"
                     class="w-full bg-brand hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-4 py-2.5 rounded-xl text-sm inline-flex items-center justify-center gap-2">
                 {{ __('borrower.document_upload.submit') }}
             </button>
+            <p x-show="autoStart && queued.length && submitting" x-cloak class="text-sm text-gray-600 text-center">{{ __('borrower.profile.uploading_documents') }}</p>
         </form>
     @else
         <p class="text-sm text-gray-500">{{ __('borrower.document_upload.no_action') }}</p>
@@ -140,11 +141,12 @@
     @push('scripts')
         <script>
             document.addEventListener('alpine:init', () => {
-                Alpine.data('documentUpload', (disabled = false, allowMultiple = true, labels = {}, maxKb = 5120) => ({
+                Alpine.data('documentUpload', (disabled = false, allowMultiple = true, labels = {}, maxKb = 5120, autoStart = false) => ({
                     mode: 'gallery',
                     queued: [],
                     stream: null,
                     allowMultiple,
+                    autoStart: !!autoStart,
                     maxBytes: Math.max(1, Number(maxKb) || 5120) * 1024,
                     expandedUrl: null,
                     cameraOpen: false,
@@ -167,6 +169,7 @@
                     addFiles(fileList) {
                         if (!fileList?.length) return;
                         this.validationError = null;
+                        let added = 0;
                         for (const file of fileList) {
                             if (!this.isAllowedType(file)) {
                                 this.validationError = this.labels.fileInvalidType || '';
@@ -188,6 +191,10 @@
                                 preview: isImage ? URL.createObjectURL(file) : null,
                                 isPdf,
                             });
+                            added++;
+                        }
+                        if (added > 0 && this.autoStart) {
+                            this.$nextTick(() => this.submitForm());
                         }
                     },
 

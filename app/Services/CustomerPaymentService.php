@@ -906,6 +906,13 @@ class CustomerPaymentService
             ]);
         }
 
+        $genericReturn = data_get($payment->provider_meta, 'return_url')
+            ?: data_get($payment->provider_meta, 'success_url')
+            ?: data_get($payment->provider_meta, 'continue_url');
+        if (filled($genericReturn) && is_string($genericReturn)) {
+            return $genericReturn;
+        }
+
         if ($payment->payment_type === 'insurance_premium') {
             $return = data_get($payment->provider_meta, 'collateral_insurance.return_url');
             if (filled($return)) {
@@ -941,6 +948,8 @@ class CustomerPaymentService
             ]));
         }
 
+        $application = $this->resolveLoanApplicationSource($payment);
+
         return match ($payment->payment_type) {
             'partner_membership' => $this->partnerMembershipSuccessUrl($payment),
             'affiliate_application_fee' => route('site.partners.apply.tracking', [
@@ -949,13 +958,18 @@ class CustomerPaymentService
             ]),
             'kopafasta_plus' => route('site.borrower.plus.welcome'),
             'registration_fee' => route('site.borrower.dashboard'),
-            'application_fee', 'valuation_fee' => $this->resolveLoanApplicationSource($payment)
-                ? route('site.borrower.application', $this->resolveLoanApplicationSource($payment))
+            'application_fee', 'valuation_fee' => $application
+                ? route('site.borrower.application', $application)
                 : route('site.borrower.apply'),
+            'post_approval_fee' => $application
+                ? route('site.borrower.application', $application)
+                : route('site.borrower.loans'),
             'loan_repayment' => $payment->loan_id
                 ? route('site.borrower.loans.show', $payment->loan_id)
                 : route('site.borrower.loans'),
-            default => $fallback ?: route('site.borrower.payments.show', $payment),
+            default => $fallback ?: ($application
+                ? route('site.borrower.application', $application)
+                : route('site.borrower.dashboard')),
         };
     }
 

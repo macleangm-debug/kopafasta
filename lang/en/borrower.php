@@ -1319,6 +1319,9 @@ return [
         'status_complete' => 'Complete',
         'status_action_required' => 'Action required',
         'status_pending' => 'Pending',
+        'status_expired' => 'Expired / Update required',
+        'replace' => 'Replace',
+        'view' => 'View',
     ],
 
     'marketplace' => [
@@ -2267,6 +2270,8 @@ return [
         'document_uploaded' => 'Uploaded',
         'uploaded_at' => 'Uploaded :time',
         'uploaded_on' => 'Uploaded on',
+        'issued_on' => 'Issued on',
+        'expires_on' => 'Expires on',
         'document_status' => [
             'approved' => 'Approved',
             'rejected' => 'Rejected',
@@ -3189,7 +3194,7 @@ return [
         'submit' => 'Submit',
         'submit_confirm_title' => 'Submit this document?',
         'submit_confirm_body' => 'We will send it for review.',
-        'file_too_large' => 'This file is too large. Choose a file under 5 MB.',
+        'file_too_large' => 'This file is too large. Please use a file no larger than 5 MB.',
         'file_invalid_type' => 'Use a JPG, PNG or PDF file.',
         'upload_failed' => 'Upload could not be completed. Check the file and try again.',
         'no_action' => 'No further action required.',
@@ -4922,6 +4927,8 @@ return [
         'choose_mobile_hint' => 'M-PESA, Airtel Money, Mixx, or HaloPesa',
         'choose_bank_hint' => 'Local bank account in your name',
         'change_type' => 'Change type',
+        'review_continue' => 'Review',
+        'review_title' => 'Review & save',
         'make_default' => 'Make this my default account',
         'set_default' => 'Set as default',
         'default_updated' => 'Default payment account updated.',

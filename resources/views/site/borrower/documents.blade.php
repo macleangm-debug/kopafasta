@@ -1,11 +1,5 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.documents_page.title'))" active="documents" content-width="wide">
 
-    <x-site.borrower-page-header
-        :eyebrow="__('borrower.documents_page.verification_title')"
-        :title="__('borrower.documents_page.title')"
-        :subtitle="__('borrower.documents_page.subtitle')"
-    />
-
     <div class="mb-8 glass-card p-6">
         <h2 class="font-semibold text-gray-900">{{ __('borrower.documents_page.verification_title') }}</h2>
         <p class="text-sm text-gray-500 mt-1 mb-4">{{ __('borrower.documents_page.verification_hint') }}</p>
@@ -48,51 +42,51 @@
 
         @php
             $documentsStale = in_array('documents', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
+            $docService = app(\App\Services\ProfileDocumentService::class);
+            $expirableCodes = ['passport', 'driving_license', 'voter_id'];
         @endphp
         @forelse ($types as $type)
             @php
                 $typeDocs = $documents->where('document_type_id', $type->id)->values();
                 $latest = $typeDocs->first();
                 $hasUpload = $typeDocs->isNotEmpty();
-                $statusTone = match ($latest?->status) {
-                    'verified', 'approved' => 'text-emerald-700',
-                    'rejected' => 'text-red-700',
-                    'pending', 'pending_review' => 'text-amber-700',
-                    default => 'text-gray-500',
-                };
+                $code = (string) ($type->code ?? '');
+                $meta = $latest ? $docService->metadata($latest) : [];
+                $expiresRaw = $meta['expires_at'] ?? $meta['expires_on'] ?? $meta['valid_until'] ?? null;
+                $expiresAt = filled($expiresRaw) ? \Illuminate\Support\Carbon::parse($expiresRaw) : null;
+                $isExpired = $expiresAt && $expiresAt->isPast();
+                $needsUpdate = $isExpired || ($documentsStale && in_array($code, $expirableCodes, true));
             @endphp
             <x-site.profile-section-card
                 :section-id="'doc-type-'.$type->id"
                 :title="$type->localizedName()"
-                :complete="$hasUpload && in_array($latest?->status, ['verified', 'approved'], true)"
-                :stale="$documentsStale && $hasUpload"
+                :complete="$hasUpload && in_array($latest?->status, ['verified', 'approved'], true) && ! $needsUpdate"
+                :stale="$needsUpdate"
                 :empty="! $hasUpload"
                 :add-label="__('borrower.documents_page.upload_button')"
                 :default-open="false">
                 <x-slot:view>
                     @if ($hasUpload)
-                        <ul class="space-y-3">
+                        <div class="space-y-3">
                             @foreach ($typeDocs as $doc)
-                                @php
-                                    $color = match ($doc->status) {
-                                        'verified', 'approved' => 'bg-emerald-100 text-emerald-700',
-                                        'rejected' => 'bg-red-100 text-red-700',
-                                        default => 'bg-amber-100 text-amber-700',
-                                    };
-                                @endphp
-                                <li class="flex items-center justify-between gap-3 text-sm">
-                                    <div class="min-w-0">
-                                        <p class="font-medium truncate">{{ $doc->displayName() }}</p>
-                                        <p class="text-xs text-gray-500">{{ optional($doc->created_at)->format('d M Y') }}</p>
-                                    </div>
-                                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $color }}">{{ ucfirst($doc->status) }}</span>
-                                </li>
+                                <x-site.profile-document-field
+                                    :document="$doc"
+                                    :field-name="'document_'.$doc->id"
+                                    mode="single"
+                                    :label="$type->localizedName()"
+                                    :input-host-id="'doc-holder-'.$doc->id"
+                                    :document-code="$code ?: null"
+                                    :read-only="true"
+                                />
                             @endforeach
-                        </ul>
-                        <button type="button" @click="open = true"
-                                class="mt-4 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
-                            {{ __('borrower.documents_page.upload_another') }}
-                        </button>
+                            @if ($needsUpdate)
+                                <p class="text-xs font-bold text-amber-900">{{ __('borrower.documents_page.status_expired') }}</p>
+                            @endif
+                            <button type="button" @click="open = true"
+                                    class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
+                                {{ __('borrower.documents_page.replace') }}
+                            </button>
+                        </div>
                     @else
                         <p class="text-sm text-gray-600">{{ __('borrower.documents_page.empty_type') }}</p>
                         <button type="button" @click="open = true"
@@ -103,6 +97,12 @@
                 </x-slot:view>
                 <x-slot:form>
                     <p class="text-xs text-gray-500 mb-4">{{ __('borrower.documents_page.general_upload_hint') }}</p>
+                    @error('file')
+                        <p class="mb-3 text-sm text-red-800 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2" role="alert">{{ $message }}</p>
+                    @enderror
+                    @error('document_type_id')
+                        <p class="mb-3 text-sm text-red-800 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2" role="alert">{{ $message }}</p>
+                    @enderror
                     <x-site.document-upload :action="route('site.borrower.documents.store')" :multiple="false">
                         <input type="hidden" name="document_type_id" value="{{ $type->id }}">
                     </x-site.document-upload>

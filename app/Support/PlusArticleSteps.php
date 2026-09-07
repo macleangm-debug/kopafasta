@@ -4,9 +4,8 @@ namespace App\Support;
 
 class PlusArticleSteps
 {
-    public const MAX_OPENING = 4;
-
-    public const MAX_CARDS = 4;
+    /** Soft ceiling so a huge body never becomes dozens of empty slides. */
+    public const MAX_SLIDES = 12;
 
     /** @return list<string> */
     public static function fromBody(?string $body): array
@@ -33,8 +32,8 @@ class PlusArticleSteps
     }
 
     /**
-     * Most of the article stays on the first screen as real paragraphs.
-     * Remaining copy is at most four swipe cards — never a sentence-per-slide deck.
+     * Content-driven slides: short articles stay one page; longer ones follow
+     * authored # headings or natural paragraph groups — never a fixed 6-slide deck.
      *
      * @return array{opening: list<string>, cards: list<string>, slides: list<string>}
      */
@@ -48,23 +47,82 @@ class PlusArticleSteps
             return ['opening' => [], 'cards' => [], 'slides' => []];
         }
 
-        if (count($all) <= self::MAX_OPENING) {
-            return [
-                'opening' => $all,
-                'cards' => [],
-                'slides' => self::slidesFrom($all, []),
-            ];
-        }
-
-        $opening = array_slice($all, 0, self::MAX_OPENING);
-        $rest = array_slice($all, self::MAX_OPENING);
-        $cards = self::chunkToMax($rest, self::MAX_CARDS);
+        $slides = self::slidesFromContent($all);
+        $opening = $slides === [] ? [] : (preg_split('/\n\s*\n/', $slides[0]) ?: [$slides[0]]);
+        $cards = array_slice($slides, 1);
 
         return [
-            'opening' => $opening,
+            'opening' => array_values(array_filter(array_map('trim', $opening))),
             'cards' => $cards,
-            'slides' => self::slidesFrom($opening, $cards),
+            'slides' => $slides,
         ];
+    }
+
+    /**
+     * @param  list<string>  $paras
+     * @return list<string>
+     */
+    public static function slidesFromContent(array $paras): array
+    {
+        if ($paras === []) {
+            return [];
+        }
+
+        $joined = implode("\n\n", $paras);
+        $hasHeadings = (bool) preg_match('/^#\s+/m', $joined);
+        if ($hasHeadings) {
+            return self::limitSlides(self::splitByHeadings($paras));
+        }
+
+        // Short article → one reading page.
+        if (count($paras) <= 3 || mb_strlen($joined) <= 900) {
+            return [implode("\n\n", $paras)];
+        }
+
+        // Medium/long: ~2–3 paragraphs per slide, content-driven count.
+        $perSlide = count($paras) <= 6 ? 2 : 3;
+
+        return self::limitSlides(self::chunk($paras, $perSlide));
+    }
+
+    /**
+     * @param  list<string>  $paras
+     * @return list<string>
+     */
+    private static function splitByHeadings(array $paras): array
+    {
+        $slides = [];
+        $bucket = [];
+        foreach ($paras as $para) {
+            $isHeading = (bool) preg_match('/^#\s+/', $para);
+            if ($isHeading && $bucket !== []) {
+                $slides[] = implode("\n\n", $bucket);
+                $bucket = [];
+            }
+            $bucket[] = $para;
+        }
+        if ($bucket !== []) {
+            $slides[] = implode("\n\n", $bucket);
+        }
+
+        return $slides !== [] ? $slides : [implode("\n\n", $paras)];
+    }
+
+    /**
+     * @param  list<string>  $slides
+     * @return list<string>
+     */
+    private static function limitSlides(array $slides): array
+    {
+        if (count($slides) <= self::MAX_SLIDES) {
+            return array_values($slides);
+        }
+
+        $kept = array_slice($slides, 0, self::MAX_SLIDES - 1);
+        $rest = array_slice($slides, self::MAX_SLIDES - 1);
+        $kept[] = implode("\n\n", $rest);
+
+        return $kept;
     }
 
     /**
@@ -109,21 +167,6 @@ class PlusArticleSteps
         }
 
         return $out;
-    }
-
-    /**
-     * @param  list<string>  $paras
-     * @return list<string>
-     */
-    private static function chunkToMax(array $paras, int $maxCards): array
-    {
-        if ($paras === []) {
-            return [];
-        }
-
-        $size = (int) ceil(count($paras) / max(1, $maxCards));
-
-        return self::chunk($paras, max(1, $size));
     }
 
     /**

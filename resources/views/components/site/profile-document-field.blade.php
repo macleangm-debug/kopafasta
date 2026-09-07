@@ -30,7 +30,20 @@
 
 <div x-data="{ replaceMode: false }" class="space-y-3">
     @if ($document)
-        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4">
+        @php
+            $docCode = (string) ($document->documentType?->code ?? $documentCode ?? '');
+            $expirable = in_array($docCode, ['passport', 'driving_license', 'voter_id'], true);
+            $metaIssued = $meta['issued_at'] ?? $meta['issued_on'] ?? null;
+            $metaExpires = $meta['expires_at'] ?? $meta['expires_on'] ?? $meta['valid_until'] ?? null;
+            $expiresAt = filled($metaExpires) ? \Illuminate\Support\Carbon::parse($metaExpires) : null;
+            $isExpired = $expiresAt && $expiresAt->isPast();
+            $needsUpdate = $isExpired;
+        @endphp
+        <div @class([
+            'rounded-xl p-4 ring-1',
+            'bg-amber-50 ring-amber-200' => $needsUpdate,
+            'bg-emerald-50 ring-emerald-200' => ! $needsUpdate,
+        ])>
             <div class="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                 <div class="flex items-start gap-3 min-w-0 flex-1">
                     <div class="shrink-0">
@@ -77,6 +90,15 @@
                                 <div><span class="font-medium">{{ __('borrower.profile.document_page_count') }}:</span> {{ $pageCount }}</div>
                             @endif
                             <div><span class="font-medium">{{ __('borrower.profile.document_status_label') }}:</span> {{ $statusLabel }}</div>
+                            @if (filled($metaIssued))
+                                <div><span class="font-medium">{{ __('borrower.profile.issued_on') }}</span> {{ \Illuminate\Support\Carbon::parse($metaIssued)->format('d M Y') }}</div>
+                            @endif
+                            @if ($expiresAt)
+                                <div><span class="font-medium">{{ __('borrower.profile.expires_on') }}</span> {{ $expiresAt->format('d M Y') }}</div>
+                            @endif
+                            @if ($needsUpdate)
+                                <div class="font-bold text-amber-900">{{ __('borrower.documents_page.status_expired') }}</div>
+                            @endif
                         </dl>
                     </div>
                 </div>
@@ -123,6 +145,11 @@
                     </div>
                 @endif
             </div>
+        </div>
+    @elseif ($readOnly)
+        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
+            <p class="text-sm font-semibold text-gray-900">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>
+            <p class="text-sm font-semibold text-amber-700 mt-1">{{ __('borrower.profile.missing') }}</p>
         </div>
     @endif
 

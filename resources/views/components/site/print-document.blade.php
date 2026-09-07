@@ -49,10 +49,13 @@
         }
     </style>
 </head>
-<body class="kf-print-document antialiased text-gray-900" x-data x-init="setTimeout(() => window.print(), 350)">
-    <div class="kf-print-chrome px-4 py-3 flex items-center justify-between gap-3 bg-white border-b border-gray-200">
-        <a href="{{ url()->previous() !== url()->current() ? url()->previous() : route('site.borrower.plus.reports') }}"
-           class="text-sm font-semibold text-brand">← {{ __('plus.learn.prev') }}</a>
+<body class="kf-print-document antialiased text-gray-900">
+    <div class="kf-print-chrome px-4 py-3 flex items-center justify-between gap-3 bg-white border-b border-gray-200 sticky top-0 z-10">
+        <button type="button"
+                class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand rounded-xl ring-1 ring-brand/20 px-3 py-2 hover:bg-brand/5"
+                onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = @js(route('site.borrower.plus.reports')); }">
+            ← {{ __('plus.learn.prev') }}
+        </button>
         <button type="button" class="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold" onclick="window.print()">
             {{ __('plus.reports.print') }}
         </button>

@@ -252,49 +252,53 @@
          class="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 sm:p-8 overflow-y-auto"
          @keydown.escape.window="expanded = false">
         <button type="button" class="absolute inset-0 cursor-zoom-out" @click="expanded = false" aria-label="Close"></button>
-        <div class="relative w-full max-w-lg mx-auto my-auto" @click.stop>
+        <div class="relative w-full max-w-md mx-auto my-auto" @click.stop>
             <button type="button" @click="expanded = false" class="absolute -top-3 -right-1 z-20 size-10 rounded-full bg-black/50 text-white grid place-items-center shadow-lg" aria-label="{{ __('borrower.membership.close_card') }}">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
-            <div class="relative w-full aspect-[1.586/1]">
-                <div class="absolute inset-0 {{ $panelClass }} rounded-3xl p-[clamp(0.9rem,3vw,1.75rem)] overflow-hidden">
-                    <div class="relative flex items-center justify-between gap-2 mb-[clamp(0.7rem,2.4vw,1.25rem)]">
-                        <span class="inline-flex items-center gap-2 min-w-0">
-                            <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" class="h-[clamp(1.75rem,4.5vw,2.5rem)] w-auto object-contain shrink-0">
-                            <span class="text-[clamp(1rem,3.2vw,1.5rem)] font-bold tracking-tight truncate">{{ brand_name() }}</span>
-                        </span>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[clamp(0.6rem,1.7vw,0.75rem)] font-bold uppercase tracking-[0.12em] shrink-0 {{ $badgeClass }}">{{ $cardBadge }}</span>
-                    </div>
-                    <div class="relative flex items-start gap-[clamp(0.5rem,2vw,1rem)]">
-                        @if ($photoUrl)
-                            <img src="{{ $photoUrl }}" alt="" class="size-[clamp(3.25rem,12vw,5.5rem)] rounded-2xl object-cover ring-2 ring-brand-gold/50 shrink-0">
-                        @else
-                            <div class="size-[clamp(3.25rem,12vw,5.5rem)] rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-[clamp(1.2rem,3.8vw,1.875rem)] font-bold shrink-0">{{ $initial }}</div>
-                        @endif
-                        <div class="min-w-0 pt-0.5 flex-1">
-                            <p class="text-[clamp(0.55rem,1.5vw,0.7rem)] uppercase tracking-[0.18em] text-brand-gold font-semibold leading-none">{{ $roleLabel }}</p>
-                            <h3 class="mt-1 text-[clamp(0.95rem,3.2vw,1.5rem)] font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
-                            <p class="mt-1.5 font-mono text-[clamp(0.75rem,2.6vw,1.125rem)] font-bold tracking-[0.1em] break-all">{{ $memberNoDisplay }}</p>
-                        </div>
-                        @if ($verifyUrl && $qrDataUri)
-                            <img src="{{ $qrDataUri }}" alt="" class="size-[clamp(3rem,11vw,5rem)] rounded-xl bg-white p-1 shrink-0">
-                        @endif
-                    </div>
-                    <dl class="mt-[clamp(0.6rem,2vw,1.1rem)] grid grid-cols-2 gap-2">
-                        <div class="rounded-xl bg-black/20 px-2.5 py-2 ring-1 ring-white/10 min-w-0">
-                            <dt class="text-[clamp(0.55rem,1.4vw,0.65rem)] uppercase tracking-wider text-brand-gold font-semibold">
-                                {{ $permanent ? __('borrower.membership.customer_since_label') : __('borrower.membership.issued_label') }}
-                            </dt>
-                            <dd class="mt-1 font-semibold tabular-nums text-[clamp(0.75rem,2.2vw,0.95rem)]">{{ $permanent ? $since : $issued }}</dd>
-                        </div>
-                        <div class="rounded-xl bg-black/20 px-2.5 py-2 ring-1 ring-white/10 min-w-0">
-                            <dt class="text-[clamp(0.55rem,1.4vw,0.65rem)] uppercase tracking-wider text-brand-gold font-semibold">
-                                {{ $permanent ? __('borrower.membership.status_title') : __('borrower.membership.expires_label') }}
-                            </dt>
-                            <dd class="mt-1 font-semibold tabular-nums text-[clamp(0.75rem,2.2vw,0.95rem)]">{{ $permanent ? $label : $expires }}</dd>
-                        </div>
-                    </dl>
+            <div class="relative w-full text-left {{ $panelClass }} rounded-[1.35rem] p-5 sm:p-6">
+                <div class="absolute inset-[1px] rounded-[1.28rem] ring-1 ring-white/10 pointer-events-none"></div>
+                <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-gold/10 pointer-events-none"></div>
+                <div class="relative flex items-center justify-between gap-3 mb-5">
+                    <span class="inline-flex items-center gap-2.5 min-w-0">
+                        <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" aria-hidden="true" class="h-10 sm:h-11 w-auto object-contain shrink-0">
+                        <span class="text-xl sm:text-2xl font-bold tracking-tight text-white leading-none truncate">{{ brand_name() }}</span>
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] {{ $badgeClass }} shrink-0 ring-1 ring-brand-gold/30">
+                        {{ $cardBadge }}
+                    </span>
                 </div>
+                <div class="relative flex items-start gap-3 sm:gap-4">
+                    @if ($photoUrl)
+                        <img src="{{ $photoUrl }}" alt="" class="size-16 sm:size-20 rounded-2xl object-cover ring-2 ring-brand-gold/50 bg-white/10 shrink-0">
+                    @else
+                        <div class="size-16 sm:size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
+                    @endif
+                    <div class="min-w-0 pt-0.5 flex-1">
+                        <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold leading-none">{{ $roleLabel }}</p>
+                        <h3 class="mt-1 text-lg sm:text-xl font-bold tracking-wide leading-[1.1] break-words">{{ $name ?: '—' }}</h3>
+                        <p class="mt-2 font-mono text-sm text-white/90 tracking-wider break-all">{{ $memberNoDisplay }}</p>
+                    </div>
+                    @if ($verifyUrl && $qrDataUri)
+                        <img src="{{ $qrDataUri }}" alt="" class="size-16 sm:size-20 rounded-xl bg-white p-1 shrink-0 ring-1 ring-white/30">
+                    @endif
+                </div>
+                <dl class="mt-4 grid grid-cols-2 gap-3 relative">
+                    <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10 min-h-[4.5rem] flex flex-col">
+                        <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">
+                            {{ $permanent ? __('borrower.membership.customer_since_label') : __('borrower.membership.issued_label') }}
+                        </dt>
+                        <dd class="mt-1.5 text-sm font-semibold tabular-nums leading-tight">{{ $permanent ? $since : $issued }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-black/20 px-3 py-3 ring-1 ring-white/10 min-h-[4.5rem] flex flex-col">
+                        <dt class="text-[10px] uppercase tracking-wider text-brand-gold font-semibold">
+                            {{ $permanent ? __('borrower.membership.status_title') : __('borrower.membership.expires_label') }}
+                        </dt>
+                        <dd class="mt-1.5 text-sm font-semibold tabular-nums leading-tight">
+                            {{ $permanent ? $label : $expires }}
+                        </dd>
+                    </div>
+                </dl>
             </div>
         </div>
     </div>

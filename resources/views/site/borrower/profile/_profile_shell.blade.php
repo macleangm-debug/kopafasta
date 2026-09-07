@@ -26,7 +26,7 @@
 @endif
 
 @include('site.borrower.profile._heading', [
-    'title' => $title,
+    'title' => ($active ?? '') === 'hub' ? $title : null,
     'subtitle' => ($active ?? '') === 'hub' ? $subtitle : null,
     'share' => ($active ?? '') !== 'hub' ? 'kf-prof-'.$active : null,
 ])

@@ -34,22 +34,22 @@
 
 <div class="space-y-4" x-data="multiPageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), {{ (int) $maxPages }})">
     <input type="hidden" value="" x-bind:value="pages.length ? String(pages.length) : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
-    <div class="flex flex-wrap items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3" x-show="pages.length === 0" x-cloak>
         @if ($cameraFirst)
-            <button type="button" @click="openCamera()"
+            <button type="button" @click="fromCamera = true; openCamera()"
                     class="inline-flex items-center justify-center rounded-xl bg-brand-gold px-5 py-3 text-sm font-bold text-brand shadow-sm hover:bg-yellow-400">
                 {{ __('borrower.document_upload.open_camera') }}
             </button>
             <label class="inline-flex items-center justify-center bg-white hover:bg-gray-50 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm ring-1 ring-brand/20">
                 <span>{{ __('borrower.profile.upload') }}</span>
-                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="addFiles($event)">
+                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="fromCamera = false; addFiles($event)">
             </label>
         @else
             <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
                 <span>{{ __('borrower.profile.upload') }}</span>
-                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="addFiles($event)">
+                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="fromCamera = false; addFiles($event)">
             </label>
-            <button type="button" @click="openCamera()"
+            <button type="button" @click="fromCamera = true; openCamera()"
                     class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand shadow-sm ring-1 ring-brand/20 hover:bg-brand-muted/40">
                 {{ __('borrower.document_upload.camera') }}
             </button>
@@ -110,7 +110,7 @@
             <p class="text-xs font-semibold text-gray-500">
                 <span x-text="labels.pagesReady.replace(':count', String(pages.length))"></span>
             </p>
-            <button type="button" @click="openCamera()" :disabled="pages.length >= maxPages"
+            <button type="button" x-show="fromCamera" x-cloak @click="openCamera()" :disabled="pages.length >= maxPages"
                     class="text-xs font-semibold text-brand hover:underline disabled:opacity-40" x-text="labels.addAnother"></button>
         </div>
         <ul class="flex flex-wrap gap-2">
@@ -158,6 +158,7 @@
                 hostId,
                 maxPages: maxPages || 12,
                 pages: [],
+                fromCamera: false,
                 cameraOpen: false,
                 cameraNotice: null,
                 stream: null,
@@ -264,6 +265,7 @@
                     ctx.drawImage(video, 0, 0);
                     canvas.toBlob(blob => {
                         if (!blob) return;
+                        this.fromCamera = true;
                         this.addBlob(blob, 'page-' + (this.pages.length + 1) + '.jpg');
                         if (this.maxPages === 1) {
                             this.closeCamera();
