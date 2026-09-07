@@ -533,6 +533,29 @@ class PlusController extends Controller
         ]);
     }
 
+    public function reportPdf(Request $request, PlusService $plus, PlusReportService $reports)
+    {
+        $customer = $this->requireActivePlus($request, $plus);
+        $businessId = null;
+        $candidate = (int) $request->session()->get('plus.selected_business_id');
+        if ($candidate > 0) {
+            $owned = \App\Models\PlusBusiness::query()
+                ->where('customer_id', $customer->id)
+                ->whereKey($candidate)
+                ->exists();
+            $businessId = $owned ? $candidate : null;
+        }
+        $report = $reports->monthDashboard($customer, $request->query('month'), $businessId);
+        $month = (string) ($report['month'] ?? now()->format('Y-m'));
+        $filename = 'kopafasta-plus-report-'.$month.'.pdf';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.plus-monthly-report', [
+            'report' => $report,
+        ])->setPaper('a4');
+
+        return $pdf->download($filename);
+    }
+
     public function offers(Request $request, PlusService $plus)
     {
         $customer = $this->requireActivePlus($request, $plus);

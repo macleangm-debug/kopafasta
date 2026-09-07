@@ -358,6 +358,22 @@ class ApplyController extends Controller
             return redirect()->route('site.borrower.loan-products');
         }
 
+        // Sync verified fee payment BEFORE honouring ?step_key=… so resume does not
+        // briefly reopen the unpaid fee/quote step (payment-success flicker root cause).
+        if ($selectedProduct && ! $supplementMode) {
+            $syncedFee = app(ApplicationFeePaymentService::class)
+                ->syncDraftFromVerifiedPayment($customer, $selectedProduct);
+            if ($syncedFee) {
+                $savedDraft = $drafts->payloadForWizard($customer, $selectedProduct->id) ?? $savedDraft;
+                if (is_array($savedDraft)) {
+                    $savedDraft['application_fee'] = $syncedFee;
+                    if (product_includes_valuation_fee($selectedProduct)) {
+                        $savedDraft['valuation_fee'] = $syncedFee;
+                    }
+                }
+            }
+        }
+
         if ($isResume && $savedDraft) {
             $target = $savedDraft['resume_target'] ?? [];
             if ($request->filled('phase')) {
@@ -375,6 +391,7 @@ class ApplyController extends Controller
                     );
                 if (! $feeBlocks) {
                     $target['step_key'] = $requestedKey;
+                    $target['phase'] = $target['phase'] ?? 'application';
                 }
             }
             if ($request->filled('step')) {
@@ -388,20 +405,6 @@ class ApplyController extends Controller
         }
 
         try {
-            if ($selectedProduct) {
-                $syncedFee = app(ApplicationFeePaymentService::class)
-                    ->syncDraftFromVerifiedPayment($customer, $selectedProduct);
-                if ($syncedFee) {
-                    $savedDraft = $drafts->payloadForWizard($customer, $selectedProduct->id) ?? $savedDraft;
-                    if (is_array($savedDraft)) {
-                        $savedDraft['application_fee'] = $syncedFee;
-                        if (product_includes_valuation_fee($selectedProduct)) {
-                            $savedDraft['valuation_fee'] = $syncedFee;
-                        }
-                    }
-                }
-            }
-
             $feeQuote = $selectedProduct
                 ? app(ApplicationFeePaymentService::class)->quote(
                     $customer,

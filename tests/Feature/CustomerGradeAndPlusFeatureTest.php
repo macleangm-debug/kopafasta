@@ -722,9 +722,11 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee(__('plus.reports.a4_kicker'), false)
             ->assertSee(__('plus.reports.money'), false)
             ->assertSee('plusReportActions', false)
-            ->assertSee('printReport', false)
+            ->assertSee('kfPrintPlusReport', false)
+            ->assertSee('createObjectURL', false)
             ->assertSee(__('plus.reports.share'), false)
-            ->assertSee(__('plus.reports.share_more'), false)
+            ->assertSee('shareWhatsApp', false)
+            ->assertSee('preparePdf', false)
             ->assertDontSee('name="month"', false)
             ->assertDontSee('kf-print-document', false);
 

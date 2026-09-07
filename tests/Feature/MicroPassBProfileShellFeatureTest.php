@@ -128,14 +128,13 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         $this->assertStringContainsString('kf-print-wordmark', $reports);
         $this->assertStringContainsString('logoDataUri', $reports);
         $this->assertStringContainsString('footer_confidential', $reports);
+        $this->assertStringContainsString('kfPrintPlusReport', $reports);
+        $this->assertStringContainsString('createObjectURL', $reports);
+        $this->assertStringContainsString('data-kf-plus-print', $reports);
         $this->assertStringContainsString('plusReportActions', $reports);
-        $this->assertStringContainsString('printReport', $reports);
-        $this->assertStringContainsString('openShare', $reports);
-        $this->assertStringContainsString('shareMore', $reports);
-        $this->assertStringContainsString('x-site.action-panel', $reports);
+        $this->assertStringContainsString('x-site.kopafasta-share-sheet', $reports);
         $this->assertStringContainsString('x-site.borrower-layout', $reports);
         $this->assertStringNotContainsString('x-site.print-document', $reports);
-        $this->assertStringNotContainsString('navigator.share({ title', $reports);
         $this->assertStringNotContainsString('$website', $reports);
         $this->assertStringNotContainsString('$website', $sheet);
         $this->assertStringContainsString('kf-print-running-footer', $css);

@@ -1140,19 +1140,22 @@ export function applyWizard(config) {
                     const target = draft.resume_target || {};
                     this.resumeLoading = true;
 
-                    // After payment success: prefer URL next step and mark fee paid so we do not
-                    // reopen the fee gate / previous wizard step (zero-flicker continuation).
+                    // Prefer the resume URL (server already synced fee → next step) over a stale
+                    // draft resume_target so we never paint the previous fee/quote step first.
                     this._postPaymentContinue = false;
                     try {
-                        const cont = sessionStorage.getItem('kf-post-payment-continue');
-                        if (cont && String(cont).includes(location.pathname)) {
-                            const urlStep = new URLSearchParams(location.search).get('step_key');
-                            if (urlStep) {
-                                target.step_key = urlStep;
-                                target.phase = 'application';
-                            }
+                        const params = new URLSearchParams(location.search);
+                        const urlStep = params.get('step_key');
+                        const isResume = params.get('resume') === '1' || this.isResume;
+                        if (isResume && urlStep) {
+                            target.step_key = urlStep;
+                            target.phase = 'application';
                             this._postPaymentContinue = true;
+                        }
+                        const cont = sessionStorage.getItem('kf-post-payment-continue');
+                        if (cont) {
                             sessionStorage.removeItem('kf-post-payment-continue');
+                            this._postPaymentContinue = true;
                         }
                     } catch (e) {
                         // ignore
@@ -1240,7 +1243,10 @@ export function applyWizard(config) {
                         this.step = viewStep;
                         this.updateQuote();
                         this.syncStepKey();
-                        this.clampToIncompleteSetup();
+                        // After fee payment, resume lands on guarantor/review/… — do not clamp back to quote.
+                        if (! ['guarantor', 'review', 'signature', 'submit', 'product_questions'].includes(resumeKey)) {
+                            this.clampToIncompleteSetup();
+                        }
                         this.enforceStepRequirements(this.isResume);
                         if (this.stepKey === 'review' || this.stepKey === 'signature' || this.stepKey === 'submit') {
                             this.refreshReview(this.formRoot());

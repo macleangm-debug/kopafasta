@@ -347,6 +347,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::post('/borrower/plus/goals/{goal}/complete', [PlusController::class, 'completeGoal'])->name('borrower.plus.goals.complete');
             Route::post('/borrower/plus/goals/{goal}', [PlusController::class, 'updateGoal'])->name('borrower.plus.goals.update');
             Route::get('/borrower/plus/reports', [PlusController::class, 'reports'])->name('borrower.plus.reports');
+            Route::get('/borrower/plus/reports/pdf', [PlusController::class, 'reportPdf'])->name('borrower.plus.reports.pdf');
             Route::get('/borrower/plus/offers', [PlusController::class, 'offers'])->name('borrower.plus.offers');
             Route::post('/borrower/plus/offers/{offer}/open', [PlusController::class, 'openOffer'])->name('borrower.plus.offers.open');
             Route::post('/borrower/plus/offers/{offer}/claim', [PlusController::class, 'claimOffer'])->name('borrower.plus.offers.claim');
