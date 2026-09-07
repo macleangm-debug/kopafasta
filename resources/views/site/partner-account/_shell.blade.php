@@ -25,6 +25,7 @@
         $role = \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) ($category ?: 'Partner')));
     }
     $profileComplete = $profile->isComplete($partner);
+    $completionPercent = $profile->completionPercent($partner);
     $verified = ($partner->status ?? '') === 'active' && $membership->isActive($partner) && $profileComplete;
     $badgeLabel = $verified ? $role : __('site.card_verify.status.inactive');
     $hubUrl = route($profileRoute);
@@ -54,6 +55,7 @@
         :initial="$initial"
         :show-grade-badge="false"
         :badge-label="$badgeLabel"
+        :completion-percent="$completionPercent"
         :cta-url="$hubUrl"
         :cta-label="__('borrower.membership.my_card')"
     />

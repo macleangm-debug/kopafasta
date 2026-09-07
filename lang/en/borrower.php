@@ -3520,6 +3520,7 @@ return [
         'success_title' => 'Payment successful',
         'success_paid' => ':amount paid',
         'failed_using' => 'Payment number',
+        'failed_short' => 'Please try again or use another number.',
         'timeout_body' => 'We haven’t received confirmation yet.',
         'change_phone' => 'Change number',
         'new_phone_label' => 'Payment phone number',
@@ -3584,8 +3585,8 @@ return [
 
     'payments' => [
         'aggregator_required' => 'Mobile money is not available right now. The payment aggregator must be configured before payments can be accepted.',
-        'aggregator_rejected' => 'The payment provider did not accept this collection. Try again or use another number.',
-        'aggregator_rejected_phone' => 'The payment provider did not accept this collection for :phone. Try again or use another number.',
+        'aggregator_rejected' => 'Payment didn’t go through. Please try again.',
+        'aggregator_rejected_phone' => 'Payment didn’t go through. Please try again or use another number.',
         'mobile_number_required' => 'Enter the mobile money number that will confirm the payment.',
     ],
 

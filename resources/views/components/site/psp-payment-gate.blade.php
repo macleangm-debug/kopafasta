@@ -67,19 +67,13 @@
                 <p class="mt-4 text-xs text-white/70">{{ __('borrower.membership.payment_reference_label') }}</p>
                 <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1.5 rounded-lg">{{ $reference }}</p>
             @endif
-        </div>
-        {{ $amountFooter ?? '' }}
-    </div>
-
-    <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-5">
-        <div x-show="checkoutStep === 'adjust'" class="space-y-5">
             @if (is_array($walletReward) && ($walletReward['discount'] ?? 0) > 0)
-                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-sm space-y-2">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.payments_page.show.you_have_reward') }}</p>
-                    <p class="font-semibold text-gray-900">{{ $walletReward['label'] }}</p>
+                <div class="mt-5 rounded-xl bg-white/10 ring-1 ring-white/15 px-4 py-3 text-sm space-y-2 text-left">
+                    <p class="text-[10px] uppercase tracking-widest text-brand-gold font-bold">{{ __('borrower.payments_page.show.you_have_reward') }}</p>
+                    <p class="font-semibold text-white">{{ $walletReward['label'] }}</p>
                     @if ((int) ($walletReward['points'] ?? 0) > 0)
-                        <p class="text-xs text-gray-600">{{ __('borrower.payments_page.show.costs_points', ['points' => (int) $walletReward['points']]) }}</p>
-                        <p class="text-xs text-gray-600">{{ __('borrower.payments_page.show.points_preview', [
+                        <p class="text-xs text-white/80">{{ __('borrower.payments_page.show.costs_points', ['points' => (int) $walletReward['points']]) }}</p>
+                        <p class="text-xs text-white/80">{{ __('borrower.payments_page.show.points_preview', [
                             'current' => (int) ($walletReward['points_balance'] ?? 0),
                             'after' => (int) ($walletReward['points_after'] ?? 0),
                         ]) }}</p>
@@ -91,7 +85,12 @@
                     </button>
                 </div>
             @endif
+        </div>
+        {{ $amountFooter ?? '' }}
+    </div>
 
+    <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-5">
+        <div x-show="checkoutStep === 'adjust'" class="space-y-5">
             @if (isset($promo))
                 {{ $promo }}
             @elseif ($showPromo)

@@ -145,6 +145,27 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
         $this->assertStringContainsString(__('borrower.apply.next'), $html);
     }
 
+    public function test_payment_show_renders_promo_and_eligible_reward_controls(): void
+    {
+        $customer = $this->borrower(['loyalty_points' => 500]);
+        $this->affiliate('KITONGA');
+        $payment = $this->feePayment($customer);
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee(__('borrower.membership.apply_promo_link'), false)
+            ->assertSee(__('borrower.payments_page.show.you_have_reward'), false)
+            ->assertSee(__('borrower.payments_page.show.apply_reward'), false)
+            ->assertSee(__('borrower.payments_page.show.reward_or_promo'), false)
+            ->getContent();
+
+        $this->assertStringContainsString('toggleReward()', $html);
+        $this->assertStringContainsString('applyPromo()', $html);
+        $this->assertStringContainsString('apply_reward', $html);
+        $this->assertStringContainsString('promo_code', $html);
+    }
+
     public function test_affordable_reward_is_visible_and_insufficient_points_are_hidden(): void
     {
         $rich = $this->borrower(['loyalty_points' => 500]);
@@ -153,6 +174,19 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
 
         $this->assertNotNull($loyalty->checkoutRewardForFee($rich, 'application_fee', 10000));
         $this->assertNull($loyalty->checkoutRewardForFee($poor, 'application_fee', 10000));
+
+        $richPayment = $this->feePayment($rich);
+        $poorPayment = $this->feePayment($poor);
+
+        $this->actingAs($rich->user)
+            ->get(route('site.borrower.payments.show', $richPayment))
+            ->assertOk()
+            ->assertSee(__('borrower.payments_page.show.you_have_reward'), false);
+
+        $this->actingAs($poor->user)
+            ->get(route('site.borrower.payments.show', $poorPayment))
+            ->assertOk()
+            ->assertDontSee(__('borrower.payments_page.show.you_have_reward'), false);
     }
 
     public function test_reward_points_are_not_consumed_until_settle(): void

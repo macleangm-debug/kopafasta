@@ -3221,6 +3221,7 @@ return [
         'success_title' => 'Malipo yamefanikiwa',
         'success_paid' => ':amount imelipwa',
         'failed_using' => 'Nambari ya malipo',
+        'failed_short' => 'Jaribu tena au tumia namba nyingine.',
         'timeout_body' => 'Bado hatujapokea uthibitisho.',
         'change_phone' => 'Badilisha namba',
         'new_phone_label' => 'Nambari ya malipo',
@@ -3281,8 +3282,8 @@ return [
     ],
     'payments' => [
         'aggregator_required' => 'Malipo kwa simu hayapatikani sasa. Mtoa huduma wa malipo lazima awe umewekwa kabla ya kukubali malipo.',
-        'aggregator_rejected' => 'Mtoa huduma hakukubali ombi hili la malipo. Jaribu tena au tumia nambari nyingine.',
-        'aggregator_rejected_phone' => 'Mtoa huduma hakukubali ombi hili la malipo kwa :phone. Jaribu tena au tumia nambari nyingine.',
+        'aggregator_rejected' => 'Malipo hayakupita. Jaribu tena.',
+        'aggregator_rejected_phone' => 'Malipo hayakupita. Jaribu tena au tumia namba nyingine.',
         'mobile_number_required' => 'Weka nambari ya pesa kwa simu itakayothibitisha malipo.',
     ],
     'kyc' => [

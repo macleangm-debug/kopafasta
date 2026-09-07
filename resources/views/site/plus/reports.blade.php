@@ -13,8 +13,9 @@
     }
     $businessContext = $report['business_context'] ?? __('plus.business.all_businesses');
     $footerLine = __('plus.reports.footer', ['month' => $report['label'] ?? $currentMonth])
-        .' · '.brand('legal_name', 'Kopafasta Microfinance Limited')
-        .' · '.__('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]);
+        .' · '.brand('legal_name', 'Kopafasta Microfinance Limited');
+    $footerLine = trim(preg_replace('#https?://\S+#i', '', $footerLine) ?? $footerLine);
+    $footerLine = trim(preg_replace('/\s{2,}/', ' ', $footerLine) ?? $footerLine, " \t\n\r\0\x0B·");
     $print = (bool) ($print ?? false);
 @endphp
 

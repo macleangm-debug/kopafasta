@@ -97,7 +97,11 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         $this->assertStringContainsString("state === 'failed'", $flow);
         $this->assertStringContainsString('kf-premium-panel-red', $flow);
         $this->assertStringContainsString('prompt_short', $flow);
+        $this->assertStringContainsString('failed_short', $flow);
+        $this->assertStringContainsString('max-w-sm text-center', $flow);
         $this->assertStringNotContainsString('step_ussd', $flow);
+        $this->assertStringNotContainsString("x-text=\"@js(\$copy['successPaid'])\"", $flow);
+        $this->assertStringNotContainsString('x-show="message" x-text="message"', $flow);
         $this->assertStringContainsString('rounded-2xl bg-white shadow-sm ring-1 ring-gray-200', $flow);
         $this->assertStringContainsString('kf-payment-surface-card', $flow);
     }
@@ -121,10 +125,11 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         $sheet = file_get_contents(resource_path('views/site/plus/_report_sheet.blade.php'));
 
         $this->assertStringContainsString('kf-print-running-footer', $printDoc);
-        $this->assertStringContainsString('logo_mark_url', $printDoc);
+        $this->assertStringContainsString('logoDataUri', $printDoc);
+        $this->assertStringContainsString('brand_name()', $printDoc);
+        $this->assertStringContainsString('https?://', $printDoc); // strip pattern present
         $this->assertStringNotContainsString('print_plus_label', $printDoc);
         $this->assertStringNotContainsString('truncate', $printDoc);
-        $this->assertStringContainsString('word-break: break-word', $printDoc);
         $this->assertStringNotContainsString('$website', $reports);
         $this->assertStringNotContainsString('$website', $sheet);
         $this->assertStringNotContainsString('footer-left', $reports);
@@ -134,11 +139,33 @@ class MicroPassBProfileShellFeatureTest extends TestCase
     {
         $card = file_get_contents(resource_path('views/site/borrower/profile/_member_card.blade.php'));
         $hero = file_get_contents(resource_path('views/components/site/account-shell-hero.blade.php'));
+        $partner = file_get_contents(resource_path('views/site/partner-account/_shell.blade.php'));
 
         $this->assertStringContainsString('ProfileCompletionService', $card);
         $this->assertStringContainsString('completion-percent', $card);
         $this->assertStringContainsString('hero_completion_percent', $hero);
         $this->assertStringContainsString('hero_completion_done', $hero);
+        $this->assertStringContainsString('completionPercent', $partner);
+        $this->assertStringContainsString('completion-percent', $partner);
+    }
+
+    public function test_profile_pages_render_completion_in_identity_hero(): void
+    {
+        $customer = $this->borrower();
+        $percent = (int) (app(\App\Services\ProfileCompletionService::class)->calculate($customer)['percent'] ?? 0);
+
+        $html = $this->actingAs($customer->user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.borrower.profile', ['section' => 'personal']))
+            ->assertOk()
+            ->getContent();
+
+        if ($percent >= 100) {
+            $this->assertStringContainsString(__('borrower.profile.hero_completion_done'), $html);
+        } else {
+            $this->assertStringContainsString(__('borrower.profile.hero_completion_percent', ['percent' => $percent]), $html);
+            $this->assertStringContainsString('role="progressbar"', $html);
+        }
     }
 
     public function test_partner_shell_reuses_account_shell_hero(): void

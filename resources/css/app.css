@@ -208,6 +208,10 @@
         display: none !important;
     }
 
+    a[href]::after {
+        content: none !important;
+    }
+
     html, body {
         background: #fff !important;
         color: #111 !important;
@@ -284,15 +288,25 @@
         right: 0 !important;
         bottom: 0 !important;
         display: flex !important;
-        align-items: flex-start;
+        align-items: center;
         gap: 8px;
         background: #fff !important;
         z-index: 50;
-        padding-top: 3mm;
+        padding-top: 2.5mm;
         border-top: 0.4pt solid #d1d5db;
         font-size: 7.5pt;
-        line-height: 1.35;
+        line-height: 1.3;
         color: #4b5563;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .kf-print-running-footer img {
+        display: inline-block !important;
+        height: 12px !important;
+        width: auto !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
 
     .kf-print-running-footer p {
@@ -303,7 +317,7 @@
     }
 
     .kf-print-root {
-        padding-bottom: 18mm !important;
+        padding-bottom: 14mm !important;
     }
 }
 
