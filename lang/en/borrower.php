@@ -4945,6 +4945,7 @@ return [
         'account_number_placeholder' => 'Account number',
         'branch_placeholder' => 'Branch',
         'save_account' => 'Save account',
+        'update_account' => 'Update account',
         'manage_accounts' => 'Manage payment accounts',
         'default_account' => 'Preferred',
         'remove' => 'Remove',

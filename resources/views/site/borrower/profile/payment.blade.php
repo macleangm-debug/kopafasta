@@ -360,11 +360,13 @@
                                 <button type="button" @click="step = 2" class="text-sm font-semibold text-gray-600 hover:text-gray-900">
                                     ← {{ __('borrower.apply.back') }}
                                 </button>
+                                {{-- Review has no visible [required] fields; do not gate this terminal CTA with kfGatedSubmit. --}}
                                 <button type="submit"
-                                        x-data="kfGatedSubmit()"
-                                        x-show="ready"
-                                        x-cloak
-                                        class="bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-2.5 rounded-full text-sm">
+                                        data-payment-account-terminal-cta
+                                        class="bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-2.5 rounded-full text-sm"
+                                        x-text="editingId
+                                            ? @js(__('borrower.payment_details.update_account'))
+                                            : @js(__('borrower.payment_details.save_account'))">
                                     {{ __('borrower.payment_details.save_account') }}
                                 </button>
                             </div>

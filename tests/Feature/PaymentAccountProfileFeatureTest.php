@@ -247,4 +247,28 @@ class PaymentAccountProfileFeatureTest extends TestCase
         $this->assertMatchesRegularExpression('/\\\\u0022expanded\\\\u0022:true/', $html);
         $this->assertMatchesRegularExpression('/\\\\u0022complete\\\\u0022:false/', $html);
     }
+
+    public function test_payment_step_three_shows_terminal_save_and_update_ctas(): void
+    {
+        $customer = $this->borrower();
+        CustomerDisbursementAccount::create([
+            'customer_id'     => $customer->id,
+            'type'            => 'mobile_money',
+            'account_name'    => 'Payment Borrower',
+            'mobile_provider' => 'mpesa',
+            'mobile_number'   => '255712345678',
+            'is_default'      => true,
+        ]);
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'payment']))
+            ->assertOk()
+            ->assertSee('data-payment-account-terminal-cta', false)
+            ->assertSee(__('borrower.payment_details.save_account'), false)
+            ->assertSee(__('borrower.payment_details.update_account'), false)
+            ->getContent();
+
+        $this->assertStringNotContainsString('kfGatedSubmit()', $html);
+        $this->assertStringContainsString('editingId', $html);
+    }
 }
