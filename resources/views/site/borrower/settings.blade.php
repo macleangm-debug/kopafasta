@@ -11,10 +11,11 @@
     @endphp
 
     <div>
-        <div class="mb-6">
-            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">{{ __('borrower.settings.title') }}</h1>
-            <p class="mt-1 text-sm text-gray-600">{{ __('borrower.settings.subtitle') }}</p>
-        </div>
+        <x-site.account-shell-hero
+            mode="contextual"
+            :title="__('borrower.settings.hero_title')"
+            :body="__('borrower.settings.hero_body')"
+        />
 
         @if (session('status'))
             <div

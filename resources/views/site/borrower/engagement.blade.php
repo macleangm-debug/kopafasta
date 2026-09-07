@@ -1,9 +1,9 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.engagement.title'))" active="engagement" content-width="wide">
 
-    <x-site.borrower-page-header
-        :eyebrow="__('borrower.engagement.eyebrow')"
-        :title="__('borrower.engagement.title')"
-        :subtitle="__('borrower.engagement.subtitle')"
+    <x-site.account-shell-hero
+        mode="contextual"
+        :title="__('borrower.engagement.hero_title')"
+        :body="__('borrower.engagement.hero_body')"
     />
 
     <div x-data="{ tab: @js($tab) }">

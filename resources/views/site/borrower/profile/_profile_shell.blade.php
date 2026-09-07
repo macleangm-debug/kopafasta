@@ -19,9 +19,10 @@
     @endif
 @endif
 
+{{-- Hub uses the identity hero only — no redundant Akaunti yangu / My account heading. --}}
 @include('site.borrower.profile._heading', [
-    'title' => ($active ?? '') === 'hub' ? $title : null,
-    'subtitle' => ($active ?? '') === 'hub' ? $subtitle : null,
+    'title' => null,
+    'subtitle' => null,
     'share' => ($active ?? '') !== 'hub' ? 'kf-prof-'.$active : null,
 ])
 

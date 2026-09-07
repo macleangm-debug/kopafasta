@@ -1,6 +1,7 @@
 @props([
     'mode' => 'identity', // identity | contextual
     'title' => null,
+    'body' => null, // short description under contextual title
     'displayName' => null,
     'memberNo' => null,
     'photoUrl' => null,
@@ -38,6 +39,9 @@
                 <p class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight text-white">
                     {{ $title ?: __('borrower.membership.my_card') }}
                 </p>
+                @if (filled($body))
+                    <p class="text-sm sm:text-base text-white/80 leading-relaxed max-w-xl">{{ $body }}</p>
+                @endif
             @else
                 <div class="flex items-start gap-3 sm:gap-4 min-w-0">
                     @if ($photoUrl)

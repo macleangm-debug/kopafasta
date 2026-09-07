@@ -89,22 +89,17 @@
         </div>
     @endif
 
-    <x-site.borrower-page-header
-        :eyebrow="__('borrower.nav.loans')"
+    <x-site.account-shell-hero
+        mode="contextual"
         :title="__('borrower.loans_page.title')"
-        :subtitle="(($showGuaranteedTab ?? false) && ($activeTab ?? '') === 'guaranteed')
+        :body="(($showGuaranteedTab ?? false) && ($activeTab ?? '') === 'guaranteed')
             ? __('borrower.loans_page.guaranteed_hint')
             : ((($showGuarantorTab ?? false) && ($activeTab ?? '') === 'guarantor')
                 ? __('borrower.guarantor.tab_hint')
-                : __('borrower.loans_page.subtitle'))">
-        <x-slot:actions>
-            <a href="{{ route('site.borrower.loan-products') }}"
-               data-kf-motion="tab"
-               class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
-                {{ __('borrower.loans_page.apply_new_cta') }}
-            </a>
-        </x-slot:actions>
-    </x-site.borrower-page-header>
+                : __('borrower.loans_page.subtitle'))"
+        :cta-url="route('site.borrower.loan-products')"
+        :cta-label="__('borrower.loans_page.apply_new_cta')"
+    />
 
 
 

@@ -138,6 +138,8 @@ return [
 
     'settings' => [
         'title' => 'Account settings',
+        'hero_title' => 'Settings',
+        'hero_body' => 'Manage security, language, devices and account preferences.',
         'subtitle' => 'PIN, devices, notifications and personal preferences.',
         'personalisation_title' => 'Personalise your account',
         'personalisation_hint' => 'How we greet you and when we should message you.',
@@ -1544,6 +1546,8 @@ return [
         'title' => 'Rewards & referrals',
         'eyebrow' => 'Earn & redeem',
         'subtitle' => 'Points, referrals, and repayment streaks.',
+        'hero_title' => 'Rewards',
+        'hero_body' => 'Points, referrals, and repayment streaks in one place.',
         'points_label' => 'Loyalty points',
         'referral_points_label' => 'Referral points',
         'combined_points_hint' => 'Referral points are earned from commissions and can be spent at checkout. Loyalty points are redeemed for rewards in the catalog.',
@@ -2993,7 +2997,7 @@ return [
         'subtitle_simplified' => 'Track your applications and active loans in one place.',
         'apply_new_title' => 'Apply for a new loan',
         'apply_new_hint' => 'Browse available loan products and start a new application.',
-        'apply_new_cta' => 'Apply for loan',
+        'apply_new_cta' => 'Apply for a loan',
         'summary_applications' => 'Applications',
         'summary_active' => 'Active loans',
         'summary_guarantor' => 'Guarantor requests',
@@ -4136,6 +4140,8 @@ return [
     'notifications' => [
         'page_title' => 'Notifications',
         'page_subtitle' => 'Updates about your loan, payments, identity and documents.',
+        'hero_title' => 'Notifications',
+        'hero_body' => 'Keep track of updates that need your attention.',
         'empty' => 'No notifications yet.',
         'mark_all_read' => 'Mark all read',
         'clear_all' => 'Clear all',

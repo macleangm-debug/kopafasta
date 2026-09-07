@@ -133,6 +133,8 @@ return [
     ],
     'settings' => [
         'title' => 'Mipangilio ya akaunti',
+        'hero_title' => 'Mipangilio',
+        'hero_body' => 'Simamia usalama, lugha, vifaa na mapendeleo ya akaunti.',
         'subtitle' => 'PIN, vifaa, arifa na mapendeleo yako.',
         'personalisation_title' => 'Binafsisha akaunti yako',
         'personalisation_hint' => 'Jinsi tunavyokusalimu na wakati wa kukuwasiliana.',
@@ -1555,6 +1557,8 @@ return [
         'title' => 'Zawadi na rufaa',
         'eyebrow' => 'Pata na tumia',
         'subtitle' => 'Pointi, rufaa, na mfululizo wa malipo.',
+        'hero_title' => 'Zawadi',
+        'hero_body' => 'Pointi, rufaa na mfululizo wa malipo mahali pamoja.',
         'points_label' => 'Pointi za uaminifu',
         'referral_points_label' => 'Pointi za rufaa',
         'tabs' => [
@@ -4117,6 +4121,8 @@ Asante.',
     'notifications' => [
         'page_title' => 'Arifa',
         'page_subtitle' => 'Taarifa kuhusu mkopo wako, malipo, utambulisho na hati.',
+        'hero_title' => 'Arifa',
+        'hero_body' => 'Fuatilia taarifa zinazohitaji umakini wako.',
         'empty' => 'Bado hakuna arifa.',
         'mark_all_read' => 'Weka zote kama zimesomwa',
         'clear_all' => 'Futa zote',

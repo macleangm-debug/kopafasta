@@ -9,26 +9,25 @@
 
 <x-site.borrower-layout :title="brand_title(__('borrower.notifications.page_title'))" active="notifications" content-width="wide">
 
-    <div class="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div class="min-w-0">
-            <p class="text-xs uppercase tracking-widest text-brand font-bold mb-1">{{ __('borrower.nav.notifications') }}</p>
-            <h1 class="text-2xl sm:text-3xl font-bold text-brand tracking-tight">{{ __('borrower.notifications.page_title') }}</h1>
-            <p class="text-sm text-gray-600 mt-1">{{ __('borrower.notifications.page_subtitle') }}</p>
+    <x-site.account-shell-hero
+        mode="contextual"
+        :title="__('borrower.notifications.hero_title')"
+        :body="__('borrower.notifications.hero_body')"
+    />
+
+    @if ($unreadCount > 0)
+        <div class="mb-6 flex flex-wrap items-center gap-2">
+            <form method="POST" action="{{ route('site.borrower.notifications.read') }}">
+                @csrf
+                <button class="text-xs font-semibold px-4 py-2 rounded-xl ring-1 ring-brand/20 bg-brand-muted text-brand hover:bg-brand-muted/80">{{ __('borrower.notifications.mark_all_read') }}</button>
+            </form>
+            <form method="POST" action="{{ route('site.borrower.notifications.clear-all') }}"
+                  @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.notifications.clear_all_confirm_title')), message: @js(__('borrower.notifications.clear_all_confirm_message')), confirmLabel: @js(__('borrower.notifications.clear_all')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+                @csrf
+                <button class="text-xs font-semibold px-4 py-2 rounded-xl ring-1 ring-red-200 text-red-700 bg-red-50 hover:bg-red-100">{{ __('borrower.notifications.clear_all') }}</button>
+            </form>
         </div>
-        @if ($unreadCount > 0)
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <form method="POST" action="{{ route('site.borrower.notifications.read') }}">
-                    @csrf
-                    <button class="text-xs font-semibold px-4 py-2 rounded-xl ring-1 ring-brand/20 bg-brand-muted text-brand hover:bg-brand-muted/80">{{ __('borrower.notifications.mark_all_read') }}</button>
-                </form>
-                <form method="POST" action="{{ route('site.borrower.notifications.clear-all') }}"
-                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.notifications.clear_all_confirm_title')), message: @js(__('borrower.notifications.clear_all_confirm_message')), confirmLabel: @js(__('borrower.notifications.clear_all')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
-                    @csrf
-                    <button class="text-xs font-semibold px-4 py-2 rounded-xl ring-1 ring-red-200 text-red-700 bg-red-50 hover:bg-red-100">{{ __('borrower.notifications.clear_all') }}</button>
-                </form>
-            </div>
-        @endif
-    </div>
+    @endif
 
     <div class="mb-6 flex flex-wrap gap-2">
         <a href="{{ route('site.borrower.notifications') }}"

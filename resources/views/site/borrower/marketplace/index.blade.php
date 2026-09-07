@@ -1,10 +1,6 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.marketplace.title'))" active="marketplace" content-width="wide">
 
-    <x-site.borrower-page-header
-        :eyebrow="__('borrower.nav.marketplace')"
-        :title="__('borrower.marketplace.title')"
-        :subtitle="__('borrower.marketplace.subtitle')"
-    />
+    {{-- Catalogue is the primary surface — no duplicate plain page title above. --}}
 
     {{-- Find what you need (collapsed) --}}
     @php
