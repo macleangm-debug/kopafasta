@@ -3364,10 +3364,11 @@ class BorrowerController extends Controller
 
         $this->auditBorrower('profile.document_removed', $customer, ['code' => $code]);
 
-        return $this->redirectAfterProfileDocumentChange($code, __('borrower.profile.document_removed'));
+        // Stay on the expanded list — no second "Got it" acknowledgement modal.
+        return $this->redirectAfterProfileDocumentChange($code, null);
     }
 
-    private function redirectAfterProfileDocumentChange(string $code, string $status): RedirectResponse
+    private function redirectAfterProfileDocumentChange(string $code, ?string $status = null): RedirectResponse
     {
         $normalized = match ($code) {
             'address_proof' => 'residence_letter',
@@ -3412,9 +3413,11 @@ class BorrowerController extends Controller
             default => null,
         };
 
-        $redirect = redirect()
-            ->route('site.borrower.profile', $params)
-            ->with('status', $status);
+        $redirect = redirect()->route('site.borrower.profile', $params);
+
+        if (filled($status)) {
+            $redirect->with('status', $status);
+        }
 
         return $fragment ? $redirect->withFragment($fragment) : $redirect;
     }

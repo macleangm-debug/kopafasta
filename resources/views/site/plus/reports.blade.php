@@ -15,16 +15,18 @@
     $website = \App\Models\Setting::get('company.website')
         ?: \App\Models\Setting::get('company.app_base_url')
         ?: config('app.url');
-    $footerLeft = __('plus.reports.print_footer_title');
-    $footerRight = __('plus.reports.footer', ['month' => $report['label'] ?? $currentMonth]);
+    $footerLine = __('plus.reports.footer', ['month' => $report['label'] ?? $currentMonth])
+        .' · '.brand('legal_name', 'Kopafasta Microfinance Limited')
+        .' · '.$website
+        .' · '.__('plus.reports.generated', ['date' => $report['generated_at'] ?? now()->toDateTimeString()]);
     $print = (bool) ($print ?? false);
 @endphp
 
 @if ($print)
     <x-site.print-document
         :title="brand_title(__('plus.home.reports'))"
-        :footer-left="$footerLeft"
-        :footer-right="$footerRight"
+        :footer-left="null"
+        :footer-right="$footerLine"
     >
         @include('site.plus._report_sheet', [
             'report' => $report,

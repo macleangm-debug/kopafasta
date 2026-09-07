@@ -16,45 +16,50 @@
     $grade = $customer->grade ?? 'bronze';
     $myCardUrl = route('site.borrower.profile', ['section' => 'membership']);
     $profileUrl = route('site.borrower.profile');
+    $ctaUrl = $cta === 'profile' ? $profileUrl : ($cta === 'card' ? $myCardUrl : null);
+    $ctaLabel = $cta === 'profile'
+        ? __('borrower.profile.panel_profile')
+        : ($cta === 'card' ? __('borrower.membership.my_card') : null);
 @endphp
 
-<section class="relative overflow-hidden rounded-[1.5rem] mb-6 kf-premium-panel">
-    <div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_rgba(245,200,66,0.45),_transparent_55%)] pointer-events-none"></div>
-    <div class="relative p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-        <div class="flex items-center gap-4 min-w-0 flex-1">
-            <div class="shrink-0">
+{{-- Canonical profile hero — same shell/language as Dashboard Hero --}}
+<section class="mb-6 rounded-2xl p-5 sm:p-6 relative overflow-hidden kf-premium-panel">
+    <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+    <div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_rgba(245,200,66,0.45),_transparent_55%)] pointer-events-none" aria-hidden="true"></div>
+
+    <div class="relative">
+        <div class="flex items-start justify-between gap-3">
+            <x-site.brand-mark size="sm" variant="light" />
+            <x-site.grade-badge :grade="$grade" :plus="$plusActive" size="lg" class="shrink-0" />
+        </div>
+
+        <div class="mt-5 space-y-4 max-w-2xl">
+            <div class="flex items-start gap-3 sm:gap-4 min-w-0">
                 @if ($photoUrl)
-                    <img src="{{ $photoUrl }}" alt="" class="size-16 sm:size-20 rounded-2xl object-cover ring-2 ring-brand-gold/50 bg-white/10">
+                    <img src="{{ $photoUrl }}" alt="" class="size-14 sm:size-16 rounded-2xl object-cover ring-2 ring-brand-gold/50 bg-white/10 shrink-0">
                 @else
-                    <div class="size-16 sm:size-20 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 text-white grid place-items-center text-xl font-bold">
+                    <div class="size-14 sm:size-16 rounded-2xl bg-white/10 ring-2 ring-brand-gold/40 text-white grid place-items-center text-xl font-bold shrink-0">
                         {{ $initial }}
                     </div>
                 @endif
-            </div>
-
-            <div class="min-w-0 flex-1">
-                <h2 class="text-lg sm:text-xl font-bold text-white leading-tight break-words">{{ $displayName }}</h2>
-                @if ($memberNo !== '')
-                    <p class="mt-1 text-sm font-mono text-white/80 tracking-wide break-all">{{ $memberNo }}</p>
-                @endif
-                <div class="mt-2.5">
-                    <x-site.grade-badge :grade="$grade" :plus="$plusActive" size="sm" />
+                <div class="min-w-0 pt-0.5">
+                    <p class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight text-white break-words">{{ $displayName }}</p>
+                    @if ($memberNo !== '')
+                        <p class="text-sm font-mono mt-1.5 text-white/75 break-all">{{ $memberNo }}</p>
+                    @endif
                 </div>
             </div>
-        </div>
 
-        @if ($cta === 'card')
-            <a href="{{ $myCardUrl }}"
-               data-kf-motion="pop"
-               class="shrink-0 inline-flex items-center justify-center self-start sm:self-auto rounded-full bg-brand-gold hover:brightness-95 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
-                {{ __('borrower.membership.my_card') }} →
-            </a>
-        @elseif ($cta === 'profile')
-            <a href="{{ $profileUrl }}"
-               data-kf-motion="pop"
-               class="shrink-0 inline-flex items-center justify-center self-start sm:self-auto rounded-full bg-white/15 hover:bg-white/25 text-white font-bold px-4 py-2.5 text-sm ring-1 ring-white/25">
-                {{ __('borrower.profile.panel_profile') }} →
-            </a>
-        @endif
+            @if ($ctaUrl && $ctaLabel)
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ $ctaUrl }}"
+                       data-loading="click"
+                       data-kf-motion="pop"
+                       class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
+                        {{ $ctaLabel }}
+                    </a>
+                </div>
+            @endif
+        </div>
     </div>
 </section>

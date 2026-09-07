@@ -188,7 +188,7 @@
 @media print {
     @page {
         size: A4;
-        margin: 14mm 12mm 20mm;
+        margin: 12mm 12mm 18mm;
     }
 
     .kf-chrome-sidebar,
@@ -275,12 +275,7 @@
     }
 
     .kf-print-app-footer {
-        display: flex !important;
-        break-inside: avoid;
-        page-break-inside: avoid;
-        margin-top: 6mm;
-        padding-top: 3mm;
-        border-top: 0.4pt solid #d1d5db;
+        display: none !important;
     }
 
     .kf-print-running-footer {
@@ -288,9 +283,19 @@
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        display: block !important;
+        display: flex !important;
+        align-items: center;
+        gap: 8px;
         background: #fff !important;
         z-index: 50;
+        padding-top: 3mm;
+        border-top: 0.4pt solid #d1d5db;
+        font-size: 8pt;
+        color: #4b5563;
+    }
+
+    .kf-print-root {
+        padding-bottom: 14mm !important;
     }
 }
 
@@ -435,6 +440,10 @@ body.kf-camera-open .kf-mobile-bottom-nav {
 }
 
 /* payment.show — one interaction surface: sheet on mobile, dialog card on desktop */
+.kf-chrome-page:has(.kf-payment-page) {
+    overflow-x: visible;
+}
+
 .kf-payment-surface {
     position: relative;
 }
@@ -473,20 +482,34 @@ body.kf-camera-open .kf-mobile-bottom-nav {
 }
 
 @media (min-width: 1024px) {
-    /* Center the payment surface in the full usable content column. */
+    /* Center payment card in the full main content column — never clip or drift. */
+    .kf-payment-page {
+        width: 100%;
+        max-width: 100%;
+        overflow: visible;
+    }
+
+    .kf-payment-page .kf-payment-surface,
     .kf-payment-surface {
         width: 100%;
+        max-width: 100%;
         min-height: 0;
         display: flex;
         justify-content: center;
         align-items: flex-start;
         padding: 1.5rem 0 3rem;
         box-sizing: border-box;
+        margin: 0;
+        position: relative;
+        left: auto;
+        right: auto;
+        transform: none;
     }
 
+    .kf-payment-page .kf-payment-surface-card,
     .kf-payment-surface-card {
         width: 100%;
-        max-width: 28rem;
+        max-width: min(28rem, 100%);
         margin-inline: auto;
         border-radius: 1.5rem;
         background: #fff;
@@ -495,6 +518,7 @@ body.kf-camera-open .kf-mobile-bottom-nav {
         overflow: visible;
         display: block;
         max-height: none;
+        box-sizing: border-box;
     }
 
     .kf-payment-surface-card > .flex-1 {

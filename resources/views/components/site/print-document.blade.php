@@ -7,6 +7,10 @@
 @php
     $pageTitle = $title ?? brand_title('Report');
     $seoDocument = app(\App\Services\SeoService::class)->privateDocument(request(), $pageTitle);
+    $footerLine = trim(implode(' · ', array_filter([
+        $footerLeft,
+        $footerRight,
+    ], fn ($part) => filled($part))));
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -19,7 +23,7 @@
     <style>
         @page {
             size: A4;
-            margin: 14mm 12mm 18mm;
+            margin: 12mm 12mm 18mm;
         }
         @media print {
             html, body {
@@ -28,8 +32,26 @@
                 padding: 0 !important;
             }
             .kf-print-chrome { display: none !important; }
-            /* Application footer lives in the report sheet; avoid a second fixed chrome footer colliding with content. */
-            .kf-print-running-footer { display: none !important; }
+            /* Fixed application footer on every printed page (not Chrome browser chrome). */
+            .kf-print-running-footer {
+                position: fixed !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                display: flex !important;
+                align-items: center;
+                gap: 8px;
+                padding: 3mm 0 0;
+                border-top: 0.4pt solid #d1d5db;
+                background: #fff !important;
+                font-size: 8pt;
+                color: #4b5563;
+                z-index: 50;
+            }
+            .kf-print-root {
+                padding-bottom: 14mm !important;
+            }
+            .kf-print-app-footer { display: none !important; }
         }
         @media screen {
             body { background: #f3f4f6; }
@@ -52,5 +74,11 @@
     <main class="kf-print-root mx-auto my-4 sm:my-8 max-w-[210mm] bg-white shadow-sm ring-1 ring-brand/10 print:shadow-none print:ring-0 print:my-0 print:max-w-none">
         {{ $slot }}
     </main>
+
+    <div class="kf-print-running-footer" aria-hidden="true">
+        <img src="{{ asset(ltrim((string) (brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png'), '/')) }}"
+             alt="" class="h-3.5 w-auto object-contain shrink-0">
+        <p class="min-w-0 leading-snug truncate">{{ $footerLine !== '' ? $footerLine : 'Kopafasta Plus Report' }}</p>
+    </div>
 </body>
 </html>

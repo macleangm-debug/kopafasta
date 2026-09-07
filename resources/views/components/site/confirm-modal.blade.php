@@ -14,6 +14,8 @@
     $cancelLabel = $cancelLabel ?? __('borrower.apply.cancel');
 @endphp
 
+{{-- Desktop: centered modal. Mobile: premium bottom sheet (same pattern as action-panel). --}}
+<template x-teleport="body">
 <div
     x-data="{
         open: false,
@@ -57,6 +59,39 @@
             if (typeof this.onCancel === 'function') this.onCancel();
             this.onCancel = null;
         },
+        runConfirm(confirmBtn) {
+            const confirmCb = this.onConfirm;
+            if (this.form) {
+                this.form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true }));
+                this.form.querySelectorAll('[data-phone-input]').forEach(function (root) {
+                    if (typeof window.syncSitePhoneInput === 'function') {
+                        window.syncSitePhoneInput(root);
+                    }
+                });
+                const submitter = this.form.querySelector('button[type=submit], input[type=submit]');
+                if (typeof window.kfMarkBusy === 'function') {
+                    if (submitter) window.kfMarkBusy(submitter);
+                    window.kfMarkBusy(confirmBtn);
+                    this.form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) {
+                        if (btn !== submitter) btn.disabled = true;
+                    });
+                } else {
+                    this.form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
+                }
+                this.form.dataset.loadingBound = '1';
+                if (typeof window.kfFormNeedsSaving === 'function' && window.kfFormNeedsSaving(this.form) && typeof window.kfShowSaving === 'function') {
+                    window.kfShowSaving(this.form.getAttribute('data-saving-message') || '');
+                }
+                this.form.submit();
+            } else if (typeof confirmCb === 'function') {
+                if (typeof window.kfMarkBusy === 'function') window.kfMarkBusy(confirmBtn);
+                confirmCb();
+            }
+            this.open = false;
+            this.form = null;
+            this.onConfirm = null;
+            this.onCancel = null;
+        },
         toneMeta() {
             const map = {
                 success: {
@@ -97,16 +132,33 @@
     x-on:keydown.escape.window="if (open) cancel()"
     x-show="open"
     x-cloak
-    class="fixed inset-0 z-[10050] flex items-center justify-center p-4"
+    x-effect="
+        if (typeof document === 'undefined') return;
+        document.documentElement.classList.toggle('overflow-hidden', open);
+        document.body.classList.toggle('overflow-hidden', open);
+    "
+    class="fixed inset-0 z-[10050]"
     role="dialog"
     aria-modal="true"
 >
-    <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="cancel()"></div>
-    <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 translate-y-3 scale-95"
-         x-transition:enter-end="opacity-100 translate-y-0 scale-100">
-        <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
+    <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm lg:bg-brand/70" @click="cancel()" x-transition.opacity></div>
+
+    <div class="absolute inset-x-0 bottom-0 lg:inset-auto lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2
+                w-full lg:max-w-md max-h-[min(90dvh,640px)] flex flex-col overflow-hidden
+                rounded-t-2xl lg:rounded-3xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] lg:shadow-2xl lg:ring-1 lg:ring-brand/15"
+         style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+         x-show="open"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="translate-y-full lg:translate-y-0 lg:opacity-0 lg:scale-95"
+         x-transition:enter-end="translate-y-0 lg:opacity-100 lg:scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="translate-y-0 lg:opacity-100"
+         x-transition:leave-end="translate-y-full lg:opacity-0 lg:scale-95"
+         @click.stop>
+        <div class="flex justify-center pt-3 pb-1 shrink-0 lg:hidden">
+            <div class="w-10 h-1 rounded-full bg-gray-300"></div>
+        </div>
+        <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white shrink-0">
             <div class="flex items-start gap-3">
                 <span class="mt-0.5 size-11 rounded-2xl grid place-items-center ring-1 shrink-0"
                       :class="toneMeta().iconBg">
@@ -129,44 +181,11 @@
                 </div>
             </div>
         </div>
-        <div class="px-6 py-5">
+        <div class="px-6 py-5 overflow-y-auto overscroll-contain flex-1">
             <p x-show="message" x-cloak class="text-sm text-gray-600 leading-relaxed" x-text="message"></p>
             <div class="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
                 <button type="button"
-                        @click="
-                            const confirmCb = onConfirm;
-                            const confirmBtn = $el;
-                            if (form) {
-                                form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true }));
-                                form.querySelectorAll('[data-phone-input]').forEach(function (root) {
-                                    if (typeof window.syncSitePhoneInput === 'function') {
-                                        window.syncSitePhoneInput(root);
-                                    }
-                                });
-                                const submitter = form.querySelector('button[type=submit], input[type=submit]');
-                                if (typeof window.kfMarkBusy === 'function') {
-                                    if (submitter) window.kfMarkBusy(submitter);
-                                    window.kfMarkBusy(confirmBtn);
-                                    form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) {
-                                        if (btn !== submitter) btn.disabled = true;
-                                    });
-                                } else {
-                                    form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
-                                }
-                                form.dataset.loadingBound = '1';
-                                if (typeof window.kfFormNeedsSaving === 'function' && window.kfFormNeedsSaving(form) && typeof window.kfShowSaving === 'function') {
-                                    window.kfShowSaving(form.getAttribute('data-saving-message') || '');
-                                }
-                                form.submit();
-                            } else if (typeof confirmCb === 'function') {
-                                if (typeof window.kfMarkBusy === 'function') window.kfMarkBusy(confirmBtn);
-                                confirmCb();
-                            }
-                            open = false;
-                            form = null;
-                            onConfirm = null;
-                            onCancel = null;
-                        "
+                        @click="runConfirm($el)"
                         :disabled="!form && typeof onConfirm !== 'function'"
                         class="inline-flex w-full sm:w-auto justify-center px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm disabled:opacity-50"
                         :class="confirmClass"
@@ -179,3 +198,4 @@
         </div>
     </div>
 </div>
+</template>

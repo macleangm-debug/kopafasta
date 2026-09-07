@@ -46,7 +46,6 @@
     <div class="mb-5 max-w-xl mx-auto rounded-2xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
 @endif
 
-<div class="max-w-xl mx-auto space-y-5">
 @if ($isPayInWaiting || $isReadyToPay || $showCollectFailed || $isTerminalFailed)
     <x-site.psp-payment-flow
         :payment="$payment"
@@ -71,6 +70,7 @@
         :simulate-url="$simulateUrl ?? null"
     />
 @else
+<div class="max-w-xl mx-auto space-y-5">
     <section class="relative kf-premium-panel rounded-3xl">
         <div class="absolute inset-0 opacity-[0.14]" style="background-image: radial-gradient(circle at 18% 20%, #fff 0, transparent 42%), radial-gradient(circle at 88% 0%, #fbbf24 0, transparent 38%);"></div>
         <div class="relative px-5 sm:px-7 py-7">
@@ -165,5 +165,5 @@
             </form>
         </div>
     @endif
-@endif
 </div>
+@endif
