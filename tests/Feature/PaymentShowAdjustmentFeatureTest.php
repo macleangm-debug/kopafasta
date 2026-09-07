@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\User;
 use App\Models\Vendor;
@@ -249,6 +250,23 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
 
         $customer = \App\Models\Customer::query()->where('customer_number', 'CU-UAT-0001')->firstOrFail();
         $payment = $this->feePayment($customer);
+
+        // Mirror real staging UAT: borrower already has an application. Without
+        // existing_customer_referral, attachAffiliate silently refuses KITONGA.
+        LoanApplication::query()->create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $payment->loan_product_id,
+            'application_number' => 'APP-UAT-KIT-'.random_int(100, 999),
+            'requested_amount' => 500_000,
+            'requested_tenure_months' => 6,
+            'status' => 'draft',
+            'current_stage' => 'draft',
+        ]);
+
+        $this->assertTrue(app(\App\Services\AffiliateSettingsService::class)->existingCustomerReferral());
+        $this->assertTrue(
+            app(\App\Services\AffiliateAttributionService::class)->customerIsExistingBorrower($customer)
+        );
 
         $this->actingAs($customer->user)
             ->withSession(['locale' => 'en'])

@@ -134,6 +134,30 @@ class StagingUatSeeder extends Seeder
         $applies = app(\App\Services\AffiliateSettingsService::class)->appliesTo();
         $applies['application_fee'] = true;
         \App\Models\Setting::set('affiliates.applies_to', $applies);
+
+        // Real UAT borrowers already have applications. Without this, canonical
+        // attachAffiliate refuses KITONGA at payment.show (existing-borrower block).
+        $attribution = app(\App\Services\AffiliateSettingsService::class)->attributionSettings();
+        $attribution['existing_customer_referral'] = true;
+        \App\Models\Setting::set('affiliates.attribution', $attribution);
+
+        $kitonga = Vendor::query()->where('affiliate_code', 'KITONGA')->first();
+        if ($kitonga && ! app(\App\Services\AffiliateTermsService::class)->hasAccepted($kitonga)) {
+            \App\Models\PartnerAgreementAcceptance::query()->create([
+                'partner_id' => $kitonga->id,
+                'partner_type' => 'affiliate',
+                'agreement_key' => \App\Services\AffiliateTermsService::AGREEMENT_KEY,
+                'agreement_version' => 'staging-uat',
+                'policy_version' => 'staging-uat',
+                'locale' => 'en',
+                'rendered_text' => 'Staging UAT terms acceptance for KITONGA.',
+                'content_hash' => hash('sha256', 'staging-uat-kitonga'),
+                'settings_snapshot' => ['seeded' => true],
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'StagingUatSeeder',
+                'accepted_at' => now(),
+            ]);
+        }
     }
 
     private function enrollUatRecovery(User $user): void
