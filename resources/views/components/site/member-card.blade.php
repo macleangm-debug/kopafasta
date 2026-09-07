@@ -27,16 +27,24 @@
     $plusActive = app(\App\Services\Plus\PlusService::class)->isActive($customer);
     $grade = strtolower((string) ($customer->grade ?: 'bronze'));
     $gradeKey = strtoupper($grade);
+    $gradeShareLabel = match ($grade) {
+        'silver' => 'Silver',
+        'gold' => 'Gold',
+        'platinum' => 'Platinum',
+        default => 'Bronze',
+    };
     $name = strtoupper(trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')));
     $memberNoRaw = MemberNumberFormatter::raw($customer->member_no);
     $memberNoDisplay = MemberNumberFormatter::display($customer->member_no);
     $base = rtrim(app(ReferralService::class)->appBaseUrl(), '/');
     $verifyUrl = $memberNoRaw ? $base.'/v/'.rawurlencode($memberNoRaw) : null;
+    $registerUrl = $referralLink ?: route('site.register.borrower');
     $shareText = $verifyUrl
         ? __('borrower.membership.share_message', [
-            'member' => $memberNoDisplay,
+            'grade' => $gradeShareLabel,
+            'plus_suffix' => $plusActive ? __('borrower.membership.share_plus_suffix') : '',
             'link' => $verifyUrl,
-            'register' => $referralLink ?: route('site.register.borrower'),
+            'register' => $registerUrl,
         ])
         : '';
     $whatsappUrl = $shareText !== '' ? 'https://wa.me/?text='.rawurlencode($shareText) : null;
@@ -79,14 +87,12 @@
          'shareText' => $shareText,
          'verifyUrl' => $verifyUrl,
          'whatsappUrl' => $whatsappUrl,
-         'cardFilename' => __('borrower.membership.share_card_filename'),
          'copyPrompt' => __('borrower.membership.share_copy_prompt'),
          'shareTitle' => brand_name(),
      ]))">
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         <div
-            data-kf-card-export
             class="relative w-full text-left {{ $panelClass }} rounded-[1.35rem] p-5 sm:p-6 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
             role="button"
             tabindex="0"
@@ -330,10 +336,8 @@
                             shareText: cfg.shareText || '',
                             verifyUrl: cfg.verifyUrl || '',
                             whatsappUrl: cfg.whatsappUrl || '',
-                            cardFilename: cfg.cardFilename || 'kopafasta-card.png',
                             copyPrompt: cfg.copyPrompt || 'Copy this message',
                             shareTitle: cfg.shareTitle || 'Kopafasta',
-                            shareFile: null,
                             canNativeShare: typeof navigator !== 'undefined' && typeof navigator.share === 'function',
                             copyVerifyLink() {
                                 if (! this.verifyUrl) return;
@@ -345,62 +349,22 @@
                             },
                             openShare() {
                                 this.shareOpen = true;
-                                this.prepareCardImage();
-                            },
-                            async prepareCardImage() {
-                                if (this.shareFile) return;
-                                var el = document.querySelector('[data-kf-card-export]');
-                                if (! el || typeof window.kfExportElementPngFile !== 'function') return;
-                                try {
-                                    this.shareFile = await window.kfExportElementPngFile(el, this.cardFilename);
-                                } catch (e) {
-                                    this.shareFile = null;
-                                }
-                            },
-                            async withFileOrFallback(fallback) {
-                                await this.prepareCardImage();
-                                if (this.shareFile && navigator.canShare && navigator.canShare({ files: [this.shareFile] })) {
-                                    try {
-                                        await navigator.share({
-                                            files: [this.shareFile],
-                                            title: this.shareTitle,
-                                            text: this.shareText,
-                                        });
-                                        this.shareOpen = false;
-                                        return;
-                                    } catch (e) {
-                                        if (e && e.name === 'AbortError') return;
-                                    }
-                                }
-                                fallback();
                             },
                             shareWhatsApp() {
-                                var self = this;
-                                this.withFileOrFallback(function () {
-                                    if (self.whatsappUrl) {
-                                        window.open(self.whatsappUrl, '_blank', 'noopener');
-                                    }
-                                });
+                                if (this.whatsappUrl) {
+                                    window.open(this.whatsappUrl, '_blank', 'noopener');
+                                }
                             },
                             shareFacebook() {
-                                var self = this;
-                                this.withFileOrFallback(function () {
-                                    if (! self.verifyUrl) return;
-                                    window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(self.verifyUrl), '_blank', 'noopener');
-                                });
+                                if (! this.verifyUrl) return;
+                                window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(this.verifyUrl), '_blank', 'noopener');
                             },
                             shareMessages() {
-                                var self = this;
-                                this.withFileOrFallback(function () {
-                                    window.location.href = 'sms:?&body=' + encodeURIComponent(self.shareText);
-                                });
+                                window.location.href = 'sms:?&body=' + encodeURIComponent(this.shareText);
                             },
                             shareEmail() {
-                                var self = this;
-                                this.withFileOrFallback(function () {
-                                    window.location.href = 'mailto:?subject=' + encodeURIComponent(self.shareTitle)
-                                        + '&body=' + encodeURIComponent(self.shareText);
-                                });
+                                window.location.href = 'mailto:?subject=' + encodeURIComponent(this.shareTitle)
+                                    + '&body=' + encodeURIComponent(this.shareText);
                             },
                             async copyShare() {
                                 try {
@@ -414,14 +378,9 @@
                             },
                             async shareMore() {
                                 if (! this.canNativeShare) return;
-                                await this.prepareCardImage();
                                 try {
                                     var payload = { title: this.shareTitle, text: this.shareText };
-                                    if (this.shareFile && navigator.canShare && navigator.canShare({ files: [this.shareFile] })) {
-                                        payload.files = [this.shareFile];
-                                    } else if (this.verifyUrl) {
-                                        payload.url = this.verifyUrl;
-                                    }
+                                    if (this.verifyUrl) payload.url = this.verifyUrl;
                                     await navigator.share(payload);
                                     this.shareOpen = false;
                                 } catch (e) {

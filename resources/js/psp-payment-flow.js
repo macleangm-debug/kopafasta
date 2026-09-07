@@ -231,8 +231,11 @@ export function registerPspPaymentFlow(Alpine) {
         },
 
         prepareDirectContinuation(url) {
+            if (typeof window.kfPreparePaymentContinuation === 'function') {
+                window.kfPreparePaymentContinuation(url);
+                return;
+            }
             try {
-                // Drop stale apply-wizard drafts so resume does not flash the fee/quote step.
                 Object.keys(sessionStorage).forEach((key) => {
                     if (!key.startsWith('kf-form-draft:')) return;
                     if (key.includes('/borrower/apply') || key.includes('/apply')) {

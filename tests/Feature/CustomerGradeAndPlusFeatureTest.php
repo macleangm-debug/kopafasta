@@ -499,9 +499,12 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.plus.home'))
             ->assertOk()
-            ->assertSee(format_money(500_000), false)
             ->assertSee(__('plus.home.explore'), false)
-            ->assertSee('kf-premium-panel', false);
+            ->assertSee(__('plus.home.join'), false)
+            ->assertSee('kf-premium-panel', false)
+            ->assertDontSee(__('plus.home.trust_title'), false)
+            ->assertDontSee(__('plus.home.next_step'), false)
+            ->assertDontSee(__('plus.home.access', ['amount' => format_money(500_000)]), false);
     }
 
     public function test_plus_rooms_are_live_mini_dashboards_from_real_data(): void

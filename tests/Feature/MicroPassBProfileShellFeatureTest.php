@@ -57,9 +57,15 @@ class MicroPassBProfileShellFeatureTest extends TestCase
     {
         $customer = $this->borrower();
         $card = file_get_contents(resource_path('views/site/borrower/profile/_member_card.blade.php'));
+        $memberCard = file_get_contents(resource_path('views/components/site/member-card.blade.php'));
 
         $this->assertStringContainsString("mode=\"contextual\"", $card);
         $this->assertStringContainsString("cta === 'profile'", $card);
+        $this->assertStringContainsString('x-site.kopafasta-share-sheet', $memberCard);
+        $this->assertStringContainsString('gradeShareLabel', $memberCard);
+        $this->assertStringContainsString('share_plus_suffix', $memberCard);
+        $this->assertStringNotContainsString('kfExportElementPngFile', $memberCard);
+        $this->assertStringNotContainsString('data-kf-card-export', $memberCard);
 
         $html = $this->actingAs($customer->user)
             ->withSession(['locale' => 'en'])
@@ -71,6 +77,13 @@ class MicroPassBProfileShellFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('BRONZE', strtoupper($html));
+        $this->assertStringContainsString('share_message', $memberCard);
+        $this->assertStringContainsString("I'm a Kopafasta member — :grade:plus_suffix.", __('borrower.membership.share_message', [
+            'grade' => ':grade',
+            'plus_suffix' => ':plus_suffix',
+            'link' => ':link',
+            'register' => ':register',
+        ]));
         $hero = file_get_contents(resource_path('views/components/site/account-shell-hero.blade.php'));
         $this->assertStringNotContainsString('text-white uppercase', $hero);
     }
@@ -132,7 +145,14 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         $this->assertStringContainsString('createObjectURL', $reports);
         $this->assertStringContainsString('data-kf-plus-print', $reports);
         $this->assertStringContainsString('plusReportActions', $reports);
+        $this->assertStringContainsString('downloadShare', $reports);
         $this->assertStringContainsString('x-site.kopafasta-share-sheet', $reports);
+        $this->assertStringContainsString('@click="openShare()"', $reports);
+        $this->assertTrue(
+            strpos($reports, 'data-kf-plus-print') !== false
+            && strpos($reports, 'data-kf-plus-print') < strpos($reports, '@click="openShare()"'),
+            'Print CTA must remain separate from Share'
+        );
         $this->assertStringContainsString('x-site.borrower-layout', $reports);
         $this->assertStringNotContainsString('x-site.print-document', $reports);
         $this->assertStringNotContainsString('$website', $reports);

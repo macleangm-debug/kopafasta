@@ -354,6 +354,7 @@ export function applyWizard(config) {
                         return;
                     }
                     if (config.savedDraft) {
+                        this.resumeLoading = true;
                         this.restoreDraft(config.savedDraft);
                         return;
                     }
@@ -1152,9 +1153,18 @@ export function applyWizard(config) {
                             target.phase = 'application';
                             this._postPaymentContinue = true;
                         }
-                        const cont = sessionStorage.getItem('kf-post-payment-continue');
+                        const cont = typeof window.kfConsumePaymentContinuation === 'function'
+                            ? window.kfConsumePaymentContinuation('/borrower/apply')
+                            : (() => {
+                                try {
+                                    const legacy = sessionStorage.getItem('kf-post-payment-continue');
+                                    sessionStorage.removeItem('kf-post-payment-continue');
+                                    return legacy;
+                                } catch (e) {
+                                    return null;
+                                }
+                            })();
                         if (cont) {
-                            sessionStorage.removeItem('kf-post-payment-continue');
                             this._postPaymentContinue = true;
                         }
                     } catch (e) {

@@ -225,6 +225,23 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
         $this->assertEquals(9000, CustomerPaymentService::collectableAmount($payment));
     }
 
+    public function test_new_payment_show_promo_input_starts_empty_without_attribution(): void
+    {
+        $customer = $this->borrower();
+        $this->affiliate('KITONGA');
+        $payment = $this->feePayment($customer);
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee(__('borrower.membership.promo_code_placeholder'), false)
+            ->getContent();
+
+        $this->assertStringNotContainsString('promoCode: \'KITONGA\'', $html);
+        $this->assertStringNotContainsString('promoCode: "KITONGA"', $html);
+        $this->assertMatchesRegularExpression('/promoCode:\s*(null|\'\'|"")/', $html);
+    }
+
     public function test_inactive_affiliate_code_is_rejected_with_a_message(): void
     {
         $customer = $this->borrower();

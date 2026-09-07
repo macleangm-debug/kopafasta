@@ -21,7 +21,7 @@
         ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
         : asset('images/brand/kopafasta-mark.png');
     $brandWordmark = brand_name();
-    $shareText = __('plus.reports.share_text', ['brand' => $brandWordmark]);
+    $shareText = __('plus.reports.share_text');
     $shareTitle = $brandWordmark.' · '.__('plus.home.reports');
     $pdfUrl = route('site.borrower.plus.reports.pdf', array_filter([
         'month' => $currentMonth !== now()->format('Y-m') ? $currentMonth : null,
@@ -89,6 +89,7 @@
             :title="__('plus.reports.share')"
             :hint="__('plus.reports.share_hint')"
             :show-facebook="$showFacebook"
+            :show-download="true"
             open="shareOpen"
             :whatsapp-label="__('plus.reports.share_whatsapp')"
             :facebook-label="__('plus.reports.share_facebook')"
@@ -97,6 +98,7 @@
             :copy-label="__('plus.reports.share_copy')"
             :copied-label="__('plus.reports.share_copied')"
             :more-label="__('plus.reports.share_more')"
+            :download-label="__('plus.reports.share_download')"
         />
     </div>
 
@@ -163,8 +165,9 @@
                     });
                 },
                 shareFacebook() {
+                    // Private report has no public URL — prefer PDF share, else Save PDF.
                     this.withFileOrText(() => {
-                        window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(window.location.href), '_blank', 'noopener');
+                        this.downloadShare();
                     });
                 },
                 shareMessages() {
@@ -178,8 +181,23 @@
                             + '&body=' + encodeURIComponent(this.shareText);
                     });
                 },
-                async copyShare() {
+                async downloadShare() {
                     await this.preparePdf();
+                    if (! this.shareFile && this.pdfUrl) {
+                        window.location.href = this.pdfUrl;
+                        return;
+                    }
+                    if (! this.shareFile) return;
+                    const href = URL.createObjectURL(this.shareFile);
+                    const a = document.createElement('a');
+                    a.href = href;
+                    a.download = this.pdfName;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(href), 1000);
+                },
+                async copyShare() {
                     const text = this.shareText;
                     try {
                         await navigator.clipboard.writeText(text);

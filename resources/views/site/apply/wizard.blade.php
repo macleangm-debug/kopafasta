@@ -313,7 +313,8 @@
               })"
              x-init="init()"
              @beforeunload.window="persistDraft(true)"
-             x-cloak>
+             x-cloak
+             :style="resumeLoading ? 'visibility:hidden;pointer-events:none' : ''">
 
             <x-site.premium-loan-wizard-header />
 

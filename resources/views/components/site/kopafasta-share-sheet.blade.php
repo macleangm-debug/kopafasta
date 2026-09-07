@@ -3,6 +3,7 @@
     'hint' => null,
     'open' => 'shareOpen',
     'showFacebook' => true,
+    'showDownload' => false,
     'whatsappLabel' => 'WhatsApp',
     'facebookLabel' => 'Facebook',
     'messagesLabel' => 'Messages',
@@ -10,9 +11,10 @@
     'copyLabel' => 'Copy',
     'copiedLabel' => 'Copied',
     'moreLabel' => 'More',
+    'downloadLabel' => 'Save PDF',
 ])
 
-{{-- Canonical Kopafasta share sheet (mobile bottom sheet / desktop modal). Parent Alpine must expose: open flag, shareWhatsApp, shareFacebook, shareMessages, shareEmail, copyShare, shareMore, canNativeShare, copied. --}}
+{{-- Canonical Kopafasta share sheet. Parent Alpine: shareWhatsApp/Facebook/Messages/Email, copyShare, shareMore, optional downloadShare, canNativeShare, copied. --}}
 <x-site.action-panel :title="$title" :open="$open" size="md">
     @if (filled($hint))
         <p class="text-sm text-gray-600 mb-4">{{ $hint }}</p>
@@ -51,6 +53,16 @@
             </span>
             <span class="text-base font-bold text-gray-900">{{ $emailLabel }}</span>
         </button>
+
+        @if ($showDownload)
+            <button type="button" @click="downloadShare()"
+                    class="flex items-center gap-3 rounded-2xl bg-white ring-1 ring-brand/20 px-4 py-3.5 hover:bg-brand/5 transition text-left w-full">
+                <span class="size-11 rounded-xl bg-emerald-800 text-white grid place-items-center shrink-0" aria-hidden="true">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 19h14"/></svg>
+                </span>
+                <span class="text-base font-bold text-gray-900">{{ $downloadLabel }}</span>
+            </button>
+        @endif
 
         <button type="button" @click="copyShare()"
                 class="flex items-center gap-3 rounded-2xl bg-white ring-1 ring-brand/20 px-4 py-3.5 hover:bg-brand/5 transition text-left w-full">

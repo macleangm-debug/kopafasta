@@ -14,55 +14,47 @@
         $business = $summary['business'] ?? null;
         $leadGoal = $summary['goals']['lead'] ?? null;
         $name = trim((string) ($customer->first_name ?? ''));
+        $neverJoined = ! ($plusActive ?? false) && ! ($plusExpired ?? false);
     @endphp
 
     <div class="space-y-6">
-        <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
-            <div class="relative flex flex-wrap items-start justify-between gap-3">
-                <x-site.brand-mark size="sm" variant="light" />
-                <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="$plusActive ?? false" size="lg" />
-            </div>
-            <p class="relative mt-5 text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
-            <p class="relative mt-3 text-xs font-semibold text-white/70">{{ __('plus.home.trust_title') }}</p>
-            <h1 class="relative text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ __('plus.home.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</h1>
-            <p class="relative mt-2 text-sm text-white/85">{{ __('plus.home.building') }}</p>
-            @if (($customer->grade_status ?? '') === 'under_review' || ($customer->grade_integrity ?? '') === 'review')
-                <p class="relative mt-3 text-sm font-medium text-amber-100">{{ __('plus.home.reviewing') }}</p>
-            @endif
-
-            @if ($plusActive && $today)
-                <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/15 p-4 sm:p-5">
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.today.title') }}</p>
-                    <p class="text-xs text-white/70 mt-1">{{ now()->locale(app()->getLocale())->isoFormat('dddd, D MMMM') }}@if($name) · {{ __('plus.today.hello', ['name' => $name]) }} 👋@endif</p>
-                    <p class="text-[10px] font-semibold uppercase tracking-wider text-white/55 mt-3">{{ $today['eyebrow'] }}</p>
-                    <h2 class="text-lg font-bold mt-1">{{ $today['title'] }}</h2>
-                    <p class="text-sm text-white/85 mt-1">{{ $today['body'] }}</p>
-                    <a href="{{ $today['cta_url'] }}" class="mt-4 inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">{{ $today['cta_label'] }} →</a>
-                </div>
-            @elseif ($plusExpired ?? false)
-                <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/15 p-4">
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.home.expired_kicker') }}</p>
-                    <p class="text-sm font-semibold mt-1">{{ __('plus.home.expired_body') }}</p>
-                </div>
-            @elseif (! $plusActive)
-                <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/15 p-4">
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.home.next_step') }}</p>
-                    <p class="text-sm font-semibold mt-1">{{ __('plus.home.access', ['amount' => format_money($access)]) }}</p>
-                </div>
-            @endif
-
-            @if ($plusNeedsRenewal ?? false)
-                <form method="post" action="{{ route('site.borrower.plus.renew') }}" class="relative mt-4">
-                    @csrf
-                    <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">{{ __('plus.home.renew') }}</button>
-                    @if ($plusActive && ($plusDaysRemaining ?? null) !== null)
-                        <p class="mt-2 text-xs text-white/70">{{ __('plus.home.renew_soon', ['days' => $plusDaysRemaining]) }}</p>
-                    @endif
-                </form>
-            @endif
-        </section>
-
+        {{-- Active Plus: Trust/Grade + today stay intact. Unpaid never-joined: sales/activation only (no Trust/next-step card). --}}
         @if ($plusActive)
+            <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
+                <div class="relative flex flex-wrap items-start justify-between gap-3">
+                    <x-site.brand-mark size="sm" variant="light" />
+                    <x-site.grade-badge :grade="$customer->grade ?? 'bronze'" :plus="true" size="lg" />
+                </div>
+                <p class="relative mt-5 text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
+                <p class="relative mt-3 text-xs font-semibold text-white/70">{{ __('plus.home.trust_title') }}</p>
+                <h1 class="relative text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ __('plus.home.trust', ['percent' => $trust['percent'] ?? 0, 'label' => $trust['label'] ?? '']) }}</h1>
+                <p class="relative mt-2 text-sm text-white/85">{{ __('plus.home.building') }}</p>
+                @if (($customer->grade_status ?? '') === 'under_review' || ($customer->grade_integrity ?? '') === 'review')
+                    <p class="relative mt-3 text-sm font-medium text-amber-100">{{ __('plus.home.reviewing') }}</p>
+                @endif
+
+                @if ($today)
+                    <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/15 p-4 sm:p-5">
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.today.title') }}</p>
+                        <p class="text-xs text-white/70 mt-1">{{ now()->locale(app()->getLocale())->isoFormat('dddd, D MMMM') }}@if($name) · {{ __('plus.today.hello', ['name' => $name]) }} 👋@endif</p>
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-white/55 mt-3">{{ $today['eyebrow'] }}</p>
+                        <h2 class="text-lg font-bold mt-1">{{ $today['title'] }}</h2>
+                        <p class="text-sm text-white/85 mt-1">{{ $today['body'] }}</p>
+                        <a href="{{ $today['cta_url'] }}" class="mt-4 inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">{{ $today['cta_label'] }} →</a>
+                    </div>
+                @endif
+
+                @if ($plusNeedsRenewal ?? false)
+                    <form method="post" action="{{ route('site.borrower.plus.renew') }}" class="relative mt-4">
+                        @csrf
+                        <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">{{ __('plus.home.renew') }}</button>
+                        @if (($plusDaysRemaining ?? null) !== null)
+                            <p class="mt-2 text-xs text-white/70">{{ __('plus.home.renew_soon', ['days' => $plusDaysRemaining]) }}</p>
+                        @endif
+                    </form>
+                @endif
+            </section>
+
             <div class="grid sm:grid-cols-2 gap-3 items-stretch">
                 <a href="{{ route('site.borrower.plus.offers') }}" class="block h-full overflow-hidden rounded-2xl kf-premium-panel p-4 sm:p-5 hover:brightness-[1.03] transition">
                     <div class="relative flex items-start justify-between gap-4">
@@ -81,6 +73,23 @@
                 </a>
                 <x-site.rewards-summary class="h-full" :dashboard="$rewardsDash ?? []" />
             </div>
+        @elseif ($plusExpired ?? false)
+            <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
+                <div class="relative flex flex-wrap items-start justify-between gap-3">
+                    <x-site.brand-mark size="sm" variant="light" />
+                </div>
+                <p class="relative mt-5 text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
+                <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/15 p-4">
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.home.expired_kicker') }}</p>
+                    <p class="text-sm font-semibold mt-1">{{ __('plus.home.expired_body') }}</p>
+                </div>
+                @if ($plusNeedsRenewal ?? false)
+                    <form method="post" action="{{ route('site.borrower.plus.renew') }}" class="relative mt-4">
+                        @csrf
+                        <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-5 py-2.5 text-sm font-bold shadow-sm ring-1 ring-brand-gold/40">{{ __('plus.home.renew') }}</button>
+                    </form>
+                @endif
+            </section>
         @endif
 
         @if ($plusActive || ($plusExpired ?? false))
@@ -90,7 +99,6 @@
                 @endif
                 @php
                     $roomLocked = (bool) ($plusExpired ?? false);
-                    $roomHref = $roomLocked ? route('site.borrower.plus.home') : null;
                     $roomCta = $roomLocked ? __('plus.home.renew') : __('plus.home.open_room');
                 @endphp
                 <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 items-stretch -mx-1 px-1">
@@ -165,7 +173,7 @@
                 </div>
             </section>
 
-            @if (! empty($summary['upcoming']))
+            @if ($plusActive && ! empty($summary['upcoming']))
                 <section class="rounded-2xl glass-card ring-1 ring-brand-gold/25 p-5">
                     <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.home.up_next') }}</p>
                     <div class="mt-3 space-y-2">
@@ -178,8 +186,7 @@
                     </div>
                 </section>
             @endif
-
-        @else
+        @elseif ($neverJoined)
             <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
                 <p class="relative text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus ✦</p>
                 <h2 class="relative mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">{{ __('plus.home.explore') }}</h2>
