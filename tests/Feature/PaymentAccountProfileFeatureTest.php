@@ -105,7 +105,11 @@ class PaymentAccountProfileFeatureTest extends TestCase
 
         $this->actingAs($customer->user)
             ->post(route('site.borrower.profile.payment-accounts.default', $second))
-            ->assertRedirect(route('site.borrower.profile', ['section' => 'payment']));
+            ->assertRedirect(route('site.borrower.profile', [
+                'section' => 'payment',
+                'open' => 1,
+                'account' => $second->id,
+            ]));
 
         $this->assertFalse($first->fresh()->is_default);
         $this->assertTrue($second->fresh()->is_default);

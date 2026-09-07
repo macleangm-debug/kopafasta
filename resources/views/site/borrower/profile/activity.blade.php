@@ -3,7 +3,7 @@
     <div class="space-y-4">
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.activity'),
-            'subtitle' => __('borrower.profile.activity_subtitle'),
+            'subtitle' => null,
             'customer' => $customer,
             'active' => 'activity',
             'wizardMode' => $wizardMode ?? false,

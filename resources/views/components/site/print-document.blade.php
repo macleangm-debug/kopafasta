@@ -66,12 +66,16 @@
     </main>
 
     <div class="kf-print-running-footer" aria-hidden="true">
-        <div class="flex items-start justify-between gap-3 text-[8pt] leading-snug">
-            <div>
-                <p class="font-semibold text-gray-700">{{ $footerLeft ?? 'Kopafasta Plus Report' }}</p>
-                <p>{{ brand('legal_name', 'Kopafasta Microfinance Limited') }}</p>
+        <div class="flex items-center justify-between gap-3 text-[8pt] leading-snug">
+            <div class="inline-flex items-center gap-2 min-w-0">
+                <img src="{{ asset(ltrim((string) (brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png'), '/')) }}"
+                     alt="" class="h-4 w-auto object-contain shrink-0">
+                <div class="min-w-0">
+                    <p class="font-semibold text-gray-700">{{ $footerLeft ?? 'Kopafasta Plus Report' }}</p>
+                    <p>{{ brand('legal_name', 'Kopafasta Microfinance Limited') }}</p>
+                </div>
             </div>
-            <div class="text-right">
+            <div class="text-right shrink-0">
                 <p>{{ $footerRight }}</p>
                 <p>{{ \App\Models\Setting::get('company.website') ?: \App\Models\Setting::get('company.app_base_url') ?: config('app.url') }}</p>
             </div>

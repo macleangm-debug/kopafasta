@@ -461,6 +461,7 @@ body.kf-camera-open .kf-mobile-bottom-nav {
         min-height: 0;
         display: flex;
         justify-content: center;
+        align-items: flex-start;
         padding: 1.5rem 1rem 3rem;
     }
 
@@ -479,6 +480,13 @@ body.kf-camera-open .kf-mobile-bottom-nav {
 
     .kf-payment-surface-card > .flex-1 {
         overflow: visible;
+    }
+}
+
+@media (max-width: 1023px) {
+    .kf-payment-surface-card {
+        max-width: min(100%, 24.375rem); /* 390px */
+        margin-inline: auto;
     }
 }
 

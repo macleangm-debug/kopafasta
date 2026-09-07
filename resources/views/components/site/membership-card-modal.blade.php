@@ -1,4 +1,4 @@
-{{-- Auto-opens after membership fee payment. CTA routes to Membership (card home). --}}
+{{-- Auto-opens after membership fee payment. CTA routes to My Card. --}}
 @props(['customer'])
 
 @php
@@ -16,7 +16,7 @@
 >
     <div class="absolute inset-0 bg-black/60" @click="open = false" aria-hidden="true"></div>
 
-    <div class="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-[#faf8f5] shadow-2xl ring-1 ring-black/10">
+    <div class="relative w-full sm:max-w-3xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-[#faf8f5] shadow-2xl ring-1 ring-black/10">
         <div class="sticky top-0 z-10 flex items-start justify-between gap-3 px-5 pt-5 pb-3 bg-[#faf8f5]/sm:rounded-t-3xl">
             <div class="min-w-0">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ brand_name() }}</p>
@@ -34,15 +34,7 @@
         </div>
 
         <div class="px-5 pb-4">
-            <div class="mx-auto w-full max-w-[22rem] sm:max-w-md">
-                <div class="w-full overflow-x-hidden overflow-y-auto max-h-[min(58vh,28rem)]">
-                    <div class="aspect-[1.586/1] w-full">
-                        <div class="h-full w-full [&_.md\:grid-cols-2]:grid-cols-1">
-                            <x-site.member-card :customer="$customer" />
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <x-site.member-card :customer="$customer" />
         </div>
 
         <div class="sticky bottom-0 px-5 pb-5 pt-2 bg-gradient-to-t from-[#faf8f5] via-[#faf8f5] to-transparent space-y-2">

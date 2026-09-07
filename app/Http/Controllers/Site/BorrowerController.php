@@ -2111,6 +2111,7 @@ class BorrowerController extends Controller
                 $residenceParams = array_filter([
                     'section' => 'residence',
                     'focus' => 'verification',
+                    'open' => 1,
                     'wizard' => $request->boolean('wizard') ? 1 : null,
                 ]);
 
@@ -2441,7 +2442,7 @@ class BorrowerController extends Controller
         }
 
         return redirect()
-            ->route('site.borrower.profile', ['section' => 'payment'])
+            ->route('site.borrower.profile', ['section' => 'payment', 'open' => 1])
             ->with('status', __('borrower.payment_details.account_removed'));
     }
 
@@ -2458,7 +2459,11 @@ class BorrowerController extends Controller
         }
 
         return redirect()
-            ->route('site.borrower.profile', ['section' => 'payment'])
+            ->route('site.borrower.profile', [
+                'section' => 'payment',
+                'open' => 1,
+                'account' => $account->id,
+            ])
             ->with('status', __('borrower.payment_details.default_updated'));
     }
 
@@ -3359,7 +3364,59 @@ class BorrowerController extends Controller
 
         $this->auditBorrower('profile.document_removed', $customer, ['code' => $code]);
 
-        return back()->with('status', __('borrower.profile.document_removed'));
+        return $this->redirectAfterProfileDocumentChange($code, __('borrower.profile.document_removed'));
+    }
+
+    private function redirectAfterProfileDocumentChange(string $code, string $status): RedirectResponse
+    {
+        $normalized = match ($code) {
+            'address_proof' => 'residence_letter',
+            'mpesa_statement' => 'mobile_money_statement',
+            default => $code,
+        };
+
+        $params = match ($normalized) {
+            'residence_letter' => [
+                'section' => 'residence',
+                'focus' => 'verification',
+                'open' => 1,
+            ],
+            'bank_statement', 'salary_slip', 'mobile_money_statement' => [
+                'section' => 'activity',
+                'focus' => 'income',
+                'open' => 1,
+            ],
+            'national_id_front', 'national_id_back', 'passport', 'driving_licence', 'voter_id', 'nida' => [
+                'section' => 'personal',
+                'focus' => 'id_images',
+                'open' => 1,
+            ],
+            'face_front', 'face_left', 'face_right', 'holding_nida' => [
+                'section' => 'personal',
+                'focus' => 'face',
+                'open' => 1,
+            ],
+            default => [
+                'section' => 'activity',
+                'focus' => 'additional',
+                'open' => 1,
+            ],
+        };
+
+        $fragment = match ($params['focus'] ?? '') {
+            'verification' => 'profile-residence-verification',
+            'income' => 'profile-income-statement',
+            'additional' => 'profile-additional-documents',
+            'id_images' => 'profile-id-images',
+            'face' => 'profile-face',
+            default => null,
+        };
+
+        $redirect = redirect()
+            ->route('site.borrower.profile', $params)
+            ->with('status', $status);
+
+        return $fragment ? $redirect->withFragment($fragment) : $redirect;
     }
 
     /**

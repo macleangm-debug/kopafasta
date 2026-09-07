@@ -1,9 +1,9 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.payment_details.page_title'))" active="profile" content-width="wide">
+<x-site.borrower-layout :title="brand_title(__('borrower.payment_details.section_title'))" active="profile" content-width="wide">
 
     <div>
         @include('site.borrower.profile._profile_shell', [
-            'title' => __('borrower.profile.account_title'),
-            'subtitle' => __('borrower.payment_details.subtitle'),
+            'title' => __('borrower.payment_details.section_title'),
+            'subtitle' => null,
             'customer' => $customer,
             'active' => 'payment',
             'wizardMode' => $wizardMode ?? false,

@@ -3,7 +3,7 @@
     <div>
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.residence'),
-            'subtitle' => __('borrower.profile.residence_subtitle'),
+            'subtitle' => null,
             'customer' => $customer,
             'active' => 'residence',
             'wizardMode' => $wizardMode ?? false,
@@ -112,7 +112,7 @@
                 :empty="! $verificationComplete"
                 :allow-overflow="true"
             :default-open="$openVerification"
-            :default-edit="$openVerification">
+            :default-edit="$errors->hasAny(['lga_officer_name', 'lga_officer_position', 'lga_officer_phone', 'residence_letter', 'residence_letter_pages'])">
                 <x-slot:view>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.residence_verification_hint') }}</p>
 
