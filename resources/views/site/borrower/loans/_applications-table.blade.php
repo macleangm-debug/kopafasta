@@ -15,9 +15,8 @@
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
-                    <th class="px-4 py-3">{{ __('borrower.applications_list.applicant') }}</th>
-                    <th class="px-4 py-3">{{ __('borrower.applications_list.reference') }}</th>
                     <th class="px-4 py-3">{{ __('borrower.applications_list.product') }}</th>
+                    <th class="px-4 py-3">{{ __('borrower.applications_list.reference') }}</th>
                     <th class="px-4 py-3">{{ __('borrower.applications_list.amount') }}</th>
                     <th class="px-4 py-3">{{ __('borrower.applications_list.status') }}</th>
                     <th class="px-4 py-3">{{ __('borrower.applications_list.updated') }}</th>
@@ -40,10 +39,9 @@
                         data-kf-share="kf-app-{{ $row['id'] }}"
                         onclick="window.location='{{ $viewUrl }}'">
                         <td class="px-4 py-3">
-                            <p class="font-bold text-gray-900 leading-snug">{{ $row['customer_name'] ?? '—' }}</p>
+                            <p class="font-bold text-gray-900 leading-snug">{{ $row['product_name'] ?? '—' }}</p>
                         </td>
                         <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ $row['application_number'] }}</td>
-                        <td class="px-4 py-3 text-gray-800">{{ $row['product_name'] }}</td>
                         <td class="px-4 py-3 font-semibold tabular-nums whitespace-nowrap">
                             {{ format_money((float) ($row['requested_amount'] ?? 0)) }}
                         </td>

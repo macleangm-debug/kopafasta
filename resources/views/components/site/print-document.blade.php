@@ -7,20 +7,6 @@
 @php
     $pageTitle = $title ?? brand_title('Report');
     $seoDocument = app(\App\Services\SeoService::class)->privateDocument(request(), $pageTitle);
-    $stripUrls = static function (?string $value): string {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return '';
-        }
-
-        // Never print raw application/website URLs in the document footer.
-        $value = preg_replace('#https?://\S+#i', '', $value) ?? $value;
-        $value = preg_replace('#www\.\S+#i', '', $value) ?? $value;
-        $value = preg_replace('/\s{2,}/', ' ', $value) ?? $value;
-        $value = preg_replace('/\s*·\s*·\s*/', ' · ', $value) ?? $value;
-
-        return trim($value, " \t\n\r\0\x0B·");
-    };
     $footerMeta = __('plus.reports.footer_confidential');
     $logoPath = public_path(ltrim((string) (brand('logo_mark_url') ?: 'images/brand/kopafasta-mark.png'), '/'));
     if (! is_file($logoPath)) {
@@ -29,6 +15,7 @@
     $logoDataUri = is_file($logoPath)
         ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
         : asset('images/brand/kopafasta-mark.png');
+    $brandWordmark = brand_name();
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -41,7 +28,7 @@
     <style>
         @page {
             size: A4;
-            margin: 12mm 12mm 16mm;
+            margin: 12mm 12mm 18mm;
         }
         @media print {
             html, body {
@@ -54,16 +41,17 @@
             /* Fixed application footer on every printed page (Chrome headers/footers OFF in UAT). */
             .kf-print-running-footer {
                 position: fixed !important;
-                left: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
+                left: 12mm !important;
+                right: 12mm !important;
+                bottom: 6mm !important;
                 display: flex !important;
                 align-items: center;
+                justify-content: space-between;
                 gap: 8px;
                 padding: 2.5mm 0 0;
                 border-top: 0.4pt solid #d1d5db;
                 background: #fff !important;
-                font-size: 7.5pt;
+                font-size: 8pt;
                 line-height: 1.3;
                 color: #4b5563;
                 z-index: 50;
@@ -71,30 +59,42 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
+            .kf-print-running-footer .kf-print-lockup {
+                display: inline-flex !important;
+                align-items: center;
+                gap: 6px;
+            }
             .kf-print-running-footer img {
                 display: inline-block !important;
-                height: 12px !important;
+                height: 14px !important;
                 width: auto !important;
                 visibility: visible !important;
                 opacity: 1 !important;
             }
+            .kf-print-running-footer .kf-print-wordmark {
+                font-weight: 700;
+                font-size: 9pt;
+                letter-spacing: -0.02em;
+                color: #111827 !important;
+                line-height: 1;
+            }
             .kf-print-running-footer p {
-                white-space: normal !important;
+                margin: 0;
+                white-space: nowrap !important;
                 overflow: visible !important;
                 text-overflow: clip !important;
-                word-break: break-word;
             }
             .kf-print-root {
-                padding-bottom: 14mm !important;
+                padding-bottom: 16mm !important;
             }
             .kf-print-app-footer { display: none !important; }
         }
         @media screen {
             body { background: #f3f4f6; }
-            /* Keep footer visible in the print-view page so Chrome print reliably paints it. */
             .kf-print-running-footer {
                 display: flex;
                 align-items: center;
+                justify-content: space-between;
                 gap: 8px;
                 max-width: 210mm;
                 margin: 0 auto 1.5rem;
@@ -105,9 +105,21 @@
                 color: #4b5563;
                 background: #fff;
             }
+            .kf-print-running-footer .kf-print-lockup {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
             .kf-print-running-footer img {
-                height: 14px;
+                height: 18px;
                 width: auto;
+            }
+            .kf-print-running-footer .kf-print-wordmark {
+                font-weight: 700;
+                font-size: 14px;
+                letter-spacing: -0.02em;
+                color: #111827;
+                line-height: 1;
             }
         }
     </style>
@@ -128,12 +140,13 @@
         {{ $slot }}
     </main>
 
-    {{-- Logo left · Private & confidential right. No URL, month, company, or Plus wordmark. --}}
-    <footer class="kf-print-running-footer" aria-label="{{ brand_name() }}">
-        <div class="shrink-0 pr-2">
-            <img src="{{ $logoDataUri }}" alt="{{ brand_name() }}" width="48" height="48" class="object-contain">
+    {{-- Full lockup left · Confidential / Faragha right. No URL or Plus branding. --}}
+    <footer class="kf-print-running-footer" aria-label="{{ $brandWordmark }}">
+        <div class="kf-print-lockup shrink-0">
+            <img src="{{ $logoDataUri }}" alt="" width="48" height="48" class="object-contain" aria-hidden="true">
+            <span class="kf-print-wordmark">{{ $brandWordmark }}</span>
         </div>
-        <p class="min-w-0 flex-1 text-right leading-snug">{{ $footerMeta }}</p>
+        <p class="min-w-0 text-right leading-snug">{{ $footerMeta }}</p>
     </footer>
 </body>
 </html>

@@ -126,13 +126,14 @@ class MicroPassBProfileShellFeatureTest extends TestCase
 
         $this->assertStringContainsString('kf-print-running-footer', $printDoc);
         $this->assertStringContainsString('logoDataUri', $printDoc);
+        $this->assertStringContainsString('kf-print-wordmark', $printDoc);
         $this->assertStringContainsString('footer_confidential', $printDoc);
-        $this->assertStringContainsString('https?://', $printDoc); // strip pattern present
         $this->assertStringNotContainsString('print_plus_label', $printDoc);
         $this->assertStringNotContainsString('$website', $reports);
         $this->assertStringNotContainsString('$website', $sheet);
         $this->assertStringNotContainsString('footer-left', $reports);
         $this->assertStringNotContainsString('plus.reports.footer\'', $reports);
+        $this->assertStringNotContainsString(':mark="true"', $sheet);
     }
 
     public function test_profile_hero_shows_canonical_completion(): void
@@ -151,6 +152,12 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         $this->assertStringContainsString('completionPercent', $partner);
         $this->assertStringContainsString('completion-percent', $partner);
         $this->assertStringContainsString('completionCtaUrl', $partner);
+
+        $table = file_get_contents(resource_path('views/site/borrower/loans/_applications-table.blade.php'));
+        $this->assertStringContainsString('applications_list.product', $table);
+        $this->assertStringContainsString('product_name', $table);
+        $this->assertStringNotContainsString('customer_name', $table);
+        $this->assertStringNotContainsString('applications_list.applicant', $table);
     }
 
     public function test_profile_pages_render_completion_in_identity_hero(): void

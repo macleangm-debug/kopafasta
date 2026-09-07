@@ -57,35 +57,47 @@
                 @if ($completionPercent !== null)
                     @php $pct = max(0, min(100, (int) $completionPercent)); @endphp
                     @if ($pct >= 100)
-                        <p class="inline-flex items-center gap-1.5 rounded-full bg-white/12 ring-1 ring-white/20 px-3 py-1 text-xs font-semibold text-brand-gold">
+                        <p class="inline-flex items-center gap-1.5 rounded-full bg-brand-gold text-brand px-3.5 py-1.5 text-xs font-bold shadow-sm">
                             {{ __('borrower.profile.hero_completion_done') }}
                         </p>
                     @else
-                        <div class="w-full max-w-sm space-y-2">
-                            <p class="text-xs font-semibold text-white/90">{{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}</p>
-                            <div class="h-1.5 rounded-full bg-white/20 overflow-hidden" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="w-full max-w-sm space-y-2.5">
+                            <p class="inline-flex items-center rounded-full bg-white/15 ring-1 ring-white/25 px-3.5 py-1.5 text-xs font-bold text-brand-gold">
+                                {{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}
+                            </p>
+                            <div class="h-2 rounded-full bg-white/20 overflow-hidden" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100">
                                 <div class="h-full rounded-full bg-brand-gold" style="width: {{ $pct }}%"></div>
                             </div>
-                            @if ($completionCtaUrl && $completionCtaLabel)
-                                <a href="{{ $completionCtaUrl }}"
-                                   data-loading="click"
-                                   class="inline-flex text-xs font-bold text-brand-gold hover:underline">
-                                    {{ $completionCtaLabel }} →
-                                </a>
-                            @endif
                         </div>
                     @endif
                 @endif
             @endif
 
-            @if ($ctaUrl && $ctaLabel)
+            @php
+                $showCompletionCta = $completionPercent !== null
+                    && (int) $completionPercent < 100
+                    && filled($completionCtaUrl)
+                    && filled($completionCtaLabel);
+                $showPrimaryCta = filled($ctaUrl) && filled($ctaLabel);
+            @endphp
+            @if ($showCompletionCta || $showPrimaryCta)
                 <div class="flex flex-wrap gap-2">
-                    <a href="{{ $ctaUrl }}"
-                       data-loading="click"
-                       data-kf-motion="pop"
-                       class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
-                        {{ $ctaLabel }}
-                    </a>
+                    @if ($showCompletionCta)
+                        <a href="{{ $completionCtaUrl }}"
+                           data-loading="click"
+                           data-kf-motion="pop"
+                           class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
+                            {{ $completionCtaLabel }} →
+                        </a>
+                    @endif
+                    @if ($showPrimaryCta)
+                        <a href="{{ $ctaUrl }}"
+                           data-loading="click"
+                           data-kf-motion="pop"
+                           class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
+                            {{ $ctaLabel }} →
+                        </a>
+                    @endif
                 </div>
             @endif
         </div>

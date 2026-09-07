@@ -24,13 +24,20 @@ class Phase18FeatureTest extends TestCase
 
     public function test_login_page_includes_public_header_and_footer(): void
     {
-        $this->get(route('site.login'))
+        $html = $this->withSession(['locale' => 'en'])
+            ->get(route('site.login'))
             ->assertOk()
             ->assertSee('sticky top-0', false)
             ->assertSee('id="login-method-switcher"', false)
-            ->assertSee('data-set-method="pin"', false)
-            ->assertSee('data-set-method="password"', false)
-            ->assertDontSee('max-h-[100dvh]', false);
+            ->assertSee(__('site.auth.welcome_back'), false)
+            ->assertSee(__('site.auth.partner_login_cta'), false)
+            ->assertSee('partnerOpen = true', false)
+            ->assertSee('name="auth_method" value="pin"', false)
+            ->assertDontSee('max-h-[100dvh]', false)
+            ->getContent();
+
+        $this->assertStringNotContainsString('account_type_borrower', $html);
+        $this->assertStringNotContainsString('data-set-method="password"', $html);
     }
 
     public function test_affiliate_application_page_supports_swahili_locale(): void

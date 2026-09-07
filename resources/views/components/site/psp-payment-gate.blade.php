@@ -85,13 +85,12 @@
                         <div x-show="!promoValid || stackWithPromo || applyReward" class="rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 space-y-2">
                             <template x-if="!applyReward">
                                 <div class="space-y-2">
-                                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.payments_page.show.reward_available') }}</p>
+                                    <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.payments_page.show.use_reward') }}</p>
                                     <p class="font-semibold text-gray-900">{{ $walletReward['label'] }}</p>
                                     @if ((int) ($walletReward['points'] ?? 0) > 0)
                                         <p class="text-xs text-gray-600">{{ __('borrower.payments_page.show.costs_points', ['points' => (int) $walletReward['points']]) }}</p>
-                                        <p class="text-xs text-gray-600">{{ __('borrower.payments_page.show.points_preview', [
-                                            'current' => (int) ($walletReward['points_balance'] ?? 0),
-                                            'after' => (int) ($walletReward['points_after'] ?? 0),
+                                        <p class="text-xs text-gray-600">{{ __('borrower.payments_page.show.points_available', [
+                                            'points' => (int) ($walletReward['points_balance'] ?? 0),
                                         ]) }}</p>
                                     @endif
                                     <button type="button" @click="toggleReward()"
@@ -101,15 +100,23 @@
                                 </div>
                             </template>
                             <template x-if="applyReward">
-                                <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <div class="min-w-0">
-                                        <p class="text-[10px] uppercase tracking-widest text-emerald-700 font-bold">{{ __('borrower.payments_page.show.reward_applied_inline') }}</p>
-                                        <p class="font-semibold text-gray-900 truncate">{{ $walletReward['label'] }}</p>
+                                <div class="space-y-2">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <p class="text-[10px] uppercase tracking-widest text-emerald-700 font-bold">{{ __('borrower.payments_page.show.reward_applied_inline') }}</p>
+                                            <p class="font-semibold text-gray-900 truncate">{{ $walletReward['label'] }}</p>
+                                        </div>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <button type="button" @click="toggleReward()" class="text-xs font-bold text-brand hover:underline">{{ __('borrower.apply.change') }}</button>
+                                            <button type="button" @click="toggleReward()" class="text-xs font-bold text-red-700 hover:underline">{{ __('borrower.payments_page.show.remove_reward') }}</button>
+                                        </div>
                                     </div>
-                                    <div class="flex items-center gap-2 shrink-0">
-<button type="button" @click="toggleReward()" class="text-xs font-bold text-brand hover:underline">{{ __('borrower.apply.change') }}</button>
-                                        <button type="button" @click="toggleReward()" class="text-xs font-bold text-red-700 hover:underline">{{ __('borrower.payments_page.show.remove_reward') }}</button>
-                                    </div>
+                                    @if ((int) ($walletReward['points'] ?? 0) > 0)
+                                        <p class="text-xs text-gray-600">{{ __('borrower.payments_page.show.points_preview', [
+                                            'current' => (int) ($walletReward['points_balance'] ?? 0),
+                                            'after' => (int) ($walletReward['points_after'] ?? 0),
+                                        ]) }}</p>
+                                    @endif
                                 </div>
                             </template>
                         </div>
@@ -125,18 +132,25 @@
                         <div x-show="stackWithPromo || !applyReward" class="rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 space-y-2">
                             <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.membership.promo_section_title') }}</p>
 
-                            <div x-cloak x-show="promoValid && promoCode" class="flex flex-wrap items-center justify-between gap-2">
-                                <p class="text-sm font-semibold text-emerald-800">
-                                    <span x-text="promoCode"></span>
-                                    <span> · {{ __('borrower.payments_page.show.promo_applied_inline') }}</span>
-                                </p>
-                                <div class="flex items-center gap-2 shrink-0">
-                                    <button type="button" @click="changePromo()" class="text-xs font-bold text-brand hover:underline">{{ __('borrower.apply.change') }}</button>
-                                    <button type="button" @click="clearPromo()" class="text-xs font-bold text-red-700 hover:underline">{{ __('borrower.payments_page.show.remove_promo') }}</button>
+                            <div x-cloak x-show="promoValid && promoCode && promoStatus === 'success'" class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-3 py-3 space-y-2">
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-bold text-emerald-900" x-text="promoTitle || @js(__('borrower.payments_page.show.promo_applied_title'))"></p>
+                                        <p class="mt-0.5 text-xs text-emerald-800" x-text="promoBody || (@js(__('borrower.membership.promo_applied', ['code' => ':code'])).replace(':code', promoCode))"></p>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <button type="button" @click="changePromo()" class="text-xs font-bold text-brand hover:underline">{{ __('borrower.apply.change') }}</button>
+                                        <button type="button" @click="clearPromo()" class="text-xs font-bold text-red-700 hover:underline">{{ __('borrower.payments_page.show.remove_promo') }}</button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div x-show="!promoValid || !promoCode" class="space-y-2">
+                            <div x-cloak x-show="promoStatus === 'invalid' || promoStatus === 'expired'" class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3">
+                                <p class="text-sm font-bold text-amber-950" x-text="promoTitle"></p>
+                                <p class="mt-0.5 text-xs text-amber-900" x-text="promoBody"></p>
+                            </div>
+
+                            <div x-show="!promoValid || promoStatus === 'invalid' || promoStatus === 'expired' || !promoCode" class="space-y-2">
                                 <div class="flex gap-2">
                                     <input type="text"
                                            x-model="promoCode"
@@ -150,9 +164,6 @@
                                         {{ __('borrower.membership.apply_promo') }}
                                     </button>
                                 </div>
-                                <p x-cloak x-show="promoMessage" class="text-xs"
-                                   :class="promoValid ? 'text-emerald-700' : 'text-red-700'"
-                                   x-text="promoMessage"></p>
                             </div>
                         </div>
                     @endif

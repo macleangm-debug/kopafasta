@@ -32,11 +32,15 @@ export function registerPspPaymentFlow(Alpine) {
         promoCode: cfg.promoCode || '',
         promoMessage: '',
         promoValid: false,
+        promoStatus: '', // success | invalid | expired | ''
+        promoTitle: '',
+        promoBody: '',
         quoteLines: cfg.quoteLines || [],
         stackWithPromo: !!cfg.stackWithPromo,
         simulateUrl: cfg.simulateUrl || '',
         simulatorEnabled: !!cfg.simulatorEnabled,
         adjusting: false,
+        navigatingAway: false,
 
         formatLineAmount(line) {
             const amount = Number(line?.amount || 0);
@@ -75,10 +79,16 @@ export function registerPspPaymentFlow(Alpine) {
                 if (data.promo_code !== undefined) this.promoCode = data.promo_code || this.promoCode;
                 this.promoValid = !!data.promo_valid;
                 this.promoMessage = data.message || '';
+                this.promoStatus = data.promo_status || (this.promoValid ? 'success' : (this.promoMessage ? 'invalid' : ''));
+                this.promoTitle = data.promo_title || '';
+                this.promoBody = data.promo_body || data.message || '';
                 return { res, data };
             } catch (e) {
                 this.promoValid = false;
                 this.promoMessage = this.copy.retry || this.copy.promoInvalid || '';
+                this.promoStatus = 'invalid';
+                this.promoTitle = this.copy.promoUnavailableTitle || '';
+                this.promoBody = this.promoMessage;
                 return { res: { ok: false }, data: { ok: false, message: this.promoMessage } };
             } finally {
                 this.adjusting = false;
@@ -89,7 +99,10 @@ export function registerPspPaymentFlow(Alpine) {
             const code = String(this.promoCode || '').trim().toUpperCase();
             if (!code) {
                 this.promoValid = false;
-                this.promoMessage = this.copy.promoRequired || '';
+                this.promoStatus = 'invalid';
+                this.promoTitle = this.copy.promoUnavailableTitle || '';
+                this.promoBody = this.copy.promoRequired || '';
+                this.promoMessage = this.promoBody;
                 return;
             }
             this.promoCode = code;
@@ -99,38 +112,59 @@ export function registerPspPaymentFlow(Alpine) {
             });
             if (!result) {
                 this.promoValid = false;
-                this.promoMessage = this.copy.promoInvalid || this.copy.retry || '';
+                this.promoStatus = 'invalid';
+                this.promoTitle = this.copy.promoUnavailableTitle || '';
+                this.promoBody = this.copy.promoInvalid || this.copy.retry || '';
+                this.promoMessage = this.promoBody;
                 return;
             }
             if (!result.res.ok || result.data.ok === false) {
                 this.promoValid = false;
-                this.promoMessage = result.data.message || this.copy.promoInvalid || '';
+                this.promoStatus = result.data.promo_status || 'invalid';
+                this.promoTitle = result.data.promo_title || this.copy.promoUnavailableTitle || '';
+                this.promoBody = result.data.promo_body || result.data.message || this.copy.promoInvalid || '';
+                this.promoMessage = this.promoBody;
+            } else {
+                this.applyReward = false;
             }
-        },
-
-        async toggleReward() {
-            this.applyReward = !this.applyReward;
-            this.amountLabel = this.applyReward ? this.rewardNetLabel : this.grossAmountLabel;
-            await this.postAdjust({
-                promo_code: this.stackWithPromo ? (this.promoCode || '') : '',
-                apply_reward: this.applyReward ? '1' : '0',
-                clear_promo: (!this.stackWithPromo && this.applyReward) ? '1' : '0',
-            });
         },
 
         changePromo() {
             this.promoValid = false;
+            this.promoStatus = '';
+            this.promoTitle = '';
+            this.promoBody = '';
             this.promoMessage = '';
         },
 
         async clearPromo() {
             this.promoCode = '';
             this.promoValid = false;
+            this.promoStatus = '';
+            this.promoTitle = '';
+            this.promoBody = '';
             this.promoMessage = '';
             await this.postAdjust({
                 promo_code: '',
                 clear_promo: '1',
                 apply_reward: this.applyReward ? '1' : '0',
+            });
+        },
+
+        async toggleReward() {
+            this.applyReward = !this.applyReward;
+            this.amountLabel = this.applyReward ? this.rewardNetLabel : this.grossAmountLabel;
+            if (this.applyReward && !this.stackWithPromo) {
+                this.promoValid = false;
+                this.promoStatus = '';
+                this.promoTitle = '';
+                this.promoBody = '';
+                this.promoMessage = '';
+            }
+            await this.postAdjust({
+                promo_code: this.stackWithPromo ? (this.promoCode || '') : '',
+                apply_reward: this.applyReward ? '1' : '0',
+                clear_promo: (!this.stackWithPromo && this.applyReward) ? '1' : '0',
             });
         },
 
@@ -166,6 +200,16 @@ export function registerPspPaymentFlow(Alpine) {
             if (data.message) this.message = data.message;
 
             const next = data.state === 'ready' ? 'details' : data.state;
+            // Verified payment → one direct navigation. Do not paint an intermediate success surface.
+            if (next === 'paid' && (this.successUrl || data.redirect_url)) {
+                const url = data.redirect_url || this.successUrl;
+                this.successUrl = url;
+                this.state = 'paid';
+                this.navigatingAway = true;
+                this.stopTimers();
+                window.location.replace(url);
+                return;
+            }
             if (['details', 'waiting', 'paid', 'failed'].includes(next)) {
                 this.state = next;
             }
@@ -176,11 +220,6 @@ export function registerPspPaymentFlow(Alpine) {
             }
             if (this.state === 'paid') {
                 this.burstConfetti();
-                if (this.successUrl) {
-                    window.setTimeout(() => {
-                        window.location.href = this.successUrl;
-                    }, 1400);
-                }
             }
         },
 

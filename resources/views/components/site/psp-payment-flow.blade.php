@@ -62,7 +62,11 @@
         'slowHint' => __('borrower.payment_waiting.slow_hint'),
         'sentTo' => __('borrower.payment_waiting.sent_to'),
         'promoInvalid' => __('borrower.membership.promo_invalid'),
-        'promoRequired' => __('borrower.apply.application_fee.promo_label'),
+        'promoRequired' => __('borrower.payments_page.show.promo_required_body'),
+        'promoUnavailableTitle' => __('borrower.payments_page.show.promo_unavailable_title'),
+        'promoUnavailableBody' => __('borrower.payments_page.show.promo_unavailable_body'),
+        'promoExpiredTitle' => __('borrower.payments_page.show.promo_expired_title'),
+        'promoExpiredBody' => __('borrower.payments_page.show.promo_expired_body'),
         'simulatorHeading' => __('borrower.payment_waiting.simulator_heading'),
         'simulatorSuccess' => __('borrower.payment_waiting.simulator_success'),
         'simulatorPending' => __('borrower.payment_waiting.simulator_pending'),
@@ -177,7 +181,7 @@
                 </div>
             </div>
 
-            <div x-show="state === 'paid'" x-cloak class="pt-3 space-y-5">
+            <div x-show="state === 'paid' && !navigatingAway" x-cloak class="pt-3 space-y-5">
                 <div class="rounded-3xl kf-premium-panel">
                     <div class="px-6 py-7 text-center sm:text-left">
                         <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ __('borrower.payment_waiting.success_title') }}</p>

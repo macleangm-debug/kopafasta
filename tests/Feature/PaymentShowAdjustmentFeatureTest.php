@@ -155,15 +155,16 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
             ->assertSee(__('borrower.payments_page.show.save_on_payment'), false)
-            ->assertSee(__('borrower.payments_page.show.reward_available'), false)
             ->assertSee(__('borrower.payments_page.show.use_reward'), false)
             ->assertSee(__('borrower.membership.promo_section_title'), false)
             ->assertSee(__('borrower.membership.apply_promo'), false)
+            ->assertSee(__('borrower.payments_page.show.promo_unavailable_title'), false)
             ->getContent();
 
         $this->assertStringContainsString('toggleReward()', $html);
         $this->assertStringContainsString('applyPromo()', $html);
         $this->assertStringContainsString('clearPromo()', $html);
+        $this->assertStringContainsString('promoStatus', $html);
         $this->assertStringContainsString('apply_reward', $html);
         $this->assertStringContainsString('promo_code', $html);
     }
@@ -183,12 +184,12 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
         $this->actingAs($rich->user)
             ->get(route('site.borrower.payments.show', $richPayment))
             ->assertOk()
-            ->assertSee(__('borrower.payments_page.show.reward_available'), false);
+            ->assertSee(__('borrower.payments_page.show.use_reward'), false);
 
         $this->actingAs($poor->user)
             ->get(route('site.borrower.payments.show', $poorPayment))
             ->assertOk()
-            ->assertDontSee(__('borrower.payments_page.show.reward_available'), false);
+            ->assertDontSee(__('borrower.payments_page.show.use_reward'), false);
     }
 
     public function test_reward_points_are_not_consumed_until_settle(): void
@@ -230,13 +231,16 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
         $payment = $this->feePayment($customer);
 
         $this->actingAs($customer->user)
+            ->withSession(['locale' => 'en'])
             ->postJson(route('site.borrower.payments.adjust', $payment), [
                 'promo_code' => 'KITONGA',
             ])
             ->assertStatus(422)
             ->assertJsonPath('ok', false)
             ->assertJsonPath('promo_valid', false)
-            ->assertJsonFragment(['message' => __('borrower.membership.promo_invalid')]);
+            ->assertJsonPath('promo_status', 'invalid')
+            ->assertJsonPath('promo_title', __('borrower.payments_page.show.promo_unavailable_title'))
+            ->assertJsonFragment(['message' => __('borrower.payments_page.show.promo_unavailable_body')]);
     }
 
     public function test_reward_and_promo_do_not_stack_by_default(): void

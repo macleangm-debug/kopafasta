@@ -641,11 +641,26 @@ class BorrowerPaymentController extends Controller
             : null;
 
         $promoValid = (bool) ($quote['promo_valid'] ?? false);
+        $promoStatus = null;
+        $promoTitle = null;
+        $promoBody = null;
         $message = null;
         if (filled($code) && ! $promoValid) {
-            $message = __('borrower.membership.promo_invalid');
+            $reason = (string) ($quote['promo_message'] ?? $quote['promo_error'] ?? '');
+            $expired = str_contains(mb_strtolower($reason), 'expir');
+            $promoStatus = $expired ? 'expired' : 'invalid';
+            $promoTitle = $expired
+                ? __('borrower.payments_page.show.promo_expired_title')
+                : __('borrower.payments_page.show.promo_unavailable_title');
+            $promoBody = $expired
+                ? __('borrower.payments_page.show.promo_expired_body')
+                : __('borrower.payments_page.show.promo_unavailable_body');
+            $message = $promoBody;
         } elseif (filled($code) && $promoValid) {
-            $message = __('borrower.membership.promo_applied', ['code' => $quote['promo_code'] ?? $code]);
+            $promoStatus = 'success';
+            $promoTitle = __('borrower.payments_page.show.promo_applied_title');
+            $promoBody = __('borrower.membership.promo_applied', ['code' => $quote['promo_code'] ?? $code]);
+            $message = $promoBody;
         }
 
         if ($request->wantsJson() || $request->ajax()) {
@@ -655,6 +670,9 @@ class BorrowerPaymentController extends Controller
                 'wallet_reward' => $walletReward,
                 'promo_code' => $quote['promo_code'] ?? $code,
                 'promo_valid' => $promoValid,
+                'promo_status' => $promoStatus,
+                'promo_title' => $promoTitle,
+                'promo_body' => $promoBody,
                 'message' => $message,
                 'amount_label' => format_money((float) ($quote['cash_due'] ?? $payment->amount)),
             ], filled($code) && ! $promoValid ? 422 : 200);
