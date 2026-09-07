@@ -243,6 +243,26 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->assertJsonFragment(['message' => __('borrower.payments_page.show.promo_unavailable_body')]);
     }
 
+    public function test_kitonga_staging_affiliate_applies_to_application_fee(): void
+    {
+        (new \Database\Seeders\StagingUatSeeder)->run();
+
+        $customer = \App\Models\Customer::query()->where('customer_number', 'CU-UAT-0001')->firstOrFail();
+        $payment = $this->feePayment($customer);
+
+        $this->actingAs($customer->user)
+            ->withSession(['locale' => 'en'])
+            ->postJson(route('site.borrower.payments.adjust', $payment), [
+                'promo_code' => 'KITONGA',
+            ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('promo_valid', true)
+            ->assertJsonPath('promo_status', 'success')
+            ->assertJsonPath('quote.affiliate_discount', 1000)
+            ->assertJsonPath('quote.cash_due', 9000);
+    }
+
     public function test_reward_and_promo_do_not_stack_by_default(): void
     {
         $this->assertFalse(app(GrowthPointsService::class)->allowRewardAndPromo());

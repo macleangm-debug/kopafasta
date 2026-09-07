@@ -120,20 +120,21 @@ class MicroPassBProfileShellFeatureTest extends TestCase
 
     public function test_plus_print_footer_is_logo_and_confidential_only(): void
     {
-        $printDoc = file_get_contents(resource_path('views/components/site/print-document.blade.php'));
         $reports = file_get_contents(resource_path('views/site/plus/reports.blade.php'));
         $sheet = file_get_contents(resource_path('views/site/plus/_report_sheet.blade.php'));
+        $css = file_get_contents(resource_path('css/app.css'));
 
-        $this->assertStringContainsString('kf-print-running-footer', $printDoc);
-        $this->assertStringContainsString('logoDataUri', $printDoc);
-        $this->assertStringContainsString('kf-print-wordmark', $printDoc);
-        $this->assertStringContainsString('footer_confidential', $printDoc);
-        $this->assertStringNotContainsString('print_plus_label', $printDoc);
+        $this->assertStringContainsString('kf-print-running-footer', $reports);
+        $this->assertStringContainsString('kf-print-wordmark', $reports);
+        $this->assertStringContainsString('logoDataUri', $reports);
+        $this->assertStringContainsString('footer_confidential', $reports);
+        $this->assertStringContainsString('window.print()', $reports);
+        $this->assertStringContainsString('x-site.borrower-layout', $reports);
+        $this->assertStringNotContainsString('x-site.print-document', $reports);
         $this->assertStringNotContainsString('$website', $reports);
         $this->assertStringNotContainsString('$website', $sheet);
-        $this->assertStringNotContainsString('footer-left', $reports);
-        $this->assertStringNotContainsString('plus.reports.footer\'', $reports);
-        $this->assertStringNotContainsString(':mark="true"', $sheet);
+        $this->assertStringContainsString('kf-print-running-footer', $css);
+        $this->assertStringContainsString('kf-print-wordmark', $css);
     }
 
     public function test_profile_hero_shows_canonical_completion(): void

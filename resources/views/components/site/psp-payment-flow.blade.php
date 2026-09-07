@@ -181,14 +181,12 @@
                 </div>
             </div>
 
-            <div x-show="state === 'paid' && !navigatingAway" x-cloak class="pt-3 space-y-5">
+            <div x-show="state === 'paid'" x-cloak class="pt-3 space-y-5">
                 <div class="rounded-3xl kf-premium-panel">
-                    <div class="px-6 py-7 text-center sm:text-left">
-                        <p class="text-[10px] uppercase tracking-[0.2em] text-white/70 font-semibold">{{ __('borrower.payment_waiting.success_title') }}</p>
-                        <p class="mt-4 text-4xl font-extrabold tabular-nums tracking-tight text-white" x-text="amountLabel">{{ $amountLabel }}</p>
-                        <p class="mt-4 text-xs text-white/70">{{ __('borrower.membership.payment_reference_label') }}</p>
-                        <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1.5 rounded-lg text-white" x-text="paymentReference || @js($payment->reference)">{{ $payment->reference }}</p>
-                        <p class="mt-4 text-sm text-white/80">{{ __('borrower.payment_waiting.continuing') }}</p>
+                    <div class="px-6 py-8 text-center space-y-3">
+                        <p class="text-2xl font-extrabold tracking-tight text-white">✓ {{ __('borrower.payment_waiting.success_title') }}</p>
+                        <p class="text-sm text-white/85">{{ __('borrower.payment_waiting.success_confirmed') }}</p>
+                        <p class="text-xs text-white/60">{{ __('borrower.payment_waiting.continuing') }}</p>
                     </div>
                 </div>
             </div>

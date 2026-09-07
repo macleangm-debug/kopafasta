@@ -530,7 +530,6 @@ class PlusController extends Controller
         return view('site.plus.reports', [
             'customer' => $customer,
             'report' => $report,
-            'print' => $request->boolean('print'),
         ]);
     }
 

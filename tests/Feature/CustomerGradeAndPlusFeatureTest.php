@@ -717,15 +717,21 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.plus.reports'))
             ->assertOk()
             ->assertSee('kf-print-sheet', false)
+            ->assertSee('kf-print-running-footer', false)
+            ->assertSee('kf-print-wordmark', false)
             ->assertSee(__('plus.reports.a4_kicker'), false)
             ->assertSee(__('plus.reports.money'), false)
+            ->assertSee('window.print()', false)
             ->assertDontSee('name="month"', false)
-            ->assertDontSee('target="_blank"', false);
+            ->assertDontSee('target="_blank"', false)
+            ->assertDontSee('kf-print-document', false);
 
+        // print=1 no longer opens a standalone document page — preview stays in account shell.
         $this->actingAs($user)
             ->get(route('site.borrower.plus.reports', ['month' => now()->format('Y-m'), 'print' => 1]))
             ->assertOk()
-            ->assertSee('kf-print-document', false)
+            ->assertSee('kf-print-sheet', false)
+            ->assertDontSee('kf-print-document', false)
             ->assertDontSee('SeoDocument', false);
 
         $this->actingAs($user)

@@ -107,29 +107,33 @@ class StagingUatSeeder extends Seeder
             ]
         );
 
-        if (Vendor::query()->where('affiliate_code', 'KITONGA')->exists()) {
-            $this->command?->info('KITONGA already present; leaving the migrated affiliate unchanged.');
-        } else {
-            Vendor::query()->updateOrCreate(
-                ['partner_number' => 'AFF-UAT-KITONGA'],
-                [
-                    'name' => 'UAT Kitonga Affiliate',
-                    'category' => 'affiliate',
-                    'status' => 'active',
-                    'phone' => '255700000010',
-                    'email' => 'uat.kitonga@staging.kopafasta.com',
-                    'affiliate_code' => 'KITONGA',
-                    'affiliate_kyc_status' => 'verified',
-                    'affiliate_lifecycle_status' => 'active',
-                    'membership_status' => 'active',
-                    'membership_started_at' => now()->subMonth(),
-                    'membership_expires_at' => now()->addYear(),
-                    'application_discount_percent' => 10,
-                    'registration_discount_percent' => 10,
-                    'activated_at' => now(),
-                ]
-            );
-        }
+        // Always refresh KITONGA so staging UAT has a working canonical affiliate promo
+        // for application-fee payment.show (existing migrated rows may be incomplete).
+        Vendor::query()->updateOrCreate(
+            ['affiliate_code' => 'KITONGA'],
+            [
+                'partner_number' => 'AFF-UAT-KITONGA',
+                'name' => 'UAT Kitonga Affiliate',
+                'category' => 'affiliate',
+                'status' => 'active',
+                'phone' => '255700000010',
+                'email' => 'uat.kitonga@staging.kopafasta.com',
+                'affiliate_code' => 'KITONGA',
+                'affiliate_kyc_status' => 'verified',
+                'affiliate_lifecycle_status' => 'active',
+                'membership_status' => 'active',
+                'membership_started_at' => now()->subMonth(),
+                'membership_expires_at' => now()->addYear(),
+                'application_discount_percent' => 10,
+                'registration_discount_percent' => 10,
+                'activated_at' => now(),
+            ]
+        );
+
+        // Ensure affiliate promo codes apply to application fees on staging.
+        $applies = app(\App\Services\AffiliateSettingsService::class)->appliesTo();
+        $applies['application_fee'] = true;
+        \App\Models\Setting::set('affiliates.applies_to', $applies);
     }
 
     private function enrollUatRecovery(User $user): void

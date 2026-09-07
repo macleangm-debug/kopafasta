@@ -38,9 +38,12 @@ class PaymentGateService
         [$resolvedPromo, $resolvedAffiliate] = app(ApplicationFeePaymentService::class)
             ->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
-        if (filled($resolvedAffiliate) && ! app(ReferralService::class)->referrer($customer) && blank($customer->affiliate_vendor_id)) {
-            app(AffiliateService::class)->attachAffiliate($customer, $resolvedAffiliate);
-            $customer->refresh();
+        if (filled($resolvedAffiliate) && ! app(ReferralService::class)->referrer($customer)) {
+            // Explicit affiliate code: attach when unbound (canonical promo path for wakala codes).
+            if (blank($customer->affiliate_vendor_id)) {
+                app(AffiliateService::class)->attachAffiliate($customer, $resolvedAffiliate);
+                $customer->refresh();
+            }
         }
         $referrals = app(ReferralService::class);
         $affiliates = app(AffiliateService::class);
@@ -75,9 +78,9 @@ class PaymentGateService
             $hasAffiliate = (bool) $affiliateQuote['has_affiliate'];
             $linked = $affiliates->affiliate($customer);
             if ($hasAffiliate && $linked && (filled($resolvedAffiliate) || app(AffiliateSettingsService::class)->autoApplyPromo())) {
-                $promoValid = true;
+                $promoValid = $affiliateDiscount > 0;
                 $appliedPromo = strtoupper(trim((string) ($linked->affiliate_code ?: $resolvedAffiliate)));
-                $codeKind = 'affiliate';
+                $codeKind = $promoValid ? 'affiliate' : 'invalid';
             }
         }
 

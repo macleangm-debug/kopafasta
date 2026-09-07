@@ -200,16 +200,6 @@ export function registerPspPaymentFlow(Alpine) {
             if (data.message) this.message = data.message;
 
             const next = data.state === 'ready' ? 'details' : data.state;
-            // Verified payment → one direct navigation. Do not paint an intermediate success surface.
-            if (next === 'paid' && (this.successUrl || data.redirect_url)) {
-                const url = data.redirect_url || this.successUrl;
-                this.successUrl = url;
-                this.state = 'paid';
-                this.navigatingAway = true;
-                this.stopTimers();
-                window.location.replace(url);
-                return;
-            }
             if (['details', 'waiting', 'paid', 'failed'].includes(next)) {
                 this.state = next;
             }
@@ -218,8 +208,17 @@ export function registerPspPaymentFlow(Alpine) {
             } else {
                 this.stopTimers();
             }
+            // verified → visible success → short pause → destination (no flicker / no instant jump)
             if (this.state === 'paid') {
                 this.burstConfetti();
+                const url = this.successUrl || data.redirect_url || '';
+                if (url) {
+                    this.successUrl = url;
+                    window.setTimeout(() => {
+                        this.navigatingAway = true;
+                        window.location.replace(this.successUrl);
+                    }, 1300);
+                }
             }
         },
 
