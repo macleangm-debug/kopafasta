@@ -37,37 +37,78 @@
     ])
 
     <div class="glass-card overflow-hidden" x-data="{
+        expanded: @js($openOnLoad),
         adding: @js($openOnLoad),
+        complete: @js($hasPayout),
         step: @js(old('payout_type', $payout['type'] ?? '') !== '' ? 2 : 1),
         type: @js(old('payout_type', $payout['type'] ?? '')),
         mobileProvider: @js(old('payout_mobile_provider', $payout['mobile_provider'] ?? '')),
         mobileNumber: @js(old('payout_mobile_number', $payout['mobile_number'] ?? $partner->phone)),
         bankName: @js(old('payout_bank_name', $payout['bank_name'] ?? '')),
         accountNumber: @js(old('payout_account_number', $payout['account_number'] ?? '')),
-        openAdd() { this.adding = true; if (!this.type) this.step = 1; }
+        get showCompleteTick() { return this.complete && ! this.adding && ! this.expanded; },
+        toggleExpand() { this.expanded = ! this.expanded; },
+        openAdd() { this.adding = true; this.expanded = true; if (!this.type) this.step = 1; }
     }">
-        <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3">
-            <div class="flex items-start gap-3 min-w-0">
+        <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3 cursor-pointer"
+             role="button"
+             tabindex="0"
+             @click="toggleExpand()"
+             @keydown.enter.prevent="toggleExpand()"
+             @keydown.space.prevent="toggleExpand()">
+            <div class="flex items-start gap-3 min-w-0 flex-1">
                 <span class="text-2xl leading-none shrink-0 mt-0.5" aria-hidden="true">💳</span>
                 <div>
-                    <h2 class="font-semibold text-gray-900">{{ __('site.partner_account.payment_section') }}</h2>
+                    <h2 class="font-semibold text-gray-900 inline-flex items-center gap-2">
+                        <span>{{ __('site.partner_account.payment_section') }}</span>
+                        <svg class="size-4 text-gray-400 transition" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </h2>
                     <p class="text-xs text-gray-500 mt-0.5">{{ __('site.partner_account.payment_hint') }}</p>
                 </div>
             </div>
-            <button type="button" @click="openAdd()"
-                    class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:bg-yellow-400 px-3.5 py-1.5 rounded-full shadow-sm">
-                <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                {{ $hasPayout ? __('borrower.payment_details.add_account') : __('borrower.profile.add_details') }}
+            <div class="shrink-0 flex items-center justify-end min-h-9">
+                @if ($hasPayout)
+                    <span x-show="showCompleteTick"
+                          @if ($openOnLoad) x-cloak @endif
+                          class="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-brand to-brand-light pl-1.5 pr-3 py-1.5 text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 pointer-events-none"
+                          title="{{ __('borrower.profile.section_complete') }}"
+                          aria-label="{{ __('borrower.profile.section_complete') }}">
+                        <span class="grid size-7 place-items-center rounded-full bg-white/15 ring-1 ring-white/25">
+                            <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                            </svg>
+                        </span>
+                        <span class="text-[11px] font-bold text-white/90">{{ __('borrower.profile.section_complete') }}</span>
+                    </span>
+                @endif
+                <button type="button" @click.stop="openAdd()"
+                        x-show="!showCompleteTick"
+                        @unless ($openOnLoad) x-cloak @endunless
+                        class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:bg-yellow-400 px-3.5 py-1.5 rounded-full shadow-sm">
+                    <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    {{ $hasPayout ? __('borrower.payment_details.add_account') : __('borrower.profile.add_details') }}
+                </button>
+            </div>
+        </div>
+
+        <div x-show="!expanded" @if ($openOnLoad) x-cloak @endif class="px-5 sm:px-6 py-3">
+            <button type="button" @click.stop="expanded = true" class="text-xs font-semibold text-brand hover:underline">
+                {{ $hasPayout ? __('borrower.profile.hub.view') : __('borrower.profile.hub.view_edit') }} →
             </button>
         </div>
 
-        <div class="p-5 sm:p-6">
+        <div x-show="expanded" @unless ($openOnLoad) x-cloak @endunless class="p-5 sm:p-6" @click.stop>
             @if (! $hasPayout)
                 <p class="text-sm text-gray-600">{{ __('site.partner_account.payment_empty') }}</p>
             @else
                 <p class="text-sm font-semibold text-gray-900 capitalize">{{ str_replace('_', ' ', $payout['type'] ?? '') }}</p>
                 <p class="text-sm text-gray-600 mt-1">{{ $payout['account_name'] ?? '' }}</p>
                 <p class="text-sm font-mono text-gray-800 mt-1">{{ $payout['mobile_number'] ?? $payout['account_number'] ?? '' }}</p>
+                <button type="button" @click.stop="openAdd()" class="mt-4 inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
+                    {{ __('borrower.payment_details.edit_account') }}
+                </button>
             @endif
         </div>
 

@@ -15,7 +15,8 @@ export function registerProfileSectionCard(Alpine) {
         _onAccordion: null,
 
         get showCompleteTick() {
-            return this.complete && ! this.open && ! this.showEditAction;
+            // Collapsed + complete only — avoids Edit/Complete overlap and matches SSR tick.
+            return this.complete && ! this.open && ! this.showEditAction && ! this.expanded;
         },
 
         toggleExpand() {

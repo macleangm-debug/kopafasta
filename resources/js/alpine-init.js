@@ -4,6 +4,7 @@ import { registerFormReadyAlpine } from './form-ready';
 import { registerProductCalculator } from './product-calculator';
 import { registerCollateralAddForm } from './collateral-add-form';
 import { registerProfileSectionCard } from './profile-section-card';
+import { registerPaymentProfileCard } from './payment-profile-card';
 import { registerSavingOverlay } from './saving-overlay';
 import { registerPartnerCreateConfirm } from './partner-create-confirm';
 
@@ -16,6 +17,7 @@ window.Alpine = Alpine;
 registerFormReadyAlpine(Alpine);
 registerCollateralAddForm(Alpine);
 registerProfileSectionCard(Alpine);
+registerPaymentProfileCard(Alpine);
 registerSavingOverlay(Alpine);
 registerPartnerCreateConfirm(Alpine);
 registerValuationCamera(Alpine);

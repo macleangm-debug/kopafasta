@@ -220,12 +220,31 @@ class PaymentAccountProfileFeatureTest extends TestCase
             'is_default'      => true,
         ]);
 
-        $this->actingAs($customer->user)
+        $html = $this->actingAs($customer->user)
             ->get(route('site.borrower.profile', ['section' => 'payment']))
             ->assertOk()
             ->assertSee(__('borrower.payment_details.edit_account'), false)
             ->assertSee('data-payment-account-edit="'.$account->id.'"', false)
             ->assertSee('openEdit', false)
-            ->assertSee('expanded: true', false);
+            ->assertSee('paymentProfileCard', false)
+            ->assertSee('toggleExpand()', false)
+            ->assertSee('x-show="!expanded"', false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/\\\\u0022expanded\\\\u0022:false/', $html);
+        $this->assertMatchesRegularExpression('/\\\\u0022complete\\\\u0022:true/', $html);
+    }
+
+    public function test_payment_profile_incomplete_starts_expanded(): void
+    {
+        $customer = $this->borrower();
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'payment']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/\\\\u0022expanded\\\\u0022:true/', $html);
+        $this->assertMatchesRegularExpression('/\\\\u0022complete\\\\u0022:false/', $html);
     }
 }

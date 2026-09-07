@@ -35,91 +35,37 @@
             $providers = \App\Services\CustomerDisbursementDetailsService::MOBILE_PROVIDERS;
             $addType = old('type', '');
             $showAdd = $editing || ! $paymentComplete || $errors->any();
+            // Complete + idle → collapsed. Incomplete / validation / explicit add|edit → expanded.
+            $startExpanded = $showAdd;
             $legalName = $borrowerLegalName ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $mobileAccounts = $accounts->where('type', 'mobile_money')->values();
             $bankAccounts = $accounts->where('type', 'bank')->values();
             $returnQuery = ! empty($returnUrl) ? ['return' => $returnUrl] : [];
         @endphp
 
-        <div class="glass-card overflow-hidden" x-data="{
-            // Always start expanded so saved accounts (and Edit) are visible in the list.
-            expanded: true,
-            showEditAction: @js(! $paymentComplete || $showAdd),
-            adding: @js($showAdd),
-            editingId: @js((int) old('account_id', 0)),
-            step: @js($addType !== '' ? 2 : 1),
-            type: @js($addType),
-            mobileProvider: @js(old('mobile_provider', '')),
-            mobileNumber: @js(old('mobile_number', '')),
-            bankName: @js(old('bank_name', '')),
-            accountNumber: @js(old('account_number', '')),
-            bankBranch: @js(old('bank_branch', '')),
-            openAdd() {
-                this.editingId = 0;
-                this.type = '';
-                this.mobileProvider = '';
-                this.mobileNumber = '';
-                this.bankName = '';
-                this.accountNumber = '';
-                this.bankBranch = '';
-                this.step = 1;
-                this.adding = true;
-                this.expanded = true;
-                this.showEditAction = true;
-                this.$nextTick(() => this.$nextTick(() => this.clearPhoneInput()));
-            },
-            openEdit(account) {
-                this.editingId = Number(account.id) || 0;
-                this.type = account.type || '';
-                this.mobileProvider = account.mobile_provider || '';
-                this.mobileNumber = account.mobile_number || '';
-                this.bankName = account.bank_name || '';
-                this.accountNumber = account.account_number || '';
-                this.bankBranch = account.bank_branch || '';
-                this.step = 2;
-                this.adding = true;
-                this.expanded = true;
-                this.showEditAction = true;
-                this.$nextTick(() => this.$nextTick(() => this.applyPhoneInput(this.mobileNumber)));
-            },
-            phoneRoot() {
-                // action-panel teleports to body — do not search only inside this.$root
-                return document.querySelector('[data-integration-live-test-panel] [data-phone-input]')
-                    || document.querySelector('[data-phone-input]');
-            },
-            clearPhoneInput() {
-                const root = this.phoneRoot();
-                if (! root || ! window.Alpine?.\$data) return;
-                const data = window.Alpine.\$data(root);
-                data.local = '';
-                if (typeof data.syncHidden === 'function') data.syncHidden();
-            },
-            applyPhoneInput(full) {
-                const root = this.phoneRoot();
-                if (! root || ! window.Alpine?.\$data) return;
-                const data = window.Alpine.\$data(root);
-                const digits = String(full || '').replace(/\\D/g, '');
-                let local = digits;
-                if (local.startsWith('255')) local = local.slice(3);
-                local = local.replace(/^0+/, '');
-                data.local = local;
-                if (typeof data.syncHidden === 'function') data.syncHidden();
-                this.mobileNumber = (typeof data.full === 'function' ? data.full() : '') || digits;
-            },
-            syncMobileNumber() {
-                const input = this.phoneRoot()?.querySelector?.('input[name=\"mobile_number\"][data-phone-hidden], input[name=\"mobile_number\"]')
-                    || document.querySelector('input[name=\"mobile_number\"][data-phone-hidden], input[name=\"mobile_number\"]');
-                if (input?.value) this.mobileNumber = input.value;
-            },
-            get showCompleteTick() { return @js($paymentComplete) && ! this.showEditAction && ! this.expanded; },
-            get panelTitle() {
-                return this.editingId
-                    ? @js(__('borrower.payment_details.edit_account_title'))
-                    : @js(__('borrower.payment_details.add_account'));
-            }
-        }">
-            <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3">
-                <button type="button" @click="expanded = !expanded" class="flex items-start gap-3 min-w-0 text-left flex-1">
+        <div class="glass-card overflow-hidden" x-data="paymentProfileCard(@js([
+            'expanded' => $startExpanded,
+            'complete' => $paymentComplete,
+            'showEditAction' => $showAdd,
+            'adding' => $showAdd,
+            'editingId' => (int) old('account_id', 0),
+            'step' => $addType !== '' ? 2 : 1,
+            'type' => $addType,
+            'mobileProvider' => old('mobile_provider', ''),
+            'mobileNumber' => old('mobile_number', ''),
+            'bankName' => old('bank_name', ''),
+            'accountNumber' => old('account_number', ''),
+            'bankBranch' => old('bank_branch', ''),
+            'editTitle' => __('borrower.payment_details.edit_account_title'),
+            'addTitle' => __('borrower.payment_details.add_account'),
+        ]))">
+            <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3 cursor-pointer"
+                 role="button"
+                 tabindex="0"
+                 @click="toggleExpand()"
+                 @keydown.enter.prevent="toggleExpand()"
+                 @keydown.space.prevent="toggleExpand()">
+                <div class="flex items-start gap-3 min-w-0 text-left flex-1">
                     <span class="text-2xl leading-none shrink-0 mt-0.5" aria-hidden="true">💳</span>
                     <div class="min-w-0">
                         <h2 class="font-semibold text-gray-900 inline-flex items-center gap-2">
@@ -129,30 +75,33 @@
                             </svg>
                         </h2>
                     </div>
-                </button>
-                <div class="shrink-0 relative min-h-9 min-w-9 flex items-center justify-end gap-2">
+                </div>
+                <div class="shrink-0 relative min-h-9 flex items-center justify-end gap-2">
                     @if ($paymentComplete)
-                        <button type="button"
-                                @click.stop="openAdd()"
+                        <span
                                 x-show="showCompleteTick"
-                                class="size-9 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 hover:ring-brand-gold/70 transition"
-                                title="{{ __('borrower.profile.section_complete_tap') }}"
-                                aria-label="{{ __('borrower.profile.section_complete_tap') }}">
-                            <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-                            </svg>
-                        </button>
+                                @if ($startExpanded) x-cloak @endif
+                                class="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-brand to-brand-light pl-1.5 pr-3 py-1.5 text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 pointer-events-none"
+                                title="{{ __('borrower.profile.section_complete') }}"
+                                aria-label="{{ __('borrower.profile.section_complete') }}">
+                            <span class="grid size-7 place-items-center rounded-full bg-white/15 ring-1 ring-white/25">
+                                <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                                </svg>
+                            </span>
+                            <span class="text-[11px] font-bold text-white/90">{{ __('borrower.profile.section_complete') }}</span>
+                        </span>
                         <button type="button"
                                 @click.stop="openAdd()"
                                 x-show="!showCompleteTick"
-                                x-cloak
+                                @unless ($startExpanded) x-cloak @endunless
                                 class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:bg-yellow-400 px-3.5 py-1.5 rounded-full shadow-sm">
                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                             {{ __('borrower.payment_details.add_account') }}
                         </button>
                     @else
                         <button type="button"
-                                @click="openAdd()"
+                                @click.stop="openAdd()"
                                 class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:bg-yellow-400 px-3.5 py-1.5 rounded-full shadow-sm">
                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                             {{ __('borrower.profile.add_details') }}
@@ -161,13 +110,13 @@
                 </div>
             </div>
 
-            <div x-show="!expanded" x-cloak class="px-5 sm:px-6 py-3">
-                <button type="button" @click="expanded = true" class="text-xs font-semibold text-brand hover:underline">
+            <div x-show="!expanded" @if ($startExpanded) x-cloak @endif class="px-5 sm:px-6 py-3">
+                <button type="button" @click.stop="expanded = true" class="text-xs font-semibold text-brand hover:underline">
                     {{ $paymentComplete ? __('borrower.profile.hub.view') : __('borrower.profile.hub.view_edit') }} →
                 </button>
             </div>
 
-            <div x-show="expanded" class="p-5 sm:p-6 space-y-6">
+            <div x-show="expanded" @unless ($startExpanded) x-cloak @endunless class="p-5 sm:p-6 space-y-6" @click.stop>
                 @if ($paymentComplete)
                     @foreach ([
                         ['label' => __('borrower.payment_details.method_mobile'), 'items' => $mobileAccounts],
@@ -198,7 +147,7 @@
                                             <div class="flex items-center gap-2 shrink-0 flex-wrap">
                                                 <button type="button"
                                                         data-payment-account-edit="{{ $account->id }}"
-                                                        @click="openEdit(@js([
+                                                        @click.stop="openEdit(@js([
                                                             'id' => $account->id,
                                                             'type' => $account->type,
                                                             'mobile_provider' => $account->mobile_provider,
@@ -211,13 +160,14 @@
                                                     {{ __('borrower.payment_details.edit_account') }}
                                                 </button>
                                                 @unless ($account->is_default)
-                                                    <form method="POST" action="{{ route('site.borrower.profile.payment-accounts.default', $account) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}">
+                                                    <form method="POST" action="{{ route('site.borrower.profile.payment-accounts.default', $account) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" @click.stop>
                                                         @csrf
                                                         <button type="submit" class="text-xs font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.payment_details.set_default') }}</button>
                                                     </form>
                                                 @endunless
                                                 @if (! $account->is_default || $accounts->count() > 1)
                                                     <form method="POST" action="{{ route('site.borrower.profile.payment-accounts.destroy', $account) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
+                                                          @click.stop
                                                           @submit.prevent="window.confirmForm($el, {
                                                               title: @js(__('borrower.payment_details.remove_confirm_title')),
                                                               message: @js(__('borrower.payment_details.remove_confirm')),
@@ -242,8 +192,10 @@
                         <p class="text-sm text-gray-600">{{ __('borrower.payment_details.incomplete_hint') }}</p>
                     </div>
                 @endif
+            </div>
 
-                <x-site.action-panel :title="__('borrower.payment_details.add_account')" open="adding" size="lg">
+            {{-- Outside x-show so teleport/hydration never blanks the account list --}}
+            <x-site.action-panel :title="__('borrower.payment_details.add_account')" open="adding" size="lg">
                     <p class="text-sm font-bold text-gray-900 mb-2" x-text="panelTitle"></p>
                     <p class="text-xs text-gray-500 mb-4">{{ __('borrower.payment_details.name_must_match', ['name' => $legalName]) }}</p>
                     <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-4">
@@ -418,8 +370,7 @@
                             </div>
                         </div>
                     </form>
-                </x-site.action-panel>
-            </div>
+            </x-site.action-panel>
         </div>
     </div>
 </x-site.borrower-layout>
