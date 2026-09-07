@@ -463,8 +463,12 @@ class PlusReportService
         };
         $bizDiff = (float) ($business['difference'] ?? 0);
         $prevBizDiff = (float) ($prevBusiness['difference'] ?? 0);
+        $prevHadBusiness = ((float) ($prevBusiness['sold'] ?? 0) > 0)
+            || ((float) ($prevBusiness['spent'] ?? 0) > 0)
+            || abs($prevBizDiff) >= 0.01;
         $bizKey = match (true) {
             abs($bizDiff - $prevBizDiff) < 0.01 => 'plus.reports.sentence_biz_same',
+            ! $prevHadBusiness => 'plus.reports.sentence_biz_same',
             $bizDiff > $prevBizDiff => 'plus.reports.sentence_biz_up',
             default => 'plus.reports.sentence_biz_down',
         };

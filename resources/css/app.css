@@ -197,7 +197,6 @@
     nav,
     .fixed.bottom-6,
     [data-chatbot],
-    .print\\:hidden,
     .plus-nav,
     [data-plus-nav] {
         display: none !important;
