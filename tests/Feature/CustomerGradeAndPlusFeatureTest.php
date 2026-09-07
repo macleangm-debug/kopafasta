@@ -429,6 +429,30 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->assertSame(0, \App\Models\CustomerPayment::query()->where('customer_id', $customer->id)->count());
     }
 
+    public function test_completed_plus_goal_rejects_further_contributions(): void
+    {
+        $customer = $this->customer();
+        $user = $customer->user;
+        app(PlusService::class)->grantComplimentary($customer, 'Goal guard UAT.', 1, 30);
+
+        $goal = \App\Models\PlusGoal::query()->create([
+            'customer_id' => $customer->id,
+            'kind' => 'emergency',
+            'title' => 'Emergency',
+            'target_amount' => 10_000,
+            'saved_amount' => 10_000,
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.plus.goals.contribute', $goal), ['amount' => '5,000'])
+            ->assertForbidden();
+
+        $this->assertEquals(10_000.0, (float) $goal->fresh()->saved_amount);
+        $this->assertSame(0, \App\Models\PlusGoalContribution::query()->where('plus_goal_id', $goal->id)->count());
+    }
+
     public function test_hero_and_plus_follow_grade_access_and_hide_application_tracking(): void
     {
         $customer = $this->customer([
@@ -672,13 +696,30 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertForbidden();
         $this->assertNull($goal->fresh()->completed_at);
 
+        $completed = \App\Models\PlusGoal::query()->create([
+            'customer_id' => $customer->id,
+            'kind' => 'emergency',
+            'title' => 'Done',
+            'target_amount' => 10_000,
+            'saved_amount' => 10_000,
+            'target_date' => now()->toDateString(),
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+        $this->actingAs($user)
+            ->from(route('site.borrower.plus.goals'))
+            ->post(route('site.borrower.plus.goals.contribute', $completed), ['amount' => '1,000'])
+            ->assertForbidden();
+        $this->assertEquals(10_000.0, (float) $completed->fresh()->saved_amount);
+        $this->assertSame(0, \App\Models\PlusGoalContribution::query()->where('plus_goal_id', $completed->id)->count());
+
         $this->actingAs($user)
             ->get(route('site.borrower.plus.reports'))
             ->assertOk()
             ->assertSee('kf-print-sheet', false)
             ->assertSee(__('plus.reports.a4_kicker'), false)
             ->assertSee(__('plus.reports.money'), false)
-            ->assertSee('name="month"', false);
+            ->assertDontSee('name="month"', false);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.business'))
