@@ -208,7 +208,8 @@
         display: none !important;
     }
 
-    a[href]::after {
+    a[href]::after,
+    a[href]::before {
         content: none !important;
     }
 
